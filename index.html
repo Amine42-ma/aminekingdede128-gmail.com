@@ -777,6 +777,10 @@ kbd{font-family:var(--font-lat);font-size:11px;padding:2px 6px;border-radius:6px
               <svg viewBox="0 0 24 24" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
               <span data-i18n="cancel">إيقاف</span>
             </button>
+            <button class="btn sm ghost" id="reVoiceBtn" disabled style="flex:1">
+              <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+              <span data-i18n="reVoice">أعد الأصوات</span>
+            </button>
             <button class="btn sm ghost" id="resetBtn" style="flex:1">
               <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
               <span data-i18n="reset">مسح الكل</span>
@@ -899,6 +903,13 @@ const MSG = {
     fileProto:'شغّل الملف عبر خادم محلي (مثل: python3 -m http.server) — فتحه مباشرة بـ file:// يمنع تحميل النماذج.',
     detected:'اللغة المكتشفة: ',
     workerBoot:'تعذّر تشغيل محرّك الذكاء الاصطناعي — افتح الصفحة عبر http://localhost وليس من مجلد التنزيلات',
+    resumeTitle:'لديك عمل غير مكتمل', resumeYes:'استئناف', resumeNo:'ابدأ من جديد',
+    restoring:'جارٍ الاستعادة…', restored:'مستعاد', restoredMsg:'استُعيدت الجلسة',
+    translatedN:'جملة مترجمة', clips:'مقطع صوتي',
+    needFileAgain:'حُفظت النتائج لكن الفيلم أكبر من أن يُحفظ — اختر الملف نفسه مرة أخرى لتشغيله.',
+    tooBigToSave:'الفيلم كبير جداً ليُحفظ داخل المتصفح؛ ستُحفظ النتائج فقط.',
+    reExtract:'استخراج الصوت من الفيلم…',
+    ttsModelFail:'تعذّر تحميل نموذج النطق العصبي — اكتب اسم نموذج آخر في تبويب «الأصوات»، أو استخدم ElevenLabs.',
     voiceTest:'اختبار النطق…', liveNote:'يُنطق أثناء تشغيل الفيلم',
     voiceMute:'متصفحك قبِل الأمر لكنه لم ينطق شيئاً (شائع على الهواتف). اختر «أصوات عصبية داخل المتصفح» أو محرّكاً عبر API من تبويب «الأصوات».',
     sttCloud:'تفريغ عبر الخدمة · مقطع', sttKeyHint:'أدخل مفتاح خدمة التفريغ في تبويب «المحرّك»',
@@ -922,6 +933,13 @@ const MSG = {
     fileProto:'Serve this file from a local server (e.g. python3 -m http.server) — opening it with file:// blocks model loading.',
     detected:'Detected language: ',
     workerBoot:'The AI engine could not start — open the page over http://localhost, not straight from your Downloads folder',
+    resumeTitle:'You have unfinished work', resumeYes:'Resume', resumeNo:'Start over',
+    restoring:'Restoring…', restored:'restored', restoredMsg:'Session restored',
+    translatedN:'translated lines', clips:'audio clips',
+    needFileAgain:'The results were saved but the film was too large to store — pick the same file again to play it.',
+    tooBigToSave:'This film is too large to store in the browser; only the results will be saved.',
+    reExtract:'Extracting audio from the film…',
+    ttsModelFail:'Could not load the neural speech model — enter another model name in the Voices tab, or use ElevenLabs.',
     voiceTest:'Testing speech…', liveNote:'spoken while the film plays',
     voiceMute:'Your browser accepted the request but spoke nothing (common on phones). Pick “neural voices in the browser” or an API engine in the Voices tab.',
     sttCloud:'Cloud transcription · block', sttKeyHint:'Enter the transcription service key in the Engine tab',
@@ -955,7 +973,7 @@ const el = {
   localTtsModel:$('#localTtsModel'),
   asrModel:$('#asrModel'), mtEngine:$('#mtEngine'), mtApiBox:$('#mtApiBox'), mtModel:$('#mtModel'),
   toasts:$('#toasts'), engineTxt:$('#engineTxt'), engineDot:$('#engineDot'), langUi:$('#langUi'),
-  srt:$('#srtBtn'), wav:$('#wavBtn'), test:$('#testVoice'), help:$('#helpBtn'),
+  srt:$('#srtBtn'), wav:$('#wavBtn'), test:$('#testVoice'), help:$('#helpBtn'), reVoice:$('#reVoiceBtn'),
 };
 
 /* ------------------------------ 4) الحالة ------------------------------ */
@@ -1222,6 +1240,7 @@ async function loadMedia(blob, name){
   attachMedia();
   step(0, 'done', S.mediaName + ' · ' + fmt(S.duration));
   toast(T('loaded') + ' · ' + fmt(S.duration), 'ok');
+  saveMedia().then(() => { if(S.mediaTooBig) toast(T('tooBigToSave'), 'info', 10000); });
 }
 async function loadFromUrl(url){
   const t = toast('…', 'info', 60000);
@@ -1541,6 +1560,13 @@ function localTtsModel(){
   if(custom) return custom;
   return 'Xenova/mms-tts-' + (MMS[el.dstLang.value] || 'eng');
 }
+/* أسماء المستودعات تختلف بين الناشرين — جرّبها بالترتيب مرة واحدة */
+function localTtsCandidates(){
+  const custom = (el.localTtsModel.value || '').trim();
+  if(custom) return [custom];
+  const code = MMS[el.dstLang.value] || 'eng';
+  return ['Xenova/mms-tts-' + code, 'onnx-community/mms-tts-' + code];
+}
 async function synthLocal(text, model){
   const r = await ask('tts', { text, model });
   ensureAudio();
@@ -1593,9 +1619,23 @@ async function prepareVoices(){
   }
   if(eng === 'local'){
     const segs = S.segments.filter(s => s.dst);
-    const model = localTtsModel();
+    let model = S.ttsModelOk || '';
     S.onDl = m => step(4, 'active', T('downloading') + ' · ' + Math.round(m.pct) + '%', m.pct);
     step(4, 'active', T('loadingModel'), -1);
+    if(!model){
+      const tried = [];
+      for(const cand of localTtsCandidates()){
+        if(S.cancel) break;
+        try{ await synthLocal('.', cand); model = cand; S.ttsModelOk = cand; break; }
+        catch(err){ tried.push(cand + ': ' + String(err.message || err).slice(0, 60)); }
+      }
+      if(!model){
+        S.onDl = null;
+        step(4, 'err', T('ttsModelFail'));
+        toast(T('ttsModelFail') + ' — ' + tried.join(' | '), 'err', 20000);
+        return;
+      }
+    }
     let done = 0;
     const t0 = performance.now();
     for(const sg of segs){
@@ -1661,15 +1701,33 @@ async function runPipeline(){
 
   S.running = true; S.cancel = false; S.ttsErr = false;
   el.run.disabled = true; el.cancel.disabled = false;
-  resetSteps();
+  keepAwake(true);
+  const dstCode0 = dstCode;
+  const resuming = S.segments.length > 0 && S.segments.every(s => s.src);
+  if(!resuming) resetSteps();
   step(0, 'done', S.mediaName + ' · ' + fmt(S.duration));
-  clearResults();
+  if(!resuming) clearResults();
 
   try{
     /* (1) الصوت */
     if(!S.pcm) await extractAudio();
     else step(1, 'done', fmt(S.pcm.length / SR));
     if(S.cancel) throw new Error('cancel');
+
+    /* إن عُدنا إلى جلسة محفوظة، لا نُعيد ما تمّ */
+    const haveText = S.segments.length > 0 && S.segments.every(s => s.src);
+    const haveTrans = haveText && S.segments.every(s => s.dst) && S.transLang === dstCode;
+    if(haveTrans){
+      step(2, 'done', S.segments.length + ' ' + T('segments'));
+      step(3, 'done', byCode[dstCode0][S.ui]);
+      await prepareVoices();
+      await saveAudio(); await saveMeta();
+      S.ready = true; S.nextIdx = 0;
+      el.srt.disabled = false; el.reVoice.disabled = false;
+      updateStats();
+      toast(T('done'), 'ok', 6000);
+      return;
+    }
 
     /* (2) التفريغ — مقاطع قصيرة وعدّاد حيّ: التفريغ نفسه بطيء، والمستخدم يجب أن يرى أنه حيّ */
     const sttMode = el.sttEngine.value;
@@ -1763,6 +1821,8 @@ async function runPipeline(){
     buildCast();
     step(2, 'done', S.segments.length + ' ' + T('segments'));
     renderLines();
+    S.sttUntil = S.duration;
+    saveMeta();
 
     /* (3) الترجمة */
     const srcCode = srcSel === 'auto' ? guessLang(fullText) : srcSel;
@@ -1771,6 +1831,7 @@ async function runPipeline(){
       const nm = byCode[srcCode] ? byCode[srcCode][S.ui] : srcCode;
       toast(T('detected') + nm, 'info');
     }
+    S.transLang = dstCode;
     if(srcCode === dstCode){
       S.segments.forEach(s => s.dst = s.src);
       step(3, 'done', '—');
@@ -1791,10 +1852,13 @@ async function runPipeline(){
       step(3, 'done', byCode[dstCode][S.ui]);
     }
     renderLines();
+    saveMeta();
     if(S.cancel) throw new Error('cancel');
 
     /* (4) الأصوات */
     await prepareVoices();
+    await saveAudio();
+    await saveMeta();
 
     S.ready = true;
     S.nextIdx = 0;
@@ -1814,6 +1878,9 @@ async function runPipeline(){
   }finally{
     S.running = false; S.onDl = null; S.onMt = null;
     el.run.disabled = false; el.cancel.disabled = true;
+    el.reVoice.disabled = !S.segments.length;
+    keepAwake(false);
+    saveMeta();
   }
 }
 
@@ -2132,6 +2199,7 @@ function encodeWav(buf){
   return new Blob([data.buffer], {type:'audio/wav'});
 }
 async function exportWav(){
+  if(!S.origBuffer && !(await ensurePcm())) return;
   if(!S.origBuffer) return;
   if(!S.segments.some(s => s.buf)){ toast(T('wavNeedApi'), 'err', 8000); return; }
   const t = toast('WAV …', 'info', 120000);
@@ -2289,7 +2357,11 @@ el.ttsEngine.onchange = () => {
   renderCast();
 };
 el.mtEngine.onchange = () => { syncControls(); saveSettings(); };
-el.dstLang.onchange = () => { S.voiceWarned = false; fillVoiceSelects(); loadVoices(); saveSettings(); S.curIdx = -2; renderLines(); renderCast(); };
+el.dstLang.onchange = () => {
+  S.voiceWarned = false; S.ttsModelOk = '';
+  fillVoiceSelects(); loadVoices(); saveSettings();
+  S.curIdx = -2; renderLines(); renderCast();
+};
 el.srcLang.onchange = saveSettings;
 [el.voiceA, el.voiceB, el.apiVoiceA, el.apiVoiceB, el.apiBase, el.mtModel, el.asrModel]
   .forEach(n => n.onchange = saveSettings);
@@ -2372,8 +2444,12 @@ el.reset.onclick = () => {
   el.run.disabled = true;
   el.tCur.textContent = el.tDur.textContent = '0:00'; el.seek.value = 0;
   setSub(el.subDst, '', false); setSub(el.subSrc, '', false);
+  el.reVoice.disabled = true;
+  S.ttsModelOk = ''; S.sttUntil = 0;
+  wipeSession();
 };
 el.srt.onclick = exportSrt;
+el.reVoice.onclick = redoVoices;
 el.wav.onclick = exportWav;
 el.test.onclick = async () => {
   resumeAudio();
@@ -2833,6 +2909,7 @@ async function cloneAllVoices(){
   if(el.ttsEngine.value !== 'eleven'){ toast(T('cloneNeedsEleven'), 'err', 8000); return; }
   if(!S.opts.consent){ toast(T('needConsent'), 'err', 8000); return; }
   if(!S.cast.length){ toast(T('needTranscript'), 'err'); return; }
+  if(!(await ensurePcm())) return;
   el.cloneBtn.disabled = true;
   const t = toast(T('cloning'), 'info', 600000);
   try{
@@ -3442,6 +3519,7 @@ function rprog(txt, pct){
 async function runRecap(){
   if(!S.segments.length){ toast(T('needTranscript'), 'err', 6000); return; }
   if(S.running){ toast(T('busy'), 'info'); return; }
+  if(!(await ensurePcm())) return;
   const engine = el.recapEngine.value;
   const targetSec = Number(el.recapLen.value)*60;
   const primaryL = byCode[el.dstLang.value], secondaryL = byCode[el.subLang2.value] || byCode.fr;
@@ -3992,6 +4070,7 @@ Object.assign(MSG.en, {
   shDone:'ffmpeg script downloaded — run it next to the film file to render the recap video',
 });
 Object.assign(I18N.en, {
+  reVoice:'Redo voices',
   ttsBrowser:'Browser voices — free, but needs a voice installed on your system',
   ttsLocalN:'Neural voices inside the browser — no key, produces a real audio file',
   localTtsModel:'Neural speech model',
@@ -4264,6 +4343,252 @@ el.lanes.oninput = () => { el.lanesV.textContent = el.lanes.value; };
 [el.sttBase, el.sttModel, el.lanes].forEach(n => n.onchange = saveRecap);
 el.sttKey.onchange = saveRecap;
 
+/* ============================================================================
+   27) الجلسة: احفظ كل شيء، واستأنف من حيث توقّفت
+   ----------------------------------------------------------------------------
+   متصفّح الهاتف يقتل الصفحة حين تنتقل إلى تطبيق آخر. هنا تُحفظ نتائج كل خطوة
+   في IndexedDB أولاً بأول — الحوار والترجمة والمقاطع الصوتية والفيلم نفسه —
+   فتعود لتجد العمل كما تركته بدل أن يبدأ من الصفر.
+   ============================================================================ */
+const DB_NAME = 'sawtak.session', DB_VER = 1;
+let dbP = null;
+function idb(){
+  if(dbP) return dbP;
+  dbP = new Promise((res, rej) => {
+    let rq;
+    try{ rq = indexedDB.open(DB_NAME, DB_VER); }
+    catch(err){ return rej(err); }
+    rq.onupgradeneeded = () => {
+      const db = rq.result;
+      if(!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
+      if(!db.objectStoreNames.contains('audio')) db.createObjectStore('audio');
+    };
+    rq.onsuccess = () => res(rq.result);
+    rq.onerror = () => rej(rq.error);
+  });
+  dbP.catch(() => { dbP = null; });
+  return dbP;
+}
+function idbDo(store, mode, fn){
+  return idb().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(store, mode);
+    const rq = fn(tx.objectStore(store));
+    tx.onerror = () => rej(tx.error);
+    tx.onabort = () => rej(tx.error);
+    if(rq) rq.onsuccess = () => res(rq.result);
+    else tx.oncomplete = () => res();
+  }));
+}
+const idbPut = (store, key, val) => idbDo(store, 'readwrite', st => st.put(val, key));
+const idbGet = (store, key) => idbDo(store, 'readonly', st => st.get(key));
+const idbDel = (store, key) => idbDo(store, 'readwrite', st => st.delete(key));
+const idbClearAll = () => Promise.all(['kv','audio'].map(s => idbDo(s, 'readwrite', st => st.clear())))
+  .catch(() => {});
+
+function sessionMeta(){
+  return {
+    v:1, at: Date.now(),
+    name: S.mediaName, duration: S.duration, detectedLang: S.detectedLang,
+    src: el.srcLang.value, dst: el.dstLang.value, tts: el.ttsEngine.value,
+    sttUntil: S.sttUntil || 0, transLang: S.transLang || '',
+    segments: S.segments.map(s => ({ src:s.src, dst:s.dst, start:s.start, end:s.end, spk:s.spk })),
+    cast: S.cast.map(c => ({ spk:c.spk, name:c.name, f0:c.f0, rate:c.rate, secs:c.secs, count:c.count,
+      female:c.female, pitchMul:c.pitchMul, rateMul:c.rateMul, voice:c.voice, apiVoice:c.apiVoice, cloned:c.cloned })),
+    profiles: S.spkProfiles,
+    recap: S.recap.scenes.length ? {
+      engine: S.recap.engine, spec: S.recap.spec,
+      scenes: S.recap.scenes.map(sc => Object.assign({}, sc, { voBuf:undefined })),
+    } : null,
+  };
+}
+let saveTimer = 0;
+function saveSoon(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { saveMeta(); }, 900);
+}
+async function saveMeta(){
+  if(!S.segments.length && !S.mediaBlob) return;
+  try{ await idbPut('kv', 'meta', sessionMeta()); }
+  catch(err){ console.warn('save', err); }
+}
+async function saveMedia(){
+  if(!S.mediaBlob) return;
+  if(S.mediaBlob.size > 300e6){ S.mediaTooBig = true; return; }
+  try{ await idbPut('kv', 'media', S.mediaBlob); S.mediaTooBig = false; }
+  catch(err){ S.mediaTooBig = true; console.warn('save media', err); }
+}
+async function saveAudio(){
+  const jobs = [];
+  S.segments.forEach((s, i) => {
+    if(!s.buf || s.saved) return;
+    jobs.push(idbPut('audio', i, { pcm: s.buf.getChannelData(0).slice(), sr: s.buf.sampleRate })
+      .then(() => { s.saved = true; }).catch(() => {}));
+  });
+  if(jobs.length) await Promise.all(jobs);
+}
+async function wipeSession(){
+  clearTimeout(saveTimer);
+  await idbClearAll();
+}
+
+async function restoreInto(meta){
+  const media = await idbGet('kv', 'media').catch(() => null);
+  if(media){
+    try{ await loadMedia(media, meta.name); }
+    catch(err){ console.warn('restore media', err); }
+  }
+  if(meta.src) el.srcLang.value = meta.src;
+  if(meta.dst) el.dstLang.value = meta.dst;
+  if(meta.tts) el.ttsEngine.value = meta.tts;
+  syncControls();
+  S.mediaName = meta.name || S.mediaName;
+  S.duration = S.duration || meta.duration || 0;
+  S.detectedLang = meta.detectedLang;
+  S.sttUntil = meta.sttUntil || 0;
+  S.transLang = meta.transLang || meta.dst || '';
+  S.segments = (meta.segments || []).map((s, i) => ({
+    src:s.src, dst:s.dst, start:s.start, end:s.end, spk:s.spk || 0,
+    buf:null, spoken:false, i, saved:true,
+  }));
+  S.spkProfiles = meta.profiles || [];
+  S.cast = meta.cast || [];
+  if(!S.cast.length && S.spkProfiles.length) buildCast();
+  else renderCast();
+  if(meta.recap && meta.recap.scenes){
+    S.recap.scenes = meta.recap.scenes;
+    S.recap.spec = meta.recap.spec;
+    S.recap.engine = meta.recap.engine;
+  }
+  /* أعد بناء المقاطع الصوتية المولّدة */
+  ensureAudio();
+  let restored = 0;
+  for(let i = 0; i < S.segments.length; i++){
+    let rec = null;
+    try{ rec = await idbGet('audio', i); }catch(err){}
+    if(!rec || !rec.pcm || !rec.pcm.length) continue;
+    const buf = S.ac.createBuffer(1, rec.pcm.length, rec.sr || 16000);
+    buf.copyToChannel(rec.pcm instanceof Float32Array ? rec.pcm : Float32Array.from(rec.pcm), 0);
+    S.segments[i].buf = buf;
+    restored++;
+  }
+  renderLines();
+  updateStats();
+  if(S.recap.scenes.length) renderRecap();
+  const done = S.segments.length && S.segments.every(s => s.dst);
+  step(0, 'done', S.mediaName + (S.duration ? ' · ' + fmt(S.duration) : ''));
+  step(1, media ? 'done' : null, media ? T('restored') : '');
+  step(2, 'done', S.segments.length + ' ' + T('segments'));
+  step(3, done ? 'done' : null, done ? byCode[el.dstLang.value][S.ui] : '');
+  step(4, restored ? 'done' : null, restored ? restored + '/' + S.segments.length : '');
+  S.ready = done;
+  S.nextIdx = 0;
+  el.srt.disabled = !S.segments.length;
+  el.wav.disabled = !restored;
+  el.reVoice.disabled = !S.segments.length;
+  if(!media) toast(T('needFileAgain'), 'info', 14000);
+  toast(T('restoredMsg') + ' · ' + S.segments.length + ' ' + T('segments')
+    + (restored ? ' · ' + restored + ' ' + T('clips') : ''), 'ok', 8000);
+}
+function askResume(meta){
+  const when = new Date(meta.at || Date.now());
+  const stamp = when.toLocaleString(S.ui === 'ar' ? 'ar' : 'en');
+  const withAudio = meta.segments.filter(s => s.dst).length;
+  const d = document.createElement('div');
+  d.id = 'resumeModal';
+  d.style.cssText = 'position:fixed;inset:0;z-index:118;display:grid;place-items:center;padding:20px;'
+    + 'background:rgba(3,4,10,.78);backdrop-filter:blur(9px);animation:fade .3s';
+  d.innerHTML = '<div class="card" style="max-width:520px">'
+    + '<div class="card-h"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" '
+    + 'stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></div>'
+    + '<h2>' + T('resumeTitle') + '</h2></div>'
+    + '<div class="card-b" style="display:flex;flex-direction:column;gap:12px;font-size:13.5px;line-height:1.85">'
+    + '<div><b>' + escapeHtml(meta.name || '—') + '</b></div>'
+    + '<div class="mini">' + escapeHtml(stamp) + ' · ' + meta.segments.length + ' ' + T('segments')
+    + ' · ' + withAudio + ' ' + T('translatedN') + '</div>'
+    + '<div class="btn-row">'
+    + '<button class="btn sm" id="resumeYes" style="flex:1">' + T('resumeYes') + '</button>'
+    + '<button class="btn sm ghost" id="resumeNo" style="flex:1">' + T('resumeNo') + '</button>'
+    + '</div></div></div>';
+  d.onclick = async e => {
+    if(e.target.id === 'resumeYes'){
+      d.remove();
+      const t = toast(T('restoring'), 'info', 60000);
+      try{ await restoreInto(meta); }
+      catch(err){ toast(String(err.message || err), 'err', 8000); }
+      finally{ t.remove(); }
+    } else if(e.target.id === 'resumeNo' || e.target === d){
+      d.remove();
+      wipeSession();
+    }
+  };
+  document.body.appendChild(d);
+}
+async function offerResume(){
+  let meta = null;
+  try{ meta = await idbGet('kv', 'meta'); }catch(err){ return; }
+  if(!meta || !meta.segments || !meta.segments.length) return;
+  askResume(meta);
+}
+
+/* أبقِ الشاشة صاحية أثناء المعالجة — أهم سبب لموت الصفحة على الهاتف */
+async function keepAwake(on){
+  try{
+    if(on){
+      if(!S.wakeLock && navigator.wakeLock) S.wakeLock = await navigator.wakeLock.request('screen');
+    } else if(S.wakeLock){
+      await S.wakeLock.release();
+      S.wakeLock = null;
+    }
+  }catch(err){ S.wakeLock = null; }
+}
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'hidden'){
+    saveMeta();
+    saveAudio();
+  } else if(S.running) keepAwake(true);
+});
+window.addEventListener('pagehide', () => { saveMeta(); });
+window.addEventListener('beforeunload', e => {
+  if(!S.running) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
+
+/* الصوت الخام لا يُحفظ (ضخم) — يُستخرج من الفيلم عند الحاجة */
+async function ensurePcm(){
+  if(S.pcm) return true;
+  if(!S.mediaBlob){ toast(T('needFileAgain'), 'err', 10000); return false; }
+  const t = toast(T('reExtract'), 'info', 180000);
+  try{ await extractAudio(); return !!S.pcm; }
+  catch(err){ toast(String(err.message || err), 'err', 9000); return false; }
+  finally{ t.remove(); }
+}
+
+/* إعادة الخطوة الأخيرة وحدها: لا تُهدر تفريغاً وترجمة بسبب فشل صوت */
+async function redoVoices(){
+  if(!S.segments.length){ toast(T('needTranscript'), 'err'); return; }
+  if(S.running){ toast(T('busy'), 'info'); return; }
+  S.running = true; S.cancel = false;
+  el.reVoice.disabled = true; el.cancel.disabled = false;
+  S.segments.forEach(s => { s.buf = null; s.saved = false; });
+  try{
+    await keepAwake(true);
+    await prepareVoices();
+    await saveAudio();
+    await saveMeta();
+    if(S.segments.some(s => s.buf) || el.ttsEngine.value === 'browser'){
+      S.ready = true;
+      toast(T('done'), 'ok', 6000);
+    }
+  }catch(err){
+    if(!S.cancel) toast(String(err.message || err), 'err', 9000);
+  }finally{
+    S.running = false;
+    el.reVoice.disabled = false; el.cancel.disabled = true;
+    keepAwake(false);
+  }
+}
+
 /* ------------------------------ 23.9) بيئة التشغيل ------------------------------ */
 /* نماذج الذكاء الاصطناعي لا تُحمَّل إلا من صفحة على http(s).
    فتح الملف من التنزيلات (file:// أو content:// على أندرويد) يمنع تشغيل المحرّك. */
@@ -4351,6 +4676,7 @@ function boot(){
   el.engineBadge.onclick = () => toast(navigator.gpu
     ? (S.ui === 'ar' ? 'المتصفح يدعم WebGPU — التسريع مُفعّل' : 'WebGPU is supported — acceleration on')
     : (S.ui === 'ar' ? 'لا يوجد WebGPU — سيُستخدم WASM (أبطأ)' : 'No WebGPU — falling back to WASM (slower)'), 'info');
+  offerResume();
   if(!PROTO_OK) showEnvModal();
   else if(IS_MOBILE && !/tiny/.test(el.asrModel.value)) toast(T('mobileSlow'), 'info', 11000);
   requestAnimationFrame(frame);
