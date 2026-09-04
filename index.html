@@ -862,6 +862,9 @@ const MSG = {
     fileProto:'شغّل الملف عبر خادم محلي (مثل: python3 -m http.server) — فتحه مباشرة بـ file:// يمنع تحميل النماذج.',
     detected:'اللغة المكتشفة: ',
     workerBoot:'تعذّر تشغيل محرّك الذكاء الاصطناعي — افتح الصفحة عبر http://localhost وليس من مجلد التنزيلات',
+    loadingModel:'تجهيز النموذج في الذاكرة…', asrBlock:'تفريغ المقطع', sec:' ثانية', eta:'المتبقي ~',
+    slowAsr:'جهازك بطيء مع هذا النموذج. لتسريع كبير: اختر «سريع جداً (tiny)» من تبويب «المحرّك» ثم أعد التشغيل.',
+    asrStuck:'المقطع يستغرق وقتاً غير طبيعي — غالباً WebGPU متعثّر على هذا الجهاز. اضغط «إيقاف»، ثم من تبويب «المحرّك» أطفئ «تسريع WebGPU» واختر نموذج tiny، ثم أعد التشغيل.',
     modelFail:'تعذّر تنزيل النموذج — تأكّد من الإنترنت في أول تشغيل فقط',
     mobileSlow:'أنت على هاتف: اختر نموذج «سريع جداً (tiny)» من تبويب «المحرّك» وابدأ بمقطع قصير، وإلا فالتفريغ سيستغرق وقتاً طويلاً جداً.',
   },
@@ -879,6 +882,9 @@ const MSG = {
     fileProto:'Serve this file from a local server (e.g. python3 -m http.server) — opening it with file:// blocks model loading.',
     detected:'Detected language: ',
     workerBoot:'The AI engine could not start — open the page over http://localhost, not straight from your Downloads folder',
+    loadingModel:'Loading the model into memory…', asrBlock:'Transcribing block', sec:' s', eta:'~',
+    slowAsr:'Your device is slow with this model. For a big speed-up pick “very fast (tiny)” in the Engine tab and run again.',
+    asrStuck:'This block is taking abnormally long — most likely WebGPU is stalling on this device. Press “Stop”, then in the Engine tab turn off WebGPU acceleration, pick the tiny model, and run again.',
     modelFail:'The model could not be downloaded — check your connection (first run only)',
     mobileSlow:'You are on a phone: pick the “very fast (tiny)” model in the Engine tab and start with a short clip, otherwise transcription will take a very long time.',
   }
@@ -1519,26 +1525,66 @@ async function runPipeline(){
     else step(1, 'done', fmt(S.pcm.length / SR));
     if(S.cancel) throw new Error('cancel');
 
-    /* (2) التفريغ */
-    const blocks = planBlocks(S.pcm);
+    /* (2) التفريغ — مقاطع قصيرة وعدّاد حيّ: التفريغ نفسه بطيء، والمستخدم يجب أن يرى أنه حيّ */
+    const blocks = planBlocks(S.pcm, 45);
     const wLang = srcSel === 'auto' ? null : byCode[srcSel].w;
-    S.onDl = m => step(2, 'active', T('downloading') + ' · ' + Math.round(m.pct) + '%', m.pct);
-    step(2, 'active', '', -1);
+    const modelKey = (el.asrModel.value.match(/tiny|base|small|turbo/) || ['base'])[0];
+    const STUCK_X = { tiny:10, base:24, small:50, turbo:70 }[modelKey] || 24;
+    let dling = false, warnedSlow = false, warnedStuck = false;
+    S.onDl = m => {
+      dling = m.pct < 99.5;
+      step(2, 'active', dling ? T('downloading') + ' · ' + Math.round(m.pct) + '%' : T('loadingModel'),
+        dling ? m.pct : -1);
+    };
+    step(2, 'active', T('loadingModel'), -1);
     const raw = [];
     let fullText = '';
+    let doneSec = 0, spentSec = 0, measuredSec = 0;
+    const totalSec = S.pcm.length / SR;
     for(let i = 0; i < blocks.length; i++){
       if(S.cancel) throw new Error('cancel');
       const [a, b] = blocks[i];
       const slice = S.pcm.slice(a, b);
-      const off = a / SR;
-      const res = await ask('asr', {audio:slice, model:el.asrModel.value, gpu:S.opts.gpu, lang:wLang}, [slice.buffer]);
-      S.onDl = null;
+      const off = a / SR, blockSec = (b - a) / SR;
+      const t0 = performance.now();
+      /* نبضة كل ثانية: كم مضى، وكم تبقّى — بدل شريط ساكن يوحي بالتعطّل */
+      const tick = setInterval(() => {
+        if(dling) return;
+        const el0 = (performance.now() - t0) / 1000;
+        let note = T('asrBlock') + ' ' + (i+1) + '/' + blocks.length + ' · ' + Math.round(el0) + T('sec');
+        if(measuredSec > 0){
+          const left = (spentSec / measuredSec) * (totalSec - doneSec) - el0;
+          if(left > 2) note += ' · ' + T('eta') + ' ' + fmt(left);
+        }
+        if(el0 > Math.max(240, blockSec * STUCK_X)){
+          note = T('asrStuck');
+          if(!warnedStuck){ warnedStuck = true; toast(T('asrStuck'), 'err', 20000); }
+        }
+        step(2, 'active', note, (doneSec / totalSec) * 100);
+      }, 1000);
+      let res;
+      try{
+        res = await ask('asr', {audio:slice, model:el.asrModel.value, gpu:S.opts.gpu, lang:wLang}, [slice.buffer]);
+      } finally { clearInterval(tick); }
+      S.onDl = null; dling = false;
+      const took = (performance.now() - t0) / 1000;
+      doneSec += blockSec;
+      /* لا نحسب المقطع الأول في التقدير: يحوي تنزيل النموذج وتجهيزه */
+      if(i > 0 || blocks.length === 1){ spentSec += took; measuredSec += blockSec; }
+      else { doneSec = blockSec; spentSec = 0; measuredSec = 0; }
+      if(i === 0 && !warnedSlow && took > blockSec * 2.2 && modelKey !== 'tiny'){
+        warnedSlow = true;
+        toast(T('slowAsr'), 'info', 14000);
+      }
       fullText += ' ' + (res.text || '');
       for(const c of (res.chunks || [])){
         const ts = c.timestamp || [];
         raw.push({ text:c.text, start:(ts[0] == null ? 0 : ts[0]) + off, end:(ts[1] == null ? null : ts[1] + off) });
       }
-      step(2, 'active', (i + 1) + ' / ' + blocks.length, ((i + 1) / blocks.length) * 100);
+      step(2, 'active', (i + 1) + ' / ' + blocks.length, (doneSec / totalSec) * 100);
+      /* اعرض ما فُرّغ حتى الآن — أوضح دليل على أن العمل يتقدّم */
+      S.segments = refineSegments(raw, totalSec);
+      renderLines();
     }
     S.segments = refineSegments(raw, S.pcm.length / SR);
     assignSpeakers(S.segments);
