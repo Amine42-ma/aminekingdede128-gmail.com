@@ -647,7 +647,38 @@ kbd{font-family:var(--font-lat);font-size:11px;padding:2px 6px;border-radius:6px
           <!-- المحرّك -->
           <div class="pane" id="pEngine">
             <div class="field">
-              <label class="lbl" for="asrModel" data-i18n="asrModel">دقة التعرّف على الكلام</label>
+              <label class="lbl" for="sttEngine" data-i18n="sttEngine">أين يجري تفريغ الحوار؟</label>
+              <select id="sttEngine">
+                <option value="local" selected data-i18n="sttLocal">داخل المتصفح — مجاني وبلا إنترنت، لكنه الأبطأ</option>
+                <option value="groq" data-i18n="sttGroq">Groq — الأسرع (Whisper large v3 turbo)</option>
+                <option value="openai" data-i18n="sttOpenai">OpenAI أو أي خدمة متوافقة</option>
+                <option value="eleven" data-i18n="sttEleven">ElevenLabs Scribe — يفصل المتحدثين بنفسه</option>
+              </select>
+            </div>
+            <div id="sttCloudBox" class="hidden">
+              <div class="field">
+                <label class="lbl" for="sttKey" data-i18n="sttKey">مفتاح خدمة التفريغ</label>
+                <input type="password" id="sttKey" placeholder="gsk_... / sk-... / xi-..." autocomplete="off">
+              </div>
+              <div class="field" id="sttBaseBox">
+                <label class="lbl" for="sttBase" data-i18n="sttBase">عنوان الخدمة</label>
+                <input type="url" id="sttBase" placeholder="https://api.groq.com/openai/v1">
+              </div>
+              <div class="field">
+                <label class="lbl" for="sttModel" data-i18n="sttModel">اسم النموذج</label>
+                <input type="text" id="sttModel" placeholder="whisper-large-v3-turbo">
+              </div>
+              <div class="slider-row">
+                <div class="top"><span data-i18n="lanes">طلبات متوازية</span><b id="lanesV">4</b></div>
+                <input type="range" id="lanes" min="1" max="8" step="1" value="4">
+              </div>
+              <div class="notice info">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+                <span data-i18n="sttNote">يُقسَّم الصوت ويُرسل عدة مقاطع في وقت واحد، فيتحوّل تفريغ فيلم من ساعات إلى ثوانٍ. يُرفع الصوت فقط — لا الفيديو — إلى الخدمة التي تختارها أنت.</span>
+              </div>
+            </div>
+            <div class="field" id="asrModelBox">
+              <label class="lbl" for="asrModel" data-i18n="asrModel">دقة التعرّف على الكلام (محلياً)</label>
               <select id="asrModel">
                 <option value="Xenova/whisper-tiny" data-i18n="asrTiny">سريع جداً — دقة أقل (~40 ميغا)</option>
                 <option value="Xenova/whisper-base" selected data-i18n="asrBase">متوازن — موصى به (~80 ميغا)</option>
@@ -854,7 +885,7 @@ const MSG = {
     decodeFail2:'تعذّر استخراج الصوت من هذا الملف. جرّب تحويله إلى MP4 أو MP3.',
     urlAsk:'الصق رابط ملف الفيديو أو الصوت المباشر (لا تدعم مواقع البث مثل يوتيوب):',
     urlFail:'تعذّر جلب الرابط — غالباً بسبب حماية CORS. نزّل الملف ثم ارفعه من جهازك.',
-    noVoice:'لا يوجد صوت مثبّت لهذه اللغة في نظامك — ثبّت حزمة أصوات أو استخدم محرّكاً عبر API.',
+    noVoice:'لا يوجد صوت مثبّت لهذه اللغة في جهازك، فلن تسمع دبلجة. الحل: اختر «ElevenLabs» أو «OpenAI» من «محرّك النطق» في تبويب «الأصوات» وأدخل مفتاحاً — أو ثبّت حزمة صوت عربي في نظامك.',
     keyNeeded:'أدخل مفتاح API أولاً', ttsFail:'فشل توليد الصوت: ', segments:'جملة', downloading:'تنزيل النموذج',
     speaking:'يتحدث', dubOn:'الدبلجة مُفعّلة', dubOff:'الدبلجة متوقفة — الصوت الأصلي',
     fileTooShort:'الملف لا يحتوي على صوت مسموع', wavDone:'تم تصدير المسار الصوتي المدبلج',
@@ -862,6 +893,7 @@ const MSG = {
     fileProto:'شغّل الملف عبر خادم محلي (مثل: python3 -m http.server) — فتحه مباشرة بـ file:// يمنع تحميل النماذج.',
     detected:'اللغة المكتشفة: ',
     workerBoot:'تعذّر تشغيل محرّك الذكاء الاصطناعي — افتح الصفحة عبر http://localhost وليس من مجلد التنزيلات',
+    sttCloud:'تفريغ عبر الخدمة · مقطع', sttKeyHint:'أدخل مفتاح خدمة التفريغ في تبويب «المحرّك»',
     loadingModel:'تجهيز النموذج في الذاكرة…', asrBlock:'تفريغ المقطع', sec:' ثانية', eta:'المتبقي ~',
     slowAsr:'جهازك بطيء مع هذا النموذج. لتسريع كبير: اختر «سريع جداً (tiny)» من تبويب «المحرّك» ثم أعد التشغيل.',
     asrStuck:'المقطع يستغرق وقتاً غير طبيعي — غالباً WebGPU متعثّر على هذا الجهاز. اضغط «إيقاف»، ثم من تبويب «المحرّك» أطفئ «تسريع WebGPU» واختر نموذج tiny، ثم أعد التشغيل.',
@@ -874,7 +906,7 @@ const MSG = {
     decodeFail2:'Could not extract audio from this file. Try converting it to MP4 or MP3.',
     urlAsk:'Paste a direct video/audio URL (streaming sites like YouTube are not supported):',
     urlFail:'Could not fetch the URL — most likely CORS. Download the file and upload it instead.',
-    noVoice:'No installed voice for this language on your system — install a voice pack or use an API engine.',
+    noVoice:'Your device has no voice for this language, so you will hear no dubbing. Fix: pick “ElevenLabs” or “OpenAI” as the speech engine in the Voices tab and enter a key — or install a system voice pack.',
     keyNeeded:'Enter an API key first', ttsFail:'Speech generation failed: ', segments:'lines', downloading:'Downloading model',
     speaking:'speaking', dubOn:'Dubbing on', dubOff:'Dubbing off — original audio',
     fileTooShort:'This file has no audible sound', wavDone:'Dubbed audio track exported',
@@ -882,6 +914,7 @@ const MSG = {
     fileProto:'Serve this file from a local server (e.g. python3 -m http.server) — opening it with file:// blocks model loading.',
     detected:'Detected language: ',
     workerBoot:'The AI engine could not start — open the page over http://localhost, not straight from your Downloads folder',
+    sttCloud:'Cloud transcription · block', sttKeyHint:'Enter the transcription service key in the Engine tab',
     loadingModel:'Loading the model into memory…', asrBlock:'Transcribing block', sec:' s', eta:'~',
     slowAsr:'Your device is slow with this model. For a big speed-up pick “very fast (tiny)” in the Engine tab and run again.',
     asrStuck:'This block is taking abnormally long — most likely WebGPU is stalling on this device. Press “Stop”, then in the Engine tab turn off WebGPU acceleration, pick the tiny model, and run again.',
@@ -1349,13 +1382,14 @@ function refineSegments(raw, total){
     if(!isFinite(e) || e <= s) e = s + Math.min(6, Math.max(1.2, txt.length / 15));
     e = Math.min(e, total || e);
     const prev = out[out.length - 1];
-    if(prev && s - prev.end < 0.32 && (prev.end - prev.start) < 1.15 && prev.src.length < 40){
+    if(prev && s - prev.end < 0.32 && (prev.end - prev.start) < 1.15 && prev.src.length < 40
+       && (c.spk == null || prev.spk === c.spk)){
       prev.src = (prev.src + ' ' + txt).trim();
       prev.end = e;
       continue;
     }
     if(prev && s < prev.end) s = prev.end;
-    out.push({src:txt, dst:'', start:s, end:Math.max(e, s + 0.35), spk:0, buf:null, spoken:false});
+    out.push({src:txt, dst:'', start:s, end:Math.max(e, s + 0.35), spk:(c.spk == null ? 0 : c.spk), buf:null, spoken:false});
   }
   out.forEach((s, i) => s.i = i);
   return out;
@@ -1384,9 +1418,16 @@ async function translateApi(texts, srcName, tgtName, onProg){
   if(!key) throw new Error(T('keyNeeded'));
   const base = (el.apiBase.value.trim() || 'https://api.openai.com/v1').replace(/\/+$/, '');
   const model = el.mtModel.value.trim() || 'gpt-4o-mini';
-  const out = [];
   const SIZE = 25;
-  for(let i = 0; i < texts.length; i += SIZE){
+  const jobs = [];
+  for(let i = 0; i < texts.length; i += SIZE) jobs.push(i);
+  const out = new Array(texts.length);
+  let next = 0, done = 0;
+  const one = async () => {
+   for(;;){
+    const ji = next++;
+    if(ji >= jobs.length) return;
+    const i = jobs[ji];
     if(S.cancel) throw new Error('cancel');
     const batch = texts.slice(i, i + SIZE);
     const sys = 'You are a professional film dubbing translator. Translate each numbered line from '
@@ -1407,10 +1448,13 @@ async function translateApi(texts, srcName, tgtName, onProg){
     try{ arr = JSON.parse(content); }
     catch(e){ const m = content.match(/\[[\s\S]*\]/); arr = m ? JSON.parse(m[0]) : batch; }
     if(!Array.isArray(arr)) arr = batch;
-    for(let k = 0; k < batch.length; k++) out.push(String(arr[k] != null ? arr[k] : batch[k]));
-    onProg(out.length, texts.length);
-  }
-  return out;
+    for(let k = 0; k < batch.length; k++) out[i + k] = String(arr[k] != null ? arr[k] : batch[k]);
+    done += batch.length;
+    onProg(done, texts.length);
+   }
+  };
+  await Promise.all(Array.from({length: Math.min(3, jobs.length)}, one));
+  return out.map((x, i) => x == null ? texts[i] : x);
 }
 
 /* ------------------------------ 14) محرّكات النطق ------------------------------ */
@@ -1468,15 +1512,19 @@ async function prepareVoices(){
   const eng = el.ttsEngine.value;
   if(eng === 'browser'){
     const v = pickVoice(0);
-    step(4, v ? 'done' : 'err', v ? v.name : T('noVoice'));
-    if(!v) toast(T('noVoice'), 'err', 8000);
+    if(!v || !hasNativeVoice(el.dstLang.value)){
+      step(4, 'err', T('noVoice'));
+      toast(T('noVoice'), 'err', 15000);
+      return;
+    }
+    step(4, 'done', v.name);
     return;
   }
   const segs = S.segments.filter(s => s.dst);
   let done = 0, failed = 0;
   step(4, 'active', '0/' + segs.length, 0);
   const queue = segs.slice();
-  const lanes = Array.from({length:3}, async () => {
+  const lanes = Array.from({length:5}, async () => {
     while(queue.length){
       if(S.cancel) return;
       const s = queue.shift();
@@ -1526,7 +1574,8 @@ async function runPipeline(){
     if(S.cancel) throw new Error('cancel');
 
     /* (2) التفريغ — مقاطع قصيرة وعدّاد حيّ: التفريغ نفسه بطيء، والمستخدم يجب أن يرى أنه حيّ */
-    const blocks = planBlocks(S.pcm, 45);
+    const sttMode = el.sttEngine.value;
+    const blocks = planBlocks(S.pcm, sttMode === 'local' ? 45 : 90);
     const wLang = srcSel === 'auto' ? null : byCode[srcSel].w;
     const modelKey = (el.asrModel.value.match(/tiny|base|small|turbo/) || ['base'])[0];
     const STUCK_X = { tiny:10, base:24, small:50, turbo:70 }[modelKey] || 24;
@@ -1541,6 +1590,20 @@ async function runPipeline(){
     let fullText = '';
     let doneSec = 0, spentSec = 0, measuredSec = 0;
     const totalSec = S.pcm.length / SR;
+    let sttSpeakers = 0;
+    if(sttMode !== 'local'){
+      step(2, 'active', T('sttCloud') + ' 0/' + blocks.length, 0);
+      const cloud = await transcribeCloud(blocks, wLang, (d, n, secs) => {
+        const left = (secs/Math.max(1, d))*(n - d);
+        step(2, 'active', T('sttCloud') + ' ' + d + '/' + n
+          + (left > 2 ? ' · ' + T('eta') + ' ' + fmt(left) : ''), (d/n)*100);
+      });
+      for(const x of cloud.raw) raw.push(x);
+      fullText = cloud.fullText;
+      sttSpeakers = cloud.speakers;
+      S.segments = refineSegments(raw, totalSec);
+      renderLines();
+    } else
     for(let i = 0; i < blocks.length; i++){
       if(S.cancel) throw new Error('cancel');
       const [a, b] = blocks[i];
@@ -1589,7 +1652,12 @@ async function runPipeline(){
     S.segments = refineSegments(raw, S.pcm.length / SR);
     assignSpeakers(S.segments);
     if(!S.segments.length) throw new Error(T('fileTooShort'));
-    if(S.opts.multi){
+    if(sttSpeakers > 1){
+      /* الخدمة ميّزت المتحدثين بنفسها — يبقى قياس طبقة صوت كل واحد */
+      step(2, 'active', T('rDiar'), -1);
+      try{ await measureProfiles(pc => step(2, 'active', T('rDiar') + ' ' + Math.round(pc*100) + '%', pc*100)); }
+      catch(err){ console.warn('profiles', err); }
+    } else if(S.opts.multi){
       step(2, 'active', T('rDiar'), -1);
       try{ await diarize(pc => step(2, 'active', T('rDiar') + ' ' + Math.round(pc*100) + '%', pc*100)); }
       catch(err){ console.warn('diarize', err); }
@@ -1655,6 +1723,11 @@ async function runPipeline(){
 function loadVoices(){
   S.voices = (window.speechSynthesis ? speechSynthesis.getVoices() : []) || [];
   fillVoiceSelects();
+  /* قل له الآن، لا بعد نصف ساعة من المعالجة */
+  if(S.voices.length && !S.voiceWarned && el.ttsEngine.value === 'browser' && !hasNativeVoice(el.dstLang.value)){
+    S.voiceWarned = true;
+    toast(T('noVoice'), 'err', 15000);
+  }
 }
 function voicesForLang(code){
   const l = byCode[code];
@@ -1683,6 +1756,12 @@ function fillVoiceSelects(){
     if(keep && list.some(v => v.name === keep)) sel.value = keep;
     else sel.selectedIndex = Math.min(idx, list.length - 1);
   });
+}
+function hasNativeVoice(code){
+  const l = byCode[code];
+  if(!l) return false;
+  const pref = (l.b || code).toLowerCase().split('-')[0];
+  return S.voices.some(v => (v.lang || '').toLowerCase().replace('_', '-').split('-')[0] === pref);
 }
 function pickVoice(spk){
   const list = voicesForLang(el.dstLang.value);
@@ -2106,7 +2185,7 @@ el.ttsEngine.onchange = () => {
   renderCast();
 };
 el.mtEngine.onchange = () => { syncControls(); saveSettings(); };
-el.dstLang.onchange = () => { fillVoiceSelects(); saveSettings(); S.curIdx = -2; renderLines(); renderCast(); };
+el.dstLang.onchange = () => { S.voiceWarned = false; fillVoiceSelects(); loadVoices(); saveSettings(); S.curIdx = -2; renderLines(); renderCast(); };
 el.srcLang.onchange = saveSettings;
 [el.voiceA, el.voiceB, el.apiVoiceA, el.apiVoiceB, el.apiBase, el.mtModel, el.asrModel]
   .forEach(n => n.onchange = saveSettings);
@@ -3675,16 +3754,23 @@ function saveRecap(){
     localStorage.setItem(RSTORE, JSON.stringify({
       engine:el.recapEngine.value, model:el.recapModel.value, len:el.recapLen.value,
       sub2:el.subLang2.value, spk:el.maxSpk.value,
+      stt:el.sttEngine.value, sttBase:el.sttBase.value, sttModel:el.sttModel.value, lanes:el.lanes.value,
       match:S.opts.match, clone:S.opts.clone, vision:S.opts.vision, vo:S.opts.vo,
     }));
   }catch(e){}
   try{ sessionStorage.setItem(RSTORE + '.key', el.llmKey.value); }catch(e){}
+  try{ sessionStorage.setItem(RSTORE + '.stt', el.sttKey.value); }catch(e){}
 }
 function loadRecap(){
   let d = null;
   try{ d = JSON.parse(localStorage.getItem(RSTORE) || 'null'); }catch(e){}
   try{ el.llmKey.value = sessionStorage.getItem(RSTORE + '.key') || ''; }catch(e){}
+  try{ el.sttKey.value = sessionStorage.getItem(RSTORE + '.stt') || ''; }catch(e){}
   if(d){
+    if(d.stt) el.sttEngine.value = d.stt;
+    if(d.sttBase) el.sttBase.value = d.sttBase;
+    if(d.sttModel) el.sttModel.value = d.sttModel;
+    if(d.lanes) el.lanes.value = d.lanes;
     if(d.engine) el.recapEngine.value = d.engine;
     if(d.model) el.recapModel.value = d.model;
     if(d.len) el.recapLen.value = d.len;
@@ -3694,6 +3780,7 @@ function loadRecap(){
   }
 }
 function syncRecapUi(){
+  syncStt();
   const eng = el.recapEngine.value;
   el.llmKeyBox.classList.toggle('hidden', eng === 'local');
   el.recapModelBox.classList.toggle('hidden', eng === 'local');
@@ -3803,6 +3890,15 @@ Object.assign(MSG.en, {
   shDone:'ffmpeg script downloaded — run it next to the film file to render the recap video',
 });
 Object.assign(I18N.en, {
+  sttEngine:'Where is the dialogue transcribed?',
+  sttLocal:'In your browser — free and offline, but the slowest',
+  sttGroq:'Groq — fastest (Whisper large v3 turbo)',
+  sttOpenai:'OpenAI or any compatible service',
+  sttEleven:'ElevenLabs Scribe — separates the speakers itself',
+  sttKey:'Transcription service key', sttBase:'Service endpoint', sttModel:'Model name',
+  lanes:'Parallel requests',
+  sttNote:'The audio is split and several blocks are sent at once, turning hours of transcription into seconds. Only the audio is uploaded — never the video — to the service you pick.',
+  asrModel:'Speech recognition accuracy (local)',
   maxSpk:'Number of actor voices', spkAuto:'Auto detect — tells actors apart by voice fingerprint',
   tgMatchT:'Match the original actor’s voice', tgMatchS:'Measures each actor’s pitch and pace from the film itself and reproduces them in the new language',
   tgCloneT:'Clone the actors’ voices', tgCloneS:'Takes a sample of each actor and makes them speak the new language in their own voice — needs an ElevenLabs key',
@@ -3820,6 +3916,247 @@ Object.assign(I18N.en, {
   recapRun:'Analyse the film and build the recap',
   recapNote:'The analysis is grounded in what is actually said in the film and what appears in its frames — no invented events. Local mode picks the important scenes from audio, picture and dialogue density; Claude mode also writes the narration, the dubbed dialogue and the dual subtitles.',
 });
+
+/* ============================================================================
+   26) تفريغ الحوار عبر خدمات سحابية
+   ----------------------------------------------------------------------------
+   التفريغ داخل المتصفح هو الخطوة الأبطأ بفارق كبير. هنا يُقسَّم الصوت ويُرسل
+   عدة مقاطع في وقت واحد إلى خدمة يختارها المستخدم، فيصير تفريغ فيلم ثوانيَ
+   بدل ساعات. الصوت وحده يُرفع — لا الفيديو — والمفتاح يبقى في المتصفح.
+   ============================================================================ */
+const STT_PRESETS = {
+  groq:   { base:'https://api.groq.com/openai/v1', model:'whisper-large-v3-turbo', kind:'openai' },
+  openai: { base:'https://api.openai.com/v1',      model:'whisper-1',              kind:'openai' },
+  eleven: { base:'https://api.elevenlabs.io/v1',   model:'scribe_v1',              kind:'eleven' },
+};
+Object.assign(el, {
+  sttEngine:$('#sttEngine'), sttCloudBox:$('#sttCloudBox'), sttKey:$('#sttKey'),
+  sttBase:$('#sttBase'), sttBaseBox:$('#sttBaseBox'), sttModel:$('#sttModel'),
+  asrModelBox:$('#asrModelBox'), lanes:$('#lanes'), lanesV:$('#lanesV'),
+});
+
+const LITTLE_ENDIAN = (() => {
+  const b = new ArrayBuffer(2);
+  new DataView(b).setInt16(0, 256, true);
+  return new Int16Array(b)[0] === 256;
+})();
+function pcmToWav(f32, sr){
+  const n = f32.length;
+  const dv = new DataView(new ArrayBuffer(44 + n*2));
+  const wr = (o, s) => { for(let i=0; i<s.length; i++) dv.setUint8(o+i, s.charCodeAt(i)); };
+  wr(0, 'RIFF'); dv.setUint32(4, 36 + n*2, true); wr(8, 'WAVEfmt ');
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, sr, true); dv.setUint32(28, sr*2, true);
+  dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+  wr(36, 'data'); dv.setUint32(40, n*2, true);
+  if(LITTLE_ENDIAN){
+    const pcm = new Int16Array(dv.buffer, 44, n);
+    for(let i=0; i<n; i++){
+      const v = clamp(f32[i], -1, 1);
+      pcm[i] = v < 0 ? v*0x8000 : v*0x7fff;
+    }
+  } else {
+    let o = 44;
+    for(let i=0; i<n; i++){
+      const v = clamp(f32[i], -1, 1);
+      dv.setInt16(o, v < 0 ? v*0x8000 : v*0x7fff, true);
+      o += 2;
+    }
+  }
+  return new Blob([dv.buffer], {type:'audio/wav'});
+}
+const sttPreset = () => STT_PRESETS[el.sttEngine.value] || STT_PRESETS.groq;
+function sttKeyVal(){
+  const k = (el.sttKey.value || '').trim();
+  if(k) return k;
+  /* المستخدم قد يكون أدخل نفس المفتاح في تبويب الأصوات */
+  const alt = (el.apiKey.value || '').trim();
+  if(alt) return alt;
+  throw new Error(T('keyNeeded'));
+}
+
+/* تجميع الكلمات في جمل: عند علامة وقف، أو صمت، أو تغيّر المتحدث */
+function linesFromWords(words, gap){
+  const out = [];
+  let cur = null;
+  for(const w of (words || [])){
+    const type = w.type || 'word';
+    if(type === 'spacing') continue;
+    if(type !== 'word' && type !== 'text') continue;
+    const txt = String(w.text != null ? w.text : w.word || '').trim();
+    if(!txt) continue;
+    const a = Number(w.start), b = Number(w.end);
+    if(!isFinite(a)) continue;
+    const spk = w.speaker_id != null ? w.speaker_id : (w.speaker != null ? w.speaker : null);
+    const brk = !cur || (a - cur.end) > gap || cur.spk !== spk
+      || cur.text.length > 150 || /[.!?؟…]["'»]?$/.test(cur.text);
+    if(brk){ cur = { text:txt, start:a, end:isFinite(b) ? b : a + 0.3, spk }; out.push(cur); }
+    else { cur.text += (/^[.,!?;:'’]/.test(txt) ? '' : ' ') + txt; if(isFinite(b)) cur.end = b; }
+  }
+  return out;
+}
+/* لا توقيتات من الخدمة: وزّع الجمل على مدّة المقطع بحسب أطوالها */
+function linesFromText(text, dur){
+  const parts = String(text || '').split(/(?<=[.!?؟…])\s+/).map(x => x.trim()).filter(Boolean);
+  if(!parts.length) return [];
+  const total = parts.reduce((a, p) => a + p.length, 0) || 1;
+  const out = [];
+  let t = 0;
+  for(const p of parts){
+    const d = dur*(p.length/total);
+    out.push({ text:p, start:t, end:t + d, spk:null });
+    t += d;
+  }
+  return out;
+}
+function parseStt(j, dur, kind){
+  if(kind !== 'eleven' && Array.isArray(j.segments) && j.segments.length)
+    return j.segments.map(sg => ({ text:String(sg.text || '').trim(), start:Number(sg.start), end:Number(sg.end), spk:null }))
+                     .filter(x => x.text && isFinite(x.start));
+  if(Array.isArray(j.words) && j.words.length) return linesFromWords(j.words, 0.55);
+  return linesFromText(j.text, dur);
+}
+
+async function sttOpenai(blob, lang, verbose, tries){
+  const key = sttKeyVal();
+  const base = (el.sttBase.value.trim() || sttPreset().base).replace(/\/+$/, '');
+  const model = el.sttModel.value.trim() || sttPreset().model;
+  const fd = new FormData();
+  fd.append('file', new File([blob], 'audio.wav', {type:'audio/wav'}));
+  fd.append('model', model);
+  if(lang) fd.append('language', lang);
+  if(verbose){ fd.append('response_format', 'verbose_json'); fd.append('timestamp_granularities[]', 'segment'); }
+  else fd.append('response_format', 'json');
+  const r = await fetch(base + '/audio/transcriptions', {
+    method:'POST', headers:{ 'Authorization':'Bearer ' + key }, body: fd,
+  });
+  if(!r.ok){
+    const detail = (await r.text().catch(() => '')).slice(0, 220);
+    if((r.status === 429 || r.status >= 500) && (tries || 0) < 3){
+      await sleep(1200*((tries || 0) + 1));
+      return sttOpenai(blob, lang, verbose, (tries || 0) + 1);
+    }
+    /* نموذج لا يدعم التوقيتات — أعد المحاولة بصيغة عادية */
+    if(verbose && r.status === 400) return sttOpenai(blob, lang, false, tries);
+    throw new Error('STT ' + r.status + ': ' + detail);
+  }
+  return await r.json();
+}
+async function sttEleven(blob, lang, tries){
+  const key = sttKeyVal();
+  const base = (el.sttBase.value.trim() || STT_PRESETS.eleven.base).replace(/\/+$/, '');
+  const fd = new FormData();
+  fd.append('file', new File([blob], 'audio.wav', {type:'audio/wav'}));
+  fd.append('model_id', el.sttModel.value.trim() || STT_PRESETS.eleven.model);
+  fd.append('diarize', 'true');
+  fd.append('timestamps_granularity', 'word');
+  if(lang) fd.append('language_code', lang);
+  const r = await fetch(base + '/speech-to-text', { method:'POST', headers:{ 'xi-api-key':key }, body: fd });
+  if(!r.ok){
+    const detail = (await r.text().catch(() => '')).slice(0, 220);
+    if((r.status === 429 || r.status >= 500) && (tries || 0) < 3){
+      await sleep(1200*((tries || 0) + 1));
+      return sttEleven(blob, lang, (tries || 0) + 1);
+    }
+    throw new Error('STT ' + r.status + ': ' + detail);
+  }
+  return await r.json();
+}
+
+async function transcribeCloud(blocks, wLang, onProg){
+  const kind = sttPreset().kind;
+  const lanes = clamp(Number(el.lanes.value) || 4, 1, 8);
+  const results = new Array(blocks.length);
+  let next = 0, done = 0;
+  const t0 = performance.now();
+  const worker = async () => {
+    for(;;){
+      const i = next++;
+      if(i >= blocks.length) return;
+      if(S.cancel) throw new Error('cancel');
+      const [a, b] = blocks[i];
+      const dur = (b - a)/SR, off = a/SR;
+      await yieldUi();
+      const wav = pcmToWav(S.pcm.subarray(a, b), SR);
+      const j = kind === 'eleven' ? await sttEleven(wav, wLang) : await sttOpenai(wav, wLang, true);
+      results[i] = {
+        lines: parseStt(j, dur, kind).map(x => ({
+          text:x.text, start:x.start + off, end:(x.end == null ? null : x.end + off), spk:x.spk,
+        })),
+        text: j.text || '',
+      };
+      done++;
+      if(onProg) onProg(done, blocks.length, (performance.now() - t0)/1000, results);
+    }
+  };
+  await Promise.all(Array.from({length: Math.min(lanes, blocks.length)}, worker));
+  const raw = [], ids = [];
+  let fullText = '';
+  for(const r of results){
+    if(!r) continue;
+    fullText += ' ' + r.text;
+    for(const l of r.lines){
+      if(l.spk != null && ids.indexOf(l.spk) < 0) ids.push(l.spk);
+      raw.push({ text:l.text, start:l.start, end:l.end, spk:l.spk == null ? null : ids.indexOf(l.spk) });
+    }
+  }
+  return { raw, fullText, speakers: ids.length > 1 ? ids.length : 0 };
+}
+
+/* قياس طبقة الصوت والسرعة لمتحدثين عرفتهم الخدمة مسبقاً (بلا تجميع) */
+async function measureProfiles(onProg){
+  const segs = S.segments;
+  if(!segs.length || !S.pcm) return;
+  const n = Math.max(1, new Set(segs.map(s => s.spk)).size);
+  const f0by = Array.from({length:n}, () => []);
+  const rateby = Array.from({length:n}, () => []);
+  const secs = new Float64Array(n), cnts = new Int32Array(n);
+  for(let i=0; i<segs.length; i++){
+    const s = segs[i];
+    const spk = clamp(s.spk|0, 0, n-1);
+    const a = Math.max(0, Math.floor(s.start*SR));
+    const b = Math.min(S.pcm.length, Math.floor(Math.min(s.end, s.start + 2.5)*SR));
+    const hop = Math.max(1024, Math.floor((b - a)/8));
+    for(let p = a; p + 1024 < b; p += hop){
+      const f = estimateF0(S.pcm, p, 1024);
+      if(f) f0by[spk].push(f);
+    }
+    const dur = s.end - s.start;
+    if(dur > 0.5) rateby[spk].push(s.src.length/dur);
+    secs[spk] += dur; cnts[spk]++;
+    if((i % 40) === 0){ if(onProg) onProg(i/segs.length); await yieldUi(); if(S.cancel) return; }
+  }
+  const globalRate = median(segs.filter(s => s.end - s.start > 0.5).map(s => s.src.length/(s.end - s.start))) || 12;
+  S.spkProfiles = Array.from({length:n}, (_, i) => {
+    const f0 = median(f0by[i]) || 0;
+    const rate = median(rateby[i]) || globalRate;
+    return {
+      spk:i, f0, rate, secs:secs[i], count:cnts[i],
+      female: f0 ? f0 >= 158 : null,
+      pitchMul: f0 ? clamp(1 + Math.log2(f0/168)*0.62, 0.55, 1.8) : 1,
+      rateMul: clamp(Math.pow(rate/globalRate, 0.5), 0.87, 1.16),
+    };
+  });
+}
+
+function syncStt(){
+  const eng = el.sttEngine.value;
+  const cloud = eng !== 'local';
+  el.sttCloudBox.classList.toggle('hidden', !cloud);
+  el.asrModelBox.classList.toggle('hidden', cloud);
+  el.sttBaseBox.classList.toggle('hidden', eng === 'eleven');
+  el.lanesV.textContent = el.lanes.value;
+  if(cloud){
+    const pr = sttPreset();
+    if(!el.sttBase.value.trim() || /api\.(groq|openai)\.com|elevenlabs/.test(el.sttBase.value)) el.sttBase.value = pr.base;
+    const known = Object.keys(STT_PRESETS).map(k => STT_PRESETS[k].model);
+    if(!el.sttModel.value.trim() || known.indexOf(el.sttModel.value.trim()) >= 0) el.sttModel.value = pr.model;
+  }
+}
+el.sttEngine.onchange = () => { syncStt(); saveRecap(); };
+el.lanes.oninput = () => { el.lanesV.textContent = el.lanes.value; };
+[el.sttBase, el.sttModel, el.lanes].forEach(n => n.onchange = saveRecap);
+el.sttKey.onchange = saveRecap;
 
 /* ------------------------------ 23.9) بيئة التشغيل ------------------------------ */
 /* نماذج الذكاء الاصطناعي لا تُحمَّل إلا من صفحة على http(s).
