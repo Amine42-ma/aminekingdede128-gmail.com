@@ -511,12 +511,18 @@ kbd{font-family:var(--font-lat);font-size:11px;padding:2px 6px;border-radius:6px
             <div class="field">
               <label class="lbl" for="ttsEngine" data-i18n="ttsEngine">محرّك النطق</label>
               <select id="ttsEngine">
-                <option value="browser" data-i18n="ttsBrowser">أصوات المتصفح — مجاني وبدون إنترنت</option>
+                <option value="browser" data-i18n="ttsBrowser">أصوات المتصفح — مجاني، لكنه يحتاج صوتاً مثبّتاً في نظامك</option>
+                <option value="local" data-i18n="ttsLocalN">أصوات عصبية داخل المتصفح — بلا مفتاح، ينتج ملفاً صوتياً فعلياً</option>
                 <option value="eleven">ElevenLabs — أصوات بشرية واقعية (مفتاح API)</option>
                 <option value="openai" data-i18n="ttsOpenai">OpenAI متوافق — أصوات عصبية (مفتاح API)</option>
               </select>
             </div>
 
+            <div class="field hidden" id="localTtsBox">
+              <label class="lbl" for="localTtsModel" data-i18n="localTtsModel">نموذج النطق العصبي</label>
+              <input type="text" id="localTtsModel" placeholder="Xenova/mms-tts-ara">
+              <div class="hint" data-i18n="localTtsHint">يُنزَّل مرة واحدة (~٦٠ ميغا) ثم يعمل بلا إنترنت. يُنتج مقاطع صوتية حقيقية، فيصير تصدير WAV وتشغيل الملخّص متاحين دون أي مفتاح. الصوت آليّ أكثر من ElevenLabs لكنه مفهوم وواضح.</div>
+            </div>
             <div id="browserVoiceBox">
               <div class="field">
                 <label class="lbl" for="voiceA"><span data-i18n="voiceA">صوت المتحدث الأول</span><span class="tag">1</span></label>
@@ -893,6 +899,8 @@ const MSG = {
     fileProto:'شغّل الملف عبر خادم محلي (مثل: python3 -m http.server) — فتحه مباشرة بـ file:// يمنع تحميل النماذج.',
     detected:'اللغة المكتشفة: ',
     workerBoot:'تعذّر تشغيل محرّك الذكاء الاصطناعي — افتح الصفحة عبر http://localhost وليس من مجلد التنزيلات',
+    voiceTest:'اختبار النطق…', liveNote:'يُنطق أثناء تشغيل الفيلم',
+    voiceMute:'متصفحك قبِل الأمر لكنه لم ينطق شيئاً (شائع على الهواتف). اختر «أصوات عصبية داخل المتصفح» أو محرّكاً عبر API من تبويب «الأصوات».',
     sttCloud:'تفريغ عبر الخدمة · مقطع', sttKeyHint:'أدخل مفتاح خدمة التفريغ في تبويب «المحرّك»',
     loadingModel:'تجهيز النموذج في الذاكرة…', asrBlock:'تفريغ المقطع', sec:' ثانية', eta:'المتبقي ~',
     slowAsr:'جهازك بطيء مع هذا النموذج. لتسريع كبير: اختر «سريع جداً (tiny)» من تبويب «المحرّك» ثم أعد التشغيل.',
@@ -914,6 +922,8 @@ const MSG = {
     fileProto:'Serve this file from a local server (e.g. python3 -m http.server) — opening it with file:// blocks model loading.',
     detected:'Detected language: ',
     workerBoot:'The AI engine could not start — open the page over http://localhost, not straight from your Downloads folder',
+    voiceTest:'Testing speech…', liveNote:'spoken while the film plays',
+    voiceMute:'Your browser accepted the request but spoke nothing (common on phones). Pick “neural voices in the browser” or an API engine in the Voices tab.',
     sttCloud:'Cloud transcription · block', sttKeyHint:'Enter the transcription service key in the Engine tab',
     loadingModel:'Loading the model into memory…', asrBlock:'Transcribing block', sec:' s', eta:'~',
     slowAsr:'Your device is slow with this model. For a big speed-up pick “very fast (tiny)” in the Engine tab and run again.',
@@ -942,6 +952,7 @@ const el = {
   ttsEngine:$('#ttsEngine'), voiceA:$('#voiceA'), voiceB:$('#voiceB'),
   browserVoiceBox:$('#browserVoiceBox'), apiVoiceBox:$('#apiVoiceBox'), apiBaseBox:$('#apiBaseBox'),
   apiKey:$('#apiKey'), apiVoiceA:$('#apiVoiceA'), apiVoiceB:$('#apiVoiceB'), apiBase:$('#apiBase'),
+  localTtsModel:$('#localTtsModel'),
   asrModel:$('#asrModel'), mtEngine:$('#mtEngine'), mtApiBox:$('#mtApiBox'), mtModel:$('#mtModel'),
   toasts:$('#toasts'), engineTxt:$('#engineTxt'), engineDot:$('#engineDot'), langUi:$('#langUi'),
   srt:$('#srtBtn'), wav:$('#wavBtn'), test:$('#testVoice'), help:$('#helpBtn'),
@@ -1018,8 +1029,8 @@ import { pipeline, env } from '${CDN}';
 env.allowLocalModels = false;
 try { env.backends.onnx.wasm.numThreads = Math.min(4, navigator.hardwareConcurrency || 2); } catch (e) {}
 
-let asr = null, asrKey = '', mt = null;
-const post = o => self.postMessage(o);
+let asr = null, asrKey = '', mt = null, tts = null, ttsKey = '';
+const post = (o, tr) => self.postMessage(o, tr || []);
 
 function pcb(stage){
   return p => {
@@ -1046,6 +1057,13 @@ async function getAsr(model, gpu){
   return asr;
 }
 
+async function getTts(model){
+  if (tts && ttsKey === model) return tts;
+  if (tts) { try { await tts.dispose(); } catch (e) {} tts = null; }
+  tts = await pipeline('text-to-speech', model, { progress_callback: pcb('tts') });
+  ttsKey = model;
+  return tts;
+}
 async function getMt(){
   if (mt) return mt;
   mt = await pipeline('translation', 'Xenova/nllb-200-distilled-600M', { progress_callback: pcb('mt'), dtype:'q8' });
@@ -1071,6 +1089,12 @@ self.onmessage = async e => {
         post({ t:'mtprog', done:i + 1, total:m.texts.length });
       }
       post({ t:'res', id:m.id, data:res });
+    } else if (m.cmd === 'tts') {
+      const p = await getTts(m.model);
+      const out = await p(m.text);
+      const src = out.audio || out.waveform || out;
+      const audio = src instanceof Float32Array ? src : Float32Array.from(src);
+      post({ t:'res', id:m.id, data:{ audio, sr: out.sampling_rate || out.sampleRate || 16000 } }, [audio.buffer]);
     } else if (m.cmd === 'ping') {
       post({ t:'res', id:m.id, data:1 });
     }
@@ -1508,6 +1532,47 @@ async function synthNeural(text, voice, tries){
   ensureAudio();
   return await S.ac.decodeAudioData(ab);
 }
+/* نماذج MMS-TTS: صوت واحد لكل لغة، يعمل داخل المتصفح بلا مفتاح */
+const MMS = { ar:'ara', en:'eng', fr:'fra', es:'spa', de:'deu', it:'ita', pt:'por', ru:'rus', tr:'tur',
+  nl:'nld', pl:'pol', sv:'swe', id:'ind', hi:'hin', ur:'urd', fa:'pes', he:'heb', el:'ell', ro:'ron',
+  uk:'ukr', cs:'ces', da:'dan', fi:'fin', no:'nor', hu:'hun', th:'tha', vi:'vie', ms:'zlm', ko:'kor' };
+function localTtsModel(){
+  const custom = (el.localTtsModel.value || '').trim();
+  if(custom) return custom;
+  return 'Xenova/mms-tts-' + (MMS[el.dstLang.value] || 'eng');
+}
+async function synthLocal(text, model){
+  const r = await ask('tts', { text, model });
+  ensureAudio();
+  const buf = S.ac.createBuffer(1, r.audio.length, r.sr);
+  buf.copyToChannel(r.audio, 0);
+  return buf;
+}
+/* المتصفح قد «يقبل» النطق ثم لا ينطق شيئاً — نتأكّد بجملة قصيرة قبل أن نعلن النجاح */
+function setUttVoice(u, voice){
+  try{
+    if(voice){ u.voice = voice; u.lang = voice.lang; return; }
+  }catch(err){ console.warn('voice', err); }
+  const l = byCode[el.dstLang.value];
+  if(l && l.b) u.lang = l.b;
+}
+function testSpeak(voice){
+  return new Promise(res => {
+    const synth = window.speechSynthesis;
+    if(!synth) return res(false);
+    let settled = false;
+    const fin = ok => { if(settled) return; settled = true; clearTimeout(tm); res(ok); };
+    const seg = S.segments.find(x => x.dst);
+    const u = new SpeechSynthesisUtterance(((seg && seg.dst) || 'test').slice(0, 24));
+    setUttVoice(u, voice);
+    u.volume = 0.35; u.rate = 1.15;
+    u.onstart = () => fin(true);
+    u.onend = () => fin(true);
+    u.onerror = () => fin(false);
+    const tm = setTimeout(() => { try{ synth.cancel(); }catch(e){} fin(false); }, 5000);
+    try{ synth.cancel(); synth.speak(u); }catch(e){ fin(false); }
+  });
+}
 async function prepareVoices(){
   const eng = el.ttsEngine.value;
   if(eng === 'browser'){
@@ -1517,7 +1582,40 @@ async function prepareVoices(){
       toast(T('noVoice'), 'err', 15000);
       return;
     }
-    step(4, 'done', v.name);
+    step(4, 'active', T('voiceTest'), -1);
+    if(!(await testSpeak(v))){
+      step(4, 'err', T('voiceMute'));
+      toast(T('voiceMute'), 'err', 16000);
+      return;
+    }
+    step(4, 'done', v.name + ' · ' + T('liveNote'));
+    return;
+  }
+  if(eng === 'local'){
+    const segs = S.segments.filter(s => s.dst);
+    const model = localTtsModel();
+    S.onDl = m => step(4, 'active', T('downloading') + ' · ' + Math.round(m.pct) + '%', m.pct);
+    step(4, 'active', T('loadingModel'), -1);
+    let done = 0;
+    const t0 = performance.now();
+    for(const sg of segs){
+      if(S.cancel) break;
+      try{ sg.buf = await synthLocal(sg.dst, model); }
+      catch(err){
+        S.onDl = null;
+        step(4, 'err', String(err.message || err).slice(0, 90));
+        toast(T('ttsFail') + (err.message || err) + ' — ' + model, 'err', 16000);
+        return;
+      }
+      S.onDl = null;
+      done++;
+      const per = (performance.now() - t0)/1000/done;
+      const left = per*(segs.length - done);
+      step(4, 'active', done + '/' + segs.length + (left > 3 ? ' · ' + T('eta') + ' ' + fmt(left) : ''),
+        (done/segs.length)*100);
+    }
+    step(4, done ? 'done' : 'err', done + '/' + segs.length);
+    el.wav.disabled = !S.segments.some(s => s.buf);
     return;
   }
   const segs = S.segments.filter(s => s.dst);
@@ -1800,13 +1898,19 @@ function stopSpeaking(){
   el.halo.classList.remove('on');
   setOrigGain(S.opts.bg / 100);
 }
+/* نموذج MMS يعطي صوتاً واحداً للغة، فنفرّق الشخصيات بإزاحة طبقة محسوبة من صوت الممثل الأصلي */
+function spkRateFor(seg){
+  if(el.ttsEngine.value !== 'local' || !S.opts.match) return 1;
+  const prof = S.cast[seg.spk];
+  return prof ? clamp(prof.pitchMul, 0.88, 1.14) : 1;
+}
 function playBuffer(seg, dur){
   ensureAudio(); resumeAudio();
   const src = S.ac.createBufferSource();
   src.buffer = seg.buf;
   let r = 1;
   if(S.opts.fit && seg.buf.duration > dur * 1.03) r = clamp(seg.buf.duration / dur, 1, 1.45);
-  src.playbackRate.value = r * S.opts.rate;
+  src.playbackRate.value = r * S.opts.rate * spkRateFor(seg);
   S.dubGain.gain.value = S.opts.dubVol / 100;
   src.connect(S.dubGain);
   if(S.activeSrcNode){ try{ S.activeSrcNode.stop(); }catch(e){} }
@@ -1830,8 +1934,7 @@ function speakBrowser(seg, dur){
   let total = 0;
   parts.forEach((p, i) => {
     const u = new SpeechSynthesisUtterance(p);
-    if(voice){ u.voice = voice; u.lang = voice.lang; }
-    else if(lang && lang.b) u.lang = lang.b;
+    setUttVoice(u, voice);
     const jr = S.opts.human ? ((((seg.i * 7 + i * 13) % 9) - 4) / 110) : 0;
     const jp = S.opts.human ? ((((seg.i * 5 + i * 11) % 9) - 4) / 60) : 0;
     const prof = S.cast[seg.spk];
@@ -1887,7 +1990,7 @@ function frame(){
     const s = segs[S.nextIdx];
     if(s && !v.paused && S.dubOn && !s.spoken && !S.recap.narrating && t >= s.start && t < s.end + 0.6){
       s.spoken = true;
-      speakSegment(s);
+      try{ speakSegment(s); }catch(err){ console.warn('speak', err); }
     }
     const ci = currentSegment(t);
     if(ci !== S.curIdx){
@@ -2045,7 +2148,7 @@ async function exportWav(){
       const d = Math.max(0.4, s.end - s.start);
       let r = 1;
       if(S.opts.fit && s.buf.duration > d * 1.03) r = clamp(s.buf.duration / d, 1, 1.45);
-      r *= S.opts.rate;
+      r *= S.opts.rate * spkRateFor(s);
       const bs = off.createBufferSource();
       bs.buffer = s.buf; bs.playbackRate.value = r; bs.connect(dg); bs.start(st);
       const real = s.buf.duration / r;
@@ -2123,8 +2226,9 @@ function syncControls(){
   }
   const eng = el.ttsEngine.value;
   el.browserVoiceBox.classList.toggle('hidden', eng !== 'browser');
-  el.apiVoiceBox.classList.toggle('hidden', eng === 'browser');
+  el.apiVoiceBox.classList.toggle('hidden', eng === 'browser' || eng === 'local');
   el.apiBaseBox.classList.toggle('hidden', eng !== 'openai');
+  $('#localTtsBox').classList.toggle('hidden', eng !== 'local');
   el.mtApiBox.classList.toggle('hidden', el.mtEngine.value !== 'api');
   if(S.origGain) setOrigGain(S.opts.bg / 100);
   if(S.dubGain) S.dubGain.gain.value = S.opts.dubVol / 100;
@@ -3447,9 +3551,7 @@ function speakText(text, voice, pitch, rate){
   if(!synth || !text) return 0;
   synth.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  const lang = byCode[el.dstLang.value];
-  if(voice){ u.voice = voice; u.lang = voice.lang; }
-  else if(lang && lang.b) u.lang = lang.b;
+  setUttVoice(u, voice);
   u.rate = clamp(rate, 0.5, 2);
   u.pitch = clamp(pitch, 0, 2);
   u.volume = clamp(S.opts.dubVol/100, 0, 1);
@@ -3728,7 +3830,7 @@ async function exportRecapWav(){
         const dd = Math.max(0.4, s.end - s.start);
         let r = 1;
         if(S.opts.fit && s.buf.duration > dd*1.03) r = clamp(s.buf.duration/dd, 1, 1.45);
-        r *= S.opts.rate;
+        r *= S.opts.rate * spkRateFor(s);
         const bs = off.createBufferSource();
         bs.buffer = s.buf;
         bs.playbackRate.value = r;
@@ -3890,6 +3992,10 @@ Object.assign(MSG.en, {
   shDone:'ffmpeg script downloaded — run it next to the film file to render the recap video',
 });
 Object.assign(I18N.en, {
+  ttsBrowser:'Browser voices — free, but needs a voice installed on your system',
+  ttsLocalN:'Neural voices inside the browser — no key, produces a real audio file',
+  localTtsModel:'Neural speech model',
+  localTtsHint:'Downloaded once (~60 MB) then works offline. It produces real audio clips, so WAV export and recap playback work with no key at all. More robotic than ElevenLabs, but clear and understandable.',
   sttEngine:'Where is the dialogue transcribed?',
   sttLocal:'In your browser — free and offline, but the slowest',
   sttGroq:'Groq — fastest (Whisper large v3 turbo)',
