@@ -861,6 +861,9 @@ const MSG = {
     wavNeedApi:'تصدير الصوت متاح مع محرّك ElevenLabs أو OpenAI فقط (أصوات المتصفح لا يمكن تسجيلها).',
     fileProto:'شغّل الملف عبر خادم محلي (مثل: python3 -m http.server) — فتحه مباشرة بـ file:// يمنع تحميل النماذج.',
     detected:'اللغة المكتشفة: ',
+    workerBoot:'تعذّر تشغيل محرّك الذكاء الاصطناعي — افتح الصفحة عبر http://localhost وليس من مجلد التنزيلات',
+    modelFail:'تعذّر تنزيل النموذج — تأكّد من الإنترنت في أول تشغيل فقط',
+    mobileSlow:'أنت على هاتف: اختر نموذج «سريع جداً (tiny)» من تبويب «المحرّك» وابدأ بمقطع قصير، وإلا فالتفريغ سيستغرق وقتاً طويلاً جداً.',
   },
   en:{
     ready:'Ready', loaded:'Film loaded', noFile:'Load a film first', sameLang:'Pick a target language different from the film language',
@@ -875,6 +878,9 @@ const MSG = {
     wavNeedApi:'Audio export works with the ElevenLabs or OpenAI engines only (browser voices cannot be recorded).',
     fileProto:'Serve this file from a local server (e.g. python3 -m http.server) — opening it with file:// blocks model loading.',
     detected:'Detected language: ',
+    workerBoot:'The AI engine could not start — open the page over http://localhost, not straight from your Downloads folder',
+    modelFail:'The model could not be downloaded — check your connection (first run only)',
+    mobileSlow:'You are on a phone: pick the “very fast (tiny)” model in the Engine tab and start with a short clip, otherwise transcription will take a very long time.',
   }
 };
 
@@ -1036,25 +1042,54 @@ self.onmessage = async e => {
 post({ t:'boot', gpu: !!navigator.gpu });
 `;
 
+function killWorker(err){
+  clearTimeout(S.workerTimer);
+  if(S.workerBad){ S.workerBad(err); S.workerBad = null; S.workerOk = null; }
+  S.pending.forEach(pr => pr.reject(err));
+  S.pending.clear();
+  if(S.worker){ try{ S.worker.terminate(); }catch(e){} }
+  S.worker = null; S.workerReady = null;
+  setEngineBadge(navigator.gpu ? 'WebGPU' : 'WASM', false);
+}
 function getWorker(){
   if(S.worker) return S.worker;
-  const url = URL.createObjectURL(new Blob([WORKER_SRC], {type:'text/javascript'}));
-  const w = new Worker(url, {type:'module'});
+  let w;
+  try{
+    const url = URL.createObjectURL(new Blob([WORKER_SRC], {type:'text/javascript'}));
+    w = new Worker(url, {type:'module'});
+  }catch(err){
+    /* المتصفح رفض إنشاء العامل — غالباً لأن الصفحة ليست على http(s) */
+    throw new Error(T('workerBoot') + ' — ' + (err.message || err));
+  }
+  S.workerReady = new Promise((res, rej) => { S.workerOk = res; S.workerBad = rej; });
+  S.workerReady.catch(() => {});
+  S.workerTimer = setTimeout(() => killWorker(new Error(T('workerBoot'))), 30000);
   w.onmessage = ev => {
     const m = ev.data || {};
     if(m.t === 'res'){ const p = S.pending.get(m.id); if(p){ S.pending.delete(m.id); p.resolve(m.data); } }
-    else if(m.t === 'err'){ const p = S.pending.get(m.id); if(p){ S.pending.delete(m.id); p.reject(new Error(m.msg)); } else toast(m.msg,'err'); }
+    else if(m.t === 'err'){
+      const p = S.pending.get(m.id);
+      const net = /fetch|network|failed to|load|CORS|import|Unexpected token/i.test(m.msg || '');
+      const msg = net ? T('modelFail') + ' — ' + m.msg : m.msg;
+      if(p){ S.pending.delete(m.id); p.reject(new Error(msg)); } else toast(msg, 'err', 9000);
+    }
     else if(m.t === 'dl'){ if(S.onDl) S.onDl(m); }
     else if(m.t === 'mtprog'){ if(S.onMt) S.onMt(m); }
     else if(m.t === 'note'){ console.info('[worker]', m.msg); }
-    else if(m.t === 'boot'){ setEngineBadge(m.gpu ? 'WebGPU' : 'WASM', true); }
+    else if(m.t === 'boot'){
+      clearTimeout(S.workerTimer);
+      setEngineBadge(m.gpu ? 'WebGPU' : 'WASM', true);
+      if(S.workerOk){ S.workerOk(true); S.workerOk = null; S.workerBad = null; }
+    }
   };
-  w.onerror = e => toast('Worker: ' + (e.message || 'error'), 'err', 9000);
+  w.onerror = e => killWorker(new Error(T('workerBoot') + (e && e.message ? ' — ' + e.message : '')));
+  w.onmessageerror = () => killWorker(new Error(T('workerBoot')));
   S.worker = w;
   return w;
 }
-function ask(cmd, payload, transfer){
+async function ask(cmd, payload, transfer){
   const w = getWorker();
+  if(S.workerReady) await S.workerReady;   /* لا نرسل شيئاً قبل أن يقلع المحرّك فعلاً */
   const id = ++S.reqId;
   return new Promise((resolve, reject) => {
     S.pending.set(id, {resolve, reject});
@@ -1467,6 +1502,7 @@ function clearResults(){
 }
 async function runPipeline(){
   if(!S.mediaBlob){ toast(T('noFile'), 'err'); return; }
+  if(!PROTO_OK && !S.envBypass){ showEnvModal(); return; }
   const dstCode = el.dstLang.value;
   const srcSel = el.srcLang.value;
   if(srcSel !== 'auto' && srcSel === dstCode){ toast(T('sameLang'), 'err'); return; }
@@ -1554,8 +1590,15 @@ async function runPipeline(){
     updateStats();
     toast(T('done'), 'ok', 6000);
   }catch(err){
+    /* علِّم الخطوة المتوقفة بالأحمر بدل تركها تدور بلا نهاية */
+    const at = savedStepState.findIndex(x => x && x[0] === 'active');
+    if(at >= 0) step(at, 'err', (err && err.message || '').slice(0, 90));
     if(S.cancel || /cancel/i.test(err.message)) toast(T('canceled'), 'info');
-    else { console.error(err); toast(err.message || String(err), 'err', 9000); }
+    else {
+      console.error(err);
+      toast(err.message || String(err), 'err', 11000);
+      if(!PROTO_OK) showEnvModal();
+    }
   }finally{
     S.running = false; S.onDl = null; S.onMt = null;
     el.run.disabled = false; el.cancel.disabled = true;
@@ -3732,6 +3775,64 @@ Object.assign(I18N.en, {
   recapNote:'The analysis is grounded in what is actually said in the film and what appears in its frames — no invented events. Local mode picks the important scenes from audio, picture and dialogue density; Claude mode also writes the narration, the dubbed dialogue and the dual subtitles.',
 });
 
+/* ------------------------------ 23.9) بيئة التشغيل ------------------------------ */
+/* نماذج الذكاء الاصطناعي لا تُحمَّل إلا من صفحة على http(s).
+   فتح الملف من التنزيلات (file:// أو content:// على أندرويد) يمنع تشغيل المحرّك. */
+const PROTO_OK = /^https?:$/.test(location.protocol);
+const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+const ENV_HELP = {
+  ar: ['الصفحة مفتوحة بطريقة تمنع تشغيل المحرّك',
+    'العنوان الحالي يبدأ بـ <code>' + escapeHtml(location.protocol) + '</code> وليس <code>http://</code>. '
+      + 'المتصفح يمنع أي صفحة مفتوحة هكذا من تحميل نماذج الذكاء الاصطناعي، لذلك تتوقف الخطوة الثالثة (تفريغ الحوار) قبل أن تبدأ.',
+    '<b>على الحاسوب</b> — ضع <code>index.html</code> في مجلد، ثم من داخل المجلد نفسه:'
+      + '<br><code>python3 -m http.server 8000</code>'
+      + '<br>وافتح <code>http://localhost:8000/index.html</code>',
+    '<b>على هاتف أندرويد</b> — ثبّت تطبيق <b>Termux</b> ثم:'
+      + '<br><code>pkg install python</code>'
+      + '<br><code>cd /sdcard/Download && python -m http.server 8000</code>'
+      + '<br>وافتح في المتصفح <code>http://localhost:8000/index.html</code>',
+    '<b>أسهل طريقة</b> — شغّل الخادم على الحاسوب، ثم افتح من هاتفك (على نفس شبكة الواي‑فاي) العنوان '
+      + '<code>http://عنوان‑الحاسوب:8000/index.html</code>',
+    '<b>ملاحظة عن الهاتف:</b> التفريغ على الهاتف بطيء جداً. اختر نموذج «سريع جداً» (tiny) من تبويب «المحرّك»، وابدأ بمقطع قصير.'],
+  en: ['This page was opened in a way that blocks the engine',
+    'The address starts with <code>' + escapeHtml(location.protocol) + '</code>, not <code>http://</code>. '
+      + 'Browsers block pages opened like this from loading AI models, so step 3 (transcription) stops before it starts.',
+    '<b>On a computer</b> — put <code>index.html</code> in a folder, then inside that folder run:'
+      + '<br><code>python3 -m http.server 8000</code>'
+      + '<br>and open <code>http://localhost:8000/index.html</code>',
+    '<b>On Android</b> — install <b>Termux</b>, then:'
+      + '<br><code>pkg install python</code>'
+      + '<br><code>cd /sdcard/Download && python -m http.server 8000</code>'
+      + '<br>and open <code>http://localhost:8000/index.html</code>',
+    '<b>Easiest</b> — run the server on your computer and open <code>http://computer-ip:8000/index.html</code> from the phone on the same Wi-Fi.',
+    '<b>About phones:</b> transcription on a phone is very slow. Pick the “very fast” (tiny) model in the Engine tab and start with a short clip.'],
+};
+function showEnvModal(){
+  const old = $('#envModal');
+  if(old) old.remove();
+  const h = ENV_HELP[S.ui] || ENV_HELP.ar;
+  const d = document.createElement('div');
+  d.id = 'envModal';
+  d.style.cssText = 'position:fixed;inset:0;z-index:120;display:grid;place-items:center;padding:20px;'
+    + 'background:rgba(3,4,10,.8);backdrop-filter:blur(9px);animation:fade .3s';
+  d.innerHTML = '<div class="card" style="max-width:620px;max-height:88vh;overflow:auto">'
+    + '<div class="card-h"><div class="ico" style="background:rgba(251,191,36,.14)">'
+    + '<svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="1.9" stroke-linecap="round">'
+    + '<path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>'
+    + '<h2>' + h[0] + '</h2></div>'
+    + '<div class="card-b" style="display:flex;flex-direction:column;gap:13px;font-size:13.5px;line-height:1.9">'
+    + h.slice(1).map(x => '<div>' + x + '</div>').join('')
+    + '<div class="btn-row" style="margin-top:4px">'
+    + '<button class="btn sm" id="envClose" style="flex:1">' + (S.ui === 'ar' ? 'فهمت' : 'Got it') + '</button>'
+    + '<button class="btn sm ghost" id="envAnyway" style="flex:1">' + (S.ui === 'ar' ? 'جرّب على أي حال' : 'Try anyway') + '</button>'
+    + '</div></div></div>';
+  d.onclick = e => {
+    if(e.target === d || e.target.id === 'envClose') d.remove();
+    if(e.target.id === 'envAnyway'){ S.envBypass = true; d.remove(); }
+  };
+  document.body.appendChild(d);
+}
+
 /* ------------------------------ 24) الإقلاع ------------------------------ */
 document.head.insertAdjacentHTML('beforeend',
   '<style>.tbtn.act{background:var(--grad);border-color:transparent}.tbtn.act svg{stroke:#fff}.btn.act{background:var(--grad);border-color:transparent;color:#fff}</style>');
@@ -3761,7 +3862,8 @@ function boot(){
   el.engineBadge.onclick = () => toast(navigator.gpu
     ? (S.ui === 'ar' ? 'المتصفح يدعم WebGPU — التسريع مُفعّل' : 'WebGPU is supported — acceleration on')
     : (S.ui === 'ar' ? 'لا يوجد WebGPU — سيُستخدم WASM (أبطأ)' : 'No WebGPU — falling back to WASM (slower)'), 'info');
-  if(location.protocol === 'file:') toast(T('fileProto'), 'err', 12000);
+  if(!PROTO_OK) showEnvModal();
+  else if(IS_MOBILE && !/tiny/.test(el.asrModel.value)) toast(T('mobileSlow'), 'info', 11000);
   requestAnimationFrame(frame);
 }
 boot();
