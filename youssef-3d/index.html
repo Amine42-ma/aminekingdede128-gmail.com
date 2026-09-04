@@ -1,0 +1,2519 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>يوسف والعوالم العشرة</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%8F%83%3C/text%3E%3C/svg%3E">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  :root{
+    --ink:#f4efe6; --dim:#a89f92; --gold:#f2c14e; --red:#e5484d; --green:#4ec97a;
+    --panel:rgba(14,12,20,.88); --edge:rgba(255,255,255,.14);
+    --font:"Segoe UI","Noto Naskh Arabic",Tahoma,system-ui,sans-serif;
+  }
+  html,body{width:100%;height:100%;overflow:hidden;background:#0b0a12;font-family:var(--font);color:var(--ink);user-select:none}
+  #c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+  .screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
+          gap:18px;z-index:20;padding:24px;text-align:center}
+  .screen.on{display:flex}
+  .screen.veil{background:radial-gradient(120% 90% at 50% 20%,rgba(24,18,40,.72),rgba(6,5,12,.95))}
+
+  h1{font-size:clamp(30px,7vw,62px);font-weight:800;letter-spacing:.5px;line-height:1.25;
+     background:linear-gradient(180deg,#fff2cd,var(--gold) 55%,#c98a1e);-webkit-background-clip:text;background-clip:text;color:transparent;
+     filter:drop-shadow(0 4px 18px rgba(242,193,78,.28))}
+  h2{font-size:clamp(20px,4vw,30px);font-weight:700}
+  p.sub{color:var(--dim);font-size:clamp(13px,2.6vw,16px);max-width:44ch;line-height:1.8}
+
+  .btn{min-width:210px;padding:13px 26px;border:1px solid var(--edge);border-radius:14px;cursor:pointer;
+       background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.03));
+       color:var(--ink);font:inherit;font-size:17px;font-weight:700;transition:transform .12s,border-color .12s,background .12s}
+  .btn:hover{transform:translateY(-2px);border-color:rgba(242,193,78,.6)}
+  .btn:active{transform:translateY(0) scale(.98)}
+  .btn.primary{background:linear-gradient(180deg,#f7d072,#d99a22);color:#221a06;border-color:#f0c65c}
+  .btn.ghost{min-width:150px;font-size:15px;padding:10px 18px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+
+  /* ===== HUD ===== */
+  #hud{position:fixed;inset:0;z-index:10;pointer-events:none;display:none;
+       padding:calc(12px + env(safe-area-inset-top)) 16px 16px}
+  #hud.on{display:block}
+  .hudbar{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;max-width:1100px;margin:0 auto}
+  .chip{background:var(--panel);border:1px solid var(--edge);border-radius:12px;padding:7px 13px;
+        font-size:15px;font-weight:700;display:flex;align-items:center;gap:7px;backdrop-filter:blur(8px)}
+  #hearts{letter-spacing:2px;font-size:17px}
+  #powers{display:flex;gap:6px}
+  .pw{background:var(--panel);border:1px solid rgba(242,193,78,.5);border-radius:10px;padding:5px 9px;font-size:14px;font-weight:700}
+  #banner{position:absolute;top:34%;left:0;right:0;text-align:center;font-size:clamp(24px,6vw,48px);
+          font-weight:800;opacity:0;transition:opacity .3s;text-shadow:0 4px 22px rgba(0,0,0,.8)}
+  #banner.on{opacity:1}
+
+  /* ===== level map ===== */
+  #mapwrap{width:min(940px,96vw);max-height:74vh;overflow-y:auto;padding:4px 6px}
+  .world{margin-bottom:14px;background:rgba(255,255,255,.035);border:1px solid var(--edge);border-radius:16px;padding:12px 14px}
+  .whead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .wname{font-weight:800;font-size:16px}
+  .wtag{color:var(--dim);font-size:12.5px}
+  .cells{display:grid;grid-template-columns:repeat(10,1fr);gap:7px}
+  @media(max-width:640px){.cells{grid-template-columns:repeat(5,1fr)}}
+  .cell{aspect-ratio:1;border-radius:10px;border:1px solid var(--edge);background:rgba(255,255,255,.05);
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;
+        font-weight:800;font-size:14px;transition:transform .1s,border-color .1s}
+  .cell:hover{transform:scale(1.07)}
+  .cell.locked{opacity:.32;cursor:not-allowed;filter:grayscale(1)}
+  .cell.locked:hover{transform:none}
+  .cell.done{border-color:rgba(78,201,122,.65)}
+  .cell.boss{border-color:rgba(229,72,77,.7)}
+  .cell .st{font-size:8.5px;letter-spacing:-.5px;color:var(--gold);height:10px}
+
+  /* ===== result ===== */
+  .stars{font-size:clamp(34px,9vw,64px);letter-spacing:10px}
+  .stats{display:flex;gap:24px;flex-wrap:wrap;justify-content:center;color:var(--dim);font-size:15px}
+  .stats b{color:var(--ink);font-size:19px;display:block;margin-top:3px}
+
+  /* ===== touch ===== */
+  #touch{position:fixed;inset:0;z-index:15;display:none;pointer-events:none}
+  #touch.on{display:block}
+  #stick{position:absolute;bottom:calc(26px + env(safe-area-inset-bottom));right:26px;width:132px;height:132px;
+         border-radius:50%;border:2px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06);pointer-events:auto}
+  #knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;
+        background:rgba(255,255,255,.32);border:1px solid rgba(255,255,255,.4)}
+  .tbtn{position:absolute;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:rgba(255,255,255,.10);
+        pointer-events:auto;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800}
+  #btnJump{bottom:calc(34px + env(safe-area-inset-bottom));left:28px;width:96px;height:96px}
+  #btnFire{bottom:calc(146px + env(safe-area-inset-bottom));left:44px;width:70px;height:70px}
+  .tbtn:active{background:rgba(242,193,78,.35)}
+
+  #keys{display:grid;grid-template-columns:auto auto;gap:6px 18px;color:var(--dim);font-size:14px;
+        background:rgba(255,255,255,.04);border:1px solid var(--edge);border-radius:14px;padding:14px 20px}
+  #keys b{color:var(--ink);font-weight:700}
+  #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:40;background:var(--panel);
+         border:1px solid var(--edge);border-radius:12px;padding:10px 18px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none}
+  #toast.on{opacity:1}
+  .spin{width:34px;height:34px;border:3px solid rgba(255,255,255,.15);border-top-color:var(--gold);border-radius:50%;animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .mini{color:var(--dim);font-size:12.5px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div class="hudbar">
+    <div style="display:flex;gap:9px;flex-wrap:wrap">
+      <div class="chip" id="hearts">❤❤❤</div>
+      <div class="chip"><span>🪙</span><span id="coins">0</span></div>
+      <div class="chip" id="powers"></div>
+    </div>
+    <div style="display:flex;gap:9px;flex-wrap:wrap">
+      <div class="chip"><span id="lvlName">المرحلة ١</span></div>
+      <div class="chip"><span>⏱</span><span id="timer">0:00</span></div>
+    </div>
+  </div>
+  <div id="banner"></div>
+</div>
+
+<div id="touch">
+  <div id="stick"><div id="knob"></div></div>
+  <div class="tbtn" id="btnJump">قفز</div>
+  <div class="tbtn" id="btnFire">🔥</div>
+</div>
+
+<div class="screen veil on" id="scBoot">
+  <div class="spin"></div>
+  <p class="sub">جارٍ تحضير العوالم العشرة…</p>
+  <p class="mini" id="bootMsg"></p>
+</div>
+
+<div class="screen veil" id="scTitle">
+  <h1>يوسف<br>والعوالم العشرة</h1>
+  <p class="sub">سُرقت جواهر الشمس العشر ووُزّعت على عشرة عوالم.
+     اركض، اقفز، ودُس أعداءك — واستعِد النور مرحلةً بعد مرحلة.</p>
+  <div class="row">
+    <button class="btn primary" id="btnPlay">ابدأ اللعب</button>
+    <button class="btn" id="btnMap">اختيار المرحلة</button>
+  </div>
+  <div id="keys">
+    <b>→ / D</b><span>تقدّم للأمام</span>
+    <b>← / A</b><span>تراجع</span>
+    <b>↑ ↓ / W S</b><span>تحرّك يميناً ويساراً داخل الممرّ</span>
+    <b>مسافة</b><span>قفز (اضغط أطول = أعلى)</span>
+    <b>Shift</b><span>ركض</span>
+    <b>E</b><span>كرة نار (بعد الزهرة)</span>
+    <b>R / Esc</b><span>إعادة / إيقاف</span>
+  </div>
+  <p class="mini" id="saveInfo"></p>
+</div>
+
+<div class="screen veil" id="scMap">
+  <h2>خريطة المراحل</h2>
+  <div id="mapwrap"></div>
+  <div class="row">
+    <button class="btn ghost" id="btnMapBack">رجوع</button>
+    <button class="btn ghost" id="btnWipe">مسح التقدّم</button>
+  </div>
+</div>
+
+<div class="screen veil" id="scPause">
+  <h2>إيقاف مؤقّت</h2>
+  <div class="row">
+    <button class="btn primary" id="btnResume">استئناف</button>
+    <button class="btn ghost" id="btnRetry">إعادة المرحلة</button>
+    <button class="btn ghost" id="btnQuit">الخروج للخريطة</button>
+  </div>
+  <div class="row">
+    <button class="btn ghost" id="btnMute">🔊 الصوت</button>
+    <button class="btn ghost" id="btnQual">الجودة: تلقائي</button>
+  </div>
+</div>
+
+<div class="screen veil" id="scResult">
+  <h2 id="resTitle">أُنجزت المرحلة!</h2>
+  <div class="stars" id="resStars">☆☆☆</div>
+  <div class="stats">
+    <div>الزمن<b id="resTime">0:00</b></div>
+    <div>العملات<b id="resCoins">0/0</b></div>
+    <div>الوفيات<b id="resDeaths">0</b></div>
+  </div>
+  <div class="row">
+    <button class="btn primary" id="btnNext">المرحلة التالية</button>
+    <button class="btn ghost" id="btnAgain">إعادة</button>
+    <button class="btn ghost" id="btnToMap">الخريطة</button>
+  </div>
+</div>
+
+<div class="screen veil" id="scDeath">
+  <h2 id="deathTitle">سقط يوسف…</h2>
+  <p class="sub" id="deathSub"></p>
+  <div class="row">
+    <button class="btn primary" id="btnRevive">حاول مجدداً</button>
+    <button class="btn ghost" id="btnDeathMap">الخريطة</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js"></script>
+<script>
+/* مصدر احتياطي إن تعذّر الأول */
+if(typeof THREE==="undefined")
+  document.write('<scr'+'ipt src="https://unpkg.com/three@0.160.1/build/three.min.js"><\/scr'+'ipt>');
+</script>
+<script>
+"use strict";
+/* لا يمكن تشغيل اللعبة بلا المحرّك: أظهر رسالة مفهومة بدل شاشة تحميل أبدية */
+if(typeof THREE==="undefined"){
+  document.getElementById("scBoot").innerHTML=
+    '<h2>تعذّر تحميل محرّك اللعبة</h2>'+
+    '<p class="sub">التشغيل <b>الأول فقط</b> يحتاج اتصالاً بالإنترنت لتحميل مكتبة Three.js. '+
+    'بعدها يحفظها المتصفّح وتعمل اللعبة دون اتصال.<br>تحقّق من الاتصال ثم أعد المحاولة.</p>'+
+    '<div class="row"><button class="btn primary" onclick="location.reload()">إعادة المحاولة</button></div>';
+  throw new Error("Three.js unavailable");
+}
+/* ══════════════════════════════════════════════════════════════════════════
+   §1 · الإعدادات والثوابت
+   ══════════════════════════════════════════════════════════════════════════ */
+const P = {
+  gravity:      -62,
+  jumpVelocity:  19.5,
+  runSpeed:      13,
+  sprintSpeed:   17,
+  strafeSpeed:   10,
+  accelGround:   90,
+  accelAir:      45,
+  frictionGround:14,
+  frictionAir:   1.5,
+  maxFall:      -45,
+  coyoteTime:    0.10,
+  jumpBuffer:    0.13,
+  jumpCutoff:    0.45,
+  stompBounce:   13,
+  springBounce:  28,
+  invulnTime:    1.4,
+  pw: 0.32,          // نصف عرض اللاعب
+  ph: 1.70,          // ارتفاع اللاعب
+};
+const TRACK_HALF = 5.5;          // حدود الممرّ الصلبة على محور Z
+const KILL_Y     = -22;          // تحت هذا = سقوط قاتل
+const FIXED_DT   = 1/120;
+const MAX_JUMP_X = 8.2;          // مدى القفزة القصوى (محسوب من الثوابت)
+const MAX_JUMP_Y = 3.07;
+const SAFE_GAP   = 6.4;          // أقصى فجوة مسموحة تصميمياً (هامش 22%)
+const SAFE_RISE  = 2.55;
+const ACTIVE_R   = 78;           // نافذة تفعيل الكيانات حول اللاعب
+const LEDGE_SNAP = 0.55;         // تصحيح الحافة (Celeste-style) — عدالة القفزات
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §2 · أدوات عامة
+   ══════════════════════════════════════════════════════════════════════════ */
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp =(a,b,t)=>a+(b-a)*t;
+const damp =(a,b,l,dt)=>lerp(a,b,1-Math.exp(-l*dt));
+const sign =(v)=>v<0?-1:v>0?1:0;
+const TAU=Math.PI*2;
+const $=(id)=>document.getElementById(id);
+const AR=(n)=>String(n).replace(/\d/g,d=>"٠١٢٣٤٥٦٧٨٩"[d]);
+const fmtTime=(s)=>{s=Math.max(0,s);const m=Math.floor(s/60),r=Math.floor(s%60);return m+":"+String(r).padStart(2,"0");};
+
+/** مولّد عشوائي حتمي — نفس البذرة تعطي نفس المرحلة دائماً على كل جهاز. */
+function mulberry32(seed){
+  let a = seed >>> 0;
+  const f = ()=>{ a=(a+0x6D2B79F5)>>>0; let t=a; t=Math.imul(t^(t>>>15),t|1);
+                  t^=t+Math.imul(t^(t>>>7),t|61); return ((t^(t>>>14))>>>0)/4294967296; };
+  f.range  = (lo,hi)=>lo+(hi-lo)*f();
+  f.int    = (lo,hi)=>Math.floor(lo+(hi-lo+1)*f());
+  f.pick   = (arr)=>arr[Math.floor(f()*arr.length)%arr.length];
+  f.chance = (p)=>f()<p;
+  f.sign   = ()=>f()<0.5?-1:1;
+  return f;
+}
+
+/* تخزين آمن: file:// قد يمنع localStorage في بعض المتصفحات */
+const Store = (()=>{
+  let ok=true, mem={};
+  try{ localStorage.setItem("__t","1"); localStorage.removeItem("__t"); }catch(e){ ok=false; }
+  return {
+    get(k){ try{ return ok?localStorage.getItem(k):mem[k]??null; }catch(e){ return mem[k]??null; } },
+    set(k,v){ try{ ok?localStorage.setItem(k,v):(mem[k]=v); }catch(e){ mem[k]=v; } },
+    del(k){ try{ ok?localStorage.removeItem(k):delete mem[k]; }catch(e){ delete mem[k]; } },
+    ok
+  };
+})();
+
+const SAVE_KEY="youssef3d.save.v1";
+const Save={
+  data:{ unlocked:1, stars:{}, best:{}, coins:0, settings:{sfx:true,music:true,quality:"auto"} },
+  load(){ try{ const r=Store.get(SAVE_KEY); if(r){ const d=JSON.parse(r);
+            Object.assign(this.data,d); this.data.settings=Object.assign({sfx:true,music:true,quality:"auto"},d.settings||{}); } }catch(e){}
+          this.data.unlocked=clamp(this.data.unlocked|0,1,100); },
+  flush(){ Store.set(SAVE_KEY, JSON.stringify(this.data)); },
+  star(lvl,n,time){ const s=this.data.stars[lvl]|0; if(n>s) this.data.stars[lvl]=n;
+                    const b=this.data.best[lvl]; if(b==null||time<b) this.data.best[lvl]=+time.toFixed(2);
+                    if(lvl+1>this.data.unlocked) this.data.unlocked=Math.min(100,lvl+1); this.flush(); },
+  wipe(){ this.data={unlocked:1,stars:{},best:{},coins:0,settings:this.data.settings}; this.flush(); }
+};
+Save.load();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §3 · الصوت — توليد كامل عبر WebAudio، صفر ملفات خارجية
+   ══════════════════════════════════════════════════════════════════════════ */
+const Audio_ = (()=>{
+  let ac=null, master=null, musicGain=null, sfxGain=null, started=false;
+  let seq=null, step=0, nextT=0, scale=[0,3,5,7,10], bpm=124, root=220, musicOn=false;
+
+  function init(){
+    if(ac) return;
+    const AC = window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    ac = new AC();
+    master=ac.createGain(); master.gain.value=0.5; master.connect(ac.destination);
+    sfxGain=ac.createGain(); sfxGain.gain.value=1; sfxGain.connect(master);
+    musicGain=ac.createGain(); musicGain.gain.value=0.30; musicGain.connect(master);
+  }
+  function resume(){ init(); if(ac&&ac.state==="suspended") ac.resume(); started=true; }
+
+  function tone(freq,dur,type="square",vol=0.12,slideTo=null,dest=null){
+    if(!ac||!Save.data.settings.sfx) return;
+    const t=ac.currentTime, o=ac.createOscillator(), g=ac.createGain();
+    o.type=type; o.frequency.setValueAtTime(freq,t);
+    if(slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20,slideTo),t+dur);
+    g.gain.setValueAtTime(vol,t);
+    g.gain.exponentialRampToValueAtTime(0.0008,t+dur);
+    o.connect(g).connect(dest||sfxGain); o.start(t); o.stop(t+dur+0.02);
+  }
+  function noise(dur,vol=0.16,hp=800){
+    if(!ac||!Save.data.settings.sfx) return;
+    const n=Math.floor(ac.sampleRate*dur), buf=ac.createBuffer(1,n,ac.sampleRate), d=buf.getChannelData(0);
+    for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
+    const s=ac.createBufferSource(); s.buffer=buf;
+    const f=ac.createBiquadFilter(); f.type="highpass"; f.frequency.value=hp;
+    const g=ac.createGain(); g.gain.value=vol;
+    s.connect(f).connect(g).connect(sfxGain); s.start();
+  }
+  function arp(list,gap=0.055,type="triangle",vol=0.13){
+    list.forEach((f,i)=>setTimeout(()=>tone(f,0.13,type,vol),i*gap*1000));
+  }
+
+  const SFX={
+    jump:   ()=>tone(520,0.13,"square",0.10,880),
+    dbl:    ()=>tone(700,0.14,"triangle",0.11,1250),
+    land:   ()=>noise(0.05,0.07,1400),
+    coin:   ()=>{tone(988,0.07,"square",0.10); setTimeout(()=>tone(1318,0.13,"square",0.10),58);},
+    stomp:  ()=>{noise(0.07,0.15,500); tone(190,0.11,"sawtooth",0.11,90);},
+    hurt:   ()=>tone(150,0.34,"sawtooth",0.16,62),
+    power:  ()=>arp([523,659,784,1047,1319]),
+    heart:  ()=>arp([659,880,1047],0.07,"sine",0.14),
+    fire:   ()=>tone(340,0.10,"sawtooth",0.09,120),
+    hitBoss:()=>{noise(0.09,0.18,300); tone(120,0.16,"square",0.12,60);},
+    check:  ()=>arp([784,1047],0.09,"sine",0.15),
+    win:    ()=>arp([523,659,784,1047,1319,1568],0.10,"triangle",0.15),
+    die:    ()=>arp([440,392,349,311,277,247,208,175],0.075,"square",0.13),
+    boom:   ()=>{noise(0.34,0.22,120); tone(90,0.34,"sawtooth",0.14,40);},
+    spring: ()=>tone(300,0.22,"sine",0.13,1400),
+    click:  ()=>tone(660,0.05,"square",0.07),
+  };
+
+  /* موسيقى: حلقة 16 خطوة، سلّم وسرعة يتغيّران حسب العالم */
+  const SCALES={ pent:[0,3,5,7,10], minor:[0,2,3,5,7,8,10], hijaz:[0,1,4,5,7,8,11], majo:[0,2,4,5,7,9,11] };
+  function setTheme(world,boss){
+    const t = boss ? {s:"hijaz",b:150,r:196}
+      : [ {s:"majo",b:118,r:262},{s:"hijaz",b:124,r:233},{s:"minor",b:120,r:220},{s:"minor",b:116,r:196},
+          {s:"pent",b:110,r:294},{s:"majo",b:126,r:277},{s:"minor",b:138,r:208},{s:"pent",b:120,r:330},
+          {s:"hijaz",b:142,r:185},{s:"minor",b:132,r:165} ][clamp(world-1,0,9)];
+    scale=SCALES[t.s]; bpm=t.b; root=t.r;
+  }
+  function musicTick(){
+    if(!ac||!musicOn||!Save.data.settings.music) return;
+    const spb=60/bpm/2;
+    while(nextT < ac.currentTime+0.25){
+      const t=Math.max(nextT,ac.currentTime+0.01);
+      const s=step%16;
+      // باص
+      if(s%4===0){ const o=ac.createOscillator(),g=ac.createGain();
+        o.type="triangle"; o.frequency.setValueAtTime(root/2,t);
+        g.gain.setValueAtTime(0.16,t); g.gain.exponentialRampToValueAtTime(0.001,t+spb*1.6);
+        o.connect(g).connect(musicGain); o.start(t); o.stop(t+spb*1.7); }
+      // لحن
+      if(s%2===0 || (s%8===5)){
+        const deg=scale[(step*3+Math.floor(step/16))%scale.length];
+        const oct=(s%8===6)?2:1;
+        const f=root*oct*Math.pow(2,deg/12);
+        const o=ac.createOscillator(),g=ac.createGain();
+        o.type="square"; o.frequency.setValueAtTime(f,t);
+        g.gain.setValueAtTime(0.055,t); g.gain.exponentialRampToValueAtTime(0.001,t+spb*1.2);
+        o.connect(g).connect(musicGain); o.start(t); o.stop(t+spb*1.3);
+      }
+      // إيقاع
+      if(s===4||s===12){ const n=Math.floor(ac.sampleRate*0.05),b=ac.createBuffer(1,n,ac.sampleRate),d=b.getChannelData(0);
+        for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
+        const src=ac.createBufferSource(); src.buffer=b;
+        const g=ac.createGain(); g.gain.value=0.09; src.connect(g).connect(musicGain); src.start(t); }
+      step++; nextT=t+spb;
+    }
+  }
+  function musicStart(){ init(); if(!ac) return; musicOn=true; step=0; nextT=ac.currentTime+0.06;
+                         if(!seq) seq=setInterval(musicTick,60); }
+  function musicStop(){ musicOn=false; }
+
+  return { init, resume, SFX, setTheme, musicStart, musicStop,
+           get ready(){return !!ac;},
+           setVol(v){ if(master) master.gain.value=v; } };
+})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §4 · واجهة صغيرة: رسائل عابرة
+   ══════════════════════════════════════════════════════════════════════════ */
+let toastT=0;
+function toast(msg,ms=1600){
+  const el=$("toast"); el.textContent=msg; el.classList.add("on");
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove("on"),ms);
+}
+let bannerT=0;
+function banner(msg,ms=1400,color="#f4efe6"){
+  const el=$("banner"); el.textContent=msg; el.style.color=color; el.classList.add("on");
+  clearTimeout(bannerT); bannerT=setTimeout(()=>el.classList.remove("on"),ms);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §5 · العوالم العشرة — الهوية البصرية
+   ══════════════════════════════════════════════════════════════════════════ */
+const WORLDS=[
+  {n:"سهول القرية", tag:"البداية الهادئة", ground:0x6fbf5c, rock:0x8a6d46, accent:0xf2c14e,
+   sky:0x87c6ef, fog:0xbfe0f5, fogD:0.0075, sun:0xfff4d6, amb:0x9fc4dd, deco:"tree"},
+  {n:"رمال الجنوب", tag:"حرارة ورمال متحرّكة", ground:0xe0c07a, rock:0xb98d4c, accent:0xff9f3c,
+   sky:0xf3b46a, fog:0xf0cf9c, fogD:0.0090, sun:0xffe0a8, amb:0xd9a86a, deco:"cactus"},
+  {n:"الغابة المظلمة", tag:"ظلال وأغصان", ground:0x3d7f45, rock:0x5b4630, accent:0x9ce07a,
+   sky:0x2c4a34, fog:0x2f5a3c, fogD:0.0150, sun:0xcfe8b0, amb:0x3f6a4a, deco:"tree"},
+  {n:"مناجم العمق", tag:"صخر وظلام", ground:0x6a5644, rock:0x40342a, accent:0xd9a441,
+   sky:0x140f0c, fog:0x1c1512, fogD:0.0210, sun:0xffd9a0, amb:0x3a2d24, deco:"crystal"},
+  {n:"قمم الجليد", tag:"كل شيء زلق", ground:0xdff0f7, rock:0x8fc0d9, accent:0x66d9ff,
+   sky:0xbfe4f2, fog:0xdff0f7, fogD:0.0125, sun:0xffffff, amb:0xaacadd, deco:"pine"},
+  {n:"شواطئ اللؤلؤ", tag:"ماء وشمس", ground:0xf2e2b8, rock:0x3fb8c9, accent:0x1f7f96,
+   sky:0x59d0e6, fog:0x9fe6ef, fogD:0.0085, sun:0xfffbe8, amb:0x8fd8e6, deco:"palm"},
+  {n:"مصنع التروس", tag:"معدن ومناشير", ground:0x7d838c, rock:0x454b54, accent:0xd9a441,
+   sky:0x3b3f46, fog:0x4a4f57, fogD:0.0165, sun:0xffe6bb, amb:0x555b64, deco:"pipe"},
+  {n:"مدائن السحاب", tag:"ارتفاع ورياح", ground:0xf2e9ff, rock:0xc9b8ec, accent:0xff9fe0,
+   sky:0xd9e8ff, fog:0xe8eeff, fogD:0.0100, sun:0xffffff, amb:0xc9d6f2, deco:"cloud"},
+  {n:"فوهة البركان", tag:"حمم ونار", ground:0x5a2418, rock:0x2b1410, accent:0xff6b2b,
+   sky:0x4a1208, fog:0x66240f, fogD:0.0190, sun:0xffb06a, amb:0x77301a, deco:"rock"},
+  {n:"قلعة الظلام", tag:"الاختبار الأخير", ground:0x3a2a4a, rock:0x1a0f26, accent:0xb84aff,
+   sky:0x140a1f, fog:0x231334, fogD:0.0205, sun:0xd8a8ff, amb:0x2e1c40, deco:"pillar"},
+];
+const BOSSNAMES=["ملك الخنافس","عقرب الرمال","جذر الغابة","آلة المنجم","عملاق الجليد",
+                 "أخطبوط العمق","رأس المصنع","تنين السحاب","قلب البركان","ظلّ يوسف"];
+const worldOf=(lvl)=>Math.ceil(lvl/10);
+const stepOf =(lvl)=>((lvl-1)%10)+1;
+const isBoss =(lvl)=>stepOf(lvl)===10;
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §6 · المشهد والعارض
+   ══════════════════════════════════════════════════════════════════════════ */
+const canvas=$("c");
+let renderer, scene, camera, sun, hemi, quality="high";
+
+function initRenderer(){
+  renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:"high-performance"});
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+  renderer.setSize(innerWidth,innerHeight,false);
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  if("outputColorSpace" in renderer) renderer.outputColorSpace=THREE.SRGBColorSpace;
+
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,0.1,420);
+
+  hemi=new THREE.HemisphereLight(0xffffff,0x445566,0.85); scene.add(hemi);
+  sun=new THREE.DirectionalLight(0xffffff,1.25);
+  sun.castShadow=true;
+  sun.shadow.mapSize.set(1024,1024);
+  const sc=sun.shadow.camera;
+  sc.left=-26; sc.right=26; sc.top=26; sc.bottom=-26; sc.near=1; sc.far=110;
+  scene.add(sun); scene.add(sun.target);
+}
+function applyQuality(q){
+  quality=q;
+  if(q==="low"){ renderer.setPixelRatio(1); renderer.shadowMap.enabled=false; }
+  else if(q==="med"){ renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.35));
+                      renderer.shadowMap.enabled=true; sun.shadow.mapSize.set(768,768); }
+  else { renderer.setPixelRatio(Math.min(devicePixelRatio||1,2)); renderer.shadowMap.enabled=true; }
+  scene.traverse(o=>{ if(o.isMesh){ o.castShadow=o.userData.cast&&q!=="low"; o.receiveShadow=o.userData.recv&&q!=="low"; }});
+}
+addEventListener("resize",()=>{
+  if(!renderer) return;
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight,false);
+});
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §7 · الأنسجة الإجرائية (CanvasTexture) — لا صور خارجية
+   ══════════════════════════════════════════════════════════════════════════ */
+const texCache=new Map();
+function makeTex(key,draw,rep=1){
+  if(texCache.has(key)) return texCache.get(key);
+  const cv=document.createElement("canvas"); cv.width=cv.height=128;
+  draw(cv.getContext("2d"),128);
+  const t=new THREE.CanvasTexture(cv);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(rep,rep);
+  if("colorSpace" in t) t.colorSpace=THREE.SRGBColorSpace;
+  t.anisotropy=4;
+  texCache.set(key,t); return t;
+}
+function hex(c){ return "#"+c.toString(16).padStart(6,"0"); }
+function shade(c,f){
+  const r=Math.min(255,((c>>16)&255)*f)|0, g=Math.min(255,((c>>8)&255)*f)|0, b=Math.min(255,(c&255)*f)|0;
+  return (r<<16)|(g<<8)|b;
+}
+function groundTex(color){
+  return makeTex("g"+color,(x,S)=>{
+    x.fillStyle=hex(color); x.fillRect(0,0,S,S);
+    for(let i=0;i<220;i++){
+      const s=1+Math.random()*3.2;
+      x.fillStyle="rgba(0,0,0,"+(0.03+Math.random()*0.10).toFixed(3)+")";
+      x.fillRect(Math.random()*S,Math.random()*S,s,s);
+    }
+    for(let i=0;i<70;i++){
+      x.fillStyle="rgba(255,255,255,"+(0.02+Math.random()*0.07).toFixed(3)+")";
+      x.fillRect(Math.random()*S,Math.random()*S,1.5,1.5);
+    }
+    x.strokeStyle="rgba(0,0,0,.16)"; x.lineWidth=3; x.strokeRect(0,0,S,S);
+  });
+}
+function brickTex(color){
+  return makeTex("b"+color,(x,S)=>{
+    x.fillStyle=hex(shade(color,0.82)); x.fillRect(0,0,S,S);
+    const h=S/4;
+    for(let r=0;r<4;r++){
+      const off=(r%2)*(S/4);
+      for(let c=-1;c<4;c++){
+        x.fillStyle=hex(shade(color,0.94+Math.random()*0.14));
+        x.fillRect(c*(S/2)+off+2, r*h+2, S/2-4, h-4);
+      }
+    }
+  });
+}
+
+/* مواد مشتركة (تُعاد تهيئتها لكل عالم) */
+const MAT={};
+function buildMaterials(w){
+  const L=(o)=>new THREE.MeshLambertMaterial(o);
+  MAT.ground   = L({map:groundTex(w.ground)});
+  MAT.rock     = L({map:brickTex(w.rock)});
+  MAT.accent   = L({color:w.accent});
+  MAT.moving   = L({color:shade(w.accent,0.9)});
+  MAT.falling  = L({color:0xd08a4a});
+  MAT.crumble  = L({color:0xa07a5a});
+  MAT.spring   = L({color:0x39d98a});
+  MAT.ice      = L({color:0xcdeeff, transparent:true, opacity:0.94});
+  MAT.conveyor = L({color:0x596273});
+  MAT.bounce   = L({color:0xd94aa0});
+  MAT.lava     = new THREE.MeshBasicMaterial({color:0xff5a1e});
+  MAT.water    = new THREE.MeshLambertMaterial({color:0x2fa8d4,transparent:true,opacity:0.55});
+  MAT.spike    = L({color:0xc9ccd4});
+  MAT.metal    = L({color:0x8d949e});
+  MAT.dark     = L({color:0x241a30});
+  MAT.enemy    = L({color:0x8a4b2a});
+  MAT.eye      = new THREE.MeshBasicMaterial({color:0xffffff});
+  MAT.pupil    = new THREE.MeshBasicMaterial({color:0x14121a});
+  MAT.coin     = L({color:0xf2c14e,emissive:0x4a3200});
+  MAT.gem      = L({color:0x8ef0ff,emissive:0x1a5a66});
+  MAT.flag     = L({color:0x4ec97a});
+  MAT.fence    = new THREE.MeshBasicMaterial({color:w.accent,transparent:true,opacity:0.22,side:THREE.DoubleSide});
+  MAT.fenceBar = L({color:shade(w.accent,0.8)});
+}
+
+/* هندسات مشتركة (تُنشأ مرة واحدة) */
+const GEO={
+  box  : new THREE.BoxGeometry(1,1,1),
+  sph  : new THREE.SphereGeometry(0.5,16,12),
+  sphLo: new THREE.SphereGeometry(0.5,10,8),
+  cyl  : new THREE.CylinderGeometry(0.5,0.5,1,14),
+  cone : new THREE.ConeGeometry(0.5,1,12),
+  tor  : new THREE.TorusGeometry(0.42,0.13,8,18),
+  plane: new THREE.PlaneGeometry(1,1),
+  cap  : new THREE.CapsuleGeometry(0.3,0.6,4,10),
+};
+function mesh(g,m,cast=true,recv=true){
+  const o=new THREE.Mesh(g,m); o.userData.cast=cast; o.userData.recv=recv;
+  o.castShadow=cast; o.receiveShadow=recv; return o;
+}
+const _v1=new THREE.Vector3(), _v2=new THREE.Vector3(), _q1=new THREE.Quaternion(),
+      _m1=new THREE.Matrix4(), _s1=new THREE.Vector3();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §8 · يوسف — بناء من primitives + رسوم متحركة إجرائية
+   شعر أسود مجعّد، قميص أخضر زيتوني، سروال بنّي، كوفية حمراء تتموّج خلفه.
+   ══════════════════════════════════════════════════════════════════════════ */
+const SKIN=0xc79466, SHIRT=0x6b8f47, PANTS=0x6b4a2e, KEF=0xd6402f, SHOE=0xf2efe6, HAIR=0x1a1512;
+
+function buildYoussef(){
+  const root=new THREE.Group();
+  const M=(c)=>new THREE.MeshLambertMaterial({color:c});
+  const mSkin=M(SKIN), mShirt=M(SHIRT), mPants=M(PANTS), mShoe=M(SHOE), mHair=M(HAIR);
+
+  /* ── الجذع ───────────────────────────────────────── */
+  const torso=mesh(GEO.cap,mShirt); torso.scale.set(1.30,1.00,0.92); torso.position.y=1.12; root.add(torso);
+  const belt=mesh(GEO.box,M(0x3a2a1c)); belt.scale.set(0.74,0.10,0.52); belt.position.y=0.86; root.add(belt);
+
+  /* ── الرأس ───────────────────────────────────────── */
+  const head=new THREE.Group(); head.position.y=1.72; root.add(head);
+  const skull=mesh(GEO.sph,mSkin); skull.scale.setScalar(0.80); head.add(skull);
+  // شعر مجعّد: كرات متداخلة
+  for(let i=0;i<7;i++){
+    const a=(i/7)*TAU, r=0.30;
+    const h=mesh(GEO.sphLo,mHair); h.scale.setScalar(0.30+((i*7)%3)*0.045);
+    h.position.set(Math.cos(a)*r*0.75, 0.24+Math.sin(a*2)*0.05, Math.sin(a)*r*0.62-0.03);
+    head.add(h);
+  }
+  const hTop=mesh(GEO.sphLo,mHair); hTop.scale.set(0.80,0.56,0.80); hTop.position.y=0.20; head.add(hTop);
+  // العينان
+  const eyes=new THREE.Group(); head.add(eyes);
+  const pupils=[];
+  for(const s of [-1,1]){
+    const w=mesh(GEO.sphLo,MAT.eye,false,false); w.scale.set(0.17,0.21,0.10); w.position.set(0.36,0.03,s*0.17); eyes.add(w);
+    const p=mesh(GEO.sphLo,MAT.pupil,false,false); p.scale.setScalar(0.10); p.position.set(0.42,0.03,s*0.17); eyes.add(p); pupils.push(p);
+  }
+  // حاجبان
+  for(const s of [-1,1]){
+    const b=mesh(GEO.box,mHair,false,false); b.scale.set(0.05,0.035,0.17); b.position.set(0.37,0.17,s*0.17); head.add(b);
+  }
+
+  /* ── الكوفية الحمراء (العلامة المميزة) ───────────── */
+  const kefMat=new THREE.MeshLambertMaterial({color:KEF,side:THREE.DoubleSide});
+  const collar=mesh(GEO.tor,kefMat); collar.scale.set(0.72,0.72,1.05); collar.rotation.x=Math.PI/2;
+  collar.position.y=1.52; root.add(collar);
+  // ذيل الكوفية: خمس قطع مجسّمة متداخلة تُقرأ قماشاً متّصلاً من كل زاوية
+  const tail=[];
+  for(let i=0;i<5;i++){
+    const seg=mesh(GEO.box,kefMat,true,false);
+    seg.scale.set(0.30, 0.20-i*0.022, 0.40-i*0.055);
+    seg.position.set(-0.40-i*0.24, 1.46-i*0.10, 0.20);
+    root.add(seg); tail.push(seg);
+  }
+
+  /* ── الأطراف ─────────────────────────────────────── */
+  const limb=(mat,len,rad)=>{
+    const pivot=new THREE.Group();
+    const g=new THREE.CapsuleGeometry(rad,len,4,8);
+    const m=mesh(g,mat); m.position.y=-(len/2+rad*0.5); pivot.add(m);
+    return {pivot,m};
+  };
+  const armL=limb(mSkin,0.46,0.115), armR=limb(mSkin,0.46,0.115);
+  armL.pivot.position.set(0,1.42, 0.42); armR.pivot.position.set(0,1.42,-0.42);
+  // أكمام
+  for(const a of [armL,armR]){ const s=mesh(GEO.cap,mShirt); s.scale.set(0.46,0.34,0.46); s.position.y=-0.16; a.pivot.add(s); }
+  root.add(armL.pivot,armR.pivot);
+
+  const legL=limb(mPants,0.52,0.135), legR=limb(mPants,0.52,0.135);
+  legL.pivot.position.set(0,0.84, 0.20); legR.pivot.position.set(0,0.84,-0.20);
+  root.add(legL.pivot,legR.pivot);
+  const shoes=[];
+  for(const l of [legL,legR]){
+    const sh=mesh(GEO.box,mShoe); sh.scale.set(0.34,0.15,0.24); sh.position.set(0.06,-0.80,0);
+    l.pivot.add(sh); shoes.push(sh);
+  }
+
+  /* ── ظلّ بديل (blob) للأجهزة الضعيفة ─────────────── */
+  const blob=mesh(GEO.plane,new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.32}),false,false);
+  blob.rotation.x=-Math.PI/2; blob.scale.setScalar(1.15); blob.position.y=0.02; root.add(blob);
+
+  root.userData.rig={torso,head,eyes,pupils,armL,armR,legL,legR,tail,collar,blob,shoes,
+                     mats:[mSkin,mShirt,mPants,mShoe,mHair,kefMat]};
+  root.traverse(o=>{ if(o.isMesh&&o!==blob){ o.castShadow=true; o.receiveShadow=false; o.userData.cast=true; o.userData.recv=false; }});
+  return root;
+}
+
+/** رسوم متحركة إجرائية بالكامل — لا هياكل عظمية ولا ملفات. */
+function animateYoussef(g,st,dt,t){
+  const r=g.userData.rig;
+  const spd=Math.hypot(st.vel.x,st.vel.z);
+  const run=clamp(spd/P.runSpeed,0,1.4);
+  const ph=t*(3.4+run*7.5);
+
+  if(st.grounded){
+    r.armL.pivot.rotation.z = damp(r.armL.pivot.rotation.z,  Math.sin(ph)*0.95*run, 18, dt);
+    r.armR.pivot.rotation.z = damp(r.armR.pivot.rotation.z, -Math.sin(ph)*0.95*run, 18, dt);
+    r.legL.pivot.rotation.z = damp(r.legL.pivot.rotation.z, -Math.sin(ph)*1.05*run, 18, dt);
+    r.legR.pivot.rotation.z = damp(r.legR.pivot.rotation.z,  Math.sin(ph)*1.05*run, 18, dt);
+    r.torso.position.y = damp(r.torso.position.y, 1.12+Math.abs(Math.sin(ph))*0.055*run, 16, dt);
+  }else{
+    const up=st.vel.y>0;
+    r.armL.pivot.rotation.z = damp(r.armL.pivot.rotation.z, up?-2.25:-1.35, 12, dt);
+    r.armR.pivot.rotation.z = damp(r.armR.pivot.rotation.z, up?-2.05:-1.55, 12, dt);
+    r.legL.pivot.rotation.z = damp(r.legL.pivot.rotation.z, up?-0.55:0.30, 12, dt);
+    r.legR.pivot.rotation.z = damp(r.legR.pivot.rotation.z, up? 0.70:-0.20,12, dt);
+  }
+
+  // ميل الجسم عند الحركة الجانبية + الالتفاف نحو اتجاه السير
+  const wantYaw = Math.atan2(-st.vel.z, Math.max(0.4,Math.abs(st.vel.x))*sign(st.vel.x||1));
+  g.rotation.y = damp(g.rotation.y, clamp(wantYaw,-0.9,0.9), 12, dt);
+  r.torso.rotation.x = damp(r.torso.rotation.x, clamp(-st.vel.z*0.035,-0.3,0.3), 10, dt);
+
+  // Squash & Stretch
+  const sq=st.squash;
+  g.scale.set(1+sq*0.30, 1-sq*0.34, 1+sq*0.30);
+
+  // الكوفية: كل مقطع يتبع سابقه بتأخير + دفعة للخلف حسب السرعة
+  let px=-0.30, py=1.50;
+  for(let i=0;i<r.tail.length;i++){
+    const s=r.tail[i];
+    // كل قطعة تلاحق سابقتها بتأخير، وترتفع مع السرعة كأنها تطير خلفه
+    const tx = px-(0.16+run*0.11);
+    const ty = py-(0.15-run*0.13) + Math.sin(t*7.5+i*0.85)*0.05*(0.35+run);
+    s.position.x = damp(s.position.x, tx, 15-i*1.4, dt);
+    s.position.y = damp(s.position.y, ty, 15-i*1.4, dt);
+    s.position.z = damp(s.position.z, 0.20+Math.sin(t*5.5+i*1.05)*0.11*(0.3+run) - st.vel.z*0.022, 11, dt);
+    s.rotation.z = damp(s.rotation.z, -run*0.30 + Math.sin(t*6+i)*0.09, 11, dt);
+    s.rotation.y = damp(s.rotation.y, Math.sin(t*4.5+i*0.8)*0.22*(0.3+run), 11, dt);
+    px=s.position.x; py=s.position.y;
+  }
+
+  // البؤبؤان ينظران لاتجاه السير
+  for(const p of r.pupils){ p.position.x = damp(p.position.x, 0.42+clamp(st.vel.x*0.006,-0.05,0.05), 12, dt); }
+
+  // وميض المناعة
+  const flick = st.invuln>0 ? (Math.sin(t*34)*0.5+0.5) : 1;
+  const star  = st.pw.star>0;
+  for(const m of r.mats){
+    m.opacity = st.invuln>0 ? 0.35+flick*0.65 : 1;
+    m.transparent = st.invuln>0;
+    if(star){ m.emissive=m.emissive||new THREE.Color(); m.emissive.setHSL((t*0.7)%1,0.9,0.32); }
+    else if(m.emissive) m.emissive.setRGB(0,0,0);
+  }
+  // الظلّ البديل
+  r.blob.visible = quality==="low";
+  if(r.blob.visible){ r.blob.position.y = (st.groundY!=null? st.groundY-st.pos.y+0.02 : -50); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §9 · بنية المرحلة + باعث العناصر
+   البلاطة تُعرَّف بـ (x=بداية على X, y=سطحها العلوي, z=مركزها, w,h,d)
+   ══════════════════════════════════════════════════════════════════════════ */
+function newLevel(){
+  return {blocks:[],dyn:[],enemies:[],traps:[],items:[],checkpoints:[],decos:[],
+          length:0,world:1,index:1,coinTotal:0,rising:null,halfW:TRACK_HALF,chunkLog:[],
+          goalX:null,bossWin:0,wind:null};
+}
+let LV=newLevel();
+
+const E={
+  plat(x,y,z,w,h,d,type="ground"){
+    LV.blocks.push({x0:x,y0:y-h,z0:z-d/2,x1:x+w,y1:y,z1:z+d/2,type});
+    return LV.blocks[LV.blocks.length-1];
+  },
+  move(x,y,z,w,h,d,ax,amp,speed,phase=0,type="moving"){
+    const b={x0:x,y0:y-h,z0:z-d/2,x1:x+w,y1:y,z1:z+d/2,type,
+             ox:x,oy:y-h,oz:z-d/2,ax,amp,speed,phase,dx:0,dy:0,dz:0,kind:"moving"};
+    LV.dyn.push(b); return b;
+  },
+  fall(x,y,z,w,h,d){
+    const b={x0:x,y0:y-h,z0:z-d/2,x1:x+w,y1:y,z1:z+d/2,type:"falling",
+             ox:x,oy:y-h,oz:z-d/2,kind:"falling",timer:-1,vy:0,gone:0,dx:0,dy:0,dz:0};
+    LV.dyn.push(b); return b;
+  },
+  crumble(x,y,z,w,h,d){
+    const b={x0:x,y0:y-h,z0:z-d/2,x1:x+w,y1:y,z1:z+d/2,type:"crumble",
+             ox:x,oy:y-h,oz:z-d/2,kind:"crumble",timer:-1,dead:false,dx:0,dy:0,dz:0};
+    LV.dyn.push(b); return b;
+  },
+  enemy(t,x,y,z,o){ LV.enemies.push(Object.assign({type:t,x,y,z,hp:1,alive:true,vx:0,vy:0,vz:0,t:0,state:0},o||{})); },
+  trap(t,x,y,z,o){ LV.traps.push(Object.assign({type:t,x,y,z,t:0},o||{})); },
+  item(t,x,y,z){ LV.items.push({type:t,x,y,z,taken:false,t:Math.random()*TAU}); if(t==="coin") LV.coinTotal++; },
+  coinArc(x,y,z,n,dx=1.05,h=1.5){ for(let i=0;i<n;i++){ const u=(i/(n-1||1))*Math.PI;
+      E.item("coin", x+i*dx, y+Math.sin(u)*h, z); } },
+  coinRow(x,y,z,n,dx=1.2){ for(let i=0;i<n;i++) E.item("coin",x+i*dx,y,z); },
+  cp(x,y,z=0){ LV.checkpoints.push({x,y,z,hit:false}); },
+  deco(t,x,y,z,s=1){ LV.decos.push({type:t,x,y,z,s}); },
+  fence(x,w){ /* حدود الممرّ مرئية */ LV.decos.push({type:"fence",x,y:0,z:0,s:w}); },
+};
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §10 · بنك القطع — قِطَع مصمَّمة يدوياً تُركَّب لتصنع 100 مرحلة
+   entryY/exitY = ارتفاع الأرض عند المدخل/المخرج (للوصل الصحيح)
+   diff = 1..5 · tags تمنع تكرار نفس الفكرة مرتين متتاليتين
+   ══════════════════════════════════════════════════════════════════════════ */
+const G = 12;   // عرض الأرضية الافتراضي على Z
+
+const CHUNKS=[
+/* ── أرض بسيطة ─────────────────────────────────────────────────────── */
+{id:"flat",len:20,diff:1,entryY:0,exitY:0,tags:["flat"],build(x,r,d){
+  E.plat(x,0,0,20,2,G);
+  E.plat(x+r.range(6,12),1.4+r.range(0,0.8),r.range(-3.5,3.5),3.0,1.2,3.0,"rock");
+  E.coinRow(x+5,1.4,r.range(-3,3),5);
+  E.enemy("walker",x+12,0.4,r.range(-3,3),{range:5,speed:2.4+d*1.6});
+  if(r.chance(0.30+d*0.5)) E.enemy(d>0.4?"jumper":"walker",x+5,0.4,r.range(-3,3),{range:3,speed:2+d*2});
+}},
+{id:"flat_wide",len:26,diff:1,entryY:0,exitY:0,tags:["flat","arena"],build(x,r,d){
+  E.plat(x,0,0,26,2,G);
+  const n=1+Math.round(d*3);
+  for(let i=0;i<n;i++) E.enemy(r.pick(["walker","walker","jumper"]),x+6+i*6,0.4,r.range(-4,4),{range:4,speed:2.2+d*2});
+  E.coinArc(x+4,1.2,0,7);
+}},
+
+/* ── فجوات ─────────────────────────────────────────────────────────── */
+{id:"gap1",len:22,diff:1,entryY:0,exitY:0,tags:["gap"],build(x,r,d){
+  const g=3.2+d*2.6;
+  E.plat(x,0,0,8,2,G);
+  E.plat(x+8+g,0,0,22-8-g,2,G);
+  E.coinArc(x+8,1.4,0,5,(g)/4.5,1.9);
+}},
+{id:"gap3",len:50,diff:2,entryY:0,exitY:0,tags:["gap"],build(x,r,d){
+  const g=2.6+d*2.2, w=6.6, step=w+g;      // أقصى فجوة 4.8 < 6.4
+  for(let i=0;i<4;i++) E.plat(x+i*step,0,r.range(-1.4,1.4),w,2,8);
+  const endX=x+3*step+w+g;
+  E.plat(endX,0,0,Math.max(5,x+50-endX),2,G);
+  for(let i=0;i<3;i++) E.coinArc(x+w+i*step,1.5,0,4,g/3.4,1.7);
+}},
+{id:"pillars",len:50,diff:2,entryY:0,exitY:0,tags:["gap","pillar"],build(x,r,d){
+  E.plat(x,0,0,5,2,G);
+  let px=x+7.0, pz=0;
+  for(let i=0;i<4;i++){
+    const h=r.range(0,1.3);
+    pz=clamp(pz+r.range(-2.0,2.0),-3.0,3.0);   // انزياح جانبي متدرّج، لا قفزات
+    E.plat(px,h,pz,5.0,2+h,5.6,"rock");
+    E.item("coin",px+1.6,h+1.4,pz);
+    if(i===2&&d>0.35) E.enemy("flyer",px+1.6,h+3.2,pz,{amp:1.3,speed:2.4,range:3});
+    px+=5.0+(2.2+d*1.6);                        // أقصى فجوة 3.8
+  }
+  E.plat(px,0,0,Math.max(5,x+50-px),2,G);
+}},
+
+/* ── درجات ─────────────────────────────────────────────────────────── */
+{id:"stairsUp",len:27,diff:1,entryY:0,exitY:4.4,tags:["stairs"],build(x,r,d){
+  E.plat(x,0,0,6,2,G);
+  for(let i=0;i<4;i++) E.plat(x+6+i*4.2, 1.1+i*1.1, r.range(-1.2,1.2), 4.4, 2+i, 7);
+  E.plat(x+6+4*4.2, 4.4, 0, Math.max(4,27-(6+4*4.2)), 6, G);
+  E.coinRow(x+7,2.4,0,6,3.0);
+}},
+{id:"stairsDown",len:27,diff:1,entryY:4.4,exitY:0,tags:["stairs"],build(x,r,d){
+  E.plat(x,4.4,0,6,6,G);
+  for(let i=0;i<4;i++) E.plat(x+6+i*4.2, 3.3-i*1.1, r.range(-1.2,1.2), 4.4, 5-i, 7);
+  E.plat(x+6+4*4.2, 0, 0, Math.max(4,27-(6+4*4.2)), 2, G);
+  if(d>0.3) E.enemy("walker",x+18,0.5,0,{range:4,speed:3});
+}},
+{id:"climb",len:44,diff:4,entryY:0,exitY:5.1,tags:["climb"],build(x,r,d){
+  E.plat(x,0,0,5,2,G);
+  let y=0, px=x+6.2, z=0, s=r.sign();
+  for(let i=0;i<3;i++){
+    y+=1.7;                                     // ارتفاع 1.7 < 2.55
+    z=clamp(s*r.range(0.6,1.7),-2.4,2.4); s=-s; // إزاحة جانبية 3.4 كحدّ أقصى
+    E.plat(px,y,z,6.0,1.2,6.2,"rock"); E.item("coin",px+3.0,y+1.3,z);
+    px+=6.0+2.0;
+  }
+  E.plat(px,5.1,0,Math.max(6,x+44-px),1.4,G);
+}},
+
+/* ── منصّات متحرّكة ─────────────────────────────────────────────────── */
+{id:"movingX",len:30,diff:2,entryY:0,exitY:0,tags:["moving"],build(x,r,d){
+  E.plat(x,0,0,6,2,G);
+  E.move(x+7.2,0.6,0,5.4,0.9,5.4,"z",2.4,0.9+d*0.6,0);
+  E.move(x+14.8,1.1,0,5.4,0.9,5.4,"y",1.30,0.8+d*0.5,1.4);
+  E.plat(x+13.0,0.4,0,2.0,1.0,4.0,"rock");   // مستراح ثابت بينهما
+  E.plat(x+22,0,0,8,2,G);
+  E.coinArc(x+8,2.2,0,5,1.4,1.2);
+}},
+{id:"movingLong",len:34,diff:4,entryY:0,exitY:0,tags:["moving"],build(x,r,d){
+  E.plat(x,0,0,5,2,G);
+  for(let i=0;i<3;i++) E.move(x+6.6+i*7.4, 0.8+i*0.4, r.range(-1.4,1.4), 5.6,0.9,5.6,
+                              i%2?"y":"z", i%2?1.3:2.4, 0.8+d*0.5, i*1.1);
+  E.plat(x+28,0,0,6,2,G);
+  if(d>0.5) E.enemy("flyer",x+16,3.4,0,{amp:1.6,speed:2.6,range:5});
+}},
+
+/* ── نوابض ─────────────────────────────────────────────────────────── */
+{id:"springs",len:33,diff:1,entryY:0,exitY:0,tags:["spring"],build(x,r,d){
+  E.plat(x,0,0,8,2,G);
+  E.plat(x+8.2,0,0,3.2,2,6,"spring");
+  E.plat(x+11.4,0,0,2.2,2,6);
+  // منصّة استقبال عريضة تلتقط قوس النابض عند كل السرعات (٨→١٧ وحدة/ث)
+  E.plat(x+13.6,3.2,0,9.4,1.2,7,"rock");
+  E.item("star",x+18,4.8,0);
+  E.plat(x+25,0,0,8,2,G);
+  E.coinArc(x+10,3.8,0,7,1.5,2.6);
+}},
+
+/* ── جسر ضيّق ──────────────────────────────────────────────────────── */
+{id:"bridge",len:26,diff:2,entryY:0,exitY:0,tags:["narrow"],build(x,r,d){
+  E.plat(x,0,0,5,2,G);
+  E.plat(x+5,0,0,16,2,3.4-d*0.9,"rock");     // جسر ضيّق
+  E.plat(x+21,0,0,5,2,G);
+  const n=1+Math.round(d*2);
+  for(let i=0;i<n;i++) E.enemy("walker",x+8+i*5,0.4,0,{range:2.2,speed:2.6+d*2});
+  E.coinRow(x+7,1.3,0,8,1.7);
+}},
+
+/* ── أفخاخ ─────────────────────────────────────────────────────────── */
+{id:"spikeRow",len:24,diff:2,entryY:0,exitY:0,tags:["trap","spike"],build(x,r,d){
+  E.plat(x,0,0,24,2,G);
+  for(let i=0;i<3;i++) E.trap("spikes", x+6+i*5.2, 0, r.range(-3,3), {w:2.6,d:2.6});
+  if(d>0.4) for(let i=0;i<2;i++) E.trap("spikeTimer", x+8.6+i*5.2, 0, r.range(-3,3), {w:2.4,d:2.4,period:1.5,off:i*0.7});
+  E.coinRow(x+5,2.6,0,6,2.4);
+}},
+{id:"sawRun",len:30,diff:3,entryY:0,exitY:0,tags:["trap","saw"],build(x,r,d){
+  E.plat(x,0,0,30,2,G);
+  for(let i=0;i<3;i++) E.trap("saw", x+7+i*7.5, 0.9, 0, {amp:3.6,speed:1.1+d*0.9,phase:i*1.3,rad:1.5});
+  E.coinRow(x+4,1.3,-4,5,1.4); E.coinRow(x+18,1.3,4,5,1.4);
+}},
+{id:"pendulum",len:28,diff:3,entryY:0,exitY:0,tags:["trap","swing"],build(x,r,d){
+  E.plat(x,0,0,28,2,G);
+  for(let i=0;i<3;i++) E.trap("pendulum", x+6+i*7.2, 5.6, 0, {amp:1.0,speed:1.5+d*0.8,phase:i*1.7,len:4.2});
+  E.coinArc(x+9,1.4,0,5,1.4,1.0);
+}},
+{id:"crusher",len:26,diff:4,entryY:0,exitY:0,tags:["trap","crush"],build(x,r,d){
+  E.plat(x,0,0,26,2,G);
+  for(let i=0;i<3;i++) E.trap("crusher", x+6+i*6.6, 6.0, r.range(-2.5,2.5), {period:2.4-d*0.7,off:i*0.8,w:3.0,d:3.0});
+  E.coinRow(x+4,1.2,0,7,3.0);
+}},
+{id:"flames",len:26,diff:3,entryY:0,exitY:0,tags:["trap","fire"],build(x,r,d){
+  E.plat(x,0,0,26,2,G);
+  for(let i=0;i<4;i++) E.trap("flame", x+5+i*5.2, 0, r.range(-3.4,3.4), {period:2.6-d*0.6,off:i*0.65,h:3.4});
+  E.coinRow(x+6,1.3,0,8,2.2);
+}},
+{id:"laser",len:26,diff:5,entryY:0,exitY:0,tags:["trap","laser"],build(x,r,d){
+  E.plat(x,0,0,26,2,G);
+  for(let i=0;i<2;i++) E.trap("laser", x+8+i*9, 3.2, 0, {speed:0.8+d*0.7,phase:i*1.9,len:5.0});
+  E.plat(x+12,2.4,0,4,0.9,5,"rock"); E.item("coin",x+14,3.8,0);
+}},
+{id:"rocks",len:24,diff:3,entryY:0,exitY:0,tags:["trap","rock"],build(x,r,d){
+  E.plat(x,0,0,24,2,G);
+  for(let i=0;i<4;i++) E.trap("fallingRock", x+5+i*4.6, 7.5, r.range(-3.5,3.5), {period:2.2-d*0.5,off:i*0.55});
+  E.coinRow(x+5,1.3,0,8,2.2);
+}},
+
+/* ── أرضيات خاصة ───────────────────────────────────────────────────── */
+{id:"conveyor",len:28,diff:2,entryY:0,exitY:0,tags:["belt"],build(x,r,d){
+  E.plat(x,0,0,5,2,G);
+  E.plat(x+5,0,0,8,2,9,"conveyor").push=-2.5-d*2.5;
+  E.plat(x+13,0,0,3,2,9);
+  E.plat(x+16,0,0,7,2,9,"conveyor").push=3.0+d*2.0;
+  E.plat(x+23,0,0,5,2,G);
+  if(d>0.4) E.enemy("walker",x+9,0.4,0,{range:3,speed:2});
+  E.coinRow(x+17,1.3,0,5,1.3);
+}},
+{id:"iceSlide",len:30,diff:2,entryY:0,exitY:0,tags:["ice"],build(x,r,d){
+  E.plat(x,0,0,4,2,G);
+  E.plat(x+4,0,0,22,2,10,"ice");
+  E.plat(x+26,0,0,4,2,G);
+  for(let i=0;i<2;i++) E.trap("spikes", x+9+i*7, 0, r.range(-3,3), {w:2.4,d:2.4});
+  E.coinRow(x+6,1.3,0,9,2.0);
+}},
+{id:"fallTiles",len:40,diff:4,entryY:0,exitY:0,tags:["falling"],build(x,r,d){
+  E.plat(x,0,0,5,2,G);
+  let z=0;
+  for(let i=0;i<6;i++){ z=clamp(z+r.range(-1.5,1.5),-2.4,2.4);
+    E.fall(x+6.6+i*4.4, 0, z, 4.4,0.8,5.2); E.item("coin",x+8.8+i*4.4,1.3,z); }
+  E.plat(x+33,0,0,7,2,G);
+}},
+{id:"crumblePath",len:48,diff:4,entryY:0,exitY:0,tags:["falling","crumble"],build(x,r,d){
+  E.plat(x,0,0,5,2,G);
+  let px=x+6.6, y=0, z=0;
+  for(let i=0;i<5;i++){
+    y=clamp(y+r.range(-0.6,0.8),0,2.0);
+    z=clamp(z+r.range(-1.6,1.6),-2.6,2.6);
+    E.crumble(px,y,z,5.0,0.8,5.2); E.item("coin",px+2.5,y+1.3,z);
+    px+=5.0+1.9;                                 // فجوة 1.9 فقط
+  }
+  E.plat(px,0,0,Math.max(5,x+48-px),2,G);
+}},
+
+/* ── مواجهات ───────────────────────────────────────────────────────── */
+{id:"gauntlet",len:30,diff:3,entryY:0,exitY:0,tags:["fight"],build(x,r,d){
+  E.plat(x,0,0,30,2,G);
+  const pool=["walker","spiky","charger","jumper","shooter","bomber","shielded","splitter"];
+  const avail=pool.slice(0,2+Math.round(d*6));
+  const n=2+Math.round(d*4);
+  for(let i=0;i<n;i++) E.enemy(r.pick(avail), x+6+i*(22/n), 0.5, r.range(-4,4), {range:4,speed:2.2+d*2.2});
+  E.plat(x+13,2.6,0,4,0.9,4,"rock"); E.item("coin",x+15,4.0,0);
+}},
+{id:"shooters",len:28,diff:3,entryY:0,exitY:0,tags:["fight","ranged"],build(x,r,d){
+  E.plat(x,0,0,28,2,G);
+  for(let i=0;i<3;i++){
+    const z=(i%2?1:-1)*4.2;
+    E.plat(x+7+i*7,1.6,z,2.6,3.6,2.6,"rock");
+    E.enemy("shooter",x+8.3+i*7,1.7,z,{cool:2.4-d*0.9});
+  }
+  E.coinRow(x+5,1.3,0,9,2.2);
+}},
+{id:"flyers",len:26,diff:2,entryY:0,exitY:0,tags:["fight","air"],build(x,r,d){
+  E.plat(x,0,0,8,2,G);
+  E.plat(x+11.5,0,0,6,2,8); E.plat(x+20,0,0,6,2,G);
+  for(let i=0;i<3;i++) E.enemy("flyer",x+8+i*5.5, 2.2+r.range(0,1.6), r.range(-3,3), {amp:1.5,speed:2.2+d,range:4});
+  E.coinArc(x+8,1.6,0,5,1.1,1.6);
+}},
+{id:"ghosts",len:26,diff:5,entryY:0,exitY:0,tags:["fight","ghost"],build(x,r,d){
+  E.plat(x,0,0,26,2,G);
+  for(let i=0;i<2;i++) E.enemy("ghost",x+9+i*8, 1.2, r.range(-3,3), {speed:3.4+d*2.2});
+  E.coinRow(x+4,1.3,0,10,2.0);
+}},
+
+/* ── مكافآت واستراحة ───────────────────────────────────────────────── */
+{id:"bonus",len:20,diff:1,entryY:0,exitY:0,tags:["bonus"],build(x,r,d){
+  E.plat(x,0,0,20,2,G);
+  for(let i=0;i<3;i++) E.coinRow(x+5,1.2+i*1.2,-2.4+i*2.4,7,1.6);
+  E.item(r.pick(["heart","feather","flower","boot","shield"]), x+16, 1.6, 0);
+}},
+{id:"checkpoint",len:14,diff:1,entryY:0,exitY:0,tags:["rest"],build(x,r,d){
+  E.plat(x,0,0,14,2,G); E.cp(x+7,0,0); E.coinRow(x+3,1.3,0,4,1.6);
+}},
+];
+
+const CHUNK_START={id:"start",len:24,build(x,r,d){
+  E.plat(x-6,0,0,30,2,G);
+  E.coinRow(x+9,1.3,0,5,1.6);
+  E.deco("sign",x+3,0,0,1);
+}, entryY:0, exitY:0, tags:["start"]};
+
+const CHUNK_FINISH={id:"finish",len:24,build(x,r,d){
+  E.plat(x,0,0,24,2,G);
+  LV.goalX=x+15;                       // خطّ نهاية يعبر الممرّ كلّه — لا يمكن تفويته
+  E.deco("goal",x+15,0, 0,1);
+  E.deco("goal",x+15,0,-4,1);
+  E.deco("goal",x+15,0, 4,1);
+  E.coinArc(x+4,1.4,0,7);
+}, entryY:0, exitY:0, tags:["finish"]};
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §11 · المولّد الحتمي — نفس البذرة ⇒ نفس المرحلة لكل اللاعبين
+   ══════════════════════════════════════════════════════════════════════════ */
+function worldAllows(world,c){
+  if(c.tags.includes("ice")   && !(world===5||world===8)) return false;
+  if(c.tags.includes("belt")  && !(world===7||world===4)) return false;
+  if(c.tags.includes("ghost") && !(world===3||world===10||world===4)) return false;
+  if(c.tags.includes("laser") && !(world===7||world===10)) return false;
+  if(c.tags.includes("fire")  && !(world===9||world===10||world===2)) return false;
+  return true;
+}
+
+function generateLevel(index,retry){
+  LV=newLevel();
+  LV.index=index; LV.world=worldOf(index);
+  const w=WORLDS[LV.world-1];
+  const rng=mulberry32((0x59555346 ^ Math.imul(index,2654435761) ^ (retry||0)*7919)>>>0);
+  const d=index/100;
+
+  if(isBoss(index)) return buildBossArena(LV.world,rng,d);
+
+  const target=200+d*400;
+  const maxDiff=clamp(1+Math.floor(d*5.6+0.35),1,5);
+  const pool=CHUNKS.filter(c=>c.diff<=maxDiff && worldAllows(LV.world,c));
+
+  let x=0;
+  CHUNK_START.build(0,rng,d); LV.chunkLog.push({id:'start',x0:-6,x1:CHUNK_START.len}); x=CHUNK_START.len;
+  let prevExitY=0, lastTags=["start"], sinceCP=0, placedCP=0;
+  const cpEvery = index<=10?2:1;    // نقاط تفتيش أكثر في البداية
+  let guard=0;
+
+  while(x<target && guard++<80){
+    let cand=pool.filter(c=> Math.abs(c.entryY-prevExitY)<=2.4 && !c.tags.some(t=>lastTags.includes(t)));
+    if(!cand.length) cand=pool.filter(c=>Math.abs(c.entryY-prevExitY)<=2.4);
+    if(!cand.length) cand=pool.filter(c=>c.entryY===0);
+    if(!cand.length) cand=[CHUNKS[0]];
+    // كلما تقدّمنا في المرحلة ارتفع احتمال القطع الأصعب
+    const prog=x/target;
+    cand.sort((a,b)=>a.diff-b.diff);
+    const bias=clamp(prog*0.55+d*0.45,0,0.98);
+    const c=cand[clamp(Math.floor(Math.pow(rng(),1-bias*0.6)*cand.length),0,cand.length-1)];
+
+    const before=LV.blocks.length+LV.dyn.length;
+    c.build(x,rng,d);
+    // حارس التصميم: أي قطعة تتجاوز طولها المعلن تُمدّد المسافة للقطعة التالية
+    let far=x+c.len;
+    for(let k=before;k<LV.blocks.length;k++) far=Math.max(far,LV.blocks[k].x1);
+    for(const dd of LV.dyn) far=Math.max(far,dd.x1);
+    const over=Math.max(0,far-(x+c.len));
+    if(over>0.5&&!LV.overrun) LV.overrun=[];
+    if(over>0.5) LV.overrun.push(c.id+"+"+over.toFixed(1));
+    LV.chunkLog.push({id:c.id,x0:x,x1:far,diff:c.diff});
+    x=Math.max(x,far-c.len);
+    x+=c.len+rng.range(2.0,4.6);
+    prevExitY=c.exitY; lastTags=c.tags; sinceCP++;
+
+    if(sinceCP>=(3+cpEvery) && placedCP<cpEvery && x<target*0.92){
+      E.plat(x,prevExitY,0,10,2,G); E.cp(x+5,prevExitY,0);
+      x+=12; sinceCP=0; placedCP++; lastTags=["rest"];
+    }
+  }
+  if(prevExitY>0.5){ // نزول للأرض قبل النهاية
+    E.plat(x,prevExitY,0,5,2,G);
+    const steps=Math.ceil(prevExitY/1.4);
+    for(let i=1;i<=steps;i++) E.plat(x+5+(i-1)*3.6, prevExitY-i*(prevExitY/steps), 0, 3.4, 2, 9);
+    x+=5+steps*3.6; prevExitY=0;
+  }
+  CHUNK_FINISH.build(x,rng,d); LV.chunkLog.push({id:'finish',x0:x,x1:x+CHUNK_FINISH.len});
+  LV.length=x+CHUNK_FINISH.len;
+  LV.minX=-9; LV.maxX=LV.length+4;
+
+  applyWorldTheme(LV.world,rng,d);
+  const ok=ensureSolvable();
+  if(!ok && (retry||0)<3) return generateLevel(index,(retry||0)+1);
+  return LV;
+}
+
+/* سِمات العالم: تحوّل أنواع الأرضيات وتضيف أخطاراً بيئية وزينة */
+function applyWorldTheme(world,rng,d){
+  const w=WORLDS[world-1];
+  if(world===5){ for(const b of LV.blocks) if(b.type==="ground"&&rng.chance(0.42)) b.type="ice"; }
+  if(world===9){ LV.hazard={y:-4.5,type:"lava"}; }
+  if(world===6){ LV.hazard={y:-3.0,type:"water"}; }
+  if(world===8) LV.wind={amp:1.5,speed:0.28};                // رياح المرتفعات — دفعة محسوسة لا قاتلة
+  if(world===7){ for(const b of LV.blocks) if(b.type==="ground") b.type="rock"; }
+  if(world===10){ for(const b of LV.blocks) if(b.type==="ground"&&rng.chance(0.5)) b.type="rock"; }
+  // زينة على جانبي الممرّ
+  const kinds={tree:"tree",cactus:"cactus",pine:"pine",palm:"palm",crystal:"crystal",
+               pipe:"pipe",cloud:"cloud",rock:"rock",pillar:"pillar"};
+  const k=kinds[w.deco]||"rock";
+  for(let x=-4;x<LV.length+6;x+=rng.range(5,11)){
+    for(const s of [-1,1]) if(rng.chance(0.62))
+      E.deco(k, x+rng.range(-1.5,1.5), 0, s*(LV.halfW+rng.range(1.4,4.5)), rng.range(0.75,1.5));
+  }
+}
+
+/* ── مدقّق قابلية العبور — الفرق بين لعبة ممتعة ولعبة مكسورة ────────── */
+function ensureSolvable(){
+  const step=0.5, x0=-10, x1=LV.length+6;
+  const n=Math.max(2,Math.ceil((x1-x0)/step));
+  const lo=new Float32Array(n).fill(NaN);
+  const add=(b)=>{
+    if(b.type==="lava"||b.type==="water") return;
+    if(b.z1<-LV.halfW-0.5||b.z0>LV.halfW+0.5) return;
+    const i0=clamp(Math.floor((b.x0-x0)/step),0,n-1), i1=clamp(Math.ceil((b.x1-x0)/step),0,n-1);
+    for(let i=i0;i<=i1;i++) if(isNaN(lo[i])||b.y1<lo[i]) lo[i]=b.y1;
+  };
+  LV.blocks.forEach(add); LV.dyn.forEach(add);
+
+  let fixes=0, i=0;
+  while(i<n){
+    if(!isNaN(lo[i])){ i++; continue; }
+    let j=i; while(j<n&&isNaN(lo[j])) j++;
+    const gapW=(j-i)*step;
+    const yA=i>0?lo[i-1]:0, yB=j<n?lo[j]:0;
+    if(gapW>SAFE_GAP){
+      const parts=Math.ceil(gapW/SAFE_GAP);
+      for(let k=1;k<parts;k++){
+        const gx=x0+(i*step)+(gapW*k/parts)-1.7;
+        const gy=lerp(isNaN(yA)?0:yA, isNaN(yB)?0:yB, k/parts);
+        E.plat(gx,gy,0,3.4,1.0,5.0,"rock"); fixes++;
+      }
+    }
+    if(!isNaN(yA)&&!isNaN(yB)&&yB-yA>SAFE_RISE){
+      const steps=Math.ceil((yB-yA)/SAFE_RISE);
+      for(let k=1;k<steps;k++){
+        const gx=x0+i*step+Math.max(0.4,(gapW*k/steps))-1.5;
+        E.plat(gx, yA+(yB-yA)*k/steps, 0, 3.0, 1.0, 5.0, "rock"); fixes++;
+      }
+    }
+    i=j+1;
+  }
+  // درجات مرتفعة بلا فجوة
+  for(let k=1;k<n;k++){
+    if(isNaN(lo[k])||isNaN(lo[k-1])) continue;
+    if(lo[k]-lo[k-1]>SAFE_RISE){
+      E.plat(x0+k*step-2.6, lo[k-1]+SAFE_RISE*0.62, 0, 2.6, 0.9, 5.0, "rock"); fixes++;
+    }
+  }
+  return fixes<40;   // إن احتاجت المرحلة إصلاحاً مفرطاً، أعِد التوليد ببذرة أخرى
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §12 · ساحة الزعيم
+   ══════════════════════════════════════════════════════════════════════════ */
+const BOSS_KIT=[
+  {moves:["hop","spread"],            look:"beetle"},
+  {moves:["charge","rain"],           look:"scorpion"},
+  {moves:["spread","summon","rain"],  look:"root"},
+  {moves:["charge","crushers"],       look:"machine"},
+  {moves:["hop","rain","summon"],     look:"giant"},
+  {moves:["spread","charge"],         look:"octo"},
+  {moves:["sweep","crushers","charge"],look:"factory"},
+  {moves:["hop","spread","sweep"],    look:"dragon"},
+  {moves:["rain","charge","spread"],  look:"heart"},
+  {moves:["mirror","spread","hop","sweep"], look:"shadow"},
+];
+function buildBossArena(world,rng,d){
+  const w=WORLDS[world-1];
+  LV.isBoss=true; LV.world=world;
+  E.plat(-12,0,0,86,4,26);
+  // شرفات جانبية للمناورة
+  for(const s of [-1,1]){ E.plat(10,2.4,s*8.5,10,1.0,4.5,"rock"); E.plat(40,2.4,s*8.5,10,1.0,4.5,"rock"); }
+  E.plat(24,3.4,0,7,1.0,6,"rock");
+  LV.halfW=11.5; LV.length=62; LV.minX=-8; LV.maxX=64;
+  E.cp(2,0,0);
+  for(let i=0;i<10;i++) E.item("coin", 6+i*5.2, 1.3, ((i%3)-1)*4);
+  if(world>=4) E.item("flower", 3, 1.6, 0);
+  if(world>=7) E.item("heart", 30, 4.8, 0);
+  const kit=BOSS_KIT[world-1];
+  LV.boss={
+    world, name:BOSSNAMES[world-1], look:kit.look, moves:kit.moves,
+    maxHp:6+world, hp:6+world, phase:0, x:44, y:0, z:0, vx:0, vy:0, vz:0,
+    t:0, cool:1.6, state:"idle", stTime:0, hurtT:0, dead:false, mesh:null, minions:0
+  };
+  if(world===9) LV.rising={y:-6,speed:0.30,cap:1.7};   // الحمم تصعد حتى مستوى الشرفات فقط
+  applyWorldTheme(world,rng,d);
+  return LV;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §13 · بناء المشهد من بيانات المرحلة (InstancedMesh للأداء)
+   ══════════════════════════════════════════════════════════════════════════ */
+let levelGroup=null, blockGrid=null, GRID=8;
+const dynMeshes=[], enemyMeshes=[], trapObjs=[], itemObjs=[], cpObjs=[];
+let hazardMesh=null, risingMesh=null, goalObj=null, bossObj=null;
+const decoObjs=[];
+
+function matFor(type){
+  switch(type){
+    case "rock":return MAT.rock; case "moving":return MAT.moving; case "falling":return MAT.falling;
+    case "crumble":return MAT.crumble; case "spring":return MAT.spring; case "ice":return MAT.ice;
+    case "conveyor":return MAT.conveyor; case "bounce":return MAT.bounce;
+    case "lava":return MAT.lava; case "water":return MAT.water; default:return MAT.ground;
+  }
+}
+function disposeGroup(g){
+  if(!g) return;
+  g.traverse(o=>{ if(o.isMesh||o.isInstancedMesh){ if(o.geometry&&o.geometry!==GEO.box&&!Object.values(GEO).includes(o.geometry)) o.geometry.dispose(); }});
+  scene.remove(g);
+}
+function buildScene(){
+  disposeGroup(levelGroup);
+  dynMeshes.length=0; enemyMeshes.length=0; trapObjs.length=0; itemObjs.length=0; cpObjs.length=0; decoObjs.length=0;
+  hazardMesh=risingMesh=goalObj=bossObj=null;
+  levelGroup=new THREE.Group(); scene.add(levelGroup);
+
+  const w=WORLDS[LV.world-1];
+  scene.background=new THREE.Color(w.sky);
+  scene.fog=new THREE.FogExp2(w.fog,w.fogD);
+  sun.color.setHex(w.sun); hemi.color.setHex(w.sun); hemi.groundColor.setHex(w.amb);
+  sun.intensity=LV.world>=9?1.05:1.25; hemi.intensity=0.85;
+
+  /* ── الكتل الساكنة: InstancedMesh لكل نوع ─────────────────── */
+  const byType=new Map();
+  for(const b of LV.blocks){ if(!byType.has(b.type)) byType.set(b.type,[]); byType.get(b.type).push(b); }
+  for(const [type,list] of byType){
+    const im=new THREE.InstancedMesh(GEO.box,matFor(type),list.length);
+    im.castShadow=type!=="ground"; im.receiveShadow=true;
+    im.userData.cast=im.castShadow; im.userData.recv=true;
+    im.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+    list.forEach((b,i)=>{
+      _v1.set((b.x0+b.x1)/2,(b.y0+b.y1)/2,(b.z0+b.z1)/2);
+      _s1.set(b.x1-b.x0,b.y1-b.y0,b.z1-b.z0);
+      _m1.compose(_v1,_q1.identity(),_s1);
+      im.setMatrixAt(i,_m1);
+    });
+    im.instanceMatrix.needsUpdate=true;
+    // تكرار النسيج حسب الحجم غير ممكن مع instancing؛ نكتفي بنسيج موحّد
+    levelGroup.add(im);
+  }
+
+  /* ── الكتل المتحرّكة: Mesh مستقلّ لكل واحدة ────────────────── */
+  for(const b of LV.dyn){
+    const m=mesh(GEO.box,matFor(b.type),true,true);
+    m.scale.set(b.x1-b.x0,b.y1-b.y0,b.z1-b.z0);
+    m.position.set((b.x0+b.x1)/2,(b.y0+b.y1)/2,(b.z0+b.z1)/2);
+    levelGroup.add(m); b.mesh=m; dynMeshes.push(b);
+  }
+
+  /* ── حدود الممرّ: أعمدة + لوح شفّاف ────────────────────────── */
+  const posts=Math.max(2,Math.floor((LV.length+18)/4));
+  const pm=new THREE.InstancedMesh(GEO.box,MAT.fenceBar,posts*2);
+  pm.castShadow=false; pm.receiveShadow=false;
+  let pi=0;
+  for(let i=0;i<posts;i++){
+    const px=-10+i*4;
+    for(const s of [-1,1]){
+      _v1.set(px,1.1,s*LV.halfW); _s1.set(0.24,2.2,0.24);
+      _m1.compose(_v1,_q1.identity(),_s1); pm.setMatrixAt(pi++,_m1);
+    }
+  }
+  pm.count=pi; pm.instanceMatrix.needsUpdate=true; levelGroup.add(pm);
+  for(const s of [-1,1]){
+    // جدار شفّاف في مستوى XY عند z=±halfW — يُظهر الحدّ الذي لا يمكن اختراقه
+    const pl=new THREE.Mesh(GEO.plane,MAT.fence);
+    pl.scale.set(LV.length+20,2.6,1);
+    pl.position.set(LV.length/2-4,1.3,s*LV.halfW);
+    levelGroup.add(pl);
+  }
+
+  /* ── خطر بيئي (حمم/ماء) ───────────────────────────────────── */
+  if(LV.hazard){
+    const g=new THREE.PlaneGeometry(LV.length+60,80);
+    const m=LV.hazard.type==="lava"?MAT.lava:MAT.water;
+    hazardMesh=new THREE.Mesh(g,m); hazardMesh.rotation.x=-Math.PI/2;
+    hazardMesh.position.set(LV.length/2,LV.hazard.y,0); levelGroup.add(hazardMesh);
+  }
+  if(LV.rising){
+    const g=new THREE.PlaneGeometry(LV.length+60,80);
+    risingMesh=new THREE.Mesh(g,MAT.lava); risingMesh.rotation.x=-Math.PI/2;
+    risingMesh.position.set(LV.length/2,LV.rising.y,0); levelGroup.add(risingMesh);
+    LV.rising.cur=LV.rising.y;
+  }
+
+  /* ── الزينة ───────────────────────────────────────────────── */
+  for(const d of LV.decos){ const o=buildDeco(d); o.userData.dx=d.x; levelGroup.add(o); decoObjs.push(o); }
+
+  /* ── الأعداء / الأفخاخ / العناصر / نقاط التفتيش ───────────── */
+  for(const e of LV.enemies){ e.mesh=buildEnemy(e); levelGroup.add(e.mesh); enemyMeshes.push(e);
+                              e.hx=e.hx||0.42; e.hy=e.hy||0.85; e.hz=e.hz||0.42; e.baseY=e.y; e.ox=e.x; e.oz=e.z; }
+  for(const t of LV.traps){ t.obj=buildTrap(t); levelGroup.add(t.obj); trapObjs.push(t); }
+  for(const it of LV.items){ it.obj=buildItem(it); levelGroup.add(it.obj); itemObjs.push(it); }
+  for(const c of LV.checkpoints){ c.obj=buildFlag(0xf2c14e); c.obj.position.set(c.x,c.y,c.z);
+                                  levelGroup.add(c.obj); cpObjs.push(c); }
+  if(LV.boss){ bossObj=buildBoss(LV.boss); levelGroup.add(bossObj); LV.boss.mesh=bossObj; }
+
+  buildGrid();
+  applyQuality(quality);
+}
+
+function buildGrid(){
+  blockGrid=new Map();
+  LV.blocks.forEach((b,i)=>{
+    const a=Math.floor(b.x0/GRID), z=Math.floor(b.x1/GRID);
+    for(let k=a;k<=z;k++){ if(!blockGrid.has(k)) blockGrid.set(k,[]); blockGrid.get(k).push(b); }
+  });
+}
+function blocksNear(x0,x1,out){
+  out.length=0;
+  const a=Math.floor(x0/GRID), b=Math.floor(x1/GRID);
+  for(let k=a;k<=b;k++){ const l=blockGrid.get(k); if(l) for(const bl of l) if(out.indexOf(bl)<0) out.push(bl); }
+  for(const d of LV.dyn) if(!d.dead && d.x1>x0-2 && d.x0<x1+2) out.push(d);
+  return out;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §14 · نماذج الزينة والعناصر
+   ══════════════════════════════════════════════════════════════════════════ */
+function buildDeco(d){
+  const w=WORLDS[LV.world-1], g=new THREE.Group();
+  const M=(c)=>new THREE.MeshLambertMaterial({color:c});
+  switch(d.type){
+    case "tree":{ const t=mesh(GEO.cyl,M(0x6b4a2e)); t.scale.set(0.5,3.2,0.5); t.position.y=1.6; g.add(t);
+      for(let i=0;i<3;i++){ const c=mesh(GEO.cone,M(shade(w.ground,0.85+i*0.08)));
+        c.scale.set(3.2-i*0.7,2.4-i*0.4,3.2-i*0.7); c.position.y=3.0+i*1.1; g.add(c);} break; }
+    case "pine":{ const t=mesh(GEO.cyl,M(0x5a4436)); t.scale.set(0.4,2.4,0.4); t.position.y=1.2; g.add(t);
+      for(let i=0;i<3;i++){ const c=mesh(GEO.cone,M(0x2f6b52)); c.scale.set(2.6-i*0.6,2.0,2.6-i*0.6);
+        c.position.y=2.6+i*1.1; g.add(c);} break; }
+    case "cactus":{ const b=mesh(GEO.cyl,M(0x4e8c50)); b.scale.set(0.8,3.4,0.8); b.position.y=1.7; g.add(b);
+      for(const s of [-1,1]){ const a=mesh(GEO.cyl,M(0x4e8c50)); a.scale.set(0.45,1.5,0.45);
+        a.position.set(0,2.4,s*0.7); a.rotation.x=s*0.9; g.add(a);} break; }
+    case "palm":{ const t=mesh(GEO.cyl,M(0x8a6a44)); t.scale.set(0.36,4.4,0.36); t.position.y=2.2; t.rotation.z=0.14; g.add(t);
+      for(let i=0;i<6;i++){ const l=mesh(GEO.box,M(0x3fa05a)); l.scale.set(2.6,0.14,0.7);
+        l.position.set(Math.cos(i/6*TAU)*1.1,4.4,Math.sin(i/6*TAU)*1.1); l.rotation.y=i/6*TAU; l.rotation.z=-0.35; g.add(l);} break; }
+    case "crystal":{ for(let i=0;i<3;i++){ const c=mesh(GEO.cone,new THREE.MeshLambertMaterial({color:w.accent,emissive:shade(w.accent,0.25)}));
+        c.scale.set(0.6+i*0.15,1.8+i*0.9,0.6+i*0.15); c.position.set(i*0.5-0.5,(1.8+i*0.9)/2,i*0.3-0.3); g.add(c);} break; }
+    case "pipe":{ const p=mesh(GEO.cyl,M(0x6a727d)); p.scale.set(1.0,4.0,1.0); p.position.y=2.0; g.add(p);
+      const r=mesh(GEO.cyl,M(0x89919c)); r.scale.set(1.25,0.4,1.25); r.position.y=4.0; g.add(r); break; }
+    case "cloud":{ for(let i=0;i<4;i++){ const s=mesh(GEO.sphLo,new THREE.MeshLambertMaterial({color:0xffffff,transparent:true,opacity:0.85}));
+        s.scale.setScalar(1.6+((i*3)%3)*0.5); s.position.set(i*1.2-1.8,2.6+((i%2)?0.4:0),(i%2)*0.6); g.add(s);} break; }
+    case "pillar":{ const p=mesh(GEO.cyl,M(shade(w.rock,1.25))); p.scale.set(0.9,6.0,0.9); p.position.y=3.0; g.add(p);
+      const c=mesh(GEO.box,M(shade(w.rock,1.4))); c.scale.set(1.7,0.4,1.7); c.position.y=6.1; g.add(c); break; }
+    case "sign":{ const p=mesh(GEO.cyl,M(0x6b4a2e)); p.scale.set(0.14,1.8,0.14); p.position.y=0.9; g.add(p);
+      const b=mesh(GEO.box,M(0xd9b26a)); b.scale.set(0.15,0.8,1.6); b.position.y=1.8; g.add(b); break; }
+    case "goal":{ return buildFlag(0x4ec97a); }
+    case "fence": break;
+    default:{ const r=mesh(GEO.sphLo,M(shade(w.rock,1.1))); r.scale.set(1.6,1.1,1.6); r.position.y=0.4; g.add(r); }
+  }
+  g.position.set(d.x,d.y,d.z); g.scale.multiplyScalar(d.s||1);
+  return g;
+}
+function buildFlag(color){
+  const g=new THREE.Group();
+  const pole=mesh(GEO.cyl,MAT.metal); pole.scale.set(0.13,4.6,0.13); pole.position.y=2.3; g.add(pole);
+  const flag=mesh(GEO.plane,new THREE.MeshLambertMaterial({color,side:THREE.DoubleSide}),false,false);
+  flag.scale.set(1.7,1.1,1); flag.position.set(0,4.0,0.85); flag.rotation.y=Math.PI/2;
+  g.add(flag); g.userData.flag=flag;
+  const ball=mesh(GEO.sphLo,new THREE.MeshLambertMaterial({color,emissive:shade(color,0.3)}));
+  ball.scale.setScalar(0.34); ball.position.y=4.7; g.add(ball); g.userData.ball=ball;
+  return g;
+}
+const ITEM_DEF={
+  coin  :{c:0xf2c14e,e:0x6a4a00,g:"tor",  s:0.9},
+  heart :{c:0xe5484d,e:0x5a0e12,g:"sph",  s:0.55},
+  star  :{c:0xffe066,e:0x6a5400,g:"oct",  s:0.65},
+  feather:{c:0xdff0ff,e:0x2a4a66,g:"cone",s:0.6},
+  flower:{c:0xff6b3d,e:0x5a1a00,g:"sph",  s:0.55},
+  boot  :{c:0x9ce07a,e:0x1f4a12,g:"box",  s:0.6},
+  shield:{c:0x8ab4ff,e:0x14305a,g:"box",  s:0.62},
+  gem   :{c:0x8ef0ff,e:0x1a6a7a,g:"oct",  s:1.05},
+};
+const OCT=new THREE.OctahedronGeometry(0.5,0);
+function buildItem(it){
+  const D=ITEM_DEF[it.type]||ITEM_DEF.coin;
+  const geo = D.g==="tor"?GEO.tor : D.g==="sph"?GEO.sphLo : D.g==="oct"?OCT : D.g==="cone"?GEO.cone : GEO.box;
+  const m=mesh(geo,new THREE.MeshLambertMaterial({color:D.c,emissive:D.e}),false,false);
+  m.scale.setScalar(D.s); m.position.set(it.x,it.y,it.z);
+  return m;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §15 · الأعداء — النماذج والسلوك
+   ══════════════════════════════════════════════════════════════════════════ */
+const EN_DEF={
+  walker  :{c:0x8a4b2a,h:0.90,r:0.45,stomp:true },
+  spiky   :{c:0x6b4a8a,h:0.90,r:0.48,stomp:false},
+  flyer   :{c:0xd96a3c,h:0.80,r:0.44,stomp:true },
+  charger :{c:0xb03a2e,h:1.05,r:0.52,stomp:true },
+  shooter :{c:0x4a6b8a,h:1.00,r:0.46,stomp:true },
+  jumper  :{c:0x3f8f6a,h:0.85,r:0.44,stomp:true },
+  ghost   :{c:0xdcd6ee,h:1.10,r:0.50,stomp:false},
+  bomber  :{c:0x2f2f38,h:0.85,r:0.44,stomp:true },
+  splitter:{c:0x9a5fb0,h:0.95,r:0.48,stomp:true },
+  shielded:{c:0x6f7784,h:1.00,r:0.50,stomp:true },
+};
+function buildEnemy(e){
+  const D=EN_DEF[e.type]||EN_DEF.walker;
+  e.h=D.h*(e.scale||1); e.r=D.r*(e.scale||1); e.canStomp=D.stomp;
+  const g=new THREE.Group();
+  const M=(c)=>new THREE.MeshLambertMaterial({color:c});
+  const body=mesh(GEO.sphLo,M(D.c)); body.scale.set(e.r*2,e.h,e.r*2); body.position.y=e.h*0.55; g.add(body);
+  g.userData.body=body;
+  // عيون لكل الأنواع
+  for(const s of [-1,1]){
+    const w=mesh(GEO.sphLo,MAT.eye,false,false); w.scale.setScalar(0.20*(e.scale||1));
+    w.position.set(e.r*0.72,e.h*0.78,s*e.r*0.38); g.add(w);
+    const p=mesh(GEO.sphLo,MAT.pupil,false,false); p.scale.setScalar(0.11*(e.scale||1));
+    p.position.set(e.r*0.86,e.h*0.78,s*e.r*0.38); g.add(p);
+  }
+  switch(e.type){
+    case "spiky": for(let i=0;i<7;i++){ const s=mesh(GEO.cone,M(0xe8e2f2));
+        s.scale.set(0.20,0.42,0.20); const a=i/7*TAU;
+        s.position.set(Math.cos(a)*e.r*0.6, e.h*0.95, Math.sin(a)*e.r*0.6); s.rotation.z=Math.cos(a)*0.5; g.add(s);} break;
+    case "flyer": for(const s of [-1,1]){ const wg=mesh(GEO.plane,new THREE.MeshLambertMaterial({color:0xffdca8,side:THREE.DoubleSide}),false,false);
+        wg.scale.set(1.3,0.7,1); wg.position.set(-0.15,e.h*0.75,s*0.7); wg.rotation.y=Math.PI/2; g.add(wg);
+        (g.userData.wings=g.userData.wings||[]).push(wg);} break;
+    case "charger":{ const h=mesh(GEO.cone,M(0xf2e2c2)); h.scale.set(0.34,0.7,0.34);
+        h.position.set(e.r*0.95,e.h*0.55,0); h.rotation.z=-Math.PI/2; g.add(h); break; }
+    case "shooter":{ const b=mesh(GEO.cyl,MAT.metal); b.scale.set(0.19,0.75,0.19);
+        b.position.set(e.r*0.8,e.h*0.62,0); b.rotation.z=Math.PI/2; g.add(b); break; }
+    case "shielded":{ const s=mesh(GEO.box,MAT.metal); s.scale.set(0.18,e.h*1.1,e.r*2.1);
+        s.position.set(e.r*0.95,e.h*0.55,0); g.add(s); break; }
+    case "ghost":{ body.material=new THREE.MeshLambertMaterial({color:D.c,transparent:true,opacity:0.62});
+        body.castShadow=false; break; }
+    case "bomber":{ const f=mesh(GEO.sphLo,new THREE.MeshBasicMaterial({color:0xff9f3c}),false,false);
+        f.scale.setScalar(0.20); f.position.y=e.h*1.15; g.add(f); g.userData.fuse=f; break; }
+  }
+  g.position.set(e.x,e.y,e.z);
+  return g;
+}
+function enemyAABB(e){ return {x0:e.x-e.r,x1:e.x+e.r,y0:e.y,y1:e.y+e.h,z0:e.z-e.r,z1:e.z+e.r}; }
+
+function updateEnemy(e,dt,t){
+  if(!e.alive) return;
+  e.t+=dt;
+  const dx=PL.pos.x-e.x, dz=PL.pos.z-e.z, dist=Math.hypot(dx,dz);
+  switch(e.type){
+    case "walker": case "spiky": case "splitter": case "shielded": {
+      const rg=e.range||4, sp=(e.speed||2.5)*(e.scale||1);
+      e.x=e.ox+Math.sin(e.t*(sp/Math.max(1,rg)))*rg;
+      e.mesh.rotation.y=Math.cos(e.t*(sp/Math.max(1,rg)))>0?0:Math.PI;
+      break; }
+    case "flyer": {
+      const rg=e.range||4, sp=e.speed||2.4;
+      e.x=e.ox+Math.sin(e.t*(sp/Math.max(1,rg)))*rg;
+      e.y=e.baseY+Math.sin(e.t*2.6)*(e.amp||1.4);
+      if(e.mesh.userData.wings) e.mesh.userData.wings.forEach((w,i)=>w.rotation.x=Math.sin(e.t*22)*0.9*(i?1:-1));
+      break; }
+    case "charger": {
+      if(e.state===0){ if(dist<14&&Math.abs(dz)<4.5&&dx<0.5){ e.state=1; e.vx=-(e.speed||3)*2.6; Audio_.SFX.fire(); } }
+      else if(e.state===1){ e.x+=e.vx*dt;
+        if(e.x<e.ox-16){ e.state=2; e.stun=1.4; } }
+      else { e.stun-=dt; e.x=damp(e.x,e.ox,2.0,dt); if(e.stun<=0) e.state=0; }
+      e.mesh.rotation.y=Math.PI;
+      break; }
+    case "shooter": {
+      e.fire=(e.fire||0)-dt;
+      if(dist<26&&e.fire<=0){ e.fire=e.cool||2.2; spawnBullet(e.x-e.r,e.y+e.h*0.6,e.z,PL.pos); }
+      e.mesh.rotation.y=Math.PI; break; }
+    case "jumper": {
+      const sp=e.speed||2.2;
+      e.y=e.baseY+Math.abs(Math.sin(e.t*sp))*2.1;
+      e.x=e.ox+Math.sin(e.t*sp*0.42)*(e.range||3);
+      break; }
+    case "ghost": {
+      const moving=Math.hypot(PL.vel.x,PL.vel.z)>4.5;
+      e.frozen=moving;
+      if(!moving&&dist<24){ const s=(e.speed||3.4)*dt/Math.max(0.3,dist);
+        e.x+=dx*s; e.z+=dz*s; e.y=damp(e.y,PL.pos.y+0.2,3,dt); }
+      const b=e.mesh.userData.body;
+      if(b&&b.material) b.material.opacity=moving?0.28:0.72;
+      e.mesh.position.y+=Math.sin(e.t*3)*0.004;
+      break; }
+    case "bomber": {
+      if(e.fuse>0){ e.fuse-=dt;
+        if(e.mesh.userData.fuse) e.mesh.userData.fuse.scale.setScalar(0.20+Math.sin(e.t*30)*0.10);
+        if(e.fuse<=0){ explode(e.x,e.y+0.5,e.z,4.0); killEnemy(e,false); }
+      }else{
+        if(dist<20){ const s=(e.speed||3.2)*dt/Math.max(0.3,dist); e.x+=dx*s; e.z+=dz*s; }
+        if(dist<2.6) { e.fuse=0.9; Audio_.SFX.fire(); }
+      }
+      break; }
+  }
+  e.z=clamp(e.z,-LV.halfW+0.4,LV.halfW-0.4);
+  e.mesh.position.set(e.x,e.y,e.z);
+}
+function killEnemy(e,byStomp){
+  if(!e.alive) return; e.alive=false;
+  burst(e.x,e.y+e.h*0.5,e.z, (EN_DEF[e.type]||EN_DEF.walker).c, 14);
+  if(e.type==="splitter"&&(e.scale||1)>=1){
+    for(const s of [-1,1]){
+      const c={type:"splitter",x:e.x+s*0.9,y:e.y,z:e.z,ox:e.x+s*0.9,oz:e.z,baseY:e.y,
+               range:2.4,speed:(e.speed||2.5)*1.4,scale:0.6,alive:true,t:0,state:0,hp:1};
+      c.mesh=buildEnemy(c); levelGroup.add(c.mesh); LV.enemies.push(c); enemyMeshes.push(c);
+    }
+  }
+  e.mesh.visible=false;
+  addScore(byStomp?60:40);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §16 · الأفخاخ
+   ══════════════════════════════════════════════════════════════════════════ */
+function buildTrap(t){
+  const g=new THREE.Group(); const M=(c)=>new THREE.MeshLambertMaterial({color:c});
+  switch(t.type){
+    case "spikes": case "spikeTimer":{
+      const n=3;
+      for(let i=0;i<n;i++) for(let j=0;j<n;j++){
+        const s=mesh(GEO.cone,MAT.spike); s.scale.set(0.30,0.80,0.30);
+        s.position.set((i-1)*(t.w||2.4)/3, 0.40, (j-1)*(t.d||2.4)/3); g.add(s);
+      }
+      const base=mesh(GEO.box,MAT.dark); base.scale.set(t.w||2.4,0.12,t.d||2.4); base.position.y=0.06; g.add(base);
+      break; }
+    case "saw":{
+      const s=mesh(new THREE.CylinderGeometry(t.rad||1.5,t.rad||1.5,0.22,20),MAT.metal);
+      s.rotation.x=Math.PI/2; g.add(s); g.userData.spin=s;
+      for(let i=0;i<12;i++){ const th=mesh(GEO.cone,MAT.spike); th.scale.set(0.22,0.42,0.22);
+        const a=i/12*TAU; th.position.set(Math.cos(a)*(t.rad||1.5),Math.sin(a)*(t.rad||1.5),0);
+        th.rotation.z=a-Math.PI/2; s.add(th); }
+      break; }
+    case "pendulum":{
+      const arm=new THREE.Group(); g.add(arm); g.userData.arm=arm;
+      const rod=mesh(GEO.cyl,MAT.metal); rod.scale.set(0.10,t.len||4.2,0.10); rod.position.y=-(t.len||4.2)/2; arm.add(rod);
+      const blade=mesh(GEO.box,MAT.spike); blade.scale.set(0.24,1.5,2.4); blade.position.y=-(t.len||4.2); arm.add(blade);
+      const hub=mesh(GEO.sphLo,MAT.metal); hub.scale.setScalar(0.4); g.add(hub);
+      break; }
+    case "crusher":{
+      const blk=mesh(GEO.box,M(0x6f7784)); blk.scale.set(t.w||3,2.0,t.d||3); g.add(blk); g.userData.blk=blk;
+      for(let i=0;i<4;i++){ const sp=mesh(GEO.cone,MAT.spike); sp.scale.set(0.4,0.6,0.4); sp.rotation.z=Math.PI;
+        sp.position.set(((i%2)-0.5)*(t.w||3)*0.5,-1.2,(Math.floor(i/2)-0.5)*(t.d||3)*0.5); blk.add(sp); }
+      const col=mesh(GEO.box,MAT.dark); col.scale.set(0.4,14,0.4); col.position.y=8; g.add(col);
+      break; }
+    case "flame":{
+      const noz=mesh(GEO.cyl,MAT.metal); noz.scale.set(0.5,0.4,0.5); noz.position.y=0.2; g.add(noz);
+      const f=mesh(GEO.cone,new THREE.MeshBasicMaterial({color:0xff7a2b,transparent:true,opacity:0.85}),false,false);
+      f.scale.set(0.9,t.h||3.4,0.9); f.position.y=(t.h||3.4)/2+0.3; g.add(f); g.userData.f=f;
+      break; }
+    case "laser":{
+      const em=mesh(GEO.box,MAT.metal); em.scale.set(0.5,0.5,0.5); g.add(em);
+      const beam=mesh(GEO.box,new THREE.MeshBasicMaterial({color:0xff3355,transparent:true,opacity:0.8}),false,false);
+      beam.scale.set(0.16,0.16,t.len||5); beam.position.z=(t.len||5)/2; g.add(beam); g.userData.beam=beam;
+      break; }
+    case "fallingRock":{
+      const r=mesh(GEO.sphLo,M(0x6b5a48)); r.scale.setScalar(1.15); g.add(r); g.userData.rock=r;
+      break; }
+  }
+  g.position.set(t.x,t.y,t.z);
+  return g;
+}
+function updateTrap(t,dt,time){
+  t.t+=dt; const o=t.obj;
+  switch(t.type){
+    case "spikes": t.active=true; break;
+    case "spikeTimer":{
+      const ph=((time+(t.off||0))%(t.period||1.5))/(t.period||1.5);
+      const up=ph<0.55; t.active=up;
+      o.position.y=t.y+(up?0:-0.75); break; }
+    case "saw":{
+      const a=(time*(t.speed||1.1)+(t.phase||0));
+      t.cz=Math.sin(a)*(t.amp||3.5);
+      o.position.z=t.z+t.cz; o.userData.spin.rotation.z-=dt*7; t.active=true; break; }
+    case "pendulum":{
+      const ang=Math.sin(time*(t.speed||1.5)+(t.phase||0))*(t.amp||1.0);
+      o.userData.arm.rotation.z=ang;
+      t.tipX=t.x+Math.sin(ang)*(t.len||4.2)*0; t.ang=ang; t.active=true; break; }
+    case "crusher":{
+      const ph=((time+(t.off||0))%(t.period||2.4))/(t.period||2.4);
+      const down = ph<0.28 ? ph/0.28 : ph<0.45 ? 1 : 1-(ph-0.45)/0.55;
+      t.cy=t.y-down*(t.y-1.2); o.userData.blk.position.y=t.cy-t.y; t.active=true;
+      if(ph>0.24&&ph<0.30&&!t.boomed){ t.boomed=true; Audio_.SFX.land(); shake(0.22); }
+      if(ph>0.5) t.boomed=false;
+      break; }
+    case "flame":{
+      const ph=((time+(t.off||0))%(t.period||2.6))/(t.period||2.6);
+      const on=ph<0.42; t.active=on;
+      const f=o.userData.f; f.visible=on;
+      if(on){ const k=0.7+Math.sin(time*24)*0.13; f.scale.set(0.9*k,(t.h||3.4)*(0.75+0.25*Math.sin(time*18)),0.9*k); }
+      break; }
+    case "laser":{
+      o.rotation.y=time*(t.speed||0.9)+(t.phase||0); t.active=true; break; }
+    case "fallingRock":{
+      const ph=((time+(t.off||0))%(t.period||2.2))/(t.period||2.2);
+      if(ph<0.62){ t.cy=t.y-ph/0.62*(t.y-0.6); t.active=true; }
+      else { t.cy=t.y; t.active=false; }
+      o.userData.rock.position.y=t.cy-t.y;
+      o.userData.rock.visible=true;
+      break; }
+  }
+}
+/** هل الفخّ يلامس صندوق اللاعب؟ */
+function trapHits(t,box){
+  if(!t.active) return false;
+  const P_=PL.pos;
+  switch(t.type){
+    case "spikes": case "spikeTimer":{
+      const w=(t.w||2.4)/2+0.2, d=(t.d||2.4)/2+0.2;
+      return P_.x>t.x-w&&P_.x<t.x+w&&P_.z>t.z-d&&P_.z<t.z+d&&P_.y<t.y+0.95&&P_.y>t.y-1.2; }
+    case "saw":{
+      const cz=t.z+(t.cz||0), r=(t.rad||1.5)+0.35;
+      return Math.hypot(P_.x-t.x, P_.z-cz)<r && P_.y<t.y+r && P_.y+P.ph>t.y-r; }
+    case "pendulum":{
+      const bz=t.z+Math.sin(t.ang||0)*(t.len||4.2);
+      const by=t.y-Math.cos(t.ang||0)*(t.len||4.2);
+      return Math.abs(P_.x-t.x)<0.9 && Math.abs(P_.z-bz)<1.5 && P_.y<by+0.9 && P_.y+P.ph>by-0.9; }
+    case "crusher":{
+      const w=(t.w||3)/2+0.2,d=(t.d||3)/2+0.2, by=t.cy||t.y;
+      return Math.abs(P_.x-t.x)<w&&Math.abs(P_.z-t.z)<d&&P_.y<by+1.0&&P_.y+P.ph>by-1.2; }
+    case "flame":
+      return Math.abs(P_.x-t.x)<0.8&&Math.abs(P_.z-t.z)<0.8&&P_.y<t.y+(t.h||3.4)&&P_.y+P.ph>t.y;
+    case "laser":{
+      const a=t.obj.rotation.y, L=t.len||5;
+      const ex=t.x+Math.sin(a)*L*0.5, ez=t.z+Math.cos(a)*L*0.5;
+      return Math.hypot(P_.x-ex,P_.z-ez)<L*0.5 && Math.abs(P_.y+0.85-t.y)<0.9 &&
+             Math.abs((P_.x-t.x)*Math.cos(a)-(P_.z-t.z)*Math.sin(a))<0.6; }
+    case "fallingRock":
+      return Math.abs(P_.x-t.x)<1.2&&Math.abs(P_.z-t.z)<1.2&&Math.abs(P_.y+0.85-(t.cy||t.y))<1.3;
+  }
+  return false;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §17 · المقذوفات والجسيمات (تجميع كامل — صفر تخصيص في الحلقة)
+   ══════════════════════════════════════════════════════════════════════════ */
+const BULLETS=[], MAX_BULLETS=64;
+let bulletPool=null;
+function initPools(){
+  bulletPool=new THREE.Group(); scene.add(bulletPool);
+  for(let i=0;i<MAX_BULLETS;i++){
+    const m=mesh(GEO.sphLo,new THREE.MeshBasicMaterial({color:0xff8a3c}),false,false);
+    m.scale.setScalar(0.34); m.visible=false; bulletPool.add(m);
+    BULLETS.push({mesh:m,alive:false,x:0,y:0,z:0,vx:0,vy:0,vz:0,life:0,friendly:false});
+  }
+  partGroup=new THREE.Group(); scene.add(partGroup);
+  for(let i=0;i<MAX_PARTS;i++){
+    const m=mesh(GEO.box,new THREE.MeshBasicMaterial({color:0xffffff}),false,false);
+    m.visible=false; partGroup.add(m);
+    PARTS.push({mesh:m,alive:false,x:0,y:0,z:0,vx:0,vy:0,vz:0,life:0,max:1,size:0.2});
+  }
+}
+function freeBullet(){ for(const b of BULLETS) if(!b.alive) return b; return null; }
+function spawnBullet(x,y,z,target,friendly){
+  const b=freeBullet(); if(!b) return;
+  const dx=target.x-x, dy=(target.y+0.8)-y, dz=target.z-z, L=Math.hypot(dx,dy,dz)||1;
+  const sp=friendly?26:13;
+  b.alive=true; b.friendly=!!friendly; b.x=x; b.y=y; b.z=z;
+  b.vx=dx/L*sp; b.vy=dy/L*sp*(friendly?0.25:0.4)+ (friendly?3:2); b.vz=dz/L*sp;
+  b.life=friendly?1.5:4.2;
+  b.mesh.visible=true; b.mesh.material.color.setHex(friendly?0xffc34a:0xff5a5a);
+  b.mesh.scale.setScalar(friendly?0.30:0.34);
+  b.mesh.position.set(x,y,z);
+}
+function shootFire(){
+  if(PL.pw.flower<=0||PL.fireCool>0) return;
+  PL.fireCool=0.32;
+  const b=freeBullet(); if(!b) return;
+  b.alive=true; b.friendly=true; b.x=PL.pos.x+0.6; b.y=PL.pos.y+1.0; b.z=PL.pos.z;
+  b.vx=24; b.vy=3.5; b.vz=PL.vel.z*0.35; b.life=1.5;
+  b.mesh.visible=true; b.mesh.material.color.setHex(0xffc34a); b.mesh.scale.setScalar(0.30);
+  Audio_.SFX.fire();
+}
+function updateBullets(dt){
+  for(const b of BULLETS){
+    if(!b.alive) continue;
+    b.life-=dt; if(b.life<=0){ b.alive=false; b.mesh.visible=false; continue; }
+    if(b.friendly){ b.vy-=34*dt; }
+    b.x+=b.vx*dt; b.y+=b.vy*dt; b.z+=b.vz*dt;
+    b.mesh.position.set(b.x,b.y,b.z);
+    b.mesh.rotation.x+=dt*9; b.mesh.rotation.y+=dt*7;
+    if(b.y<KILL_Y+4){ b.alive=false; b.mesh.visible=false; continue; }
+    if(b.friendly){
+      // ارتداد عن الأرض
+      if(b.vy<0){ const g=groundUnder(b.x,b.z,b.y); if(g!=null&&b.y<=g+0.2){ b.y=g+0.2; b.vy=9; } }
+      for(const e of LV.enemies){
+        if(!e.alive||Math.abs(e.x-b.x)>2.4) continue;
+        const a=enemyAABB(e);
+        if(b.x>a.x0-0.3&&b.x<a.x1+0.3&&b.y>a.y0-0.3&&b.y<a.y1+0.3&&b.z>a.z0-0.3&&b.z<a.z1+0.3){
+          killEnemy(e,false); Audio_.SFX.stomp(); b.alive=false; b.mesh.visible=false; break;
+        }
+      }
+      if(b.alive&&LV.boss&&!LV.boss.dead){
+        const B=LV.boss;
+        if(Math.abs(b.x-B.x)<2.6&&Math.abs(b.z-B.z)<2.6&&b.y>B.y&&b.y<B.y+4.2){
+          hurtBoss(1); b.alive=false; b.mesh.visible=false;
+        }
+      }
+    }else{
+      if(hitsPlayer(b.x,b.y,b.z,0.42)){ damagePlayer(); b.alive=false; b.mesh.visible=false; }
+    }
+  }
+}
+const PARTS=[], MAX_PARTS=260;
+let partGroup=null;
+function freePart(){ for(const p of PARTS) if(!p.alive) return p; return null; }
+function burst(x,y,z,color,n,spread=5,life=0.7){
+  for(let i=0;i<n;i++){
+    const p=freePart(); if(!p) return;
+    p.alive=true; p.x=x; p.y=y; p.z=z; p.life=p.max=life*(0.6+Math.random()*0.7);
+    p.vx=(Math.random()*2-1)*spread; p.vy=Math.random()*spread*1.1+1.5; p.vz=(Math.random()*2-1)*spread;
+    p.size=0.10+Math.random()*0.18;
+    p.mesh.material.color.setHex(color); p.mesh.visible=true;
+  }
+}
+function explode(x,y,z,r){
+  burst(x,y,z,0xff9a3c,26,9,1.0); burst(x,y,z,0x40384a,14,7,1.1);
+  Audio_.SFX.boom(); shake(0.5);
+  if(Math.hypot(PL.pos.x-x,PL.pos.y+0.8-y,PL.pos.z-z)<r) damagePlayer();
+  for(const e of LV.enemies){ if(e.alive&&Math.hypot(e.x-x,e.z-z)<r) killEnemy(e,false); }
+}
+function updateParts(dt){
+  for(const p of PARTS){
+    if(!p.alive) continue;
+    p.life-=dt; if(p.life<=0){ p.alive=false; p.mesh.visible=false; continue; }
+    p.vy-=30*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.z+=p.vz*dt;
+    const k=p.life/p.max;
+    p.mesh.position.set(p.x,p.y,p.z);
+    p.mesh.scale.setScalar(p.size*(0.3+k));
+    p.mesh.rotation.x+=dt*6; p.mesh.rotation.z+=dt*4;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §18 · الزعيم — ثلاثة أطوار تتسارع مع نقص الصحة
+   ══════════════════════════════════════════════════════════════════════════ */
+function buildBoss(B){
+  const w=WORLDS[B.world-1], g=new THREE.Group();
+  const M=(c)=>new THREE.MeshLambertMaterial({color:c});
+  const main=M(shade(w.accent,0.9)), dark=M(shade(w.rock,1.3));
+  const body=mesh(GEO.sphLo,main); body.scale.set(3.4,3.0,3.4); body.position.y=1.7; g.add(body);
+  g.userData.body=body;
+  for(const s of [-1,1]){
+    const e=mesh(GEO.sphLo,MAT.eye,false,false); e.scale.setScalar(0.75); e.position.set(-1.3,2.6,s*0.9); g.add(e);
+    const p=mesh(GEO.sphLo,MAT.pupil,false,false); p.scale.setScalar(0.40); p.position.set(-1.6,2.6,s*0.9); g.add(p);
+  }
+  switch(B.look){
+    case "beetle": for(let i=0;i<8;i++){ const h=mesh(GEO.cone,dark); h.scale.set(0.42,1.0,0.42);
+        const a=i/8*TAU; h.position.set(Math.cos(a)*1.5,3.2,Math.sin(a)*1.5); g.add(h);} break;
+    case "scorpion":{ const tl=new THREE.Group(); g.add(tl); g.userData.tail=tl;
+        for(let i=0;i<5;i++){ const s=mesh(GEO.sphLo,dark); s.scale.setScalar(1.0-i*0.13);
+          s.position.set(1.6+i*0.7,2.4+i*0.7,0); tl.add(s);} break; }
+    case "root": for(let i=0;i<6;i++){ const r=mesh(GEO.cyl,dark); r.scale.set(0.34,3.0,0.34);
+        const a=i/6*TAU; r.position.set(Math.cos(a)*1.9,1.5,Math.sin(a)*1.9); r.rotation.z=Math.cos(a)*0.4; g.add(r);} break;
+    case "machine": case "factory":{ const c=mesh(GEO.box,MAT.metal); c.scale.set(4.0,1.2,4.4); c.position.y=3.6; g.add(c);
+        const gearG=new THREE.CylinderGeometry(1.5,1.5,0.4,10);
+        for(const s of [-1,1]){ const gr=mesh(gearG,MAT.metal); gr.rotation.x=Math.PI/2;
+          gr.position.set(0,1.8,s*2.1); g.add(gr); (g.userData.gears=g.userData.gears||[]).push(gr);} break; }
+    case "giant":{ for(const s of [-1,1]){ const arm=mesh(GEO.cap,main); arm.scale.set(1.5,2.0,1.5);
+        arm.position.set(0,1.6,s*2.6); g.add(arm);} break; }
+    case "octo": for(let i=0;i<6;i++){ const t=mesh(GEO.cap,main); t.scale.set(0.9,1.8,0.9);
+        const a=i/6*TAU; t.position.set(Math.cos(a)*1.7,0.8,Math.sin(a)*1.7); t.rotation.z=Math.cos(a)*0.7;
+        g.add(t); (g.userData.arms=g.userData.arms||[]).push(t);} break;
+    case "dragon":{ for(const s of [-1,1]){ const wg=mesh(GEO.plane,new THREE.MeshLambertMaterial({color:shade(w.accent,1.2),side:THREE.DoubleSide}),false,false);
+        wg.scale.set(4.4,3.0,1); wg.position.set(0.4,2.8,s*2.6); wg.rotation.y=Math.PI/2; g.add(wg);
+        (g.userData.wings=g.userData.wings||[]).push(wg);} break; }
+    case "heart":{ const core=mesh(GEO.sphLo,new THREE.MeshBasicMaterial({color:0xff5a1e}),false,false);
+        core.scale.setScalar(2.2); core.position.y=1.7; g.add(core); g.userData.core=core; break; }
+    case "shadow":{ body.material=new THREE.MeshLambertMaterial({color:0x14101c});
+        const k=buildYoussef(); k.scale.setScalar(1.9); k.position.y=0;
+        k.traverse(o=>{ if(o.isMesh&&o.material&&o.material.color) o.material=new THREE.MeshLambertMaterial({color:0x1a1424}); });
+        g.remove(body); g.add(k); g.userData.body=k; break; }
+  }
+  const hp=new THREE.Mesh(GEO.plane,new THREE.MeshBasicMaterial({color:0xe5484d}));
+  hp.scale.set(6,0.34,1); hp.position.y=6.4; g.add(hp); g.userData.hp=hp;
+  const hpBg=new THREE.Mesh(GEO.plane,new THREE.MeshBasicMaterial({color:0x241a30}));
+  hpBg.scale.set(6.3,0.5,1); hpBg.position.set(0,6.4,-0.02); g.add(hpBg);
+  g.position.set(B.x,B.y,B.z);
+  return g;
+}
+function hurtBoss(n){
+  const B=LV.boss; if(!B||B.dead||B.hurtT>0) return;
+  B.hp-=n; B.hurtT=0.55; Audio_.SFX.hitBoss(); shake(0.35);
+  burst(B.x,B.y+2.2,B.z,0xffdd66,20,7);
+  const ph=B.hp/B.maxHp;
+  B.phase = ph<0.34?2 : ph<0.67?1 : 0;
+  if(B.hp<=0){
+    B.dead=true; Audio_.SFX.win(); explode(B.x,B.y+2,B.z,0);
+    burst(B.x,B.y+2,B.z,WORLDS[B.world-1].accent,60,12,1.6);
+    B.mesh.visible=false;
+    LV.bossWin=1.8;
+    banner("سقط "+B.name+"!",2200,"#f2c14e");
+  }
+}
+function updateBoss(dt,time){
+  const B=LV.boss; if(!B||B.dead) return;
+  B.t+=dt; B.hurtT=Math.max(0,B.hurtT-dt); B.stTime+=dt;
+  const g=B.mesh, spd=1+B.phase*0.45;
+  const body=g.userData.body;
+  if(body&&body.material&&body.material.emissive)
+    body.material.emissive.setRGB(B.hurtT>0?0.55:0,0,0);
+  g.userData.hp.scale.x=6*Math.max(0,B.hp/B.maxHp);
+  g.userData.hp.position.x=-3+3*Math.max(0,B.hp/B.maxHp);
+  if(g.userData.gears) g.userData.gears.forEach((gr,i)=>gr.rotation.z+=dt*(i?3:-3)*spd);
+  if(g.userData.wings) g.userData.wings.forEach((wg,i)=>wg.rotation.z=Math.sin(time*7)*0.35*(i?1:-1));
+  if(g.userData.arms) g.userData.arms.forEach((a,i)=>a.rotation.x=Math.sin(time*3+i)*0.4);
+  if(g.userData.tail) g.userData.tail.rotation.z=Math.sin(time*2.4)*0.4;
+  if(g.userData.core) g.userData.core.scale.setScalar(2.2+Math.sin(time*6)*0.22);
+
+  B.cool-=dt*spd;
+  if(B.state==="idle"){
+    // يتموضع أمام اللاعب
+    const want=clamp(PL.pos.x+16,10,58);
+    B.x=damp(B.x,want,1.4,dt);
+    B.z=damp(B.z,clamp(PL.pos.z,-7,7),1.2,dt);
+    B.y=damp(B.y,0,6,dt);
+    if(B.cool<=0){ const mv=B.moves[Math.floor(Math.random()*Math.min(B.moves.length,1+B.phase+1))%B.moves.length];
+                   startMove(B,mv); }
+  } else runMove(B,dt,time,spd);
+  g.position.set(B.x,B.y,B.z);
+  g.rotation.y=damp(g.rotation.y, PL.pos.x<B.x?0:Math.PI, 6, dt);
+
+  // تلامس مباشر
+  if(Math.abs(PL.pos.x-B.x)<2.9&&Math.abs(PL.pos.z-B.z)<2.9&&PL.pos.y<B.y+3.4&&PL.pos.y+P.ph>B.y){
+    if(PL.vel.y<-3&&PL.pos.y>B.y+2.2){ hurtBoss(1); PL.vel.y=P.stompBounce; }
+    else damagePlayer();
+  }
+}
+function startMove(B,mv){ B.state=mv; B.stTime=0;
+  if(mv==="hop"){ B.vy=17; B.hops=0; }
+  if(mv==="charge"){ B.dir=sign(PL.pos.x-B.x)||-1; }
+  banner(({hop:"قفزة صادمة!",charge:"اندفاع!",spread:"وابل!",summon:"استدعاء!",
+           rain:"صخور!",sweep:"شعاع!",crushers:"سحق!",mirror:"الظلّ يقلّدك!"})[mv]||"",900,"#ffb3b3");
+}
+function runMove(B,dt,time,spd){
+  switch(B.state){
+    case "hop":{
+      B.vy-=52*dt; B.y+=B.vy*dt;
+      B.x=damp(B.x,PL.pos.x+3,2.2,dt); B.z=damp(B.z,PL.pos.z,2.2,dt);
+      if(B.y<=0){ B.y=0; B.hops++; shake(0.55); Audio_.SFX.boom();
+        burst(B.x,0.4,B.z,WORLDS[B.world-1].accent,22,9);
+        if(Math.abs(PL.pos.x-B.x)<7&&Math.abs(PL.pos.z-B.z)<7&&PL.grounded) damagePlayer();
+        if(B.hops>=2+B.phase){ B.state="idle"; B.cool=1.5/spd; } else B.vy=15; }
+      break; }
+    case "charge":{
+      B.x+=B.dir*22*dt*spd;
+      if(B.x<-4||B.x>60||B.stTime>2.6){ B.state="idle"; B.cool=1.4/spd; }
+      break; }
+    case "spread":{
+      if(B.stTime>0.25&&!B.fired){ B.fired=true;
+        const n=5+B.phase*2;
+        for(let i=0;i<n;i++){ const a=(i/(n-1)-0.5)*1.5;
+          const b=freeBullet(); if(!b) continue;
+          b.alive=true; b.friendly=false; b.x=B.x-1.4; b.y=B.y+2.2; b.z=B.z;
+          b.vx=-13*Math.cos(a); b.vy=5; b.vz=13*Math.sin(a); b.life=4;
+          b.mesh.visible=true; b.mesh.material.color.setHex(0xff5a5a); b.mesh.scale.setScalar(0.36);
+        } Audio_.SFX.fire(); }
+      if(B.stTime>0.9){ B.fired=false; B.state="idle"; B.cool=1.3/spd; }
+      break; }
+    case "summon":{
+      if(!B.fired){ B.fired=true;
+        for(let i=0;i<2+B.phase;i++){
+          const e={type:i%2?"walker":"jumper",x:B.x-4-i*2,y:0,z:(i-1)*3,ox:B.x-4-i*2,oz:(i-1)*3,baseY:0,
+                   range:4,speed:3,alive:true,t:0,state:0,hp:1};
+          e.mesh=buildEnemy(e); levelGroup.add(e.mesh); LV.enemies.push(e); enemyMeshes.push(e);
+        } }
+      if(B.stTime>0.7){ B.fired=false; B.state="idle"; B.cool=2.0/spd; }
+      break; }
+    case "rain":{
+      if(B.stTime%0.28<dt){
+        const b=freeBullet();
+        if(b){ b.alive=true; b.friendly=false; b.x=PL.pos.x+(Math.random()*16-8); b.y=14; b.z=PL.pos.z+(Math.random()*8-4);
+          b.vx=0; b.vy=-3; b.vz=0; b.life=3.4; b.mesh.visible=true;
+          b.mesh.material.color.setHex(0x8a6a52); b.mesh.scale.setScalar(0.5); }
+      }
+      if(B.stTime>2.2+B.phase*0.6){ B.state="idle"; B.cool=1.4/spd; }
+      break; }
+    case "sweep":{
+      B.sweepA=(B.sweepA||0)+dt*2.2*spd;
+      const L=16, a=Math.sin(B.sweepA)*1.1;
+      // شعاع يمثّله صفّ من المقذوفات السريعة
+      if(B.stTime%0.10<dt){
+        const b=freeBullet();
+        if(b){ b.alive=true; b.friendly=false; b.x=B.x-1.2; b.y=B.y+2.4; b.z=B.z;
+          b.vx=-18; b.vy=0; b.vz=Math.sin(a)*10; b.life=2.2; b.mesh.visible=true;
+          b.mesh.material.color.setHex(0xff3355); b.mesh.scale.setScalar(0.30); }
+      }
+      if(B.stTime>2.6){ B.state="idle"; B.cool=1.5/spd; }
+      break; }
+    case "crushers":{
+      if(!B.fired){ B.fired=true;
+        for(let i=0;i<3;i++){ const t={type:"crusher",x:PL.pos.x+4+i*5,y:7,z:(i-1)*3.2,t:0,period:1.9,off:i*0.4,w:3,d:3,temp:2.6};
+          t.obj=buildTrap(t); levelGroup.add(t.obj); LV.traps.push(t); trapObjs.push(t); } }
+      if(B.stTime>2.6){ B.fired=false; B.state="idle"; B.cool=1.6/spd; }
+      break; }
+    case "mirror":{
+      B.x=damp(B.x,PL.pos.x+9,3.0,dt); B.z=damp(B.z,-PL.pos.z,3.0,dt);
+      if(B.stTime%0.5<dt) spawnBullet(B.x-1.4,B.y+2.2,B.z,PL.pos);
+      if(B.stTime>3.0){ B.state="idle"; B.cool=1.2/spd; }
+      break; }
+    default: B.state="idle";
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §19 · اللاعب — الفيزياء والحالة
+   ══════════════════════════════════════════════════════════════════════════ */
+const PL={
+  pos:new THREE.Vector3(), prev:new THREE.Vector3(), vel:new THREE.Vector3(),
+  grounded:false, groundRef:null, groundY:null, coyote:0, buffer:0, jumpHeld:false,
+  dblUsed:false, invuln:0, squash:0, fireCool:0, lives:3, coins:0, deaths:0,
+  pw:{star:0,feather:0,flower:0,boot:0,shield:0}, dead:false, win:false, inWater:false,
+  spawn:new THREE.Vector3(), mesh:null, score:0
+};
+let gameTime=0, levelTime=0, shakeAmt=0, state="menu", curLevel=1, coinsInLevel=0;
+let runToken=0;   // يبطل المؤقّتات المعلّقة من مرحلة سابقة
+const nearBlocks=[];
+
+function approach(v,t,a){ return v<t?Math.min(t,v+a):Math.max(t,v-a); }
+/** إفلات زرّ القفز يقصّ الارتفاع مرّة واحدة — قفزة قصيرة أو كاملة حسب الضغط. */
+function releaseJump(){ PL.jumpHeld=false; if(PL.vel.y>0) PL.vel.y*=P.jumpCutoff; }
+function shake(a){ shakeAmt=Math.min(1.2,shakeAmt+a); }
+function addScore(n){ PL.score+=n; }
+function hitsPlayer(x,y,z,r){
+  return x>PL.pos.x-P.pw-r&&x<PL.pos.x+P.pw+r&&
+         y>PL.pos.y-r&&y<PL.pos.y+P.ph+r&&
+         z>PL.pos.z-P.pw-r&&z<PL.pos.z+P.pw+r;
+}
+function groundUnder(x,z,y){
+  blocksNear(x-1,x+1,nearBlocks); let best=null;
+  for(const b of nearBlocks){
+    if(b.dead) continue;
+    if(x<b.x0||x>b.x1||z<b.z0||z>b.z1) continue;
+    if(b.y1<=y+0.4&&(best==null||b.y1>best)) best=b.y1;
+  }
+  return best;
+}
+
+/* ── منصّات ديناميكية ─────────────────────────────────────────────── */
+function updateDyn(dt,time){
+  for(const b of LV.dyn){
+    b.dx=b.dy=b.dz=0;
+    if(b.kind==="moving"){
+      const o=Math.sin(time*b.speed+b.phase)*b.amp;
+      if(b.ax==="z"){ const nz=b.oz+o; b.dz=nz-b.z0; b.z0=nz; b.z1=nz+(b.mesh.scale.z); }
+      else if(b.ax==="y"){ const ny=b.oy+o; b.dy=ny-b.y0; b.y0=ny; b.y1=ny+(b.mesh.scale.y); }
+      else { const nx=b.ox+o; b.dx=nx-b.x0; b.x0=nx; b.x1=nx+(b.mesh.scale.x); }
+    } else if(b.kind==="falling"){
+      if(b.timer>0){ b.timer-=dt; if(b.timer<=0) b.vy=-0.1; }
+      if(b.vy!==0&&!b.dead){
+        b.vy-=48*dt; const ny=b.y0+b.vy*dt; b.dy=ny-b.y0; b.y0=ny; b.y1=ny+b.mesh.scale.y;
+        if(b.y0<KILL_Y){ b.dead=true; b.mesh.visible=false; b.back=2.6; }
+      }
+      else if(b.dead&&b.back>0){ b.back-=dt;
+        if(b.back<=0){ b.y0=b.oy; b.y1=b.oy+b.mesh.scale.y; b.vy=0;
+                       b.timer=-1; b.dead=false; b.mesh.visible=true; } }
+    } else if(b.kind==="crumble"){
+      if(b.timer>0){ b.timer-=dt;
+        b.mesh.position.x=(b.x0+b.x1)/2+Math.sin(b.timer*60)*0.06;
+        if(b.timer<=0){ b.dead=true; b.mesh.visible=false;
+          burst((b.x0+b.x1)/2,b.y1,(b.z0+b.z1)/2,0xa07a5a,10,3);
+          b.back=3.0; } }
+      else if(b.dead&&b.back>0){ b.back-=dt;
+        if(b.back<=0){ b.dead=false; b.timer=-1; b.mesh.visible=true; b.mesh.position.x=(b.x0+b.x1)/2; } }
+    }
+    if(b.mesh&&!b.dead) b.mesh.position.set((b.x0+b.x1)/2,(b.y0+b.y1)/2,(b.z0+b.z1)/2);
+  }
+}
+
+/* ── حلّ التصادم: محور بمحور بالترتيب Y ← X ← Z ──────────────────── */
+function overlapXZ(b){
+  return PL.pos.x+P.pw>b.x0&&PL.pos.x-P.pw<b.x1&&PL.pos.z+P.pw>b.z0&&PL.pos.z-P.pw<b.z1;
+}
+function resolveY(){
+  PL.grounded=false; PL.groundRef=null;
+  for(const b of nearBlocks){
+    if(b.dead||b.type==="lava"||b.type==="water") continue;
+    if(!overlapXZ(b)) continue;
+    if(PL.pos.y>=b.y1-0.001||PL.pos.y+P.ph<=b.y0+0.001) continue;
+    if(PL.vel.y<=0){
+      PL.pos.y=b.y1; PL.vel.y=0; PL.grounded=true; PL.groundRef=b;
+    }else{ PL.pos.y=b.y0-P.ph; PL.vel.y=0; }
+  }
+}
+function resolveAxis(axis){
+  const half=P.pw;
+  for(const b of nearBlocks){
+    if(b.dead||b.type==="lava"||b.type==="water") continue;
+    if(PL.pos.y>=b.y1-0.02||PL.pos.y+P.ph<=b.y0+0.02) continue;
+    if(axis==="x"){
+      if(!(PL.pos.z+half>b.z0&&PL.pos.z-half<b.z1)) continue;
+      if(!(PL.pos.x+half>b.x0&&PL.pos.x-half<b.x1)) continue;
+      /* تصحيح الحافة: هبوط يلامس حافة المنصّة يُرفَع فوقها بدل الارتطام بجدارها
+         وهي الخدعة التي تجعل القفزات تُحسّ عادلة بدل أن تُحسّ ظالمة. */
+      if(PL.vel.y<0&&b.y1>PL.pos.y&&b.y1-PL.pos.y<=LEDGE_SNAP){
+        PL.pos.y=b.y1; PL.vel.y=0; PL.grounded=true; PL.groundRef=b; continue;
+      }
+      if(PL.vel.x>0) PL.pos.x=b.x0-half; else if(PL.vel.x<0) PL.pos.x=b.x1+half;
+      else PL.pos.x = (PL.pos.x<(b.x0+b.x1)/2)? b.x0-half : b.x1+half;
+      PL.vel.x=0;
+    }else{
+      if(!(PL.pos.x+half>b.x0&&PL.pos.x-half<b.x1)) continue;
+      if(!(PL.pos.z+half>b.z0&&PL.pos.z-half<b.z1)) continue;
+      if(PL.vel.y<0&&b.y1>PL.pos.y&&b.y1-PL.pos.y<=LEDGE_SNAP){
+        PL.pos.y=b.y1; PL.vel.y=0; PL.grounded=true; PL.groundRef=b; continue;
+      }
+      if(PL.vel.z>0) PL.pos.z=b.z0-half; else if(PL.vel.z<0) PL.pos.z=b.z1+half;
+      else PL.pos.z = (PL.pos.z<(b.z0+b.z1)/2)? b.z0-half : b.z1+half;
+      PL.vel.z=0;
+    }
+  }
+}
+
+/* ── خطوة الفيزياء الثابتة ───────────────────────────────────────── */
+function stepPhysics(dt){
+  gameTime+=dt;
+  if(state!=="play") return;
+  levelTime+=dt;
+  PL.prev.copy(PL.pos);
+  if(PL.dead||PL.win){ updateParts(0); return; }
+
+  /* المؤقّتات */
+  PL.invuln=Math.max(0,PL.invuln-dt);
+  PL.fireCool=Math.max(0,PL.fireCool-dt);
+  PL.squash=Math.max(0,PL.squash-dt*4.5);
+  for(const k in PL.pw) if(PL.pw[k]>0&&k!=="feather"&&k!=="flower"&&k!=="shield") PL.pw[k]=Math.max(0,PL.pw[k]-dt);
+  if(PL.pw.star>0&&PL.pw.star<=dt) Audio_.SFX.click();
+
+  updateDyn(dt,gameTime);
+
+  /* حمل المنصّة المتحرّكة */
+  if(PL.groundRef&&PL.groundRef.kind){
+    PL.pos.x+=PL.groundRef.dx||0; PL.pos.y+=PL.groundRef.dy||0; PL.pos.z+=PL.groundRef.dz||0;
+  }
+
+  /* الإدخال */
+  const inX=clamp((keys.right?1:0)-(keys.left?1:0)+touchAxis.x,-1,1);
+  const inZ=clamp((keys.down?1:0)-(keys.up?1:0)+touchAxis.z,-1,1);
+  const boot=PL.pw.boot>0?1.35:1, star=PL.pw.star>0?1.18:1;
+  const base=(keys.sprint?P.sprintSpeed:P.runSpeed)*boot*star;
+  const gt=PL.groundRef&&PL.groundRef.type;
+  const icy=gt==="ice";
+  const accel=(PL.grounded?(icy?P.accelGround*0.22:P.accelGround):P.accelAir)*dt;
+  const fric =(PL.grounded?(icy?1.4:P.frictionGround):P.frictionAir);
+
+  if(inX) PL.vel.x=approach(PL.vel.x,inX*base,accel);
+  else    PL.vel.x=damp(PL.vel.x,0,fric,dt);
+  if(inZ) PL.vel.z=approach(PL.vel.z,inZ*P.strafeSpeed*boot,accel);
+  else    PL.vel.z=damp(PL.vel.z,0,fric,dt);
+
+
+  /* القفز: coyote + buffer + قصّ الارتفاع */
+  PL.coyote = PL.grounded?P.coyoteTime:Math.max(0,PL.coyote-dt);
+  PL.buffer = Math.max(0,PL.buffer-dt);
+  if(PL.grounded){ PL.dblUsed=false; }
+  if(PL.buffer>0){
+    if(PL.grounded||PL.coyote>0){
+      PL.vel.y=P.jumpVelocity; PL.grounded=false; PL.coyote=0; PL.buffer=0;
+      PL.squash=-0.18; Audio_.SFX.jump();
+    }else if(PL.pw.feather>0&&!PL.dblUsed){
+      PL.vel.y=P.jumpVelocity*0.92; PL.dblUsed=true; PL.buffer=0;
+      burst(PL.pos.x,PL.pos.y+0.2,PL.pos.z,0xdff0ff,10,3,0.4); Audio_.SFX.dbl();
+    }
+  }
+
+  /* الجاذبية */
+  PL.vel.y+=P.gravity*dt;
+  PL.vel.y=Math.max(PL.vel.y,P.maxFall);
+
+  /* الحركة والتصادم */
+  blocksNear(PL.pos.x-4,PL.pos.x+4,nearBlocks);
+  const wasAir=!PL.grounded, fallV=PL.vel.y;
+  PL.pos.y+=PL.vel.y*dt;   resolveY();
+  PL.pos.x+=PL.vel.x*dt;   resolveAxis("x");
+  PL.pos.z+=PL.vel.z*dt;   resolveAxis("z");
+
+  /* رياح المرتفعات: تدفع جانبياً في الهواء فقط */
+  if(LV.wind&&!PL.grounded) PL.pos.z+=Math.sin(gameTime*LV.wind.speed)*LV.wind.amp*dt;
+
+  /* حدود الممرّ الصلبة — لا يمكن اختراقها أبداً */
+  const hw=LV.halfW-P.pw;
+  if(PL.pos.z> hw){ PL.pos.z= hw; PL.vel.z=0; }
+  if(PL.pos.z<-hw){ PL.pos.z=-hw; PL.vel.z=0; }
+  const minX=Math.max(LV.minX, camera.position.x-4);
+  if(PL.pos.x<minX){ PL.pos.x=minX; PL.vel.x=Math.max(0,PL.vel.x); }
+  if(PL.pos.x>LV.maxX){ PL.pos.x=LV.maxX; PL.vel.x=Math.min(0,PL.vel.x); }
+
+  /* الهبوط */
+  if(PL.grounded&&wasAir){
+    PL.squash=clamp(-fallV/40,0,0.55);
+    if(fallV<-16){ shake(0.14); }
+    Audio_.SFX.land();
+    burst(PL.pos.x,PL.pos.y+0.06,PL.pos.z,0xffffff,4,1.6,0.3);
+  }
+  PL.groundY=PL.grounded?PL.pos.y:null;
+
+  /* تفاعل نوع الأرضية */
+  if(PL.grounded&&PL.groundRef){
+    const b=PL.groundRef;
+    if(b.type==="spring"){ PL.vel.y=P.springBounce; PL.grounded=false; PL.squash=-0.3; Audio_.SFX.spring(); }
+    else if(b.type==="bounce"&&fallV<-6){ PL.vel.y=-fallV*0.8; PL.grounded=false; Audio_.SFX.spring(); }
+    else if(b.type==="conveyor"&&b.push) PL.pos.x+=b.push*dt;
+    else if(b.kind==="falling"&&b.timer<0&&b.vy===0) b.timer=0.4;
+    else if(b.kind==="crumble"&&b.timer<0) b.timer=0.55;
+  }
+
+  /* أخطار بيئية */
+  if(LV.hazard&&PL.pos.y<LV.hazard.y+0.4) killPlayer(LV.hazard.type==="lava"?"الحمم":"الغرق");
+  if(LV.rising){
+    LV.rising.cur=Math.min(LV.rising.cur+LV.rising.speed*dt, LV.rising.cap!=null?LV.rising.cap:1e9);
+    if(risingMesh) risingMesh.position.y=LV.rising.cur;
+    if(PL.pos.y<LV.rising.cur+0.4) killPlayer("الحمم الصاعدة");
+  }
+  if(PL.pos.y<KILL_Y) killPlayer("السقوط");
+
+  /* الكيانات */
+  const ax0=PL.pos.x-ACTIVE_R, ax1=PL.pos.x+ACTIVE_R;
+  for(const e of LV.enemies){
+    if(!e.alive){ continue; }
+    const on=e.x>ax0&&e.x<ax1; e.mesh.visible=on;
+    if(!on) continue;
+    updateEnemy(e,dt,gameTime);
+    checkEnemyPlayer(e);
+  }
+  for(const t of LV.traps){
+    if(t.done) continue;
+    const on=t.x>ax0&&t.x<ax1; t.obj.visible=on;
+    if(!on) continue;
+    updateTrap(t,dt,gameTime);
+    if(trapHits(t,null)) damagePlayer();
+    if(t.temp!==undefined){ t.temp-=dt; if(t.temp<=0){ t.done=true; t.active=false; t.obj.visible=false;
+      levelGroup.remove(t.obj); } }
+  }
+  for(const it of LV.items){
+    if(it.taken) continue;
+    if(Math.abs(it.x-PL.pos.x)>ACTIVE_R){ it.obj.visible=false; continue; }
+    it.obj.visible=true; it.t+=dt;
+    it.obj.rotation.y+=dt*2.4;
+    it.obj.position.y=it.y+Math.sin(it.t*2.6)*0.16;
+    let px=it.x, pz=it.z;
+    if(PL.pw.star>0&&it.type==="coin"&&Math.hypot(it.x-PL.pos.x,it.z-PL.pos.z)<7){
+      it.x=damp(it.x,PL.pos.x,6,dt); it.z=damp(it.z,PL.pos.z,6,dt); it.obj.position.x=it.x; it.obj.position.z=it.z;
+    }
+    if(hitsPlayer(it.x,it.y+0.2,it.z,0.75)) takeItem(it);
+  }
+  for(const c of LV.checkpoints){
+    if(c.hit) continue;
+    if(Math.abs(c.x-PL.pos.x)<1.5&&Math.abs(c.z-PL.pos.z)<3.0&&Math.abs(c.y-PL.pos.y)<4){
+      c.hit=true; PL.spawn.set(c.x,c.y+0.2,c.z); Audio_.SFX.check();
+      c.obj.userData.flag.material.color.setHex(0x4ec97a);
+      c.obj.userData.ball.material.color.setHex(0x4ec97a);
+      banner("نقطة تفتيش",1000,"#4ec97a");
+    }
+  }
+  if(LV.boss) updateBoss(dt,gameTime);
+  updateBullets(dt);
+  if(LV.goalX!=null&&PL.pos.x>=LV.goalX&&!PL.win) winLevel();
+  if(LV.bossWin>0){ LV.bossWin-=dt; if(LV.bossWin<=0) winLevel(); }
+}
+
+function checkEnemyPlayer(e){
+  if(PL.dead||PL.win) return;
+  const a=enemyAABB(e);
+  if(PL.pos.x+P.pw<a.x0||PL.pos.x-P.pw>a.x1) return;
+  if(PL.pos.z+P.pw<a.z0||PL.pos.z-P.pw>a.z1) return;
+  if(PL.pos.y>a.y1||PL.pos.y+P.ph<a.y0) return;
+  if(PL.pw.star>0){ killEnemy(e,false); Audio_.SFX.stomp(); return; }
+  const stomping = PL.vel.y<-1.5 && PL.pos.y > a.y0+e.h*0.45;
+  if(stomping&&e.canStomp){
+    killEnemy(e,true); PL.vel.y=P.stompBounce; PL.squash=-0.22;
+    Audio_.SFX.stomp(); shake(0.10);
+  }else if(e.type==="ghost"&&e.frozen){ /* متجمّد = غير مؤذٍ */ }
+  else damagePlayer();
+}
+function takeItem(it){
+  it.taken=true; it.obj.visible=false;
+  switch(it.type){
+    case "coin": PL.coins++; coinsInLevel++; Audio_.SFX.coin(); addScore(20);
+      burst(it.x,it.y,it.z,0xf2c14e,5,2.4,0.35);
+      if(PL.coins>0&&PL.coins%100===0){ PL.lives=Math.min(5,PL.lives+1); banner("روح إضافية!",1300,"#4ec97a"); }
+      break;
+    case "heart": PL.lives=Math.min(5,PL.lives+1); Audio_.SFX.heart(); banner("قلب +١",1100,"#e5484d"); break;
+    case "star": PL.pw.star=9; Audio_.SFX.power(); banner("نجمة! مناعة",1300,"#ffe066"); break;
+    case "feather": PL.pw.feather=1; Audio_.SFX.power(); banner("ريشة: قفزة مزدوجة",1400,"#dff0ff"); break;
+    case "flower": PL.pw.flower=1; Audio_.SFX.power(); banner("زهرة: كرة نار (E)",1400,"#ff6b3d"); break;
+    case "boot": PL.pw.boot=15; Audio_.SFX.power(); banner("حذاء السرعة",1200,"#9ce07a"); break;
+    case "shield": PL.pw.shield=1; Audio_.SFX.power(); banner("درع",1200,"#8ab4ff"); break;
+    case "gem": winLevel(); break;
+  }
+  updateHUD();
+}
+function damagePlayer(){
+  if(PL.invuln>0||PL.dead||PL.win||PL.pw.star>0) return;
+  if(PL.pw.shield>0){ PL.pw.shield=0; PL.invuln=P.invulnTime; Audio_.SFX.hurt();
+    burst(PL.pos.x,PL.pos.y+0.9,PL.pos.z,0x8ab4ff,16,5); banner("انكسر الدرع",900,"#8ab4ff"); updateHUD(); return; }
+  if(PL.pw.flower||PL.pw.feather){ PL.pw.flower=0; PL.pw.feather=0; }
+  PL.lives--; PL.invuln=P.invulnTime; PL.vel.x=-7; PL.vel.y=7.5;
+  Audio_.SFX.hurt(); shake(0.4);
+  burst(PL.pos.x,PL.pos.y+0.9,PL.pos.z,0xe5484d,14,5);
+  updateHUD();
+  if(PL.lives<=0) killPlayer("الأعداء");
+}
+function killPlayer(reason){
+  if(PL.dead||PL.win) return;
+  PL.dead=true; PL.deaths++; Audio_.SFX.die(); shake(0.5);
+  burst(PL.pos.x,PL.pos.y+0.9,PL.pos.z,0xe5484d,26,7,1.1);
+  if(PL.lives>0){
+    const tk=runToken;
+    setTimeout(()=>{ if(tk===runToken&&state==="play") respawn(); },380);
+  }else{
+    state="dead";
+    $("deathTitle").textContent="نفدت الأرواح";
+    $("deathSub").textContent="السبب: "+reason+" · الوفيات في هذه المرحلة: "+AR(PL.deaths);
+    show("scDeath");
+  }
+}
+function respawn(){
+  PL.dead=false; PL.pos.copy(PL.spawn); PL.vel.set(0,0,0);
+  PL.invuln=1.2; PL.grounded=false; PL.dblUsed=false;
+  if(LV.rising) LV.rising.cur=Math.min(LV.rising.cur, PL.spawn.y-9);
+  banner("حاول مجدداً",800,"#f2c14e");
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §20 · الإدخال — لوحة المفاتيح واللمس
+   ══════════════════════════════════════════════════════════════════════════ */
+const keys={left:false,right:false,up:false,down:false,sprint:false};
+const touchAxis={x:0,z:0};
+function keyDown(e){
+  const c=e.code;
+  if(["ArrowRight","KeyD"].includes(c)) keys.right=true;
+  else if(["ArrowLeft","KeyA"].includes(c)) keys.left=true;
+  else if(["ArrowUp","KeyW"].includes(c)) keys.up=true;
+  else if(["ArrowDown","KeyS"].includes(c)) keys.down=true;
+  else if(["Space","KeyK"].includes(c)){ PL.buffer=P.jumpBuffer; PL.jumpHeld=true; }
+  else if(c==="ShiftLeft"||c==="ShiftRight") keys.sprint=true;
+  else if(c==="KeyE"||c==="KeyJ") shootFire();
+  else if(c==="Escape"||c==="KeyP"){ if(state==="play") pause(); else if(state==="pause") resume(); }
+  else if(c==="KeyR"){ if(state==="play"||state==="pause") startLevel(curLevel); }
+  else return;
+  if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(c)) e.preventDefault();
+  Audio_.resume();
+}
+function keyUp(e){
+  const c=e.code;
+  if(["ArrowRight","KeyD"].includes(c)) keys.right=false;
+  else if(["ArrowLeft","KeyA"].includes(c)) keys.left=false;
+  else if(["ArrowUp","KeyW"].includes(c)) keys.up=false;
+  else if(["ArrowDown","KeyS"].includes(c)) keys.down=false;
+  else if(["Space","KeyK"].includes(c)) releaseJump();
+  else if(c==="ShiftLeft"||c==="ShiftRight") keys.sprint=false;
+}
+addEventListener("keydown",keyDown); addEventListener("keyup",keyUp);
+addEventListener("blur",()=>{ for(const k in keys) keys[k]=false; PL.jumpHeld=false;
+  if(state==="play") pause(); });
+
+function initTouch(){
+  const isTouch=("ontouchstart" in window)||navigator.maxTouchPoints>0;
+  if(!isTouch) return;
+  $("touch").classList.add("on");
+  const stick=$("stick"), knob=$("knob");
+  let sid=null, cx=0, cy=0, R=52;
+  const setKnob=(dx,dy)=>{ knob.style.transform="translate("+dx+"px,"+dy+"px)"; };
+  stick.addEventListener("touchstart",ev=>{
+    const r=stick.getBoundingClientRect(); cx=r.left+r.width/2; cy=r.top+r.height/2;
+    sid=ev.changedTouches[0].identifier; Audio_.resume(); ev.preventDefault();
+  },{passive:false});
+  stick.addEventListener("touchmove",ev=>{
+    for(const t of ev.changedTouches) if(t.identifier===sid){
+      let dx=t.clientX-cx, dy=t.clientY-cy; const L=Math.hypot(dx,dy)||1;
+      if(L>R){ dx=dx/L*R; dy=dy/L*R; }
+      setKnob(dx,dy);
+      // RTL: اليمين على الشاشة = تقدّم للأمام
+      touchAxis.x=clamp(dx/R,-1,1); touchAxis.z=clamp(dy/R,-1,1);
+    }
+    ev.preventDefault();
+  },{passive:false});
+  const end=ev=>{ for(const t of ev.changedTouches) if(t.identifier===sid){ sid=null; touchAxis.x=touchAxis.z=0; setKnob(0,0);} };
+  stick.addEventListener("touchend",end); stick.addEventListener("touchcancel",end);
+  const jb=$("btnJump");
+  jb.addEventListener("touchstart",e=>{ PL.buffer=P.jumpBuffer; PL.jumpHeld=true; Audio_.resume(); e.preventDefault(); },{passive:false});
+  jb.addEventListener("touchend",e=>{ releaseJump(); e.preventDefault(); },{passive:false});
+  $("btnFire").addEventListener("touchstart",e=>{ shootFire(); e.preventDefault(); },{passive:false});
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §21 · الكاميرا — منظور الشخص الثالث خلف يوسف
+   ══════════════════════════════════════════════════════════════════════════ */
+const camPos=new THREE.Vector3(), camLook=new THREE.Vector3();
+function updateCamera(dt){
+  const spd=Math.abs(PL.vel.x);
+  const back=9.0+spd*0.11, up=5.4+clamp(PL.vel.y*0.05,-0.8,0.8);
+  camPos.set(PL.pos.x-back, PL.pos.y+up, PL.pos.z*0.42);
+  if(LV.isBoss&&LV.boss&&!LV.boss.dead) camPos.x=Math.min(camPos.x, LV.boss.x-13);
+  camera.position.x=damp(camera.position.x,camPos.x,9,dt);
+  camera.position.y=damp(camera.position.y,camPos.y,7,dt);
+  camera.position.z=damp(camera.position.z,camPos.z,7,dt);
+  camLook.set(PL.pos.x+3.4, PL.pos.y+1.25, PL.pos.z*0.55);
+  if(shakeAmt>0.001){
+    const s=shakeAmt*0.55;
+    camera.position.x+=(Math.random()*2-1)*s;
+    camera.position.y+=(Math.random()*2-1)*s;
+    camera.position.z+=(Math.random()*2-1)*s;
+    shakeAmt=Math.max(0,shakeAmt-dt*3.4);
+  }
+  camera.lookAt(camLook);
+  const wantFov=60+clamp((spd-P.runSpeed)*0.9,0,9);
+  camera.fov=damp(camera.fov,wantFov,4,dt); camera.updateProjectionMatrix();
+  sun.position.set(PL.pos.x-16,34,18);
+  sun.target.position.set(PL.pos.x+6,0,0); sun.target.updateMatrixWorld();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §22 · الواجهات
+   ══════════════════════════════════════════════════════════════════════════ */
+const SCREENS=["scBoot","scTitle","scMap","scPause","scResult","scDeath"];
+function show(id){ SCREENS.forEach(s=>$(s).classList.toggle("on",s===id)); }
+function hideAll(){ SCREENS.forEach(s=>$(s).classList.remove("on")); }
+function updateHUD(){
+  $("hearts").textContent="❤".repeat(Math.max(0,PL.lives))+"·".repeat(Math.max(0,3-PL.lives));
+  $("coins").textContent=AR(PL.coins);
+  $("lvlName").textContent = LV.isBoss
+      ? ("زعيم: "+BOSSNAMES[LV.world-1])
+      : ("المرحلة "+AR(curLevel)+" — "+WORLDS[LV.world-1].n);
+  const p=[];
+  if(PL.pw.star>0)   p.push("⭐"+Math.ceil(PL.pw.star));
+  if(PL.pw.feather)  p.push("🪶");
+  if(PL.pw.flower)   p.push("🔥");
+  if(PL.pw.boot>0)   p.push("👟"+Math.ceil(PL.pw.boot));
+  if(PL.pw.shield)   p.push("🛡️");
+  $("powers").innerHTML=p.map(s=>'<span class="pw">'+s+'</span>').join("");
+  $("powers").style.display=p.length?"flex":"none";
+}
+function buildMap(){
+  const wrap=$("mapwrap"); wrap.innerHTML="";
+  for(let w=1;w<=10;w++){
+    const W=WORLDS[w-1];
+    const div=document.createElement("div"); div.className="world";
+    const gained=Array.from({length:10},(_,i)=>Save.data.stars[(w-1)*10+i+1]|0).reduce((a,b)=>a+b,0);
+    div.innerHTML='<div class="whead"><div><span class="wname">'+AR(w)+'. '+W.n+
+      '</span> <span class="wtag">· '+W.tag+'</span></div><div class="wtag">⭐ '+AR(gained)+'/'+AR(30)+'</div></div>';
+    const cells=document.createElement("div"); cells.className="cells";
+    for(let s=1;s<=10;s++){
+      const n=(w-1)*10+s;
+      const locked=n>Save.data.unlocked;
+      const st=Save.data.stars[n]|0;
+      const c=document.createElement("div");
+      c.className="cell"+(locked?" locked":"")+(st>0?" done":"")+(s===10?" boss":"");
+      c.innerHTML=(s===10?"👑":AR(n))+'<div class="st">'+(st?"★".repeat(st):"")+"</div>";
+      c.title = s===10 ? BOSSNAMES[w-1] : ("المرحلة "+n);
+      c.style.background="linear-gradient(180deg,"+hex(shade(W.ground,1.1))+"33,"+hex(W.rock)+"55)";
+      if(!locked) c.onclick=()=>{ Audio_.SFX.click(); startLevel(n); };
+      cells.appendChild(c);
+    }
+    div.appendChild(cells); wrap.appendChild(div);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §23 · تدفّق اللعبة
+   ══════════════════════════════════════════════════════════════════════════ */
+function startLevel(n){
+  curLevel=clamp(n,1,100);
+  const t0=performance.now();
+  buildMaterials(WORLDS[worldOf(curLevel)-1]);
+  generateLevel(curLevel);
+  buildScene();
+  // إعادة ضبط اللاعب
+  PL.pos.set(2,1.2,0); PL.prev.copy(PL.pos); PL.vel.set(0,0,0);
+  PL.spawn.copy(PL.pos);
+  PL.grounded=false; PL.dead=false; PL.win=false; PL.invuln=0.6;
+  PL.lives=curLevel<=10?5:(curLevel<=50?4:3);
+  PL.deaths=0; PL.dblUsed=false; PL.squash=0;
+  PL.pw={star:0,feather:0,flower:0,boot:0,shield:0};
+  coinsInLevel=0; levelTime=0; shakeAmt=0; runToken++;
+  for(const b of BULLETS){ b.alive=false; b.mesh.visible=false; }
+  for(const p of PARTS){ p.alive=false; p.mesh.visible=false; }
+  camera.position.set(PL.pos.x-9,PL.pos.y+5.4,0);
+  state="play"; hideAll(); $("hud").classList.add("on");
+  updateHUD();
+  Audio_.setTheme(LV.world,!!LV.isBoss); Audio_.musicStart();
+  banner(LV.isBoss?("زعيم "+WORLDS[LV.world-1].n+": "+BOSSNAMES[LV.world-1])
+                  :(WORLDS[LV.world-1].n+" — المرحلة "+AR(stepOf(curLevel))),1800,
+         LV.isBoss?"#e5484d":"#f2c14e");
+  console.log("مرحلة "+curLevel+" · كتل:"+LV.blocks.length+" أعداء:"+LV.enemies.length+
+              " أفخاخ:"+LV.traps.length+" عملات:"+LV.coinTotal+" طول:"+Math.round(LV.length)+
+              " · التوليد "+Math.round(performance.now()-t0)+"ms");
+}
+function winLevel(){
+  if(PL.win) return;
+  PL.win=true; state="result";
+  Audio_.SFX.win(); Audio_.musicStop();
+  burst(PL.pos.x,PL.pos.y+1.2,PL.pos.z,0x8ef0ff,50,10,1.5);
+  let stars=1;
+  if(LV.coinTotal>0&&coinsInLevel>=Math.ceil(LV.coinTotal*0.8)) stars++;
+  if(PL.deaths===0) stars++;
+  Save.star(curLevel,stars,levelTime);
+  $("resTitle").textContent = LV.isBoss ? ("استُعيدت جوهرة "+WORLDS[LV.world-1].n+"!") : "أُنجزت المرحلة!";
+  $("resStars").textContent="★".repeat(stars)+"☆".repeat(3-stars);
+  $("resTime").textContent=fmtTime(levelTime);
+  $("resCoins").textContent=AR(coinsInLevel)+"/"+AR(LV.coinTotal);
+  $("resDeaths").textContent=AR(PL.deaths);
+  $("btnNext").style.display=curLevel<100?"":"none";
+  const tk=runToken;
+  setTimeout(()=>{ if(tk!==runToken||state!=="result") return;
+                   $("hud").classList.remove("on"); show("scResult"); },700);
+}
+function pause(){ if(state!=="play") return; state="pause"; show("scPause"); $("hud").classList.remove("on"); }
+function resume(){ if(state!=="pause") return; state="play"; hideAll(); $("hud").classList.add("on"); Audio_.resume(); }
+function toMenu(){ state="menu"; Audio_.musicStop(); $("hud").classList.remove("on"); show("scTitle"); refreshSaveInfo(); }
+function toMap(){ state="menu"; Audio_.musicStop(); $("hud").classList.remove("on"); buildMap(); show("scMap"); }
+function refreshSaveInfo(){
+  const tot=Object.values(Save.data.stars).reduce((a,b)=>a+b,0);
+  $("saveInfo").textContent="أعلى مرحلة مفتوحة: "+AR(Save.data.unlocked)+" · النجوم: "+AR(tot)+"/"+AR(300)
+    +(Store.ok?"":" · (الحفظ معطّل في هذا المتصفح)");
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §24 · الحلقة الرئيسية — خطوة ثابتة 1/120 + استيفاء للعرض
+   ══════════════════════════════════════════════════════════════════════════ */
+let acc=0, last=performance.now(), fpsAcc=0, fpsN=0, autoQualDone=false;
+function frame(now){
+  requestAnimationFrame(frame);
+  let dt=(now-last)/1000; last=now;
+  if(dt>0.25) dt=0.25;
+  acc+=dt;
+  let guard=0;
+  while(acc>=FIXED_DT&&guard++<8){ stepPhysics(FIXED_DT); acc-=FIXED_DT; }
+
+  // عرض
+  const alpha=acc/FIXED_DT;
+  if(PL.mesh){
+    PL.mesh.position.set(lerp(PL.prev.x,PL.pos.x,alpha),lerp(PL.prev.y,PL.pos.y,alpha),lerp(PL.prev.z,PL.pos.z,alpha));
+    PL.mesh.visible=(state==="play"||state==="pause"||state==="result")&&!PL.dead;
+    animateYoussef(PL.mesh,PL,dt,gameTime);
+  }
+  updateParts(dt);
+  if(state==="play"){
+    updateCamera(dt);
+    $("timer").textContent=fmtTime(levelTime);
+    if(Math.floor(gameTime*4)%4===0) updateHUD();
+    for(const c of LV.checkpoints) if(c.obj&&c.obj.userData.flag) c.obj.userData.flag.rotation.z=Math.sin(gameTime*3)*0.13;
+    for(const o of decoObjs) o.visible=Math.abs(o.userData.dx-PL.pos.x)<62;
+    if(hazardMesh&&LV.hazard&&LV.hazard.type==="water") hazardMesh.position.y=LV.hazard.y+Math.sin(gameTime*1.4)*0.09;
+  }else if(state==="menu"){
+    // عرض تلقائي على شاشة العنوان
+    camera.position.x=damp(camera.position.x,PL.pos.x-9,3,dt);
+    camera.lookAt(PL.pos.x+3,PL.pos.y+1.2,0);
+  }
+  renderer.render(scene,camera);
+
+  // كشف الجودة تلقائياً في أول ٣ ثوانٍ من اللعب
+  if(!autoQualDone&&state==="play"){
+    fpsAcc+=dt; fpsN++;
+    if(fpsAcc>3){
+      autoQualDone=true;
+      const fps=fpsN/fpsAcc;
+      if(Save.data.settings.quality==="auto"){
+        const q=fps<34?"low":fps<52?"med":"high";
+        if(q!=="high"){ applyQuality(q); toast("خُفّضت الجودة تلقائياً ("+q+") لأداء أفضل"); }
+        $("btnQual").textContent="الجودة: "+q;
+      }
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   §25 · الإقلاع
+   ══════════════════════════════════════════════════════════════════════════ */
+function bindUI(){
+  const go=(fn)=>()=>{ Audio_.resume(); Audio_.SFX.click(); fn(); };
+  $("btnPlay").onclick   = go(()=>startLevel(Save.data.unlocked||1));
+  $("btnMap").onclick    = go(toMap);
+  $("btnMapBack").onclick= go(toMenu);
+  $("btnWipe").onclick   = go(()=>{ if(confirm("مسح كل التقدّم؟")){ Save.wipe(); buildMap(); toast("مُسح التقدّم"); } });
+  $("btnResume").onclick = go(resume);
+  $("btnRetry").onclick  = go(()=>startLevel(curLevel));
+  $("btnQuit").onclick   = go(toMap);
+  $("btnNext").onclick   = go(()=>startLevel(Math.min(100,curLevel+1)));
+  $("btnAgain").onclick  = go(()=>startLevel(curLevel));
+  $("btnToMap").onclick  = go(toMap);
+  $("btnRevive").onclick = go(()=>startLevel(curLevel));
+  $("btnDeathMap").onclick=go(toMap);
+  $("btnMute").onclick   = go(()=>{
+    const s=Save.data.settings; s.sfx=s.music=!s.sfx; Save.flush();
+    $("btnMute").textContent=(s.sfx?"🔊":"🔇")+" الصوت";
+    if(s.music&&state==="play") Audio_.musicStart(); else Audio_.musicStop();
+  });
+  $("btnQual").onclick   = go(()=>{
+    const order=["auto","high","med","low"], s=Save.data.settings;
+    s.quality=order[(order.indexOf(s.quality)+1)%order.length]; Save.flush();
+    $("btnQual").textContent="الجودة: "+s.quality;
+    if(s.quality!=="auto") applyQuality(s.quality); else autoQualDone=false;
+  });
+  addEventListener("pointerdown",()=>Audio_.resume(),{once:true});
+  document.addEventListener("visibilitychange",()=>{ if(document.hidden&&state==="play") pause(); });
+}
+
+function boot(){
+  if(typeof THREE==="undefined"){
+    $("bootMsg").textContent="تعذّر تحميل Three.js — تأكّد من الاتصال بالإنترنت عند أول تشغيل.";
+    return;
+  }
+  initRenderer();
+  buildMaterials(WORLDS[0]);
+  initPools();
+  PL.mesh=buildYoussef(); scene.add(PL.mesh);
+  bindUI(); initTouch();
+  if(Save.data.settings.quality!=="auto") applyQuality(Save.data.settings.quality);
+  $("btnQual").textContent="الجودة: "+Save.data.settings.quality;
+  $("btnMute").textContent=(Save.data.settings.sfx?"🔊":"🔇")+" الصوت";
+
+  // مشهد خلفية لشاشة العنوان
+  LV=newLevel(); LV.index=1; LV.world=1;
+  E.plat(-20,0,0,160,2,G);
+  for(let x=-10;x<120;x+=9){ E.deco("tree",x,0,-(TRACK_HALF+3),1.1); E.deco("tree",x+4,0,TRACK_HALF+3.4,1.0); }
+  LV.length=140; LV.minX=-18; LV.maxX=130;
+  buildScene();
+  PL.pos.set(0,1.2,0); PL.prev.copy(PL.pos); camera.position.set(-9,5.4,0);
+  state="menu"; show("scTitle"); refreshSaveInfo();
+  requestAnimationFrame(frame);
+}
+if(document.readyState==="complete"||document.readyState==="interactive") setTimeout(boot,0);
+else addEventListener("DOMContentLoaded",boot);
+</script>
+</body>
+</html>
