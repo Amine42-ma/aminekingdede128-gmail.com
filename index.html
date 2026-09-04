@@ -286,6 +286,45 @@ kbd{font-family:var(--font-lat);font-size:11px;padding:2px 6px;border-radius:6px
 [hidden]{display:none!important}
 .hidden{display:none!important}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ---------- طاقم الأصوات (Cast) ---------- */
+.cast{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.cast:empty{display:none}
+.cast-row{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:var(--r-md);border:1px solid var(--line);background:rgba(255,255,255,.03)}
+.cast-row .tag{padding:2px 8px;border-radius:99px;font-size:10.5px;font-family:var(--font-lat);border:1px solid var(--line);flex:none}
+.cast-row .tag.s0{background:rgba(139,92,246,.18);color:#c4b5fd;border-color:rgba(139,92,246,.3)}
+.cast-row .tag.s1{background:rgba(34,211,238,.16);color:#67e8f9;border-color:rgba(34,211,238,.3)}
+.cast-row .tag.s2{background:rgba(251,191,36,.16);color:#fcd34d;border-color:rgba(251,191,36,.3)}
+.cast-row .tag.s3{background:rgba(52,211,153,.16);color:#6ee7b7;border-color:rgba(52,211,153,.3)}
+.cast-row .tag.s4{background:rgba(244,114,182,.16);color:#f9a8d4;border-color:rgba(244,114,182,.3)}
+.cast-row .tag.s5{background:rgba(148,163,184,.18);color:#cbd5e1;border-color:rgba(148,163,184,.3)}
+.cast-row .who{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.cast-row .who b{font-size:12.5px;font-weight:500}
+.cast-row .who span{font-size:10.5px;color:var(--ink-dim);font-family:var(--font-lat)}
+.cast-row select,.cast-row input{flex:1.1;min-width:0;padding:6px 8px;font-size:11.5px}
+.cast-row .cloned{color:#6ee7b7}
+
+/* ---------- بطاقة الملخّص ---------- */
+.spec{font-family:var(--font-lat);font-size:12px;line-height:1.9;white-space:pre-wrap;word-break:break-word;
+  padding:13px;border-radius:var(--r-md);border:1px solid var(--line);background:rgba(0,0,0,.28);max-height:260px;overflow:auto;direction:ltr;text-align:left}
+.scene{padding:11px 12px;border-radius:var(--r-md);border:1px solid var(--line);background:rgba(255,255,255,.028);
+  cursor:pointer;transition:all .28s var(--ease);margin-bottom:9px}
+.scene:hover{background:rgba(255,255,255,.06);border-color:var(--line-strong)}
+.scene.cur{border-color:rgba(34,211,238,.6);background:rgba(34,211,238,.1);box-shadow:0 0 0 4px rgba(34,211,238,.07)}
+.scene .top{display:flex;align-items:center;gap:8px;font-size:10.5px;color:var(--ink-dim);font-family:var(--font-lat);margin-bottom:6px;flex-wrap:wrap}
+.scene .act{padding:1px 8px;border-radius:99px;font-size:10px;background:rgba(139,92,246,.18);color:#c4b5fd;border:1px solid rgba(139,92,246,.3);font-family:var(--font-ar)}
+.scene .vis{font-size:11.5px;color:var(--ink-dim);line-height:1.6;margin-bottom:6px}
+.scene .vo{font-size:13.5px;font-weight:500;line-height:1.75}
+.scene .dlg{margin-top:7px;display:flex;flex-direction:column;gap:4px}
+.scene .dlg div{font-size:12px;line-height:1.6;padding-inline-start:9px;border-inline-start:2px solid rgba(139,92,246,.45)}
+.scene .dlg b{color:#c4b5fd;font-weight:500}
+.scene .fr{font-size:11px;color:var(--ink-dim);margin-top:5px;direction:ltr;text-align:left;font-family:var(--font-lat)}
+.scene .thumb{width:100%;border-radius:8px;margin-bottom:8px;display:block;border:1px solid var(--line)}
+.recap-bar{position:absolute;inset-inline:0;top:0;padding:9px 14px;display:flex;align-items:center;gap:10px;
+  background:linear-gradient(180deg,rgba(3,4,10,.9),transparent);font-size:12px;pointer-events:none;opacity:0;transition:opacity .35s}
+.recap-bar.on{opacity:1}
+.recap-bar .chip{padding:2px 9px;border-radius:99px;background:rgba(139,92,246,.25);border:1px solid rgba(139,92,246,.45);font-size:11px}
+.mini{font-size:11px;color:var(--ink-dim);font-family:var(--font-lat)}
 </style>
 </head>
 <body>
@@ -322,6 +361,7 @@ kbd{font-family:var(--font-lat);font-size:11px;padding:2px 6px;border-radius:6px
         <div class="stage-inner">
           <video id="video" playsinline preload="metadata"></video>
           <canvas class="viz" id="viz"></canvas>
+          <div class="recap-bar" id="recapOverlay"><span class="chip" id="recapChip"></span><span id="recapAct"></span></div>
           <div class="speak-halo" id="halo"></div>
           <div class="sub-layer">
             <div class="sub-line src" id="subSrc"></div>
@@ -405,6 +445,27 @@ kbd{font-family:var(--font-lat);font-size:11px;padding:2px 6px;border-radius:6px
           </div>
         </div>
       </div>
+      <!-- الملخّص السينمائي -->
+      <div class="card" id="recapCard" hidden>
+        <div class="card-h">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 4v16"/></svg></div>
+          <h2 data-i18n="recapTitle">الملخّص السينمائي</h2>
+          <div class="spacer"></div>
+          <button class="btn sm ghost" id="recapPlayBtn">
+            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4.5v15l13-7.5z"/></svg>
+            <span data-i18n="recapPlay">تشغيل</span>
+          </button>
+          <button class="btn sm ghost" id="recapMdBtn">MD</button>
+          <button class="btn sm ghost" id="recapSrtBtn">SRT</button>
+          <button class="btn sm ghost" id="recapShBtn">FFMPEG</button>
+          <button class="btn sm ghost" id="recapWavBtn">WAV</button>
+        </div>
+        <div class="card-b">
+          <div class="spec" id="recapSpec"></div>
+          <div id="scenes" style="margin-top:13px"></div>
+        </div>
+      </div>
+
     </div>
 
     <!-- ================= العمود الأيمن: اللوحة ================= -->
@@ -442,6 +503,7 @@ kbd{font-family:var(--font-lat);font-size:11px;padding:2px 6px;border-radius:6px
             <button class="tab on" data-pane="pVoice" data-i18n="tabVoice">الأصوات</button>
             <button class="tab" data-pane="pMix" data-i18n="tabMix">المزج</button>
             <button class="tab" data-pane="pEngine" data-i18n="tabEngine">المحرّك</button>
+            <button class="tab" data-pane="pRecap" data-i18n="tabRecap">الملخّص</button>
           </div>
 
           <!-- الأصوات -->
@@ -489,6 +551,38 @@ kbd{font-family:var(--font-lat);font-size:11px;padding:2px 6px;border-radius:6px
                 <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
                 <span data-i18n="apiNote">المفتاح يُحفظ في متصفحك فقط ولا يُرسل إلى أي جهة غير الخدمة التي اخترتها. هذا الوضع يمنح أصواتاً بشرية بالكامل ويسمح بتصدير الفيلم المدبلج كملف صوتي.</span>
               </div>
+            </div>
+
+            <div class="field">
+              <label class="lbl" for="maxSpk" data-i18n="maxSpk">عدد أصوات الممثلين</label>
+              <select id="maxSpk">
+                <option value="0" selected data-i18n="spkAuto">كشف تلقائي — يميّز الممثلين من بصمة الصوت</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+              </select>
+            </div>
+            <div class="cast" id="cast"></div>
+            <div class="toggle on" id="tgMatch">
+              <div class="txt"><b data-i18n="tgMatchT">مطابقة نبرة الممثل الأصلي</b><span data-i18n="tgMatchS">يقيس طبقة صوت كل ممثل وسرعة كلامه من الفيلم نفسه ويعيد إنتاجهما في اللغة الجديدة</span></div>
+              <div class="sw"></div>
+            </div>
+            <div class="toggle" id="tgClone">
+              <div class="txt"><b data-i18n="tgCloneT">استنساخ أصوات الممثلين</b><span data-i18n="tgCloneS">يأخذ عيّنة من صوت كل ممثل ويجعله ينطق اللغة الجديدة بصوته هو — يحتاج مفتاح ElevenLabs</span></div>
+              <div class="sw"></div>
+            </div>
+            <div id="cloneBox" class="hidden">
+              <div class="toggle" id="tgConsent">
+                <div class="txt"><b data-i18n="tgConsentT">أملك حق استخدام هذه الأصوات</b><span data-i18n="tgConsentS">استنساخ صوت شخص حقيقي دون إذنه ممنوع بشروط الخدمة وقد يكون مخالفاً للقانون</span></div>
+                <div class="sw"></div>
+              </div>
+              <button class="btn sm" id="cloneBtn" style="width:100%">
+                <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>
+                <span data-i18n="cloneBtn">استخرج عيّنات الممثلين واستنسخ أصواتهم</span>
+              </button>
+              <div class="hint" style="margin-top:9px" data-i18n="cloneHint">تُقتطع من الفيلم عيّنة نظيفة لكل ممثل (٤٠–٧٠ ثانية) وتُرسل إلى ElevenLabs لإنشاء صوت مستنسخ يبقى في حسابك. بعدها تُنطق الجمل المترجمة بنفس بصمة صوت الممثل.</div>
             </div>
 
             <div class="toggle on" id="tgMulti">
@@ -582,6 +676,52 @@ kbd{font-family:var(--font-lat);font-size:11px;padding:2px 6px;border-radius:6px
               <span data-i18n="modelNote">في أول تشغيل يُنزَّل نموذج الذكاء الاصطناعي مرة واحدة ثم يُحفظ في المتصفح. المعالجة كلها تتم على جهازك.</span>
             </div>
           </div>
+          <!-- الملخّص السينمائي -->
+          <div class="pane" id="pRecap">
+            <div class="field">
+              <label class="lbl" for="recapEngine" data-i18n="recapEngine">محرّك التحليل السينمائي</label>
+              <select id="recapEngine">
+                <option value="claude" selected data-i18n="reClaude">Claude — يقرأ الحوار ويشاهد اللقطات ويكتب الملخّص</option>
+                <option value="openai" data-i18n="reOpenai">نموذج متوافق مع OpenAI</option>
+                <option value="local" data-i18n="reLocal">محلي بالكامل — يختار المشاهد المهمة بلا إنترنت</option>
+              </select>
+            </div>
+            <div class="field" id="llmKeyBox">
+              <label class="lbl" for="llmKey" data-i18n="llmKey">مفتاح API للتحليل</label>
+              <input type="password" id="llmKey" placeholder="sk-ant-..." autocomplete="off">
+            </div>
+            <div class="field" id="recapModelBox">
+              <label class="lbl" for="recapModel" data-i18n="recapModel">اسم النموذج</label>
+              <input type="text" id="recapModel" placeholder="claude-opus-5">
+            </div>
+            <div class="slider-row">
+              <div class="top"><span data-i18n="recapLen">طول الملخّص المطلوب</span><b id="recapLenV">10 د</b></div>
+              <input type="range" id="recapLen" min="2" max="30" step="1" value="10">
+            </div>
+            <div class="field">
+              <label class="lbl" for="subLang2" data-i18n="subLang2">لغة الترجمة الثانية</label>
+              <select id="subLang2"></select>
+            </div>
+            <div class="toggle on" id="tgVision">
+              <div class="txt"><b data-i18n="tgVisionT">تحليل الصورة</b><span data-i18n="tgVisionS">يلتقط لقطات من المشاهد المرشّحة ويرسلها للنموذج ليصف ما يحدث فعلاً لا ما يُخمّنه</span></div>
+              <div class="sw"></div>
+            </div>
+            <div class="toggle on" id="tgVO">
+              <div class="txt"><b data-i18n="tgVOT">تعليق الراوي</b><span data-i18n="tgVOS">صوت راوٍ عربي يربط المشاهد ببعضها بأسلوب ملخّصات الأفلام</span></div>
+              <div class="sw"></div>
+            </div>
+            <button class="btn cta" id="recapBtn" disabled>
+              <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16M9 4v16"/></svg>
+              <span data-i18n="recapRun">حلّل الفيلم وابنِ الملخّص</span>
+            </button>
+            <div class="mini" id="recapProg" style="margin-top:11px"></div>
+            <div class="bar hidden" id="recapBarP"><i></i></div>
+            <div class="notice info" style="margin-top:14px">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+              <span data-i18n="recapNote">التحليل يقوم على ما قيل فعلاً في الفيلم وما ظهر في لقطاته — لا يُخترع حدث غير موجود. الوضع المحلي يختار المشاهد المهمة بمقاييس الصوت والصورة وكثافة الحوار، أما وضع Claude فيكتب أيضاً تعليق الراوي وحوار الدبلجة والترجمة المزدوجة.</span>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -1248,6 +1388,8 @@ function resolveEleven(v){
   return ELEVEN.rachel;
 }
 function apiVoiceFor(spk){
+  const c = S.cast[spk];
+  if(c && c.apiVoice) return c.apiVoice;
   const a = el.apiVoiceA.value.trim(), b = el.apiVoiceB.value.trim();
   const eng = el.ttsEngine.value;
   const defA = eng === 'eleven' ? 'Rachel' : 'nova';
@@ -1316,6 +1458,9 @@ async function prepareVoices(){
 function clearResults(){
   stopSpeaking();
   S.segments = []; S.nextIdx = 0; S.curIdx = -1; S.ready = false;
+  S.cast = []; S.spkProfiles = [];
+  if(typeof clearRecap === 'function'){ clearRecap(); renderCast(); }
+  if(el.recapBtn) el.recapBtn.disabled = true;
   el.srt.disabled = true; el.wav.disabled = true;
   el.stats.hidden = true;
   renderLines();
@@ -1362,6 +1507,12 @@ async function runPipeline(){
     S.segments = refineSegments(raw, S.pcm.length / SR);
     assignSpeakers(S.segments);
     if(!S.segments.length) throw new Error(T('fileTooShort'));
+    if(S.opts.multi){
+      step(2, 'active', T('rDiar'), -1);
+      try{ await diarize(pc => step(2, 'active', T('rDiar') + ' ' + Math.round(pc*100) + '%', pc*100)); }
+      catch(err){ console.warn('diarize', err); }
+    } else S.spkProfiles = [];
+    buildCast();
     step(2, 'done', S.segments.length + ' ' + T('segments'));
     renderLines();
 
@@ -1445,9 +1596,10 @@ function fillVoiceSelects(){
   });
 }
 function pickVoice(spk){
-  const want = (spk === 1 ? el.voiceB.value : el.voiceA.value);
   const list = voicesForLang(el.dstLang.value);
-  return S.voices.find(v => v.name === want) || list[0] || null;
+  const c = S.cast[spk];
+  const want = c && c.voice ? c.voice : (spk === 1 ? el.voiceB.value : el.voiceA.value);
+  return S.voices.find(v => v.name === want) || list[spk % Math.max(1, list.length)] || list[0] || null;
 }
 
 /* ------------------------------ 17) النطق والمزامنة ------------------------------ */
@@ -1514,9 +1666,13 @@ function speakBrowser(seg, dur){
     else if(lang && lang.b) u.lang = lang.b;
     const jr = S.opts.human ? ((((seg.i * 7 + i * 13) % 9) - 4) / 110) : 0;
     const jp = S.opts.human ? ((((seg.i * 5 + i * 11) % 9) - 4) / 60) : 0;
-    const spkShift = seg.spk === 1 ? -0.09 : 0.04;
-    u.rate = clamp(base * fit * (1 + jr), 0.5, 2);
-    u.pitch = clamp(S.opts.pitch + jp + spkShift, 0, 2);
+    const prof = S.cast[seg.spk];
+    const matched = S.opts.match && prof;
+    const pitchMul = matched ? prof.pitchMul : 1;
+    const rateMul = matched ? prof.rateMul : 1;
+    const spkShift = matched ? 0 : (seg.spk === 1 ? -0.09 : 0.04);
+    u.rate = clamp(base * fit * rateMul * (1 + jr), 0.5, 2);
+    u.pitch = clamp(S.opts.pitch * pitchMul + jp + spkShift, 0, 2);
     u.volume = clamp(S.opts.dubVol / 100, 0, 1);
     synth.speak(u);
     total += estSpeech(p, u.rate) + (S.opts.human ? 0.09 : 0);
@@ -1555,12 +1711,13 @@ function currentSegment(t){
 }
 function frame(){
   const v = el.video;
+  if(S.recap && S.recap.playing && !v.paused) recapTick(v.currentTime);
   if(S.segments.length){
     const t = v.currentTime + S.opts.offset;
     const segs = S.segments;
     while(S.nextIdx < segs.length && segs[S.nextIdx].end < t - 0.25) S.nextIdx++;
     const s = segs[S.nextIdx];
-    if(s && !v.paused && S.dubOn && !s.spoken && t >= s.start && t < s.end + 0.6){
+    if(s && !v.paused && S.dubOn && !s.spoken && !S.recap.narrating && t >= s.start && t < s.end + 0.6){
       s.spoken = true;
       speakSegment(s);
     }
@@ -1661,6 +1818,7 @@ function updateStats(){
   $('#stSpk').textContent = new Set(segs.map(s => s.spk)).size;
   $('#stDur').textContent = fmt(S.duration);
   el.stats.hidden = false;
+  if(el.recapBtn) el.recapBtn.disabled = !S.segments.length;
 }
 
 /* ------------------------------ 21) التصدير ------------------------------ */
@@ -1814,6 +1972,10 @@ function applyUiLang(){
   st.forEach((s, i) => s && step(i, s[0], s[1], s[2]));
   fillLangSelects();
   renderLines();
+  if(typeof fillSub2 === 'function'){
+    fillSub2(); syncRecapUi(); renderCast();
+    if(S.recap.scenes.length) renderRecap();
+  }
 }
 let savedStepState = [];
 const rawStep = step;
@@ -1851,9 +2013,11 @@ el.ttsEngine.onchange = () => {
   syncControls(); saveSettings();
   S.segments.forEach(s => s.buf = null);
   el.wav.disabled = true;
+  S.cast.forEach(c => { if(!c.cloned) c.apiVoice = defaultApiVoice(c.spk, c.female); });
+  renderCast();
 };
 el.mtEngine.onchange = () => { syncControls(); saveSettings(); };
-el.dstLang.onchange = () => { fillVoiceSelects(); saveSettings(); S.curIdx = -2; renderLines(); };
+el.dstLang.onchange = () => { fillVoiceSelects(); saveSettings(); S.curIdx = -2; renderLines(); renderCast(); };
 el.srcLang.onchange = saveSettings;
 [el.voiceA, el.voiceB, el.apiVoiceA, el.apiVoiceB, el.apiBase, el.mtModel, el.asrModel]
   .forEach(n => n.onchange = saveSettings);
@@ -1930,6 +2094,7 @@ el.reset.onclick = () => {
   if(objUrl){ URL.revokeObjectURL(objUrl); objUrl = null; }
   S.mediaBlob = null; S.pcm = null; S.origBuffer = null; S.duration = 0;
   clearResults(); resetSteps(); savedStepState = [];
+  S.visual = null; S.env = null;
   el.drop.classList.remove('hide');
   ['play','back','fwd','seek','fsBtn','dubBtn'].forEach(k => el[k].disabled = true);
   el.run.disabled = true;
@@ -1964,7 +2129,9 @@ const HELP = {
     '<b>4 · شغّل الفيلم</b> — يُخفَض صوت الممثلين تلقائياً وقت الحوار وتسمع الصوت الجديد مكانه، مع بقاء الموسيقى والمؤثرات.',
     '<b>أفضل جودة صوت:</b> اختر محرّك <i>ElevenLabs</i> في تبويب «الأصوات» وأدخل مفتاح API — الأصوات بشرية تماماً بأكثر من ٣٠ لغة، ويصبح تصدير المسار الصوتي المدبلج (WAV) متاحاً.',
     '<b>بدون مفتاح؟</b> أصوات المتصفح مجانية وتعمل بلا إنترنت. جودتها تعتمد على نظامك — على ويندوز/أندرويد ثبّت حزمة الصوت العربي لتحسّن كبير.',
-    '<b>تنبيه:</b> شغّل الملف عبر خادم محلي (<code>python3 -m http.server</code>) لأن المتصفح يمنع تحميل النماذج من <code>file://</code>. روابط يوتيوب غير مدعومة — استخدم ملفاً أو رابطاً مباشراً.'],
+    '<b>٥ · نفس صوت الممثل</b> — يتعرّف التطبيق على أصوات الممثلين من بصمتها الصوتية ويثبّت لكل شخصية صوتاً واحداً بطبقة الممثل الأصلي وسرعته. ومع مفتاح ElevenLabs يمكنه <i>استنساخ</i> صوت الممثل من الفيلم نفسه فينطق اللغة الجديدة بصوته هو.',
+    '<b>٦ · الملخّص السينمائي</b> — من تبويب «الملخّص» يحلّل التطبيق الفيلم بثلاثة مقاييس (طاقة الصوت، القطع البصري، كثافة الحوار)، ثم يختار الأحداث المهمة فقط ويوزّعها على خمسة فصول: الحدث المحرّك، نقطة التحوّل، أعقد لحظة، الذروة، الخاتمة. مع Claude يكتب أيضاً تعليق الراوي والحوار المدبلج والترجمة المزدوجة، ويصدّر سكربت ffmpeg يقصّ فيلم الملخّص فعلياً.',
+    '<b>تنبيه:</b> شغّل الملف عبر خادم محلي (<code>python3 -m http.server</code>) لأن المتصفح يمنع تحميل النماذج من <code>file://</code>. روابط يوتيوب غير مدعومة — استخدم ملفاً أو رابطاً مباشراً. لا تستنسخ صوت شخص حقيقي دون إذنه.'],
   en:['How it works',
     '<b>1 · Load the film</b> — drag a video file or pick it from your device. Nothing is uploaded; everything runs in your browser.',
     '<b>2 · Choose languages</b> — “Auto detect” recognises the film language (French, English…). Then pick the language you want to hear.',
@@ -1972,7 +2139,9 @@ const HELP = {
     '<b>4 · Play</b> — the actors’ voices duck automatically during dialogue and the new voice takes their place, while music and effects stay.',
     '<b>Best quality:</b> pick the <i>ElevenLabs</i> engine in the “Voices” tab and enter an API key — fully human voices in 30+ languages, and WAV export of the dubbed track becomes available.',
     '<b>No key?</b> Browser voices are free and offline. Quality depends on your system — installing a voice pack helps a lot.',
-    '<b>Note:</b> serve this file from a local server (<code>python3 -m http.server</code>); browsers block model loading from <code>file://</code>. YouTube links are not supported — use a file or a direct link.']
+    '<b>5 · The actor’s own voice</b> — the app fingerprints the voices in the film, gives every character one stable voice at the original actor’s pitch and pace, and with an ElevenLabs key can <i>clone</i> that actor from the film itself so the same voice speaks the new language.',
+    '<b>6 · Cinematic recap</b> — the “Recap” tab scores the film by audio energy, shot changes and dialogue density, keeps only what moves the plot, and sorts it into five acts: inciting incident, twist, darkest hour, climax, resolution. With Claude it also writes the narration, the dubbed dialogue and dual subtitles, and exports an ffmpeg script that renders the recap as a real video.',
+    '<b>Note:</b> serve this file from a local server (<code>python3 -m http.server</code>); browsers block model loading from <code>file://</code>. YouTube links are not supported — use a file or a direct link. Never clone a real person’s voice without their permission.']
 };
 el.help.onclick = () => {
   const old = $('#helpModal'); if(old){ old.remove(); return; }
@@ -1989,17 +2158,1594 @@ el.help.onclick = () => {
   document.body.appendChild(d);
 };
 
+/* ============================================================================
+   25) المخرج السينمائي — بصمة صوت كل ممثل، تحليل الفيلم، وملخّص مدبلج
+   ----------------------------------------------------------------------------
+   (أ) بصمة صوتية لكل جملة (MFCC + طبقة الصوت) ثم تجميعها ← من يتكلّم في كل لحظة
+   (ب) طاقم أصوات ثابت: كل شخصية تحتفظ بصوت واحد طوال الفيلم بنبرة الممثل الأصلي
+   (ج) استنساخ صوت الممثل نفسه (ElevenLabs) ليتكلّم اللغة الجديدة بصوته هو
+   (د) مسح بصري للفيلم: لقطات ومعدّل التغيّر البصري
+   ============================================================================ */
+
+const hms = t => { t = Math.max(0, t|0); const h=(t/3600)|0, m=((t%3600)/60)|0, x=t%60;
+  return [h,m,x].map(v => String(v).padStart(2,'0')).join(':'); };
+const yieldUi = () => new Promise(r => setTimeout(r, 0));
+const mean = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0;
+const median = a => { if(!a.length) return 0; const b=[...a].sort((x,y)=>x-y); const m=b.length>>1;
+  return b.length%2 ? b[m] : (b[m-1]+b[m])/2; };
+
+Object.assign(S, {
+  cast: [], spkProfiles: [], env: null, visual: null,
+  recap: { scenes:[], spec:null, engine:null, playing:false, idx:-1, narrating:false, target:600 },
+});
+Object.assign(S.opts, { match:true, clone:false, consent:false, vision:true, vo:true });
+
+Object.assign(el, {
+  maxSpk:$('#maxSpk'), cast:$('#cast'), cloneBox:$('#cloneBox'), cloneBtn:$('#cloneBtn'),
+  recapEngine:$('#recapEngine'), llmKey:$('#llmKey'), llmKeyBox:$('#llmKeyBox'),
+  recapModel:$('#recapModel'), recapModelBox:$('#recapModelBox'),
+  recapLen:$('#recapLen'), recapLenV:$('#recapLenV'), subLang2:$('#subLang2'),
+  recapBtn:$('#recapBtn'), recapProg:$('#recapProg'), recapBarP:$('#recapBarP'),
+  recapCard:$('#recapCard'), recapSpec:$('#recapSpec'), scenes:$('#scenes'),
+  recapOverlay:$('#recapOverlay'), recapChip:$('#recapChip'), recapAct:$('#recapAct'),
+  recapPlay:$('#recapPlayBtn'), recapMd:$('#recapMdBtn'), recapSrt:$('#recapSrtBtn'),
+  recapSh:$('#recapShBtn'), recapWav:$('#recapWavBtn'),
+});
+
+/* ------------------------------ 25.1 معالجة الإشارة ------------------------------ */
+/* FFT جذر-٢ في المكان */
+function fftInPlace(re, im){
+  const n = re.length;
+  for(let i=1, j=0; i<n; i++){
+    let bit = n >> 1;
+    for(; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if(i < j){ let t=re[i]; re[i]=re[j]; re[j]=t; t=im[i]; im[i]=im[j]; im[j]=t; }
+  }
+  for(let len=2; len<=n; len<<=1){
+    const ang = -2*Math.PI/len, wr = Math.cos(ang), wi = Math.sin(ang), half = len>>1;
+    for(let i=0; i<n; i+=len){
+      let cr = 1, ci = 0;
+      for(let k=0; k<half; k++){
+        const ur = re[i+k], ui = im[i+k];
+        const xr = re[i+k+half], xi = im[i+k+half];
+        const vr = xr*cr - xi*ci, vi = xr*ci + xi*cr;
+        re[i+k] = ur+vr; im[i+k] = ui+vi;
+        re[i+k+half] = ur-vr; im[i+k+half] = ui-vi;
+        const ncr = cr*wr - ci*wi; ci = cr*wi + ci*wr; cr = ncr;
+      }
+    }
+  }
+}
+
+/* بنك مرشّحات mel + نافذة هامنغ (تُبنى مرة واحدة) */
+const NFFT = 512, NWIN = 400, NMEL = 24, NCEP = 12;
+const HAMM = Float32Array.from({length:NWIN}, (_,i) => 0.54 - 0.46*Math.cos(2*Math.PI*i/(NWIN-1)));
+const MELBANK = (() => {
+  const hz2mel = h => 2595*Math.log10(1 + h/700), mel2hz = m => 700*(Math.pow(10, m/2595) - 1);
+  const lo = hz2mel(80), hi = hz2mel(7600), bins = [];
+  for(let i=0; i<NMEL+2; i++) bins.push(Math.floor((NFFT+1)*mel2hz(lo + (hi-lo)*i/(NMEL+1))/SR));
+  return bins;
+})();
+const DCT = (() => {
+  const m = [];
+  for(let c=0; c<NCEP; c++){
+    const row = new Float32Array(NMEL);
+    for(let k=0; k<NMEL; k++) row[k] = Math.cos(Math.PI*(c+1)*(k+0.5)/NMEL);
+    m.push(row);
+  }
+  return m;
+})();
+
+/* طبقة الصوت الأساسية (F0) بالارتباط الذاتي — ٦٠ إلى ٤٠٠ هرتز */
+function estimateF0(pcm, off, len){
+  const minLag = Math.floor(SR/400), maxLag = Math.floor(SR/60);
+  if(len < maxLag*2) return 0;
+  let e0 = 0;
+  for(let i=0; i<len; i++) e0 += pcm[off+i]*pcm[off+i];
+  if(e0 < 1e-5) return 0;
+  let best = 0, bestLag = 0;
+  for(let lag=minLag; lag<=maxLag; lag++){
+    let s = 0, e = 0;
+    for(let i=0; i+lag<len; i++){ s += pcm[off+i]*pcm[off+i+lag]; e += pcm[off+i+lag]*pcm[off+i+lag]; }
+    const r = s / (Math.sqrt(e0*e) + 1e-9);
+    if(r > best){ best = r; bestLag = lag; }
+  }
+  return best > 0.35 && bestLag ? SR/bestLag : 0;
+}
+
+/* بصمة صوتية لمقطع: متوسط وانحراف معاملات MFCC + طبقة الصوت */
+const _re = new Float32Array(NFFT), _im = new Float32Array(NFFT), _mel = new Float32Array(NMEL);
+function segEmbed(pcm, start, end, maxFrames){
+  const a = Math.max(0, Math.floor(start*SR));
+  const b = Math.min(pcm.length, Math.ceil(Math.min(end, start + 4.5)*SR));
+  if(b - a < SR*0.3) return null;
+  const hop = Math.max(160, Math.floor((b - a - NWIN)/Math.max(1, maxFrames)));
+  const sums = new Float64Array(NCEP), sqs = new Float64Array(NCEP);
+  const f0s = [];
+  let n = 0;
+  for(let p = a; p + NWIN < b; p += hop){
+    let energy = 0;
+    for(let i=0; i<NWIN; i++){ const v = pcm[p+i]; energy += v*v; }
+    if(energy/NWIN < 2e-5) continue;
+    for(let i=0; i<NFFT; i++){ _re[i] = i < NWIN ? pcm[p+i]*HAMM[i] : 0; _im[i] = 0; }
+    fftInPlace(_re, _im);
+    for(let m=0; m<NMEL; m++){
+      const lo = MELBANK[m], mid = MELBANK[m+1], hi = MELBANK[m+2];
+      let acc = 0;
+      for(let k=lo; k<hi && k<NFFT/2; k++){
+        const pw = _re[k]*_re[k] + _im[k]*_im[k];
+        acc += pw * (k <= mid ? (k-lo)/Math.max(1, mid-lo) : (hi-k)/Math.max(1, hi-mid));
+      }
+      _mel[m] = Math.log(acc + 1e-10);
+    }
+    for(let c=0; c<NCEP; c++){
+      let v = 0;
+      const row = DCT[c];
+      for(let k=0; k<NMEL; k++) v += _mel[k]*row[k];
+      sums[c] += v; sqs[c] += v*v;
+    }
+    if(f0s.length < 14){ const f = estimateF0(pcm, p, Math.min(1024, b-p)); if(f) f0s.push(f); }
+    n++;
+    if(n >= maxFrames) break;
+  }
+  if(n < 4) return null;
+  const v = new Float32Array(NCEP*2 + 1);
+  for(let c=0; c<NCEP; c++){
+    const m = sums[c]/n;
+    v[c] = m;
+    v[NCEP + c] = Math.sqrt(Math.max(0, sqs[c]/n - m*m));
+  }
+  const f0 = median(f0s);
+  v[NCEP*2] = f0 ? Math.log2(f0/165) : 0;
+  return { v, f0, frames:n };
+}
+
+/* ------------------------------ 25.2 تجميع المتحدثين ------------------------------ */
+function kmeans(X, k, iters){
+  const n = X.length, d = X[0].length;
+  const dist = (a, b) => { let s = 0; for(let i=0; i<d; i++){ const t = a[i]-b[i]; s += t*t; } return s; };
+  /* تهيئة k-means++ */
+  const cent = [X[(Math.random()*n)|0].slice()];
+  while(cent.length < k){
+    const dd = X.map(x => Math.min(...cent.map(c => dist(x, c))));
+    const tot = dd.reduce((a,b)=>a+b, 0) || 1;
+    let r = Math.random()*tot, pick = 0;
+    for(let i=0; i<n; i++){ r -= dd[i]; if(r <= 0){ pick = i; break; } }
+    cent.push(X[pick].slice());
+  }
+  const lab = new Int32Array(n);
+  let inertia = 0;
+  for(let it=0; it<iters; it++){
+    inertia = 0;
+    for(let i=0; i<n; i++){
+      let bi = 0, bd = Infinity;
+      for(let c=0; c<k; c++){ const dv = dist(X[i], cent[c]); if(dv < bd){ bd = dv; bi = c; } }
+      lab[i] = bi; inertia += bd;
+    }
+    const acc = Array.from({length:k}, () => new Float64Array(d));
+    const cnt = new Int32Array(k);
+    for(let i=0; i<n; i++){ const c = lab[i]; cnt[c]++; for(let j=0; j<d; j++) acc[c][j] += X[i][j]; }
+    for(let c=0; c<k; c++){
+      if(!cnt[c]){ const r = (Math.random()*n)|0; for(let j=0; j<d; j++) cent[c][j] = X[r][j]; continue; }
+      for(let j=0; j<d; j++) cent[c][j] = acc[c][j]/cnt[c];
+    }
+  }
+  return { lab, cent, inertia };
+}
+function silhouette(X, lab, k){
+  const n = X.length, d = X[0].length;
+  if(k < 2) return 0;
+  const idx = [];
+  const stepN = Math.max(1, Math.ceil(n/320));
+  for(let i=0; i<n; i+=stepN) idx.push(i);
+  const dist = (a, b) => { let s = 0; for(let i=0; i<d; i++){ const t = a[i]-b[i]; s += t*t; } return Math.sqrt(s); };
+  let tot = 0;
+  for(const i of idx){
+    const sums = new Float64Array(k), cnts = new Int32Array(k);
+    for(const j of idx){ if(i === j) continue; const dv = dist(X[i], X[j]); sums[lab[j]] += dv; cnts[lab[j]]++; }
+    const own = cnts[lab[i]] ? sums[lab[i]]/cnts[lab[i]] : 0;
+    let other = Infinity;
+    for(let c=0; c<k; c++){ if(c === lab[i] || !cnts[c]) continue; other = Math.min(other, sums[c]/cnts[c]); }
+    if(!isFinite(other)) continue;
+    tot += (other - own)/Math.max(own, other, 1e-9);
+  }
+  return tot/idx.length;
+}
+
+async function diarize(onProg){
+  const segs = S.segments;
+  if(!segs.length || !S.pcm) return false;
+  const budget = 110000;
+  const perSeg = clamp(Math.floor(budget/segs.length), 18, 120);
+  const emb = new Array(segs.length).fill(null);
+  for(let i=0; i<segs.length; i++){
+    emb[i] = segEmbed(S.pcm, segs[i].start, segs[i].end, perSeg);
+    if((i % 25) === 0){ if(onProg) onProg(i/segs.length); await yieldUi(); if(S.cancel) return false; }
+  }
+  const valid = [];
+  emb.forEach((e, i) => { if(e) valid.push(i); });
+  if(valid.length < 6) return false;
+
+  /* تطبيع الأعمدة ثم ترجيح طبقة الصوت (أقوى دليل على هوية المتحدث) */
+  const d = emb[valid[0]].v.length;
+  const X = valid.map(i => Float32Array.from(emb[i].v));
+  for(let j=0; j<d; j++){
+    let m = 0;
+    for(const x of X) m += x[j];
+    m /= X.length;
+    let sd = 0;
+    for(const x of X) sd += (x[j]-m)*(x[j]-m);
+    sd = Math.sqrt(sd/X.length) || 1;
+    const w = j === d-1 ? 2.6 : (j < NCEP ? 1 : 0.6);
+    for(const x of X) x[j] = ((x[j]-m)/sd)*w;
+  }
+  for(const x of X){
+    let nrm = 0;
+    for(let j=0; j<d; j++) nrm += x[j]*x[j];
+    nrm = Math.sqrt(nrm) || 1;
+    for(let j=0; j<d; j++) x[j] /= nrm;
+  }
+
+  const want = Number(el.maxSpk.value) || 0;
+  let best = null, bestK = 1, bestScore = -2;
+  const kMax = want ? want : Math.min(6, Math.max(2, Math.floor(valid.length/12)));
+  const kMin = want ? want : 2;
+  for(let k=kMin; k<=kMax; k++){
+    let run = null;
+    for(let t=0; t<3; t++){
+      const r = kmeans(X, k, 26);
+      if(!run || r.inertia < run.inertia) run = r;
+    }
+    const sc = want ? 1 : silhouette(X, run.lab, k) - (k-2)*0.012;
+    if(sc > bestScore){ bestScore = sc; best = run; bestK = k; }
+    if(want) break;
+    await yieldUi();
+    if(S.cancel) return false;
+  }
+  if(!want && bestScore < 0.045){ bestK = 1; best = { lab: new Int32Array(X.length) }; }
+
+  /* إسناد التسميات وملء الجمل التي تعذّرت بصمتها من أقرب جارة */
+  valid.forEach((segIdx, i) => { segs[segIdx].spk = best.lab[i]; segs[segIdx].hasEmb = true; });
+  let last = 0;
+  segs.forEach(s => { if(s.hasEmb) last = s.spk; else s.spk = last; });
+
+  /* تنعيم: جملة يتيمة بين جملتين لنفس المتحدث تتبعهما */
+  for(let i=1; i<segs.length-1; i++)
+    if(segs[i-1].spk === segs[i+1].spk && segs[i].spk !== segs[i-1].spk
+       && (segs[i].end - segs[i].start) < 1.4) segs[i].spk = segs[i-1].spk;
+
+  /* إعادة الترقيم حسب أول ظهور: #1 هو أول من تكلّم */
+  const order = [], mapId = {};
+  segs.forEach(s => { if(!(s.spk in mapId)){ mapId[s.spk] = order.length; order.push(s.spk); } });
+  segs.forEach(s => { s.spk = mapId[s.spk]; });
+
+  /* ملف كل متحدث: طبقة الصوت، السرعة، الحصّة */
+  const nSpk = order.length;
+  const f0by = Array.from({length:nSpk}, () => []);
+  const rateby = Array.from({length:nSpk}, () => []);
+  const secs = new Float64Array(nSpk), cnts = new Int32Array(nSpk);
+  segs.forEach((s, i) => {
+    const e = emb[i];
+    if(e && e.f0) f0by[s.spk].push(e.f0);
+    const dur = s.end - s.start;
+    if(dur > 0.5) rateby[s.spk].push(s.src.length/dur);
+    secs[s.spk] += dur; cnts[s.spk]++;
+  });
+  const globalRate = median(segs.filter(s => s.end-s.start > 0.5).map(s => s.src.length/(s.end-s.start))) || 12;
+  S.spkProfiles = Array.from({length:nSpk}, (_, i) => {
+    const f0 = median(f0by[i]) || 0;
+    const rate = median(rateby[i]) || globalRate;
+    return {
+      spk:i, f0, rate, secs:secs[i], count:cnts[i],
+      female: f0 ? f0 >= 158 : null,
+      pitchMul: f0 ? clamp(1 + Math.log2(f0/168)*0.62, 0.55, 1.8) : 1,
+      rateMul: clamp(Math.pow(rate/globalRate, 0.5), 0.87, 1.16),
+    };
+  });
+  return true;
+}
+
+/* ------------------------------ 25.3 طاقم الأصوات ------------------------------ */
+const EL_F = ['Rachel','Bella','Lily','Elli','Domi'], EL_M = ['Adam','Antoni','George','Josh','Charlie'];
+const OA_F = ['nova','shimmer','coral','sage'], OA_M = ['onyx','echo','ash','ballad'];
+function defaultApiVoice(i, female){
+  const eng = el.ttsEngine.value;
+  const list = eng === 'eleven' ? (female ? EL_F : EL_M) : (female ? OA_F : OA_M);
+  return list[i % list.length];
+}
+function buildCast(){
+  const profs = S.spkProfiles.length ? S.spkProfiles
+    : [{spk:0, f0:0, rate:12, secs:S.duration, count:S.segments.length, female:null, pitchMul:1, rateMul:1}];
+  const voices = voicesForLang(el.dstLang.value);
+  const old = S.cast;
+  S.cast = profs.map((p, i) => {
+    const prev = old[i];
+    let female = p.female;
+    if(female === null) female = i % 2 === 1;
+    return {
+      spk:i, name: prev && prev.name || (T('char') + ' ' + (i+1)),
+      f0:p.f0, rate:p.rate, secs:p.secs, count:p.count, female,
+      pitchMul:p.pitchMul, rateMul:p.rateMul,
+      voice: prev && prev.voice || (voices[i % Math.max(1, voices.length)] || {}).name || '',
+      apiVoice: prev && prev.apiVoice || defaultApiVoice(i, female),
+      cloned: prev ? prev.cloned : false,
+    };
+  });
+  renderCast();
+}
+function renderCast(){
+  if(!el.cast) return;
+  if(!S.cast.length){ el.cast.innerHTML = ''; return; }
+  const api = el.ttsEngine.value !== 'browser';
+  const voices = voicesForLang(el.dstLang.value);
+  el.cast.innerHTML = S.cast.map((c, i) => {
+    const meta = [c.f0 ? Math.round(c.f0) + ' Hz' : '—', (c.female ? '♀' : '♂'), c.count + '×', fmt(c.secs)].join(' · ');
+    const ctl = api
+      ? '<input type="text" data-spk="' + i + '" value="' + escapeHtml(c.apiVoice) + '" placeholder="voice id">'
+      : '<select data-spk="' + i + '">' + (voices.length
+          ? voices.map(v => '<option value="' + escapeHtml(v.name) + '"' + (v.name === c.voice ? ' selected' : '') + '>' + escapeHtml(v.name) + '</option>').join('')
+          : '<option value="">—</option>') + '</select>';
+    return '<div class="cast-row"><span class="tag s' + (i%6) + '">#' + (i+1) + '</span>'
+      + '<div class="who"><b>' + escapeHtml(c.name) + (c.cloned ? ' <span class="cloned">◉</span>' : '') + '</b>'
+      + '<span>' + meta + '</span></div>' + ctl + '</div>';
+  }).join('');
+  el.cast.querySelectorAll('[data-spk]').forEach(n => {
+    n.onchange = () => {
+      const c = S.cast[+n.dataset.spk];
+      if(!c) return;
+      if(n.tagName === 'SELECT') c.voice = n.value;
+      else { c.apiVoice = n.value.trim(); c.cloned = false; }
+      S.segments.forEach(s => { if(s.spk === c.spk) s.buf = null; });
+    };
+  });
+}
+
+/* ------------------------------ 25.4 استنساخ صوت الممثل ------------------------------ */
+async function speakerSampleWav(spk, maxSec){
+  if(!S.origBuffer) throw new Error(T('noAudioBuf'));
+  const cands = S.segments
+    .filter(s => s.spk === spk && (s.end - s.start) >= 1.1)
+    .sort((a, b) => (b.end - b.start) - (a.end - a.start))
+    .slice(0, 60)
+    .sort((a, b) => a.start - b.start);
+  const use = [];
+  let tot = 0;
+  for(const s of cands){
+    if(tot >= (maxSec || 65)) break;
+    const d = Math.min(s.end - s.start, 12);
+    use.push({ start:s.start, dur:d });
+    tot += d;
+  }
+  if(tot < 6) throw new Error(T('sampleShort'));
+  const sr = 24000, gapS = 0.16;
+  const off = new OfflineAudioContext(1, Math.ceil((tot + use.length*gapS + 0.5)*sr), sr);
+  let cur = 0.1;
+  for(const u of use){
+    const src = off.createBufferSource(); src.buffer = S.origBuffer;
+    const g = off.createGain();
+    g.gain.setValueAtTime(0, cur);
+    g.gain.linearRampToValueAtTime(1, cur + 0.03);
+    g.gain.setValueAtTime(1, cur + u.dur - 0.04);
+    g.gain.linearRampToValueAtTime(0, cur + u.dur);
+    src.connect(g); g.connect(off.destination);
+    src.start(cur, u.start, u.dur);
+    cur += u.dur + gapS;
+  }
+  return encodeWav(await off.startRendering());
+}
+async function cloneVoiceApi(name, blob){
+  const key = el.apiKey.value.trim();
+  if(!key) throw new Error(T('keyNeeded'));
+  const fd = new FormData();
+  fd.append('name', name);
+  fd.append('remove_background_noise', 'true');
+  fd.append('description', 'Sawtak dubbing clone');
+  fd.append('files', new File([blob], name.replace(/\s+/g, '_') + '.wav', {type:'audio/wav'}));
+  let lastErr = '';
+  for(const url of ['https://api.elevenlabs.io/v1/voices/ivc/create', 'https://api.elevenlabs.io/v1/voices/add']){
+    const r = await fetch(url, { method:'POST', headers:{'xi-api-key':key}, body: fd });
+    if(r.ok){
+      const j = await r.json().catch(() => ({}));
+      const id = j.voice_id || j.voiceId;
+      if(id) return id;
+      lastErr = 'no voice_id in response';
+      continue;
+    }
+    lastErr = r.status + ' ' + (await r.text().catch(() => '')).slice(0, 200);
+    if(r.status !== 404 && r.status !== 405) throw new Error(lastErr);
+  }
+  throw new Error(lastErr || 'clone failed');
+}
+async function cloneAllVoices(){
+  if(el.ttsEngine.value !== 'eleven'){ toast(T('cloneNeedsEleven'), 'err', 8000); return; }
+  if(!S.opts.consent){ toast(T('needConsent'), 'err', 8000); return; }
+  if(!S.cast.length){ toast(T('needTranscript'), 'err'); return; }
+  el.cloneBtn.disabled = true;
+  const t = toast(T('cloning'), 'info', 600000);
+  try{
+    for(const c of S.cast){
+      if(c.cloned) continue;
+      t.querySelector('div').textContent = T('cloning') + ' #' + (c.spk+1) + ' · ' + fmt(c.secs);
+      const wav = await speakerSampleWav(c.spk, 65);
+      const id = await cloneVoiceApi((S.mediaName.replace(/\.[^.]+$/, '') || 'film') + ' · #' + (c.spk+1), wav);
+      c.apiVoice = id; c.cloned = true;
+      S.segments.forEach(s => { if(s.spk === c.spk) s.buf = null; });
+      renderCast();
+    }
+    el.wav.disabled = true;
+    toast(T('cloneDone'), 'ok', 7000);
+  }catch(err){
+    toast(T('cloneFail') + (err.message || err), 'err', 10000);
+  }finally{
+    t.remove();
+    el.cloneBtn.disabled = false;
+  }
+}
+
+/* ------------------------------ 25.5 المسح البصري ------------------------------ */
+async function withProbeVideo(fn){
+  if(!objUrl) throw new Error(T('noFile'));
+  const v = document.createElement('video');
+  v.src = objUrl; v.muted = true; v.playsInline = true; v.preload = 'auto';
+  await new Promise((res, rej) => {
+    const ok = () => { clear(); res(); };
+    const bad = () => { clear(); rej(new Error(T('noVisual'))); };
+    const clear = () => { v.removeEventListener('loadedmetadata', ok); v.removeEventListener('error', bad); };
+    v.addEventListener('loadedmetadata', ok, {once:true});
+    v.addEventListener('error', bad, {once:true});
+    setTimeout(bad, 12000);
+  });
+  try{ return await fn(v); }
+  finally{ try{ v.pause(); v.removeAttribute('src'); v.load(); }catch(e){} }
+}
+function seekProbe(v, t){
+  return new Promise(res => {
+    let done = false;
+    const ok = () => { if(done) return; done = true; v.removeEventListener('seeked', ok); res(); };
+    v.addEventListener('seeked', ok);
+    try{ v.currentTime = clamp(t, 0, Math.max(0, (v.duration || t) - 0.06)); }catch(e){ ok(); }
+    setTimeout(ok, 1500);
+  });
+}
+function blockHist(ctx, w, h){
+  const img = ctx.getImageData(0, 0, w, h).data;
+  const gx = 3, gy = 3, bins = 8, out = new Float32Array(gx*gy*bins);
+  const bw = w/gx, bh = h/gy, per = 1/(w*h);
+  for(let y=0; y<h; y++){
+    const by = Math.min(gy-1, (y/bh)|0);
+    for(let x=0; x<w; x++){
+      const i = (y*w + x)*4;
+      const l = (img[i]*0.299 + img[i+1]*0.587 + img[i+2]*0.114)/255;
+      const bx = Math.min(gx-1, (x/bw)|0);
+      out[(by*gx + bx)*bins + Math.min(bins-1, (l*bins)|0)] += per;
+    }
+  }
+  return out;
+}
+const histDiff = (a, b) => { let s = 0; for(let i=0; i<a.length; i++) s += Math.abs(a[i]-b[i]); return s/2; };
+
+async function scanVisual(onProg){
+  const W = 96, H = 54;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d', {willReadFrequently:true});
+  const stepS = clamp(S.duration/700, 1.6, 6);
+  const times = [];
+  for(let t = 0.6; t < S.duration - 0.3; t += stepS) times.push(t);
+  const hists = [], change = [];
+  await withProbeVideo(async v => {
+    for(let i=0; i<times.length; i++){
+      if(S.cancel) break;
+      await seekProbe(v, times[i]);
+      try{ ctx.drawImage(v, 0, 0, W, H); }catch(e){ continue; }
+      const h = blockHist(ctx, W, H);
+      hists.push(h);
+      change.push(hists.length > 1 ? histDiff(h, hists[hists.length-2]) : 0);
+      if(onProg && (i % 6) === 0) onProg(i/times.length);
+    }
+  });
+  S.visual = { times: times.slice(0, hists.length), step: stepS, change, hists };
+  return S.visual;
+}
+/* ضبط بداية المشهد على أقرب قطع بصري حقيقي */
+async function snapToCut(t, back){
+  if(!objUrl) return t;
+  const W = 96, H = 54;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d', {willReadFrequently:true});
+  const from = clamp(t - (back ? 3.2 : 0.6), 0, S.duration);
+  const to = clamp(t + (back ? 0.8 : 3.2), 0, S.duration);
+  let bestT = t, bestD = 0, prev = null;
+  await withProbeVideo(async v => {
+    for(let x = from; x <= to; x += 0.4){
+      await seekProbe(v, x);
+      try{ ctx.drawImage(v, 0, 0, W, H); }catch(e){ continue; }
+      const h = blockHist(ctx, W, H);
+      if(prev){ const dd = histDiff(h, prev); if(dd > bestD){ bestD = dd; bestT = x; } }
+      prev = h;
+    }
+  });
+  return bestD > 0.34 ? bestT : t;
+}
+async function grabKeyframes(times, width){
+  const W = width || 448;
+  const cv = document.createElement('canvas');
+  const ctx = cv.getContext('2d');
+  const out = [];
+  await withProbeVideo(async v => {
+    const ratio = (v.videoHeight || 9)/(v.videoWidth || 16);
+    cv.width = W; cv.height = Math.round(W*ratio) || Math.round(W*9/16);
+    for(const t of times){
+      if(S.cancel) break;
+      await seekProbe(v, t);
+      try{ ctx.drawImage(v, 0, 0, cv.width, cv.height); }
+      catch(e){ continue; }
+      out.push({ t, url: cv.toDataURL('image/jpeg', 0.62) });
+    }
+  });
+  return out;
+}
+
+/* ------------------------------ 25.6 مقاييس الأهمية ------------------------------ */
+function buildEnvelope(){
+  if(!S.pcm) return null;
+  const hop = Math.floor(SR*0.25);
+  const n = Math.floor(S.pcm.length/hop);
+  const v = new Float32Array(n);
+  for(let i=0; i<n; i++){
+    let s = 0;
+    for(let k=i*hop; k<(i+1)*hop; k++) s += S.pcm[k]*S.pcm[k];
+    v[i] = Math.sqrt(s/hop);
+  }
+  S.env = { step:0.25, v };
+  return S.env;
+}
+function envStats(a, b){
+  if(!S.env) return { mean:0, dyn:0 };
+  const i0 = clamp(Math.floor(a/S.env.step), 0, S.env.v.length-1);
+  const i1 = clamp(Math.ceil(b/S.env.step), i0+1, S.env.v.length);
+  let sum = 0, dyn = 0;
+  for(let i=i0; i<i1; i++){
+    sum += S.env.v[i];
+    if(i > i0) dyn = Math.max(dyn, Math.abs(S.env.v[i] - S.env.v[i-1]));
+  }
+  return { mean: sum/(i1-i0), dyn };
+}
+function visualScore(a, b){
+  if(!S.visual || !S.visual.change.length) return 0;
+  const { times, change } = S.visual;
+  let sum = 0, n = 0;
+  for(let i=0; i<times.length; i++){
+    if(times[i] < a) continue;
+    if(times[i] > b) break;
+    sum += change[i]; n++;
+  }
+  return n ? sum/n : 0;
+}
+/* كلمات تدلّ على تحوّل في الحبكة — عدة لغات */
+const PLOT_WORDS = ('kill killed dead die dying death murder gun shoot blood save help run escape truth lie lied secret '
+ + 'love marry betray police arrest money war bomb father mother son daughter brother sister family promise revenge '
+ + 'tuer tué mort mourir sang arme sauver fuir vérité mensonge secret amour trahir police argent guerre père mère fils '
+ + 'matar muerto morir sangre salvar verdad mentira secreto amor traición policía dinero guerra padre madre hijo '
+ + 'töten tot sterben blut retten wahrheit lüge geheimnis liebe verrat polizei geld krieg vater mutter sohn '
+ + 'uccidere morto morire sangue salvare verità bugia segreto amore tradire polizia soldi guerra padre madre figlio '
+ + 'قتل مات موت دم أنقذ الحقيقة كذب سر حب خيانة شرطة مال حرب أب أم ابن ابنة أخي انتقام وعد اهرب ساعدني').split(/\s+/);
+const PLOT_SET = new Set(PLOT_WORDS);
+const words = t => String(t||'').toLowerCase().replace(/[^\p{L}\p{N}\s']/gu,' ').split(/\s+/).filter(w => w.length > 2);
+
+/* تجميع الجمل في «نبضات» متجاورة */
+function buildBeats(){
+  const beats = [];
+  let cur = null;
+  S.segments.forEach((s, i) => {
+    if(cur && s.start - cur.end <= 3.0 && (s.end - cur.start) <= 48) {
+      cur.end = s.end; cur.idx.push(i);
+    } else {
+      cur = { start:s.start, end:s.end, idx:[i] };
+      beats.push(cur);
+    }
+  });
+  return beats.filter(b => b.end - b.start >= 2.2);
+}
+function scoreBeats(beats){
+  const docs = beats.map(b => new Set(b.idx.flatMap(i => words(S.segments[i].src))));
+  const df = new Map();
+  docs.forEach(d => d.forEach(w => df.set(w, (df.get(w)||0) + 1)));
+  const N = Math.max(1, docs.length);
+  const raw = beats.map((b, k) => {
+    const dur = b.end - b.start;
+    const txt = b.idx.map(i => S.segments[i].src).join(' ');
+    const ws = words(txt);
+    const env = envStats(b.start, b.end);
+    let sal = 0;
+    docs[k].forEach(w => { sal += Math.log(1 + N/(1 + (df.get(w)||0))); });
+    sal /= Math.sqrt(Math.max(4, docs[k].size));
+    const plot = ws.filter(w => PLOT_SET.has(w)).length;
+    const emo = (txt.match(/[!?؟]/g) || []).length;
+    return {
+      beat:b,
+      talk: ws.length/Math.max(1, dur),
+      energy: env.mean, dyn: env.dyn,
+      vis: visualScore(b.start, b.end),
+      sal, plot: plot/Math.max(1, ws.length/22), emo: emo/Math.max(1, b.idx.length),
+      dur, wordset: docs[k],
+    };
+  });
+  const z = key => {
+    const arr = raw.map(r => r[key]);
+    const m = mean(arr);
+    const sd = Math.sqrt(mean(arr.map(x => (x-m)*(x-m)))) || 1;
+    raw.forEach(r => { r['z_'+key] = (r[key]-m)/sd; });
+  };
+  ['talk','energy','dyn','vis','sal','plot','emo'].forEach(z);
+  raw.forEach(r => {
+    r.score = r.z_sal*1.15 + r.z_plot*1.05 + r.z_talk*0.75 + r.z_energy*0.7
+            + r.z_dyn*0.55 + r.z_vis*0.5 + r.z_emo*0.4
+            + clamp((r.dur - 6)/26, -0.4, 0.5);
+  });
+  return raw;
+}
+const ACT_WIN = [[0,.14],[.14,.38],[.38,.60],[.60,.84],[.84,1]];
+const ACT_QUOTA = [.16,.22,.18,.26,.18];
+const ACTS = {
+  1:{ar:'الحدث المحرّك', en:'The Inciting Incident'},
+  2:{ar:'نقطة التحوّل وتصاعد الخطر', en:'The Critical Twist'},
+  3:{ar:'أعقد لحظة', en:'The Darkest Hour'},
+  4:{ar:'ذروة المواجهة', en:'The Climax & Confrontation'},
+  5:{ar:'الخاتمة والحسم', en:'The Final Resolution'},
+};
+const jaccard = (a, b) => {
+  let inter = 0;
+  a.forEach(w => { if(b.has(w)) inter++; });
+  return inter/Math.max(1, a.size + b.size - inter);
+};
+function pickScenes(budgetSec){
+  const scored = scoreBeats(buildBeats());
+  if(!scored.length) return [];
+  const dur = S.duration || S.segments[S.segments.length-1].end;
+  const out = [];
+  ACT_WIN.forEach((win, ai) => {
+    const a = win[0]*dur, b = win[1]*dur;
+    const pool = scored.filter(r => r.beat.start >= a && r.beat.start < b).sort((x, y) => y.score - x.score);
+    let used = 0;
+    const quota = budgetSec*ACT_QUOTA[ai];
+    for(const r of pool){
+      if(used >= quota) break;
+      if(out.some(o => Math.abs(o.mid - (r.beat.start + r.beat.end)/2) < 22)) continue;
+      if(out.some(o => jaccard(o.wordset, r.wordset) > 0.55)) continue;
+      out.push({
+        act: ai+1, start: r.beat.start, end: r.beat.end, mid:(r.beat.start + r.beat.end)/2,
+        score: r.score, idx: r.beat.idx, wordset: r.wordset,
+      });
+      used += r.dur;
+    }
+  });
+  out.sort((x, y) => x.start - y.start);
+  /* توسيع ودمج */
+  const merged = [];
+  for(const s of out){
+    const st = clamp(s.start - 0.9, 0, dur), en = clamp(s.end + 1.1, 0, dur);
+    const prev = merged[merged.length-1];
+    if(prev && st - prev.end < 3.5){
+      prev.end = Math.max(prev.end, en);
+      prev.idx = prev.idx.concat(s.idx);
+      prev.score = Math.max(prev.score, s.score);
+    } else merged.push(Object.assign({}, s, {start:st, end:en}));
+  }
+  return merged;
+}
+
+/* ------------------------------ 25.7 وضع محلي (بلا إنترنت) ------------------------------ */
+function localRecap(cands, targetSec){
+  const picked = [...cands].sort((a, b) => b.score - a.score);
+  const keep = [];
+  let tot = 0;
+  for(const c of picked){
+    if(tot >= targetSec) break;
+    keep.push(c); tot += c.end - c.start;
+  }
+  keep.sort((a, b) => a.start - b.start);
+  const primary = byCode[el.dstLang.value];
+  return keep.map((c, i) => {
+    const segs = c.idx.map(k => S.segments[k]).filter(Boolean);
+    const top = segs.slice().sort((a, b) => (b.dst||b.src).length - (a.dst||a.src).length)[0];
+    const vis = S.visual
+      ? (visualScore(c.start, c.end) > 0.3 ? T('vHigh') : T('vCalm'))
+      : T('vNone');
+    return {
+      act: c.act, act_title: ACTS[c.act][S.ui] || ACTS[c.act].ar,
+      start: c.start, end: c.end,
+      visual_action: T('vAt') + ' ' + hms(c.start) + ' — ' + vis + ' · ' + segs.length + ' ' + T('segments'),
+      narrator: T('narrScene') + ' ' + (i+1) + ' · ' + (ACTS[c.act][S.ui] || ACTS[c.act].ar) + ' · ' + hms(c.start),
+      dialogue: segs.slice(0, 4).map(s => ({
+        character: (S.cast[s.spk] && S.cast[s.spk].name) || ('#' + (s.spk+1)),
+        speaker: s.spk, tone: '—', line: s.dst || s.src, at: s.start,
+      })),
+      sub_primary: top ? (top.dst || top.src) : '',
+      sub_secondary: '',
+      primaryLang: primary ? primary.c : 'ar',
+    };
+  });
+}
+
+/* ------------------------------ 25.8 التحليل بنموذج لغوي ------------------------------ */
+const RECAP_SCHEMA = {
+  type:'object',
+  properties:{
+    original_title:{type:'string'},
+    genre:{type:'string'},
+    logline:{type:'string'},
+    characters:{type:'array', items:{type:'object', properties:{
+      speaker:{type:'integer'}, name:{type:'string'}, role:{type:'string'}, voice_profile:{type:'string'},
+    }, required:['speaker','name','role','voice_profile'], additionalProperties:false}},
+    scenes:{type:'array', items:{type:'object', properties:{
+      act:{type:'integer'}, act_title:{type:'string'},
+      start:{type:'number'}, end:{type:'number'},
+      visual_action:{type:'string'}, narrator:{type:'string'},
+      dialogue:{type:'array', items:{type:'object', properties:{
+        speaker:{type:'integer'}, character:{type:'string'}, tone:{type:'string'},
+        line:{type:'string'}, at:{type:'number'},
+      }, required:['speaker','character','tone','line','at'], additionalProperties:false}},
+      sub_primary:{type:'string'}, sub_secondary:{type:'string'},
+    }, required:['act','act_title','start','end','visual_action','narrator','dialogue','sub_primary','sub_secondary'],
+       additionalProperties:false}},
+  },
+  required:['original_title','genre','logline','characters','scenes'],
+  additionalProperties:false,
+};
+
+function recapSystemPrompt(primary, secondary, targetSec, nScenes){
+  return [
+'You are an elite multimodal cinematic director, sound engineer and script-forensics AI.',
+'You receive the complete forensic material of ONE film: a full timecoded transcript of every spoken line',
+'(automatic speech recognition), speaker diarization (which distinct voice said which line, with measured pitch),',
+'an audio-energy profile, a shot-change profile, and REAL key frames sampled from the film itself.',
+'',
+'TASK — rebuild the film as an intense, high-engagement recap with character voice dubbing and dual subtitles.',
+'',
+'PHASE 1 — INGESTION: read every line and every frame you were given. Attribute lines to characters using the',
+'speaker ids, and name each character from what the dialogue actually reveals (never guess a name that is never said;',
+'use a descriptive role instead, e.g. "The Detective").',
+'',
+'PHASE 2 — ZERO-FILLER FILTER: delete travel, repetition, small talk, and everything that does not move the plot.',
+'Keep ONLY the five narrative pillars, and label every scene with its act number:',
+'  1 = Inciting Incident · 2 = Critical Twist / rising danger · 3 = Darkest Hour · 4 = Climax & Confrontation · 5 = Final Resolution.',
+'All five acts must be represented when the material allows it.',
+'',
+'PHASE 3 — DUBBING SCRIPT: for each kept scene write',
+'  · visual_action: what is really on screen, grounded in the key frames and the dialogue. If no frame covers that',
+'    moment, describe only what the dialogue proves. NEVER invent an event, a character or an object.',
+'  · narrator: voiceover in ' + primary + ', documentary / YouTube-recap rhythm — dramatic, fast, tense. It bridges the',
+'    scenes into one continuous story and must NOT repeat the dubbed dialogue verbatim. 1–3 sentences.',
+'  · dialogue: the decisive lines of that scene, dubbed into ' + primary + ', each with the speaker id, the character',
+'    name and the emotional tone (e.g. Angry, Whisper, Broken, Cold). Each dubbed line must be sayable in roughly the',
+'    same time as the original line so it fits the actor\'s mouth: keep it close to the original length.',
+'  · sub_primary (' + primary + ') and sub_secondary (' + secondary + '): the same beat, subtitle-length.',
+'',
+'HARD RULES:',
+'· Timestamps are REAL seconds of this film, taken from the transcript. start < end. Never step outside the runtime.',
+'· Return about ' + nScenes + ' scenes with a total screen time close to ' + Math.round(targetSec) + ' seconds (±20%).',
+'· Order scenes chronologically by start time.',
+'· Preserve cultural context, dramatic weight and each character\'s personality in every translation.',
+'· Output JSON only, matching the requested schema exactly.',
+  ].join('\n');
+}
+function transcriptBlock(limitChars){
+  let lines = S.segments.map((s, i) =>
+    '[' + i + '] ' + hms(s.start) + '→' + hms(s.end) + ' S' + (s.spk+1) + ': ' + s.src
+    + (s.dst && s.dst !== s.src ? '  ⇒ ' + s.dst : ''));
+  let txt = lines.join('\n');
+  if(limitChars && txt.length > limitChars){
+    const order = S.segments.map((s, i) => ({i, len:s.src.length})).sort((a, b) => a.len - b.len);
+    const drop = new Set();
+    let cut = txt.length;
+    for(const o of order){
+      if(cut <= limitChars) break;
+      drop.add(o.i); cut -= lines[o.i].length + 1;
+    }
+    txt = lines.filter((_, i) => !drop.has(i)).join('\n');
+  }
+  return txt;
+}
+function recapUserText(cands, targetSec, nScenes, primary, secondary, limitChars){
+  const cast = S.cast.map(c =>
+    'S' + (c.spk+1) + ': ' + (c.f0 ? Math.round(c.f0) + ' Hz, ' + (c.female ? 'higher/likely female' : 'lower/likely male') : 'pitch n/a')
+    + ', ' + c.count + ' lines, ' + fmt(c.secs) + ' of speech').join('\n');
+  const cand = cands.map((c, i) =>
+    (i+1) + ') ' + hms(c.start) + '–' + hms(c.end) + '  act≈' + c.act + '  weight=' + c.score.toFixed(2)).join('\n');
+  const vis = S.visual
+    ? 'Shot-change profile (sampled every ' + S.visual.step.toFixed(1) + 's, 0=static 1=hard cut):\n'
+      + S.visual.times.map((t, i) => hms(t) + '=' + S.visual.change[i].toFixed(2)).join(' ')
+    : 'No visual profile available for this file.';
+  return [
+    'FILM FILE: ' + S.mediaName,
+    'RUNTIME: ' + hms(S.duration) + ' (' + Math.round(S.duration) + ' s)',
+    'SPOKEN LANGUAGE DETECTED: ' + (S.detectedLang || 'unknown'),
+    'TARGET RECAP LENGTH: ' + Math.round(targetSec) + ' s in about ' + nScenes + ' scenes',
+    'PRIMARY LANGUAGE (narration, dubbing, sub_primary): ' + primary,
+    'SECONDARY LANGUAGE (sub_secondary): ' + secondary,
+    '',
+    'SPEAKERS DETECTED (voice fingerprint clustering):',
+    cast || 'single speaker',
+    '',
+    'CANDIDATE HIGH-IMPACT WINDOWS (from audio energy, shot changes, dialogue density and lexical salience —',
+    'advisory only: you may keep, shift, extend or reject them based on the real story):',
+    cand || '(none)',
+    '',
+    vis,
+    '',
+    'FULL TIMECODED TRANSCRIPT — "S#" is the speaker id, "⇒" is the machine translation already produced:',
+    transcriptBlock(limitChars),
+  ].join('\n');
+}
+
+/* إن رفض النموذج الطلب، تُعيد الخدمة تشغيله على نموذج بديل داخل نفس الاستدعاء */
+const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
+let AnthropicSdk, sdkTried = false;
+async function getAnthropicSdk(){
+  if(sdkTried) return AnthropicSdk;
+  sdkTried = true;
+  try{ AnthropicSdk = (await import('https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk/+esm')).default; }
+  catch(err){ console.info('[sawtak] Anthropic SDK unavailable, using fetch', err); AnthropicSdk = null; }
+  return AnthropicSdk;
+}
+const textOf = msg => (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+/* بثّ SSE مباشر — يعمل بلا أي حزمة خارجية */
+async function claudeStreamFetch(body, key, onChars, useFallbacks){
+  const headers = {
+    'content-type':'application/json',
+    'x-api-key':key,
+    'anthropic-version':'2023-06-01',
+    'anthropic-dangerous-direct-browser-access':'true',
+  };
+  if(useFallbacks) headers['anthropic-beta'] = FALLBACK_BETA;
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers,
+    body: JSON.stringify(Object.assign({}, body, {stream:true}, useFallbacks ? {fallbacks:'default'} : {})),
+  });
+  if(!r.ok){
+    const detail = (await r.text().catch(() => '')).slice(0, 300);
+    /* الحساب لا يدعم ميزة البدائل — أعد الطلب بدونها */
+    if(useFallbacks && r.status === 400 && /fallback|beta/i.test(detail))
+      return claudeStreamFetch(body, key, onChars, false);
+    throw new Error('Claude ' + r.status + ': ' + detail);
+  }
+  const reader = r.body.getReader(), dec = new TextDecoder();
+  let buf = '', out = '', stop = null;
+  for(;;){
+    const { done, value } = await reader.read();
+    if(done) break;
+    if(S.cancel){ try{ reader.cancel(); }catch(e){} throw new Error('cancel'); }
+    buf += dec.decode(value, {stream:true});
+    let nl;
+    while((nl = buf.indexOf('\n')) >= 0){
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl+1);
+      if(!line.startsWith('data:')) continue;
+      const payload = line.slice(5).trim();
+      if(!payload || payload === '[DONE]') continue;
+      let ev;
+      try{ ev = JSON.parse(payload); }catch(e){ continue; }
+      if(ev.type === 'content_block_delta' && ev.delta && ev.delta.type === 'text_delta'){
+        out += ev.delta.text;
+        if(onChars) onChars(out.length);
+      } else if(ev.type === 'message_delta' && ev.delta && ev.delta.stop_reason){
+        stop = ev.delta.stop_reason;
+      } else if(ev.type === 'error'){
+        throw new Error((ev.error && ev.error.message) || 'stream error');
+      }
+    }
+  }
+  if(stop === 'refusal') throw new Error(T('refusal'));
+  return out;
+}
+async function callClaude(system, content, onChars){
+  const key = (el.llmKey.value || '').trim();
+  if(!key) throw new Error(T('keyNeeded'));
+  const body = {
+    model: el.recapModel.value.trim() || 'claude-opus-5',
+    max_tokens: 32000,
+    system,
+    thinking: { type:'adaptive' },
+    output_config: { effort:'high', format:{ type:'json_schema', schema: RECAP_SCHEMA } },
+    messages: [{ role:'user', content }],
+  };
+  const SDK = await getAnthropicSdk();
+  if(SDK){
+    const client = new SDK({ apiKey:key, dangerouslyAllowBrowser:true });
+    for(const withFb of [true, false]){
+      try{
+        const msg = withFb
+          ? await client.beta.messages.stream(Object.assign({}, body,
+              { betas:[FALLBACK_BETA], fallbacks:'default' })).finalMessage()
+          : await client.messages.stream(body).finalMessage();
+        if(msg.stop_reason === 'refusal') throw new Error(T('refusal'));
+        return textOf(msg);
+      }catch(err){
+        const m = String(err && err.message || err);
+        if(/refus/i.test(m) || /\b(401|403)\b/.test(m)) throw err;
+        if(withFb && /fallback|beta|400/i.test(m)) continue;
+        console.info('[sawtak] SDK call failed, falling back to fetch:', m);
+        break;
+      }
+    }
+  }
+  return claudeStreamFetch(body, key, onChars, true);
+}
+async function callOpenai(system, content, onChars){
+  const key = (el.llmKey.value || el.apiKey.value || '').trim();
+  if(!key) throw new Error(T('keyNeeded'));
+  const base = (el.apiBase.value.trim() || 'https://api.openai.com/v1').replace(/\/+$/, '');
+  const parts = content.map(b => b.type === 'image'
+    ? { type:'image_url', image_url:{ url:'data:' + b.source.media_type + ';base64,' + b.source.data } }
+    : { type:'text', text:b.text });
+  const r = await fetch(base + '/chat/completions', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + key },
+    body: JSON.stringify({
+      model: el.recapModel.value.trim() || 'gpt-4o',
+      temperature: 0.4,
+      response_format: { type:'json_object' },
+      messages: [
+        { role:'system', content: system + '\n\nReturn ONE JSON object with this exact shape:\n' + JSON.stringify(RECAP_SCHEMA) },
+        { role:'user', content: parts },
+      ],
+    }),
+  });
+  if(!r.ok) throw new Error('API ' + r.status + ': ' + (await r.text().catch(() => '')).slice(0, 240));
+  const j = await r.json();
+  if(onChars) onChars(1);
+  return (((j.choices || [])[0] || {}).message || {}).content || '';
+}
+function parseRecapJson(txt){
+  let t = String(txt || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  try{ return JSON.parse(t); }
+  catch(e){
+    const m = t.match(/\{[\s\S]*\}/);
+    if(!m) throw new Error(T('badJson'));
+    return JSON.parse(m[0]);
+  }
+}
+function mapLlmScenes(j, targetSec){
+  const dur = S.duration || 0;
+  const primary = byCode[el.dstLang.value];
+  const out = [];
+  for(const sc of (j.scenes || [])){
+    let a = Number(sc.start), b = Number(sc.end);
+    if(!isFinite(a) || !isFinite(b)) continue;
+    a = clamp(a, 0, Math.max(0, dur - 1));
+    b = clamp(b, a + 2, dur || a + 30);
+    if(b - a > 150) b = a + 150;
+    const prev = out[out.length-1];
+    if(prev && a < prev.end - 0.5){
+      if(b <= prev.end + 2) continue;
+      a = prev.end + 0.2;
+      if(b - a < 3) continue;
+    }
+    out.push({
+      act: clamp(parseInt(sc.act, 10) || 1, 1, 5),
+      act_title: sc.act_title || (ACTS[sc.act] ? (ACTS[sc.act][S.ui] || ACTS[sc.act].ar) : ''),
+      start:a, end:b,
+      visual_action: String(sc.visual_action || ''),
+      narrator: String(sc.narrator || ''),
+      dialogue: (sc.dialogue || []).map(d => ({
+        speaker: clamp(parseInt(d.speaker, 10) || 1, 1, Math.max(1, S.cast.length)) - 1,
+        character: String(d.character || ''), tone: String(d.tone || ''),
+        line: String(d.line || ''), at: clamp(Number(d.at) || a, a, b),
+      })).filter(d => d.line),
+      sub_primary: String(sc.sub_primary || ''),
+      sub_secondary: String(sc.sub_secondary || ''),
+      primaryLang: primary ? primary.c : 'ar',
+    });
+  }
+  out.sort((x, y) => x.start - y.start);
+  S.recap.spec = {
+    title: j.original_title || S.mediaName.replace(/\.[^.]+$/, ''),
+    genre: j.genre || '—',
+    logline: j.logline || '',
+    characters: (j.characters || []).map(c => ({
+      speaker: (parseInt(c.speaker, 10) || 1) - 1,
+      name: c.name || '', role: c.role || '', voice_profile: c.voice_profile || '',
+    })),
+  };
+  /* اعتماد الأسماء التي استنتجها النموذج في طاقم الأصوات */
+  S.recap.spec.characters.forEach(c => {
+    const cast = S.cast[c.speaker];
+    if(cast && c.name) cast.name = c.name;
+  });
+  renderCast();
+  return out;
+}
+
+/* ------------------------------ 25.9 تشغيل التحليل ------------------------------ */
+function rprog(txt, pct){
+  el.recapProg.textContent = txt || '';
+  if(pct === undefined || pct === null){ el.recapBarP.classList.add('hidden'); el.recapBarP.classList.remove('idle'); }
+  else if(pct < 0){ el.recapBarP.classList.remove('hidden'); el.recapBarP.classList.add('idle'); el.recapBarP.querySelector('i').style.width = ''; }
+  else { el.recapBarP.classList.remove('hidden','idle'); el.recapBarP.querySelector('i').style.width = clamp(pct, 0, 100) + '%'; }
+}
+async function runRecap(){
+  if(!S.segments.length){ toast(T('needTranscript'), 'err', 6000); return; }
+  if(S.running){ toast(T('busy'), 'info'); return; }
+  const engine = el.recapEngine.value;
+  const targetSec = Number(el.recapLen.value)*60;
+  const primaryL = byCode[el.dstLang.value], secondaryL = byCode[el.subLang2.value] || byCode.fr;
+  S.recap.target = targetSec;
+  S.cancel = false;
+  S.running = true;
+  el.recapBtn.disabled = true;
+  el.cancel.disabled = false;
+  try{
+    if(!S.env) buildEnvelope();
+    if(S.opts.vision && !S.visual){
+      rprog(T('rScan'), 0);
+      try{ await scanVisual(p => rprog(T('rScan') + ' ' + Math.round(p*100) + '%', p*100)); }
+      catch(err){ toast(T('noVisual'), 'info', 6000); }
+    }
+    if(S.cancel) throw new Error('cancel');
+
+    rprog(T('rPick'), -1);
+    const nScenes = clamp(Math.round(targetSec/32), 4, 24);
+    const cands = pickScenes(engine === 'local' ? targetSec*1.15 : targetSec*1.9);
+    if(!cands.length) throw new Error(T('noScenes'));
+
+    let scenes;
+    if(engine === 'local'){
+      scenes = localRecap(cands, targetSec);
+      S.recap.spec = {
+        title: S.mediaName.replace(/\.[^.]+$/, ''),
+        genre: T('localGenre'), logline: '',
+        characters: S.cast.map(c => ({ speaker:c.spk, name:c.name, role:'—',
+          voice_profile: (c.f0 ? Math.round(c.f0) + ' Hz · ' : '') + (c.female ? T('female') : T('male')) })),
+      };
+    } else {
+      const content = [];
+      let frames = [];
+      if(S.opts.vision){
+        rprog(T('rFrames'), -1);
+        const times = cands.slice(0, 26).map(c => (c.start + c.end)/2);
+        for(let i=1; i<=4; i++) times.push(S.duration*i/5);
+        times.sort((a, b) => a - b);
+        try{ frames = await grabKeyframes(times.slice(0, 28), 448); }
+        catch(err){ toast(T('noVisual'), 'info', 5000); }
+      }
+      const limit = engine === 'claude' ? 0 : 60000;
+      content.push({ type:'text', text: recapUserText(cands, targetSec, nScenes,
+        primaryL[S.ui] + ' (' + primaryL.en + ')', secondaryL[S.ui] + ' (' + secondaryL.en + ')', limit) });
+      for(const f of frames){
+        content.push({ type:'text', text:'KEY FRAME @ ' + hms(f.t) + ' (' + Math.round(f.t) + ' s)' });
+        content.push({ type:'image', source:{ type:'base64', media_type:'image/jpeg',
+          data: f.url.slice(f.url.indexOf(',') + 1) } });
+      }
+      const system = recapSystemPrompt(primaryL.en, secondaryL.en, targetSec, nScenes);
+      rprog(T('rThink') + (frames.length ? ' · ' + frames.length + ' ' + T('frames') : ''), -1);
+      const raw = engine === 'claude'
+        ? await callClaude(system, content, n => rprog(T('rWrite') + ' · ' + n + ' ' + T('chars'), -1))
+        : await callOpenai(system, content, () => rprog(T('rWrite'), -1));
+      if(S.cancel) throw new Error('cancel');
+      scenes = mapLlmScenes(parseRecapJson(raw), targetSec);
+      if(!scenes.length) throw new Error(T('noScenes'));
+    }
+
+    /* ضبط بدايات المشاهد على أقرب قطع بصري */
+    if(S.opts.vision && S.visual && scenes.length <= 20){
+      rprog(T('rSnap'), -1);
+      for(const sc of scenes){
+        if(S.cancel) break;
+        try{ sc.start = await snapToCut(sc.start, true); }catch(e){ break; }
+      }
+    }
+    S.recap.scenes = scenes;
+    S.recap.engine = engine;
+    await prepareNarration();
+    renderRecap();
+    rprog(T('rDone') + ' · ' + scenes.length + ' ' + T('scenes') + ' · ' + fmt(recapDuration()), null);
+    toast(T('rDone'), 'ok', 6000);
+  }catch(err){
+    if(S.cancel || /cancel/i.test(err.message)){ rprog(T('canceled'), null); toast(T('canceled'), 'info'); }
+    else { console.error(err); rprog('', null); toast(String(err.message || err), 'err', 10000); }
+  }finally{
+    S.running = false;
+    el.recapBtn.disabled = false;
+    el.cancel.disabled = true;
+  }
+}
+const recapDuration = () => S.recap.scenes.reduce((a, s) => a + (s.end - s.start), 0);
+
+/* ------------------------------ 25.10 صوت الراوي ------------------------------ */
+const NARR_API_VOICE = { eleven:'George', openai:'onyx' };
+function narratorVoice(){
+  const list = voicesForLang(el.dstLang.value);
+  if(!list.length) return null;
+  const taken = new Set(S.cast.map(c => c.voice));
+  return list.find(v => !taken.has(v.name)) || list[0];
+}
+async function prepareNarration(){
+  if(!S.opts.vo) return;
+  if(el.ttsEngine.value === 'browser') return;
+  const scs = S.recap.scenes.filter(s => s.narrator);
+  for(let i=0; i<scs.length; i++){
+    if(S.cancel) return;
+    rprog(T('rVo') + ' ' + (i+1) + '/' + scs.length, ((i+1)/scs.length)*100);
+    try{ scs[i].voBuf = await synthNeural(scs[i].narrator, NARR_API_VOICE[el.ttsEngine.value] || 'onyx'); }
+    catch(err){ if(i === 0) toast(T('ttsFail') + err.message, 'err', 8000); return; }
+  }
+}
+function speakText(text, voice, pitch, rate){
+  const synth = window.speechSynthesis;
+  if(!synth || !text) return 0;
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  const lang = byCode[el.dstLang.value];
+  if(voice){ u.voice = voice; u.lang = voice.lang; }
+  else if(lang && lang.b) u.lang = lang.b;
+  u.rate = clamp(rate, 0.5, 2);
+  u.pitch = clamp(pitch, 0, 2);
+  u.volume = clamp(S.opts.dubVol/100, 0, 1);
+  synth.speak(u);
+  return estSpeech(text, u.rate);
+}
+function playNarrBuffer(buf){
+  ensureAudio(); resumeAudio();
+  const src = S.ac.createBufferSource();
+  src.buffer = buf;
+  src.playbackRate.value = S.opts.rate;
+  S.dubGain.gain.value = S.opts.dubVol/100;
+  src.connect(S.dubGain);
+  if(S.activeSrcNode){ try{ S.activeSrcNode.stop(); }catch(e){} }
+  S.activeSrcNode = src;
+  src.start();
+  const real = buf.duration/S.opts.rate;
+  S.speakingUntil = performance.now() + real*1000;
+  duckFor(real);
+  return real;
+}
+function speakNarration(sc){
+  if(!S.opts.vo || !sc.narrator) return;
+  let secs;
+  if(sc.voBuf) secs = playNarrBuffer(sc.voBuf);
+  else {
+    secs = speakText(sc.narrator, narratorVoice(), clamp(S.opts.pitch*0.94, 0, 2), S.opts.rate*1.03);
+    S.speakingUntil = performance.now() + secs*1000;
+    duckFor(secs);
+  }
+  S.recap.narrating = true;
+  clearTimeout(S.narrTimer);
+  S.narrTimer = setTimeout(() => { S.recap.narrating = false; }, secs*1000 + 220);
+}
+
+/* ------------------------------ 25.11 تشغيل الملخّص ------------------------------ */
+function jumpToScene(i){
+  const sc = S.recap.scenes[i];
+  if(!sc) return;
+  S.recap.idx = i;
+  stopSpeaking();
+  el.video.currentTime = sc.start;
+  resyncFrom(sc.start + S.opts.offset);
+  S.curIdx = -2;
+  el.recapChip.textContent = T('scene') + ' ' + (i+1) + '/' + S.recap.scenes.length;
+  el.recapAct.textContent = (sc.act_title || '') + ' · ' + hms(sc.start);
+  highlightScene(i);
+  setTimeout(() => speakNarration(sc), 240);
+}
+function startRecapPlay(){
+  if(!S.recap.scenes.length) return;
+  S.recap.playing = true;
+  el.recapOverlay.classList.add('on');
+  el.recapPlay.classList.add('act');
+  jumpToScene(0);
+  resumeAudio();
+  el.video.play().catch(() => {});
+  toast(T('recapPlaying') + ' · ' + fmt(recapDuration()), 'ok', 5000);
+}
+function stopRecapPlay(finished){
+  S.recap.playing = false;
+  S.recap.narrating = false;
+  el.recapOverlay.classList.remove('on');
+  el.recapPlay.classList.remove('act');
+  if(finished){ el.video.pause(); toast(T('recapEnd'), 'ok', 5000); }
+}
+function recapTick(t){
+  const sc = S.recap.scenes[S.recap.idx];
+  if(!sc) return;
+  if(t >= sc.end - 0.04){
+    if(S.recap.idx + 1 < S.recap.scenes.length) jumpToScene(S.recap.idx + 1);
+    else stopRecapPlay(true);
+  } else if(t < sc.start - 1.5){
+    /* قفز المستخدم يدوياً — اذهب إلى المشهد الذي يقع فيه أو الذي يليه */
+    const i = S.recap.scenes.findIndex(x => t < x.end - 0.2);
+    if(i < 0) stopRecapPlay(true);
+    else if(i !== S.recap.idx) jumpToScene(i);
+  }
+}
+
+/* ------------------------------ 25.12 العرض ------------------------------ */
+function specText(){
+  const sp = S.recap.spec || {};
+  const primary = byCode[el.dstLang.value], secondary = byCode[el.subLang2.value] || byCode.fr;
+  const P = (primary.c || 'ar').toUpperCase(), Q = (secondary.c || 'fr').toUpperCase();
+  const L = [];
+  L.push('==============================');
+  L.push('🎬 MOVIE SUMMARY SPEC SHEET');
+  L.push('==============================');
+  L.push('- Original Title: ' + (sp.title || S.mediaName));
+  L.push('- Core Genre: ' + (sp.genre || '—'));
+  if(sp.logline) L.push('- Logline: ' + sp.logline);
+  L.push('- Runtime: ' + hms(S.duration) + '  ·  Recap: ' + hms(recapDuration()) + '  ·  Scenes: ' + S.recap.scenes.length);
+  L.push('- Source language: ' + (S.detectedLang || '—') + '  ·  Dubbed into: ' + primary.en);
+  L.push('- Analysis engine: ' + (S.recap.engine === 'local' ? 'local (offline, extractive)' : (el.recapModel.value.trim() || S.recap.engine)));
+  L.push('- Key Characters Identified:');
+  (sp.characters && sp.characters.length ? sp.characters : S.cast.map(c => ({speaker:c.spk, name:c.name, role:'—', voice_profile:''})))
+    .forEach((c, i) => {
+      const cast = S.cast[c.speaker];
+      const vp = c.voice_profile || (cast ? (cast.f0 ? Math.round(cast.f0) + ' Hz' : '') : '');
+      L.push('  * Character ' + (i+1) + ' [S' + ((c.speaker|0)+1) + ']: ' + (c.name || '—') + ' / ' + (c.role || '—')
+        + ' / ' + (vp || '—') + (cast && cast.cloned ? ' / CLONED VOICE' : ''));
+    });
+  L.push('');
+  L.push('==============================');
+  L.push('📜 TIMECODED RECAP & DUBBING SCRIPT');
+  L.push('==============================');
+  S.recap.scenes.forEach((sc, i) => {
+    L.push('');
+    L.push('[SCENE ' + (i+1) + ' | TIMESTAMP: ' + hms(sc.start) + ' - ' + hms(sc.end) + ']');
+    L.push('• Act ' + sc.act + ': ' + (sc.act_title || (ACTS[sc.act] ? ACTS[sc.act].en : '')));
+    L.push('• Visual Action: ' + (sc.visual_action || '—'));
+    if(sc.narrator) L.push('• Narrator Voiceover (' + primary.en + '): ' + sc.narrator);
+    if(sc.dialogue && sc.dialogue.length){
+      L.push('• Character Dialogue Dubbed:');
+      sc.dialogue.forEach(d => {
+        L.push('  - [' + (d.character || ('S' + (d.speaker+1))) + ' | Tone: ' + (d.tone || '—') + ']: "' + d.line + '"');
+      });
+    }
+    if(sc.sub_primary || sc.sub_secondary){
+      L.push('• Subtitles (Dual):');
+      if(sc.sub_primary) L.push('  - [' + P + ']: ' + sc.sub_primary);
+      if(sc.sub_secondary) L.push('  - [' + Q + ']: ' + sc.sub_secondary);
+    }
+  });
+  return L.join('\n');
+}
+function renderRecap(){
+  const scs = S.recap.scenes;
+  el.recapCard.hidden = !scs.length;
+  if(!scs.length){ el.scenes.innerHTML = ''; el.recapSpec.textContent = ''; return; }
+  el.recapSpec.textContent = specText();
+  const rtl = (byCode[el.dstLang.value] || {}).rtl;
+  el.scenes.innerHTML = scs.map((sc, i) =>
+    '<div class="scene" data-i="' + i + '">'
+    + '<div class="top"><span class="act">' + escapeHtml(T('act') + ' ' + sc.act) + '</span>'
+    + '<span>' + hms(sc.start) + ' → ' + hms(sc.end) + '</span>'
+    + '<span>' + fmt(sc.end - sc.start) + '</span></div>'
+    + (sc.visual_action ? '<div class="vis">' + escapeHtml(sc.visual_action) + '</div>' : '')
+    + (sc.narrator ? '<div class="vo" dir="' + (rtl ? 'rtl' : 'ltr') + '">' + escapeHtml(sc.narrator) + '</div>' : '')
+    + ((sc.dialogue && sc.dialogue.length)
+        ? '<div class="dlg" dir="' + (rtl ? 'rtl' : 'ltr') + '">' + sc.dialogue.map(d =>
+            '<div><b>' + escapeHtml(d.character || ('#' + (d.speaker+1)))
+            + (d.tone && d.tone !== '—' ? ' · ' + escapeHtml(d.tone) : '') + '</b> — ' + escapeHtml(d.line) + '</div>').join('') + '</div>'
+        : '')
+    + (sc.sub_secondary ? '<div class="fr">' + escapeHtml(sc.sub_secondary) + '</div>' : '')
+    + '</div>').join('');
+  el.scenes.querySelectorAll('.scene').forEach(n => {
+    n.onclick = () => {
+      const i = +n.dataset.i;
+      if(S.recap.playing) jumpToScene(i);
+      else { el.video.currentTime = S.recap.scenes[i].start; highlightScene(i); }
+    };
+  });
+  el.recapWav.disabled = !S.recap.scenes.some(s => s.voBuf) && !S.segments.some(s => s.buf);
+}
+function highlightScene(i){
+  const prev = el.scenes.querySelector('.scene.cur');
+  if(prev) prev.classList.remove('cur');
+  const node = el.scenes.querySelector('.scene[data-i="' + i + '"]');
+  if(node){
+    node.classList.add('cur');
+    const box = el.scenes.getBoundingClientRect(), r = node.getBoundingClientRect();
+    if(r.top < box.top || r.bottom > window.innerHeight) node.scrollIntoView({block:'nearest', behavior:'smooth'});
+  }
+}
+function clearRecap(){
+  S.recap.scenes = []; S.recap.spec = null; S.recap.idx = -1;
+  stopRecapPlay(false);
+  if(el.recapCard) el.recapCard.hidden = true;
+  if(el.scenes) el.scenes.innerHTML = '';
+  rprog('', null);
+}
+
+/* ------------------------------ 25.13 التصدير ------------------------------ */
+const baseName = () => (S.mediaName || 'film').replace(/\.[^.]+$/, '');
+function exportRecapMd(){
+  download(new Blob(['﻿' + specText()], {type:'text/markdown;charset=utf-8'}), baseName() + '.recap.md');
+}
+function recapCues(localTimeline){
+  const cues = [];
+  let off = 0;
+  S.recap.scenes.forEach((sc, i) => {
+    const base = localTimeline ? off - sc.start : 0;
+    if(sc.narrator){
+      const d = clamp(estSpeech(sc.narrator, 1), 2.5, Math.min(9, (sc.end - sc.start)*0.8));
+      cues.push({ a: sc.start + base, b: sc.start + base + d,
+        text: [sc.narrator, sc.sub_secondary].filter(Boolean).join('\n') });
+    }
+    (sc.dialogue || []).forEach(dl => {
+      const a = clamp(dl.at, sc.start, sc.end - 1) + base;
+      const d = clamp(estSpeech(dl.line, 1), 1.6, 6);
+      cues.push({ a, b: a + d, text: '- ' + (dl.character || ('#' + (dl.speaker+1))) + ': ' + dl.line });
+    });
+    if(!sc.narrator && !(sc.dialogue || []).length && sc.sub_primary)
+      cues.push({ a: sc.start + base, b: sc.start + base + 4,
+        text: [sc.sub_primary, sc.sub_secondary].filter(Boolean).join('\n') });
+    off += sc.end - sc.start;
+  });
+  cues.sort((x, y) => x.a - y.a);
+  for(let i=1; i<cues.length; i++) if(cues[i].a < cues[i-1].b) cues[i-1].b = Math.max(cues[i-1].a + 0.8, cues[i].a - 0.05);
+  return cues;
+}
+function cuesToSrt(cues){
+  return cues.map((c, i) => (i+1) + '\n' + srtTime(Math.max(0, c.a)) + ' --> ' + srtTime(Math.max(0.9, c.b)) + '\n' + c.text + '\n').join('\n');
+}
+function exportRecapSrt(){
+  download(new Blob(['﻿' + cuesToSrt(recapCues(true))], {type:'text/plain;charset=utf-8'}), baseName() + '.recap.srt');
+  setTimeout(() => download(new Blob(['﻿' + cuesToSrt(recapCues(false))], {type:'text/plain;charset=utf-8'}),
+    baseName() + '.recap.film.srt'), 500);
+  toast(T('srtTwo'), 'ok', 6000);
+}
+function recapShText(){
+  const f = (S.mediaName || 'film.mp4').replace(/'/g, "'\\''");
+  const b = baseName().replace(/[^\w.\-]+/g, '_') || 'film';
+  const L = ['#!/usr/bin/env bash',
+    '# ' + specText().split('\n').slice(0, 6).join('\n# '),
+    'set -euo pipefail',
+    'SRC=\'' + f + '\'',
+    'OUT=' + b + '_recap',
+    'mkdir -p "$OUT" && : > "$OUT/list.txt"', ''];
+  S.recap.scenes.forEach((sc, i) => {
+    const n = String(i+1).padStart(2, '0');
+    L.push('# ' + hms(sc.start) + ' → ' + hms(sc.end) + '  ' + (sc.act_title || ''));
+    L.push('ffmpeg -y -ss ' + sc.start.toFixed(2) + ' -to ' + sc.end.toFixed(2) + ' -i "$SRC" '
+      + '-c:v libx264 -preset veryfast -crf 20 -c:a aac -b:a 192k -avoid_negative_ts make_zero "$OUT/s' + n + '.mp4"');
+    L.push('echo "file \'s' + n + '.mp4\'" >> "$OUT/list.txt"');
+  });
+  L.push('');
+  L.push('# 2) لصق المشاهد في فيلم ملخّص واحد / concat the scenes');
+  L.push('ffmpeg -y -f concat -safe 0 -i "$OUT/list.txt" -c copy "$OUT/recap.mp4"');
+  L.push('');
+  L.push('# 3) استبدال الصوت بالمسار المدبلج المصدَّر من التطبيق (اختياري)');
+  L.push('# ffmpeg -y -i "$OUT/recap.mp4" -i "' + b + '.recap.wav" -map 0:v -map 1:a -c:v copy -shortest "$OUT/recap-dubbed.mp4"');
+  L.push('');
+  L.push('# 4) حرق الترجمة المزدوجة (اختياري)');
+  L.push('# ffmpeg -y -i "$OUT/recap.mp4" -vf "subtitles=' + b + '.recap.srt" -c:a copy "$OUT/recap-subbed.mp4"');
+  return { text: L.join('\n') + '\n', name: b + '.recap.sh' };
+}
+function exportRecapSh(){
+  const r = recapShText();
+  download(new Blob([r.text], {type:'text/x-shellscript'}), r.name);
+  toast(T('shDone'), 'ok', 7000);
+}
+async function exportRecapWav(){
+  if(!S.origBuffer){ toast(T('noAudioBuf'), 'err'); return; }
+  if(!S.recap.scenes.length) return;
+  if(!S.recap.scenes.some(s => s.voBuf) && !S.segments.some(s => s.buf)){ toast(T('wavNeedApi'), 'err', 8000); return; }
+  const t = toast('WAV …', 'info', 180000);
+  try{
+    const sr = 44100;
+    const total = recapDuration() + 2;
+    const off = new OfflineAudioContext(2, Math.ceil(total*sr), sr);
+    let cur = 0;
+    for(const sc of S.recap.scenes){
+      const d = sc.end - sc.start;
+      const src = off.createBufferSource();
+      src.buffer = S.origBuffer;
+      const g = off.createGain();
+      g.gain.setValueAtTime(S.opts.bg/100, cur);
+      src.connect(g); g.connect(off.destination);
+      src.start(cur, sc.start, d);
+      if(sc.voBuf){
+        const n = off.createBufferSource();
+        n.buffer = sc.voBuf;
+        const ng = off.createGain();
+        ng.gain.value = S.opts.dubVol/100;
+        n.connect(ng); ng.connect(off.destination);
+        n.start(cur + 0.15);
+        g.gain.setTargetAtTime(S.opts.duck/100, cur + 0.05, 0.06);
+        g.gain.setTargetAtTime(S.opts.bg/100, cur + 0.2 + sc.voBuf.duration, 0.14);
+      }
+      for(const s of S.segments){
+        if(!s.buf || s.start < sc.start || s.start >= sc.end) continue;
+        const at = cur + (s.start - sc.start);
+        const dd = Math.max(0.4, s.end - s.start);
+        let r = 1;
+        if(S.opts.fit && s.buf.duration > dd*1.03) r = clamp(s.buf.duration/dd, 1, 1.45);
+        r *= S.opts.rate;
+        const bs = off.createBufferSource();
+        bs.buffer = s.buf;
+        bs.playbackRate.value = r;
+        const bg = off.createGain();
+        bg.gain.value = S.opts.dubVol/100;
+        bs.connect(bg); bg.connect(off.destination);
+        bs.start(at);
+        g.gain.setTargetAtTime(S.opts.duck/100, Math.max(cur, at - 0.14), 0.05);
+        g.gain.setTargetAtTime(S.opts.bg/100, at + s.buf.duration/r + 0.06, 0.12);
+      }
+      cur += d;
+    }
+    download(encodeWav(await off.startRendering()), baseName() + '.recap.wav');
+    toast(T('wavDone'), 'ok');
+  }catch(err){ toast(String(err.message || err), 'err', 8000); }
+  finally{ t.remove(); }
+}
+
+/* ------------------------------ 25.14 الربط ------------------------------ */
+const RSTORE = 'sawtak.recap.v1';
+function saveRecap(){
+  try{
+    localStorage.setItem(RSTORE, JSON.stringify({
+      engine:el.recapEngine.value, model:el.recapModel.value, len:el.recapLen.value,
+      sub2:el.subLang2.value, spk:el.maxSpk.value,
+      match:S.opts.match, clone:S.opts.clone, vision:S.opts.vision, vo:S.opts.vo,
+    }));
+  }catch(e){}
+  try{ sessionStorage.setItem(RSTORE + '.key', el.llmKey.value); }catch(e){}
+}
+function loadRecap(){
+  let d = null;
+  try{ d = JSON.parse(localStorage.getItem(RSTORE) || 'null'); }catch(e){}
+  try{ el.llmKey.value = sessionStorage.getItem(RSTORE + '.key') || ''; }catch(e){}
+  if(d){
+    if(d.engine) el.recapEngine.value = d.engine;
+    if(d.model) el.recapModel.value = d.model;
+    if(d.len) el.recapLen.value = d.len;
+    if(d.spk) el.maxSpk.value = d.spk;
+    if(d.sub2) S.pendingSub2 = d.sub2;
+    ['match','clone','vision','vo'].forEach(k => { if(typeof d[k] === 'boolean') S.opts[k] = d[k]; });
+  }
+}
+function syncRecapUi(){
+  const eng = el.recapEngine.value;
+  el.llmKeyBox.classList.toggle('hidden', eng === 'local');
+  el.recapModelBox.classList.toggle('hidden', eng === 'local');
+  el.llmKey.placeholder = eng === 'claude' ? 'sk-ant-...' : 'sk-...';
+  if(!el.recapModel.value.trim()) el.recapModel.value = eng === 'claude' ? 'claude-opus-5' : 'gpt-4o';
+  el.recapLenV.textContent = el.recapLen.value + ' ' + T('min');
+  el.cloneBox.classList.toggle('hidden', !S.opts.clone);
+  [['tgMatch','match'], ['tgClone','clone'], ['tgConsent','consent'], ['tgVision','vision'], ['tgVO','vo']]
+    .forEach(([id, k]) => { const n = $('#' + id); if(n) n.classList.toggle('on', !!S.opts[k]); });
+}
+function fillSub2(){
+  const keep = el.subLang2.value || S.pendingSub2 || 'fr';
+  el.subLang2.innerHTML = '';
+  LANGS.forEach(l => {
+    if(l.srcOnly) return;
+    const o = document.createElement('option');
+    o.value = l.c;
+    o.textContent = l[S.ui] + ' · ' + (S.ui === 'ar' ? l.en : l.ar);
+    el.subLang2.appendChild(o);
+  });
+  el.subLang2.value = keep;
+  if(!el.subLang2.value) el.subLang2.value = 'fr';
+  S.pendingSub2 = null;
+}
+[['tgMatch','match'], ['tgClone','clone'], ['tgConsent','consent'], ['tgVision','vision'], ['tgVO','vo']]
+  .forEach(([id, k]) => {
+    const n = $('#' + id);
+    if(!n) return;
+    n.onclick = () => {
+      S.opts[k] = !S.opts[k];
+      if(k === 'match') S.segments.forEach(s => { s.buf = null; });
+      syncRecapUi();
+      saveRecap();
+    };
+  });
+el.recapEngine.onchange = () => {
+  const cur = el.recapModel.value.trim();
+  if(!cur || cur === 'claude-opus-5' || cur === 'gpt-4o')
+    el.recapModel.value = el.recapEngine.value === 'claude' ? 'claude-opus-5' : 'gpt-4o';
+  syncRecapUi(); saveRecap();
+};
+el.recapModel.onchange = saveRecap;
+el.llmKey.onchange = saveRecap;
+el.subLang2.onchange = () => { saveRecap(); if(S.recap.scenes.length) renderRecap(); };
+el.recapLen.oninput = () => { el.recapLenV.textContent = el.recapLen.value + ' ' + T('min'); };
+el.recapLen.onchange = saveRecap;
+el.maxSpk.onchange = async () => {
+  saveRecap();
+  if(!S.segments.length || S.running) return;
+  const t = toast(T('rDiar'), 'info', 120000);
+  S.running = true;
+  try{ if(await diarize()) { buildCast(); renderLines(); updateStats(); } }
+  finally{ S.running = false; t.remove(); }
+};
+el.cloneBtn.onclick = cloneAllVoices;
+el.recapBtn.onclick = runRecap;
+el.recapPlay.onclick = () => { S.recap.playing ? stopRecapPlay(false) : startRecapPlay(); };
+el.recapMd.onclick = exportRecapMd;
+el.recapSrt.onclick = exportRecapSrt;
+el.recapSh.onclick = exportRecapSh;
+el.recapWav.onclick = exportRecapWav;
+
+/* ------------------------------ 25.15 نصوص الواجهة ------------------------------ */
+Object.assign(MSG.ar, {
+  char:'الشخصية', min:'د', act:'الفصل', scene:'مشهد', scenes:'مشهد', chars:'حرف', frames:'لقطة',
+  female:'صوت عالٍ (أنثى غالباً)', male:'صوت منخفض (ذكر غالباً)',
+  noAudioBuf:'لا يوجد مسار صوتي محفوظ — أعد تشغيل الدبلجة أولاً',
+  sampleShort:'كلام هذا الممثل أقصر من أن يُستنسخ منه صوت (يحتاج ٦ ثوانٍ على الأقل)',
+  cloneNeedsEleven:'الاستنساخ يعمل مع محرّك ElevenLabs فقط — غيّر «محرّك النطق» أولاً',
+  needConsent:'أكّد أولاً أنك تملك حق استخدام هذه الأصوات',
+  needTranscript:'شغّل الدبلجة أولاً حتى يُفرَّغ الحوار',
+  cloning:'جارٍ استخراج العيّنات واستنساخ الأصوات…', cloneDone:'تم استنساخ أصوات الممثلين — الجمل ستُنطق بأصواتهم',
+  cloneFail:'فشل الاستنساخ: ',
+  noVisual:'تعذّر قراءة صورة هذا الملف — سيعتمد التحليل على الصوت والحوار فقط',
+  vHigh:'حركة بصرية عالية', vCalm:'مشهد هادئ بصرياً', vNone:'بلا تحليل بصري', vAt:'لقطة عند',
+  narrScene:'المشهد', localGenre:'اختيار محلي استخراجي',
+  rScan:'مسح صورة الفيلم…', rPick:'ترشيح المشاهد المهمة…', rFrames:'التقاط لقطات المشاهد…',
+  rThink:'النموذج يشاهد الفيلم ويحلّل الحبكة…', rWrite:'كتابة الملخّص', rSnap:'ضبط بدايات المشاهد على القطع البصري…',
+  rVo:'تجهيز صوت الراوي', rDone:'اكتمل الملخّص', rDiar:'تمييز أصوات الممثلين…',
+  refusal:'رفض النموذج تنفيذ الطلب', badJson:'رد النموذج غير صالح — أعد المحاولة',
+  noScenes:'لم يُعثر على مشاهد صالحة — جرّب طولاً أكبر أو دقة تفريغ أعلى',
+  busy:'هناك عملية جارية بالفعل', recapPlaying:'تشغيل الملخّص', recapEnd:'انتهى الملخّص',
+  srtTwo:'نُزّل ملفان: ترجمة للملخّص المقصوص وأخرى للفيلم الكامل',
+  shDone:'نُزّل سكربت ffmpeg — شغّله بجوار ملف الفيلم لإنتاج فيديو الملخّص',
+});
+Object.assign(MSG.en, {
+  char:'Character', min:'min', act:'Act', scene:'Scene', scenes:'scenes', chars:'chars', frames:'frames',
+  female:'higher pitch (likely female)', male:'lower pitch (likely male)',
+  noAudioBuf:'No decoded audio in memory — run the dubbing pass first',
+  sampleShort:'This speaker talks too little to clone (needs at least 6 s)',
+  cloneNeedsEleven:'Cloning works with the ElevenLabs engine only — switch the speech engine first',
+  needConsent:'Confirm first that you own the rights to these voices',
+  needTranscript:'Run the dubbing pass first so the dialogue gets transcribed',
+  cloning:'Extracting samples and cloning voices…', cloneDone:'Actor voices cloned — lines will now speak in their own voice',
+  cloneFail:'Cloning failed: ',
+  noVisual:'Could not read this file’s picture — the analysis will use audio and dialogue only',
+  vHigh:'high visual activity', vCalm:'visually calm', vNone:'no visual analysis', vAt:'frame at',
+  narrScene:'Scene', localGenre:'local extractive selection',
+  rScan:'Scanning the picture…', rPick:'Shortlisting the key scenes…', rFrames:'Grabbing key frames…',
+  rThink:'The model is watching the film and analysing the plot…', rWrite:'Writing the recap',
+  rSnap:'Snapping scene starts to real cuts…', rVo:'Rendering the narrator', rDone:'Recap ready',
+  rDiar:'Separating the actors’ voices…',
+  refusal:'The model declined this request', badJson:'The model returned invalid JSON — try again',
+  noScenes:'No usable scenes found — try a longer recap or a more accurate transcription model',
+  busy:'Another pass is already running', recapPlaying:'Playing the recap', recapEnd:'Recap finished',
+  srtTwo:'Two files downloaded: one for the cut recap, one for the full film',
+  shDone:'ffmpeg script downloaded — run it next to the film file to render the recap video',
+});
+Object.assign(I18N.en, {
+  maxSpk:'Number of actor voices', spkAuto:'Auto detect — tells actors apart by voice fingerprint',
+  tgMatchT:'Match the original actor’s voice', tgMatchS:'Measures each actor’s pitch and pace from the film itself and reproduces them in the new language',
+  tgCloneT:'Clone the actors’ voices', tgCloneS:'Takes a sample of each actor and makes them speak the new language in their own voice — needs an ElevenLabs key',
+  tgConsentT:'I own the rights to these voices', tgConsentS:'Cloning a real person’s voice without permission breaks the service terms and may break the law',
+  cloneBtn:'Extract samples and clone the actors’ voices',
+  cloneHint:'A clean 40–70 s sample of each actor is cut from the film and sent to ElevenLabs, which creates a cloned voice stored in your account. Translated lines are then spoken with that actor’s own voiceprint.',
+  tabRecap:'Recap', recapTitle:'Cinematic recap', recapPlay:'Play',
+  recapEngine:'Story analysis engine',
+  reClaude:'Claude — reads the dialogue, looks at the frames, writes the recap',
+  reOpenai:'OpenAI-compatible model', reLocal:'Fully local — picks the key scenes offline',
+  llmKey:'Analysis API key', recapModel:'Model name', recapLen:'Target recap length',
+  subLang2:'Second subtitle language',
+  tgVisionT:'Analyse the picture', tgVisionS:'Grabs frames from the shortlisted scenes so the model describes what really happens instead of guessing',
+  tgVOT:'Narrator voiceover', tgVOS:'A narrator voice bridging the scenes, movie-recap style',
+  recapRun:'Analyse the film and build the recap',
+  recapNote:'The analysis is grounded in what is actually said in the film and what appears in its frames — no invented events. Local mode picks the important scenes from audio, picture and dialogue density; Claude mode also writes the narration, the dubbed dialogue and the dual subtitles.',
+});
+
 /* ------------------------------ 24) الإقلاع ------------------------------ */
 document.head.insertAdjacentHTML('beforeend',
-  '<style>.tbtn.act{background:var(--grad);border-color:transparent}.tbtn.act svg{stroke:#fff}</style>');
+  '<style>.tbtn.act{background:var(--grad);border-color:transparent}.tbtn.act svg{stroke:#fff}.btn.act{background:var(--grad);border-color:transparent;color:#fff}</style>');
 
 function boot(){
   fillLangSelects();
   loadSettings();
   fillLangSelects();
   buildSteps();
+  loadRecap();
   applyUiLang();
   syncControls();
+  fillSub2();
+  syncRecapUi();
   loadVoices();
   if(window.speechSynthesis) speechSynthesis.onvoiceschanged = () => {
     loadVoices();
