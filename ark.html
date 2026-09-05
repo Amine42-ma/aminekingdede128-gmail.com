@@ -894,6 +894,9 @@ const ITEMS = {
   egg_trike:    { name: 'Trike Egg', cat: 'consumable', w: 0.4, stack: 20, ic: ['egg', '#c9b07e'], spoil: 3600, rot: 'rot', eggTier: 'regular', use: { food: 30 }, desc: 'Large egg. Regular Kibble.' },
   egg_rex:      { name: 'Rex Egg', cat: 'consumable', w: 1.0, stack: 20, ic: ['egg', '#9c7d52'], spoil: 3600, rot: 'rot', eggTier: 'superior', use: { food: 40 }, desc: 'Special egg. Superior Kibble. Stealing one is a bad idea.' },
 
+  fert_egg:     { name: 'Fertilized Egg', cat: 'consumable', w: 2, stack: 1, ic: ['egg', '#e8c8a0'],
+                  desc: 'A fertilized egg. It only develops inside its species\' temperature range — build fires or use an air conditioner, and watch the incubation bar.' },
+
   /* ---- tools & weapons -------------------------------------------------
      dmg      damage to creatures            torpor  torpidity per hit
      speed    attacks per second             reach   metres
@@ -955,7 +958,8 @@ const ITEMS = {
 };
 
 /* ---- saddles: one per rideable species -------------------------------- */
-const SADDLE_SPECIES = ['parasaur', 'trike', 'stego', 'raptor', 'carno', 'rex', 'ptera', 'anky', 'doedic', 'sarco', 'ichthy'];
+const SADDLE_SPECIES = ['parasaur', 'trike', 'stego', 'raptor', 'carno', 'rex', 'ptera', 'anky', 'doedic', 'sarco', 'ichthy',
+  'spino', 'argent', 'bronto', 'mammoth', 'theri', 'megalodon'];
 
 /* ============================================================================
  * 31b · SPECIES — the roster. Stats follow ARK's shape: a base value at level 1
@@ -1234,7 +1238,180 @@ const SPECIES = {
       tail: { len: 2.0, seg: 5, thick: .45 }, legs: { front: 0, back: 0, thick: 0 }, feat: ['flippers', 'dorsalfin_big', 'flukes', 'teeth'] },
     info: 'Do not swim at night. Do not swim at all, really.'
   },
+
+  /* ======================= second wave of wildlife ====================== */
+
+  spino: {
+    name: 'Spinosaurus', latin: 'Spinosaurus aquareliqua', diet: 'carnivore', temper: 'aggressive', tameType: 'knockout',
+    scale: 1.45, mass: 7000, eyeH: 3.8, swimmer: true,
+    base: { health: 700, stamina: 350, torpor: 850, food: 2600, weight: 400, damage: 55, speed: 5.4, run: 12, swim: 13 },
+    grow: { health: .2, stamina: .1, torpor: .06, food: .1, weight: .04, damage: .017 },
+    torporDrain: 1.7, affinity: { base: 1600, perLevel: 75 }, eatDelay: 9,
+    prefer: ['kibble_superior', 'prime_meat', 'raw_fish', 'raw_meat'],
+    kibble: 'kibble_superior',
+    attack: { dmg: 55, range: 3.8, cd: 1.5, torpor: 0, knockback: 8 }, aggroRange: 50, fleeRange: 0, courage: 1,
+    harvest: { meat: 4, hide: 3.5, prime: 1.8 }, rideable: true, saddleLv: 60,
+    drops: { raw_meat: [22, 34], prime_meat: [2, 5], hide: [24, 36] }, xp: 90,
+    spawn: { biomes: ['swamp', 'jungle', 'beach'], weight: 1.6, group: [1, 1] },
+    voice: { pitch: 110, kind: 'roar', len: 1.6 },
+    colors: [['#4a5a4a', '#b8c2b0', '#c05028'], ['#3f4f5c', '#a8b6c0', '#e0a63c'], ['#5a4a5c', '#b4a8b8', '#4ad0a8']],
+    model: { kind: 'theropod', body: [3.4, 1.5, 1.35], neck: { len: 1.2, seg: 4, thick: .55 }, head: { len: 1.7, w: .5, h: .6, jaw: 1.3 },
+      tail: { len: 3.4, seg: 8, thick: .5 }, legs: { front: .7, back: 2.0, thick: .4 }, feat: ['sail', 'teeth', 'stubarm', 'scales', 'claw'] },
+    info: 'The river king. Faster in water than anything you can outswim.'
+  },
+
+  argent: {
+    name: 'Argentavis', latin: 'Argentavis atrocollum', diet: 'carnivore', temper: 'aggressive', tameType: 'knockout',
+    scale: 1.7, mass: 700, eyeH: 2.2, flyer: true,
+    base: { health: 365, stamina: 400, torpor: 500, food: 2000, weight: 400, damage: 30, speed: 6, run: 14, fly: 24 },
+    grow: { health: .2, stamina: .1, torpor: .06, food: .1, weight: .04, damage: .017 },
+    torporDrain: 1.1, affinity: { base: 1100, perLevel: 52 }, eatDelay: 8,
+    prefer: ['kibble_regular', 'prime_meat', 'raw_meat', 'raw_fish'],
+    kibble: 'kibble_regular',
+    attack: { dmg: 30, range: 2.6, cd: 1.4, torpor: 0 }, aggroRange: 45, fleeRange: 0, courage: .9,
+    harvest: { meat: 2.6, hide: 2.2 }, rideable: true, saddleLv: 62,
+    drops: { raw_meat: [10, 16], hide: [12, 20] }, xp: 60,
+    spawn: { biomes: ['mountain', 'highland'], weight: 2.2, group: [1, 2] },
+    voice: { pitch: 520, kind: 'screech', len: .8 },
+    colors: [['#6a4a38', '#c8b49c', '#d84a2c'], ['#4a4038', '#b0a494', '#e0a63c'], ['#5c4a5c', '#bcaebc', '#8ad0e0']],
+    model: { kind: 'flyer', body: [1.8, .8, .8], neck: { len: .9, seg: 4, thick: .28 }, head: { len: .8, w: .3, h: .36, beak: .55 },
+      tail: { len: 1.0, seg: 3, thick: .2 }, legs: { front: .5, back: .8, thick: .12 },
+      wings: { span: 5.4, chord: 1.7 }, feat: ['feathers', 'membrane', 'claw'] },
+    info: 'The workhorse flyer: carries weight, flies far, and steals your kills.'
+  },
+
+  bronto: {
+    name: 'Brontosaurus', latin: 'Brontosaurus lazarus', diet: 'herbivore', temper: 'neutral', tameType: 'knockout',
+    scale: 2.1, mass: 30000, eyeH: 8, 
+    base: { health: 1300, stamina: 300, torpor: 1800, food: 6000, weight: 600, damage: 60, speed: 3.4, run: 6.4 },
+    grow: { health: .2, stamina: .1, torpor: .06, food: .1, weight: .04, damage: .017 },
+    torporDrain: 2.6, affinity: { base: 3000, perLevel: 145 }, eatDelay: 12,
+    prefer: ['kibble_superior', 'mejoberry', 'tintoberry', 'amarberry'],
+    kibble: 'kibble_superior',
+    attack: { dmg: 60, range: 5.5, cd: 2.6, torpor: 0, knockback: 14, tailSwipe: true }, aggroRange: 0, fleeRange: 0, courage: 1, retaliate: true,
+    harvest: { berry: 9, thatch: 6, fiber: 5, wood: 2 }, rideable: true, saddleLv: 63,
+    drops: { raw_meat: [40, 60], hide: [50, 80], keratin: [10, 18] }, xp: 150,
+    spawn: { biomes: ['plains', 'jungle'], weight: 1.2, group: [1, 2] },
+    voice: { pitch: 70, kind: 'bellow', len: 2.2 },
+    colors: [['#6b6152', '#bdb3a0', '#8a6a3c'], ['#55604f', '#adb8a4', '#c9863c'], ['#5c5262', '#b2a8bc', '#4a8cb0']],
+    model: { kind: 'hadrosaur', body: [4.4, 2.2, 2.4], neck: { len: 5.2, seg: 8, thick: .75 }, head: { len: .9, w: .42, h: .44, beak: .35 },
+      tail: { len: 5.6, seg: 9, thick: .8 }, legs: { front: 2.2, back: 2.3, thick: .62 }, feat: ['scales'] },
+    info: 'A walking berry farm the size of a house. Nothing on the island argues with it.'
+  },
+
+  mammoth: {
+    name: 'Mammoth', latin: 'Mammuthus steincaput', diet: 'herbivore', temper: 'neutral', tameType: 'knockout',
+    scale: 1.5, mass: 6000, eyeH: 3.4,
+    base: { health: 850, stamina: 400, torpor: 900, food: 3600, weight: 500, damage: 50, speed: 4.2, run: 8.4 },
+    grow: { health: .2, stamina: .1, torpor: .06, food: .1, weight: .04, damage: .017 },
+    torporDrain: 1.5, affinity: { base: 1300, perLevel: 62 }, eatDelay: 9,
+    prefer: ['kibble_regular', 'mejoberry', 'azulberry', 'amarberry'],
+    kibble: 'kibble_regular',
+    attack: { dmg: 50, range: 3.6, cd: 2.2, torpor: 0, knockback: 9 }, aggroRange: 0, fleeRange: 0, courage: 1, retaliate: true,
+    harvest: { wood: 7, thatch: 4, berry: 2 }, rideable: true, saddleLv: 46,
+    drops: { raw_meat: [22, 34], hide: [30, 46], pelt: [24, 40], keratin: [8, 14] }, xp: 80,
+    spawn: { biomes: ['mountain', 'highland'], weight: 2.4, group: [1, 3] },
+    voice: { pitch: 130, kind: 'horn', len: 1.4 },
+    colors: [['#6b4f38', '#c2a888', '#8a6a4a'], ['#4f4038', '#ab968a', '#6a5a4a'], ['#7a6448', '#cfb99a', '#9a7a58']],
+    model: { kind: 'stegosaur', body: [3.0, 1.7, 1.7], neck: { len: .6, seg: 2, thick: .7 }, head: { len: 1.0, w: .7, h: .7, beak: .3 },
+      tail: { len: 1.0, seg: 3, thick: .22 }, legs: { front: 1.5, back: 1.45, thick: .45 }, feat: ['fur', 'tusks', 'trunk'] },
+    info: 'Fur, tusks and a trunk: the best wood harvester on the island.'
+  },
+
+  theri: {
+    name: 'Therizinosaur', latin: 'Therizinosaurus multiensis', diet: 'herbivore', temper: 'aggressive', tameType: 'knockout',
+    scale: 1.35, mass: 3000, eyeH: 3.2,
+    base: { health: 870, stamina: 350, torpor: 700, food: 3000, weight: 365, damage: 45, speed: 5.2, run: 10 },
+    grow: { health: .2, stamina: .1, torpor: .06, food: .1, weight: .04, damage: .017 },
+    torporDrain: 1.4, affinity: { base: 1500, perLevel: 70 }, eatDelay: 8,
+    prefer: ['kibble_superior', 'mejoberry', 'tintoberry', 'amarberry'],
+    kibble: 'kibble_superior',
+    attack: { dmg: 45, range: 3.2, cd: 1.3, torpor: 0 }, aggroRange: 38, fleeRange: 0, courage: 1,
+    harvest: { wood: 5, thatch: 5, berry: 5, fiber: 6, hide: 3, meat: 2 }, rideable: true, saddleLv: 57,
+    drops: { raw_meat: [16, 24], hide: [22, 34], keratin: [6, 12] }, xp: 85,
+    spawn: { biomes: ['jungle', 'highland'], weight: 2, group: [1, 1] },
+    voice: { pitch: 260, kind: 'screech', len: .9 },
+    colors: [['#5f6a4a', '#c0c6a8', '#d0a83c'], ['#6a5a4a', '#c8bca8', '#c05a3c'], ['#4a5a5f', '#aebcc0', '#7ad0a0']],
+    model: { kind: 'theropod', body: [2.2, 1.3, 1.1], neck: { len: 1.4, seg: 5, thick: .34 }, head: { len: .7, w: .3, h: .34, beak: .4 },
+      tail: { len: 1.6, seg: 5, thick: .3 }, legs: { front: .9, back: 1.6, thick: .3 }, feat: ['feathers', 'bigclaws', 'stubarm'] },
+    info: 'Harvests everything, from berries to hide, with three metre claws.'
+  },
+
+  titanoboa: {
+    name: 'Titanoboa', latin: 'Titanoboa hiberna', diet: 'carnivore', temper: 'aggressive', tameType: 'passive',
+    scale: 1.3, mass: 400, eyeH: .6,
+    base: { health: 180, stamina: 200, torpor: 400, food: 1500, weight: 150, damage: 32, speed: 4.4, run: 7.5, swim: 8 },
+    grow: { health: .2, stamina: .1, torpor: .06, food: .1, weight: .04, damage: .017 },
+    torporDrain: .9, affinity: { base: 700, perLevel: 34 }, eatDelay: 7,
+    prefer: ['fert_egg', 'egg_dodo', 'egg_parasaur', 'raw_meat'],
+    passiveFood: ['egg_dodo', 'egg_parasaur', 'egg_trike'],
+    kibble: 'kibble_regular',
+    attack: { dmg: 32, range: 2.4, cd: 1.5, torpor: 14 }, aggroRange: 26, fleeRange: 0, courage: .9,
+    harvest: { meat: 2, hide: 2 }, rideable: false,
+    drops: { raw_meat: [8, 14], hide: [10, 18] }, xp: 40,
+    spawn: { biomes: ['swamp', 'jungle'], weight: 3, group: [1, 2] },
+    voice: { pitch: 320, kind: 'hiss', len: .9 },
+    colors: [['#3f4a30', '#9aa880', '#c9a83c'], ['#4a3f4a', '#a8a0a8', '#d04a4a'], ['#35404a', '#95a0a8', '#5ad0a0']],
+    model: { kind: 'snake', body: [1.2, .55, .55], neck: { len: 1.6, seg: 5, thick: .28 }, head: { len: .6, w: .3, h: .26, jaw: .5 },
+      tail: { len: 3.6, seg: 9, thick: .3 }, legs: {}, feat: ['scales', 'teeth'] },
+    info: 'Its bite carries venom that puts YOU to sleep. Tame it with eggs, carefully.'
+  },
+
+  meso: {
+    name: 'Mesopithecus', latin: 'Mesopithecus amicquam', diet: 'herbivore', temper: 'passive', tameType: 'passive',
+    scale: .55, mass: 40, eyeH: .9,
+    base: { health: 90, stamina: 250, torpor: 175, food: 900, weight: 70, damage: 8, speed: 4.2, run: 8 },
+    grow: { health: .2, stamina: .1, torpor: .06, food: .1, weight: .04, damage: .014 },
+    torporDrain: .35, affinity: { base: 220, perLevel: 12 }, eatDelay: 5,
+    prefer: ['kibble_basic', 'mejoberry', 'amarberry', 'tintoberry'],
+    passiveFood: ['mejoberry', 'amarberry', 'tintoberry'],
+    kibble: 'kibble_basic',
+    attack: { dmg: 8, range: 1.4, cd: 1.4, torpor: 0 }, aggroRange: 0, fleeRange: 9, courage: .2, curious: true,
+    harvest: { berry: 2, fiber: 2 }, rideable: false,
+    drops: { raw_meat: [2, 4], hide: [2, 5] }, xp: 10,
+    spawn: { biomes: ['jungle', 'highland'], weight: 5, group: [1, 3] },
+    voice: { pitch: 780, kind: 'chirp', len: .3 },
+    colors: [['#6b5a44', '#cbb89a', '#d0a040'], ['#4f4438', '#b4a48c', '#a0703c']],
+    model: { kind: 'theropod', body: [.7, .45, .4], neck: { len: .28, seg: 2, thick: .14 }, head: { len: .3, w: .2, h: .22, jaw: .16 },
+      tail: { len: 1.0, seg: 5, thick: .08 }, legs: { front: .5, back: .55, thick: .07 }, feat: ['fur', 'stubarm'] },
+    info: 'Throws things, steals things, and hands you berries. Feed it by hand.'
+  },
+
+  coel: {
+    name: 'Coelacanth', latin: 'Coelacanthus lazarus', diet: 'carnivore', temper: 'passive', tameType: 'passive',
+    scale: .7, mass: 40, eyeH: .4, aquatic: true,
+    base: { health: 40, stamina: 150, torpor: 100, food: 600, weight: 40, damage: 2, speed: 4, run: 4, swim: 7 },
+    grow: { health: .2, stamina: .1, torpor: .06, food: .1, weight: .04, damage: .01 },
+    torporDrain: .25, affinity: { base: 120, perLevel: 6 }, eatDelay: 4,
+    prefer: ['raw_meat', 'raw_fish'], passiveFood: ['raw_meat'],
+    kibble: 'kibble_basic',
+    attack: { dmg: 2, range: 1.2, cd: 2, torpor: 0 }, aggroRange: 0, fleeRange: 8, courage: .1,
+    harvest: { meat: 1.5, hide: .5 }, rideable: false,
+    drops: { raw_fish: [3, 6], hide: [1, 3] }, xp: 6,
+    spawn: { biomes: ['ocean'], weight: 7, group: [2, 5] },
+    voice: { pitch: 1100, kind: 'click', len: .2 },
+    colors: [['#4a6a7a', '#cfe0e4', '#8ad0e0'], ['#5a6a5a', '#d4e0d8', '#a0e0c0']],
+    model: { kind: 'aquatic', body: [.9, .45, .4], neck: { len: .1, seg: 1, thick: .2 }, head: { len: .35, w: .2, h: .22, beak: .2 },
+      tail: { len: .5, seg: 3, thick: .14 }, legs: {}, feat: ['flippers', 'dorsalfin', 'flukes'] },
+    info: 'Dinner that swims. The reason to make a fishing trip.'
+  },
 };
+/* --- breeding data: how long a pair takes, how long an egg needs, and the
+   temperature band that egg has to sit in, derived from where it lives ---- */
+const INCUB_BAND = { beach: 28, plains: 26, jungle: 30, swamp: 29, highland: 18, mountain: 8, ocean: 16 };
+for (const id in SPECIES) {
+  const sp = SPECIES[id];
+  const home = (sp.spawn.biomes && sp.spawn.biomes[0]) || 'plains';
+  const size = sp.base.health + sp.base.weight;
+  sp.matingTime = clamp(24 + size * .02, 24, 90);
+  sp.matingCooldown = clamp(240 + size * .25, 240, 900);
+  const band = INCUB_BAND[home] == null ? 26 : INCUB_BAND[home];
+  sp.incubTemp = [band - 12, band + 10];
+  sp.incubTime = clamp(180 + size * .35, 180, 900);
+  sp.matureTime = clamp(600 + size * 1.6, 600, 3600);
+  if (sp.aquatic || sp.id === 'megalodon') sp.liveBirth = true;
+  sp.gestationTime = sp.incubTime * .8;
+}
 const SPECIES_IDS = Object.keys(SPECIES);
 
 /* ============================================================================
@@ -1429,9 +1606,9 @@ const NODES = {
 /* --- biomes --------------------------------------------------------------- */
 const BIOMES = {
   ocean:    { name: 'Ocean', temp: 16, grass: 0 },
-  beach:    { name: 'Beach', temp: 30, grass: .25 },
+  beach:    { name: 'Beach', temp: 28, grass: .25 },
   plains:   { name: 'Grasslands', temp: 27, grass: 1 },
-  jungle:   { name: 'Jungle', temp: 32, grass: .8 },
+  jungle:   { name: 'Jungle', temp: 30, grass: .8 },
   swamp:    { name: 'Swamp', temp: 30, grass: .6 },
   highland: { name: 'Redwood Highlands', temp: 18, grass: .7 },
   mountain: { name: 'Snow Peaks', temp: -6, grass: .05 },
@@ -1468,7 +1645,7 @@ const TUNE = {
   },
   time: { dayLength: 1200, startHour: 8.5, sunriseHour: 5.6, sunsetHour: 19.2 },
   spawn: { budget: 120, radius: 460, despawnRadius: 620, minDist: 55, respawnDelay: 25 },
-  rates: { taming: 5, harvest: 2, xp: 2, spoil: 1, dinoFood: 1 },
+  rates: { taming: 5, harvest: 2, xp: 2, spoil: 1, dinoFood: 1, breeding: 5 },
   save: { slots: 3, autosaveEvery: 120 },
 };
 
@@ -2797,7 +2974,8 @@ const World = {
     const h = this.heightAt(x, z);
     const alt = -Math.max(0, h) * 0.085;
     const day = Math.sin((hour / 24) * TAU - Math.PI / 2 + .16);
-    return base + alt + day * 9 - (Sky.weather === 'rain' ? 4 : 0) - (Sky.weather === 'storm' ? 7 : 0);
+    const shade = Structures.shadeAt ? Structures.shadeAt(x, z) : 0;
+    return base + alt + day * 6 - shade - (Sky.weather === 'rain' ? 4 : 0) - (Sky.weather === 'storm' ? 7 : 0);
   },
 
   /* ---------- splat weights --------------------------------------------- */
@@ -4317,7 +4495,7 @@ const CreatureModel = {
     /* ---------------- legs ------------------------------------------------ */
     const legs = M.legs || {};
     const biped = kind === 'theropod' || kind === 'bird' || kind === 'flyer';
-    const noLegs = kind === 'aquatic';
+    const noLegs = kind === 'aquatic' || kind === 'snake';
     if (!noLegs) {
       const backLen = legs.back || legs.h || .8, frontLen = legs.front || legs.h || .7;
       const thick = legs.thick || .16;
@@ -4403,7 +4581,7 @@ const CreatureModel = {
     const restByKind = {
       theropod: [.40, -.34], hadrosaur: [.52, -.42], ceratopsian: [.16, -.12],
       stegosaur: [.20, -.16], ankylosaur: [.08, -.06], crocodile: [.02, 0],
-      bird: [.72, -.55], flyer: [.34, -.28], aquatic: [0, 0],
+      bird: [.72, -.55], flyer: [.34, -.28], aquatic: [0, 0], snake: [.10, -.05],
     };
     const rp = restByKind[kind] || [.2, -.15];
     parts.neckRest = rp[0];
@@ -4656,6 +4834,66 @@ const CreatureModel = {
         parts.tail[Math.min(i, parts.tail.length - 1)].add(k);
       }
     }
+    if (feat.indexOf('fur') >= 0) {
+      /* a shaggy coat: short cones over the back and flanks */
+      const furMat = new THREE.MeshStandardMaterial({ color: base.clone().lerp(belly, .25), roughness: .98 });
+      const rows = 9, perRow = 8;
+      for (let i = 0; i < rows; i++) {
+        const t = i / (rows - 1);
+        for (let k = 0; k < perRow; k++) {
+          const a = -Math.PI * .55 + (k / (perRow - 1)) * Math.PI * 1.1;
+          const g = new THREE.ConeGeometry(HH * .075, HH * .26, 4);
+          const f = new THREE.Mesh(g, furMat);
+          f.position.set(-L * .42 + t * L * .84, Math.cos(a) * HH * .52, Math.sin(a) * W * .52);
+          f.rotation.set(a * .9, 0, -Math.PI / 2 + a * .2);
+          body.add(f);
+        }
+      }
+    }
+    if (feat.indexOf('tusks') >= 0) {
+      const ivory = new THREE.MeshStandardMaterial({ color: 0xe4dcc4, roughness: .45 });
+      for (const s of [-1, 1]) {
+        for (let i = 0; i < 4; i++) {
+          const t = i / 3;
+          const seg = new THREE.Mesh(new THREE.CylinderGeometry(HH * (.10 - t * .05), HH * (.12 - t * .05), HH * .34, 6), ivory);
+          seg.position.set(M.head.len * (.5 + t * .7), -HH * (.05 + t * .16) + t * t * HH * .3, s * M.head.w * .55);
+          seg.rotation.z = Math.PI / 2 - t * 1.1;
+          parts.head.add(seg);
+        }
+      }
+    }
+    if (feat.indexOf('trunk') >= 0) {
+      parts.trunk = [];
+      let att = parts.head;
+      for (let i = 0; i < 5; i++) {
+        const g = new THREE.Group();
+        g.rotation.z = i === 0 ? -.5 : -.2;
+        const r = M.head.w * (.24 - i * .035);
+        const seg = new THREE.Mesh(paint(profileGeo([
+          { x: 0, y: 0, ry: r, rz: r },
+          { x: M.head.len * .34, y: 0, ry: r * .82, rz: r * .82 },
+        ], 7, false, i === 4), () => base.clone().multiplyScalar(.92)), mat);
+        g.add(seg);
+        g.position.x = i === 0 ? M.head.len * .82 : M.head.len * .34;
+        if (i === 0) g.position.y = -M.head.h * .18;
+        att.add(g);
+        parts.trunk.push(g);
+        att = g;
+      }
+    }
+    if (feat.indexOf('bigclaws') >= 0) {
+      const clawMat = new THREE.MeshStandardMaterial({ color: 0xd8cfae, roughness: .5 });
+      for (const A of parts.legs) {
+        if (!A.isArm) continue;
+        for (let i = 0; i < 3; i++) {
+          const c = new THREE.Mesh(new THREE.ConeGeometry(L * .035, L * .55, 5), clawMat);
+          c.position.set((i - 1) * L * .06, -A.len * .55, 0);
+          c.rotation.z = Math.PI * .5 + (i - 1) * .18;
+          c.rotation.x = .1;
+          A.knee.add(c);
+        }
+      }
+    }
     if (feat.indexOf('sail') >= 0) {
       const g = new THREE.BoxGeometry(L * .8, HH * .9, W * .06);
       const sail = new THREE.Mesh(paint(g, () => accent), matAccent);
@@ -4853,6 +5091,15 @@ class Creature {
     this.followDist = 7;
     this.wandering = false;
     this.eggTimer = sp.egg ? rnd(sp.eggRate * .5, sp.eggRate) : 0;
+    /* --- breeding ------------------------------------------------------- */
+    this.gender = Math.random() < .5 ? 'M' : 'F';
+    this.age = opts.baby ? .02 : 1;
+    this.mating = false;
+    this.matingProgress = 0;
+    this.matingCooldown = 0;
+    this.mutations = 0;
+    this.gestation = null;
+    this.wantsCare = null;
     this.aiLod = 0;
     this.lastAttacker = null;
     this.aggroT = 0;
@@ -4904,6 +5151,7 @@ class Creature {
   bonusLevels() { return Math.floor(this.baseLevel * TUNE.taming.bonusLevelFactor * this.tameEffect); }
   levelAfterTame() { return this.baseLevel + this.bonusLevels(); }
   displayName() { return this.name || this.sp.name; }
+  genderMark() { return this.gender === 'F' ? '\u2640' : '\u2642'; }
   isHostileTo(other) {
     if (this.tamed) return this.behavior === 'aggressive' || this.target === other;
     return this.sp.temper === 'aggressive' || this.sp.temper === 'apex';
@@ -5244,6 +5492,25 @@ class Creature {
         f.node.rotation.z = f.side * .15;
       }
     }
+    /* an elephant's trunk sways with the head */
+    if (p.trunk) {
+      for (let i = 0; i < p.trunk.length; i++) {
+        p.trunk[i].rotation.z = damp(p.trunk[i].rotation.z,
+          -.45 - i * .12 + Math.sin(this.animT * 1.3 - i * .5) * .10 - (this.state === 'graze' ? .25 : 0), 5, dt);
+        p.trunk[i].rotation.y = damp(p.trunk[i].rotation.y, Math.sin(this.animT * .9 - i * .4) * .1, 4, dt);
+      }
+    }
+    /* snakes slither: the whole body waves, not just the tail */
+    if (sp.model.kind === 'snake') {
+      const amp = moving ? .30 : .12;
+      const neckSegs = p.neck || [];
+      for (let i = 0; i < neckSegs.length; i++) {
+        neckSegs[i].rotation.y = Math.sin(this.animT * (moving ? 4.5 : 1.8) - i * .8) * amp;
+      }
+      for (let i = 0; i < tail.length; i++) {
+        tail[i].rotation.y = Math.sin(this.animT * (moving ? 4.5 : 1.8) - (i + neckSegs.length) * .8) * amp * 1.2;
+      }
+    }
     if (sp.aquatic && tail && tail.length) {
       for (let i = 0; i < tail.length; i++) {
         tail[i].rotation.y = Math.sin(this.animT * (4 + runFactor * 4) - i * .9) * (.16 + runFactor * .18);
@@ -5440,7 +5707,7 @@ Object.assign(Creature.prototype, {
     this.cur.stamina = Math.min(this.max('stamina'), this.cur.stamina + dt * (this.speed > 1 ? -3 : 8));
     if (this.cur.health <= 0) { this.die(null); return; }
 
-    if (this.tamed) this.updateTamed(dt);
+    if (this.tamed) { this.updateGrowth(dt); this.updateTamed(dt); }
     else this.updateWild(dt);
 
     if (this.eggTimer > 0 && this.tamed) {
@@ -6417,10 +6684,13 @@ const Combat = {
       else if (c.unconscious && !c.tamed) focus = { kind: 'tame', creature: c, label: 'Feed ' + c.sp.name + ' (Lv ' + c.level + ')', sub: 'Taming ' + Math.round(c.tameProgress / c.affinityNeeded * 100) + '%' };
       else if (c.tamed) {
         const saddled = !!c.saddle;
+        const baby = c.isBaby();
         focus = {
           kind: 'tamed', creature: c,
-          label: (c.sp.rideable && saddled ? 'Ride ' : 'Open ') + c.displayName(),
-          sub: (c.sp.rideable && !saddled ? 'Needs a ' + c.sp.name + ' Saddle · ' : '') + '[' + keyLabel(Input.binds.use2) + '] inventory',
+          label: baby ? (c.wantsCare ? 'Care for ' + c.displayName() : 'Open ' + c.displayName())
+            : (c.sp.rideable && saddled ? 'Ride ' : 'Open ') + c.displayName(),
+          sub: baby ? c.growthStage() + ' · ' + Math.round(c.age * 100) + '% grown'
+            : (c.sp.rideable && !saddled ? 'Needs a ' + c.sp.name + ' Saddle · ' : '') + '[' + keyLabel(Input.binds.use2) + '] inventory',
         };
       } else if (c.sp.tameType === 'passive' && !c.tamed) {
         focus = { kind: 'passive', creature: c, label: 'Feed ' + c.sp.name, sub: 'Hold food in your hand and approach slowly' };
@@ -6465,7 +6735,8 @@ const Combat = {
       case 'corpse': UI.openContainer(f.creature.inv, f.creature.sp.name + ' corpse'); break;
       case 'tamed': {
         const c = f.creature;
-        if (secondary || !c.sp.rideable || !c.saddle) UI.openDino(c);
+        if (secondary && c.isBaby() && c.wantsCare) { c.careFor(); break; }
+        if (secondary || !c.sp.rideable || !c.saddle || c.isBaby()) UI.openDino(c);
         else Riding.mount(c);
         break;
       }
@@ -6520,6 +6791,7 @@ const Riding = {
   canRide(c) {
     if (!c || !c.tamed || c.dead || c.unconscious) return false;
     if (!c.sp.rideable) { UI.toast(c.sp.name + ' cannot be ridden'); return false; }
+    if (c.isBaby && c.isBaby()) { UI.toast(c.displayName() + ' is too young to ride'); return false; }
     if (!c.saddle) { UI.toast('Put a ' + c.sp.name + ' Saddle on it first', 'bad'); return false; }
     return true;
   },
@@ -7280,6 +7552,202 @@ const PlayerModel = {
 };
 
 /* ============================================================================
+ * 65 · BREEDING — mating, fertilized eggs with real incubation temperature,
+ *   babies that grow up and demand care, imprinting, stat inheritance and
+ *   mutations. The long game of ARK, in one file.
+ * ==========================================================================*/
+const Breeding = {
+  eggTick: 0,
+
+  /* --------------------------------------------------------------- mating */
+  update(dt) {
+    const list = Creatures.tamedList;
+    for (let i = 0; i < list.length; i++) {
+      const a = list[i];
+      if (!a.tamed || a.dead || !a.mating || a.age < 1 || a.gender !== 'F') continue;
+      if (a.matingCooldown > 0) { a.matingCooldown -= dt; continue; }
+      if (a.cur.food < a.max('food') * .45) { a.matingProgress = 0; continue; }
+      /* find a willing male of the same species nearby */
+      let mate = null;
+      for (let j = 0; j < list.length; j++) {
+        const b = list[j];
+        if (b === a || b.dead || !b.mating || b.gender !== 'M') continue;
+        if (b.speciesId !== a.speciesId || b.age < 1) continue;
+        if (b.cur.food < b.max('food') * .45) continue;
+        if (Math.hypot(b.pos.x - a.pos.x, b.pos.z - a.pos.z) > 14) continue;
+        mate = b; break;
+      }
+      if (!mate) { a.matingProgress = damp(a.matingProgress || 0, 0, 1, dt); continue; }
+      a.matingProgress = (a.matingProgress || 0) + dt / (SPECIES[a.speciesId].matingTime || 40);
+      a.matingPartner = mate;
+      if (a.matingProgress >= 1) {
+        a.matingProgress = 0;
+        a.matingCooldown = (SPECIES[a.speciesId].matingCooldown || 300) * (1 / Math.max(.2, TUNE.rates.breeding || 1));
+        this.conceive(a, mate);
+      }
+    }
+    this.eggTick -= dt;
+    if (this.eggTick <= 0) { this.eggTick = 1; this.tickEggs(1); }
+  },
+
+  /** Roll the child's genetics and either lay an egg or start a gestation. */
+  conceive(mother, father) {
+    const sp = SPECIES[mother.speciesId];
+    const child = this.mixGenes(mother, father);
+    if (sp.liveBirth) {
+      mother.gestation = { t: (sp.gestationTime || 240) / Math.max(.2, TUNE.rates.breeding || 1), child };
+      UI.toast(mother.displayName() + ' is pregnant', 'good');
+    } else {
+      const meta = { fert: child, incub: 0, health: 1 };
+      const laid = Inventory.bag.add('fert_egg', 1, meta);
+      if (laid > 0) Loot.dropItem('fert_egg', 1, mother.pos.clone(), meta);
+      UI.toast(sp.name + ' laid a fertilized egg', 'good');
+      Sound.pickup();
+    }
+    Objectives.event('breed', mother);
+  },
+
+  /** Each stat takes the better parent's roll 55% of the time, and mutates rarely. */
+  mixGenes(mother, father) {
+    const keys = ['health', 'stamina', 'food', 'weight', 'damage', 'speed'];
+    const wild = {}, colors = Math.random() < .5 ? mother.parts.palette : father.parts.palette;
+    let mutations = (mother.mutations || 0) + (father.mutations || 0);
+    for (const k of keys) {
+      const hi = Math.max(mother.wild[k], father.wild[k]);
+      const lo = Math.min(mother.wild[k], father.wild[k]);
+      wild[k] = Math.random() < .55 ? hi : lo;
+      if (Math.random() < .025) { wild[k] += 2; mutations++; }      // mutation: +2 levels
+    }
+    let palette = colors.slice();
+    if (Math.random() < .06) {                                       // colour mutation
+      const c = new THREE.Color(palette[2]);
+      c.offsetHSL(Math.random(), .2, .05);
+      palette = [palette[0], palette[1], '#' + c.getHexString()];
+      mutations++;
+    }
+    const level = 1 + keys.reduce((n, k) => n + wild[k], 0);
+    return { sp: mother.speciesId, wild, palette, level, mutations, mother: mother.displayName(), father: father.displayName() };
+  },
+
+  /* ------------------------------------------------------------ incubation */
+  eggContainers() {
+    const out = [{ inv: Inventory.bag, pos: Player.pos }];
+    for (const s of Structures.list) if (s.inv) out.push({ inv: s.inv, pos: s.pos });
+    for (const b of Loot.bags) out.push({ inv: b.inv, pos: b.pos });
+    return out;
+  },
+  tickEggs(dt) {
+    for (const { inv, pos } of this.eggContainers()) {
+      for (let i = inv.slots_.length - 1; i >= 0; i--) {
+        const st = inv.slots_[i];
+        if (st.id !== 'fert_egg' || !st.fert) continue;
+        const sp = SPECIES[st.fert.sp];
+        const range = sp.incubTemp || [22, 32];
+        const temp = World.tempAt(pos.x, pos.z, Sky.time) + Structures.warmthAt(pos);
+        const inRange = temp >= range[0] && temp <= range[1];
+        if (inRange) {
+          st.incub = (st.incub || 0) + dt / ((sp.incubTime || 300) / Math.max(.2, TUNE.rates.breeding || 1));
+          st.health = Math.min(1, (st.health == null ? 1 : st.health) + dt * .02);
+        } else {
+          st.health = (st.health == null ? 1 : st.health) - dt * .006;
+          this.warnT = (this.warnT || 0) - dt;
+          if (this.warnT <= 0) {
+            this.warnT = 20;
+            UI.toast('Egg is too ' + (temp > range[1] ? 'hot' : 'cold')
+              + ' (' + Math.round(temp) + '\u00b0C, needs ' + range[0] + '\u2013' + range[1] + '\u00b0C)', 'bad');
+          }
+          if (st.health <= 0) {
+            inv.removeAt(i, 1);
+            UI.toast('A fertilized egg died \u2014 wrong temperature', 'bad');
+            continue;
+          }
+        }
+        if (st.incub >= 1) {
+          inv.removeAt(i, 1);
+          this.hatch(st.fert, pos);
+        }
+      }
+    }
+  },
+  hatch(gene, pos) {
+    const p = pos.clone();
+    p.x += rnd(-1.5, 1.5); p.z += rnd(-1.5, 1.5);
+    p.y = World.heightAt(p.x, p.z);
+    const c = Creatures.spawn(gene.sp, Math.max(1, gene.level), p, { palette: gene.palette, baby: true });
+    if (!c) return;
+    Object.assign(c.wild, gene.wild);
+    c.tamed = true;
+    c.owner = Player.name;
+    c.gender = Math.random() < .5 ? 'M' : 'F';
+    c.age = 0.02;
+    c.mutations = gene.mutations || 0;
+    c.imprint = 0;
+    c.parents = { mother: gene.mother, father: gene.father };
+    c.behavior = 'passive';
+    c.following = true;
+    c.cur.health = c.max('health') * .35;
+    c.cur.food = c.max('food') * .5;
+    c.inv.maxWeight = c.max('weight');
+    Creatures.tamedList.push(c);
+    Sound.tamed();
+    UI.center('A ' + c.sp.name + ' hatched!', gene.mutations ? gene.mutations + ' mutation(s) · keep it fed or it will starve'
+      : 'Keep it fed — babies eat fast and cannot defend themselves');
+    UI.askName(c);
+    Objectives.event('hatch', c);
+  },
+};
+
+/* ---- creature growth, imprinting and gestation live on the creature ---- */
+Object.assign(Creature.prototype, {
+  isBaby() { return this.age != null && this.age < 1; },
+  growthStage() {
+    if (this.age >= 1) return 'Adult';
+    if (this.age >= .5) return 'Adolescent';
+    if (this.age >= .1) return 'Juvenile';
+    return 'Baby';
+  },
+  updateGrowth(dt) {
+    if (this.gestation) {
+      this.gestation.t -= dt;
+      if (this.gestation.t <= 0) { Breeding.hatch(this.gestation.child, this.pos); this.gestation = null; }
+    }
+    if (this.age == null || this.age >= 1) return;
+    const sp = this.sp;
+    const rate = 1 / ((sp.matureTime || 900) / Math.max(.2, TUNE.rates.breeding || 1));
+    this.age = Math.min(1, this.age + dt * rate);
+    /* babies are small, weak and hungry */
+    const s = lerp(.28, 1, Math.pow(this.age, .7)) * (sp.scale || 1);
+    this.root.scale.setScalar(s);
+    this.height = this.parts.height * (s / (sp.scale || 1));
+    this.radius = Math.max(.3, this.parts.radius * (s / (sp.scale || 1)));
+    this.cur.food -= dt * this.max('food') * .0009;               // babies burn food fast
+    if (this.cur.food <= 0) this.cur.health -= dt * 2;
+    /* imprint requests */
+    this.imprintT = (this.imprintT || 120) - dt;
+    if (this.imprintT <= 0 && this.imprint < 1) {
+      this.imprintT = 180 / Math.max(.2, TUNE.rates.breeding || 1);
+      this.wantsCare = pick(['a cuddle', 'a walk', ITEMS[this.sp.prefer[1]] ? ITEMS[this.sp.prefer[1]].name : 'food']);
+      UI.toast(this.displayName() + ' wants ' + this.wantsCare + ' — press ' + keyLabel(Input.binds.use2) + ' to care for it');
+    }
+    if (this.age >= 1) {
+      this.root.scale.setScalar(sp.scale || 1);
+      UI.toast(this.displayName() + ' is fully grown', 'good');
+    }
+  },
+  careFor() {
+    if (!this.isBaby()) return false;
+    if (!this.wantsCare) { UI.toast(this.displayName() + ' does not need anything right now'); return false; }
+    this.imprint = Math.min(1, this.imprint + .18);
+    this.wantsCare = null;
+    this.cur.food = Math.min(this.max('food'), this.cur.food + this.max('food') * .12);
+    Sound.pickup();
+    UI.toast('Imprint on ' + this.displayName() + ': ' + Math.round(this.imprint * 100) + '%', 'good');
+    Player.addXp(12, 'Cared for a baby');
+    return true;
+  },
+});
+
+/* ============================================================================
  * 70 · ITEMS & INVENTORY — stacks with weight, durability and spoilage; the
  *   player's bag, hotbar and armour; crafting (personal and station); engrams.
  * ==========================================================================*/
@@ -7320,6 +7788,8 @@ class Container {
       if (def.dura) s.dura = (meta && meta.dura != null) ? meta.dura : def.dura;
       if (def.charges) s.charges = (meta && meta.charges != null) ? meta.charges : def.charges;
       if (def.spoil) s.spoil = (meta && meta.spoil != null) ? meta.spoil : def.spoil;
+      /* fertilized eggs carry their genetics and incubation with them */
+      if (meta && meta.fert) { s.fert = meta.fert; s.incub = meta.incub || 0; s.health = meta.health == null ? 1 : meta.health; }
       this.slots_.push(s);
       left -= take;
     }
@@ -7957,6 +8427,21 @@ const Structures = {
   },
 
   /* ----------------------------------------------------------- stations */
+  /** Cooling from a roof overhead: a shelter is the low-tech incubator. */
+  shadeAt(x, z) {
+    const list = this.near(x, z, 5);
+    for (const s of list) {
+      const d = s.def;
+      if (d.kind !== 'ceiling' && d.kind !== 'foundation') continue;
+      const [w, h, dp] = d.size;
+      const dx = x - s.pos.x, dz = z - s.pos.z;
+      const c = Math.cos(-s.yaw), sn = Math.sin(-s.yaw);
+      const lx = dx * c - dz * sn, lz = dx * sn + dz * c;
+      if (Math.abs(lx) < w / 2 && Math.abs(lz) < dp / 2 && s.pos.y > World.heightAt(x, z) + .5) return 6;
+    }
+    return 0;
+  },
+
   warmthAt(pos) {
     let warm = 0;
     const list = this.near(pos.x, pos.z, 12);
@@ -8457,7 +8942,9 @@ const UI = {
       np.classList.toggle('tamed', c.tamed);
       np.classList.toggle('hostile', !c.tamed && (c.sp.temper === 'aggressive' || c.sp.temper === 'apex'));
       np.querySelector('.nm').textContent = c.displayName();
-      np.querySelector('.lv').textContent = 'Lv ' + c.level + (c.tamed && c.owner ? ' · ' + c.owner : '');
+      np.querySelector('.lv').textContent = 'Lv ' + c.level
+        + (c.tamed ? ' ' + c.genderMark() + (c.isBaby() ? ' · ' + c.growthStage() : '') : '')
+        + (c.tamed && c.owner ? ' · ' + c.owner : '');
       np.querySelector('.bar.hp i').style.width = clamp01(c.cur.health / c.max('health')) * 100 + '%';
       const torBar = np.querySelector('.bar.tor');
       const torRatio = c.cur.torpor / c.max('torpor');
@@ -8468,7 +8955,8 @@ const UI = {
       tameBar.style.display = (!c.tamed && tameRatio > 0) ? '' : 'none';
       tameBar.querySelector('i').style.width = clamp01(tameRatio) * 100 + '%';
       const st = np.querySelector('.st');
-      st.textContent = c.unconscious ? 'Unconscious' : c.bolaT > 0 ? 'Tangled' : '';
+      st.textContent = c.unconscious ? 'Unconscious' : c.bolaT > 0 ? 'Tangled'
+        : (c.wantsCare ? 'Wants ' + c.wantsCare : c.matingProgress > 0 ? 'Mating ' + Math.round(c.matingProgress * 100) + '%' : '');
     }
     for (const [id, np] of this.nameplateMap) {
       if (!seen.has(id)) { np.remove(); this.nameplateMap.delete(id); }
@@ -8586,6 +9074,16 @@ Object.assign(UI, {
       if (parts.length) rows.push(['Eat', parts.join(', ')]);
     }
     if (it.tame) rows.push(['Taming', 'food ' + it.tame.food + ' · affinity ' + it.tame.affinity + (it.tame.diet !== 'any' ? ' · ' + it.tame.diet + 's' : '')]);
+    if (stack && stack.fert) {
+      const sp = SPECIES[stack.fert.sp];
+      const range = sp.incubTemp;
+      const now = Math.round(World.tempAt(Player.pos.x, Player.pos.z, Sky.time) + Structures.warmthAt(Player.pos));
+      rows.push(['Species', sp.name]);
+      rows.push(['Incubation', Math.round((stack.incub || 0) * 100) + '%']);
+      rows.push(['Needs', range[0] + '\u2013' + range[1] + '\u00b0C  (now ' + now + '\u00b0C)']);
+      rows.push(['Egg health', Math.round((stack.health == null ? 1 : stack.health) * 100) + '%']);
+      if (stack.fert.mutations) rows.push(['Mutations', stack.fert.mutations]);
+    }
     if (it.harvest) {
       const best = Object.entries(it.harvest).filter(e => e[1] >= 2).map(e => e[0]);
       if (best.length) rows.push(['Best for', best.join(', ')]);
@@ -8983,8 +9481,58 @@ Object.assign(UI, {
     info.style.cssText = 'margin-top:12px;font-size:12.5px;color:var(--bone-soft)';
     info.innerHTML = 'Melee damage <b>' + Math.round(c.max('damage')) + '</b> · Speed <b>' + c.max('speed').toFixed(1) + ' m/s</b><br>'
       + 'Taming effectiveness <b>' + Math.round(c.tameEffect * 100) + '%</b> · Imprint <b>' + Math.round(c.imprint * 100) + '%</b><br>'
-      + (c.sp.harvest ? 'Harvests: <b>' + Object.entries(c.sp.harvest).filter(e => e[1] >= 2).map(e => e[0]).join(', ') + '</b>' : '');
+      + 'Sex <b>' + (c.gender === 'F' ? 'Female \u2640' : 'Male \u2642') + '</b> · Stage <b>' + c.growthStage() + '</b>'
+      + (c.mutations ? ' · Mutations <b>' + c.mutations + '</b>' : '')
+      + (c.parents ? '<br>Parents: <b>' + c.parents.mother + '</b> \u00d7 <b>' + c.parents.father + '</b>' : '')
+      + (c.sp.harvest ? '<br>Harvests: <b>' + Object.entries(c.sp.harvest).filter(e => e[1] >= 2).map(e => e[0]).join(', ') + '</b>' : '');
     box.appendChild(info);
+
+    /* --- growing up ---------------------------------------------------- */
+    if (c.isBaby()) {
+      const g = el('div');
+      g.style.marginTop = '12px';
+      g.appendChild(el('div', 'sec-title', 'Growing up'));
+      const bar = el('div', 'tbar');
+      bar.innerHTML = '<div class="lab"><span>Maturation</span><b>' + Math.round(c.age * 100) + '%</b></div>'
+        + '<div class="track"><i style="width:' + (c.age * 100) + '%;background:var(--teal)"></i></div>';
+      g.appendChild(bar);
+      const im = el('div', 'tbar');
+      im.innerHTML = '<div class="lab"><span>Imprint</span><b>' + Math.round(c.imprint * 100) + '%</b></div>'
+        + '<div class="track"><i style="width:' + (c.imprint * 100) + '%;background:var(--amber)"></i></div>';
+      g.appendChild(im);
+      if (c.wantsCare) {
+        const want = el('div', 'chips');
+        const b = el('button', 'chip on', 'It wants ' + c.wantsCare + ' — care for it');
+        b.addEventListener('click', () => { c.careFor(); this.refreshDino(); });
+        want.appendChild(b);
+        g.appendChild(want);
+      }
+      box.appendChild(g);
+    }
+
+    /* --- breeding ------------------------------------------------------- */
+    const br = el('div');
+    br.style.marginTop = '12px';
+    br.appendChild(el('div', 'sec-title', 'Breeding'));
+    const brChips = el('div', 'chips');
+    const mate = el('button', 'chip' + (c.mating ? ' on' : ''), c.mating ? 'Mating enabled' : 'Enable mating');
+    mate.addEventListener('click', () => {
+      c.mating = !c.mating;
+      if (c.mating) { c.wandering = false; c.following = false; }
+      this.refreshDino();
+    });
+    brChips.appendChild(mate);
+    if (c.age < 1) mate.classList.add('locked');
+    br.appendChild(brChips);
+    const status = el('div');
+    status.style.cssText = 'margin-top:6px;font-size:12px;color:var(--bone-dim)';
+    status.innerHTML = c.age < 1 ? 'Too young to breed.'
+      : c.matingCooldown > 0 ? 'Ready to mate again in <b>' + fmtTime(c.matingCooldown) + '</b>'
+      : c.gestation ? 'Pregnant — gives birth in <b>' + fmtTime(c.gestation.t) + '</b>'
+      : c.matingProgress > 0 ? 'Mating… <b>' + Math.round(c.matingProgress * 100) + '%</b>'
+      : 'Enable mating on a male and a female of the same species, keep them close and fed.';
+    br.appendChild(status);
+    box.appendChild(br);
 
     const beh = el('div');
     beh.style.cssText = 'margin-top:14px;display:grid;gap:6px';
@@ -9132,7 +9680,7 @@ Object.assign(UI, {
         row('Ambience volume', '', i, v);
       }
     } else if (this.settingsTab === 'game') {
-      const rates = [['taming', 'Taming speed'], ['harvest', 'Harvest amount'], ['xp', 'XP rate'], ['dinoFood', 'Creature food drain']];
+      const rates = [['taming', 'Taming speed'], ['harvest', 'Harvest amount'], ['xp', 'XP rate'], ['dinoFood', 'Creature food drain'], ['breeding', 'Breeding speed']];
       for (const [k, label] of rates) {
         const [i, v] = slider(.5, 20, .5, TUNE.rates[k], val => { TUNE.rates[k] = val; Settings.save(); }, x => x + '×');
         row(label, '', i, v);
@@ -9305,6 +9853,8 @@ const SaveGame = {
         unconscious: c.unconscious, pos: [c.pos.x, c.pos.y, c.pos.z], yaw: c.yaw,
         cur: Object.assign({}, c.cur), wild: Object.assign({}, c.wild), tameLevels: Object.assign({}, c.tameLevels),
         tameProgress: c.tameProgress, tameEffect: c.tameEffect, imprint: c.imprint,
+        gender: c.gender, age: c.age, mating: c.mating, matingCooldown: c.matingCooldown,
+        mutations: c.mutations, parents: c.parents,
         behavior: c.behavior, following: c.following, wandering: c.wandering,
         saddle: c.saddle, inv: c.inv.serialize(), palette: c.parts.palette,
       })),
@@ -9393,6 +9943,10 @@ const SaveGame = {
       Object.assign(cr.wild, c.wild); Object.assign(cr.tameLevels, c.tameLevels);
       Object.assign(cr.cur, c.cur);
       cr.tameProgress = c.tameProgress; cr.tameEffect = c.tameEffect; cr.imprint = c.imprint || 0;
+      cr.gender = c.gender || cr.gender; cr.age = c.age == null ? 1 : c.age;
+      cr.mating = !!c.mating; cr.matingCooldown = c.matingCooldown || 0;
+      cr.mutations = c.mutations || 0; cr.parents = c.parents || null;
+      if (cr.age < 1) cr.root.scale.setScalar(lerp(.28, 1, Math.pow(cr.age, .7)) * (cr.sp.scale || 1));
       cr.behavior = c.behavior; cr.following = c.following; cr.wandering = c.wandering;
       cr.saddle = c.saddle || null;
       cr.yaw = c.yaw || 0;
@@ -9782,6 +10336,7 @@ const Game = {
     Combat.update(dt);
     Building.update(dt);
     Creatures.update(dt);
+    Breeding.update(dt);
     Structures.update(dt);
     Loot.update(dt);
     Particles.update(dt);
@@ -9840,7 +10395,7 @@ const Game = {
  * ==========================================================================*/
 window.__ark = {
   Game, World, Player, Camera, ViewModel, PlayerModel, Creatures, Inventory, Structures, Building, Flora, Sky, Gfx, UI, Combat, Riding, Taming,
-  Loot, Objectives, Particles, Physics, Sound, SaveGame, Settings, TUNE, SPECIES, ITEMS, RECIPES, ENGRAMS, STRUCTURES, NODES,
+  Loot, Objectives, Particles, Physics, Sound, SaveGame, Settings, Breeding, TUNE, SPECIES, ITEMS, RECIPES, ENGRAMS, STRUCTURES, NODES,
   CreatureModel, Creature,
   state: () => ({
     state: Game.state, fps: Math.round(Game.fps), pos: Player.pos.toArray().map(v => Math.round(v)),
