@@ -415,6 +415,70 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
   #menu .side{justify-self:start;width:min(420px,92vw)}
   #inventory .wbody{grid-template-columns:1fr}
 }
+
+/* ===== touch controls =================================================== */
+#touch{position:fixed;inset:0;z-index:65;pointer-events:none}
+#touch .tb{pointer-events:auto;display:flex;align-items:center;justify-content:center;
+  width:60px;height:60px;border-radius:50%;background:rgba(9,13,17,.5);
+  border:1px solid var(--line-2);backdrop-filter:blur(8px);font-size:20px;color:var(--bone);
+  text-shadow:0 2px 6px #000;transition:transform .08s,background .12s}
+#touch .tb:active,#touch .tb.on{background:rgba(240,168,66,.32);transform:scale(.93)}
+#touch .tb.big{width:82px;height:82px;font-size:28px}
+#touch .tb.wide{width:74px;height:52px;border-radius:26px;font-weight:700;letter-spacing:.06em}
+#touch .tb.sm{width:44px;height:44px;font-size:16px}
+#tbtns{position:absolute;right:18px;bottom:26px;display:grid;gap:10px;
+  grid-template-columns:repeat(2,auto);justify-items:center;align-items:center}
+#tbtns [data-touch=attack]{grid-column:2;grid-row:1/span 2}
+/* the menu row runs up the right edge so it never sits on the minimap */
+#ttop{position:absolute;right:18px;bottom:210px;display:flex;flex-direction:column;gap:8px}
+#tstick{position:absolute;left:24px;bottom:150px;width:132px;height:132px;pointer-events:auto;touch-action:none}
+#tstick .ring{position:absolute;inset:0;border-radius:50%;border:1px solid var(--line-2);
+  background:radial-gradient(circle,rgba(9,13,17,.42),rgba(9,13,17,.16))}
+#tstick .knob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;
+  border-radius:50%;background:rgba(233,228,216,.22);border:1px solid var(--line-2);
+  box-shadow:0 6px 20px rgba(0,0,0,.6)}
+body.touch #crosshair{opacity:.5}
+/* make room for the stick and the button cluster */
+body.touch #stats{width:200px;bottom:14px;gap:4px}
+body.touch #statusicons{bottom:300px}
+body.touch #hotbar{bottom:14px;transform:translateX(-50%) scale(.86);transform-origin:bottom center}
+body.touch #xprow{bottom:80px;width:300px}
+body.touch #minimap{width:132px}
+body.touch #minimap .frame{width:132px;height:132px}
+@media (max-height:520px){
+  body.touch #tstick{bottom:96px;width:108px;height:108px}
+  body.touch #ttop{bottom:170px}
+  body.touch #objective{display:none}
+}
+
+/* ===== photo mode ======================================================= */
+body.photo #hud,body.photo #fps,body.photo #center-msg{display:none!important}
+body.photo.hudon #hud{display:block!important}
+#photobar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:120;
+  display:flex;align-items:center;gap:16px;padding:10px 16px;border-radius:var(--r-lg);
+  background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(14px);
+  box-shadow:var(--shadow);max-width:min(1080px,96vw);flex-wrap:wrap}
+#photobar .pgrp{display:flex;align-items:center;gap:8px}
+#photobar .plab{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--bone-dim)}
+#photobar input[type=range]{width:104px;accent-color:var(--amber);background:transparent}
+#photobar select{padding:5px 8px;border-radius:var(--r-sm);border:1px solid var(--line-2);
+  background:var(--ink-3)}
+#photoframe{position:fixed;inset:0;z-index:110;pointer-events:none;opacity:0;transition:opacity .3s}
+#photoframe.on{opacity:1;box-shadow:inset 0 0 0 1px rgba(233,228,216,.12)}
+
+/* ===== right-to-left (Arabic) =========================================== */
+body.rtl{font-family:'Segoe UI','Noto Naskh Arabic','Geeza Pro',Tahoma,var(--font);
+  letter-spacing:0}
+body.rtl .mono,body.rtl #compass,body.rtl #minimap .coords,body.rtl #fps,
+body.rtl #clock,body.rtl #xprow{direction:ltr}
+body.rtl h1,body.rtl h2,body.rtl h3{letter-spacing:0}
+body.rtl .field .val,body.rtl .sbar .num,body.rtl .row .v,body.rtl .statup .v{text-align:left;direction:ltr}
+body.rtl #objective{border-left:0;border-right:2px solid var(--amber)}
+body.rtl #death h1,body.rtl .sec-title,body.rtl .ptop .ttl,body.rtl .tab,
+body.rtl .chip,body.rtl .tag{letter-spacing:0}
+body.rtl #boot .logo,body.rtl #menu h1{letter-spacing:.2em}
+body.rtl .kbd{direction:ltr;display:inline-block}
+body.rtl .maplegend span[style*="margin-inline-start"]{margin-inline-start:auto}
 </style>
 
 </head>
@@ -425,7 +489,7 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
 <div id="boot">
   <div class="wrap">
     <div class="logo">ARK</div>
-    <div class="sub">Survival Reborn</div>
+    <div class="sub" data-i18n="tagline">Survival Reborn</div>
     <div class="bar"><i id="bootbar"></i></div>
     <div class="msg" id="bootmsg">Waking the island…</div>
     <div class="tip" id="boottip"></div>
@@ -438,49 +502,54 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
   <div class="inner">
     <div class="brand">
       <h1>ARK</h1>
-      <div class="tagline">Survival Reborn</div>
+      <div class="tagline" data-i18n="tagline">Survival Reborn</div>
       <nav>
-        <button class="btn primary" id="mNew">▶  New Island</button>
-        <button class="btn" id="mContinue">⟲  Continue</button>
-        <button class="btn" id="mLoad">🗂  Load / Save Slots</button>
-        <button class="btn" id="mSettings">⚙  Settings</button>
-        <button class="btn" id="mControls">⌨  Controls</button>
+        <button class="btn primary" id="mNew">▶  <span data-i18n="play">New Island</span></button>
+        <button class="btn" id="mContinue">⟲  <span data-i18n="continue">Continue</span></button>
+        <button class="btn" id="mLoad">🗂  <span data-i18n="slots">Load / Save Slots</span></button>
+        <button class="btn" id="mSettings">⚙  <span data-i18n="settings">Settings</span></button>
+        <button class="btn" id="mControls">⌨  <span data-i18n="controls">Controls</span></button>
       </nav>
-      <div class="foot">Single file · runs offline · WASD to move · everything you see is generated at runtime</div>
+      <div class="foot" data-i18n="menuFoot">Single file · runs offline · WASD to move · everything you see is generated at runtime</div>
     </div>
     <div class="side" id="menuSide">
       <div class="mcard panel">
-        <h3>Island</h3>
-        <div class="field"><label>Survivor</label><input type="text" id="optName" maxlength="18" value="Survivor"></div>
-        <div class="field"><label>World seed</label><input type="text" id="optSeed" maxlength="12" value=""></div>
-        <div class="field"><label>Difficulty</label>
+        <h3 data-i18n="island">Island</h3>
+        <div class="field"><label data-i18n="survivor">Survivor</label><input type="text" id="optName" maxlength="18" value="Survivor"></div>
+        <div class="field"><label data-i18n="seed">World seed</label><input type="text" id="optSeed" maxlength="12" value=""></div>
+        <div class="field"><label data-i18n="difficulty">Difficulty</label>
           <select id="optDiff">
-            <option value="0.5">Easy — wild lv 1–75</option>
-            <option value="1" selected>Normal — wild lv 1–150</option>
-            <option value="1.5">Hard — wild lv 1–225</option>
+            <option value="0.5" data-i18n="diffEasy">Easy — wild lv 1–75</option>
+            <option value="1" selected data-i18n="diffNormal">Normal — wild lv 1–150</option>
+            <option value="1.5" data-i18n="diffHard">Hard — wild lv 1–225</option>
+          </select></div>
+        <div class="field"><label data-i18n="language">Language</label>
+          <select id="optLang">
+            <option value="en">English</option>
+            <option value="ar">العربية</option>
           </select></div>
       </div>
       <div class="mcard panel">
-        <h3>Rates</h3>
-        <div class="field slider"><label>Taming speed</label><input type="range" id="optTame" min="1" max="20" step="1" value="5"><div class="val" id="vTame">5×</div></div>
-        <div class="field slider"><label>Harvest</label><input type="range" id="optHarvest" min="1" max="10" step="1" value="2"><div class="val" id="vHarvest">2×</div></div>
-        <div class="field slider"><label>XP</label><input type="range" id="optXp" min="1" max="10" step="1" value="2"><div class="val" id="vXp">2×</div></div>
-        <div class="field slider"><label>Day length</label><input type="range" id="optDay" min="4" max="40" step="2" value="20"><div class="val" id="vDay">20m</div></div>
-        <div class="field slider"><label>Creatures</label><input type="range" id="optDinos" min="30" max="220" step="10" value="120"><div class="val" id="vDinos">120</div></div>
+        <h3 data-i18n="rates">Rates</h3>
+        <div class="field slider"><label data-i18n="tamingSpeed">Taming speed</label><input type="range" id="optTame" min="1" max="20" step="1" value="5"><div class="val" id="vTame">5×</div></div>
+        <div class="field slider"><label data-i18n="harvest">Harvest</label><input type="range" id="optHarvest" min="1" max="10" step="1" value="2"><div class="val" id="vHarvest">2×</div></div>
+        <div class="field slider"><label data-i18n="xp">XP</label><input type="range" id="optXp" min="1" max="10" step="1" value="2"><div class="val" id="vXp">2×</div></div>
+        <div class="field slider"><label data-i18n="dayLength">Day length</label><input type="range" id="optDay" min="4" max="40" step="2" value="20"><div class="val" id="vDay">20m</div></div>
+        <div class="field slider"><label data-i18n="creatures">Creatures</label><input type="range" id="optDinos" min="30" max="220" step="10" value="120"><div class="val" id="vDinos">120</div></div>
       </div>
       <div class="mcard panel">
-        <h3>Graphics</h3>
-        <div class="field"><label>Quality</label>
+        <h3 data-i18n="graphics">Graphics</h3>
+        <div class="field"><label data-i18n="quality">Quality</label>
           <select id="optQuality">
-            <option value="low">Low — potato friendly</option>
-            <option value="medium">Medium</option>
-            <option value="high" selected>High</option>
-            <option value="ultra">Ultra — big view distance</option>
+            <option value="low" data-i18n="qLow">Low — potato friendly</option>
+            <option value="medium" data-i18n="qMedium">Medium</option>
+            <option value="high" selected data-i18n="qHigh">High</option>
+            <option value="ultra" data-i18n="qUltra">Ultra — big view distance</option>
           </select></div>
         <div class="chips" style="margin-top:8px">
-          <button class="chip on" id="chShadow">Shadows</button>
-          <button class="chip on" id="chBloom">Bloom</button>
-          <button class="chip on" id="chGrass">Grass</button>
+          <button class="chip on" id="chShadow" data-i18n="shadows">Shadows</button>
+          <button class="chip on" id="chBloom" data-i18n="bloom">Bloom</button>
+          <button class="chip on" id="chGrass" data-i18n="grass">Grass</button>
         </div>
       </div>
     </div>
@@ -495,7 +564,7 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
   <div id="compass"><div class="strip"></div></div>
   <div id="minimap"><div class="frame"><canvas id="mmcv" width="336" height="336"></canvas></div><div class="coords" id="mmcoords">LAT 50.0  LON 50.0</div></div>
   <div id="clock"></div>
-  <div id="objective"><div class="lab">Objective</div><div class="txt" id="objTxt">—</div><div class="hint" id="objHint"></div></div>
+  <div id="objective"><div class="lab" data-i18n="objective">Objective</div><div class="txt" id="objTxt">—</div><div class="hint" id="objHint"></div></div>
   <div id="stats"></div>
   <div id="statusicons"></div>
   <div id="xprow"><span id="lvl">Lv 1</span><div class="track"><i id="xpfill"></i></div><span id="xptxt" class="mono">0 / 100</span></div>
@@ -509,33 +578,71 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
 <div id="fps"></div>
 <div id="fadeout"></div>
 
+<!-- ===================== touch controls ===================== -->
+<div id="touch" class="hidden">
+  <div id="tstick"><div class="ring"></div><div class="knob"></div></div>
+  <div id="tbtns">
+    <button class="tb wide" data-touch="interact">E</button>
+    <button class="tb" data-touch="jump">⤒</button>
+    <button class="tb" data-touch="crouch">⤓</button>
+    <button class="tb big" data-touch="attack">✊</button>
+    <button class="tb" data-touch="alt">◎</button>
+  </div>
+  <div id="ttop">
+    <button class="tb sm" data-touch="inventory">🎒</button>
+    <button class="tb sm" data-touch="map">🗺</button>
+    <button class="tb sm" data-touch="build">🔨</button>
+    <button class="tb sm" data-touch="sprint">»</button>
+    <button class="tb sm" data-touch="pause">⏸</button>
+  </div>
+</div>
+
+<!-- ===================== photo mode ===================== -->
+<div id="photobar" class="hidden">
+  <div class="pgrp"><span class="plab" data-i18n="pmFilter">Filter</span>
+    <select id="pmFilter">
+      <option value="none" data-i18n="pmNone">None</option>
+      <option value="warm" data-i18n="pmWarm">Golden</option>
+      <option value="cool" data-i18n="pmCool">Cold</option>
+      <option value="noir" data-i18n="pmNoir">Noir</option>
+      <option value="sepia" data-i18n="pmSepia">Sepia</option>
+      <option value="vivid" data-i18n="pmVivid">Vivid</option>
+    </select></div>
+  <div class="pgrp"><span class="plab" data-i18n="pmFov">FOV</span><input type="range" id="pmFov" min="20" max="110" step="1" value="70"></div>
+  <div class="pgrp"><span class="plab" data-i18n="pmTime">Time</span><input type="range" id="pmTime" min="0" max="1" step="0.005" value="0.35"></div>
+  <div class="pgrp"><span class="plab" data-i18n="pmVig">Vignette</span><input type="range" id="pmVig" min="0" max="1" step="0.02" value="0.35"></div>
+  <div class="pgrp"><button class="chip on" id="pmHud" data-i18n="pmHud">HUD</button></div>
+  <div class="pgrp"><button class="btn sm primary" id="pmShot" data-i18n="pmShot">Save PNG</button>
+    <button class="btn sm ghost" id="pmExit"><span data-i18n="pmExit">Exit</span> <span class="kbd">P</span></button></div>
+</div>
+
 <!-- ===================== inventory ===================== -->
 <div id="inventory" class="screen">
   <div class="win panel">
     <div class="wtop">
-      <h2>Inventory</h2>
+      <h2 data-i18n="inventory">Inventory</h2>
       <span class="tag" id="invLevelTag">Level 1</span>
       <div class="spacer"></div>
-      <button class="btn sm ghost" id="invStatsBtn">Stats &amp; Engrams</button>
-      <button class="btn sm ghost" id="invClose">Close <span class="kbd">I</span></button>
+      <button class="btn sm ghost" id="invStatsBtn" data-i18n="statsEngrams">Stats &amp; Engrams</button>
+      <button class="btn sm ghost" id="invClose"><span data-i18n="close">Close</span> <span class="kbd">I</span></button>
     </div>
     <div class="wbody">
       <div class="invpane" id="paneYou">
-        <div class="ptop"><span class="ttl">You</span><div class="spacer"></div>
+        <div class="ptop"><span class="ttl" data-i18n="you">You</span><div class="spacer"></div>
           <span class="wt" id="youWeight">0 / 100</span>
-          <input class="search" id="youSearch" placeholder="search"></div>
+          <input class="search" id="youSearch" placeholder="search" data-i18n-ph="search"></div>
         <div class="grid" id="youGrid"></div>
       </div>
       <div class="invpane" id="paneCraft">
-        <div class="ptop"><span class="ttl" id="craftTitle">Crafting</span><div class="spacer"></div>
-          <input class="search" id="craftSearch" placeholder="search"></div>
+        <div class="ptop"><span class="ttl" id="craftTitle" data-i18n="crafting">Crafting</span><div class="spacer"></div>
+          <input class="search" id="craftSearch" placeholder="search" data-i18n-ph="search"></div>
         <div class="craftlist" id="craftList"></div>
         <div class="queue hidden" id="craftQueue"><span id="queueTxt">—</span><div class="track"><i id="queueFill"></i></div></div>
       </div>
       <div class="invpane" id="paneOther">
-        <div class="ptop"><span class="ttl" id="otherTitle">Container</span><div class="spacer"></div>
+        <div class="ptop"><span class="ttl" id="otherTitle" data-i18n="container">Container</span><div class="spacer"></div>
           <span class="wt" id="otherWeight"></span>
-          <button class="btn sm ghost" id="takeAll">Take all</button></div>
+          <button class="btn sm ghost" id="takeAll" data-i18n="takeAll">Take all</button></div>
         <div class="grid" id="otherGrid"></div>
       </div>
     </div>
@@ -545,15 +652,15 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
 <!-- ===================== character / engrams ===================== -->
 <div id="charsheet" class="screen">
   <div class="win panel" style="max-width:1080px">
-    <div class="wtop"><h2>Survivor</h2><div class="spacer"></div>
+    <div class="wtop"><h2 data-i18n="survivor">Survivor</h2><div class="spacer"></div>
       <span class="tag" id="csPoints">0 stat points</span>
       <span class="tag" id="csEngrams">0 engram points</span>
-      <button class="btn sm ghost" id="csClose">Close</button></div>
+      <button class="btn sm ghost" id="csClose" data-i18n="close">Close</button></div>
     <div class="wbody" style="grid-template-columns:360px 1fr">
-      <div class="invpane"><div class="ptop"><span class="ttl">Stats</span></div>
+      <div class="invpane"><div class="ptop"><span class="ttl" data-i18n="stats">Stats</span></div>
         <div class="scroll" id="csStats"></div></div>
-      <div class="invpane"><div class="ptop"><span class="ttl">Engrams</span><div class="spacer"></div>
-        <input class="search" id="engSearch" placeholder="search"></div>
+      <div class="invpane"><div class="ptop"><span class="ttl" data-i18n="engrams">Engrams</span><div class="spacer"></div>
+        <input class="search" id="engSearch" placeholder="search" data-i18n-ph="search"></div>
         <div class="scroll" id="csEngList" style="display:grid;gap:7px;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));align-content:start"></div></div>
     </div>
   </div>
@@ -566,30 +673,30 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
       <div class="who">
         <h2 id="tmName">Creature</h2>
         <div class="meta" id="tmMeta">Level 1 · Unconscious</div>
-        <div class="tbar hp"><div class="lab"><span>Health</span><b id="tmHpTxt">0/0</b></div><div class="track"><i id="tmHp"></i></div></div>
-        <div class="tbar tor"><div class="lab"><span>Torpidity</span><b id="tmTorTxt">0/0</b></div><div class="track"><i id="tmTor"></i></div></div>
-        <div class="tbar food"><div class="lab"><span>Food</span><b id="tmFoodTxt">0/0</b></div><div class="track"><i id="tmFood"></i></div></div>
-        <div class="tbar prog"><div class="lab"><span>Taming progress</span><b id="tmProgTxt">0%</b></div><div class="track"><i id="tmProg"></i></div></div>
+        <div class="tbar hp"><div class="lab"><span data-i18n="health">Health</span><b id="tmHpTxt">0/0</b></div><div class="track"><i id="tmHp"></i></div></div>
+        <div class="tbar tor"><div class="lab"><span data-i18n="torpor">Torpidity</span><b id="tmTorTxt">0/0</b></div><div class="track"><i id="tmTor"></i></div></div>
+        <div class="tbar food"><div class="lab"><span data-i18n="food">Food</span><b id="tmFoodTxt">0/0</b></div><div class="track"><i id="tmFood"></i></div></div>
+        <div class="tbar prog"><div class="lab"><span data-i18n="tamingProgress">Taming progress</span><b id="tmProgTxt">0%</b></div><div class="track"><i id="tmProg"></i></div></div>
       </div>
       <div class="tinfo">
-        <div class="tstat"><span>Taming effectiveness</span><b id="tmEff">100%</b></div>
-        <div class="tstat"><span>Level after taming</span><b id="tmAfter">1</b></div>
-        <div class="tstat"><span>Wakes up in</span><b id="tmWake">—</b></div>
-        <div class="tstat"><span>Torpor drain</span><b id="tmDrain">—</b></div>
-        <div class="tstat"><span>Preferred food</span><b id="tmPref">—</b></div>
-        <div class="tstat"><span>Diet</span><b id="tmDiet">—</b></div>
+        <div class="tstat"><span data-i18n="tamingEff">Taming effectiveness</span><b id="tmEff">100%</b></div>
+        <div class="tstat"><span data-i18n="levelAfter">Level after taming</span><b id="tmAfter">1</b></div>
+        <div class="tstat"><span data-i18n="wakesIn">Wakes up in</span><b id="tmWake">—</b></div>
+        <div class="tstat"><span data-i18n="torporDrain">Torpor drain</span><b id="tmDrain">—</b></div>
+        <div class="tstat"><span data-i18n="preferred">Preferred food</span><b id="tmPref">—</b></div>
+        <div class="tstat"><span data-i18n="diet">Diet</span><b id="tmDiet">—</b></div>
       </div>
     </div>
     <div id="tamewarn" class="hidden"></div>
     <div class="wbody" style="grid-template-columns:1fr 1fr">
       <div class="invpane">
-        <div class="ptop"><span class="ttl">You</span><div class="spacer"></div><span class="wt" id="tmYouWeight"></span></div>
+        <div class="ptop"><span class="ttl" data-i18n="you">You</span><div class="spacer"></div><span class="wt" id="tmYouWeight"></span></div>
         <div class="grid" id="tmYouGrid"></div>
       </div>
       <div class="invpane">
-        <div class="ptop"><span class="ttl" id="tmInvTitle">Creature inventory</span><div class="spacer"></div>
+        <div class="ptop"><span class="ttl" id="tmInvTitle" data-i18n="creatureInv">Creature inventory</span><div class="spacer"></div>
           <span class="wt" id="tmOtherWeight"></span>
-          <button class="btn sm ghost" id="tmClose">Close <span class="kbd">Esc</span></button></div>
+          <button class="btn sm ghost" id="tmClose"><span data-i18n="close">Close</span> <span class="kbd">Esc</span></button></div>
         <div class="grid" id="tmGrid"></div>
       </div>
     </div>
@@ -600,12 +707,12 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
 <div id="dinopanel" class="screen">
   <div class="win panel" style="max-width:1080px">
     <div class="wtop"><h2 id="dpName">Dino</h2><span class="tag" id="dpLevel">Lv 1</span><div class="spacer"></div>
-      <button class="btn sm ghost" id="dpRename">Rename</button>
-      <button class="btn sm ghost" id="dpClose">Close</button></div>
+      <button class="btn sm ghost" id="dpRename" data-i18n="rename">Rename</button>
+      <button class="btn sm ghost" id="dpClose" data-i18n="close">Close</button></div>
     <div class="wbody" style="grid-template-columns:330px 1fr">
-      <div class="invpane"><div class="ptop"><span class="ttl">Creature</span></div>
+      <div class="invpane"><div class="ptop"><span class="ttl" data-i18n="creature">Creature</span></div>
         <div class="scroll" id="dpStats"></div></div>
-      <div class="invpane"><div class="ptop"><span class="ttl">Inventory</span><div class="spacer"></div>
+      <div class="invpane"><div class="ptop"><span class="ttl" data-i18n="inventory">Inventory</span><div class="spacer"></div>
         <span class="wt" id="dpWeight"></span></div>
         <div class="grid" id="dpGrid"></div></div>
     </div>
@@ -615,17 +722,17 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
 <!-- ===================== map ===================== -->
 <div id="map" class="screen">
   <div class="win panel">
-    <div class="wtop"><h2>The Island</h2><div class="spacer"></div>
+    <div class="wtop"><h2 data-i18n="theIsland">The Island</h2><div class="spacer"></div>
       <span class="tag" id="mapCoord"></span>
-      <button class="btn sm ghost" id="mapClose">Close <span class="kbd">M</span></button></div>
+      <button class="btn sm ghost" id="mapClose"><span data-i18n="close">Close</span> <span class="kbd">M</span></button></div>
     <div id="mapwrap"><canvas id="mapcv" width="720" height="720"></canvas><div id="maplayer"></div></div>
     <div class="maplegend">
-      <span><i style="background:#4fd6c4"></i>You</span>
-      <span><i style="background:#f0a842"></i>Bed</span>
-      <span><i style="background:#7fd45b"></i>Tamed</span>
-      <span><i style="background:#e0524a"></i>Death</span>
-      <span><i style="background:#9a6ae0"></i>Supply drop</span>
-      <span style="margin-left:auto;color:var(--bone-dim)">Click the map to set a waypoint</span>
+      <span><i style="background:#4fd6c4"></i><span data-i18n="you">You</span></span>
+      <span><i style="background:#f0a842"></i><span data-i18n="bed">Bed</span></span>
+      <span><i style="background:#7fd45b"></i><span data-i18n="tamed">Tamed</span></span>
+      <span><i style="background:#e0524a"></i><span data-i18n="death">Death</span></span>
+      <span><i style="background:#9a6ae0"></i><span data-i18n="drop">Supply drop</span></span>
+      <span style="margin-inline-start:auto;color:var(--bone-dim)" data-i18n="mapHint">Click the map to set a waypoint</span>
     </div>
   </div>
 </div>
@@ -633,9 +740,9 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
 <!-- ===================== settings ===================== -->
 <div id="settings" class="screen">
   <div class="win panel" style="max-width:820px">
-    <div class="wtop"><h2>Settings</h2><div class="spacer"></div><button class="btn sm ghost" id="setClose">Close</button></div>
-    <div class="tabs"><button class="tab on" data-tab="gfx">Graphics</button><button class="tab" data-tab="game">Gameplay</button>
-      <button class="tab" data-tab="keys">Controls</button><button class="tab" data-tab="save">Saves</button></div>
+    <div class="wtop"><h2 data-i18n="settings">Settings</h2><div class="spacer"></div><button class="btn sm ghost" id="setClose" data-i18n="close">Close</button></div>
+    <div class="tabs"><button class="tab on" data-tab="gfx" data-i18n="graphics">Graphics</button><button class="tab" data-tab="game" data-i18n="gameplay">Gameplay</button>
+      <button class="tab" data-tab="keys" data-i18n="controls">Controls</button><button class="tab" data-tab="save" data-i18n="saves">Saves</button></div>
     <div class="scroll" id="setBody"></div>
   </div>
 </div>
@@ -643,15 +750,15 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
 <!-- ===================== pause ===================== -->
 <div id="pause" class="screen">
   <div class="win panel">
-    <div class="wtop"><h2>Paused</h2><div class="spacer"></div></div>
+    <div class="wtop"><h2 data-i18n="paused">Paused</h2><div class="spacer"></div></div>
     <div style="padding:18px">
-      <div class="sec-title">Island</div>
+      <div class="sec-title" data-i18n="island">Island</div>
       <div id="pauseInfo" style="font-size:12.5px;color:var(--bone-soft)"></div>
       <nav>
-        <button class="btn primary" id="pResume">Resume</button>
-        <button class="btn" id="pSave">Save game</button>
-        <button class="btn" id="pSettings">Settings</button>
-        <button class="btn" id="pMenu">Quit to menu</button>
+        <button class="btn primary" id="pResume" data-i18n="resume">Resume</button>
+        <button class="btn" id="pSave" data-i18n="saveGame">Save game</button>
+        <button class="btn" id="pSettings" data-i18n="settings">Settings</button>
+        <button class="btn" id="pMenu" data-i18n="quitMenu">Quit to menu</button>
       </nav>
     </div>
   </div>
@@ -660,11 +767,11 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
 <!-- ===================== death ===================== -->
 <div id="death">
   <div class="box panel">
-    <h1>You Died</h1>
+    <h1 data-i18n="youDied">You Died</h1>
     <div class="cause" id="deathCause">Killed by a Raptor</div>
-    <div class="info" id="deathInfo">Your body and everything you carried is waiting where you fell.</div>
-    <div class="acts"><button class="btn primary" id="respawnBed">Respawn at bed</button>
-      <button class="btn" id="respawnBeach">Respawn on a random beach</button></div>
+    <div class="info" id="deathInfo" data-i18n="deathInfo">Your body and everything you carried is waiting where you fell.</div>
+    <div class="acts"><button class="btn primary" id="respawnBed" data-i18n="respawnBed">Respawn at bed</button>
+      <button class="btn" id="respawnBeach" data-i18n="respawnBeach">Respawn on a random beach</button></div>
   </div>
 </div>
 
@@ -1457,6 +1564,7 @@ const SPECIES = {
 const INCUB_BAND = { beach: 28, plains: 26, jungle: 30, swamp: 29, highland: 18, mountain: 8, ocean: 16 };
 for (const id in SPECIES) {
   const sp = SPECIES[id];
+  sp.id = id;
   const home = (sp.spawn.biomes && sp.spawn.biomes[0]) || 'plains';
   const size = sp.base.health + sp.base.weight;
   sp.matingTime = clamp(24 + size * .02, 24, 90);
@@ -2393,7 +2501,7 @@ const DEFAULT_BINDS = {
   use: 'KeyE', use2: 'KeyF', reload: 'KeyR', drop: 'KeyG', toggleView: 'KeyV',
   inventory: 'KeyI', charsheet: 'KeyC', map: 'KeyM', build: 'KeyB', rotate: 'KeyQ',
   whistleFollow: 'KeyJ', whistleStop: 'KeyU', whistleAttack: 'KeyT', whistlePassive: 'KeyY',
-  light: 'KeyL', help: 'KeyH', pause: 'Escape',
+  light: 'KeyL', help: 'KeyH', pause: 'Escape', photo: 'KeyP',
 };
 const KEY_LABEL = {
   Space: 'Space', ShiftLeft: 'L Shift', ShiftRight: 'R Shift', ControlLeft: 'L Ctrl', ControlRight: 'R Ctrl',
@@ -2427,7 +2535,9 @@ const Input = {
     });
     addEventListener('contextmenu', e => { if (this.locked) e.preventDefault(); });
     addEventListener('mousemove', e => {
-      if (!this.locked || !this.enabled) return;
+      if (!this.locked) return;
+      if (typeof Photo !== 'undefined' && Photo.active) { Photo.look(e.movementX || 0, e.movementY || 0); return; }
+      if (!this.enabled) return;
       Player.look(e.movementX || 0, e.movementY || 0);
     });
     addEventListener('wheel', e => { if (this.locked) { this.wheel += Math.sign(e.deltaY); e.preventDefault(); } }, { passive: false });
@@ -2446,14 +2556,616 @@ const Input = {
     this.listening = null;
     UI.buildSettings();
   },
-  down(action) { return this.enabled && !!this.keys[this.binds[action]]; },
-  pressed(action) { const c = this.binds[action]; return this.enabled && !!this.edge[c]; },
+  down(action) {
+    if (!this.enabled) return false;
+    if (Touch.active && Touch.down(action)) return true;
+    return !!this.keys[this.binds[action]];
+  },
+  pressed(action) {
+    if (!this.enabled) return false;
+    if (Touch.active && Touch.pressed(action)) return true;
+    return !!this.edge[this.binds[action]];
+  },
   rawPressed(code) { return !!this.edge[code]; },
+  /** movement as an axis, so the virtual stick is analogue and keys are not */
+  axisFwd() {
+    if (Touch.active && Touch.stick.mag > .14) return Touch.stick.y * Touch.stick.mag;
+    return (this.down('forward') ? 1 : 0) - (this.down('back') ? 1 : 0);
+  },
+  axisStr() {
+    if (Touch.active && Touch.stick.mag > .14) return Touch.stick.x * Touch.stick.mag;
+    return (this.down('right') ? 1 : 0) - (this.down('left') ? 1 : 0);
+  },
   endFrame() {
     this.edge = {}; this.wheel = 0; this.hotbarPick = -1;
     this.mouse.leftEdge = false; this.mouse.rightEdge = false;
+    Touch.endFrame();
   },
 };
+
+/* ============================================================================
+ * 35 · LANGUAGES — the whole interface in English and Arabic, including every
+ *   item and creature name, with right-to-left layout when Arabic is on.
+ * ==========================================================================*/
+const I18N = {
+  lang: 'en',
+
+  ui: {
+    /* menu */
+    play: ['New Island', 'جزيرة جديدة'],
+    continue: ['Continue', 'متابعة'],
+    slots: ['Load / Save Slots', 'ملفات الحفظ'],
+    settings: ['Settings', 'الإعدادات'],
+    controls: ['Controls', 'التحكم'],
+    island: ['Island', 'الجزيرة'],
+    survivor: ['Survivor', 'الناجي'],
+    seed: ['World seed', 'بذرة العالم'],
+    difficulty: ['Difficulty', 'الصعوبة'],
+    rates: ['Rates', 'المعدّلات'],
+    tamingSpeed: ['Taming speed', 'سرعة الترويض'],
+    harvest: ['Harvest', 'الحصاد'],
+    xp: ['XP', 'الخبرة'],
+    dayLength: ['Day length', 'طول اليوم'],
+    creatures: ['Creatures', 'الكائنات'],
+    graphics: ['Graphics', 'الرسوميات'],
+    quality: ['Quality', 'الجودة'],
+    shadows: ['Shadows', 'الظلال'],
+    bloom: ['Bloom', 'التوهّج'],
+    grass: ['Grass', 'العشب'],
+    language: ['Language', 'اللغة'],
+    tagline: ['Survival Reborn', 'البقاء من جديد'],
+    /* menu extras */
+    menuFoot: ['Single file · runs offline · WASD to move · everything you see is generated at runtime',
+               'ملف واحد · يعمل بلا إنترنت · WASD للحركة · كل ما تراه مولَّد أثناء التشغيل'],
+    diffEasy: ['Easy — wild lv 1–75', 'سهل — بري ١–٧٥'],
+    diffNormal: ['Normal — wild lv 1–150', 'عادي — بري ١–١٥٠'],
+    diffHard: ['Hard — wild lv 1–225', 'صعب — بري ١–٢٢٥'],
+    qLow: ['Low — potato friendly', 'منخفضة — لأجهزة ضعيفة'],
+    qMedium: ['Medium', 'متوسطة'],
+    qHigh: ['High', 'عالية'],
+    qUltra: ['Ultra — big view distance', 'فائقة — مدى رؤية بعيد'],
+    gameplay: ['Gameplay', 'اللعب'],
+    saves: ['Saves', 'الحفظ'],
+    creature: ['Creature', 'الكائن'],
+    death: ['Death', 'الموت'],
+    mapHint: ['Click the map to set a waypoint', 'انقر الخريطة لوضع علامة'],
+    deathInfo: ['Your body and everything you carried is waiting where you fell.',
+                'جثّتك وكل ما كنت تحمله ينتظرك حيث سقطت.'],
+    /* photo mode */
+    pmFilter: ['Filter', 'مرشّح'], pmNone: ['None', 'بدون'], pmWarm: ['Golden', 'ذهبي'],
+    pmCool: ['Cold', 'بارد'], pmNoir: ['Noir', 'أبيض وأسود'], pmSepia: ['Sepia', 'سيبيا'],
+    pmVivid: ['Vivid', 'زاهي'], pmFov: ['FOV', 'زاوية الرؤية'], pmTime: ['Time', 'الوقت'],
+    pmVig: ['Vignette', 'تعتيم الأطراف'], pmHud: ['HUD', 'الواجهة'],
+    pmShot: ['Save PNG', 'حفظ صورة'], pmExit: ['Exit', 'خروج'],
+    pmOn: ['Photo mode — WASD fly · mouse look · P to leave',
+           'وضع التصوير — WASD للطيران · الفأرة للنظر · P للخروج'],
+    saved: ['Screenshot saved', 'حُفظت الصورة'],
+    touchControls: ['Touch controls', 'أزرار اللمس'],
+    helpLine: ['WASD move · Shift sprint · E interact · F creature inventory · I inventory · C character · M map · B build · P photo · J/U/T whistles · V camera',
+               'WASD للحركة · Shift للركض · E للتفاعل · F لحقيبة الكائن · I للحقيبة · C للشخصية · M للخريطة · B للبناء · P للتصوير · J/U/T للصفير · V للكاميرا'],
+    /* hud */
+    health: ['Health', 'الصحة'], stamina: ['Stamina', 'اللياقة'], oxygen: ['Oxygen', 'الأكسجين'],
+    food: ['Food', 'الطعام'], water: ['Water', 'الماء'], weight: ['Weight', 'الوزن'],
+    torpor: ['Torpidity', 'التخدير'], level: ['Level', 'المستوى'],
+    objective: ['Objective', 'الهدف'],
+    /* inventory */
+    inventory: ['Inventory', 'الحقيبة'],
+    you: ['You', 'أنت'],
+    crafting: ['Crafting', 'التصنيع'],
+    container: ['Container', 'الصندوق'],
+    takeAll: ['Take all', 'خذ الكل'],
+    search: ['search', 'بحث'],
+    close: ['Close', 'إغلاق'],
+    statsEngrams: ['Stats & Engrams', 'الإحصاءات والرسومات'],
+    stats: ['Stats', 'الإحصاءات'],
+    engrams: ['Engrams', 'الرسومات الهندسية'],
+    statPoints: ['stat points', 'نقاط إحصاء'],
+    engramPoints: ['engram points', 'نقاط رسومات'],
+    /* taming */
+    tamingEff: ['Taming effectiveness', 'فعالية الترويض'],
+    levelAfter: ['Level after taming', 'المستوى بعد الترويض'],
+    wakesIn: ['Wakes up in', 'يستيقظ خلال'],
+    torporDrain: ['Torpor drain', 'انخفاض التخدير'],
+    preferred: ['Preferred food', 'الطعام المفضّل'],
+    diet: ['Diet', 'النظام الغذائي'],
+    tamingProgress: ['Taming progress', 'تقدّم الترويض'],
+    unconscious: ['Unconscious', 'فاقد الوعي'],
+    creatureInv: ['Creature inventory', 'حقيبة الكائن'],
+    /* creature panel */
+    behaviour: ['Behaviour', 'السلوك'],
+    passive: ['passive', 'مسالم'], neutral: ['neutral', 'محايد'], aggressive: ['aggressive', 'عدواني'],
+    follow: ['Follow me', 'اتبعني'], following: ['Following', 'يتبعك'], wander: ['Wander', 'تجوّل'],
+    ride: ['Ride', 'اركب'], needsSaddle: ['Needs saddle', 'يحتاج سرجاً'],
+    saddle: ['Saddle', 'السرج'], rename: ['Rename', 'إعادة تسمية'],
+    breeding: ['Breeding', 'التكاثر'], growingUp: ['Growing up', 'النمو'],
+    maturation: ['Maturation', 'النضج'], imprint: ['Imprint', 'الارتباط'],
+    enableMating: ['Enable mating', 'تفعيل التزاوج'], matingOn: ['Mating enabled', 'التزاوج مفعّل'],
+    /* map & misc */
+    theIsland: ['The Island', 'الجزيرة'],
+    bed: ['Bed', 'السرير'], body: ['Body', 'الجثة'], tamed: ['Tamed', 'مروَّض'],
+    drop: ['Supply drop', 'صندوق إمداد'], waypoint: ['Waypoint', 'علامة'],
+    paused: ['Paused', 'إيقاف مؤقّت'], resume: ['Resume', 'استئناف'],
+    saveGame: ['Save game', 'حفظ اللعبة'], quitMenu: ['Quit to menu', 'الخروج للقائمة'],
+    youDied: ['You Died', 'لقد مُت'],
+    respawnBed: ['Respawn at bed', 'العودة عند السرير'],
+    respawnBeach: ['Respawn on a random beach', 'العودة على شاطئ عشوائي'],
+    photoMode: ['Photo mode', 'وضع التصوير'],
+    /* stages */
+    baby: ['Baby', 'صغير'], juvenile: ['Juvenile', 'يافع'], adolescent: ['Adolescent', 'مراهق'], adult: ['Adult', 'بالغ'],
+    male: ['Male', 'ذكر'], female: ['Female', 'أنثى'],
+  },
+
+  items: {
+    thatch: 'قش', wood: 'خشب', stone: 'حجر', flint: 'صوّان', fiber: 'ألياف', hide: 'جلد', pelt: 'فرو',
+    chitin: 'كيتين', keratin: 'كيراتين', metal_ore: 'خام معدن', metal: 'سبيكة معدن', crystal: 'بلّور',
+    obsidian: 'سبج', oil: 'نفط', charcoal: 'فحم', sparkpowder: 'مسحوق شرر', gunpowder: 'بارود',
+    fertilizer: 'سماد', rot: 'لحم فاسد', amarberry: 'توت أمار', azulberry: 'توت أزول', tintoberry: 'توت تينتو',
+    mejoberry: 'توت ميجو', narcoberry: 'توت مخدّر', stimberry: 'توت منبّه', raw_meat: 'لحم نيء',
+    prime_meat: 'لحم فاخر نيء', cooked_meat: 'لحم مطهو', cooked_prime: 'لحم فاخر مطهو', raw_fish: 'سمك نيء',
+    narcotic: 'مخدّر', stimulant: 'منبّه', medbrew: 'شراب طبي', waterskin: 'قربة ماء',
+    kibble_basic: 'طعام أساسي', kibble_simple: 'طعام بسيط', kibble_regular: 'طعام عادي', kibble_superior: 'طعام فاخر',
+    egg_dodo: 'بيضة دودو', egg_parasaur: 'بيضة باراصور', egg_raptor: 'بيضة رابتور', egg_trike: 'بيضة ترايك',
+    egg_rex: 'بيضة ريكس', fert_egg: 'بيضة مخصّبة', element: 'عنصر', trophy_broodmother: 'كأس ملكة العنكبوت',
+    fists: 'قبضتان', torch: 'مشعل', stone_pick: 'معول حجري', stone_hatchet: 'فأس حجري',
+    metal_pick: 'معول معدني', metal_hatchet: 'فأس معدني', spear: 'رمح خشبي', pike: 'رمح معدني',
+    club: 'هراوة', slingshot: 'مقلاع', bow: 'قوس', crossbow: 'قوس نشّاب', bola: 'بولا',
+    arrow_stone: 'سهم حجري', arrow_tranq: 'سهم مخدّر', tranq_dart: 'سهم تخدير معدني',
+    pistol: 'مسدس', shotgun: 'بندقية خرطوش', rifle: 'بندقية طويلة', bullet: 'رصاصة', shell: 'خرطوشة',
+    grenade: 'قنبلة يدوية', spyglass: 'منظار', gasoline: 'بنزين',
+    seed_mejo: 'بذرة ميجو', seed_amar: 'بذرة أمار', seed_narco: 'بذرة مخدّرة', seed_carrot: 'بذرة جزر صخري',
+    seed_longrass: 'بذرة عشب طويل', rockarrot: 'جزر صخري', longrass: 'عشب طويل',
+    hide_hat: 'قبعة جلد', hide_shirt: 'قميص جلد', hide_pants: 'سروال جلد', hide_boots: 'حذاء جلد',
+    cloth_hat: 'قبعة قماش', cloth_shirt: 'قميص قماش', chitin_hat: 'خوذة كيتين', chitin_chest: 'درع كيتين',
+    metal_hat: 'خوذة معدن', metal_chest: 'درع معدن', metal_legs: 'ساقا معدن', metal_boots: 'حذاء معدن',
+  },
+  structures: {
+    foundation_thatch: 'أساس قش', wall_thatch: 'جدار قش', ceiling_thatch: 'سقف قش', doorway_thatch: 'إطار باب قش',
+    door_thatch: 'باب قش', foundation_wood: 'أساس خشب', wall_wood: 'جدار خشب', ceiling_wood: 'سقف خشب',
+    doorway_wood: 'إطار باب خشب', door_wood: 'باب خشب', ramp_wood: 'منحدر خشب', pillar_wood: 'عمود خشب',
+    gateway_wood: 'بوابة خشب', gate_wood: 'باب بوابة', foundation_stone: 'أساس حجر', wall_stone: 'جدار حجر',
+    ceiling_stone: 'سقف حجر', doorway_stone: 'إطار باب حجر', door_stone: 'باب حجر',
+    campfire: 'نار مخيّم', torch_stand: 'مشعل ثابت', mortar: 'هاون ومدقّة', box_wood: 'صندوق تخزين',
+    bed_simple: 'سرير بسيط', cookpot: 'قدر طبخ', trough: 'مذود طعام', preserve: 'صندوق حفظ',
+    forge: 'فرن صهر', smithy: 'ورشة حدادة', crop_plot: 'حوض زراعة', generator: 'مولّد كهرباء',
+    lamp: 'مصباح', fridge: 'ثلاجة', ac_unit: 'مكيّف هواء',
+  },
+  species: {
+    dodo: 'دودو', parasaur: 'باراصور', trike: 'ترايسيراتوبس', stego: 'ستيغوصور', raptor: 'رابتور',
+    dilo: 'ديلوفوصور', carno: 'كارنوتوروس', rex: 'تيرانوصور', ptera: 'تيرانودون', anky: 'أنكيلوصور',
+    doedic: 'دويديكوروس', sarco: 'ساركوسوخس', ichthy: 'إكثيوصور', megalodon: 'ميغالودون',
+    spino: 'سبينوصور', argent: 'أرجنتافيس', bronto: 'برونتوصور', mammoth: 'ماموث', theri: 'ثيريزينوصور',
+    titanoboa: 'تيتانوبوا', meso: 'ميزوبيثيكوس', coel: 'سيلاكانث', broodmother: 'ملكة العنكبوت',
+  },
+  nodes: {
+    tree: 'شجرة', redwood: 'سكويا', palm: 'نخلة', deadtree: 'شجرة ميتة', bush: 'شجيرة توت',
+    narcobush: 'شجيرة توت مخدّر', fiberplant: 'نبتة ألياف', fern: 'سرخس', flowers: 'أزهار برّية',
+    reed: 'قصب', log: 'جذع ساقط', smallrock: 'حصى', rock: 'صخرة', bigrock: 'صخرة كبيرة',
+    metalnode: 'عرق معدن', crystalnode: 'بلّور', obsidiannode: 'سبج', oilnode: 'عرق نفط',
+  },
+  stations: {
+    campfire: 'نار مخيّم', mortar: 'هاون ومدقّة', cookpot: 'قدر طبخ', forge: 'فرن صهر',
+    smithy: 'ورشة حدادة', preserve: 'صندوق حفظ', trough: 'مذود طعام', box: 'صندوق تخزين',
+    crop: 'حوض زراعة', generator: 'مولّد كهرباء', lamp: 'مصباح', fridge: 'ثلاجة',
+    ac: 'مكيّف هواء', bed: 'سرير',
+  },
+  biomes: {
+    ocean: 'المحيط', beach: 'الشاطئ', plains: 'السهول', jungle: 'الأدغال', swamp: 'المستنقع',
+    highland: 'المرتفعات', mountain: 'قمم الثلج',
+  },
+
+  /* Runtime prose: toasts, prompts, objectives, settings rows. Keyed by the
+     English sentence, so a missing entry simply stays English. */
+  speciesInfo: {
+    anky: "مثقاب معدني حيّ. هذا هو الترويض الذي يفتح عصر المعادن.",
+    argent: "الطائر العامل: يحمل الوزن، ويطير بعيداً، ويسرق فرائسك.",
+    bronto: "مزرعة توت بحجم بيت. لا شيء في الجزيرة يجادله.",
+    broodmother: "حارسة الجزيرة. استدعِها عند مسلّة — وأحضر جيشاً.",
+    carno: "أسرع مفترس كبير في الجزيرة. يسبقك دائماً.",
+    coel: "عشاء يسبح. سبب كافٍ لرحلة صيد.",
+    dilo: "يبصق سمّاً يُعمي ويرفع تخديرك أنت. اقتله أو روّضه، لكن لا تتجاهله.",
+    dodo: "غير مؤذٍ، في كل مكان، ومصدر البيض الذي يصنع الطعام الأساسي.",
+    doedic: "يحوّل الصخور إلى مخزون حجارة. يتكوّر عند الذعر.",
+    ichthy: "يسبح إليك بدافع الفضول. أطعمه سمكة بيدك — بلا مخدّرات.",
+    mammoth: "فرو وأنياب وخرطوم: أفضل جامع خشب في الجزيرة.",
+    megalodon: "لا تسبح ليلاً. بل لا تسبح أصلاً.",
+    meso: "يرمي الأشياء ويسرقها ويناولك التوت. أطعمه بيدك.",
+    parasaur: "يهرب من كل شيء، وينفخ منبّهاً عند اقتراب مفترس. أول مركوب هادئ لك.",
+    ptera: "تصغر الجزيرة لحظة تمتلك واحداً. نفور — يطير بمجرد أن تشهر قوسك.",
+    raptor: "سريع، يصطاد في مجموعات، ويطاردك عبر الشاطئ. قيّده ببولا واضربه بالهراوة فتحصل على أول مركوب حربي.",
+    rex: "لا يُروَّض إلا بخطة حقيقية: فخّ، وقوس نشّاب، وكومة مخدّرات، ولحم فاخر.",
+    sarco: "يملك المستنقع ومصبّات الأنهار. سريع في الماء، أخرق على اليابسة.",
+    spino: "ملك النهر. أسرع في الماء من أي شيء يمكنك مسابقته.",
+    stego: "مزرعة توت تمشي، وفي مؤخرتها أشواك.",
+    theri: "يحصد كل شيء، من التوت إلى الجلد، بمخالب طولها ثلاثة أمتار.",
+    titanoboa: "عضّته تحمل سمّاً يُنيمك أنت. روّضه بالبيض، بحذر.",
+    trike: "اتركه يتركك. اضربه مرة واحدة فيهجم. أفضل جامع توت في البداية.",
+  },
+  phr: {
+    "corpse": "جثة",
+    "Craft a ": "اصنع ",
+    "Equip ": "جهّز ",
+    "Name your ": "سمِّ ",
+    "Put food in its inventory: it eats on its own while unconscious.": "ضع طعاماً في حقيبته: يأكل بنفسه وهو فاقد الوعي.",
+    "care for it": "اعتنِ به",
+    "needs": "يحتاج",
+    "unequip": "انزع",
+    "day ": "يوم ",
+    "erased": "مُسح",
+    "tames": "مروَّض",
+    "Enable mating on a male and a female of the same species, keep them close and fed.": "فعّل التزاوج على ذكر وأنثى من النوع نفسه، وأبقهما متقاربين ومطعَمين.",
+    "Load": "تحميل",
+    "Mating…": "يتزاوج…",
+    "Pregnant — gives birth in": "حامل — تلد خلال",
+    "Ready to mate again in": "جاهز للتزاوج ثانية خلال",
+    "Save": "حفظ",
+    "Seed": "البذرة",
+    "Too young to breed.": "صغير جداً على التكاثر.",
+    "empty": "فارغ",
+    "min": "دقيقة",
+    "pts": "نقاط",
+    "structures": "مبنى",
+    "tamed creatures": "كائن مروَّض",
+    "Punch trees for Thatch and bushes for Berries — your fists are a real tool.": "اضرب الأشجار للقش والشجيرات للتوت — قبضتاك أداة حقيقية.",
+    "Aim for the head: headshots deal 2.5× damage AND 2.5× torpor.": "صوّب نحو الرأس: الإصابة في الرأس تضاعف الضرر والتخدير ٢٫٥ مرة.",
+    "A Wooden Club barely hurts but stacks Torpidity fast — perfect for small tames.": "الهراوة الخشبية بالكاد تؤذي لكنها ترفع التخدير بسرعة — مثالية للترويض الصغير.",
+    "Narcoberries and Narcotic keep an unconscious creature asleep. Bring plenty.": "التوت المخدّر والمخدّر يبقيان الكائن نائماً. أحضر الكثير منهما.",
+    "If a creature wakes up mid-tame, all taming progress is lost.": "إذا استيقظ الكائن أثناء الترويض ضاع كل التقدّم.",
+    "Kibble tames faster AND keeps taming effectiveness high — more bonus levels.": "الطعام المخصّص يروّض أسرع ويبقي الفعالية عالية — مستويات إضافية أكثر.",
+    "Four Wooden Gateways make a trap. That is how you tame a Rex and live.": "أربع بوابات خشبية تصنع فخّاً. هكذا تروّض ريكس وتبقى حياً.",
+    "Trikes harvest berries, Ankylos harvest metal, Doedicurus harvests stone.": "الترايك يحصد التوت، والأنكيلو يحصد المعدن، والدويديكوروس يحصد الحجر.",
+    "Build a bed: without one you respawn on a random beach.": "ابنِ سريراً: بدونه تعود على شاطئ عشوائي.",
+    "Raptors hunt in packs. Bola one before the rest arrive.": "الرابتور يصطاد في مجموعات. قيّد واحداً ببولا قبل وصول البقية.",
+    "Sleep in a bed to skip the night — the island keeps growing while you do.": "نم في سرير لتتخطّى الليل — والجزيرة تواصل النمو وأنت نائم.",
+    "Press P for photo mode: fly the camera anywhere, grade the shot, save a PNG.": "اضغط P لوضع التصوير: حلّق بالكاميرا، ولوّن اللقطة، واحفظها صورة.",
+    "Breed a pair, keep the egg warm, and imprint on the baby for stronger stats.": "زاوج بين اثنين، وأبقِ البيضة دافئة، وارتبط بالصغير لإحصاءات أقوى.",
+    "The obelisks take a tribute. Bring an army before you pay it.": "المسلّات تطلب جزية. أحضر جيشاً قبل أن تدفعها.",
+    "Sleep until morning": "نم حتى الصباح",
+    "You can only sleep after dark": "لا يمكنك النوم إلا بعد حلول الظلام",
+    "It is not safe to sleep — ": "النوم غير آمن — ",
+    "Eat and drink before you sleep": "كُل واشرب قبل أن تنام",
+    "Morning": "الصباح",
+    "You slept through the night": "نمت طوال الليل",
+    "Harvests": "يحصد",
+    "Melee damage": "قوة الضرب",
+    "Mutations": "الطفرات",
+    "Parents": "الوالدان",
+    "Sex": "الجنس",
+    "Speed": "السرعة",
+    "Stage": "المرحلة",
+    "locked": "مقفل",
+    "Taming speed": "سرعة الترويض",
+    "Day length": "طول اليوم",
+    "On-screen stick and buttons": "\u0639\u0635\u0627 \u0648\u0623\u0632\u0631\u0627\u0631 \u0639\u0644\u0649 \u0627\u0644\u0634\u0627\u0634\u0629",
+    " Supply Drop": " \u0635\u0646\u062f\u0648\u0642 \u0625\u0645\u062f\u0627\u062f",
+    "Sex": "\u0627\u0644\u062c\u0646\u0633",
+    "Stage": "\u0627\u0644\u0645\u0631\u062d\u0644\u0629",
+    "% effectiveness": "٪ فعالية",
+    "% grown": "٪ نمو",
+    "5 Narcoberries + 1 Spoiled Meat · keeps a tame asleep": "٥ توت مخدّر + لحم فاسد · يبقي الفريسة نائمة",
+    "A bad meal": "وجبة فاسدة",
+    "A crop is ready to harvest": "محصول جاهز للحصاد",
+    "A very long fall": "سقطة طويلة جداً",
+    "Adolescent": "مراهق",
+    "Adult": "بالغ",
+    "Also fills your waterskin": "ويملأ قربتك أيضاً",
+    "Ambience volume": "صوت المحيط",
+    "Armour": "الدرع",
+    "Attack my target": "هاجم هدفي",
+    "Autosaved": "حفظ تلقائي",
+    "Awake": "مستيقظ",
+    "Baby": "صغير",
+    "Back at your bed": "عدت عند سريرك",
+    "Back in the daylight": "عدت إلى ضوء النهار",
+    "Behaviour": "السلوك",
+    "Best for": "الأفضل لـ",
+    "Blinded": "أعمى",
+    "Bloom & grading": "التوهّج والتدرّج اللوني",
+    "Blue": "أزرق",
+    "Blue Obelisk": "المسلّة الزرقاء",
+    "Breeding speed": "سرعة التكاثر",
+    "Build a foundation and a bed": "ابنِ أساساً وسريراً",
+    "Built ": "بنيت ",
+    "Care for ": "اعتنِ بـ",
+    "Cared for a baby": "اعتنيت بصغير",
+    "Caught in your own blast": "أوقعك انفجارك",
+    "Close ": "أغلق ",
+    "Cold ": "برد ",
+    "Craft a Bow and Tranquilizer Arrows": "اصنع قوساً وسهام تخدير",
+    "Craft a Wooden Club": "اصنع هراوة خشبية",
+    "Craft a saddle and ride your tame": "اصنع سرجاً واركب فريستك",
+    "Crafted": "صُنع",
+    "Crafting ": "يصنع ",
+    "Creature food drain": "استهلاك طعام الكائنات",
+    "Creature population": "عدد الكائنات",
+    "Damage": "الضرر",
+    "Day ": "يوم ",
+    "Deep Shaft": "البئر العميق",
+    "Defeated the Broodmother": "هزمت ملكة العنكبوت",
+    "Dehydration": "العطش",
+    "Dismounted": "ترجّلت",
+    "Draw distance, shadows, foliage": "مدى الرسم والظلال والنباتات",
+    "Drink": "اشرب",
+    "Drop": "ارمِ",
+    "Drowned": "غرقت",
+    "Durability": "المتانة",
+    "Eat": "كُل",
+    "Eat berries and drink water": "كُل التوت واشرب الماء",
+    "Egg health": "صحة البيضة",
+    "Egg is too ": "البيضة شديدة ال",
+    "Every objective complete — go tame a Rex": "اكتملت كل الأهداف — اذهب وروّض ريكس",
+    "Everything you carried is in a bag where you fell": "كل ما كنت تحمله في حقيبة حيث سقطت",
+    "Export save to file": "تصدير الحفظ إلى ملف",
+    "Extinguish": "أطفئه",
+    "Fed ": "أطعمت ",
+    "Feed ": "أطعم ",
+    "Feed it until it is tamed": "أطعمه حتى يُروَّض",
+    "Field of view": "زاوية الرؤية",
+    "Follow me": "اتبعني",
+    "Food poisoning": "تسمّم غذائي",
+    "Food poisoning!": "تسمّم غذائي!",
+    "Fortitude": "التحمّل",
+    "Frozen Hollow": "الجوف المتجمّد",
+    "Game saved to slot ": "حُفظت اللعبة في الملف ",
+    "Gather Wood, Stone and Flint": "اجمع الخشب والحجر والصوّان",
+    "Get closer — slowly": "اقترب أكثر — ببطء",
+    "Green": "أخضر",
+    "Green Obelisk": "المسلّة الخضراء",
+    "Growing up": "النمو",
+    "Harvest ": "احصد ",
+    "Harvest amount": "كمية الحصاد",
+    "Harvested ": "حصدت ",
+    "Heat stroke": "ضربة شمس",
+    "Hit it to harvest": "اضربه للحصاد",
+    "Hit it with a pick or hatchet · [": "اضربه بمعول أو فأس · [",
+    "Hit it with the club until its purple Torpidity bar fills": "اضربه بالهراوة حتى يمتلئ شريط التخدير البنفسجي",
+    "Hold food in your hand and approach slowly": "أمسك طعاماً بيدك واقترب ببطء",
+    "Hollowing out the caves…": "نحفر الكهوف…",
+    "Hot ": "حرّ ",
+    "How many wild creatures roam nearby": "كم كائناً برياً يجول حولك",
+    "Hungry": "جائع",
+    "Hypothermia": "انخفاض الحرارة",
+    "Imprint on ": "ارتباط ",
+    "Incubation": "الحضانة",
+    "Insulation": "العزل",
+    "Inventory full — ": "الحقيبة ممتلئة — ",
+    "Invert Y axis": "عكس المحور الرأسي",
+    "It calls for help": "يستنجد",
+    "It is enraged": "إنه غاضب",
+    "It is pitch black in here — light a torch": "الظلام دامس هنا — أشعل مشعلاً",
+    "It is waking up — force-feed Narcoberries or Narcotic!": "إنه يستيقظ — أطعمه توتاً مخدّراً أو مخدّراً فوراً!",
+    "It wants ": "يريد ",
+    "Juvenile": "يافع",
+    "Keep it fed — babies eat fast and cannot defend themselves": "أبقه مطعَماً — الصغار يأكلون بسرعة ولا يدافعون عن أنفسهم",
+    "Kill it, or it kills you — there is no way out until one of you falls": "اقتلها أو تقتلك — لا مخرج حتى يسقط أحدكما",
+    "Killed a ": "قتلت ",
+    "Knock out a Dodo or a Parasaur": "اخدع دودو أو باراصور حتى يفقد وعيه",
+    "Knocked out": "مخدَّر",
+    "Knocked unconscious and eaten": "فقدت الوعي ثم أُكلت",
+    "Later": "لاحقاً",
+    "Learn ": "تعلّم ",
+    "Learn a building engram first (press ": "تعلّم رسم بناء أولاً (اضغط ",
+    "Learn and craft a Stone Pick": "تعلّم واصنع معولاً حجرياً",
+    "Learn the engram at level 5 — the club knocks creatures out without killing them": "تعلّم الرسم عند المستوى ٥ — الهراوة تُفقد الوعي دون قتل",
+    "Learn the engram first": "تعلّم الرسم أولاً",
+    "Learn the engram in the character screen": "تعلّم الرسم من شاشة الشخصية",
+    "Learned ": "تعلّمت ",
+    "Leave ": "غادر ",
+    "Left click a tree with your fists · 10 needed": "انقر بزر الفأرة الأيسر على شجرة بقبضتيك · تحتاج ١٠",
+    "Level ": "المستوى ",
+    "Level up! Level ": "ترقية! المستوى ",
+    "Light it": "أشعله",
+    "Lv ": "مستوى ",
+    "Make Narcotic in a Mortar & Pestle": "اصنع مخدّراً في الهاون والمدقّة",
+    "Master volume": "الصوت العام",
+    "Mating ": "تزاوج ",
+    "Melee damage": "قوة الضرب",
+    "Missing materials": "مواد ناقصة",
+    "Missing tribute: ": "جزية ناقصة: ",
+    "Mouse sensitivity": "حساسية الفأرة",
+    "Movement speed": "سرعة الحركة",
+    "Mutations": "الطفرات",
+    "Name it": "سمِّه",
+    "Needs": "يحتاج",
+    "Needs a ": "يحتاج ",
+    "Needs saddle": "يحتاج سرجاً",
+    "No fuel inside": "لا وقود بالداخل",
+    "Not enough engram points": "نقاط الرسومات غير كافية",
+    "Nothing left to harvest": "لم يبق شيء للحصاد",
+    "Objective complete": "اكتمل الهدف",
+    "On an unfamiliar beach": "على شاطئ غريب",
+    "Open": "افتح",
+    "Open ": "افتح ",
+    "Open the creature with F, equip the saddle, then press E to ride": "افتح الكائن بـF وجهّز السرج ثم اضغط E للركوب",
+    "Out of ammunition": "نفدت الذخيرة",
+    "Out of materials for ": "نفدت مواد ",
+    "Overgrown Cave": "الكهف المتشابك",
+    "Overweight": "محمَّل زيادة",
+    "Passive": "مسالم",
+    "Phase ": "المرحلة ",
+    "Placing ": "وضع ",
+    "Post processing": "معالجة ما بعد الرسم",
+    "Press ": "اضغط ",
+    "Press B to open build mode · a bed is your respawn point": "اضغط B لوضع البناء · السرير نقطة عودتك",
+    "Press C to spend an engram point, then craft it in your inventory (I)": "اضغط C لصرف نقطة رسومات ثم اصنعه من حقيبتك (I)",
+    "Punch a bush for berries · press E at water to drink": "اضرب شجيرة للتوت · اضغط E عند الماء لتشرب",
+    "Punch a tree for Thatch": "اضرب شجرة لتجمع القش",
+    "Punch a tree for Thatch — then check your objectives": "اضرب شجرة لتجمع القش — ثم راجع أهدافك",
+    "Punch rocks for stone and flint, trees for wood": "اضرب الصخور للحجر والصوّان، والأشجار للخشب",
+    "Punching rocks": "ضرب الصخور",
+    "Purple": "بنفسجي",
+    "Put a ": "ضع ",
+    "Put berries (herbivore) or meat (carnivore) in its inventory and wait": "ضع توتاً (للعاشب) أو لحماً (للاحم) في حقيبته وانتظر",
+    "Quality preset": "إعداد الجودة",
+    "Raising the island…": "نرفع الجزيرة…",
+    "Ready": "جاهز",
+    "Real minutes for a full day/night": "دقائق حقيقية ليوم كامل",
+    "Red": "أحمر",
+    "Red Obelisk": "المسلّة الحمراء",
+    "Requires level ": "يتطلب المستوى ",
+    "Reset to defaults": "إعادة الضبط الافتراضي",
+    "Ride": "اركب",
+    "Ride ": "اركب ",
+    "Riding ": "تركب ",
+    "Saddle": "السرج",
+    "Save failed: ": "فشل الحفظ: ",
+    "Show FPS": "إظهار الإطارات",
+    "Slot ": "ملف ",
+    "Species": "النوع",
+    "Spoils in": "يفسد خلال",
+    "Starvation": "الجوع",
+    "Step back": "تراجع",
+    "Stop and hold": "قف وانتظر",
+    "Summon the Broodmother": "استدعِ ملكة العنكبوت",
+    "Summon the Broodmother (tribute will be consumed)": "استدعِ ملكة العنكبوت (ستُستهلك الجزية)",
+    "Sun and moon shadow maps": "ظلال الشمس والقمر",
+    "Sunken Grotto": "المغارة الغارقة",
+    "Tamed ": "روّضت ",
+    "Tamed a ": "روّضت ",
+    "Taming": "الترويض",
+    "Tangled": "مقيَّد",
+    "That slot is empty": "هذا الملف فارغ",
+    "The Broodmother falls": "سقطت ملكة العنكبوت",
+    "The Broodmother wakes": "ملكة العنكبوت تستيقظ",
+    "The island is yours": "الجزيرة لك",
+    "The tribute is gone — bring more and try again": "ذهبت الجزية — أحضر غيرها وحاول ثانية",
+    "The waterskin is empty — refill it at water": "القربة فارغة — املأها عند الماء",
+    "Thirsty": "عطشان",
+    "Torpidity": "التخدير",
+    "Torpor": "التخدير",
+    "Tranq arrows add +90 Torpidity with almost no damage": "سهام التخدير تضيف ‎+٩٠ تخديراً بلا ضرر تقريباً",
+    "Tranquilize and tame a big creature": "خدّر كائناً كبيراً وروّضه",
+    "Trike, Raptor or Stego · aim for the head, it doubles torpor": "ترايك أو رابتور أو ستيغو · صوّب للرأس فيتضاعف التخدير",
+    "Unconscious": "فاقد الوعي",
+    "Unknown causes": "أسباب مجهولة",
+    "Walk into the entrance": "ادخل من الفتحة",
+    "Wants ": "يريد ",
+    "Waypoint": "علامة",
+    "Waypoint set": "ضُبطت العلامة",
+    "Whistle: ": "صفير: ",
+    "White": "أبيض",
+    "World loaded — seed ": "حُمّل العالم — البذرة ",
+    "XP rate": "معدّل الخبرة",
+    "You cannot use that directly": "لا يمكنك استعمال ذلك مباشرة",
+    "You carry out 25 Element and a trophy": "خرجت بـ٢٥ عنصراً وكأس",
+    "You drink deeply": "شربت حتى ارتويت",
+    "You enter ": "دخلت ",
+    "You gained a stat point and ": "حصلت على نقطة إحصاء و",
+    "You have no tamed creatures": "ليس لديك كائنات مروَّضة",
+    "You have not learned that engram": "لم تتعلّم هذا الرسم بعد",
+    "You must be level ": "يجب أن تكون بالمستوى ",
+    "You need ": "تحتاج ",
+    "You need a torch": "تحتاج مشعلاً",
+    "You wake up": "استيقظت",
+    "You wash ashore": "جرفتك الأمواج إلى الشاطئ",
+    "You were driven out": "طُردت",
+    "] open corpse": "] لفتح الجثة",
+    "a cuddle": "حضناً",
+    "a walk": "نزهة",
+    "press a key…": "اضغط مفتاحاً…",
+  },
+  resources: {
+    berry: "توت",
+    chitin: "كيتين",
+    crystal: "بلّور",
+    fiber: "ألياف",
+    fish: "سمك",
+    flint: "صوّان",
+    hide: "جلد",
+    keratin: "كيراتين",
+    meat: "لحم",
+    metal: "معدن",
+    obsidian: "سبج",
+    oil: "نفط",
+    pelt: "فرو",
+    prime: "لحم فاخر",
+    rare: "نادر",
+    stone: "حجر",
+    thatch: "قش",
+    wood: "خشب",
+  },
+  /* ---------------------------------------------------------------- api */
+  str(en) { return (this.lang === 'ar' && this.phr[en]) || en; },
+  t(key) {
+    const e = this.ui[key];
+    if (!e) return key;
+    return this.lang === 'ar' ? e[1] : e[0];
+  },
+  /** the one lookup every localised definition goes through */
+  nameFor(dict, id, en) {
+    if (this.lang !== 'ar') return en;
+    const d = this[dict];
+    if (d && d[id]) return d[id];
+    if (dict === 'items' && id.indexOf('saddle_') === 0) {
+      const sp = id.slice(7);
+      return 'سرج ' + (this.species[sp] || (SPECIES[sp] ? SPECIES[sp].en : sp));
+    }
+    return en;
+  },
+  item(id) {
+    const def = ITEMS[id] || STRUCTURES[id];
+    return def ? def.name : id;
+  },
+  species_(id) { return SPECIES[id] ? SPECIES[id].name : id; },
+  biome(id) { return BIOMES[id] ? BIOMES[id].name : id; },
+  /** harvest classes ('berry', 'metal'…) are not items — they have their own names */
+  res(id) { return (this.lang === 'ar' && this.resources[id]) || (ITEMS[id] ? ITEMS[id].name : id); },
+
+  set(lang) {
+    this.lang = lang === 'ar' ? 'ar' : 'en';
+    const ar = this.lang === 'ar';
+    document.documentElement.lang = this.lang;
+    document.documentElement.dir = ar ? 'rtl' : 'ltr';
+    document.body.classList.toggle('rtl', ar);
+    this.applyStatic();
+    if (typeof UI !== 'undefined' && UI.statNodes && UI.statNodes.health) {
+      UI.refreshHotbar();
+      UI.refreshInventory();
+      UI.buildSettings();
+      if (UI.dinoTarget) UI.refreshDino();
+      if (UI.tameTarget) UI.refreshTame();
+    }
+    try { localStorage.setItem('ark_lang', this.lang); } catch (e) { }
+  },
+  /** Translate everything in the static markup that carries data-i18n. */
+  applyStatic() {
+    $$('[data-i18n]').forEach(n => { n.textContent = this.t(n.dataset.i18n); });
+    $$('[data-i18n-ph]').forEach(n => { n.placeholder = this.t(n.dataset.i18nPh); });
+  },
+  init() {
+    let saved = null;
+    try { saved = localStorage.getItem('ark_lang'); } catch (e) { }
+    this.set(saved || (navigator.language && navigator.language.indexOf('ar') === 0 ? 'ar' : 'en'));
+  },
+};
+const t = k => I18N.t(k);
+const itemName = id => I18N.item(id);
+const speciesName = id => I18N.species_(id);
+const tr = en => I18N.str(en);
+
+/* Every definition keeps its English name in `.en` and gains a live `.name`,
+   so the entire game — tooltips, craft list, nameplates, toasts, the map —
+   follows the current language without a single call site changing. */
+(function localiseDefinitions() {
+  const tables = [[ITEMS, 'items'], [STRUCTURES, 'structures'], [STATIONS, 'stations'],
+                  [SPECIES, 'species'], [BIOMES, 'biomes'], [NODES, 'nodes']];
+  for (const [table, dict] of tables) {
+    for (const id in table) {
+      const def = table[id], en = def.name;
+      def.id = id; def.en = en;
+      Object.defineProperty(def, 'name', {
+        get() { return I18N.nameFor(dict, id, en); },
+        enumerable: true, configurable: true,
+      });
+      if (dict === 'species' && def.info) {
+        const infoEn = def.info;
+        Object.defineProperty(def, 'info', {
+          get() { return (I18N.lang === 'ar' && I18N.speciesInfo[id]) || infoEn; },
+          enumerable: true, configurable: true,
+        });
+      }
+    }
+  }
+})();
 
 /* ============================================================================
  * 40 · RENDERER — WebGL setup, quality presets, hand-written post processing
@@ -2474,7 +3186,7 @@ const Gfx = {
   rtScene: null, rtA: null, rtB: null, fxScene: null, fxCam: null,
   matBright: null, matBlur: null, matComposite: null, quad: null,
   bloomOn: true, shadowsOn: true,
-  fx: { underwater: 0, damage: 0, grade: 1, exposureBoost: 1, flash: 0 },
+  fx: { underwater: 0, damage: 0, grade: 1, exposureBoost: 1, flash: 0, photo: null },
   W: 1, H: 1,
 
   init(canvas) {
@@ -2748,7 +3460,8 @@ const Gfx = {
     r.clear();
     r.render(this.scene, this.camera);
     /* first-person hands: separate pass, own FOV, drawn over the world */
-    if (typeof ViewModel !== 'undefined' && ViewModel.scene && ViewModel.group && ViewModel.group.visible) {
+    if (typeof ViewModel !== 'undefined' && ViewModel.scene && ViewModel.group && ViewModel.group.visible
+        && typeof Game !== 'undefined' && Game.state === 'play') {
       r.autoClear = false;
       r.clearDepth();
       r.render(ViewModel.scene, ViewModel.cam);
@@ -2774,6 +3487,15 @@ const Gfx = {
     u.uUnder.value = this.fx.underwater;
     u.uDamage.value = this.fx.damage;
     u.uFlash.value = this.fx.flash;
+    /* photo mode drives the grade straight through the composite, so whatever
+       you see is exactly what lands in the exported PNG */
+    const ph = this.fx.photo;
+    u.uVignette.value = ph ? ph.vignette : .85;
+    u.uSat.value = ph ? ph.sat : 1.04;
+    u.uContrast.value = ph ? ph.contrast : 1.04;
+    u.uGrain.value = ph ? ph.grain : .035;
+    if (ph) u.uTint.value.setRGB(ph.tint[0], ph.tint[1], ph.tint[2]);
+    else u.uTint.value.setRGB(1, 1, 1);
     this.blit(this.matComposite, null);
     this.quad.material = this.matComposite;
   },
@@ -2964,7 +3686,7 @@ const World = {
     const N = this.N = Math.floor(S / res) + 1;
     this.height = new Float32Array(N * N);
     this.moist = new Float32Array(N * N);
-    yield { p: .02, msg: 'Raising the island…' };
+    yield { p: .02, msg: tr('Raising the island…') };
 
     for (let j = 0; j < N; j++) {
       const z = -half + j * res;
@@ -2973,7 +3695,7 @@ const World = {
         this.height[j * N + i] = this.rawHeight(x, z);
         this.moist[j * N + i] = fbm(this.nMoist, x * 0.0011, z * 0.0011, 4, 2.1, .5) * .5 + .5;
       }
-      if ((j & 31) === 0) yield { p: .02 + .58 * (j / N), msg: 'Raising the island…' };
+      if ((j & 31) === 0) yield { p: .02 + .58 * (j / N), msg: tr('Raising the island…') };
     }
     yield { p: .62, msg: 'Cutting rivers and beaches…' };
     this.smoothBeaches();
@@ -5383,7 +6105,7 @@ class Creature {
     Sound.voice(this.sp.voice, { hurt: true, vol: .8, pan: this.panFrom() });
     if (!this.tamed) {
       UI.toast(this.sp.name + ' (Lv ' + this.level + ') is unconscious', 'good');
-      UI.center('Knocked out', 'Press ' + keyLabel(Input.binds.use) + ' to open its inventory and feed it');
+      UI.center(tr('Knocked out'), tr('Press ') + keyLabel(Input.binds.use) + ' to open its inventory and feed it');
       Objectives.event('knockout', this);
     }
   }
@@ -5464,9 +6186,9 @@ class Creature {
     this.behavior = this.sp.temper === 'aggressive' || this.sp.temper === 'apex' ? 'aggressive' : 'neutral';
     this.following = true;
     Sound.tamed();
-    Player.addXp(this.sp.xp * 4, 'Tamed a ' + this.sp.name);
-    UI.center(this.sp.name + ' tamed!', 'Level ' + this.level + '  ·  +' + bonus + ' bonus levels  ·  ' + Math.round(this.tameEffect * 100) + '% effectiveness');
-    UI.toast('Tamed ' + this.sp.name + ' (Lv ' + this.level + ')', 'good');
+    Player.addXp(this.sp.xp * 4, tr('Tamed a ') + this.sp.name);
+    UI.center(this.sp.name + ' tamed!', tr('Level ') + this.level + '  ·  +' + bonus + ' bonus levels  ·  ' + Math.round(this.tameEffect * 100) + tr('% effectiveness'));
+    UI.toast(tr('Tamed ') + this.sp.name + ' (Lv ' + this.level + ')', 'good');
     Creatures.tamedList.push(this);
     Objectives.event('tame', this);
     if (UI.tameTarget === this) UI.closeTame();
@@ -5493,7 +6215,7 @@ class Creature {
       if (n > 0) this.inv.add(k, n);
     }
     if (source === Player || (source && source.tamed)) {
-      Player.addXp(this.sp.xp, 'Killed a ' + this.sp.name);
+      Player.addXp(this.sp.xp, tr('Killed a ') + this.sp.name);
       Objectives.event('kill', this);
     }
     if (this.tamed) {
@@ -6293,8 +7015,8 @@ const Player = {
       this.xpNext = TUNE.xp.curve(this.level);
       this.cur.health = this.max('health');
       Sound.levelUp();
-      UI.center('Level ' + this.level, 'You gained a stat point and ' + TUNE.xp.engramPerLevel + ' engram points');
-      UI.toast('Level up! Level ' + this.level, 'good');
+      UI.center(tr('Level ') + this.level, tr('You gained a stat point and ') + TUNE.xp.engramPerLevel + ' engram points');
+      UI.toast(tr('Level up! Level ') + this.level, 'good');
     }
     UI.updateXp();
   },
@@ -6325,12 +7047,12 @@ const Player = {
   heal(v) { this.cur.health = Math.min(this.max('health'), this.cur.health + v); },
   addTorpor(v) {
     this.cur.torpor = clamp(this.cur.torpor + v, 0, this.max('torpor') * 1.4);
-    if (this.cur.torpor >= this.max('torpor') && this.alive) this.die('Knocked unconscious and eaten');
+    if (this.cur.torpor >= this.max('torpor') && this.alive) this.die(tr('Knocked unconscious and eaten'));
   },
   die(cause) {
     if (!this.alive) return;
     this.alive = false;
-    this.deathCause = cause || 'Unknown causes';
+    this.deathCause = cause || tr('Unknown causes');
     this.deathPos = this.pos.clone();
     this.mount = null;
     Sound.die();
@@ -6355,7 +7077,7 @@ const Player = {
     this.spawnAt(p);
     Gfx.fx.damage = 0;
     UI.hideDeath();
-    UI.center('You wake up', atBed && this.bedPos ? 'Back at your bed' : 'On an unfamiliar beach');
+    UI.center(tr('You wake up'), atBed && this.bedPos ? tr('Back at your bed') : tr('On an unfamiliar beach'));
   },
 
   /* ---------------------------------------------------------------- update */
@@ -6373,9 +7095,9 @@ const Player = {
     this.swimming = this.pos.y + this.height * .55 < waterY;
 
     /* ---- movement input ------------------------------------------------ */
-    const fwd = (Input.down('forward') ? 1 : 0) - (Input.down('back') ? 1 : 0);
-    const str = (Input.down('right') ? 1 : 0) - (Input.down('left') ? 1 : 0);
-    const wants = (fwd || str) && !this.boundT;
+    const fwd = Input.axisFwd();
+    const str = Input.axisStr();
+    const wants = (Math.abs(fwd) > .01 || Math.abs(str) > .01) && !this.boundT;
     this.moving = !!wants;
     const canSprint = this.cur.stamina > 1 && !this.crouching && Inventory.weightRatio() < 1;
     this.sprinting = wants && Input.down('sprint') && canSprint;
@@ -6390,8 +7112,9 @@ const Player = {
 
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
     let dx = (-sin * fwd + cos * str), dz = (-cos * fwd - sin * str);
+    /* clamp to unit speed but keep the stick's analogue magnitude below it */
     const len = Math.hypot(dx, dz);
-    if (len > 0) { dx /= len; dz /= len; }
+    if (len > 1) { dx /= len; dz /= len; }
 
     if (this.swimming) {
       /* swim: move along the look direction, drift down slowly */
@@ -6424,7 +7147,7 @@ const Player = {
           const fall = this.fallStart - this.pos.y;
           if (fall > P.fallSafe) {
             const dmg = (fall - P.fallSafe) * P.fallDmgPerM;
-            this.damage(dmg, 'A very long fall');
+            this.damage(dmg, tr('A very long fall'));
           }
           if (this.inWater) Sound.splash(true);
         }
@@ -6459,15 +7182,15 @@ const Player = {
 
     if (this.submerged) {
       this.cur.oxygen -= P.oxygenDrain * dt;
-      if (this.cur.oxygen <= 0) this.damage(P.drownDmg * dt, 'Drowned');
+      if (this.cur.oxygen <= 0) this.damage(P.drownDmg * dt, tr('Drowned'));
     } else this.cur.oxygen = Math.min(this.max('oxygen'), this.cur.oxygen + P.oxygenRegen * dt);
     this.cur.oxygen = Math.max(0, this.cur.oxygen);
 
-    if (this.cur.food <= 0) { this.cur.food = 0; this.damage(P.starveDmg * dt, 'Starvation'); }
-    if (this.cur.water <= 0) { this.cur.water = 0; this.damage(P.dehydrateDmg * dt, 'Dehydration'); }
-    if (cold) this.damage(P.coldDmg * dt * (1 + (8 - this.temp) * .05), 'Hypothermia');
-    if (hot) this.damage(P.heatDmg * dt * (1 + (this.temp - 36) * .04), 'Heat stroke');
-    if (this.sickT > 0) { this.sickT -= dt; this.damage(1.2 * dt, 'Food poisoning'); }
+    if (this.cur.food <= 0) { this.cur.food = 0; this.damage(P.starveDmg * dt, tr('Starvation')); }
+    if (this.cur.water <= 0) { this.cur.water = 0; this.damage(P.dehydrateDmg * dt, tr('Dehydration')); }
+    if (cold) this.damage(P.coldDmg * dt * (1 + (8 - this.temp) * .05), tr('Hypothermia'));
+    if (hot) this.damage(P.heatDmg * dt * (1 + (this.temp - 36) * .04), tr('Heat stroke'));
+    if (this.sickT > 0) { this.sickT -= dt; this.damage(1.2 * dt, tr('Food poisoning')); }
     if (this.spitT > 0) this.spitT -= dt;
     if (this.boundT > 0) this.boundT -= dt;
 
@@ -6655,7 +7378,7 @@ const Combat = {
 
     /* fists on rock and metal hurt */
     if (tool.selfDmg && (cls === 'stone' || cls === 'metal')) {
-      Player.damage(tool.selfDmg[cls === 'metal' ? 'metal' : 'stone'] || 2, 'Punching rocks');
+      Player.damage(tool.selfDmg[cls === 'metal' ? 'metal' : 'stone'] || 2, tr('Punching rocks'));
     }
     /* yields */
     const rate = TUNE.rates.harvest;
@@ -6683,7 +7406,7 @@ const Combat = {
         const amount = Math.round(rnd(a, b) * mult * rate);
         if (amount > 0) Inventory.give(res, amount, { silent: true });
       }
-      Player.addXp(nd.xp, 'Harvested ' + nd.name);
+      Player.addXp(nd.xp, tr('Harvested ') + nd.name);
       Objectives.event('harvest', { node });
     }
     Flora.refreshNode(node);
@@ -6704,7 +7427,7 @@ const Combat = {
     Sound.hitFlesh(.6);
     Particles.blood(c.bodyCenter(), 8);
     Inventory.wearTool(.6);
-    if (!got) UI.toast('Nothing left to harvest');
+    if (!got) UI.toast(tr('Nothing left to harvest'));
     else Player.addXp(1.5, null);
     if (c.inv.slots_.length === 0) c.decayT = Math.min(c.decayT, 6);
   },
@@ -6721,7 +7444,7 @@ const Combat = {
     for (const a of ammoList) {
       if (a && Inventory.hotbar.indexOf(a) >= 0 && Inventory.has(a, 1) && Inventory.hotbar[Inventory.hotbarIndex] === a) ammoId = a;
     }
-    if (!ammoId) { UI.toast('Out of ammunition', 'bad'); this.cd = .4; return; }
+    if (!ammoId) { UI.toast(tr('Out of ammunition'), 'bad'); this.cd = .4; return; }
     Inventory.take(ammoId, 1);
     this.cd = 1 / (def.speed || 1);
     Inventory.wearTool(.8);
@@ -6886,7 +7609,7 @@ const Combat = {
       c.damage(damage * (1 - d / radius), { source: Player, part: 'body', point: c.bodyCenter(new THREE.Vector3()) });
     }
     const pd = Player.pos.distanceTo(pos);
-    if (pd < radius) Player.damage(damage * .5 * (1 - pd / radius), 'Caught in your own blast');
+    if (pd < radius) Player.damage(damage * .5 * (1 - pd / radius), tr('Caught in your own blast'));
     for (const s of Structures.near(pos.x, pos.z, radius)) {
       if (s.pos.distanceTo(pos) < radius) Structures.damage(s, damage * .6);
     }
@@ -6909,53 +7632,58 @@ const Combat = {
     const hit = Physics.castCreature(origin, dir, reach + 1.5, .5, null);
     if (hit) {
       const c = hit.creature;
-      if (c.dead) focus = { kind: 'corpse', creature: c, label: 'Harvest ' + c.sp.name, sub: 'Hit it with a pick or hatchet · [' + keyLabel(Input.binds.use) + '] open corpse' };
-      else if (c.unconscious && !c.tamed) focus = { kind: 'tame', creature: c, label: 'Feed ' + c.sp.name + ' (Lv ' + c.level + ')', sub: 'Taming ' + Math.round(c.tameProgress / c.affinityNeeded * 100) + '%' };
+      if (c.dead) focus = { kind: 'corpse', creature: c, label: tr('Harvest ') + c.sp.name, sub: tr('Hit it with a pick or hatchet · [') + keyLabel(Input.binds.use) + tr('] open corpse') };
+      else if (c.unconscious && !c.tamed) focus = { kind: 'tame', creature: c,
+        label: tr('Feed ') + c.sp.name + ' (' + tr('Lv ') + c.level + ')',
+        sub: tr('Taming') + ' ' + Math.round(c.tameProgress / c.affinityNeeded * 100) + '%' };
       else if (c.tamed) {
         const saddled = !!c.saddle;
         const baby = c.isBaby();
         focus = {
           kind: 'tamed', creature: c,
-          label: baby ? (c.wantsCare ? 'Care for ' + c.displayName() : 'Open ' + c.displayName())
-            : (c.sp.rideable && saddled ? 'Ride ' : 'Open ') + c.displayName(),
-          sub: baby ? c.growthStage() + ' · ' + Math.round(c.age * 100) + '% grown'
-            : (c.sp.rideable && !saddled ? 'Needs a ' + c.sp.name + ' Saddle · ' : '') + '[' + keyLabel(Input.binds.use2) + '] inventory',
+          label: baby ? (c.wantsCare ? tr('Care for ') + c.displayName() : tr('Open ') + c.displayName())
+            : (c.sp.rideable && saddled ? tr('Ride ') : tr('Open ')) + c.displayName(),
+          sub: baby ? c.growthStage() + ' · ' + Math.round(c.age * 100) + tr('% grown')
+            : (c.sp.rideable && !saddled ? tr('Needs a ') + itemName('saddle_' + c.speciesId) + ' · ' : '')
+              + '[' + keyLabel(Input.binds.use2) + '] ' + t('inventory'),
         };
       } else if (c.sp.tameType === 'passive' && !c.tamed) {
-        focus = { kind: 'passive', creature: c, label: 'Feed ' + c.sp.name, sub: 'Hold food in your hand and approach slowly' };
+        focus = { kind: 'passive', creature: c, label: tr('Feed ') + c.sp.name, sub: tr('Hold food in your hand and approach slowly') };
       }
     }
     if (!focus) {
       const ob = Boss.nearest(Player.pos, 13);
       if (ob) {
         const why = Boss.canSummon();
-        focus = { kind: 'obelisk', obelisk: ob, label: ob.name, sub: why || 'Summon the Broodmother (tribute will be consumed)' };
+        focus = { kind: 'obelisk', obelisk: ob, label: ob.name, sub: why || tr('Summon the Broodmother (tribute will be consumed)') };
       }
     }
     if (!focus) {
       const bag = Loot.nearest(Player.pos, TUNE.player.pickupRange + 1.2);
-      if (bag) focus = { kind: 'bag', bag, label: bag.label, sub: 'Open' };
+      if (bag) focus = { kind: 'bag', bag, label: bag.label, sub: tr('Open') };
     }
     if (!focus) {
       const st = Structures.pick(origin, dir, reach);
       if (st) {
         const def = STRUCTURES[st.type];
-        if (def.station || def.slots) focus = { kind: 'station', structure: st, label: def.name, sub: 'Open' };
-        else if (def.kind === 'door' || def.kind === 'gate') focus = { kind: 'door', structure: st, label: (st.open ? 'Close ' : 'Open ') + def.name, sub: '' };
+        if (def.station === 'bed') focus = { kind: 'bed', structure: st, label: def.name,
+          sub: tr('Sleep until morning') + ' · [' + keyLabel(Input.binds.use2) + '] ' + tr('Open') };
+        else if (def.station || def.slots) focus = { kind: 'station', structure: st, label: def.name, sub: tr('Open') };
+        else if (def.kind === 'door' || def.kind === 'gate') focus = { kind: 'door', structure: st, label: (st.open ? tr('Close ') : tr('Open ')) + def.name, sub: '' };
       }
     }
     if (!focus) {
       /* water source */
       const aim = _v3c.copy(origin).addScaledVector(dir, 2.6);
       if (aim.y < World.seaLevel + .3 && World.heightAt(aim.x, aim.z) < World.seaLevel) {
-        focus = { kind: 'water', label: 'Drink', sub: Inventory.has('waterskin', 1) ? 'Also fills your waterskin' : '' };
+        focus = { kind: 'water', label: tr('Drink'), sub: Inventory.has('waterskin', 1) ? tr('Also fills your waterskin') : '' };
       }
     }
     if (!focus) {
       const node = Flora.pick(origin.x + dir.x * 2.4, origin.z + dir.z * 2.4, 2.4);
       if (node && node.alive) {
         const nd = NODES[node.type];
-        focus = { kind: 'node', node, label: nd.name, sub: 'Hit it to harvest', noKey: true };
+        focus = { kind: 'node', node, label: nd.name, sub: tr('Hit it to harvest'), noKey: true };
       }
     }
     this.focus = focus;
@@ -6968,7 +7696,7 @@ const Combat = {
     if (!f) return;
     switch (f.kind) {
       case 'tame': UI.openTame(f.creature); break;
-      case 'corpse': UI.openContainer(f.creature.inv, f.creature.sp.name + ' corpse'); break;
+      case 'corpse': UI.openContainer(f.creature.inv, f.creature.sp.name + ' · ' + tr('corpse')); break;
       case 'tamed': {
         const c = f.creature;
         if (secondary && c.isBaby() && c.wantsCare) { c.careFor(); break; }
@@ -6978,6 +7706,7 @@ const Combat = {
       }
       case 'passive': Taming.passiveFeed(f.creature); break;
       case 'bag': UI.openContainer(f.bag.inv, f.bag.label, f.bag); break;
+      case 'bed': secondary ? UI.openStation(f.structure) : Game.sleep(f.structure); break;
       case 'station': UI.openStation(f.structure); break;
       case 'door': Structures.toggleDoor(f.structure); break;
       case 'obelisk': UI.openObelisk(f.obelisk); break;
@@ -6986,7 +7715,7 @@ const Combat = {
         const wi = Inventory.bag.findIndex('waterskin');
         if (wi >= 0) Inventory.bag.slots_[wi].charges = ITEMS.waterskin.charges;
         Sound.splash(false);
-        UI.toast('You drink deeply');
+        UI.toast(tr('You drink deeply'));
         break;
       }
     }
@@ -7005,14 +7734,14 @@ const Taming = {
     let feedId = null;
     if (eq.id && foods.indexOf(eq.id) >= 0 && Inventory.has(eq.id, 1)) feedId = eq.id;
     else for (const f of foods) if (Inventory.has(f, 1)) { feedId = f; break; }
-    if (!feedId) { UI.toast('You need ' + (ITEMS[foods[0]] ? ITEMS[foods[0]].name : 'food') + ' in your inventory', 'bad'); return; }
-    if (c.distToPlayer() > TUNE.taming.passiveRange) { UI.toast('Get closer — slowly', 'bad'); return; }
+    if (!feedId) { UI.toast(tr('You need ') + (ITEMS[foods[0]] ? ITEMS[foods[0]].name : 'food') + ' in your inventory', 'bad'); return; }
+    if (c.distToPlayer() > TUNE.taming.passiveRange) { UI.toast(tr('Get closer — slowly'), 'bad'); return; }
     Inventory.take(feedId, 1);
     const res = c.eatItem(feedId);
     c.passiveCooldown = 6;
     if (res === 'refused') UI.toast(c.sp.name + ' refuses that', 'bad');
     else {
-      UI.toast('Fed ' + ITEMS[feedId].name + ' — ' + Math.round(c.tameProgress / c.affinityNeeded * 100) + '%', 'good');
+      UI.toast(tr('Fed ') + ITEMS[feedId].name + ' — ' + Math.round(c.tameProgress / c.affinityNeeded * 100) + '%', 'good');
       c.setState('idle');
     }
   },
@@ -7029,7 +7758,7 @@ const Riding = {
     if (!c || !c.tamed || c.dead || c.unconscious) return false;
     if (!c.sp.rideable) { UI.toast(c.sp.name + ' cannot be ridden'); return false; }
     if (c.isBaby && c.isBaby()) { UI.toast(c.displayName() + ' is too young to ride'); return false; }
-    if (!c.saddle) { UI.toast('Put a ' + c.sp.name + ' Saddle on it first', 'bad'); return false; }
+    if (!c.saddle) { UI.toast(tr('Put a ') + c.sp.name + ' Saddle on it first', 'bad'); return false; }
     return true;
   },
   mount(c) {
@@ -7042,7 +7771,7 @@ const Riding = {
     Camera.thirdPerson = true;
     this.camDist = Math.max(5, c.length * 1.8 + c.height * 1.4);
     this.camHeight = c.height * .9;
-    UI.toast('Riding ' + c.displayName(), 'good');
+    UI.toast(tr('Riding ') + c.displayName(), 'good');
     Sound.voice(c.sp.voice, { vol: .5 });
     Objectives.event('ride', c);
   },
@@ -7056,22 +7785,22 @@ const Riding = {
     const off = _v3a.set(Math.cos(c.yaw) * (c.radius + 1.2), 0, -Math.sin(c.yaw) * (c.radius + 1.2));
     Player.pos.set(c.pos.x + off.x, World.heightAt(c.pos.x + off.x, c.pos.z + off.z), c.pos.z + off.z);
     Player.vel.set(0, 0, 0);
-    UI.toast('Dismounted');
+    UI.toast(tr('Dismounted'));
   },
   update(dt) {
     const c = Player.mount;
     if (!c) return;
     if (c.dead || c.unconscious) { this.dismount(); return; }
 
-    const fwd = (Input.down('forward') ? 1 : 0) - (Input.down('back') ? 1 : 0);
-    const str = (Input.down('right') ? 1 : 0) - (Input.down('left') ? 1 : 0);
+    const fwd = Input.axisFwd();
+    const str = Input.axisStr();
     const sprint = Input.down('sprint') && c.cur.stamina > 1;
     const sp = c.sp;
 
     /* steer with the camera */
     c.yaw += -str * dt * 1.9;
-    if (fwd !== 0) {
-      const speedMul = (fwd > 0 ? 1 : -.45) * (sprint ? 1 : .55);
+    if (Math.abs(fwd) > .02) {
+      const speedMul = (fwd > 0 ? 1 : -.45) * (sprint ? 1 : .55) * Math.min(1, Math.abs(fwd));
       const target = _v3b.set(c.pos.x + Math.sin(c.yaw) * 12 * Math.sign(fwd), 0, c.pos.z + Math.cos(c.yaw) * 12 * Math.sign(fwd));
       const keepYaw = c.yaw;
       c.moveTowards(target.x, target.z, Math.abs(speedMul), dt, this._flyTarget(c));
@@ -7148,7 +7877,7 @@ const Riding = {
   /* ---------------------------------------------------------- whistles */
   whistle(cmd) {
     const list = Creatures.tamedList;
-    if (!list.length) { UI.toast('You have no tamed creatures'); return; }
+    if (!list.length) { UI.toast(tr('You have no tamed creatures')); return; }
     let n = 0;
     for (const c of list) {
       if (c.dead) continue;
@@ -7163,8 +7892,8 @@ const Riding = {
         if (t && !t.tamed) { c.behavior = 'aggressive'; c.acquire(t); }
       }
     }
-    const label = { follow: 'Follow me', stop: 'Stop and hold', passive: 'Passive', attack: 'Attack my target' }[cmd];
-    UI.toast('Whistle: ' + label + ' (' + n + ')');
+    const label = { follow: tr('Follow me'), stop: tr('Stop and hold'), passive: tr('Passive'), attack: tr('Attack my target') }[cmd];
+    UI.toast(tr('Whistle: ') + label + ' (' + n + ')');
     Sound.tone(880, .12, { type: 'square', gain: .05 });
     Sound.tone(1240, .1, { type: 'square', gain: .04, delay: .08 });
   },
@@ -7237,6 +7966,7 @@ const ViewModel = {
     this.fill = new THREE.HemisphereLight(0xbcd7ee, 0x4a4433, .9);
     this.scene.add(this.fill);
     const g = this.group = new THREE.Group();
+    g.visible = false;          // nothing to hold until the island is running
     g.frustumCulled = false;
     this.scene.add(g);
 
@@ -7420,7 +8150,8 @@ const ViewModel = {
 
   update(dt) {
     if (!this.group) return;
-    const show = !Camera.thirdPerson && !Player.mount && Player.alive && !anyScreenOpen();
+    const show = !Camera.thirdPerson && !Player.mount && Player.alive && !anyScreenOpen()
+      && !(typeof Photo !== 'undefined' && Photo.active);
     this.group.visible = show;
     if (!show) return;
 
@@ -7683,7 +8414,7 @@ const PlayerModel = {
   /* ----------------------------------------------------------------- pose */
   update(dt) {
     if (!this.root) return;
-    const show = (Camera.thirdPerson || !!Player.mount || (typeof PhotoMode !== 'undefined' && PhotoMode.active)) && Player.alive !== undefined;
+    const show = (Camera.thirdPerson || !!Player.mount || (typeof Photo !== 'undefined' && Photo.active)) && Player.alive !== undefined;
     this.root.visible = show;
     this.visible = show;
     if (!show) return;
@@ -7892,7 +8623,7 @@ const Breeding = {
           this.warnT = (this.warnT || 0) - dt;
           if (this.warnT <= 0) {
             this.warnT = 20;
-            UI.toast('Egg is too ' + (temp > range[1] ? 'hot' : 'cold')
+            UI.toast(tr('Egg is too ') + (temp > range[1] ? 'hot' : 'cold')
               + ' (' + Math.round(temp) + '\u00b0C, needs ' + range[0] + '\u2013' + range[1] + '\u00b0C)', 'bad');
           }
           if (st.health <= 0) {
@@ -7930,7 +8661,7 @@ const Breeding = {
     Creatures.tamedList.push(c);
     Sound.tamed();
     UI.center('A ' + c.sp.name + ' hatched!', gene.mutations ? gene.mutations + ' mutation(s) · keep it fed or it will starve'
-      : 'Keep it fed — babies eat fast and cannot defend themselves');
+      : tr('Keep it fed — babies eat fast and cannot defend themselves'));
     UI.askName(c);
     Objectives.event('hatch', c);
   },
@@ -7940,10 +8671,10 @@ const Breeding = {
 Object.assign(Creature.prototype, {
   isBaby() { return this.age != null && this.age < 1; },
   growthStage() {
-    if (this.age >= 1) return 'Adult';
-    if (this.age >= .5) return 'Adolescent';
-    if (this.age >= .1) return 'Juvenile';
-    return 'Baby';
+    if (this.age >= 1) return tr('Adult');
+    if (this.age >= .5) return tr('Adolescent');
+    if (this.age >= .1) return tr('Juvenile');
+    return tr('Baby');
   },
   updateGrowth(dt) {
     if (this.gestation) {
@@ -7965,7 +8696,7 @@ Object.assign(Creature.prototype, {
     this.imprintT = (this.imprintT || 120) - dt;
     if (this.imprintT <= 0 && this.imprint < 1) {
       this.imprintT = 180 / Math.max(.2, TUNE.rates.breeding || 1);
-      this.wantsCare = pick(['a cuddle', 'a walk', ITEMS[this.sp.prefer[1]] ? ITEMS[this.sp.prefer[1]].name : 'food']);
+      this.wantsCare = pick([tr('a cuddle'), tr('a walk'), ITEMS[this.sp.prefer[1]] ? ITEMS[this.sp.prefer[1]].name : 'food']);
       UI.toast(this.displayName() + ' wants ' + this.wantsCare + ' — press ' + keyLabel(Input.binds.use2) + ' to care for it');
     }
     if (this.age >= 1) {
@@ -7980,11 +8711,256 @@ Object.assign(Creature.prototype, {
     this.wantsCare = null;
     this.cur.food = Math.min(this.max('food'), this.cur.food + this.max('food') * .12);
     Sound.pickup();
-    UI.toast('Imprint on ' + this.displayName() + ': ' + Math.round(this.imprint * 100) + '%', 'good');
-    Player.addXp(12, 'Cared for a baby');
+    UI.toast(tr('Imprint on ') + this.displayName() + ': ' + Math.round(this.imprint * 100) + '%', 'good');
+    Player.addXp(12, tr('Cared for a baby'));
     return true;
   },
 });
+
+/* ============================================================================
+ * 66 · PHOTO MODE — detach the camera, fly it anywhere, grade the frame and
+ *   save a PNG. The grade runs inside the composite pass, so the file you get
+ *   is pixel-for-pixel what is on screen.
+ * ==========================================================================*/
+const PHOTO_FILTERS = {
+  none: { tint: [1, 1, 1], sat: 1.04, contrast: 1.04, grain: .02 },
+  warm: { tint: [1.14, 1.02, .86], sat: 1.16, contrast: 1.08, grain: .025 },
+  cool: { tint: [.86, .96, 1.16], sat: .96, contrast: 1.10, grain: .025 },
+  noir: { tint: [1, 1, 1], sat: 0, contrast: 1.34, grain: .07 },
+  sepia: { tint: [1.18, 1.0, .78], sat: .22, contrast: 1.16, grain: .05 },
+  vivid: { tint: [1.03, 1.0, .99], sat: 1.5, contrast: 1.18, grain: .015 },
+};
+
+const Photo = {
+  active: false, pending: false, hud: false,
+  pos: null, yaw: 0, pitch: 0, fov: 70, vignette: .35, filter: 'none',
+  saved: null, speed: 14,
+
+  init() {
+    const bar = $('#photobar');
+    if (!bar) return;
+    $('#pmFilter').addEventListener('change', e => { this.filter = e.target.value; this.grade(); });
+    $('#pmFov').addEventListener('input', e => { this.fov = +e.target.value; });
+    $('#pmVig').addEventListener('input', e => { this.vignette = +e.target.value; this.grade(); });
+    $('#pmTime').addEventListener('input', e => { Sky.time = +e.target.value * 24; });
+    $('#pmHud').addEventListener('click', () => {
+      this.hud = !this.hud;
+      $('#pmHud').classList.toggle('on', this.hud);
+      document.body.classList.toggle('hudon', this.hud);
+    });
+    $('#pmShot').addEventListener('click', () => this.shoot());
+    $('#pmExit').addEventListener('click', () => this.toggle());
+  },
+
+  toggle() {
+    if (Game.state !== 'play') return;
+    this.active ? this.leave() : this.enter();
+  },
+
+  enter() {
+    const cam = Gfx.camera;
+    this.saved = { fov: cam.fov, time: Sky.time, enabled: Input.enabled };
+    this.pos = cam.position.clone();
+    this.yaw = Player.yaw; this.pitch = Player.pitch;
+    this.fov = cam.fov;
+    this.active = true;
+    Input.enabled = false;
+    document.body.classList.add('photo');
+    document.body.classList.toggle('hudon', this.hud);
+    show('#photobar', true);
+    $('#pmFilter').value = this.filter;
+    $('#pmVig').value = this.vignette;
+    $('#pmFov').value = Math.round(this.fov);
+    $('#pmTime').value = (Sky.time / 24).toFixed(3);
+    this.grade();
+    UI.center(t('photoMode'), t('pmOn'));
+    Input.lock();
+  },
+
+  leave() {
+    this.active = false;
+    Gfx.fx.photo = null;
+    Input.enabled = this.saved ? this.saved.enabled : true;
+    if (this.saved) {
+      Gfx.camera.fov = this.saved.fov;
+      Gfx.camera.updateProjectionMatrix();
+      /* the time slider is a lighting toy, not a way to skip the night */
+      Sky.time = this.saved.time;
+    }
+    document.body.classList.remove('photo', 'hudon');
+    show('#photobar', false);
+  },
+
+  grade() {
+    const f = PHOTO_FILTERS[this.filter] || PHOTO_FILTERS.none;
+    Gfx.fx.photo = { tint: f.tint, sat: f.sat, contrast: f.contrast, grain: f.grain, vignette: this.vignette };
+  },
+
+  look(dx, dy) {
+    const s = Camera.sensitivity * .0022;
+    this.yaw -= dx * s;
+    this.pitch = clamp(this.pitch - dy * s * (Camera.invertY ? -1 : 1), -1.52, 1.52);
+  },
+
+  /** free flight: WASD along the look direction, Space/Ctrl up and down */
+  update(dt) {
+    const k = Input.keys;
+    const fwd = (k[Input.binds.forward] ? 1 : 0) - (k[Input.binds.back] ? 1 : 0);
+    const str = (k[Input.binds.right] ? 1 : 0) - (k[Input.binds.left] ? 1 : 0);
+    const up = (k[Input.binds.jump] ? 1 : 0) - (k[Input.binds.crouch] ? 1 : 0);
+    let sp = this.speed * (k[Input.binds.sprint] ? 4 : 1);
+    if (Touch.active && Touch.stick.mag > .1) {
+      const cp = Math.cos(this.pitch);
+      this.pos.x += (-Math.sin(this.yaw) * cp * Touch.stick.y + Math.cos(this.yaw) * Touch.stick.x) * sp * dt;
+      this.pos.z += (-Math.cos(this.yaw) * cp * Touch.stick.y - Math.sin(this.yaw) * Touch.stick.x) * sp * dt;
+    }
+    if (fwd || str || up) {
+      const cp = Math.cos(this.pitch);
+      this.pos.x += (-Math.sin(this.yaw) * cp * fwd + Math.cos(this.yaw) * str) * sp * dt;
+      this.pos.z += (-Math.cos(this.yaw) * cp * fwd - Math.sin(this.yaw) * str) * sp * dt;
+      this.pos.y += (Math.sin(this.pitch) * fwd + up) * sp * dt;
+    }
+    this.pos.y = clamp(this.pos.y, -2000, 1400);
+    const cam = Gfx.camera;
+    cam.position.copy(this.pos);
+    cam.rotation.set(0, 0, 0);
+    cam.rotateY(this.yaw);
+    cam.rotateX(this.pitch);
+    if (Math.abs(cam.fov - this.fov) > .01) { cam.fov = this.fov; cam.updateProjectionMatrix(); }
+  },
+
+  /* the buffer is only readable in the same frame as the draw, so the click
+     just raises a flag and Game.loop captures right after Gfx.render */
+  shoot() { this.pending = true; },
+  capture() {
+    this.pending = false;
+    try {
+      const url = Gfx.renderer.domElement.toDataURL('image/png');
+      const a = document.createElement('a');
+      const d = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      a.download = `ark-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.png`;
+      a.href = url;
+      document.body.appendChild(a); a.click(); a.remove();
+      UI.toast(t('saved'), 'ok');
+      Sound.ui('ok');
+    } catch (e) { UI.toast('Screenshot failed', 'bad'); }
+  },
+};
+
+/* ============================================================================
+ * 67 · TOUCH — a virtual stick, a look area and a ring of buttons, so the whole
+ *   island is playable on a phone. Auto-enables on coarse pointers; the
+ *   Gameplay tab can force it on or off.
+ * ==========================================================================*/
+const Touch = {
+  active: false, forced: null,          // null = auto, true/false = user choice
+  stick: { x: 0, y: 0, mag: 0 },
+  held: {}, edge: {},
+  stickId: null, lookId: null, lookX: 0, lookY: 0,
+  root: null, knob: null,
+
+  /* virtual button → the action it stands in for */
+  MAP: {
+    jump: 'jump', crouch: 'crouch', sprint: 'sprint', interact: 'use', alt: 'use2',
+    inventory: 'inventory', map: 'map', build: 'build', pause: 'pause',
+  },
+
+  init() {
+    this.root = $('#touch');
+    this.knob = $('#tstick .knob');
+    if (!this.root) return;
+    const stick = $('#tstick');
+
+    stick.addEventListener('pointerdown', e => {
+      this.stickId = e.pointerId; stick.setPointerCapture(e.pointerId);
+      this.drag(stick, e); e.preventDefault();
+    });
+    stick.addEventListener('pointermove', e => {
+      if (e.pointerId === this.stickId) { this.drag(stick, e); e.preventDefault(); }
+    });
+    const release = e => {
+      if (e.pointerId !== this.stickId) return;
+      this.stickId = null; this.stick.x = this.stick.y = this.stick.mag = 0;
+      this.knob.style.transform = '';
+    };
+    stick.addEventListener('pointerup', release);
+    stick.addEventListener('pointercancel', release);
+
+    /* buttons: held while down, one edge on press */
+    $$('#touch [data-touch]').forEach(b => {
+      const name = b.dataset.touch;
+      b.addEventListener('pointerdown', e => {
+        e.preventDefault(); b.classList.add('on');
+        if (name === 'sprint') { this.held.sprint = !this.held.sprint; b.classList.toggle('on', this.held.sprint); return; }
+        this.held[name] = true; this.edge[name] = true;
+        if (name === 'attack') Input.mouse.left = Input.mouse.leftEdge = true;
+        if (name === 'alt') Input.mouse.right = Input.mouse.rightEdge = true;
+      });
+      const up = () => {
+        if (name !== 'sprint') { b.classList.remove('on'); this.held[name] = false; }
+        if (name === 'attack') Input.mouse.left = false;
+        if (name === 'alt') Input.mouse.right = false;
+      };
+      b.addEventListener('pointerup', up);
+      b.addEventListener('pointercancel', up);
+      b.addEventListener('pointerleave', up);
+    });
+
+    /* the rest of the screen is the look area */
+    const cv = Gfx.canvas;
+    cv.addEventListener('pointerdown', e => {
+      if (e.pointerType !== 'touch' || !this.active) return;
+      this.lookId = e.pointerId; this.lookX = e.clientX; this.lookY = e.clientY;
+    });
+    cv.addEventListener('pointermove', e => {
+      if (e.pointerId !== this.lookId) return;
+      const dx = e.clientX - this.lookX, dy = e.clientY - this.lookY;
+      this.lookX = e.clientX; this.lookY = e.clientY;
+      if (typeof Photo !== 'undefined' && Photo.active) Photo.look(dx * 1.6, dy * 1.6);
+      else Player.look(dx * 1.6, dy * 1.6);
+      e.preventDefault();
+    });
+    const lookEnd = e => { if (e.pointerId === this.lookId) this.lookId = null; };
+    cv.addEventListener('pointerup', lookEnd);
+    cv.addEventListener('pointercancel', lookEnd);
+
+    this.apply();
+  },
+
+  drag(stick, e) {
+    const r = stick.getBoundingClientRect();
+    let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+    const lim = r.width * .38, m = Math.hypot(dx, dy);
+    if (m > lim) { dx *= lim / m; dy *= lim / m; }
+    this.knob.style.transform = `translate(${dx}px,${dy}px)`;
+    this.stick.x = dx / lim;
+    this.stick.y = -dy / lim;
+    this.stick.mag = Math.min(1, m / lim);
+  },
+
+  /** auto = phones and tablets; the setting overrides it either way */
+  wanted() {
+    if (this.forced != null) return this.forced;
+    return matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+  },
+  apply() {
+    this.active = this.wanted();
+    if (this.root) this.root.classList.toggle('hidden', !this.active);
+    document.body.classList.toggle('touch', this.active);
+  },
+  set(v) { this.forced = v; this.apply(); Settings.touch = v; Settings.save(); },
+
+  down(action) {
+    for (const k in this.MAP) if (this.MAP[k] === action && this.held[k]) return true;
+    return false;
+  },
+  pressed(action) {
+    for (const k in this.MAP) if (this.MAP[k] === action && this.edge[k]) return true;
+    return false;
+  },
+  endFrame() { this.edge = {}; },
+};
 
 /* ============================================================================
  * 70 · ITEMS & INVENTORY — stacks with weight, durability and spoilage; the
@@ -8186,7 +9162,7 @@ const Inventory = {
       if (!opts || !opts.silent) UI.toast(def.name + ' <span class="n">×' + got + '</span>');
       Objectives.event('item', { id, qty: got });
     }
-    if (left > 0 && (!opts || !opts.silent)) UI.toast('Inventory full — ' + left + ' ' + def.name + ' lost', 'bad');
+    if (left > 0 && (!opts || !opts.silent)) UI.toast(tr('Inventory full — ') + left + ' ' + def.name + ' lost', 'bad');
     return got;
   },
   take(id, qty) { return this.bag.removeId(id, qty); },
@@ -8199,11 +9175,11 @@ const Inventory = {
     const def = ITEMS[s.id];
     if (def.cat === 'armor') return this.equipArmor(index);
     if (def.cat === 'saddle') return UI.toast('Equip a saddle from a tamed creature\'s inventory');
-    if (!def.use) { UI.toast('You cannot use that directly'); return; }
+    if (!def.use) { UI.toast(tr('You cannot use that directly')); return; }
     const u = def.use;
     if (s.id === 'waterskin') {
       if (s.charges == null) s.charges = def.charges;
-      if (s.charges <= 0) { UI.toast('The waterskin is empty — refill it at water', 'bad'); return; }
+      if (s.charges <= 0) { UI.toast(tr('The waterskin is empty — refill it at water'), 'bad'); return; }
       s.charges -= 25;
       Player.cur.water = Math.min(Player.max('water'), Player.cur.water + u.water);
       Sound.pickup();
@@ -8212,10 +9188,10 @@ const Inventory = {
     }
     if (u.food) Player.cur.food = Math.min(Player.max('food'), Player.cur.food + u.food);
     if (u.water) Player.cur.water = clamp(Player.cur.water + u.water, 0, Player.max('water'));
-    if (u.health) { if (u.health > 0) Player.heal(u.health); else Player.damage(-u.health, 'A bad meal'); }
+    if (u.health) { if (u.health > 0) Player.heal(u.health); else Player.damage(-u.health, tr('A bad meal')); }
     if (u.stamina) Player.cur.stamina = clamp(Player.cur.stamina + u.stamina, 0, Player.max('stamina'));
     if (u.torpor) Player.addTorpor(u.torpor);
-    if (u.sick && Math.random() < u.sick) { Player.sickT = 12; UI.toast('Food poisoning!', 'bad'); }
+    if (u.sick && Math.random() < u.sick) { Player.sickT = 12; UI.toast(tr('Food poisoning!'), 'bad'); }
     this.bag.removeAt(index, 1);
     Sound.pickup();
     UI.refreshInventory();
@@ -8250,13 +9226,13 @@ const Inventory = {
   learn(engramId) {
     const e = ENGRAMS.find(e => e.id === engramId);
     if (!e || this.engrams[engramId]) return false;
-    if (Player.level < e.lv) { UI.toast('Requires level ' + e.lv, 'bad'); return false; }
-    if (e.prereq && !this.engrams[e.prereq]) { UI.toast('Learn ' + (ITEMS[e.prereq] || STRUCTURES[e.prereq] || {}).name + ' first', 'bad'); return false; }
-    if (Player.engramPoints < e.cost) { UI.toast('Not enough engram points', 'bad'); return false; }
+    if (Player.level < e.lv) { UI.toast(tr('Requires level ') + e.lv, 'bad'); return false; }
+    if (e.prereq && !this.engrams[e.prereq]) { UI.toast(tr('Learn ') + (ITEMS[e.prereq] || STRUCTURES[e.prereq] || {}).name + ' first', 'bad'); return false; }
+    if (Player.engramPoints < e.cost) { UI.toast(tr('Not enough engram points'), 'bad'); return false; }
     Player.engramPoints -= e.cost;
     this.engrams[engramId] = true;
     Sound.craft();
-    UI.toast('Learned ' + ((ITEMS[engramId] || STRUCTURES[engramId] || {}).name || engramId), 'good');
+    UI.toast(tr('Learned ') + ((ITEMS[engramId] || STRUCTURES[engramId] || {}).name || engramId), 'good');
     UI.refreshEngrams();
     UI.refreshInventory();
     return true;
@@ -8270,8 +9246,8 @@ const Inventory = {
   },
   craft(recipe, source, target) {
     const src = source || this.bag, dst = target || this.bag;
-    if (!this.knows(recipe.out)) { UI.toast('You have not learned that engram', 'bad'); return false; }
-    if (!src.has(recipe.req)) { UI.toast('Missing materials', 'bad'); return false; }
+    if (!this.knows(recipe.out)) { UI.toast(tr('You have not learned that engram'), 'bad'); return false; }
+    if (!src.has(recipe.req)) { UI.toast(tr('Missing materials'), 'bad'); return false; }
     src.consume(recipe.req);
     this.craftQueue.push({ recipe, t: recipe.time, dst });
     UI.refreshCraftQueue();
@@ -8286,7 +9262,7 @@ const Inventory = {
       const qty = r.qty || 1;
       if (job.dst === this.bag) this.give(r.out, qty);
       else job.dst.add(r.out, qty);
-      Player.addXp(r.xp || 2, 'Crafted');
+      Player.addXp(r.xp || 2, tr('Crafted'));
       Sound.craft();
       this.craftQueue.shift();
       UI.refreshInventory();
@@ -8376,7 +9352,7 @@ const Loot = {
     p.y = World.heightAt(p.x, p.z) + .6;
     if (p.y < 1) return;
     const tier = Player.level < 15 ? 0 : Player.level < 30 ? 1 : Player.level < 50 ? 2 : 3;
-    const bag = this.spawnBag('supply', p, ['White', 'Green', 'Blue', 'Purple'][tier] + ' Supply Drop', 420);
+    const bag = this.spawnBag('supply', p, [tr('White'), tr('Green'), tr('Blue'), tr('Purple')][tier] + tr(' Supply Drop'), 420);
     const pools = [
       [['thatch', 40], ['wood', 30], ['fiber', 40], ['stone_pick', 1], ['cooked_meat', 5], ['amarberry', 20]],
       [['hide', 30], ['bow', 1], ['arrow_stone', 20], ['narcotic', 5], ['cooked_meat', 10], ['spear', 1]],
@@ -8797,7 +9773,7 @@ const Structures = {
             s.crop = null;
             Gfx.scene.remove(s.plantMesh);
             s.plantMesh = null;
-            UI.toast('A crop is ready to harvest', 'good');
+            UI.toast(tr('A crop is ready to harvest'), 'good');
           }
         }
       }
@@ -8867,7 +9843,7 @@ const Building = {
     return Object.keys(STRUCTURES).filter(k => Inventory.knows(k));
   },
   start(type) {
-    if (!Inventory.knows(type)) { UI.toast('Learn the engram first', 'bad'); return; }
+    if (!Inventory.knows(type)) { UI.toast(tr('Learn the engram first'), 'bad'); return; }
     this.active = true;
     this.type = type;
     if (this.ghost) { Gfx.scene.remove(this.ghost); }
@@ -8875,7 +9851,7 @@ const Building = {
     this.ghost.material.transparent = true;
     this.ghost.material.opacity = .55;
     Gfx.scene.add(this.ghost);
-    UI.toast('Placing ' + STRUCTURES[type].name + ' · [' + keyLabel(Input.binds.rotate) + '] rotate · right click to cancel');
+    UI.toast(tr('Placing ') + STRUCTURES[type].name + ' · [' + keyLabel(Input.binds.rotate) + '] rotate · right click to cancel');
   },
   stop() {
     this.active = false;
@@ -9002,13 +9978,13 @@ const Building = {
   },
   place() {
     const def = STRUCTURES[this.type];
-    if (!Inventory.bag.consume(def.req)) { UI.toast('Missing materials', 'bad'); return; }
+    if (!Inventory.bag.consume(def.req)) { UI.toast(tr('Missing materials'), 'bad'); return; }
     Structures.create(this.type, this.snapPos.clone(), this.yaw);
     Sound.craft();
-    Player.addXp(4, 'Built ' + def.name);
+    Player.addXp(4, tr('Built ') + def.name);
     Objectives.event('build', { type: this.type });
     if (!Inventory.bag.has(def.req)) {
-      UI.toast('Out of materials for ' + def.name);
+      UI.toast(tr('Out of materials for ') + def.name);
       this.stop();
     }
   },
@@ -9038,10 +10014,10 @@ const Caves = {
     });
 
     const sites = [
-      { biome: 'mountain', name: 'Frozen Hollow', theme: 'ice', depth: 4 },
-      { biome: 'jungle', name: 'Overgrown Cave', theme: 'moss', depth: 5 },
-      { biome: 'highland', name: 'Deep Shaft', theme: 'stone', depth: 6 },
-      { biome: 'swamp', name: 'Sunken Grotto', theme: 'moss', depth: 4 },
+      { biome: 'mountain', en: tr('Frozen Hollow'), theme: 'ice', depth: 4 },
+      { biome: 'jungle', en: tr('Overgrown Cave'), theme: 'moss', depth: 5 },
+      { biome: 'highland', en: tr('Deep Shaft'), theme: 'stone', depth: 6 },
+      { biome: 'swamp', en: tr('Sunken Grotto'), theme: 'moss', depth: 4 },
     ];
     let idx = 0;
     for (const site of sites) {
@@ -9049,7 +10025,7 @@ const Caves = {
       if (!mouth) continue;
       const cave = this.buildInterior(site, mouth, idx++, rng);
       this.list.push(cave);
-      yield { p: .955 + .01 * idx, msg: 'Hollowing out the caves…' };
+      yield { p: .955 + .01 * idx, msg: tr('Hollowing out the caves…') };
     }
   },
 
@@ -9186,12 +10162,13 @@ const Caves = {
     this.group.add(group);
 
     const cave = {
-      name: site.name, theme: site.theme, index,
+      en: site.en, theme: site.theme, index,
       mouth: mouth.clone(), origin: new THREE.Vector3(mouth.x, baseY, mouth.z),
       path, group, radial,
       entry: new THREE.Vector3(mouth.x + path[0].x, baseY + path[0].y - path[0].r * .55, mouth.z + path[0].z),
       loot: [],
     };
+    Object.defineProperty(cave, 'name', { get: () => tr(cave.en), enumerable: true });
     /* treasure at the far end */
     const last = path[path.length - 1];
     cave.treasure = new THREE.Vector3(mouth.x + last.x, baseY + last.y - last.r * .6, mouth.z + last.z);
@@ -9271,7 +10248,7 @@ const Caves = {
     Gfx.sky.visible = false;
     Gfx.scene.fog.color.setHex(0x05070a);
     Gfx.scene.fog.density = .035;
-    UI.center('You enter ' + cave.name, 'It is pitch black in here — light a torch');
+    UI.center(tr('You enter ') + cave.name, tr('It is pitch black in here — light a torch'));
     Sound.tone(90, 1.6, { type: 'sine', gain: .12, f2: 50 });
     this.spawnInhabitants(cave);
     Objectives.event('cave', cave);
@@ -9298,7 +10275,7 @@ const Caves = {
       if (i >= 0) { c.remove(); Creatures.list.splice(i, 1); }
     }
     this.spawnedInside.length = 0;
-    UI.center('Back in the daylight', '');
+    UI.center(tr('Back in the daylight'), '');
   },
   spawnInhabitants(cave) {
     const pool = cave.theme === 'ice' ? ['raptor', 'carno'] : cave.theme === 'moss' ? ['titanoboa', 'dilo', 'raptor'] : ['raptor', 'dilo', 'carno'];
@@ -9333,7 +10310,7 @@ const Caves = {
       if (Player.pos.distanceTo(this.active.entry) < 3.0 && Player.pos.y > this.active.entry.y - 2) {
         if (!this._exitHint || Game.clock - this._exitHint > 3) {
           this._exitHint = Game.clock;
-          UI.setInteract({ kind: 'caveexit', label: 'Leave ' + this.active.name, sub: 'Walk into the entrance' });
+          UI.setInteract({ kind: 'caveexit', label: tr('Leave ') + this.active.name, sub: tr('Walk into the entrance') });
         }
         if (Player.pos.distanceTo(this.active.entry) < 1.8) this.exit();
       }
@@ -9364,7 +10341,7 @@ const Boss = {
     for (const o of this.obelisks) Gfx.scene.remove(o.mesh);
     this.obelisks.length = 0;
     const colours = [0x4fd6c4, 0xd05a5a, 0x8a6ae0];
-    const names = ['Green Obelisk', 'Red Obelisk', 'Blue Obelisk'];
+    const names = [tr('Green Obelisk'), tr('Red Obelisk'), tr('Blue Obelisk')];
     for (let i = 0; i < 3; i++) {
       let spot = null;
       for (let t = 0; t < 3000 && !spot; t++) {
@@ -9401,7 +10378,9 @@ const Boss = {
       g.add(base);
       g.position.copy(spot);
       Gfx.scene.add(g);
-      this.obelisks.push({ name: names[i], pos: spot.clone(), mesh: g, colour: colours[i] });
+      const ob = { en: names[i], pos: spot.clone(), mesh: g, colour: colours[i] };
+      Object.defineProperty(ob, 'name', { get: () => tr(ob.en), enumerable: true });
+      this.obelisks.push(ob);
     }
   },
 
@@ -9449,10 +10428,10 @@ const Boss = {
   },
 
   canSummon() {
-    if (Player.level < this.MIN_LEVEL) return 'You must be level ' + this.MIN_LEVEL;
+    if (Player.level < this.MIN_LEVEL) return tr('You must be level ') + this.MIN_LEVEL;
     for (const k in this.TRIBUTE) {
       if (Inventory.bag.count(k) < this.TRIBUTE[k]) {
-        return 'Missing tribute: ' + this.TRIBUTE[k] + ' ' + ITEMS[k].name;
+        return tr('Missing tribute: ') + this.TRIBUTE[k] + ' ' + ITEMS[k].name;
       }
     }
     return null;
@@ -9481,7 +10460,7 @@ const Boss = {
     this.boss = Creatures.spawn('broodmother', 120, new THREE.Vector3(0, arena.y, -10));
     if (this.boss) { this.boss.inArena = true; this.boss.acquire(Player); this.boss.roar(); }
     this.adds.length = 0;
-    UI.center('The Broodmother wakes', 'Kill it, or it kills you — there is no way out until one of you falls');
+    UI.center(tr('The Broodmother wakes'), tr('Kill it, or it kills you — there is no way out until one of you falls'));
     Sound.voice(SPECIES.broodmother.voice, { vol: 1 });
   },
   spawnAdd() {
@@ -9516,11 +10495,11 @@ const Boss = {
     if (won) {
       Inventory.give('element', 25);
       Inventory.give('trophy_broodmother', 1);
-      Player.addXp(1200, 'Defeated the Broodmother');
-      UI.center('The Broodmother falls', 'You carry out 25 Element and a trophy');
+      Player.addXp(1200, tr('Defeated the Broodmother'));
+      UI.center(tr('The Broodmother falls'), tr('You carry out 25 Element and a trophy'));
       Objectives.event('boss', null);
     } else {
-      UI.center('You were driven out', 'The tribute is gone — bring more and try again');
+      UI.center(tr('You were driven out'), tr('The tribute is gone — bring more and try again'));
     }
   },
 
@@ -9543,7 +10522,7 @@ const Boss = {
       if (newPhase !== this.phase) {
         this.phase = newPhase;
         this.boss.roar();
-        UI.center('Phase ' + this.phase, this.phase === 3 ? 'It is enraged' : 'It calls for help');
+        UI.center(tr('Phase ') + this.phase, this.phase === 3 ? tr('It is enraged') : tr('It calls for help'));
         for (let i = 0; i < this.phase + 1; i++) this.spawnAdd();
       }
       this.addTimer -= dt;
@@ -9685,14 +10664,14 @@ const UI = {
     }
     /* status icons */
     const icons = [];
-    if (P.cur.food < P.max('food') * .2) icons.push(['bad', 'Hungry']);
-    if (P.cur.water < P.max('water') * .2) icons.push(['bad', 'Thirsty']);
-    if (P.temp < 8) icons.push(['bad', 'Cold ' + Math.round(P.temp) + '°C']);
-    else if (P.temp > 36) icons.push(['bad', 'Hot ' + Math.round(P.temp) + '°C']);
+    if (P.cur.food < P.max('food') * .2) icons.push(['bad', tr('Hungry')]);
+    if (P.cur.water < P.max('water') * .2) icons.push(['bad', tr('Thirsty')]);
+    if (P.temp < 8) icons.push(['bad', tr('Cold ') + Math.round(P.temp) + '°C']);
+    else if (P.temp > 36) icons.push(['bad', tr('Hot ') + Math.round(P.temp) + '°C']);
     else icons.push(['', Math.round(P.temp) + '°C']);
-    if (Inventory.weightRatio() > 1) icons.push(['warn', 'Overweight']);
-    if (P.sickT > 0) icons.push(['bad', 'Food poisoning']);
-    if (P.spitT > 0) icons.push(['bad', 'Blinded']);
+    if (Inventory.weightRatio() > 1) icons.push(['warn', tr('Overweight')]);
+    if (P.sickT > 0) icons.push(['bad', tr('Food poisoning')]);
+    if (P.spitT > 0) icons.push(['bad', tr('Blinded')]);
     if (Sky.weather !== 'clear') icons.push(['', Sky.weather[0].toUpperCase() + Sky.weather.slice(1)]);
     const si = $('#statusicons');
     si.innerHTML = icons.map(([c, t]) => '<span class="sic ' + c + '">' + t + '</span>').join('');
@@ -9729,11 +10708,11 @@ const UI = {
     this.updateObjective();
   },
   updateXp() {
-    $('#lvl').textContent = 'Lv ' + Player.level;
+    $('#lvl').textContent = tr('Lv ') + Player.level;
     $('#xpfill').style.width = (clamp01(Player.xp / Math.max(1, Player.xpNext)) * 100) + '%';
     $('#xptxt').textContent = Math.floor(Player.xp) + ' / ' + Math.round(Player.xpNext);
     const tag = $('#invLevelTag');
-    if (tag) tag.textContent = 'Level ' + Player.level + (Player.statPoints ? '  ·  ' + Player.statPoints + ' points' : '');
+    if (tag) tag.textContent = tr('Level ') + Player.level + (Player.statPoints ? '  ·  ' + Player.statPoints + ' points' : '');
   },
 
   /* ---------------------------------------------------------------- hotbar */
@@ -9819,7 +10798,7 @@ const UI = {
       np.classList.toggle('tamed', c.tamed);
       np.classList.toggle('hostile', !c.tamed && (c.sp.temper === 'aggressive' || c.sp.temper === 'apex'));
       np.querySelector('.nm').textContent = c.displayName();
-      np.querySelector('.lv').textContent = 'Lv ' + c.level
+      np.querySelector('.lv').textContent = tr('Lv ') + c.level
         + (c.tamed ? ' ' + c.genderMark() + (c.isBaby() ? ' · ' + c.growthStage() : '') : '')
         + (c.tamed && c.owner ? ' · ' + c.owner : '');
       np.querySelector('.bar.hp i').style.width = clamp01(c.cur.health / c.max('health')) * 100 + '%';
@@ -9832,8 +10811,8 @@ const UI = {
       tameBar.style.display = (!c.tamed && tameRatio > 0) ? '' : 'none';
       tameBar.querySelector('i').style.width = clamp01(tameRatio) * 100 + '%';
       const st = np.querySelector('.st');
-      st.textContent = c.unconscious ? 'Unconscious' : c.bolaT > 0 ? 'Tangled'
-        : (c.wantsCare ? 'Wants ' + c.wantsCare : c.matingProgress > 0 ? 'Mating ' + Math.round(c.matingProgress * 100) + '%' : '');
+      st.textContent = c.unconscious ? tr('Unconscious') : c.bolaT > 0 ? tr('Tangled')
+        : (c.wantsCare ? tr('Wants ') + c.wantsCare : c.matingProgress > 0 ? tr('Mating ') + Math.round(c.matingProgress * 100) + '%' : '');
     }
     for (const [id, np] of this.nameplateMap) {
       if (!seen.has(id)) { np.remove(); this.nameplateMap.delete(id); }
@@ -9892,15 +10871,15 @@ const UI = {
     const box = $('#objective');
     if (!o) { box.style.display = 'none'; return; }
     box.style.display = '';
-    $('#objTxt').textContent = o.text;
-    $('#objHint').textContent = o.hint || '';
+    $('#objTxt').textContent = tr(o.text);
+    $('#objHint').textContent = o.hint ? tr(o.hint) : '';
   },
 
   /* ------------------------------------------------------------ death UI */
   showDeath(cause) {
-    $('#deathCause').textContent = cause || 'Unknown causes';
+    $('#deathCause').textContent = cause || tr('Unknown causes');
     const ll = Player.deathPos ? World.latLon(Player.deathPos.x, Player.deathPos.z) : null;
-    $('#deathInfo').innerHTML = 'Everything you carried is in a bag where you fell'
+    $('#deathInfo').innerHTML = tr('Everything you carried is in a bag where you fell')
       + (ll ? ' — <b>LAT ' + ll.lat.toFixed(1) + ' LON ' + ll.lon.toFixed(1) + '</b>' : '') + '.';
     $('#respawnBed').style.display = Player.bedPos ? '' : 'none';
     $('#death').classList.add('on');
@@ -9936,12 +10915,12 @@ Object.assign(UI, {
     if (it.desc) h += '<div class="d">' + it.desc + '</div>';
     const rows = [];
     if (it.w != null) rows.push(['Weight', it.w + (stack ? ' × ' + stack.qty + ' = ' + round2(it.w * stack.qty) : '')]);
-    if (it.dmg) rows.push(['Damage', it.dmg]);
-    if (it.torpor) rows.push(['Torpidity', '+' + it.torpor + (it.torporOverTime ? ' over ' + it.torporOverTime + 's' : '')]);
-    if (it.armor) rows.push(['Armour', it.armor]);
-    if (it.cold) rows.push(['Insulation', 'cold ' + it.cold + ' · heat ' + (it.heat || 0)]);
-    if (stack && stack.dura != null && it.dura) rows.push(['Durability', Math.round(stack.dura) + ' / ' + it.dura]);
-    if (stack && stack.spoil != null && it.spoil) rows.push(['Spoils in', fmtTime(stack.spoil)]);
+    if (it.dmg) rows.push([tr('Damage'), it.dmg]);
+    if (it.torpor) rows.push([tr('Torpidity'), '+' + it.torpor + (it.torporOverTime ? ' over ' + it.torporOverTime + 's' : '')]);
+    if (it.armor) rows.push([tr('Armour'), it.armor]);
+    if (it.cold) rows.push([tr('Insulation'), 'cold ' + it.cold + ' · heat ' + (it.heat || 0)]);
+    if (stack && stack.dura != null && it.dura) rows.push([tr('Durability'), Math.round(stack.dura) + ' / ' + it.dura]);
+    if (stack && stack.spoil != null && it.spoil) rows.push([tr('Spoils in'), fmtTime(stack.spoil)]);
     if (it.use) {
       const u = it.use;
       const parts = [];
@@ -9950,22 +10929,22 @@ Object.assign(UI, {
       if (u.health) parts.push('health ' + (u.health > 0 ? '+' : '') + u.health);
       if (u.stamina) parts.push('stamina +' + u.stamina);
       if (u.torpor) parts.push('torpor ' + (u.torpor > 0 ? '+' : '') + u.torpor);
-      if (parts.length) rows.push(['Eat', parts.join(', ')]);
+      if (parts.length) rows.push([tr('Eat'), parts.join(', ')]);
     }
-    if (it.tame) rows.push(['Taming', 'food ' + it.tame.food + ' · affinity ' + it.tame.affinity + (it.tame.diet !== 'any' ? ' · ' + it.tame.diet + 's' : '')]);
+    if (it.tame) rows.push([tr('Taming'), 'food ' + it.tame.food + ' · affinity ' + it.tame.affinity + (it.tame.diet !== 'any' ? ' · ' + it.tame.diet + 's' : '')]);
     if (stack && stack.fert) {
       const sp = SPECIES[stack.fert.sp];
       const range = sp.incubTemp;
       const now = Math.round(World.tempAt(Player.pos.x, Player.pos.z, Sky.time) + Structures.warmthAt(Player.pos));
-      rows.push(['Species', sp.name]);
-      rows.push(['Incubation', Math.round((stack.incub || 0) * 100) + '%']);
-      rows.push(['Needs', range[0] + '\u2013' + range[1] + '\u00b0C  (now ' + now + '\u00b0C)']);
-      rows.push(['Egg health', Math.round((stack.health == null ? 1 : stack.health) * 100) + '%']);
-      if (stack.fert.mutations) rows.push(['Mutations', stack.fert.mutations]);
+      rows.push([tr('Species'), sp.name]);
+      rows.push([tr('Incubation'), Math.round((stack.incub || 0) * 100) + '%']);
+      rows.push([tr('Needs'), range[0] + '\u2013' + range[1] + '\u00b0C  (now ' + now + '\u00b0C)']);
+      rows.push([tr('Egg health'), Math.round((stack.health == null ? 1 : stack.health) * 100) + '%']);
+      if (stack.fert.mutations) rows.push([tr('Mutations'), stack.fert.mutations]);
     }
     if (it.harvest) {
       const best = Object.entries(it.harvest).filter(e => e[1] >= 2).map(e => e[0]);
-      if (best.length) rows.push(['Best for', best.join(', ')]);
+      if (best.length) rows.push([tr('Best for'), best.join(', ')]);
     }
     if (it.req) rows.push(['Cost', Object.entries(it.req).map(([k, v]) => v + ' ' + (ITEMS[k] ? ITEMS[k].name : k)).join(', ')]);
     h += rows.map(r => '<div class="r"><span>' + r[0] + '</span><b>' + r[1] + '</b></div>').join('');
@@ -10102,7 +11081,7 @@ Object.assign(UI, {
     const station = this.stationStruct ? this.stationStruct.def.station : null;
     const list = $('#craftList');
     const search = ($('#craftSearch').value || '').toLowerCase();
-    $('#craftTitle').textContent = station ? (STATIONS[station] ? STATIONS[station].name : station) : 'Crafting';
+    $('#craftTitle').textContent = station ? (STATIONS[station] ? STATIONS[station].name : station) : t('crafting');
     list.innerHTML = '';
     const source = station ? this.stationStruct.inv : Inventory.bag;
     const recipes = RECIPES.filter(r => (r.station || null) === (station || null));
@@ -10124,12 +11103,12 @@ Object.assign(UI, {
         return '<span class="' + (have >= v ? '' : 'miss') + '">' + v + ' ' + nm + '</span>';
       }).join(' · ')));
       row.appendChild(mid);
-      row.appendChild(el('div', 'cost', known ? (r.time || 1) + 's' : 'locked'));
+      row.appendChild(el('div', 'cost', known ? (r.time || 1) + 's' : tr('locked')));
       row.addEventListener('mouseenter', e => this.showTooltip(this.itemTooltip(r.out), e));
       row.addEventListener('mousemove', e => this.showTooltip(this.itemTooltip(r.out), e));
       row.addEventListener('mouseleave', () => this.showTooltip(null));
       row.addEventListener('click', () => {
-        if (!known) { UI.toast('Learn the engram in the character screen', 'bad'); return; }
+        if (!known) { UI.toast(tr('Learn the engram in the character screen'), 'bad'); return; }
         Inventory.craft(r, source, station ? this.stationStruct.inv : Inventory.bag);
         this.refreshInventory();
       });
@@ -10140,13 +11119,13 @@ Object.assign(UI, {
       if (st && st.fuel) {
         const s = this.stationStruct;
         const btn = el('div', 'recipe can');
-        btn.innerHTML = '<div class="ic"></div><div><div class="nm">' + (s.lit ? 'Extinguish' : 'Light it') + '</div>'
+        btn.innerHTML = '<div class="ic"></div><div><div class="nm">' + (s.lit ? tr('Extinguish') : tr('Light it')) + '</div>'
           + '<div class="cost">Fuel: ' + st.fuel.map(f => s.inv.count(f) + ' ' + ITEMS[f].name).join(' · ') + '</div></div><div class="cost"></div>';
         btn.addEventListener('click', () => {
           s.lit = !s.lit;
           if (s.lit && s.fuel <= 0) {
             for (const f of st.fuel) if (s.inv.count(f) > 0) { s.inv.removeId(f, 1); s.fuel = f === 'wood' ? 30 : 8; break; }
-            if (s.fuel <= 0) { s.lit = false; UI.toast('No fuel inside', 'bad'); }
+            if (s.fuel <= 0) { s.lit = false; UI.toast(tr('No fuel inside'), 'bad'); }
           }
           this.refreshInventory();
         });
@@ -10162,7 +11141,7 @@ Object.assign(UI, {
     if (!q.length) return;
     const job = q[0];
     const def = ITEMS[job.recipe.out] || STRUCTURES[job.recipe.out];
-    $('#queueTxt').textContent = 'Crafting ' + def.name + (q.length > 1 ? ' (+' + (q.length - 1) + ')' : '');
+    $('#queueTxt').textContent = tr('Crafting ') + def.name + (q.length > 1 ? ' (+' + (q.length - 1) + ')' : '');
     $('#queueFill').style.width = clamp01(1 - job.t / job.recipe.time) * 100 + '%';
   },
 
@@ -10174,25 +11153,25 @@ Object.assign(UI, {
     this.refreshCharSheet();
   },
   refreshCharSheet() {
-    $('#csPoints').textContent = Player.statPoints + ' stat points';
-    $('#csEngrams').textContent = Player.engramPoints + ' engram points';
+    $('#csPoints').textContent = Player.statPoints + ' ' + t('statPoints');
+    $('#csEngrams').textContent = Player.engramPoints + ' ' + t('engramPoints');
     const box = $('#csStats');
     box.innerHTML = '';
     const rows = [
-      ['health', 'Health', Math.round(Player.max('health'))],
-      ['stamina', 'Stamina', Math.round(Player.max('stamina'))],
-      ['oxygen', 'Oxygen', Math.round(Player.max('oxygen'))],
-      ['food', 'Food', Math.round(Player.max('food'))],
-      ['water', 'Water', Math.round(Player.max('water'))],
-      ['weight', 'Weight', Math.round(Player.max('weight'))],
-      ['melee', 'Melee damage', Math.round(Player.melee() * 100) + '%'],
-      ['speed', 'Movement speed', Math.round(Player.speedMul() * 100) + '%'],
-      ['fort', 'Fortitude', Player.fortitude()],
+      ['health', t('health'), Math.round(Player.max('health'))],
+      ['stamina', t('stamina'), Math.round(Player.max('stamina'))],
+      ['oxygen', t('oxygen'), Math.round(Player.max('oxygen'))],
+      ['food', t('food'), Math.round(Player.max('food'))],
+      ['water', t('water'), Math.round(Player.max('water'))],
+      ['weight', t('weight'), Math.round(Player.max('weight'))],
+      ['melee', tr('Melee damage'), Math.round(Player.melee() * 100) + '%'],
+      ['speed', tr('Movement speed'), Math.round(Player.speedMul() * 100) + '%'],
+      ['fort', tr('Fortitude'), Player.fortitude()],
     ];
     for (const [k, label, val] of rows) {
       const r = el('div', 'statup');
       r.innerHTML = '<span class="ic">' + (STAT_ICONS[k] ? '<svg viewBox="0 0 24 24" width="16" height="16">' + STAT_ICONS[k].replace(/<\/?svg[^>]*>/g, '') + '</svg>' : '') + '</span>'
-        + '<span>' + label + '<small style="color:var(--bone-dim)"> · ' + Player.points[k] + ' pts</small></span>'
+        + '<span>' + label + '<small style="color:var(--bone-dim)"> · ' + Player.points[k] + ' ' + tr('pts') + '</small></span>'
         + '<span class="v">' + val + '</span>';
       const plus = el('div', 'plus', '+');
       plus.addEventListener('click', () => { if (Player.spendPoint(k)) this.refreshCharSheet(); });
@@ -10219,7 +11198,7 @@ Object.assign(UI, {
       row.appendChild(ic);
       const mid = el('div');
       mid.appendChild(el('div', 'nm', def.name));
-      mid.appendChild(el('div', 'sub', 'Level ' + e.lv + (e.prereq ? ' · needs ' + ((ITEMS[e.prereq] || STRUCTURES[e.prereq] || {}).name) : '')));
+      mid.appendChild(el('div', 'sub', tr('Level ') + e.lv + (e.prereq ? ' · ' + tr('needs') + ' ' + ((ITEMS[e.prereq] || STRUCTURES[e.prereq] || {}).name) : '')));
       row.appendChild(mid);
       row.appendChild(el('div', 'cost', owned ? '✓' : e.cost + ' EP'));
       row.addEventListener('mouseenter', ev => this.showTooltip(this.itemTooltip(e.id), ev));
@@ -10250,7 +11229,7 @@ Object.assign(UI, {
     if (!c || !$('#tame').classList.contains('on')) return;
     if (c.dead) { this.closeTame(); return; }
     $('#tmName').textContent = c.displayName();
-    $('#tmMeta').textContent = 'Level ' + c.level + ' · ' + c.sp.latin + ' · ' + (c.unconscious ? 'Unconscious' : 'Awake');
+    $('#tmMeta').textContent = tr('Level ') + c.level + ' · ' + c.sp.latin + ' · ' + (c.unconscious ? tr('Unconscious') : tr('Awake'));
     const set = (bar, txt, cur, max, fmt) => {
       $(bar).style.width = clamp01(cur / Math.max(1, max)) * 100 + '%';
       $(txt).textContent = fmt ? fmt : Math.round(cur) + ' / ' + Math.round(max);
@@ -10272,16 +11251,16 @@ Object.assign(UI, {
     $('#tmDiet').textContent = c.sp.diet;
     const warn = $('#tamewarn');
     const msgs = [];
-    if (c.unconscious && c.wakeSeconds() < 45) msgs.push('It is waking up — force-feed Narcoberries or Narcotic!');
+    if (c.unconscious && c.wakeSeconds() < 45) msgs.push(tr('It is waking up — force-feed Narcoberries or Narcotic!'));
     if (c.cur.food <= 0) msgs.push('It is starving — it will lose health until you feed it.');
-    if (!c.inv.slots_.length && c.unconscious) msgs.push('Put food in its inventory: it eats on its own while unconscious.');
+    if (!c.inv.slots_.length && c.unconscious) msgs.push(tr('Put food in its inventory: it eats on its own while unconscious.'));
     warn.classList.toggle('hidden', msgs.length === 0);
     warn.innerHTML = msgs.join('<br>');
     this.renderGrid($('#tmYouGrid'), Inventory.bag, 'you', {});
     this.renderGrid($('#tmGrid'), c.inv, 'other', {});
     $('#tmYouWeight').textContent = Math.round(Inventory.bag.weight()) + ' / ' + Math.round(Player.max('weight'));
     $('#tmOtherWeight').textContent = Math.round(c.inv.weight());
-    $('#tmInvTitle').textContent = c.sp.name + ' inventory';
+    $('#tmInvTitle').textContent = c.sp.name + ' · ' + t('inventory');
   },
   askName(c) {
     if ($('#nameModal')) $('#nameModal').remove();
@@ -10290,7 +11269,7 @@ Object.assign(UI, {
     wrap.style.zIndex = 300;
     const box = el('div', 'win panel');
     box.style.cssText = 'max-width:420px;height:auto;align-self:center;justify-self:center;padding:20px';
-    box.innerHTML = '<div class="sec-title">Name your ' + c.sp.name + '</div>';
+    box.innerHTML = '<div class="sec-title">' + tr('Name your ') + c.sp.name + '</div>';
     const input = el('input');
     input.type = 'text';
     input.maxLength = 22;
@@ -10299,8 +11278,8 @@ Object.assign(UI, {
     box.appendChild(input);
     const row = el('div');
     row.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;margin-top:14px';
-    const ok = el('button', 'btn primary', 'Name it');
-    const skip = el('button', 'btn ghost', 'Later');
+    const ok = el('button', 'btn primary', tr('Name it'));
+    const skip = el('button', 'btn ghost', tr('Later'));
     row.appendChild(skip); row.appendChild(ok);
     box.appendChild(row);
     wrap.appendChild(box);
@@ -10340,15 +11319,15 @@ Object.assign(UI, {
     const c = this.dinoTarget;
     if (!c || !$('#dinopanel').classList.contains('on')) return;
     $('#dpName').textContent = c.displayName();
-    $('#dpLevel').textContent = 'Lv ' + c.level + ' · ' + c.sp.name;
+    $('#dpLevel').textContent = tr('Lv ') + c.level + ' · ' + c.sp.name;
     const box = $('#dpStats');
     box.innerHTML = '';
     const bars = [
-      ['Health', c.cur.health, c.max('health'), 'var(--hp)'],
-      ['Stamina', c.cur.stamina, c.max('stamina'), 'var(--stam)'],
-      ['Food', c.cur.food, c.max('food'), 'var(--food)'],
-      ['Weight', c.inv.weight(), c.max('weight'), 'var(--weight)'],
-      ['Torpor', c.cur.torpor, c.max('torpor'), 'var(--torpor)'],
+      [t('health'), c.cur.health, c.max('health'), 'var(--hp)'],
+      [t('stamina'), c.cur.stamina, c.max('stamina'), 'var(--stam)'],
+      [t('food'), c.cur.food, c.max('food'), 'var(--food)'],
+      [t('weight'), c.inv.weight(), c.max('weight'), 'var(--weight)'],
+      [t('torpor'), c.cur.torpor, c.max('torpor'), 'var(--torpor)'],
     ];
     for (const [n, cur, max, col] of bars) {
       const r = el('div', 'tbar');
@@ -10358,30 +11337,38 @@ Object.assign(UI, {
     }
     const info = el('div');
     info.style.cssText = 'margin-top:12px;font-size:12.5px;color:var(--bone-soft)';
-    info.innerHTML = 'Melee damage <b>' + Math.round(c.max('damage')) + '</b> · Speed <b>' + c.max('speed').toFixed(1) + ' m/s</b><br>'
-      + 'Taming effectiveness <b>' + Math.round(c.tameEffect * 100) + '%</b> · Imprint <b>' + Math.round(c.imprint * 100) + '%</b><br>'
-      + 'Sex <b>' + (c.gender === 'F' ? 'Female \u2640' : 'Male \u2642') + '</b> · Stage <b>' + c.growthStage() + '</b>'
-      + (c.mutations ? ' · Mutations <b>' + c.mutations + '</b>' : '')
-      + (c.parents ? '<br>Parents: <b>' + c.parents.mother + '</b> \u00d7 <b>' + c.parents.father + '</b>' : '')
-      + (c.sp.harvest ? '<br>Harvests: <b>' + Object.entries(c.sp.harvest).filter(e => e[1] >= 2).map(e => e[0]).join(', ') + '</b>' : '');
+    info.innerHTML = tr('Melee damage') + ' <b>' + Math.round(c.max('damage')) + '</b> · ' + tr('Speed') + ' <b>' + c.max('speed').toFixed(1) + ' m/s</b><br>'
+      + t('tamingEff') + ' <b>' + Math.round(c.tameEffect * 100) + '%</b> · ' + t('imprint') + ' <b>' + Math.round(c.imprint * 100) + '%</b><br>'
+      + tr('Sex') + ' <b>' + (c.gender === 'F' ? t('female') + ' \u2640' : t('male') + ' \u2642') + '</b> · ' + tr('Stage') + ' <b>' + c.growthStage() + '</b>'
+      + (c.mutations ? ' · ' + tr('Mutations') + ' <b>' + c.mutations + '</b>' : '')
+      + (c.parents ? '<br>' + tr('Parents') + ': <b>' + c.parents.mother + '</b> \u00d7 <b>' + c.parents.father + '</b>' : '')
+      + (c.sp.harvest ? '<br>' + tr('Harvests') + ': <b>' + Object.entries(c.sp.harvest).filter(e => e[1] >= 2).map(e => I18N.res(e[0])).join(', ') + '</b>' : '');
     box.appendChild(info);
+    /* the field guide entry: what this animal is actually for */
+    if (c.sp.info) {
+      const note = el('div', null, c.sp.info);
+      note.style.cssText = 'margin-top:12px;padding:9px 11px;border-radius:var(--r-md);'
+        + 'background:rgba(255,255,255,.04);border:1px solid var(--line);font-size:12px;'
+        + 'color:var(--bone-dim);line-height:1.6';
+      box.appendChild(note);
+    }
 
     /* --- growing up ---------------------------------------------------- */
     if (c.isBaby()) {
       const g = el('div');
       g.style.marginTop = '12px';
-      g.appendChild(el('div', 'sec-title', 'Growing up'));
+      g.appendChild(el('div', 'sec-title', tr('Growing up')));
       const bar = el('div', 'tbar');
-      bar.innerHTML = '<div class="lab"><span>Maturation</span><b>' + Math.round(c.age * 100) + '%</b></div>'
+      bar.innerHTML = '<div class="lab"><span>' + t('maturation') + '</span><b>' + Math.round(c.age * 100) + '%</b></div>'
         + '<div class="track"><i style="width:' + (c.age * 100) + '%;background:var(--teal)"></i></div>';
       g.appendChild(bar);
       const im = el('div', 'tbar');
-      im.innerHTML = '<div class="lab"><span>Imprint</span><b>' + Math.round(c.imprint * 100) + '%</b></div>'
+      im.innerHTML = '<div class="lab"><span>' + t('imprint') + '</span><b>' + Math.round(c.imprint * 100) + '%</b></div>'
         + '<div class="track"><i style="width:' + (c.imprint * 100) + '%;background:var(--amber)"></i></div>';
       g.appendChild(im);
       if (c.wantsCare) {
         const want = el('div', 'chips');
-        const b = el('button', 'chip on', 'It wants ' + c.wantsCare + ' — care for it');
+        const b = el('button', 'chip on', tr('It wants ') + c.wantsCare + ' — ' + tr('care for it'));
         b.addEventListener('click', () => { c.careFor(); this.refreshDino(); });
         want.appendChild(b);
         g.appendChild(want);
@@ -10392,9 +11379,9 @@ Object.assign(UI, {
     /* --- breeding ------------------------------------------------------- */
     const br = el('div');
     br.style.marginTop = '12px';
-    br.appendChild(el('div', 'sec-title', 'Breeding'));
+    br.appendChild(el('div', 'sec-title', t('breeding')));
     const brChips = el('div', 'chips');
-    const mate = el('button', 'chip' + (c.mating ? ' on' : ''), c.mating ? 'Mating enabled' : 'Enable mating');
+    const mate = el('button', 'chip' + (c.mating ? ' on' : ''), c.mating ? t('matingOn') : t('enableMating'));
     mate.addEventListener('click', () => {
       c.mating = !c.mating;
       if (c.mating) { c.wandering = false; c.following = false; }
@@ -10405,33 +11392,33 @@ Object.assign(UI, {
     br.appendChild(brChips);
     const status = el('div');
     status.style.cssText = 'margin-top:6px;font-size:12px;color:var(--bone-dim)';
-    status.innerHTML = c.age < 1 ? 'Too young to breed.'
-      : c.matingCooldown > 0 ? 'Ready to mate again in <b>' + fmtTime(c.matingCooldown) + '</b>'
-      : c.gestation ? 'Pregnant — gives birth in <b>' + fmtTime(c.gestation.t) + '</b>'
-      : c.matingProgress > 0 ? 'Mating… <b>' + Math.round(c.matingProgress * 100) + '%</b>'
-      : 'Enable mating on a male and a female of the same species, keep them close and fed.';
+    status.innerHTML = c.age < 1 ? tr('Too young to breed.')
+      : c.matingCooldown > 0 ? tr('Ready to mate again in') + ' <b>' + fmtTime(c.matingCooldown) + '</b>'
+      : c.gestation ? tr('Pregnant — gives birth in') + ' <b>' + fmtTime(c.gestation.t) + '</b>'
+      : c.matingProgress > 0 ? tr('Mating…') + ' <b>' + Math.round(c.matingProgress * 100) + '%</b>'
+      : tr('Enable mating on a male and a female of the same species, keep them close and fed.');
     br.appendChild(status);
     box.appendChild(br);
 
     const beh = el('div');
     beh.style.cssText = 'margin-top:14px;display:grid;gap:6px';
-    beh.appendChild(el('div', 'sec-title', 'Behaviour'));
+    beh.appendChild(el('div', 'sec-title', tr('Behaviour')));
     const chips = el('div', 'chips');
     for (const b of ['passive', 'neutral', 'aggressive']) {
-      const ch = el('button', 'chip' + (c.behavior === b ? ' on' : ''), b);
+      const ch = el('button', 'chip' + (c.behavior === b ? ' on' : ''), t(b));
       ch.addEventListener('click', () => { c.behavior = b; this.refreshDino(); });
       chips.appendChild(ch);
     }
     beh.appendChild(chips);
     const chips2 = el('div', 'chips');
-    const fol = el('button', 'chip' + (c.following ? ' on' : ''), c.following ? 'Following' : 'Follow me');
+    const fol = el('button', 'chip' + (c.following ? ' on' : ''), c.following ? t('following') : t('follow'));
     fol.addEventListener('click', () => { c.following = !c.following; c.wandering = false; this.refreshDino(); });
     chips2.appendChild(fol);
-    const wan = el('button', 'chip' + (c.wandering ? ' on' : ''), 'Wander');
+    const wan = el('button', 'chip' + (c.wandering ? ' on' : ''), t('wander'));
     wan.addEventListener('click', () => { c.wandering = !c.wandering; c.following = false; c.home.copy(c.pos); this.refreshDino(); });
     chips2.appendChild(wan);
     if (c.sp.rideable) {
-      const ride = el('button', 'chip', c.saddle ? 'Ride' : 'Needs saddle');
+      const ride = el('button', 'chip', c.saddle ? tr('Ride') : tr('Needs saddle'));
       ride.addEventListener('click', () => { if (c.saddle) { this.closeDino(); Riding.mount(c); } });
       chips2.appendChild(ride);
     }
@@ -10441,16 +11428,16 @@ Object.assign(UI, {
     /* saddle slot */
     const sad = el('div');
     sad.style.cssText = 'margin-top:14px';
-    sad.appendChild(el('div', 'sec-title', 'Saddle'));
+    sad.appendChild(el('div', 'sec-title', tr('Saddle')));
     const sadRow = el('div', 'chips');
     if (c.saddle) {
-      const b = el('button', 'chip on', ITEMS[c.saddle.id].name + ' (unequip)');
+      const b = el('button', 'chip on', ITEMS[c.saddle.id].name + ' (' + tr('unequip') + ')');
       b.addEventListener('click', () => { Inventory.give(c.saddle.id, 1, { dura: c.saddle.dura }); c.saddle = null; this.refreshDino(); });
       sadRow.appendChild(b);
     } else {
       const key = 'saddle_' + c.speciesId;
       const has = Inventory.has(key, 1);
-      const b = el('button', 'chip' + (has ? '' : ' locked'), has ? 'Equip ' + ITEMS[key].name : 'Craft a ' + (ITEMS[key] ? ITEMS[key].name : 'saddle'));
+      const b = el('button', 'chip' + (has ? '' : ' locked'), (has ? tr('Equip ') : tr('Craft a ')) + (ITEMS[key] ? ITEMS[key].name : t('saddle')));
       if (has) b.addEventListener('click', () => {
         Inventory.take(key, 1);
         c.saddle = { id: key, dura: ITEMS[key].dura };
@@ -10488,9 +11475,9 @@ Object.assign(UI, {
       + Player.level + ' / ' + Boss.MIN_LEVEL + '</b></div>';
     const row = el('div');
     row.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;margin-top:16px';
-    const go = el('button', 'btn primary', 'Summon the Broodmother');
+    const go = el('button', 'btn primary', tr('Summon the Broodmother'));
     if (why) { go.setAttribute('disabled', ''); go.textContent = why; }
-    const cancel = el('button', 'btn ghost', 'Step back');
+    const cancel = el('button', 'btn ghost', tr('Step back'));
     row.appendChild(cancel); row.appendChild(go);
     box.appendChild(row);
     wrap.appendChild(box);
@@ -10520,14 +11507,14 @@ Object.assign(UI, {
       m.innerHTML = '<span class="d" style="background:' + color + '"></span>' + (label ? '<span>' + label + '</span>' : '');
       layer.appendChild(m);
     };
-    addMark(Player.pos.x, Player.pos.z, '#4fd6c4', 'You');
-    if (Player.bedPos) addMark(Player.bedPos.x, Player.bedPos.z, '#f0a842', 'Bed');
-    if (Player.deathPos) addMark(Player.deathPos.x, Player.deathPos.z, '#e0524a', 'Body');
+    addMark(Player.pos.x, Player.pos.z, '#4fd6c4', t('you'));
+    if (Player.bedPos) addMark(Player.bedPos.x, Player.bedPos.z, '#f0a842', t('bed'));
+    if (Player.deathPos) addMark(Player.deathPos.x, Player.deathPos.z, '#e0524a', t('body'));
     for (const c of Creatures.tamedList) if (!c.dead) addMark(c.pos.x, c.pos.z, '#7fd45b', c.displayName());
-    for (const b of Loot.bags) if (b.kind === 'supply') addMark(b.pos.x, b.pos.z, '#9a6ae0', 'Drop');
+    for (const b of Loot.bags) if (b.kind === 'supply') addMark(b.pos.x, b.pos.z, '#9a6ae0', tr('Drop'));
     for (const o of Boss.obelisks) addMark(o.pos.x, o.pos.z, '#' + o.colour.toString(16).padStart(6, '0'), o.name.split(' ')[0]);
     for (const c of Caves.list) addMark(c.mouth.x, c.mouth.z, '#1a1a1a', c.name);
-    if (this.mapWaypoint) addMark(this.mapWaypoint.x, this.mapWaypoint.z, '#ffffff', 'Waypoint');
+    if (this.mapWaypoint) addMark(this.mapWaypoint.x, this.mapWaypoint.z, '#ffffff', tr('Waypoint'));
     const ll = World.latLon(Player.pos.x, Player.pos.z);
     $('#mapCoord').textContent = 'LAT ' + ll.lat.toFixed(1) + ' · LON ' + ll.lon.toFixed(1);
     cv.onclick = (e) => {
@@ -10535,7 +11522,7 @@ Object.assign(UI, {
       const u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
       this.mapWaypoint = new THREE.Vector3(-World.half + u * World.size, 0, -World.half + v * World.size);
       this.openMap();
-      UI.toast('Waypoint set');
+      UI.toast(tr('Waypoint set'));
     };
   },
   closeMap() { screenOn('map', false); if (Game.state === 'play') Input.lock(); },
@@ -10575,41 +11562,53 @@ Object.assign(UI, {
         sel.appendChild(o);
       }
       sel.addEventListener('change', () => { Gfx.applyQuality(sel.value); Settings.save(); });
-      row('Quality preset', 'Draw distance, shadows, foliage', sel);
-      row('Shadows', 'Sun and moon shadow maps', toggle(Gfx.shadowsOn, v => { Gfx.setShadows(v); Settings.save(); }));
-      row('Bloom & grading', 'Post processing', toggle(Gfx.bloomOn, v => { Gfx.setBloom(v); Settings.save(); }));
+      row(tr('Quality preset'), tr('Draw distance, shadows, foliage'), sel);
+      row(t('shadows'), tr('Sun and moon shadow maps'), toggle(Gfx.shadowsOn, v => { Gfx.setShadows(v); Settings.save(); }));
+      row(tr('Bloom & grading'), tr('Post processing'), toggle(Gfx.bloomOn, v => { Gfx.setBloom(v); Settings.save(); }));
       {
         const [i, v] = slider(60, 110, 1, Player.targetFov, val => { Camera.fovScale = val / 78; Settings.save(); }, x => x + '°');
-        row('Field of view', '', i, v);
+        row(tr('Field of view'), '', i, v);
       }
       {
         const [i, v] = slider(.2, 3, .05, Camera.sensitivity, val => { Camera.sensitivity = val; Settings.save(); }, x => x.toFixed(2));
-        row('Mouse sensitivity', '', i, v);
+        row(tr('Mouse sensitivity'), '', i, v);
       }
-      row('Invert Y axis', '', toggle(Camera.invertY, v => { Camera.invertY = v; Settings.save(); }));
+      row(tr('Invert Y axis'), '', toggle(Camera.invertY, v => { Camera.invertY = v; Settings.save(); }));
       {
         const [i, v] = slider(0, 1, .05, Sound.vol.master, val => { Sound.setVol('master', val); Settings.save(); }, x => Math.round(x * 100) + '%');
-        row('Master volume', '', i, v);
+        row(tr('Master volume'), '', i, v);
       }
       {
         const [i, v] = slider(0, 1, .05, Sound.vol.amb, val => { Sound.setVol('amb', val); Settings.save(); }, x => Math.round(x * 100) + '%');
-        row('Ambience volume', '', i, v);
+        row(tr('Ambience volume'), '', i, v);
       }
     } else if (this.settingsTab === 'game') {
-      const rates = [['taming', 'Taming speed'], ['harvest', 'Harvest amount'], ['xp', 'XP rate'], ['dinoFood', 'Creature food drain'], ['breeding', 'Breeding speed']];
+      const rates = [['taming', tr('Taming speed')], ['harvest', tr('Harvest amount')], ['xp', tr('XP rate')], ['dinoFood', tr('Creature food drain')], ['breeding', tr('Breeding speed')]];
       for (const [k, label] of rates) {
         const [i, v] = slider(.5, 20, .5, TUNE.rates[k], val => { TUNE.rates[k] = val; Settings.save(); }, x => x + '×');
         row(label, '', i, v);
       }
       {
-        const [i, v] = slider(240, 2400, 60, Sky.dayLength, val => { Sky.dayLength = val; TUNE.time.dayLength = val; Settings.save(); }, x => Math.round(x / 60) + ' min');
-        row('Day length', 'Real minutes for a full day/night', i, v);
+        const [i, v] = slider(240, 2400, 60, Sky.dayLength, val => { Sky.dayLength = val; TUNE.time.dayLength = val; Settings.save(); }, x => Math.round(x / 60) + ' ' + tr('min'));
+        row(tr('Day length'), tr('Real minutes for a full day/night'), i, v);
       }
       {
         const [i, v] = slider(30, 260, 10, Creatures.budget, val => { Creatures.budget = val; TUNE.spawn.budget = val; Settings.save(); });
-        row('Creature population', 'How many wild creatures roam nearby', i, v);
+        row(tr('Creature population'), tr('How many wild creatures roam nearby'), i, v);
       }
-      row('Show FPS', '', toggle(Game.showFps, v => { Game.showFps = v; $('#fps').style.display = v ? '' : 'none'; Settings.save(); }));
+      row(tr('Show FPS'), '', toggle(Game.showFps, v => { Game.showFps = v; $('#fps').style.display = v ? '' : 'none'; Settings.save(); }));
+      {
+        const sel = el('select');
+        for (const [code, label] of [['en', 'English'], ['ar', 'العربية']]) {
+          const o = el('option', null, label);
+          o.value = code; if (I18N.lang === code) o.selected = true;
+          sel.appendChild(o);
+        }
+        sel.addEventListener('change', () => { I18N.set(sel.value); Settings.save(); });
+        row(t('language'), 'English / العربية', sel);
+      }
+      row(t('touchControls'), tr('On-screen stick and buttons'),
+        toggle(Touch.active, v => { Touch.set(v); }));
     } else if (this.settingsTab === 'keys') {
       for (const action in Input.binds) {
         const r = el('div', 'keyrow');
@@ -10618,12 +11617,12 @@ Object.assign(UI, {
         k.addEventListener('click', () => {
           Input.listening = action;
           r.classList.add('listen');
-          k.textContent = 'press a key…';
+          k.textContent = tr('press a key…');
         });
         r.appendChild(k);
         body.appendChild(r);
       }
-      const reset = el('button', 'btn sm', 'Reset to defaults');
+      const reset = el('button', 'btn sm', tr('Reset to defaults'));
       reset.style.marginTop = '12px';
       reset.addEventListener('click', () => { Input.binds = Object.assign({}, DEFAULT_BINDS); this.buildSettings(); Settings.save(); });
       body.appendChild(reset);
@@ -10632,10 +11631,10 @@ Object.assign(UI, {
         const meta = SaveGame.slotInfo(i);
         const r = el('div', 'row');
         r.style.gridTemplateColumns = '1fr auto auto auto';
-        r.innerHTML = '<div class="name">Slot ' + (i + 1) + '<small>' + (meta ? meta.summary : 'empty') + '</small></div>';
-        const sv = el('button', 'btn sm', 'Save');
+        r.innerHTML = '<div class="name">' + tr('Slot ') + (i + 1) + '<small>' + (meta ? meta.summary : tr('empty')) + '</small></div>';
+        const sv = el('button', 'btn sm', tr('Save'));
         sv.addEventListener('click', () => { SaveGame.save(i); this.buildSettings(); });
-        const ld = el('button', 'btn sm', 'Load');
+        const ld = el('button', 'btn sm', tr('Load'));
         ld.addEventListener('click', () => { SaveGame.load(i); });
         if (!meta) ld.setAttribute('disabled', '');
         const del = el('button', 'btn sm ghost', '🗑');
@@ -10643,7 +11642,7 @@ Object.assign(UI, {
         r.appendChild(sv); r.appendChild(ld); r.appendChild(del);
         body.appendChild(r);
       }
-      const exp = el('button', 'btn sm', 'Export save to file');
+      const exp = el('button', 'btn sm', tr('Export save to file'));
       exp.style.marginTop = '12px';
       exp.addEventListener('click', () => SaveGame.exportFile());
       body.appendChild(exp);
@@ -10656,9 +11655,9 @@ Object.assign(UI, {
     screenOn('pause', true);
     Input.unlock();
     Game.paused = true;
-    $('#pauseInfo').innerHTML = 'Seed <b>' + World.seed + '</b> · Day ' + Game.day + ' · ' + Sky.clockString()
-      + '<br>Level ' + Player.level + ' · ' + Creatures.tamedList.length + ' tamed creatures · '
-      + Structures.list.length + ' structures';
+    $('#pauseInfo').innerHTML = tr('Seed') + ' <b>' + World.seed + '</b> · ' + tr('Day ') + Game.day + ' · ' + Sky.clockString()
+      + '<br>' + tr('Level ') + Player.level + ' · ' + Creatures.tamedList.length + ' ' + tr('tamed creatures') + ' · '
+      + Structures.list.length + ' ' + tr('structures');
   },
   closePause() {
     screenOn('pause', false);
@@ -10725,13 +11724,13 @@ const Objectives = {
     if (!s) { this.done = true; return; }
     if (s.check()) {
       this.index++;
-      Player.addXp(24, 'Objective complete');
+      Player.addXp(24, tr('Objective complete'));
       Sound.levelUp();
       if (this.index >= this.steps.length) {
         this.done = true;
-        UI.center('The island is yours', 'Every objective complete — go tame a Rex');
+        UI.center(tr('The island is yours'), tr('Every objective complete — go tame a Rex'));
       } else {
-        UI.center('Objective complete', this.steps[this.index].text);
+        UI.center(tr('Objective complete'), tr(this.steps[this.index].text));
       }
     }
   },
@@ -10784,10 +11783,10 @@ const SaveGame = {
     try {
       const data = JSON.stringify(this.snapshot());
       localStorage.setItem(this.KEY + slot, data);
-      if (!silent) UI.toast('Game saved to slot ' + (slot + 1), 'good');
+      if (!silent) UI.toast(tr('Game saved to slot ') + (slot + 1), 'good');
       return true;
     } catch (e) {
-      UI.toast('Save failed: ' + e.message, 'bad');
+      UI.toast(tr('Save failed: ') + e.message, 'bad');
       return false;
     }
   },
@@ -10798,13 +11797,13 @@ const SaveGame = {
       const d = JSON.parse(raw);
       const date = new Date(d.t);
       return {
-        summary: 'Lv ' + d.player.level + ' · ' + (d.creatures || []).filter(c => c.tamed).length + ' tames · day '
+        summary: tr('Lv ') + d.player.level + ' · ' + (d.creatures || []).filter(c => c.tamed).length + ' ' + tr('tames') + ' · ' + tr('day ')
           + (d.day || 1) + ' · ' + date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         data: d,
       };
     } catch (e) { return null; }
   },
-  erase(slot) { localStorage.removeItem(this.KEY + slot); UI.toast('Slot ' + (slot + 1) + ' erased'); },
+  erase(slot) { localStorage.removeItem(this.KEY + slot); UI.toast(tr('Slot ') + (slot + 1) + ' ' + tr('erased')); },
   latestSlot() {
     let best = -1, bestT = 0;
     for (let i = 0; i < TUNE.save.slots; i++) {
@@ -10824,7 +11823,7 @@ const SaveGame = {
 
   load(slot) {
     const info = this.slotInfo(slot);
-    if (!info) { UI.toast('That slot is empty', 'bad'); return false; }
+    if (!info) { UI.toast(tr('That slot is empty'), 'bad'); return false; }
     Game.startFromSave(info.data);
     return true;
   },
@@ -10894,6 +11893,7 @@ const Settings = {
         sensitivity: Camera.sensitivity, invertY: Camera.invertY, fovScale: Camera.fovScale,
         vol: Sound.vol, binds: Input.binds, showFps: Game.showFps,
         rates: TUNE.rates, dayLength: Sky.dayLength,
+        lang: I18N.lang, touch: Touch.forced,
       }));
     } catch (e) { /* private mode: settings simply do not persist */ }
   },
@@ -10913,6 +11913,8 @@ const Settings = {
       if (d.showFps != null) Game.showFps = d.showFps;
       if (d.rates) Object.assign(TUNE.rates, d.rates);
       if (d.dayLength) { Sky.dayLength = d.dayLength; TUNE.time.dayLength = d.dayLength; }
+      if (d.lang) I18N.set(d.lang);
+      if (d.touch !== undefined) { Touch.forced = d.touch; Touch.apply(); }
     } catch (e) { /* ignore corrupt settings */ }
   },
 };
@@ -10932,10 +11934,14 @@ const LOADING_TIPS = [
   'Trikes harvest berries, Ankylos harvest metal, Doedicurus harvests stone.',
   'Build a bed: without one you respawn on a random beach.',
   'Raptors hunt in packs. Bola one before the rest arrive.',
+  'Sleep in a bed to skip the night — the island keeps growing while you do.',
+  'Press P for photo mode: fly the camera anywhere, grade the shot, save a PNG.',
+  'Breed a pair, keep the egg warm, and imprint on the baby for stronger stats.',
+  'The obelisks take a tribute. Bring an army before you pay it.',
 ];
 
 const Game = {
-  state: 'boot', paused: false, clock: 0, day: 1, frame: 0, showFps: true,
+  state: 'boot', paused: false, sleeping: false, clock: 0, day: 1, frame: 0, showFps: true,
   last: 0, acc: 0, fps: 60, fpsT: 0, fpsN: 0, autosaveT: 0, torchLight: null,
   genQueue: null, genLabel: '', pendingSave: null,
 
@@ -10957,10 +11963,13 @@ const Game = {
     UI.init();
     Input.init(canvas);
     Settings.load();
+    I18N.init();
+    Photo.init();
+    Touch.init();
     Sky.buildRain(Gfx.scene);
     this.bindMenu();
     this.bindGlobalKeys();
-    $('#boottip').textContent = pick(LOADING_TIPS);
+    $('#boottip').textContent = tr(pick(LOADING_TIPS));
     /* show the menu once the shell is ready */
     setTimeout(() => {
       $('#boot').classList.add('done');
@@ -10993,6 +12002,9 @@ const Game = {
     link('optXp', 'vXp', x => x + '×');
     link('optDay', 'vDay', x => x + 'm');
     link('optDinos', 'vDinos', x => x);
+    const lang = $('#optLang');
+    lang.value = I18N.lang;
+    lang.addEventListener('change', () => { I18N.set(lang.value); Settings.save(); });
     for (const [id, key] of [['chShadow', 'shadows'], ['chBloom', 'bloom'], ['chGrass', 'grass']]) {
       $('#' + id).addEventListener('click', () => {
         const on = !$('#' + id).classList.contains('on');
@@ -11072,7 +12084,7 @@ const Game = {
       Inventory.reset();
       /* a survivor starts with nothing but the engrams they can afford */
       Objectives.reset();
-      UI.center('You wash ashore', 'Punch a tree for Thatch — then check your objectives');
+      UI.center(tr('You wash ashore'), tr('Punch a tree for Thatch — then check your objectives'));
       this.enterPlay();
     });
   },
@@ -11081,7 +12093,7 @@ const Game = {
     this.generate(data.seed, () => {
       SaveGame.applyState(data);
       this.enterPlay();
-      UI.toast('World loaded — seed ' + World.seed, 'good');
+      UI.toast(tr('World loaded — seed ') + World.seed, 'good');
     });
   },
 
@@ -11093,7 +12105,7 @@ const Game = {
     $('#boot').classList.remove('done');
     $('#boottip').textContent = pick(LOADING_TIPS);
     $('#bootbar').style.width = '0%';
-    $('#bootmsg').textContent = 'Raising the island…';
+    $('#bootmsg').textContent = tr('Raising the island…');
     /* clear an old world */
     Creatures.reset();
     Structures.reset();
@@ -11116,7 +12128,7 @@ const Game = {
       if (!self.pendingSave) yield* Creatures.populateInitial(Math.round(Creatures.budget * .6));
       yield* Caves.build(rng);
       Boss.build(rng);
-      yield { p: 1, msg: 'Ready' };
+      yield { p: 1, msg: tr('Ready') };
     })();
     this.genQueue = { it: steps, done };
   },
@@ -11161,13 +12173,75 @@ const Game = {
     this.showMenu();
   },
 
+  /* ------------------------------------------------------------------ sleep */
+  /** Skip the night in a bed. The island keeps living while you are under:
+      crops grow, eggs incubate, babies age, food spoils — all stepped
+      forward in coarse slices so the clock never simply teleports. */
+  sleep(bed) {
+    if (this.sleeping) return;
+    const night = Sky.time >= 19.2 || Sky.time < 5.4;
+    if (!night) { UI.toast(tr('You can only sleep after dark'), 'bad'); return; }
+    const near = Creatures.near(Player.pos.x, Player.pos.z, 28)
+      .find(c => !c.tamed && !c.dead && !c.unconscious && (c.sp.temper === 'aggressive' || c.sp.temper === 'apex'));
+    if (near) { UI.toast(tr('It is not safe to sleep — ') + near.sp.name, 'bad'); return; }
+    if (Player.cur.food < 8 || Player.cur.water < 8) { UI.toast(tr('Eat and drink before you sleep'), 'bad'); return; }
+
+    /* hours until dawn, at the island's own clock */
+    const hours = Sky.time >= 19.2 ? (24 - Sky.time) + 5.9 : 5.9 - Sky.time;
+    const seconds = hours / 24 * Sky.dayLength;
+    this.sleeping = true;
+    Input.enabled = false;
+    Player.pos.set(bed.pos.x, World.groundAt(bed.pos.x, bed.pos.z), bed.pos.z);
+    Player.vel.set(0, 0, 0);
+    $('#fadeout').classList.add('on');
+    Sound.ui('close');
+    setTimeout(() => {
+      this.fastForward(seconds);
+      Player.cur.stamina = Player.max('stamina');
+      Player.cur.torpor = 0;
+      Player.cur.health = Math.min(Player.max('health'), Player.cur.health + Player.max('health') * .35);
+      UI.center(tr('Morning'), tr('You slept through the night'));
+      Sound.ui('open');
+      $('#fadeout').classList.remove('on');
+      this.sleeping = false;
+      Input.enabled = true;
+    }, 900);
+  },
+  /** Step the slow systems through a long span without running a frame each. */
+  fastForward(seconds) {
+    const slice = 20;
+    let left = seconds;
+    while (left > 0) {
+      const dt = Math.min(slice, left); left -= dt;
+      Sky.time = (Sky.time + dt / Sky.dayLength * 24) % 24;
+      Breeding.update(dt);
+      Structures.update(dt);
+      Inventory.bag.updateSpoil(dt, 1);
+      for (const c of Creatures.tamedList) {
+        if (c.updateGrowth) c.updateGrowth(dt);
+        c.cur.food = Math.max(0, c.cur.food - dt * c.max('food') * .00035 * TUNE.rates.dinoFood);
+      }
+      Player.cur.food = Math.max(0, Player.cur.food - dt * .055);
+      Player.cur.water = Math.max(0, Player.cur.water - dt * .07);
+    }
+    this.day++;
+    Sky.update(0, Gfx.camera.position);
+  },
+
   /* ------------------------------------------------------------ input glue */
   bindGlobalKeys() {
     addEventListener('keydown', e => {
       if (Input.listening) return;
-      if (e.code === Input.binds.pause) { e.preventDefault(); if (this.state === 'play') UI.closeTopScreen(); return; }
+      if (e.code === Input.binds.pause) {
+        e.preventDefault();
+        if (Photo.active) { Photo.leave(); return; }
+        if (this.state === 'play') UI.closeTopScreen();
+        return;
+      }
       if (this.state !== 'play') return;
       if (document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
+      if (e.code === Input.binds.photo) { e.preventDefault(); Photo.toggle(); return; }
+      if (Photo.active) return;
       if (e.code === Input.binds.inventory) { e.preventDefault(); $('#inventory').classList.contains('on') ? UI.closeInventory() : UI.openInventory(); }
       else if (e.code === Input.binds.charsheet) { $('#charsheet').classList.contains('on') ? (screenOn('charsheet', false), Input.lock()) : UI.openCharSheet(); }
       else if (e.code === Input.binds.map) { $('#map').classList.contains('on') ? UI.closeMap() : UI.openMap(); }
@@ -11175,16 +12249,16 @@ const Game = {
         if (Building.active) Building.stop();
         else {
           const list = Building.available();
-          if (!list.length) UI.toast('Learn a building engram first (press ' + keyLabel(Input.binds.charsheet) + ')', 'bad');
+          if (!list.length) UI.toast(tr('Learn a building engram first (press ') + keyLabel(Input.binds.charsheet) + ')', 'bad');
           else Building.start(list[0]);
         }
       }
-      else if (e.code === Input.binds.help) UI.center('Controls', 'WASD move · Shift sprint · E interact · F creature inventory · I inventory · C character · M map · B build · J/U/T whistles · V camera');
+      else if (e.code === Input.binds.help) UI.center(t('controls'), t('helpLine'));
     });
   },
 
   handleInput(dt) {
-    if (this.state !== 'play' || this.paused) return;
+    if (this.state !== 'play' || this.paused || Photo.active) return;
     if (anyScreenOpen()) return;
     if (Input.hotbarPick >= 0) Inventory.selectHotbar(Input.hotbarPick);
     if (Input.wheel && !Building.active) Inventory.cycleHotbar(Input.wheel > 0 ? 1 : -1);
@@ -11215,7 +12289,7 @@ const Game = {
       if (hasTorch) {
         const idx = Inventory.hotbar.indexOf('torch');
         if (idx >= 0) Inventory.selectHotbar(idx);
-      } else UI.toast('You need a torch');
+      } else UI.toast(tr('You need a torch'));
     }
   },
 
@@ -11249,7 +12323,10 @@ const Game = {
       if (World.group) World.updateChunks(Gfx.camera.position.x, Gfx.camera.position.z);
       if (World.water) World.updateWater(dt, Gfx.camera.position);
     }
+    if (Photo.active) Photo.update(dt);
     Gfx.render(now / 1000);
+    /* the drawing buffer is only readable in the frame that drew it */
+    if (Photo.pending) Photo.capture();
   },
 
   update(dt) {
@@ -11273,7 +12350,7 @@ const Game = {
     Objectives.update();
 
     Sky.update(dt, Gfx.camera.position);
-    if (Sky.time < prevTime) { this.day++; UI.toast('Day ' + this.day + ' on the island'); }
+    if (Sky.time < prevTime) { this.day++; UI.toast(tr('Day ') + this.day + ' on the island'); }
     Player.updateCamera(dt);
     World.updateChunks(Player.pos.x, Player.pos.z);
     World.updateWater(dt, Gfx.camera.position);
@@ -11312,7 +12389,7 @@ const Game = {
     if (this.autosaveT <= 0) {
       this.autosaveT = TUNE.save.autosaveEvery;
       SaveGame.save(0, true);
-      UI.toast('Autosaved');
+      UI.toast(tr('Autosaved'));
     }
     Input.endFrame();
   },
@@ -11324,7 +12401,7 @@ const Game = {
 window.__ark = {
   Game, World, Player, Camera, ViewModel, PlayerModel, Creatures, Inventory, Structures, Building, Flora, Sky, Gfx, UI, Combat, Riding, Taming,
   Loot, Objectives, Particles, Physics, Sound, SaveGame, Settings, Breeding, Caves, Boss, TUNE, SPECIES, ITEMS, RECIPES, ENGRAMS, STRUCTURES, NODES,
-  CreatureModel, Creature,
+  CreatureModel, Creature, I18N, Photo, Touch, Input, STATIONS, BIOMES,
   state: () => ({
     state: Game.state, fps: Math.round(Game.fps), pos: Player.pos.toArray().map(v => Math.round(v)),
     level: Player.level, health: Math.round(Player.cur.health), creatures: Creatures.list.length,

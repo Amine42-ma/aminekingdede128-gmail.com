@@ -110,26 +110,29 @@ OpenAI-compatible endpoint gives fully human voices and unlocks WAV export of th
 
 # 🦖 ARK · Survival Reborn — `ark.html`
 
-لعبة بقاء ثلاثية الأبعاد بمنظور أول على غرار **ARK: Survival Evolved**، داخل **ملف HTML واحد** يعمل
-**بلا إنترنت**: جزيرة مولَّدة إجرائياً، ١٣ نوعاً من الديناصورات بحركة إجرائية حقيقية، ضرب باليد،
-أسهم تخدير وشريط Torpor، ترويض كامل بالإطعام، ركوب بالسروج، جمع موارد وتصنيع وبناء بالتثبيت الشبكي،
-دورة ليل/نهار وطقس، وحفظ تلقائي. لا يحتاج أي ملف خارجي ولا خادماً: **افتح `ark.html` بالمتصفح مباشرة**.
+لعبة بقاء ثلاثية الأبعاد على غرار **ARK: Survival Evolved**، داخل **ملف HTML واحد** يعمل **بلا إنترنت**
+وبلا خادم وبلا أي ملف خارجي: جزيرة مولَّدة إجرائياً بمساحة ٢ كم، **٢٣ نوعاً** من الكائنات بحركة إجرائية
+حقيقية، ضرب باليد، سهام تخدير وشريط Torpor، ترويض كامل بالإطعام، **تكاثر وصغار وارتباط (Imprint)**،
+ركوب بالسروج، كهوف مظلمة، معركة زعيمة عند المسلّات، أسلحة نارية ومزارع وكهرباء، بناء بالتثبيت الشبكي،
+دورة ليل/نهار وطقس، **واجهة عربية كاملة**، ووضع تصوير، ودعم اللمس على الجوّال.
 
-> واجهة اللعبة بالإنجليزية. مكتبة three.js مدمجة داخل الملف (رخصة MIT).
+> **افتح `ark.html` بالنقر المزدوج.** مكتبة three.js مدمجة داخل الملف (رخصة MIT).
+> اللغة تتبدّل من القائمة الرئيسية أو من `Esc ← الإعدادات ← اللعب ← اللغة`.
 
 ## Play
 
-Open `ark.html` in a recent Chrome, Edge, Firefox or Safari — double-click is enough, no server, no network.
-Click the canvas to lock the mouse. Everything you see (terrain, creatures, textures, icons, sounds) is
-generated at runtime.
+Open `ark.html` in a recent Chrome, Edge, Firefox or Safari — double-click is enough, no server, no
+network. Click the canvas to lock the mouse. Everything you see — terrain, creatures, textures, icons,
+sounds — is generated at runtime.
 
 ## The loop
 
 Punch a tree for **Thatch** → gather Wood, Stone, Flint and Fiber → learn engrams (`C`) and craft a
 **Stone Pick** → hunt with a **Spear** → make **Narcotic** in a Mortar & Pestle → craft a **Bow** and
-**Tranquilizer Arrows** → fill a creature's purple **Torpidity** bar until it drops → put the right food in
-its inventory and watch **Taming Effectiveness** decide your **bonus levels** → craft a saddle and ride it →
-build a base, tame something bigger.
+**Tranquilizer Arrows** → fill a creature's purple **Torpidity** bar until it drops → put the right food
+in its inventory and watch **Taming Effectiveness** decide your **bonus levels** → craft a saddle and
+ride it → build a base → **breed a pair**, raise the baby and imprint on it → smelt metal, wire up
+power, plant crops → raid a **cave** with a torch → gather tribute and summon the **Broodmother**.
 
 ## Controls
 
@@ -137,30 +140,59 @@ build a base, tame something bigger.
 |---|---|
 | `W A S D` · `Shift` · `Ctrl` · `Space` | move · sprint · crouch · jump |
 | `Left click` / `Right click` | attack, harvest, fire · aim (bow), throw (spear) |
-| `E` · `F` | interact / ride · creature inventory |
+| `E` · `F` | interact / ride / care for a baby · creature inventory |
 | `I` · `C` · `M` · `B` | inventory · character & engrams · map · build mode |
 | `1…0` · mouse wheel | hotbar |
 | `J` · `U` · `T` · `Y` | whistle: follow · stop · attack target · passive |
-| `V` · `H` · `Esc` | camera · controls help · pause |
+| `V` · `P` · `H` · `Esc` | camera · **photo mode** · controls help · pause |
+
+On a phone or tablet a virtual stick and a ring of buttons appear automatically; drag anywhere else on
+the screen to look around. It can be forced on or off in Settings → Gameplay.
 
 ## What is simulated
 
 - **Taming, ARK-style.** Torpidity rises from tranq hits (headshots count double) and drains over time by
-  level; an unconscious creature eats from its own inventory, its food drains, narcotics keep it under, and
-  if torpor reaches zero it **wakes up and all progress is lost**. Affinity per food, effectiveness loss per
-  food, `bonus levels = level × 0.5 × effectiveness`, kibble tiers, and passive tames (Ichthyosaurus).
-- **13 species** — Dodo, Parasaur, Trike, Stego, Raptor, Dilophosaur, Carno, Rex, Pteranodon, Ankylosaurus,
-  Doedicurus, Sarcosuchus, Ichthyosaurus, Megalodon — each with its own anatomy, gait, AI, diet, harvest
-  bonus and saddle level. Raptors hunt in packs, herbivores flee, a Rex will chase you across the island.
+  level; an unconscious creature eats from its own inventory, its food drains, narcotics keep it under,
+  and if torpor reaches zero it **wakes up and all progress is lost**. Affinity per food, effectiveness
+  loss per food, `bonus levels = level × 0.5 × effectiveness`, kibble tiers, and passive tames.
+- **Breeding.** Set a male and a female of the same species to mating, get a fertilised egg, keep it in
+  the right **temperature band** (a campfire or an air conditioner), hatch a baby, feed it from a trough
+  and **imprint** on it with cuddles and walks. Stats are inherited from the better parent, with a small
+  chance of a **stat or colour mutation**.
+- **23 species** — Dodo, Parasaur, Trike, Stego, Raptor, Dilophosaur, Carno, Rex, Pteranodon, Ankylosaur,
+  Doedicurus, Sarcosuchus, Ichthyosaurus, Megalodon, Spinosaurus, Argentavis, Brontosaurus, Mammoth,
+  Therizinosaurus, Titanoboa, Mesopithecus, Coelacanth and the **Broodmother** — each with its own
+  anatomy, gait, AI, diet, harvest bonus and saddle level. Raptors hunt in packs, herbivores flee, a Rex
+  will chase you across the island.
+- **Caves and a boss.** Four cave systems with real darkness (bring a torch), crystals, loot and nastier
+  inhabitants. Three obelisks accept a **tribute** and drop you into an arena for a three-phase
+  Broodmother fight that pays out **Element** and a trophy.
+- **Tech.** Firearms (pistol, shotgun, rifle firing metal tranq darts), grenades, metal and chitin armour,
+  a spyglass, crop plots with seeds and fertiliser, and an **electrical grid** — generator, cables, lamps,
+  a refrigerator that nearly stops spoilage and an air conditioner that incubates eggs.
 - **Survival:** health, stamina, oxygen, food, water, weight, torpidity, temperature, food poisoning,
   drowning, fall damage, XP and stat points, engram tree, death with a lootable corpse bag.
 - **Building:** thatch/wood/stone tiers with snapping, doors and gateways that really block creatures —
   four gateways make a working dino trap.
-- **World:** seeded 2 km island with seven biomes, chunked terrain LOD, instanced foliage, animated ocean
-  with shoreline foam, day/night, rain, fog and thunderstorms, timed supply drops.
+- **World:** seeded 2 km island with seven biomes, chunked terrain LOD, instanced foliage anchored to the
+  drawn surface at every LOD, animated ocean with shoreline foam, day/night, rain, fog, thunderstorms and
+  timed supply drops.
 - **Saves:** three slots in `localStorage` plus autosave, and JSON export.
+
+## Photo mode
+
+Press `P` to detach the camera. `WASD` flies it, `Shift` boosts, the mouse looks around, and the bar at
+the bottom sets a filter (golden, cold, noir, sepia, vivid), field of view, time of day and vignette.
+The grade runs inside the game's own composite pass, so **Save PNG** writes exactly what you see.
+
+## Languages
+
+The whole interface — menus, HUD, tooltips, craft list, engrams, creature panel, toasts, objectives,
+settings and every item, structure, resource and species name — is available in **English and Arabic**,
+with proper right-to-left layout. Switching is instant and is remembered between sessions.
 
 ## Settings
 
-Quality presets (Low → Ultra), shadows, bloom, FOV, sensitivity, key rebinding, and gameplay rates —
-taming speed, harvest amount, XP, day length and creature population — from the main menu or `Esc → Settings`.
+Quality presets (Low → Ultra), shadows, bloom, FOV, sensitivity, key rebinding, language, touch controls,
+and gameplay rates — taming speed, harvest amount, XP, breeding speed, day length and creature
+population — from the main menu or `Esc → Settings`.
