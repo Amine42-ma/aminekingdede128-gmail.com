@@ -25,6 +25,12 @@
   --font:'Segoe UI',system-ui,-apple-system,Roboto,'Helvetica Neue',Arial,sans-serif;
   --mono:ui-monospace,'Cascadia Mono','SF Mono',Menlo,Consolas,monospace;
   --dur:.22s; --ease:cubic-bezier(.2,.9,.3,1);
+  /* notch / home-indicator insets. Global, because the HUD, the hotbar and the
+     touch overlay are separate subtrees that all have to respect them. */
+  --safeL:env(safe-area-inset-left,0px);
+  --safeR:env(safe-area-inset-right,0px);
+  --safeB:env(safe-area-inset-bottom,0px);
+  --safeT:env(safe-area-inset-top,0px);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(--bone);
@@ -419,40 +425,193 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
   #inventory .wbody{grid-template-columns:1fr}
 }
 
-/* ===== touch controls =================================================== */
-#touch{position:fixed;inset:0;z-index:65;pointer-events:none}
-#touch .tb{pointer-events:auto;display:flex;align-items:center;justify-content:center;
-  width:60px;height:60px;border-radius:50%;background:rgba(9,13,17,.5);
-  border:1px solid var(--line-2);backdrop-filter:blur(8px);font-size:20px;color:var(--bone);
-  text-shadow:0 2px 6px #000;transition:transform .08s,background .12s}
-#touch .tb:active,#touch .tb.on{background:rgba(240,168,66,.32);transform:scale(.93)}
-#touch .tb.big{width:82px;height:82px;font-size:28px}
-#touch .tb.wide{width:74px;height:52px;border-radius:26px;font-weight:700;letter-spacing:.06em}
-#touch .tb.sm{width:44px;height:44px;font-size:16px}
-#tbtns{position:absolute;right:18px;bottom:26px;display:grid;gap:10px;
-  grid-template-columns:repeat(2,auto);justify-items:center;align-items:center}
-#tbtns [data-touch=attack]{grid-column:2;grid-row:1/span 2}
-/* the menu row runs up the right edge so it never sits on the minimap */
-#ttop{position:absolute;right:18px;bottom:210px;display:flex;flex-direction:column;gap:8px}
-#tstick{position:absolute;left:24px;bottom:150px;width:132px;height:132px;pointer-events:auto;touch-action:none}
-#tstick .ring{position:absolute;inset:0;border-radius:50%;border:1px solid var(--line-2);
-  background:radial-gradient(circle,rgba(9,13,17,.42),rgba(9,13,17,.16))}
-#tstick .knob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;
-  border-radius:50%;background:rgba(233,228,216,.22);border:1px solid var(--line-2);
-  box-shadow:0 6px 20px rgba(0,0,0,.6)}
-body.touch #crosshair{opacity:.5}
-/* make room for the stick and the button cluster */
-body.touch #stats{width:200px;bottom:14px;gap:4px}
-body.touch #statusicons{bottom:300px}
-body.touch #hotbar{bottom:14px;transform:translateX(-50%) scale(.86);transform-origin:bottom center}
-body.touch #xprow{bottom:80px;width:300px}
-body.touch #minimap{width:132px}
-body.touch #minimap .frame{width:132px;height:132px}
-@media (max-height:520px){
-  body.touch #tstick{bottom:96px;width:108px;height:108px}
-  body.touch #ttop{bottom:170px}
-  body.touch #objective{display:none}
+/* ===== touch controls ===================================================
+   Modelled on ARK Mobile: a floating stick under the left thumb, free look
+   under the right, and a ring of action buttons at the bottom right. Sizes
+   and opacity are CSS variables so the settings sliders can drive them, and
+   every edge honours the notch / home-indicator insets.
+   ====================================================================== */
+#touch{position:fixed;inset:0;z-index:65;pointer-events:none;
+  /* Base sizes are what the media queries below change; --tscale is the user's
+     slider. Keeping them separate matters: writing --tb directly from script
+     would override every responsive rule with an inline style. */
+  --tscale:1;
+  --tbB:62px;                   /* action button diameter */
+  --tbigB:86px;                 /* primary (attack) button */
+  --tsmB:46px;                  /* quick-row button */
+  --tstickB:136px;              /* stick outer ring */
+  --tb:calc(var(--tbB) * var(--tscale));
+  --tbig:calc(var(--tbigB) * var(--tscale));
+  --tsm:calc(var(--tsmB) * var(--tscale));
+  --tstick:calc(var(--tstickB) * var(--tscale));
+  --gap:10px;
+  --topacity:.62;               /* resting opacity, user-adjustable */
+  --edge:14px;
+  --strip:74px;                 /* bottom strip reserved for the hotbar */
 }
+
+/* --- the two thumb zones ------------------------------------------------
+   They stop short of the hotbar strip, so a tap on the hotbar still reaches
+   the HUD underneath instead of being swallowed by the look area. */
+#tzoneL,#tzoneR{position:absolute;top:10%;
+  bottom:calc(var(--strip) + var(--safeB));pointer-events:auto;touch-action:none}
+#tzoneL{left:0;width:44%}
+#tzoneR{left:44%;right:0}
+body.touch.lefty #tzoneL{left:auto;right:0}
+body.touch.lefty #tzoneR{left:0;right:44%}
+
+/* --- floating movement stick ------------------------------------------- */
+#tstick{position:absolute;width:var(--tstick);height:var(--tstick);
+  margin-left:calc(var(--tstick) / -2);margin-top:calc(var(--tstick) / -2);
+  pointer-events:none;opacity:0;transition:opacity .16s var(--ease);will-change:transform,opacity}
+#tstick.on{opacity:1}
+#tstick .ring{position:absolute;inset:0;border-radius:50%;
+  border:1.5px solid rgba(233,228,216,.28);
+  background:radial-gradient(circle,rgba(9,13,17,.34),rgba(9,13,17,.10) 70%,transparent)}
+/* a soft arc that lights up in the direction of travel */
+#tstick .dir{position:absolute;inset:-2px;border-radius:50%;
+  border:2px solid transparent;border-top-color:var(--amber);
+  opacity:0;transition:opacity .12s}
+#tstick.moving .dir{opacity:.55}
+/* the outer ring flares when the stick is pushed far enough to sprint */
+#tstick.sprint .ring{border-color:rgba(240,168,66,.75);
+  box-shadow:0 0 18px -2px rgba(240,168,66,.5)}
+#tstick .knob{position:absolute;left:50%;top:50%;width:54px;height:54px;
+  margin:-27px 0 0 -27px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,rgba(233,228,216,.42),rgba(233,228,216,.16));
+  border:1px solid rgba(233,228,216,.34);box-shadow:0 6px 20px rgba(0,0,0,.6);
+  will-change:transform}
+#tstick.sprint .knob{background:radial-gradient(circle at 38% 32%,rgba(240,168,66,.6),rgba(240,168,66,.22));
+  border-color:rgba(240,168,66,.6)}
+
+/* --- buttons ------------------------------------------------------------ */
+#touch .tb{pointer-events:auto;position:absolute;display:flex;align-items:center;
+  justify-content:center;width:var(--tb);height:var(--tb);border-radius:50%;
+  background:rgba(9,13,17,.52);border:1px solid var(--line-2);
+  backdrop-filter:blur(8px);font-size:21px;color:var(--bone);
+  text-shadow:0 2px 6px #000;opacity:var(--topacity);
+  transition:transform .09s var(--ease),background .12s,opacity .12s;
+  touch-action:none;user-select:none}
+#touch .tb:active,#touch .tb.on{background:rgba(240,168,66,.34);
+  border-color:rgba(240,168,66,.6);transform:scale(.92);opacity:1}
+#touch .tb.big{width:var(--tbig);height:var(--tbig);font-size:31px}
+#touch .tb.sm{width:var(--tsm);height:var(--tsm);font-size:17px}
+#touch .tb .lab{position:absolute;bottom:-15px;font-size:9px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--bone-dim);white-space:nowrap}
+#touch .tb.hidden{display:none!important}
+
+/* --- action ring, bottom right ----------------------------------------- */
+/* Two columns: the primary button and its modifier on the right, the rest
+   stacked to their left. Every offset is derived from the button sizes, so the
+   ring cannot collide with itself at any scale or breakpoint. */
+#tbtns{position:absolute;right:calc(var(--edge) + var(--safeR));
+  bottom:calc(var(--strip) + var(--safeB));
+  width:calc(var(--tbig) + var(--gap) + var(--tb));
+  height:calc(var(--tb) * 3 + var(--gap) * 2 + 4px);pointer-events:none}
+body.touch.lefty #tbtns{right:auto;left:calc(var(--edge) + var(--safeL));
+  transform:scaleX(-1)}
+body.touch.lefty #tbtns .tb{transform:scaleX(-1)}
+body.touch.lefty #tbtns .tb:active,body.touch.lefty #tbtns .tb.on{transform:scaleX(-1) scale(.92)}
+#tbtns [data-touch=attack]{right:0;bottom:0}
+#tbtns [data-touch=alt]{right:0;bottom:calc(var(--tbig) + var(--gap))}
+#tbtns [data-touch=jump]{right:calc(var(--tbig) + var(--gap));bottom:0}
+#tbtns [data-touch=crouch],#tbtns [data-touch=rotate]{
+  right:calc(var(--tbig) + var(--gap));bottom:calc(var(--tb) + var(--gap))}
+#tbtns [data-touch=interact]{right:calc(var(--tbig) + var(--gap));
+  bottom:calc(var(--tb) * 2 + var(--gap) * 2);
+  width:auto;min-width:var(--tb);height:var(--tb);padding:0 16px;
+  border-radius:calc(var(--tb) / 2);font-size:13px;font-weight:700;letter-spacing:.05em}
+
+/* --- quick column, right edge under the minimap ------------------------- */
+#tquick{position:absolute;right:calc(var(--edge) + var(--safeR));
+  top:calc(160px + var(--safeT));display:flex;flex-direction:column;gap:9px;
+  pointer-events:none}
+body.touch.lefty #tquick{right:auto;left:calc(var(--edge) + var(--safeL))}
+#tquick .tb{position:relative}
+
+/* --- whistle wheel ------------------------------------------------------ */
+#twheel{position:fixed;inset:0;z-index:80;pointer-events:none;opacity:0;
+  transition:opacity .13s;background:rgba(4,6,9,.42);backdrop-filter:blur(2px)}
+#twheel.on{opacity:1;pointer-events:auto}
+#twheel .seg{position:absolute;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;width:78px;height:78px;margin:-39px 0 0 -39px;
+  border-radius:50%;background:rgba(9,13,17,.82);border:1px solid var(--line-2);
+  font-size:20px;color:var(--bone);transition:transform .1s,background .1s,border-color .1s}
+#twheel .seg .t{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--bone-soft);margin-top:3px}
+#twheel .seg.hot{background:rgba(240,168,66,.4);border-color:var(--amber);
+  transform:scale(1.14)}
+
+/* --- HUD adjustments in touch mode -------------------------------------- */
+body.touch #crosshair{opacity:.5}
+body.touch #stats{width:196px;gap:4px;
+  left:calc(16px + var(--safeL));bottom:calc(12px + var(--safeB))}
+body.touch #statusicons{bottom:calc(210px + var(--safeB))}
+body.touch #hotbar{bottom:calc(10px + var(--safeB));
+  transform:translateX(-50%) scale(.82);transform-origin:bottom center}
+body.touch #xprow{bottom:calc(66px + var(--safeB));width:min(280px,54vw)}
+body.touch #minimap{width:124px;right:calc(14px + var(--safeR));
+  top:calc(12px + var(--safeT))}
+body.touch #minimap .frame{width:124px;height:124px}
+body.touch #compass{top:calc(10px + var(--safeT))}
+body.touch #objective{left:calc(16px + var(--safeL));top:calc(14px + var(--safeT))}
+body.touch #clock{top:calc(12px + var(--safeT));right:calc(148px + var(--safeR))}
+body.touch #fps{display:none}
+
+/* Short landscape phones — and this is the common case, not the exception:
+   a browser in landscape on a 6" phone leaves barely 300px of height once the
+   URL bar is counted. The vertical quick column cannot fit there, so it
+   becomes a horizontal row along the top and everything else shrinks. */
+@media (max-height:470px){
+  #touch{--tbB:52px;--tbigB:70px;--tsmB:42px;--tstickB:108px;--strip:54px;--gap:8px}
+  /* leave the top bar tappable */
+  #tzoneL,#tzoneR{top:54px}
+  #tquick{flex-direction:row;gap:8px;
+    top:calc(8px + var(--safeT));left:calc(12px + var(--safeL));right:auto}
+  body.touch.lefty #tquick{left:auto;right:calc(12px + var(--safeR))}
+  /* the compass owns the top centre; narrow it so the quick row clears it */
+  body.touch #compass{width:min(280px,32vw)}
+  body.touch #minimap,body.touch #minimap .frame{width:96px}
+  body.touch #minimap .frame{height:96px}
+  body.touch #minimap .coords{display:none}
+  body.touch #clock{top:calc(10px + var(--safeT));
+    right:calc(118px + var(--safeR))}
+  body.touch #stats{width:150px;bottom:calc(8px + var(--safeB));opacity:.92}
+  body.touch #xprow{bottom:calc(50px + var(--safeB));width:min(230px,40vw)}
+  body.touch #hotbar{transform:translateX(-50%) scale(.66)}
+  body.touch #objective,body.touch #statusicons{display:none}
+  /* toasts share the right edge with the action ring; move them left */
+  body.touch #toasts{right:auto;left:calc(12px + var(--safeL));bottom:auto;
+    top:calc(66px + var(--safeT));align-items:flex-start;width:200px}
+}
+/* very short (a phone still showing its URL bar) */
+@media (max-height:330px){
+  #touch{--tbB:46px;--tbigB:62px;--tsmB:38px;--tstickB:94px;--strip:46px;--gap:7px}
+  body.touch #xprow{display:none}
+  body.touch #hotbar{transform:translateX(-50%) scale(.58)}
+  /* the ring is nearly as tall as the screen here; give the minimap less room
+     so its bottom edge clears the context button at the top of the ring */
+  body.touch #minimap,body.touch #minimap .frame{width:76px}
+  body.touch #minimap .frame{height:76px}
+  body.touch #clock{right:calc(98px + var(--safeR))}
+}
+/* narrow landscape: the hotbar and the stat block compete for the bottom left */
+@media (max-width:820px){
+  body.touch #hotbar{transform:translateX(-50%) scale(.6)}
+}
+/* portrait: the ring moves up off the home indicator and the zones shrink */
+@media (orientation:portrait){
+  #tzoneL,#tzoneR{top:26%}
+}
+
+/* --- rotate-to-landscape prompt ----------------------------------------- */
+#rotate{position:fixed;inset:0;z-index:400;display:none;align-items:center;
+  justify-content:center;flex-direction:column;gap:14px;text-align:center;
+  background:var(--ink);color:var(--bone);padding:8vh 10vw}
+#rotate .glyph{font-size:52px;animation:rot 2.4s ease-in-out infinite}
+#rotate .t{font-size:15px;color:var(--bone-soft);max-width:34ch;line-height:1.6}
+@keyframes rot{0%,45%{transform:rotate(0)}55%,100%{transform:rotate(-90deg)}}
+body.touch.portrait #rotate{display:flex}
 
 /* ===== photo mode ======================================================= */
 body.photo #hud,body.photo #fps,body.photo #center-msg{display:none!important}
@@ -583,21 +742,39 @@ body.rtl .maplegend span[style*="margin-inline-start"]{margin-inline-start:auto}
 
 <!-- ===================== touch controls ===================== -->
 <div id="touch" class="hidden">
-  <div id="tstick"><div class="ring"></div><div class="knob"></div></div>
+  <!-- thumb zones: the stick spawns anywhere in the left one, the right one is free look -->
+  <div id="tzoneL"></div>
+  <div id="tzoneR"></div>
+
+  <div id="tstick"><div class="ring"></div><div class="dir"></div><div class="knob"></div></div>
+
+  <!-- action ring. data-ctx marks buttons that the contextual swap controls. -->
   <div id="tbtns">
-    <button class="tb wide" data-touch="interact">E</button>
-    <button class="tb" data-touch="jump">⤒</button>
-    <button class="tb" data-touch="crouch">⤓</button>
     <button class="tb big" data-touch="attack">✊</button>
+    <button class="tb" data-touch="jump">⤒</button>
     <button class="tb" data-touch="alt">◎</button>
+    <button class="tb" data-touch="crouch">⤓</button>
+    <button class="tb hidden" data-touch="interact">E</button>
+    <button class="tb hidden" data-touch="rotate">⟳</button>
   </div>
-  <div id="ttop">
+
+  <!-- right edge: screens, plus the press-and-hold whistle wheel -->
+  <div id="tquick">
     <button class="tb sm" data-touch="inventory">🎒</button>
     <button class="tb sm" data-touch="map">🗺</button>
-    <button class="tb sm" data-touch="build">🔨</button>
-    <button class="tb sm" data-touch="sprint">»</button>
+    <button class="tb sm hidden" data-touch="build">🔨</button>
+    <button class="tb sm hidden" data-touch="whistle">📣</button>
     <button class="tb sm" data-touch="pause">⏸</button>
   </div>
+</div>
+
+<!-- whistle wheel: opens under the thumb, fires on release -->
+<div id="twheel"></div>
+
+<!-- portrait nag: this game is landscape -->
+<div id="rotate">
+  <div class="glyph">📱</div>
+  <div class="t" data-i18n="rotateHint">Turn your phone sideways to play.</div>
 </div>
 
 <!-- ===================== photo mode ===================== -->
@@ -2570,13 +2747,16 @@ const Input = {
     return !!this.edge[this.binds[action]];
   },
   rawPressed(code) { return !!this.edge[code]; },
-  /** movement as an axis, so the virtual stick is analogue and keys are not */
+  /** movement as an axis, so the virtual stick is analogue and keys are not.
+      Touch.move is already deadzoned and linear — do NOT scale it by the
+      magnitude again here, which is what used to square the response curve
+      and make half a thumb's deflection give a quarter of the speed. */
   axisFwd() {
-    if (Touch.active && Touch.stick.mag > .14) return Touch.stick.y * Touch.stick.mag;
+    if (Touch.active && (Touch.move.x || Touch.move.y)) return Touch.move.y;
     return (this.down('forward') ? 1 : 0) - (this.down('back') ? 1 : 0);
   },
   axisStr() {
-    if (Touch.active && Touch.stick.mag > .14) return Touch.stick.x * Touch.stick.mag;
+    if (Touch.active && (Touch.move.x || Touch.move.y)) return Touch.move.x;
     return (this.down('right') ? 1 : 0) - (this.down('left') ? 1 : 0);
   },
   endFrame() {
@@ -2644,6 +2824,20 @@ const I18N = {
            'وضع التصوير — WASD للطيران · الفأرة للنظر · P للخروج'],
     saved: ['Screenshot saved', 'حُفظت الصورة'],
     touchControls: ['Touch controls', 'أزرار اللمس'],
+    touchSens: ['Touch look sensitivity', 'حساسية النظر باللمس'],
+    touchDead: ['Stick deadzone', 'المنطقة الميتة للعصا'],
+    touchScale: ['Button size', 'حجم الأزرار'],
+    touchOpacity: ['Button opacity', 'شفافية الأزرار'],
+    touchLefty: ['Left-handed layout', 'تخطيط لليد اليسرى'],
+    touchGlide: ['Swipe momentum', 'انسياب النظر'],
+    touchFull: ['Fullscreen on start', 'ملء الشاشة عند البدء'],
+    haptics: ['Vibration', 'الاهتزاز'],
+    rotateHint: ['Turn your phone sideways to play.', 'أدر هاتفك أفقياً للعب.'],
+    whFollow: ['Follow', 'اتبعني'],
+    whStop: ['Stop', 'قف'],
+    whAttack: ['Attack', 'هاجم'],
+    whPassive: ['Passive', 'مسالم'],
+    noTames: ['You have no tames to whistle at', 'ليس لديك حيوانات مروّضة'],
     helpLine: ['WASD move · Shift sprint · E interact · F creature inventory · I inventory · C character · M map · B build · P photo · J/U/T whistles · V camera',
                'WASD للحركة · Shift للركض · E للتفاعل · F لحقيبة الكائن · I للحقيبة · C للشخصية · M للخريطة · B للبناء · P للتصوير · J/U/T للصفير · V للكاميرا'],
     /* hud */
@@ -8812,10 +9006,10 @@ const Photo = {
     const str = (k[Input.binds.right] ? 1 : 0) - (k[Input.binds.left] ? 1 : 0);
     const up = (k[Input.binds.jump] ? 1 : 0) - (k[Input.binds.crouch] ? 1 : 0);
     let sp = this.speed * (k[Input.binds.sprint] ? 4 : 1);
-    if (Touch.active && Touch.stick.mag > .1) {
+    if (Touch.active && (Touch.move.x || Touch.move.y)) {
       const cp = Math.cos(this.pitch);
-      this.pos.x += (-Math.sin(this.yaw) * cp * Touch.stick.y + Math.cos(this.yaw) * Touch.stick.x) * sp * dt;
-      this.pos.z += (-Math.cos(this.yaw) * cp * Touch.stick.y - Math.sin(this.yaw) * Touch.stick.x) * sp * dt;
+      this.pos.x += (-Math.sin(this.yaw) * cp * Touch.move.y + Math.cos(this.yaw) * Touch.move.x) * sp * dt;
+      this.pos.z += (-Math.cos(this.yaw) * cp * Touch.move.y - Math.sin(this.yaw) * Touch.move.x) * sp * dt;
     }
     if (fwd || str || up) {
       const cp = Math.cos(this.pitch);
@@ -8852,95 +9046,410 @@ const Photo = {
 };
 
 /* ============================================================================
- * 67 · TOUCH — a virtual stick, a look area and a ring of buttons, so the whole
- *   island is playable on a phone. Auto-enables on coarse pointers; the
- *   Gameplay tab can force it on or off.
+ * 67 · TOUCH — the phone control layer, shaped after ARK Mobile: a floating
+ *   stick under the left thumb, free look under the right, a ring of action
+ *   buttons at the bottom right and a press-and-hold whistle wheel.
+ *
+ *   Smoothness is the point of this module, and it comes from three rules:
+ *     · the stick is damped toward the thumb, never snapped to it;
+ *     · look deltas are accumulated and drained over time, so the camera
+ *       cannot jitter with the digitiser's report rate — and because the whole
+ *       accumulator is always drained, total rotation per unit of finger
+ *       travel stays identical at any frame rate;
+ *     · every pointer is captured, so nothing ever sticks down.
  * ==========================================================================*/
+/** setPointerCapture throws on a pointer the browser no longer considers
+    active. Nothing we do depends on it succeeding — it only stops a thumb
+    that slides outside an element from losing its move events — so a failure
+    must never abort the gesture that asked for it. */
+function capture(el, id) {
+  try { el.setPointerCapture(id); } catch (e) { /* not fatal, see above */ }
+}
+
 const Touch = {
   active: false, forced: null,          // null = auto, true/false = user choice
-  stick: { x: 0, y: 0, mag: 0 },
+  stick: { x: 0, y: 0, mag: 0 },        // smoothed, what the game reads
+  raw: { x: 0, y: 0, mag: 0 },          // where the thumb actually is
+  move: { x: 0, y: 0 },                 // deadzoned + normalised movement axes
   held: {}, edge: {},
   stickId: null, lookId: null, lookX: 0, lookY: 0,
-  root: null, knob: null,
+  penX: 0, penY: 0,                     // look not yet applied to the camera
+  velX: 0, velY: 0,                     // recent look speed, for release glide
+  sprintStick: false, sprintLatch: false,
+  root: null, knob: null, stickEl: null, wheelEl: null,
+  wheelOpen: false, wheelPick: null, wheelId: null, wheelX: 0, wheelY: 0,
+  ctx: 'default',
+
+  /* tunables the settings screen writes to */
+  sens: 1, deadzone: .12, sprintAt: .86, invert: false,
+  glide: true, lastMoveT: 0,
 
   /* virtual button → the action it stands in for */
   MAP: {
     jump: 'jump', crouch: 'crouch', sprint: 'sprint', interact: 'use', alt: 'use2',
     inventory: 'inventory', map: 'map', build: 'build', pause: 'pause',
-    charsheet: 'charsheet',
+    charsheet: 'charsheet', rotate: 'rotate', drop: 'drop', toggleView: 'toggleView',
+    light: 'light',
   },
+
+  /* the whistle wheel: icon, label key, action */
+  WHISTLES: [
+    { icon: '🐾', key: 'whFollow', act: 'follow' },
+    { icon: '✋', key: 'whStop', act: 'stop' },
+    { icon: '⚔', key: 'whAttack', act: 'attack' },
+    { icon: '🛡', key: 'whPassive', act: 'passive' },
+  ],
 
   init() {
     this.root = $('#touch');
-    this.knob = $('#tstick .knob');
     if (!this.root) return;
-    const stick = $('#tstick');
+    this.stickEl = $('#tstick');
+    this.knob = $('#tstick .knob');
+    this.wheelEl = $('#twheel');
 
-    stick.addEventListener('pointerdown', e => {
-      this.stickId = e.pointerId; stick.setPointerCapture(e.pointerId);
-      this.drag(stick, e); e.preventDefault();
+    this.bindStick();
+    this.bindLook();
+    this.bindButtons();
+    this.buildWheel();
+
+    /* a phone that goes to the home screen mid-swipe must not come back with
+       a direction still held down */
+    const panic = () => this.releaseAll();
+    addEventListener('blur', panic);
+    addEventListener('visibilitychange', () => { if (document.hidden) panic(); });
+    addEventListener('orientationchange', () => { this.releaseAll(); this.syncOrientation(); });
+    addEventListener('resize', () => this.syncOrientation());
+
+    this.applyStyle();     /* Settings.load() ran before the DOM was wired up */
+    this.apply();
+    this.syncOrientation();
+  },
+
+  /* ---------------------------------------------------------------- stick */
+  bindStick() {
+    const zone = $('#tzoneL');
+    zone.addEventListener('pointerdown', e => {
+      if (!this.active || this.stickId !== null) return;
+      this.stickId = e.pointerId;
+      /* the stick comes to the thumb, not the other way round */
+      this.stickEl.style.left = e.clientX + 'px';
+      this.stickEl.style.top = e.clientY + 'px';
+      this.stickEl.classList.add('on');
+      this.dragStick(e);
+      /* capture last, and never let it throw: Safari and a few Android
+         builds reject it for a pointer they consider already gone, and an
+         exception here would abort the whole gesture */
+      capture(zone, e.pointerId);
+      e.preventDefault();
     });
-    stick.addEventListener('pointermove', e => {
-      if (e.pointerId === this.stickId) { this.drag(stick, e); e.preventDefault(); }
-    });
-    const release = e => {
+    zone.addEventListener('pointermove', e => {
       if (e.pointerId !== this.stickId) return;
-      this.stickId = null; this.stick.x = this.stick.y = this.stick.mag = 0;
+      this.dragStick(e);
+      e.preventDefault();
+    });
+    const up = e => {
+      if (e.pointerId !== this.stickId) return;
+      this.stickId = null;
+      this.raw.x = this.raw.y = this.raw.mag = 0;
+      this.sprintStick = false;
+      this.stickEl.classList.remove('on', 'moving', 'sprint');
       this.knob.style.transform = '';
     };
-    stick.addEventListener('pointerup', release);
-    stick.addEventListener('pointercancel', release);
+    zone.addEventListener('pointerup', up);
+    zone.addEventListener('pointercancel', up);
+  },
 
-    /* buttons: held while down, one edge on press */
+  dragStick(e) {
+    const r = this.stickEl.getBoundingClientRect();
+    const lim = r.width * .40;
+    let dx = e.clientX - (r.left + r.width / 2);
+    let dy = e.clientY - (r.top + r.height / 2);
+    const m = Math.hypot(dx, dy);
+    if (m > lim) { dx *= lim / m; dy *= lim / m; }
+    this.knob.style.transform = `translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px)`;
+    this.raw.x = dx / lim;
+    this.raw.y = -dy / lim;
+    this.raw.mag = Math.min(1, m / lim);
+    /* push to the rim to run, exactly like ARK Mobile */
+    this.sprintStick = this.raw.mag >= this.sprintAt;
+    this.stickEl.classList.toggle('moving', this.raw.mag > this.deadzone);
+    this.stickEl.classList.toggle('sprint', this.sprintStick);
+    if (this.raw.mag > this.deadzone) {
+      const ang = Math.atan2(this.raw.x, this.raw.y) * 180 / Math.PI;
+      this.stickEl.querySelector('.dir').style.transform = `rotate(${ang.toFixed(0)}deg)`;
+    }
+  },
+
+  /* ----------------------------------------------------------------- look */
+  bindLook() {
+    const zone = $('#tzoneR');
+    zone.addEventListener('pointerdown', e => {
+      if (!this.active || this.lookId !== null) return;
+      this.lookId = e.pointerId;
+      /* origin first: if this were set after a throwing capture, the first
+         move would be measured from (0,0) and spin the camera a half turn */
+      this.lookX = e.clientX; this.lookY = e.clientY;
+      this.velX = this.velY = 0;
+      capture(zone, e.pointerId);
+      e.preventDefault();
+    });
+    zone.addEventListener('pointermove', e => {
+      if (e.pointerId !== this.lookId) return;
+      /* accumulate only — the camera is moved in update(), so its speed does
+         not depend on how fast this device fires pointer events */
+      const dx = e.clientX - this.lookX, dy = e.clientY - this.lookY;
+      this.lookX = e.clientX; this.lookY = e.clientY;
+      this.penX += dx; this.penY += dy;
+      /* Velocity has to be per unit TIME, not per event. A device that reports
+         30 pointer events a second produces deltas six times larger than one
+         reporting 180 for the very same swipe, and a per-event velocity would
+         give the slow reporter six times the release glide. */
+      const now = performance.now();
+      const ms = Math.min(64, Math.max(4, now - (this.lastMoveT || now - 16)));
+      this.lastMoveT = now;
+      const k = 16.67 / ms;                       // → pixels per 60Hz frame
+      this.velX = this.velX * .55 + dx * k * .45;
+      this.velY = this.velY * .55 + dy * k * .45;
+      e.preventDefault();
+    });
+    const up = e => {
+      if (e.pointerId !== this.lookId) return;
+      this.lookId = null;
+      /* a flick keeps gliding for a moment instead of stopping dead */
+      const sp = Math.hypot(this.velX, this.velY);
+      if (this.glide && sp > 6) {
+        const g = Math.min(2.2, 60 / sp);         // cap the glide at ~60px
+        this.penX += this.velX * g;
+        this.penY += this.velY * g;
+      }
+      this.velX = this.velY = 0; this.lastMoveT = 0;
+    };
+    zone.addEventListener('pointerup', up);
+    zone.addEventListener('pointercancel', up);
+  },
+
+  /* -------------------------------------------------------------- buttons */
+  bindButtons() {
     $$('#touch [data-touch]').forEach(b => {
       const name = b.dataset.touch;
       b.addEventListener('pointerdown', e => {
-        e.preventDefault(); b.classList.add('on');
-        if (name === 'sprint') { this.held.sprint = !this.held.sprint; b.classList.toggle('on', this.held.sprint); return; }
+        e.preventDefault(); e.stopPropagation();
+        /* capture, so sliding the thumb off the button still releases it */
+        capture(b, e.pointerId);
+        b.classList.add('on');
+        if (name === 'whistle') { this.openWheel(e); return; }
+        if (name === 'sprint') {
+          this.sprintLatch = !this.sprintLatch;
+          b.classList.toggle('on', this.sprintLatch);
+          return;
+        }
         this.held[name] = true; this.edge[name] = true;
-        if (name === 'attack') Input.mouse.left = Input.mouse.leftEdge = true;
-        if (name === 'alt') Input.mouse.right = Input.mouse.rightEdge = true;
+        if (name === 'attack') { Input.mouse.left = Input.mouse.leftEdge = true; }
+        if (name === 'alt') { Input.mouse.right = Input.mouse.rightEdge = true; }
+        this.buzz(name === 'attack' ? 12 : 8);
       });
-      const up = () => {
+      const up = e => {
+        if (name === 'whistle') { this.closeWheel(true); b.classList.remove('on'); return; }
         if (name !== 'sprint') { b.classList.remove('on'); this.held[name] = false; }
         if (name === 'attack') Input.mouse.left = false;
         if (name === 'alt') Input.mouse.right = false;
       };
       b.addEventListener('pointerup', up);
       b.addEventListener('pointercancel', up);
-      b.addEventListener('pointerleave', up);
+      /* no pointerleave handler: the capture above makes it unnecessary, and
+         relying on it is what used to leave actions stuck down */
     });
-
-    /* the rest of the screen is the look area */
-    const cv = Gfx.canvas;
-    cv.addEventListener('pointerdown', e => {
-      if (e.pointerType !== 'touch' || !this.active) return;
-      this.lookId = e.pointerId; this.lookX = e.clientX; this.lookY = e.clientY;
-    });
-    cv.addEventListener('pointermove', e => {
-      if (e.pointerId !== this.lookId) return;
-      const dx = e.clientX - this.lookX, dy = e.clientY - this.lookY;
-      this.lookX = e.clientX; this.lookY = e.clientY;
-      if (typeof Photo !== 'undefined' && Photo.active) Photo.look(dx * 1.6, dy * 1.6);
-      else if (Input.enabled) Player.look(dx * 1.6, dy * 1.6);
-      e.preventDefault();
-    });
-    const lookEnd = e => { if (e.pointerId === this.lookId) this.lookId = null; };
-    cv.addEventListener('pointerup', lookEnd);
-    cv.addEventListener('pointercancel', lookEnd);
-
-    this.apply();
   },
 
-  drag(stick, e) {
-    const r = stick.getBoundingClientRect();
-    let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
-    const lim = r.width * .38, m = Math.hypot(dx, dy);
-    if (m > lim) { dx *= lim / m; dy *= lim / m; }
-    this.knob.style.transform = `translate(${dx}px,${dy}px)`;
-    this.stick.x = dx / lim;
-    this.stick.y = -dy / lim;
-    this.stick.mag = Math.min(1, m / lim);
+  /* -------------------------------------------------------- whistle wheel */
+  buildWheel() {
+    const w = this.wheelEl;
+    w.innerHTML = '';
+    this.WHISTLES.forEach((s, i) => {
+      const seg = el('div', 'seg');
+      seg.innerHTML = `<span>${s.icon}</span><span class="t"></span>`;
+      seg.dataset.act = s.act;
+      seg.dataset.i = i;
+      w.appendChild(seg);
+    });
+    /* the labels are refreshed on open, so a language switch is picked up */
+  },
+  openWheel(e) {
+    if (!Player.mount && !(Creatures.tamedList && Creatures.tamedList.length)) {
+      UI.toast(t('noTames') || tr('You have no tames to whistle at'), 'bad');
+      return;
+    }
+    const w = this.wheelEl;
+    this.wheelOpen = true; this.wheelPick = null; this.wheelId = e.pointerId;
+    this.wheelX = e.clientX; this.wheelY = e.clientY;
+    const R = 104;
+    [...w.children].forEach((seg, i) => {
+      const a = -Math.PI / 2 + (i / this.WHISTLES.length) * TAU;
+      seg.style.left = (this.wheelX + Math.cos(a) * R) + 'px';
+      seg.style.top = (this.wheelY + Math.sin(a) * R) + 'px';
+      seg.classList.remove('hot');
+      seg.querySelector('.t').textContent = t(this.WHISTLES[i].key) || this.WHISTLES[i].act;
+    });
+    w.classList.add('on');
+    /* the same finger that opened the wheel chooses on it */
+    const move = ev => {
+      if (ev.pointerId !== this.wheelId) return;
+      const dx = ev.clientX - this.wheelX, dy = ev.clientY - this.wheelY;
+      let pick = null;
+      if (Math.hypot(dx, dy) > 34) {
+        let a = Math.atan2(dy, dx) + Math.PI / 2;
+        if (a < 0) a += TAU;
+        pick = Math.round(a / TAU * this.WHISTLES.length) % this.WHISTLES.length;
+      }
+      if (pick !== this.wheelPick) {
+        this.wheelPick = pick;
+        [...w.children].forEach((s, i) => s.classList.toggle('hot', i === pick));
+        if (pick != null) this.buzz(6);
+      }
+    };
+    this._wheelMove = move;
+    addEventListener('pointermove', move);
+  },
+  closeWheel(fire) {
+    if (!this.wheelOpen) return;
+    this.wheelOpen = false;
+    this.wheelEl.classList.remove('on');
+    if (this._wheelMove) { removeEventListener('pointermove', this._wheelMove); this._wheelMove = null; }
+    if (fire && this.wheelPick != null) {
+      Riding.whistle(this.WHISTLES[this.wheelPick].act);
+      this.buzz(16);
+    }
+    this.wheelPick = null; this.wheelId = null;
+  },
+
+  /* ------------------------------------------------ contextual button set */
+  /** Swap what the ring offers with what the player can actually do, so the
+      keyboard-only actions become reachable without covering the screen. */
+  show(name, on, glyph) {
+    const b = this.root.querySelector(`[data-touch=${name}]`);
+    if (!b) return;
+    b.classList.toggle('hidden', !on);
+    if (on && glyph) b.textContent = glyph;
+    if (!on && this.held[name]) { this.held[name] = false; b.classList.remove('on'); }
+  },
+
+  setContext() {
+    if (!this.active || !this.root) return;
+    const mounted = !!Player.mount;
+    const building = typeof Building !== 'undefined' && Building.active;
+    const c = building ? 'build' : mounted ? 'mount' : 'default';
+    if (c !== this.ctx) {
+      this.ctx = c;
+      /* in build mode the ring becomes place / rotate / cancel */
+      this.show('crouch', c !== 'build');
+      this.show('jump', c !== 'build');
+      this.show('rotate', c === 'build', '⟳');
+    }
+
+    /* These change far more often than the mode does, so they are checked
+       here rather than only on a mode switch. Each is guarded, so nothing
+       touches the DOM unless the state really moved. */
+
+    /* Building.available() allocates, so it is polled rather than read every
+       frame — an engram is learned at most once every few seconds. */
+    if ((this._pollT = (this._pollT || 0) + 1) > 30) {
+      this._pollT = 0;
+      const canBuild = typeof Building !== 'undefined' && Building.available().length > 0;
+      if (canBuild !== this._buildOn) { this._buildOn = canBuild; this.show('build', canBuild); }
+    }
+
+    const canWhistle = c !== 'build'
+      && (mounted || (Creatures.tamedList && Creatures.tamedList.length > 0));
+    if (canWhistle !== this._whistleOn) {
+      this._whistleOn = canWhistle;
+      this.show('whistle', canWhistle);
+    }
+    /* the context button appears only when there is actually something to do
+       with it — mount, dismount, harvest, open a container */
+    const focus = typeof Combat !== 'undefined' && Combat.focus;
+    const wantInteract = c !== 'build' && (mounted || !!focus);
+    const glyph = mounted ? '⤓' : 'E';
+    if (wantInteract !== this._interactOn || glyph !== this._interactGlyph) {
+      this._interactOn = wantInteract; this._interactGlyph = glyph;
+      this.show('interact', wantInteract, glyph);
+    }
+  },
+
+  /* --------------------------------------------------------------- update */
+  /** Called once per frame, before the simulation reads the axes. */
+  update(dt) {
+    if (!this.active) return;
+    dt = Math.min(dt, .05);
+
+    /* stick: damp toward the thumb so a shaky finger is not a shaky walk */
+    const k = 1 - Math.exp(-dt * 26);
+    this.stick.x += (this.raw.x - this.stick.x) * k;
+    this.stick.y += (this.raw.y - this.stick.y) * k;
+    this.stick.mag = Math.hypot(this.stick.x, this.stick.y);
+
+    /* deadzone, then a strictly linear ramp: half deflection = half speed */
+    const dz = this.deadzone, m = this.stick.mag;
+    if (m <= dz) { this.move.x = this.move.y = 0; }
+    else {
+      const g = Math.min(1, (m - dz) / (1 - dz)) / m;
+      this.move.x = this.stick.x * g;
+      this.move.y = this.stick.y * g;
+    }
+
+    /* look: drain the accumulator. Draining a fixed *proportion* per second
+       keeps the total finger-travel-to-rotation ratio exact while spreading
+       one burst of events over several frames. */
+    if (this.penX || this.penY) {
+      const take = this.lookId !== null ? (1 - Math.exp(-dt * 34))   /* dragging */
+                                        : (1 - Math.exp(-dt * 11));  /* gliding */
+      let ax = this.penX * take, ay = this.penY * take;
+      /* below a pixel there is nothing left worth smoothing */
+      if (Math.abs(this.penX) < .05) { ax = this.penX; }
+      if (Math.abs(this.penY) < .05) { ay = this.penY; }
+      this.penX -= ax; this.penY -= ay;
+      const s = 1.6 * this.sens;
+      if (typeof Photo !== 'undefined' && Photo.active) Photo.look(ax * s, ay * s);
+      else if (Input.enabled && Game.state === 'play' && !anyScreenOpen()) Player.look(ax * s, ay * s);
+    }
+
+    this.setContext();
+  },
+
+  /* -------------------------------------------------------------- helpers */
+  buzz(ms) { try { if (Settings.haptics !== false && navigator.vibrate) navigator.vibrate(ms); } catch (e) { } },
+
+  releaseAll() {
+    this.held = {}; this.edge = {};
+    this.stickId = this.lookId = null;
+    this.raw.x = this.raw.y = this.raw.mag = 0;
+    this.stick.x = this.stick.y = this.stick.mag = 0;
+    this.move.x = this.move.y = 0;
+    this.penX = this.penY = this.velX = this.velY = 0;
+    this.sprintStick = false; this.sprintLatch = false;
+    Input.mouse.left = Input.mouse.right = false;
+    if (this.stickEl) { this.stickEl.classList.remove('on', 'moving', 'sprint'); }
+    if (this.knob) this.knob.style.transform = '';
+    if (this.root) $$('#touch .tb').forEach(b => b.classList.remove('on'));
+    this.closeWheel(false);
+  },
+
+  /** Landscape is the playable orientation; portrait gets a nag screen. */
+  syncOrientation() {
+    if (!this.active) { document.body.classList.remove('portrait'); return; }
+    document.body.classList.toggle('portrait', innerHeight > innerWidth * 1.08);
+  },
+
+  /** A phone that has just been tapped can go fullscreen; it needs the gesture.
+      requestFullscreen() REJECTS A PROMISE rather than throwing when the
+      browser declines — iOS Safari has no element fullscreen at all, and any
+      gesture the browser doesn't trust is refused — so the rejection has to be
+      swallowed explicitly or it surfaces as an unhandled rejection. */
+  goFullscreen() {
+    if (!this.active || document.fullscreenElement) return;
+    const el2 = document.documentElement;
+    const req = el2.requestFullscreen || el2.webkitRequestFullscreen;
+    if (!req) return;
+    try { Promise.resolve(req.call(el2)).catch(() => { }); } catch (e) { /* older sync throw */ }
   },
 
   /** auto = phones and tablets; the setting overrides it either way */
@@ -8949,13 +9458,32 @@ const Touch = {
     return matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
   },
   apply() {
+    const was = this.active;
     this.active = this.wanted();
     if (this.root) this.root.classList.toggle('hidden', !this.active);
     document.body.classList.toggle('touch', this.active);
+    if (was && !this.active) this.releaseAll();
+    this.ctx = null; this.setContext();
+    this.syncOrientation();
   },
   set(v) { this.forced = v; this.apply(); Settings.touch = v; Settings.save(); },
 
+  /** Push the user's touch preferences into the CSS variables. */
+  applyStyle() {
+    if (!this.root) return;
+    const st = this.root.style;
+    /* only the multiplier: the per-breakpoint base sizes stay in the CSS, and
+       writing absolute pixels here would override every media query */
+    st.setProperty('--tscale', String(Settings.touchScale || 1));
+    st.setProperty('--topacity', String(Settings.touchOpacity == null ? .62 : Settings.touchOpacity));
+    document.body.classList.toggle('lefty', !!Settings.touchLefty);
+    this.sens = Settings.touchSens == null ? 1 : Settings.touchSens;
+    this.deadzone = Settings.touchDeadzone == null ? .12 : Settings.touchDeadzone;
+    this.glide = Settings.touchGlide !== false;
+  },
+
   down(action) {
+    if (action === 'sprint' && (this.sprintStick || this.sprintLatch)) return true;
     for (const k in this.MAP) if (this.MAP[k] === action && this.held[k]) return true;
     return false;
   },
@@ -11612,7 +12140,39 @@ Object.assign(UI, {
         row(t('language'), 'English / العربية', sel);
       }
       row(t('touchControls'), tr('On-screen stick and buttons'),
-        toggle(Touch.active, v => { Touch.set(v); }));
+        toggle(Touch.active, v => { Touch.set(v); UI.buildSettings(); }));
+      /* the rest of the touch options are noise on a desktop */
+      if (Touch.active) {
+        const tset = (k, v) => { Settings[k] = v; Touch.applyStyle(); Settings.save(); };
+        {
+          const [i, v] = slider(.3, 2.5, .05, Settings.touchSens == null ? 1 : Settings.touchSens,
+            val => tset('touchSens', val), x => x.toFixed(2) + '×');
+          row(t('touchSens'), tr('How far the camera turns per swipe'), i, v);
+        }
+        {
+          const [i, v] = slider(.02, .35, .01, Settings.touchDeadzone == null ? .12 : Settings.touchDeadzone,
+            val => tset('touchDeadzone', val), x => Math.round(x * 100) + '%');
+          row(t('touchDead'), tr('Ignore tiny thumb movements'), i, v);
+        }
+        {
+          const [i, v] = slider(.75, 1.5, .05, Settings.touchScale || 1,
+            val => tset('touchScale', val), x => Math.round(x * 100) + '%');
+          row(t('touchScale'), '', i, v);
+        }
+        {
+          const [i, v] = slider(.25, 1, .05, Settings.touchOpacity == null ? .62 : Settings.touchOpacity,
+            val => tset('touchOpacity', val), x => Math.round(x * 100) + '%');
+          row(t('touchOpacity'), '', i, v);
+        }
+        row(t('touchLefty'), tr('Stick on the right, buttons on the left'),
+          toggle(!!Settings.touchLefty, v => tset('touchLefty', v)));
+        row(t('touchGlide'), tr('Camera keeps drifting after a fast swipe'),
+          toggle(Settings.touchGlide !== false, v => tset('touchGlide', v)));
+        row(t('touchFull'), tr('Hide the browser bars on the first tap'),
+          toggle(Settings.touchFullscreen !== false, v => { Settings.touchFullscreen = v; Settings.save(); }));
+        row(t('haptics'), tr('Short buzz on hits and taps'),
+          toggle(Settings.haptics !== false, v => { Settings.haptics = v; Settings.save(); }));
+      }
     } else if (this.settingsTab === 'keys') {
       for (const action in Input.binds) {
         const r = el('div', 'keyrow');
@@ -11898,6 +12458,11 @@ const Settings = {
         vol: Sound.vol, binds: Input.binds, showFps: Game.showFps,
         rates: TUNE.rates, dayLength: Sky.dayLength,
         lang: I18N.lang, touch: Touch.forced,
+        touchSens: this.touchSens, touchDeadzone: this.touchDeadzone,
+        touchScale: this.touchScale, touchOpacity: this.touchOpacity,
+        touchLefty: this.touchLefty, touchFullscreen: this.touchFullscreen,
+        touchGlide: this.touchGlide,
+        haptics: this.haptics,
       }));
     } catch (e) { /* private mode: settings simply do not persist */ }
   },
@@ -11919,6 +12484,13 @@ const Settings = {
       if (d.dayLength) { Sky.dayLength = d.dayLength; TUNE.time.dayLength = d.dayLength; }
       if (d.lang) I18N.set(d.lang);
       if (d.touch !== undefined) { Touch.forced = d.touch; Touch.apply(); }
+      /* every touch preference is optional and falls back to its default, so
+         a settings blob written by an older build still loads cleanly */
+      for (const k of ['touchSens', 'touchDeadzone', 'touchScale', 'touchOpacity',
+                       'touchLefty', 'touchFullscreen', 'touchGlide', 'haptics']) {
+        if (d[k] !== undefined) this[k] = d[k];
+      }
+      Touch.applyStyle();
     } catch (e) { /* ignore corrupt settings */ }
   },
 };
@@ -12067,6 +12639,12 @@ const Game = {
       Sound.init(); Sound.resume(); Sound.startAmbience();
       if (this.state === 'play' && !anyScreenOpen() && !Input.locked) Input.lock();
     });
+    /* a phone needs a real gesture to go fullscreen, and audio needs one to
+       start; the first touch anywhere is it */
+    addEventListener('pointerdown', () => {
+      Sound.init(); Sound.resume();
+      if (Touch.active && Settings.touchFullscreen !== false) Touch.goFullscreen();
+    }, { once: true });
   },
   syncTabs() { $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === UI.settingsTab)); },
 
@@ -12338,7 +12916,10 @@ const Game = {
     }
 
     /* Outside the pause gate on purpose: on a phone the pause button is also
-       the only way back OUT of the pause screen. */
+       the only way back OUT of the pause screen. Touch.update() comes first,
+       because it is what turns raw thumb positions into the smoothed axes
+       everything below reads. */
+    Touch.update(dt);
     this.handleScreenButtons();
 
     if (this.state === 'play' && !this.paused) {

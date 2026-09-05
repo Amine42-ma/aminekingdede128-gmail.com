@@ -136,11 +136,14 @@ python3 -m http.server 8000
 ## اختبار سريع
 
 ```bash
-node scripts/smoke.mjs
+node scripts/smoke.mjs    # اللعبة كاملة: عالم، كل الأنواع، الحفظ
+node scripts/touch.mjs    # تحكّم الهاتف: إحساس العصا والنظر، وتخطيط الأزرار
 ```
 
-يشغّل اللعبة في متصفح بلا واجهة، يولّد عالماً، يستدعي نوعاً من كل الديناصورات،
+الأول يشغّل اللعبة في متصفح بلا واجهة، يولّد عالماً، يستدعي نوعاً من كل الديناصورات،
 يشغّل المحاكاة، ثم يتحقق من عدم وجود أخطاء أو قيم فاسدة وأن الحفظ يعمل.
+والثاني يتحقق من أن العصا خطّية الاستجابة، وأن دوران الكاميرا لا يتغيّر مع اختلاف
+عدد الإطارات، وأن الأزرار لا تتداخل على أي مقاس شاشة.
 
 <details>
 <summary><b>English summary</b></summary>
@@ -155,6 +158,8 @@ it never touches the network. It detects your device and picks a graphics tier a
 switches to ARK-Mobile-style touch controls on a phone.
 
 `node scripts/smoke.mjs` runs it headlessly: generate a world, spawn every species, simulate, and
-check for console errors, NaN transforms and a working save.
+check for console errors, NaN transforms and a working save. `node scripts/touch.mjs` checks the phone
+controls: that stick output is linear, that camera rotation per unit of finger travel is independent of
+frame rate and pointer-event rate, and that no two controls overlap at any landscape size.
 
 </details>
