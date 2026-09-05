@@ -1,0 +1,157 @@
+/**
+ * Headless smoke test for ark.html.
+ *
+ * Boots the game in Chromium, generates a world, spawns one of every species,
+ * runs the simulation for a while and fails on anything that looks like a
+ * regression: a console error, an uncaught exception, a NaN that has crept into
+ * a transform, or a frame rate that has fallen off a cliff.
+ *
+ * Run after every change:  node scripts/smoke.mjs
+ */
+import { createRequire } from 'node:module';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import path from 'node:path';
+
+const require = createRequire('/opt/node22/lib/node_modules/');
+const { chromium } = require('playwright');
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PAGE = pathToFileURL(path.join(ROOT, 'ark.html')).href;
+
+/* This machine has no GPU: Chromium falls back to SwiftShader and renders at
+   roughly 1 fps, so the frame count buys correctness, not performance data.
+   90 frames is enough for every creature to complete several gait cycles. */
+const FRAMES = Number(process.env.SMOKE_FRAMES || 90);
+const MAX_SECS = Number(process.env.SMOKE_MAX_SECS || 240);  // catches a hang, not a slowdown
+const SEED = process.env.SMOKE_SEED || '424242';
+
+/* Errors we do not control and that say nothing about the game's health. */
+const IGNORE = [
+  /Failed to load resource/i,
+  /favicon/i,
+  /GroupMarkerNotSet/i,
+  /Automatic fallback to software WebGL/i,
+  /SwiftShader/i,
+];
+const ignorable = (t) => IGNORE.some((re) => re.test(t));
+
+const fail = [];
+const note = (m) => console.log(`   ${m}`);
+
+const browser = await chromium.launch({
+  args: [
+    '--use-gl=angle',
+    '--use-angle=swiftshader',
+    '--enable-unsafe-swiftshader',
+    '--disable-lcd-text',
+    '--allow-file-access-from-files',
+  ],
+});
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+
+page.on('console', (m) => {
+  if (m.type() !== 'error') return;
+  const t = m.text();
+  if (!ignorable(t)) fail.push(`console.error: ${t}`);
+});
+page.on('pageerror', (e) => fail.push(`uncaught: ${e.message}`));
+
+try {
+  console.log('1. boot');
+  await page.goto(PAGE, { waitUntil: 'load', timeout: 60_000 });
+  await page.waitForFunction(() => window.__ark && window.__ark.Game.state === 'menu', null,
+    { timeout: 60_000 });
+  note('menu reached');
+
+  console.log('2. world generation');
+  await page.evaluate((seed) => {
+    document.querySelector('#optSeed').value = seed;
+    window.__ark.Game.startNew();
+  }, SEED);
+  await page.waitForFunction(() => window.__ark.Game.state === 'play', null, { timeout: 180_000 });
+  note(`world ready (seed ${SEED})`);
+
+  console.log('3. spawn every species');
+  const spawned = await page.evaluate(() => {
+    const { SPECIES, Creatures, Player, World } = window.__ark;
+    const ids = Object.keys(SPECIES);
+    const out = { ids: [], failed: [] };
+    ids.forEach((id, i) => {
+      /* ring the player so nothing spawns inside anything else */
+      const a = (i / ids.length) * Math.PI * 2, r = 14 + (i % 3) * 4;
+      const x = Player.pos.x + Math.cos(a) * r, z = Player.pos.z + Math.sin(a) * r;
+      try {
+        const pos = Player.pos.clone();
+        pos.set(x, World.heightAt(x, z), z);
+        const c = Creatures.spawn(id, 10, pos);
+        if (c) out.ids.push(id); else out.failed.push(id);
+      } catch (e) {
+        out.failed.push(`${id}: ${e.message}`);
+      }
+    });
+    return out;
+  });
+  note(`${spawned.ids.length} species spawned`);
+  if (spawned.failed.length) fail.push(`spawn failed: ${spawned.failed.join(', ')}`);
+
+  console.log(`4. run ${FRAMES} frames`);
+  const t0 = Date.now();
+  await page.evaluate((n) => new Promise((res) => {
+    let i = 0;
+    const step = () => (++i >= n ? res() : requestAnimationFrame(step));
+    requestAnimationFrame(step);
+  }), FRAMES);
+  const secs = (Date.now() - t0) / 1000;
+  note(`${FRAMES} frames in ${secs.toFixed(1)}s (software GL, ~${(FRAMES / secs).toFixed(1)} fps)`);
+  if (secs > MAX_SECS) fail.push(`frame loop stalled: ${secs.toFixed(0)}s for ${FRAMES} frames`);
+
+  console.log('5. integrity');
+  const health = await page.evaluate(() => {
+    const { Creatures, Player, Game, World } = window.__ark;
+    const bad = [];
+    const finite = (v) => Number.isFinite(v);
+    const okVec = (v) => v && finite(v.x) && finite(v.y) && finite(v.z);
+    if (!okVec(Player.pos)) bad.push('Player.pos is NaN');
+    for (const c of Creatures.list) {
+      if (!okVec(c.root.position)) { bad.push(`${c.speciesId} position NaN`); continue; }
+      if (!finite(c.root.rotation.y)) bad.push(`${c.speciesId} rotation NaN`);
+      if (!finite(c.cur.health)) bad.push(`${c.speciesId} health NaN`);
+    }
+    return {
+      bad,
+      state: Game.state,
+      alive: Creatures.list.length,
+      biome: World.biomeAt(Player.pos.x, Player.pos.z),
+    };
+  });
+  note(`state=${health.state} creatures=${health.alive} biome=${health.biome}`);
+  fail.push(...health.bad);
+
+  console.log('6. save / load round trip');
+  const save = await page.evaluate(() => {
+    const { SaveGame } = window.__ark;
+    SaveGame.save(2);
+    const key = SaveGame.KEY + 2;
+    const raw = localStorage.getItem(key);
+    if (!raw) return { ok: false };
+    /* and read it straight back, so a save that cannot be parsed fails here
+       rather than silently on the player's next session */
+    let parsed = null;
+    try { parsed = JSON.parse(raw); } catch (e) { return { ok: false, parse: e.message }; }
+    return { ok: true, bytes: raw.length, keys: Object.keys(parsed).length };
+  });
+  if (!save.ok) fail.push(`save failed${save.parse ? `: ${save.parse}` : ' (nothing written)'}`);
+  else note(`saved ${save.bytes.toLocaleString()} bytes, ${save.keys} top-level keys`);
+} catch (e) {
+  fail.push(`harness: ${e.message}`);
+} finally {
+  await browser.close();
+}
+
+console.log('');
+if (fail.length) {
+  console.error(`SMOKE FAILED — ${fail.length} problem(s):`);
+  for (const f of fail) console.error(`  · ${f}`);
+  process.exit(1);
+}
+console.log('SMOKE PASSED');

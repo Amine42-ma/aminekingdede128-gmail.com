@@ -105,3 +105,56 @@ Everything runs on your device; nothing is uploaded. Browser voices are free and
 OpenAI-compatible endpoint gives fully human voices and unlocks WAV export of the dubbed track.
 
 </details>
+
+---
+
+# 🦖 آرك · ARK — Survival Reborn
+
+في هذا المستودع أيضاً **لعبة بقاء ثلاثية الأبعاد كاملة داخل ملف واحد**: `ark.html`.
+
+جزيرة مولّدة عشوائياً، ٢٣ نوعاً من الديناصورات تُصطاد وتُخدَّر وتُروَّض وتُركَب وتتكاثر،
+بناء قواعد، كهوف، ثلاثة مسلات وزعيم في النهاية — كل ذلك بلا أي ملف خارجي:
+النماذج والصور والأصوات كلها تُولَّد داخل المتصفح لحظة التشغيل.
+
+## التشغيل
+
+```bash
+python3 -m http.server 8000
+# ثم افتح: http://localhost:8000/ark.html
+```
+
+يعمل الملف أيضاً بفتحه مباشرة من القرص، لأنه لا يحمّل أي شيء من الشبكة.
+
+**المتصفح المطلوب:** أي متصفح حديث يدعم WebGL. اللعبة تكتشف قوة جهازك تلقائياً وتختار
+مستوى الرسوميات المناسب، ويمكنك تغييره يدوياً من الإعدادات.
+
+## على الهاتف
+
+اللعبة تتعرّف على شاشة اللمس تلقائياً وتعرض أزرار تحكم مصمّمة للهاتف: عصا حركة على اليسار،
+نظر حر على اليمين، وأزرار الأفعال على شكل حلقة — بنفس أسلوب ARK Mobile.
+
+## اختبار سريع
+
+```bash
+node scripts/smoke.mjs
+```
+
+يشغّل اللعبة في متصفح بلا واجهة، يولّد عالماً، يستدعي نوعاً من كل الديناصورات،
+يشغّل المحاكاة، ثم يتحقق من عدم وجود أخطاء أو قيم فاسدة وأن الحفظ يعمل.
+
+<details>
+<summary><b>English summary</b></summary>
+
+`ark.html` is a complete single-file 3D dinosaur survival game — a procedurally generated island,
+23 species to hunt, tranquilise, tame, ride and breed, base building, caves, three obelisks and a
+boss fight. There are no external assets at all: every model, texture and sound is generated in the
+browser at load time.
+
+Serve it (`python3 -m http.server 8000` → `http://localhost:8000/ark.html`) or just open the file —
+it never touches the network. It detects your device and picks a graphics tier automatically, and
+switches to ARK-Mobile-style touch controls on a phone.
+
+`node scripts/smoke.mjs` runs it headlessly: generate a world, spawn every species, simulate, and
+check for console errors, NaN transforms and a working save.
+
+</details>
