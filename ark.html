@@ -1748,7 +1748,7 @@ const TexLab = {
   },
   build() {
     this.grass = this.tex('grass', () => tintedNoiseTexture(256, ['#3f5324', '#5a7a30', '#6f8f38', '#87a047'], { scale: 7, octaves: 5, detail: true, seed: 11 }));
-    this.sand = this.tex('sand', () => tintedNoiseTexture(256, ['#ab9670', '#c2ad84', '#d2c19b'], { scale: 9, octaves: 4, detail: true, seed: 22 }));
+    this.sand = this.tex('sand', () => tintedNoiseTexture(256, ['#8a7554', '#9d8965', '#ad9a76'], { scale: 9, octaves: 4, detail: true, seed: 22 }));
     this.rock = this.tex('rock', () => tintedNoiseTexture(256, ['#4c4a47', '#6b6862', '#8a857c', '#9c968b'], { scale: 5, octaves: 6, detail: true, seed: 33 }));
     this.snow = this.tex('snow', () => tintedNoiseTexture(256, ['#c2cad4', '#dde4ec', '#f0f4f8'], { scale: 6, octaves: 4, detail: true, seed: 44 }));
     this.dirt = this.tex('dirt', () => tintedNoiseTexture(256, ['#4a3a28', '#5f4a33', '#7a6045'], { scale: 6, octaves: 5, detail: true, seed: 55 }));
@@ -2434,6 +2434,7 @@ const Gfx = {
     const bw = Math.max(2, rw >> 1), bh = Math.max(2, rh >> 1);
     this.rtA.setSize(bw, bh); this.rtB.setSize(bw, bh);
     this.matBlur.uniforms.uRes.value.set(bw, bh);
+    if (typeof ViewModel !== 'undefined' && ViewModel.resize) ViewModel.resize();
   },
 
   /** The sky dome rides with the camera so it never clips or goes off-centre. */
@@ -2457,6 +2458,13 @@ const Gfx = {
     r.setRenderTarget(this.rtScene);
     r.clear();
     r.render(this.scene, this.camera);
+    /* first-person hands: separate pass, own FOV, drawn over the world */
+    if (typeof ViewModel !== 'undefined' && ViewModel.scene && ViewModel.group && ViewModel.group.visible) {
+      r.autoClear = false;
+      r.clearDepth();
+      r.render(ViewModel.scene, ViewModel.cam);
+      r.autoClear = true;
+    }
     if (this.bloomOn && this.q.bloom) {
       this.matBright.uniforms.tDiffuse.value = this.rtScene.texture;
       this.blit(this.matBright, this.rtA);
@@ -2976,7 +2984,9 @@ const World = {
           vec2 duv = (vW.xz + uHalf) / uSize;
           float terrH = texture2D(uDepthMap, clamp(duv, 0.001, 0.999)).r * 64.0 - 32.0;
           float depth = clamp(-terrH / 12.0, 0.0, 1.0);
-          if(duv.x < 0.0 || duv.x > 1.0 || duv.y < 0.0 || duv.y > 1.0) depth = 1.0;
+          /* fade to open ocean past the island instead of cutting hard */
+          float outside = max(max(-duv.x, duv.x - 1.0), max(-duv.y, duv.y - 1.0));
+          depth = mix(depth, 1.0, smoothstep(0.0, 0.05, outside));
 
           vec3 n1 = texture2D(uNormal, vW.xz * 0.035 + vec2(uTime*0.014, uTime*0.009)).rgb * 2.0 - 1.0;
           vec3 n2 = texture2D(uNormal, vW.xz * 0.09 - vec2(uTime*0.021, uTime*0.017)).rgb * 2.0 - 1.0;
@@ -6267,11 +6277,18 @@ const ViewModel = {
   _mats: {},
 
   build() {
+    /* Drawn in its own pass with a narrower field of view, the way shooters
+       do it: the hands keep a natural size and never clip into the world. */
+    this.scene = new THREE.Scene();
+    this.cam = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, 0.01, 6);
+    this.key = new THREE.DirectionalLight(0xffffff, 2.2);
+    this.key.position.set(.6, 1, .8);
+    this.scene.add(this.key);
+    this.fill = new THREE.HemisphereLight(0xbcd7ee, 0x4a4433, .9);
+    this.scene.add(this.fill);
     const g = this.group = new THREE.Group();
     g.frustumCulled = false;
-    g.renderOrder = 20;
-    Gfx.camera.add(g);
-    Gfx.scene.add(Gfx.camera);              // the camera must be in the graph for children to render
+    this.scene.add(g);
 
     const skin = new THREE.MeshStandardMaterial({ color: 0xc08c62, roughness: .85 });
     const sleeve = new THREE.MeshStandardMaterial({ color: 0x6b5136, roughness: .9 });
@@ -6293,8 +6310,8 @@ const ViewModel = {
       const thumb = new THREE.Mesh(new THREE.BoxGeometry(.028, .034, .05), skin);
       thumb.position.set(side * -.035, .014, -.245);
       arm.add(thumb);
-      arm.position.set(side * .32, -.36, -.32);
-      arm.rotation.set(.5, side * -.36, side * .12);
+      arm.position.set(side * .30, -.30, -.52);
+      arm.rotation.set(.46, side * -.34, side * .12);
       g.add(arm);
       arm.userData.home = { pos: arm.position.clone(), rot: arm.rotation.clone() };
       return arm;
@@ -6431,8 +6448,8 @@ const ViewModel = {
     if (this.held) { this.group.remove(this.held); this.held = null; }
     const m = this.makeItem(id);
     if (m) {
-      m.scale.setScalar(.82);
-      m.position.set(.26, -.32, -.1);
+      m.scale.setScalar(.9);
+      m.position.set(.24, -.28, -.28);
       m.rotation.set(.12, -.16, .06);
       this.group.add(m);
       this.held = m;
@@ -6445,6 +6462,12 @@ const ViewModel = {
 
   swing(kind) { this.swingT = 1; this.swingKind = kind || (this.swingKind === 'right' ? 'left' : 'right'); },
 
+  resize() {
+    if (!this.cam) return;
+    this.cam.aspect = innerWidth / innerHeight;
+    this.cam.updateProjectionMatrix();
+  },
+
   update(dt) {
     if (!this.group) return;
     const show = !Camera.thirdPerson && !Player.mount && Player.alive && !anyScreenOpen();
@@ -6453,6 +6476,12 @@ const ViewModel = {
 
     const eq = Inventory.equipped();
     this.setItem(eq.id || 'fists');
+    /* match the world's mood: bright at noon, moonlit at night, warm by a torch */
+    const day = Sky.dayFactor();
+    const torch = (eq.def && eq.def.light) ? 1 : 0;
+    this.key.intensity = lerp(.5, 2.3, day) + torch * 1.6;
+    this.key.color.copy(Gfx.sun.color).lerp(new THREE.Color(0xffb066), torch * .7);
+    this.fill.intensity = lerp(.35, .95, day);
 
     /* walk bob and weapon sway */
     const moving = Player.moving && Player.grounded;
@@ -6483,9 +6512,9 @@ const ViewModel = {
       /* aiming pulls the weapon to the centre; the draw bends the bow string */
       const aim = Combat.aiming ? 1 : 0;
       this.drawAmt = damp(this.drawAmt, Combat.aiming ? clamp01(Combat.draw / ((eq.def && eq.def.draw) || .85)) : 0, 10, dt);
-      const px = lerp(.26, .04, aim) + sway;
-      const py = lerp(-.32, -.2, aim) + bob;
-      const pz = lerp(-.1, -.2, aim) - arc * .2;
+      const px = lerp(.24, .03, aim) + sway;
+      const py = lerp(-.28, -.17, aim) + bob;
+      const pz = lerp(-.28, -.4, aim) - arc * .22;
       this.held.position.set(px, py, pz);
       this.held.rotation.set(.1 - arc * .9 + this.drawAmt * .04, -.12 + aim * .1, .06 - arc * .35);
       const s = this.held.userData.string, a = this.held.userData.arrow;
