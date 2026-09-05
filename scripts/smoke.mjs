@@ -127,7 +127,58 @@ try {
   note(`state=${health.state} creatures=${health.alive} biome=${health.biome}`);
   fail.push(...health.bad);
 
-  console.log('6. save / load round trip');
+  console.log('6. controls: keyboard, then touch');
+  const controls = await page.evaluate(async () => {
+    const { Game, Touch, Input, Inventory, UI } = window.__ark;
+    const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const on = (id) => document.querySelector(id).classList.contains('on');
+    const bad = [];
+
+    /* --- keyboard: one press must toggle exactly once ------------------- */
+    Touch.forced = false; Touch.apply();
+    const key = async (code) => {
+      dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true }));
+      dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true }));
+      await frame();
+    };
+    await key(Input.binds.inventory);
+    if (!on('#inventory')) bad.push('keyboard: inventory did not open');
+    await key(Input.binds.inventory);
+    if (on('#inventory')) bad.push('keyboard: inventory did not close (double-toggle?)');
+
+    /* --- touch: the buttons that used to be dead wiring ----------------- */
+    Touch.forced = true; Touch.apply();
+    const tap = async (name) => {
+      const b = document.querySelector(`[data-touch=${name}]`);
+      if (!b) { bad.push(`touch: no ${name} button`); return; }
+      const opt = { pointerId: 7, pointerType: 'touch', isPrimary: true, bubbles: true };
+      b.dispatchEvent(new PointerEvent('pointerdown', opt));
+      b.dispatchEvent(new PointerEvent('pointerup', opt));
+      await frame();
+    };
+    for (const [name, sel] of [['inventory', '#inventory'], ['map', '#map'], ['pause', '#pause']]) {
+      await tap(name);
+      if (!on(sel)) bad.push(`touch: ${name} did not open`);
+      await tap(name);
+      if (on(sel)) bad.push(`touch: ${name} did not close`);
+    }
+
+    /* --- hotbar must be reachable by pointer (it is inside a
+           pointer-events:none HUD, so this is easy to break again) -------- */
+    Inventory.give('stone_pick', 1); UI.refreshHotbar();
+    const slot = document.querySelectorAll('#hotbar .slot')[2];
+    slot.dispatchEvent(new PointerEvent('pointerdown',
+      { pointerId: 9, pointerType: 'touch', isPrimary: true, bubbles: true }));
+    await frame();
+    if (Inventory.hotbarIndex !== 2) bad.push('hotbar slot is not clickable');
+
+    Touch.forced = null; Touch.apply();
+    return bad;
+  });
+  if (controls.length) fail.push(...controls);
+  else note('keyboard and touch toggles both fire exactly once');
+
+  console.log('7. save / load round trip');
   const save = await page.evaluate(() => {
     const { SaveGame } = window.__ark;
     SaveGame.save(2);

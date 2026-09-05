@@ -120,6 +120,9 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
 /* ===== HUD ============================================================== */
 #hud{position:fixed;inset:0;z-index:20;pointer-events:none;opacity:0;transition:opacity .5s}
 #hud.on{opacity:1}
+/* the HUD ignores the pointer, but the hotbar is a control: without this its
+   slots are unclickable, which on a phone means you can never leave your fists */
+#hud #hotbar{pointer-events:auto}
 #crosshair{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px}
 #crosshair .l{position:absolute;background:rgba(255,255,255,.85);box-shadow:0 0 3px rgba(0,0,0,.9);
   transition:transform .09s ease}
@@ -8864,6 +8867,7 @@ const Touch = {
   MAP: {
     jump: 'jump', crouch: 'crouch', sprint: 'sprint', interact: 'use', alt: 'use2',
     inventory: 'inventory', map: 'map', build: 'build', pause: 'pause',
+    charsheet: 'charsheet',
   },
 
   init() {
@@ -8918,7 +8922,7 @@ const Touch = {
       const dx = e.clientX - this.lookX, dy = e.clientY - this.lookY;
       this.lookX = e.clientX; this.lookY = e.clientY;
       if (typeof Photo !== 'undefined' && Photo.active) Photo.look(dx * 1.6, dy * 1.6);
-      else Player.look(dx * 1.6, dy * 1.6);
+      else if (Input.enabled) Player.look(dx * 1.6, dy * 1.6);
       e.preventDefault();
     });
     const lookEnd = e => { if (e.pointerId === this.lookId) this.lookId = null; };
@@ -10578,7 +10582,7 @@ const UI = {
     for (let i = 0; i < 10; i++) {
       const s = el('div', 'slot');
       s.innerHTML = '<span class="key">' + ((i + 1) % 10) + '</span><span class="qty"></span><span class="dura"><i></i></span>';
-      s.addEventListener('mousedown', e => { e.preventDefault(); Inventory.selectHotbar(i); });
+      s.addEventListener('pointerdown', e => { e.preventDefault(); Inventory.selectHotbar(i); });
       hb.appendChild(s);
     }
     this.mmCtx = $('#mmcv').getContext('2d');
@@ -12229,32 +12233,53 @@ const Game = {
   },
 
   /* ------------------------------------------------------------ input glue */
+  /* ------------------------------------------------------------- screens
+     These live as named methods rather than inline in the key handler so the
+     touch buttons can reach them too: a phone has no Escape and no I/M/B. */
+  toggleInventory() { $('#inventory').classList.contains('on') ? UI.closeInventory() : UI.openInventory(); },
+  toggleCharSheet() { $('#charsheet').classList.contains('on') ? (screenOn('charsheet', false), Input.lock()) : UI.openCharSheet(); },
+  toggleMap() { $('#map').classList.contains('on') ? UI.closeMap() : UI.openMap(); },
+  toggleBuild() {
+    if (Building.active) { Building.stop(); return; }
+    const list = Building.available();
+    if (!list.length) UI.toast(tr('Learn a building engram first (press ') + keyLabel(Input.binds.charsheet) + ')', 'bad');
+    else Building.start(list[0]);
+  },
+  /** Escape, and the phone's back button: close whatever is on top, else pause. */
+  backOut() {
+    if (Photo.active) { Photo.leave(); return; }
+    if (this.state === 'play') UI.closeTopScreen();
+  },
+
   bindGlobalKeys() {
     addEventListener('keydown', e => {
       if (Input.listening) return;
-      if (e.code === Input.binds.pause) {
-        e.preventDefault();
-        if (Photo.active) { Photo.leave(); return; }
-        if (this.state === 'play') UI.closeTopScreen();
-        return;
-      }
+      if (e.code === Input.binds.pause) { e.preventDefault(); this.backOut(); return; }
       if (this.state !== 'play') return;
       if (document.activeElement && /INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
       if (e.code === Input.binds.photo) { e.preventDefault(); Photo.toggle(); return; }
       if (Photo.active) return;
-      if (e.code === Input.binds.inventory) { e.preventDefault(); $('#inventory').classList.contains('on') ? UI.closeInventory() : UI.openInventory(); }
-      else if (e.code === Input.binds.charsheet) { $('#charsheet').classList.contains('on') ? (screenOn('charsheet', false), Input.lock()) : UI.openCharSheet(); }
-      else if (e.code === Input.binds.map) { $('#map').classList.contains('on') ? UI.closeMap() : UI.openMap(); }
-      else if (e.code === Input.binds.build) {
-        if (Building.active) Building.stop();
-        else {
-          const list = Building.available();
-          if (!list.length) UI.toast(tr('Learn a building engram first (press ') + keyLabel(Input.binds.charsheet) + ')', 'bad');
-          else Building.start(list[0]);
-        }
-      }
+      if (e.code === Input.binds.inventory) { e.preventDefault(); this.toggleInventory(); }
+      else if (e.code === Input.binds.charsheet) this.toggleCharSheet();
+      else if (e.code === Input.binds.map) this.toggleMap();
+      else if (e.code === Input.binds.build) this.toggleBuild();
       else if (e.code === Input.binds.help) UI.center(t('controls'), t('helpLine'));
     });
+  },
+
+  /** The same five screens, driven from the touch buttons.
+      Touch only: the keyboard already goes through bindGlobalKeys, and reading
+      Input.pressed() here would fire every toggle twice on a desktop.
+      Called from the frame loop rather than from update(), because these have
+      to work while a screen is open AND while the game is paused. */
+  handleScreenButtons() {
+    if (this.state !== 'play' || !Touch.active) return;
+    if (Touch.pressed('pause')) { this.backOut(); return; }
+    if (Photo.active) return;
+    if (Touch.pressed('inventory')) this.toggleInventory();
+    if (Touch.pressed('charsheet')) this.toggleCharSheet();
+    if (Touch.pressed('map')) this.toggleMap();
+    if (Touch.pressed('build')) this.toggleBuild();
   },
 
   handleInput(dt) {
@@ -12312,16 +12337,25 @@ const Game = {
       if (this.showFps) $('#fps').textContent = Math.round(this.fps) + ' fps · ' + Creatures.list.length + ' creatures';
     }
 
+    /* Outside the pause gate on purpose: on a phone the pause button is also
+       the only way back OUT of the pause screen. */
+    this.handleScreenButtons();
+
     if (this.state === 'play' && !this.paused) {
-      this.update(dt);
-    } else if (this.state === 'menu') {
-      /* slow camera drift over the island behind the menu */
-      const a = now / 26000;
-      Gfx.camera.position.set(Math.cos(a) * 260, 120 + Math.sin(a * 1.7) * 30, Math.sin(a) * 260);
-      Gfx.camera.lookAt(0, 20, 0);
-      Sky.update(dt * 2, Gfx.camera.position);
-      if (World.group) World.updateChunks(Gfx.camera.position.x, Gfx.camera.position.z);
-      if (World.water) World.updateWater(dt, Gfx.camera.position);
+      this.update(dt);                    /* ends by consuming the input edges */
+    } else {
+      if (this.state === 'menu') {
+        /* slow camera drift over the island behind the menu */
+        const a = now / 26000;
+        Gfx.camera.position.set(Math.cos(a) * 260, 120 + Math.sin(a * 1.7) * 30, Math.sin(a) * 260);
+        Gfx.camera.lookAt(0, 20, 0);
+        Sky.update(dt * 2, Gfx.camera.position);
+        if (World.group) World.updateChunks(Gfx.camera.position.x, Gfx.camera.position.z);
+        if (World.water) World.updateWater(dt, Gfx.camera.position);
+      }
+      /* paused, dead or in a menu nothing calls update(), so without this the
+         edges would pile up and all fire at once the moment play resumes */
+      Input.endFrame();
     }
     if (Photo.active) Photo.update(dt);
     Gfx.render(now / 1000);
