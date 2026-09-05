@@ -894,6 +894,10 @@ const ITEMS = {
   egg_trike:    { name: 'Trike Egg', cat: 'consumable', w: 0.4, stack: 20, ic: ['egg', '#c9b07e'], spoil: 3600, rot: 'rot', eggTier: 'regular', use: { food: 30 }, desc: 'Large egg. Regular Kibble.' },
   egg_rex:      { name: 'Rex Egg', cat: 'consumable', w: 1.0, stack: 20, ic: ['egg', '#9c7d52'], spoil: 3600, rot: 'rot', eggTier: 'superior', use: { food: 40 }, desc: 'Special egg. Superior Kibble. Stealing one is a bad idea.' },
 
+  element:      { name: 'Element', cat: 'resource', w: .1, stack: 100, ic: ['crystal', '#bfe8ff'],
+                  desc: 'Refined from a guardian. The island runs on this.' },
+  trophy_broodmother: { name: 'Broodmother Trophy', cat: 'resource', w: 1, stack: 10, ic: ['chitin', '#6a3f6a'],
+                  desc: 'Proof that you walked out of the arena.' },
   fert_egg:     { name: 'Fertilized Egg', cat: 'consumable', w: 2, stack: 1, ic: ['egg', '#e8c8a0'],
                   desc: 'A fertilized egg. It only develops inside its species\' temperature range — build fires or use an air conditioner, and watch the incubation bar.' },
 
@@ -946,7 +950,40 @@ const ITEMS = {
   tranq_dart: { name: 'Tranquilizer Dart', cat: 'ammo', w: 0.2, stack: 100, ic: ['arrow', '#5b8bd0'],
                 dmg: 26, torpor: 150, torporOverTime: 5, desc: 'Rifle-grade sedative. Puts a Rex down in a hurry.' },
 
+  /* ---- firearms -------------------------------------------------------- */
+  pistol:     { name: 'Simple Pistol', cat: 'weapon', w: 4, stack: 1, ic: ['gun', '#8c8f96'], dura: 200,
+                ranged: true, hitscan: true, ammo: 'bullet', dmg: 62, torpor: 8, speed: 1.6, spread: .012,
+                desc: 'Fast, cheap and loud. Every predator in earshot now knows where you are.' },
+  shotgun:    { name: 'Shotgun', cat: 'weapon', w: 7, stack: 1, ic: ['gun', '#6d6a63'], dura: 250,
+                ranged: true, hitscan: true, ammo: 'shell', dmg: 34, pellets: 8, torpor: 6, speed: .7, spread: .06, range: 30,
+                desc: 'Eight pellets at once. Devastating up close, useless at range.' },
+  rifle:      { name: 'Longneck Rifle', cat: 'weapon', w: 6, stack: 1, ic: ['gun', '#c8d0d8'], dura: 300,
+                ranged: true, hitscan: true, ammo: ['bullet', 'tranq_dart'], dmg: 132, torpor: 10, speed: .45, spread: .002, range: 240, scope: true,
+                desc: 'One shot, one reload — and the only sane way to deliver a tranquilizer dart to a Rex.' },
+  bullet:     { name: 'Simple Bullet', cat: 'ammo', w: .1, stack: 100, ic: ['arrow', '#c9a34a'], dmg: 1, desc: 'Lead and powder.' },
+  shell:      { name: 'Shotgun Shell', cat: 'ammo', w: .15, stack: 100, ic: ['arrow', '#c0442a'], dmg: 1, desc: 'A fistful of pellets.' },
+  grenade:    { name: 'Grenade', cat: 'weapon', w: .5, stack: 10, ic: ['bola', '#4a5540'], throwable: true, velocity: 26,
+                blast: 26, blastDmg: 260, desc: 'Three seconds after it leaves your hand, everything within 26 m has a bad day.' },
+  spyglass:   { name: 'Spyglass', cat: 'tool', w: 1, stack: 1, ic: ['torch', '#8a6a45'], zoom: true,
+                desc: 'Read a creature\'s level and stats from a safe distance.' },
+  gasoline:   { name: 'Gasoline', cat: 'resource', w: .5, stack: 100, ic: ['oil', '#c9a34a'], desc: 'Refined from oil. Feeds generators.' },
+
+  /* ---- farming --------------------------------------------------------- */
+  seed_mejo:  { name: 'Mejoberry Seed', cat: 'resource', w: .01, stack: 100, ic: ['berry', '#8a6ad6'], crop: 'mejoberry', yieldQty: [12, 22], growTime: 320 },
+  seed_amar:  { name: 'Amarberry Seed', cat: 'resource', w: .01, stack: 100, ic: ['berry', '#c9b84a'], crop: 'amarberry', yieldQty: [14, 26], growTime: 260 },
+  seed_narco: { name: 'Narcoberry Seed', cat: 'resource', w: .01, stack: 100, ic: ['berry', '#4a5a7a'], crop: 'narcoberry', yieldQty: [10, 18], growTime: 340 },
+  seed_carrot:{ name: 'Rockarrot Seed', cat: 'resource', w: .01, stack: 100, ic: ['berry', '#d07a2a'], crop: 'rockarrot', yieldQty: [6, 12], growTime: 420 },
+  seed_longrass:{ name: 'Longrass Seed', cat: 'resource', w: .01, stack: 100, ic: ['berry', '#9ac04a'], crop: 'longrass', yieldQty: [6, 12], growTime: 420 },
+  rockarrot:  { name: 'Rockarrot', cat: 'consumable', w: .1, stack: 100, ic: ['berry', '#e08a2a'], spoil: 2400, rot: 'rot',
+                use: { food: 20, water: 3 }, tame: { food: 60, affinity: 60, teLoss: .4, diet: 'herbivore' }, desc: 'A farmed vegetable — worth far more to a herbivore than any berry.' },
+  longrass:   { name: 'Longrass', cat: 'consumable', w: .1, stack: 100, ic: ['fiber', '#9ac04a'], spoil: 2400, rot: 'rot',
+                use: { food: 20, water: 3 }, tame: { food: 60, affinity: 60, teLoss: .4, diet: 'herbivore' }, desc: 'Farmed grain for kibble and taming.' },
+
   /* ---- armour ---------------------------------------------------------- */
+  metal_hat:  { name: 'Metal Helmet', cat: 'armor', slot: 'head', w: 3, stack: 1, ic: ['armor', '#c8d0d8'], armor: 80, cold: 12, heat: -20, dura: 450 },
+  metal_chest:{ name: 'Metal Chestpiece', cat: 'armor', slot: 'chest', w: 5, stack: 1, ic: ['armor', '#c8d0d8'], armor: 90, cold: 14, heat: -22, dura: 500 },
+  metal_legs: { name: 'Metal Leggings', cat: 'armor', slot: 'legs', w: 4, stack: 1, ic: ['armor', '#c8d0d8'], armor: 85, cold: 13, heat: -20, dura: 480 },
+  metal_boots:{ name: 'Metal Boots', cat: 'armor', slot: 'feet', w: 3, stack: 1, ic: ['armor', '#c8d0d8'], armor: 75, cold: 11, heat: -18, dura: 430 },
   hide_hat:   { name: 'Hide Hat', cat: 'armor', slot: 'head', w: 1, stack: 1, ic: ['armor', '#a2703f'], armor: 20, cold: 18, heat: -8, dura: 120, desc: 'Warm. Ugly. Effective.' },
   hide_shirt: { name: 'Hide Shirt', cat: 'armor', slot: 'chest', w: 2, stack: 1, ic: ['armor', '#a2703f'], armor: 25, cold: 22, heat: -10, dura: 150 },
   hide_pants: { name: 'Hide Pants', cat: 'armor', slot: 'legs', w: 2, stack: 1, ic: ['armor', '#a2703f'], armor: 25, cold: 22, heat: -10, dura: 150 },
@@ -1239,6 +1276,25 @@ const SPECIES = {
     info: 'Do not swim at night. Do not swim at all, really.'
   },
 
+  broodmother: {
+    name: 'Broodmother Lysrix', latin: 'Araneo grandis', diet: 'carnivore', temper: 'apex', tameType: 'knockout',
+    scale: 3.2, mass: 20000, eyeH: 3.2, boss: true, noSpawn: true,
+    base: { health: 16000, stamina: 900, torpor: 99999, food: 8000, weight: 800, damage: 120, speed: 5.6, run: 11 },
+    grow: { health: .2, stamina: .1, torpor: .06, food: .1, weight: .04, damage: .017 },
+    torporDrain: 99, affinity: { base: 99999, perLevel: 999 }, eatDelay: 20,
+    prefer: ['prime_meat'], kibble: 'kibble_superior',
+    attack: { dmg: 120, range: 5.5, cd: 1.6, torpor: 12, knockback: 10, roarStun: true, spit: true },
+    aggroRange: 120, fleeRange: 0, courage: 1,
+    harvest: { meat: 6, hide: 5 }, rideable: false,
+    drops: { raw_meat: [60, 90], hide: [60, 90], chitin: [80, 140] }, xp: 900,
+    spawn: { biomes: [], weight: 0, group: [1, 1] },
+    voice: { pitch: 150, kind: 'screech', len: 1.8 },
+    colors: [['#3a2a3a', '#8a6a8a', '#c04a30'], ['#2a2a3a', '#7a7a9a', '#d06a20']],
+    model: { kind: 'spider', body: [2.2, 1.2, 1.8], neck: { len: .3, seg: 1, thick: .5 }, head: { len: .8, w: .7, h: .55, jaw: .5 },
+      tail: { len: 1.6, seg: 3, thick: .9 }, legs: { front: 3.2, back: 3.4, thick: .18 }, feat: ['fangs', 'abdomen', 'teeth'] },
+    info: 'The guardian of the island. Summon it at an obelisk — and bring an army.'
+  },
+
   /* ======================= second wave of wildlife ====================== */
 
   spino: {
@@ -1428,6 +1484,11 @@ const STATIONS = {
   preserve:  { name: 'Preserving Bin', spoilMul: 0.15 },
   trough:    { name: 'Feeding Trough', spoilMul: 0.4 },
   box:       { name: 'Storage Box' },
+  crop:      { name: 'Crop Plot' },
+  generator: { name: 'Generator', fuel: ['gasoline'] },
+  lamp:      { name: 'Standing Lamp' },
+  fridge:    { name: 'Refrigerator', spoilMul: 0.02 },
+  ac:        { name: 'Air Conditioner' },
   bed:       { name: 'Bed' },
 };
 
@@ -1470,12 +1531,27 @@ const RECIPES = [
   { out: 'kibble_superior', req: { egg_rex: 1, fiber: 10, mejoberry: 10, cooked_prime: 2 }, station: 'cookpot', time: 10, xp: 50 },
   /* --- forge ----------------------------------------------------------- */
   { out: 'metal', req: { metal_ore: 2 }, station: 'forge', time: 6, xp: 6, fuelCost: .8 },
+  /* --- farming and power ------------------------------------------------ */
+  { out: 'seed_carrot', qty: 1, req: { mejoberry: 10, fiber: 10 }, station: 'mortar', time: 2, xp: 4 },
+  { out: 'seed_longrass', qty: 1, req: { amarberry: 10, fiber: 10 }, station: 'mortar', time: 2, xp: 4 },
+  { out: 'gasoline', qty: 5, req: { oil: 6, hide: 5 }, station: 'forge', time: 6, xp: 10, fuelCost: .6 },
   /* --- smithy ---------------------------------------------------------- */
   { out: 'metal_pick', req: { metal: 8, wood: 4, hide: 10 }, station: 'smithy', time: 3.4, xp: 26 },
   { out: 'metal_hatchet', req: { metal: 8, wood: 4, hide: 10 }, station: 'smithy', time: 3.4, xp: 26 },
   { out: 'pike', req: { metal: 20, wood: 10, hide: 15 }, station: 'smithy', time: 4.5, xp: 40 },
   { out: 'crossbow', req: { metal: 12, wood: 20, fiber: 50, hide: 15 }, station: 'smithy', time: 5, xp: 45 },
   { out: 'tranq_dart', qty: 1, req: { arrow_tranq: 1, metal: 1, narcotic: 3 }, station: 'smithy', time: 2, xp: 12 },
+  { out: 'metal_hat', req: { metal: 24, hide: 20, fiber: 15 }, station: 'smithy', time: 4, xp: 40 },
+  { out: 'metal_chest', req: { metal: 32, hide: 26, fiber: 20 }, station: 'smithy', time: 4.5, xp: 46 },
+  { out: 'metal_legs', req: { metal: 28, hide: 22, fiber: 18 }, station: 'smithy', time: 4.2, xp: 44 },
+  { out: 'metal_boots', req: { metal: 20, hide: 18, fiber: 12 }, station: 'smithy', time: 3.8, xp: 38 },
+  { out: 'spyglass', req: { crystal: 10, hide: 10, metal: 4 }, station: 'smithy', time: 3, xp: 20 },
+  { out: 'pistol', req: { metal: 40, wood: 20, hide: 15 }, station: 'smithy', time: 6, xp: 70 },
+  { out: 'shotgun', req: { metal: 65, wood: 30, hide: 25 }, station: 'smithy', time: 8, xp: 100 },
+  { out: 'rifle', req: { metal: 80, wood: 40, hide: 30, crystal: 10 }, station: 'smithy', time: 9, xp: 130 },
+  { out: 'bullet', qty: 6, req: { metal: 2, gunpowder: 4 }, station: 'smithy', time: 1.6, xp: 6 },
+  { out: 'shell', qty: 4, req: { metal: 3, gunpowder: 6 }, station: 'smithy', time: 1.8, xp: 7 },
+  { out: 'grenade', qty: 1, req: { metal: 8, gunpowder: 20, fiber: 15 }, station: 'smithy', time: 3, xp: 24 },
 ];
 
 /* Saddles are generated for every rideable species so the table stays honest. */
@@ -1533,6 +1609,15 @@ const STRUCTURES = {
   preserve:   { name: 'Preserving Bin', tier: 1, kind: 'deploy', station: 'preserve', size: [1.2, 1.1, 1.0], hp: 600, req: { wood: 40, stone: 15, hide: 20, fiber: 15 }, lv: 12, slots: 24 },
   forge:      { name: 'Refining Forge', tier: 2, kind: 'deploy', station: 'forge', size: [1.5, 1.6, 1.5], hp: 1200, req: { stone: 100, wood: 40, hide: 20, flint: 20 }, lv: 18 },
   smithy:     { name: 'Smithy', tier: 2, kind: 'deploy', station: 'smithy', size: [2.0, 1.6, 1.4], hp: 1400, req: { stone: 120, wood: 60, hide: 40, fiber: 30 }, lv: 26 },
+  crop_plot:  { name: 'Crop Plot', tier: 1, kind: 'deploy', station: 'crop', size: [1.5, .7, 1.5], hp: 400, req: { wood: 30, thatch: 20, stone: 10, fiber: 15 }, lv: 15, slots: 8,
+                desc: 'Plant a seed, add fertilizer, keep it watered — rain does the watering for you.' },
+  generator:  { name: 'Electrical Generator', tier: 2, kind: 'deploy', station: 'generator', size: [1.6, 1.5, 1.6], hp: 1200, req: { metal: 60, crystal: 15, hide: 20, oil: 10 }, lv: 32, slots: 10,
+                desc: 'Burns gasoline and powers everything within 26 m.' },
+  lamp:       { name: 'Standing Lamp', tier: 2, kind: 'deploy', station: 'lamp', size: [.5, 2.0, .5], hp: 400, req: { metal: 15, crystal: 8, hide: 5 }, lv: 33 },
+  fridge:     { name: 'Refrigerator', tier: 2, kind: 'deploy', station: 'fridge', size: [1.2, 1.8, 1.0], hp: 900, req: { metal: 45, crystal: 12, oil: 8 }, lv: 34, slots: 30,
+                desc: 'Powered cold storage: food inside barely spoils at all.' },
+  ac_unit:    { name: 'Air Conditioner', tier: 2, kind: 'deploy', station: 'ac', size: [1.0, 1.2, .8], hp: 700, req: { metal: 40, crystal: 15, oil: 6 }, lv: 35,
+                desc: 'Holds the temperature around it steady — eggs incubate no matter the weather.' },
 };
 
 /* --- engram tree ---------------------------------------------------------
@@ -1570,6 +1655,16 @@ const ENGRAMS = [
   { id: 'metal_pick', lv: 28, cost: 8, prereq: 'smithy' }, { id: 'metal_hatchet', lv: 28, cost: 8, prereq: 'smithy' },
   { id: 'pike', lv: 32, cost: 10, prereq: 'smithy' },
   { id: 'crossbow', lv: 34, cost: 12, prereq: 'bow' }, { id: 'tranq_dart', lv: 36, cost: 12, prereq: 'crossbow' },
+  { id: 'crop_plot', lv: 15, cost: 4, structure: true }, { id: 'seed_carrot', lv: 16, cost: 2 }, { id: 'seed_longrass', lv: 16, cost: 2 },
+  { id: 'spyglass', lv: 22, cost: 4 },
+  { id: 'metal_hat', lv: 30, cost: 10, prereq: 'smithy' }, { id: 'metal_chest', lv: 31, cost: 12, prereq: 'smithy' },
+  { id: 'metal_legs', lv: 31, cost: 11, prereq: 'smithy' }, { id: 'metal_boots', lv: 30, cost: 9, prereq: 'smithy' },
+  { id: 'gasoline', lv: 32, cost: 6, prereq: 'forge' }, { id: 'generator', lv: 32, cost: 14, structure: true },
+  { id: 'lamp', lv: 33, cost: 6, structure: true }, { id: 'fridge', lv: 34, cost: 12, structure: true },
+  { id: 'ac_unit', lv: 35, cost: 12, structure: true },
+  { id: 'pistol', lv: 38, cost: 14, prereq: 'smithy' }, { id: 'bullet', lv: 38, cost: 6, prereq: 'pistol' },
+  { id: 'shotgun', lv: 42, cost: 16, prereq: 'pistol' }, { id: 'shell', lv: 42, cost: 6, prereq: 'shotgun' },
+  { id: 'rifle', lv: 45, cost: 20, prereq: 'pistol' }, { id: 'grenade', lv: 46, cost: 14, prereq: 'gunpowder' },
 ];
 /* every saddle is its own engram, unlocked around the level its species needs */
 for (const id of SADDLE_SPECIES) {
@@ -1586,9 +1681,9 @@ const NODES = {
   palm:      { name: 'Palm', hp: 70, cls: 'wood', yields: { wood: [2, 5], thatch: [6, 11] }, respawn: 200, xp: 1 },
   deadtree:  { name: 'Dead Tree', hp: 60, cls: 'wood', yields: { wood: [4, 7], thatch: [1, 3] }, respawn: 300, xp: 1 },
   bush:      { name: 'Berry Bush', hp: 40, cls: 'berry', respawn: 150, xp: 1,
-               yields: { amarberry: [2, 5], azulberry: [2, 5], tintoberry: [2, 5], mejoberry: [0, 2], narcoberry: [0, 2], stimberry: [0, 1], fiber: [3, 7] } },
+               yields: { amarberry: [2, 5], azulberry: [2, 5], tintoberry: [2, 5], mejoberry: [0, 2], narcoberry: [0, 2], stimberry: [0, 1], fiber: [3, 7], seed_amar: [0, 1], seed_mejo: [0, 1] } },
   narcobush: { name: 'Narcoberry Bush', hp: 40, cls: 'berry', respawn: 200, xp: 1,
-               yields: { narcoberry: [3, 7], amarberry: [1, 2], fiber: [2, 5] } },
+               yields: { narcoberry: [3, 7], amarberry: [1, 2], fiber: [2, 5], seed_narco: [0, 1] } },
   fiberplant:{ name: 'Fiber Plant', hp: 25, cls: 'fiber', yields: { fiber: [6, 12], thatch: [1, 3] }, respawn: 120, xp: 1 },
   fern:      { name: 'Fern', hp: 22, cls: 'fiber', yields: { fiber: [5, 10], thatch: [2, 4] }, respawn: 120, xp: 1 },
   flowers:   { name: 'Wildflowers', hp: 14, cls: 'fiber', yields: { fiber: [3, 6], mejoberry: [0, 2], amarberry: [1, 3] }, respawn: 150, xp: 1 },
@@ -2222,6 +2317,18 @@ const IconLab = {
       g.strokeStyle = '#c2b08c'; g.lineWidth = 2;
       g.beginPath(); g.moveTo(18, 14); g.quadraticCurveTo(32, 30, 46, 14); g.stroke();
       g.fillStyle = '#8d8f92'; g.beginPath(); g.arc(32, 24, 4, 0, TAU); g.fill();
+    },
+    gun(g, col) {
+      g.fillStyle = this.grad(g, col, 10, 20, 56, 44);
+      g.beginPath();
+      g.moveTo(8, 30); g.lineTo(50, 30); g.lineTo(50, 36); g.lineTo(30, 36);
+      g.lineTo(28, 46); g.lineTo(20, 46); g.lineTo(20, 36); g.lineTo(8, 36); g.closePath();
+      g.fill();
+      g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 1.2; g.stroke();
+      g.fillStyle = '#6b4a2c';
+      g.beginPath(); g.roundRect(6, 28, 12, 10, 3); g.fill();
+      g.fillStyle = this.shade(col, 30);
+      g.fillRect(44, 26, 12, 4);
     },
     bow(g, col) {
       g.strokeStyle = col; g.lineWidth = 4.4; g.lineCap = 'round';
@@ -2938,6 +3045,15 @@ const World = {
     const H = this.height, k = j * N + i;
     const h00 = H[k], h10 = H[k + 1], h01 = H[k + N], h11 = H[k + N + 1];
     return lerp(lerp(h00, h10, tx), lerp(h01, h11, tx), tz);
+  },
+  /** Ground height for anything that walks: the cave floor when you are
+   *  inside one, the island's surface otherwise. */
+  groundAt(x, z) {
+    if (typeof Caves !== 'undefined' && Caves.active) {
+      const f = Caves.floorAt(x, z);
+      if (f != null) return f;
+    }
+    return this.heightAt(x, z);
   },
   normalAt(x, z, out) {
     const e = 1.6;
@@ -4116,7 +4232,7 @@ const Physics = {
     p.y += delta.y;
 
     // ---- terrain floor ---------------------------------------------------
-    const gy = World.heightAt(p.x, p.z);
+    const gy = World.groundAt(p.x, p.z);
     if (p.y < gy) { p.y = gy; if (actor.vel && actor.vel.y < 0) actor.vel.y = 0; }
     // ---- structure floors (walk on foundations / ceilings) ---------------
     const top = Structures.floorAt(p.x, p.z, p.y + stepUp);
@@ -4495,6 +4611,7 @@ const CreatureModel = {
     /* ---------------- legs ------------------------------------------------ */
     const legs = M.legs || {};
     const biped = kind === 'theropod' || kind === 'bird' || kind === 'flyer';
+    const spider = kind === 'spider';
     const noLegs = kind === 'aquatic' || kind === 'snake';
     if (!noLegs) {
       const backLen = legs.back || legs.h || .8, frontLen = legs.front || legs.h || .7;
@@ -4560,6 +4677,15 @@ const CreatureModel = {
         }
         return { hip, knee, ankle, foot, len, thighLen, shinLen, side, isFront, isArm, phase: 0, x, spread: side * spread };
       };
+      if (spider) {
+        /* four pairs of long legs down the body, no arms */
+        for (let i = 0; i < 4; i++) {
+          const px = L * (.34 - i * .22);
+          const len = backLen * (1 - i * .06);
+          parts.legs.push(mk(px, 1, len, false));
+          parts.legs.push(mk(px, -1, len, false));
+        }
+      } else {
       parts.legs.push(mk(hipX, 1, backLen, false));
       parts.legs.push(mk(hipX, -1, backLen, false));
       if (wantArms) {
@@ -4568,6 +4694,7 @@ const CreatureModel = {
         const fl = biped ? frontLen * .42 : frontReach;
         parts.legs.push(mk(shoulderX, 1, fl, true, biped));
         parts.legs.push(mk(shoulderX, -1, fl, true, biped));
+      }
       }
       parts.groundLegs = parts.legs.filter(l => !l.isArm);
       parts.restPitch = restPitch;
@@ -4581,7 +4708,7 @@ const CreatureModel = {
     const restByKind = {
       theropod: [.40, -.34], hadrosaur: [.52, -.42], ceratopsian: [.16, -.12],
       stegosaur: [.20, -.16], ankylosaur: [.08, -.06], crocodile: [.02, 0],
-      bird: [.72, -.55], flyer: [.34, -.28], aquatic: [0, 0], snake: [.10, -.05],
+      bird: [.72, -.55], flyer: [.34, -.28], aquatic: [0, 0], snake: [.10, -.05], spider: [.05, -.05],
     };
     const rp = restByKind[kind] || [.2, -.15];
     parts.neckRest = rp[0];
@@ -4832,6 +4959,30 @@ const CreatureModel = {
         const k = new THREE.Mesh(new THREE.ConeGeometry(W * .07, HH * .28, 4), accMat);
         k.position.set(-i * .3, HH * .16, 0);
         parts.tail[Math.min(i, parts.tail.length - 1)].add(k);
+      }
+    }
+    if (feat.indexOf('abdomen') >= 0) {
+      const g = new THREE.SphereGeometry(Math.max(W, HH) * .95, 12, 10);
+      g.scale(1.15, .95, 1);
+      const abd = new THREE.Mesh(paint(g, (x, y) => _col.copy(base).lerp(accent, clamp01(.3 - y * .2))), mat);
+      abd.position.set(-L * .78, HH * .25, 0);
+      abd.castShadow = true;
+      body.add(abd);
+      /* eight eyes */
+      const eyeMat = new THREE.MeshStandardMaterial({ color: 0x120e0a, roughness: .2, emissive: 0x2a0000 });
+      for (let i = 0; i < 8; i++) {
+        const e = new THREE.Mesh(new THREE.SphereGeometry(M.head.h * .10, 6, 5), eyeMat);
+        e.position.set(M.head.len * .55, M.head.h * (.18 + (i % 2) * .18), M.head.w * (-.42 + (Math.floor(i / 2)) * .28));
+        parts.head.add(e);
+      }
+    }
+    if (feat.indexOf('fangs') >= 0) {
+      const fangMat = new THREE.MeshStandardMaterial({ color: 0x2a2028, roughness: .5 });
+      for (const s of [-1, 1]) {
+        const f = new THREE.Mesh(new THREE.ConeGeometry(M.head.w * .14, M.head.len * .9, 6), fangMat);
+        f.position.set(M.head.len * .7, -M.head.h * .35, s * M.head.w * .3);
+        f.rotation.z = 2.2;
+        parts.head.add(f);
       }
     }
     if (feat.indexOf('fur') >= 0) {
@@ -5171,7 +5322,7 @@ class Creature {
     return out.set(this.pos.x, this.pos.y + this.height * .55, this.pos.z);
   }
   snapToGround() {
-    const gy = World.heightAt(this.pos.x, this.pos.z);
+    const gy = World.groundAt(this.pos.x, this.pos.z);
     if (this.sp.aquatic) {
       this.pos.y = Math.min(World.seaLevel - this.height * .6, Math.max(gy + this.height * .3, this.pos.y));
     } else if (this.flying && this.state === 'fly') {
@@ -5623,9 +5774,9 @@ Object.assign(Creature.prototype, {
       this.pos.x += _v3a.x; this.pos.z += _v3a.z;
     } else {
       Physics.moveActor(this, _v3a, dt, { stepUp: .9 });
-      this.pos.y = damp(this.pos.y, World.heightAt(this.pos.x, this.pos.z), 14, dt);
+      this.pos.y = damp(this.pos.y, World.groundAt(this.pos.x, this.pos.z), 14, dt);
     }
-    if (!World.inBounds(this.pos.x, this.pos.z)) {
+    if (!this.inCave && !World.inBounds(this.pos.x, this.pos.z)) {
       this.pos.x = clamp(this.pos.x, -World.half + 20, World.half - 20);
       this.pos.z = clamp(this.pos.z, -World.half + 20, World.half - 20);
       this.wanderTarget = null;
@@ -5931,6 +6082,7 @@ const Creatures = {
     const pool = [];
     for (const id in SPECIES) {
       const sp = SPECIES[id];
+      if (sp.noSpawn) continue;
       if (sp.spawn.biomes.indexOf(biome) < 0) continue;
       pool.push([id, sp.spawn.weight]);
     }
@@ -6211,8 +6363,9 @@ const Player = {
     if (!this.alive) return;
     const P = TUNE.player;
     const maxH = this.max('health');
-    const groundY = World.heightAt(this.pos.x, this.pos.z);
-    const waterY = World.seaLevel;
+    const underground = typeof Caves !== 'undefined' && !!Caves.active;
+    const groundY = World.groundAt(this.pos.x, this.pos.z);
+    const waterY = underground ? -1e6 : World.seaLevel;
     const feetInWater = this.pos.y < waterY;
     this.inWater = feetInWater;
     const eye = this.pos.y + this.eyeY();
@@ -6264,7 +6417,7 @@ const Player = {
     const step = _v3b.copy(this.vel).multiplyScalar(dt);
     Physics.moveActor(this, step, dt);
 
-    const gy = World.heightAt(this.pos.x, this.pos.z);
+    const gy = World.groundAt(this.pos.x, this.pos.z);
     if (!this.swimming) {
       if (this.pos.y <= gy + .02) {
         if (!this.grounded) {
@@ -6286,7 +6439,7 @@ const Player = {
       if (this.pos.y < gy) { this.pos.y = gy; this.vel.y = Math.max(0, this.vel.y); }
       if (this.pos.y > waterY - this.height * .5) { this.pos.y = Math.min(this.pos.y, waterY - this.height * .5 + .04); this.vel.y = Math.min(0, this.vel.y); }
     }
-    if (!World.inBounds(this.pos.x, this.pos.z)) {
+    if (!underground && !World.inBounds(this.pos.x, this.pos.z)) {
       this.pos.x = clamp(this.pos.x, -World.half + 12, World.half - 12);
       this.pos.z = clamp(this.pos.z, -World.half + 12, World.half - 12);
     }
@@ -6577,6 +6730,8 @@ const Combat = {
     Player.camShake = Math.min(.5, Player.camShake + .2);
 
     const ammo = ITEMS[ammoId];
+    /* --- firearms hit instantly ---------------------------------------- */
+    if (def.hitscan) { this.fireHitscan(def, ammoId, power); return; }
     const origin = Player.eyePos(new THREE.Vector3()).addScaledVector(Player.forward(_v3b), .5);
     const dir = Player.forward(new THREE.Vector3());
     const spread = (this.aiming ? .004 : .02) * (1 - power * .5);
@@ -6592,11 +6747,58 @@ const Combat = {
       tranq: ammoId !== 'arrow_stone',
     });
   },
+  /** Guns: an instant ray, a muzzle flash and a lot of noise. */
+  fireHitscan(def, ammoId, power) {
+    const ammo = ITEMS[ammoId] || {};
+    const pellets = def.pellets || 1;
+    const range = def.range || 140;
+    const origin = Player.eyePos(new THREE.Vector3()).addScaledVector(Player.forward(_v3b), .4);
+    const base = Player.forward(new THREE.Vector3());
+    const spread = (def.spread || .01) * (Combat.aiming ? .45 : 1);
+    let hitSomething = false;
+    for (let i = 0; i < pellets; i++) {
+      const dir = base.clone();
+      dir.x += rnd(-spread, spread); dir.y += rnd(-spread, spread); dir.z += rnd(-spread, spread);
+      dir.normalize();
+      const hit = Physics.castCreature(origin, dir, range, .22, null);
+      const terr = Physics.raycastTerrain(origin, dir, range, .8);
+      if (hit && (!terr.hit || hit.dist < terr.dist)) {
+        hitSomething = true;
+        const dmg = (ammoId === 'tranq_dart' ? (ammo.dmg || 26) : def.dmg / pellets) * Player.melee();
+        hit.creature.damage(dmg, {
+          part: hit.part, point: hit.point, source: Player,
+          torpor: ammoId === 'tranq_dart' ? (ammo.torpor || 150) : (def.torpor || 0) / pellets,
+          torporOverTime: ammoId === 'tranq_dart' ? (ammo.torporOverTime || 5) : 0,
+        });
+        UI.hitMarker(hit.part === 'head');
+        Particles.blood(hit.point, 8);
+      } else if (terr.hit) {
+        Particles.dust(terr.point, 5);
+      }
+    }
+    /* muzzle flash and report */
+    Player.camShake = Math.min(1, Player.camShake + (def.pellets ? .8 : .45));
+    Sound.noise(.12, { gain: .38, f0: 3200, f1: 300 });
+    Sound.tone(90, .22, { type: 'square', gain: .18, f2: 40 });
+    ViewModel.swing('right');
+    const flash = new THREE.PointLight(0xffd28a, 6, 14, 2);
+    flash.position.copy(origin);
+    Gfx.scene.add(flash);
+    setTimeout(() => Gfx.scene.remove(flash), 60);
+    /* gunfire draws attention */
+    for (const c of Creatures.near(Player.pos.x, Player.pos.z, 70)) {
+      if (!c.tamed && !c.dead && (c.sp.temper === 'aggressive' || c.sp.temper === 'apex') && !c.target) c.acquire(Player);
+    }
+  },
+
   throwItem(kind) {
     const origin = Player.eyePos(new THREE.Vector3()).addScaledVector(Player.forward(_v3b), .6);
     const dir = Player.forward(new THREE.Vector3());
     if (kind === 'bola') {
       this.spawnProjectile({ kind: 'bola', origin, dir, speed: 30, dmg: 0, gravity: 11, bola: true });
+      Sound.swing();
+    } else if (kind === 'grenade') {
+      this.spawnProjectile({ kind: 'grenade', origin, dir, speed: 26, dmg: 0, gravity: 11, fuse: 3, blast: ITEMS.grenade.blast, blastDmg: ITEMS.grenade.blastDmg });
       Sound.swing();
     } else if (kind === 'spear') {
       this.spawnProjectile({ kind: 'spear', origin, dir, speed: 34, dmg: ITEMS.spear.dmg * Player.melee(), torpor: 10, gravity: 10 });
@@ -6660,9 +6862,36 @@ const Combat = {
         this.killProjectile(i);
         continue;
       }
+      if (p.fuse != null) {
+        p.fuse -= dt;
+        if (p.fuse <= 0) { this.explode(p.pos.clone(), p.blast, p.blastDmg); this.killProjectile(i); continue; }
+      }
       if (p.life <= 0) this.killProjectile(i);
     }
   },
+  explode(pos, radius, damage) {
+    Particles.burst(pos, 40, { color: 0xffb04a, speed: [6, 22], size: [.1, .35], life: [.4, 1.1], gravity: 6 });
+    Particles.smoke(pos, 18);
+    Sound.noise(.9, { gain: .5, f0: 1800, f1: 60 });
+    Sound.tone(60, .8, { type: 'square', gain: .3, f2: 25 });
+    Player.camShake = Math.min(1.6, Player.camShake + 1.2);
+    const light = new THREE.PointLight(0xffa040, 12, radius * 3, 2);
+    light.position.copy(pos);
+    Gfx.scene.add(light);
+    setTimeout(() => Gfx.scene.remove(light), 140);
+    for (const c of Creatures.near(pos.x, pos.z, radius + 8)) {
+      if (c.dead) continue;
+      const d = c.bodyCenter(_v3a).distanceTo(pos);
+      if (d > radius) continue;
+      c.damage(damage * (1 - d / radius), { source: Player, part: 'body', point: c.bodyCenter(new THREE.Vector3()) });
+    }
+    const pd = Player.pos.distanceTo(pos);
+    if (pd < radius) Player.damage(damage * .5 * (1 - pd / radius), 'Caught in your own blast');
+    for (const s of Structures.near(pos.x, pos.z, radius)) {
+      if (s.pos.distanceTo(pos) < radius) Structures.damage(s, damage * .6);
+    }
+  },
+
   killProjectile(i) {
     const p = this.projectiles[i];
     Gfx.scene.remove(p.mesh);
@@ -6694,6 +6923,13 @@ const Combat = {
         };
       } else if (c.sp.tameType === 'passive' && !c.tamed) {
         focus = { kind: 'passive', creature: c, label: 'Feed ' + c.sp.name, sub: 'Hold food in your hand and approach slowly' };
+      }
+    }
+    if (!focus) {
+      const ob = Boss.nearest(Player.pos, 13);
+      if (ob) {
+        const why = Boss.canSummon();
+        focus = { kind: 'obelisk', obelisk: ob, label: ob.name, sub: why || 'Summon the Broodmother (tribute will be consumed)' };
       }
     }
     if (!focus) {
@@ -6744,6 +6980,7 @@ const Combat = {
       case 'bag': UI.openContainer(f.bag.inv, f.bag.label, f.bag); break;
       case 'station': UI.openStation(f.structure); break;
       case 'door': Structures.toggleDoor(f.structure); break;
+      case 'obelisk': UI.openObelisk(f.obelisk); break;
       case 'water': {
         Player.cur.water = Math.min(Player.max('water'), Player.cur.water + 26);
         const wi = Inventory.bag.findIndex('waterskin');
@@ -7643,7 +7880,9 @@ const Breeding = {
         if (st.id !== 'fert_egg' || !st.fert) continue;
         const sp = SPECIES[st.fert.sp];
         const range = sp.incubTemp || [22, 32];
-        const temp = World.tempAt(pos.x, pos.z, Sky.time) + Structures.warmthAt(pos);
+        const climate = Structures.climateAt(pos);
+        const temp = climate ? (range[0] + range[1]) / 2
+          : World.tempAt(pos.x, pos.z, Sky.time) + Structures.warmthAt(pos);
         const inRange = temp >= range[0] && temp <= range[1];
         if (inRange) {
           st.incub = (st.incub || 0) + dt / ((sp.incubTime || 300) / Math.max(.2, TUNE.rates.breeding || 1));
@@ -8300,6 +8539,29 @@ const Structures = {
         parts.push({ geo: new THREE.BoxGeometry(.9, .5, .6), matrix: trs(-.4, 1.15, 0), color: 0x8f8d88 });
         parts.push({ geo: new THREE.CylinderGeometry(.1, .1, .6, 6), matrix: trs(.6, 1.2, 0, 0, 0, .6), color: 0x6d6a63 });
         break;
+      case 'crop_plot':
+        parts.push({ geo: new THREE.BoxGeometry(w, .28, dp), matrix: trs(0, .14, 0), color: 0x7d5f3c });
+        for (const sx of [-1, 1]) for (const sz of [-1, 1])
+          parts.push({ geo: new THREE.BoxGeometry(.12, .5, .12), matrix: trs(sx * w * .44, .25, sz * dp * .44), color: 0x6b4a2c });
+        parts.push({ geo: new THREE.BoxGeometry(w * .86, .12, dp * .86), matrix: trs(0, .3, 0), color: 0x4a3a28 });
+        break;
+      case 'generator':
+        parts.push({ geo: new THREE.BoxGeometry(w, h * .7, dp), matrix: trs(0, h * .35, 0), color: 0x6d6a63 });
+        parts.push({ geo: new THREE.CylinderGeometry(.28, .28, .7, 10), matrix: trs(w * .22, h * .8, 0), color: 0x8c8f96 });
+        parts.push({ geo: new THREE.CylinderGeometry(.1, .12, .5, 6), matrix: trs(-w * .3, h * .9, 0), color: 0x3a3a3a });
+        break;
+      case 'lamp':
+        parts.push({ geo: new THREE.CylinderGeometry(.06, .1, h * .82, 6), matrix: trs(0, h * .41, 0), color: 0x8c8f96 });
+        parts.push({ geo: new THREE.ConeGeometry(.28, .3, 8), matrix: trs(0, h * .88, 0, Math.PI, 0, 0), color: 0xc8d0d8 });
+        break;
+      case 'fridge':
+        parts.push({ geo: new THREE.BoxGeometry(w, h, dp), matrix: trs(0, h / 2, 0), color: 0xb8c0c8 });
+        parts.push({ geo: new THREE.BoxGeometry(.06, h * .8, .06), matrix: trs(w * .38, h * .55, dp * .52), color: 0x6d6a63 });
+        break;
+      case 'ac_unit':
+        parts.push({ geo: new THREE.BoxGeometry(w, h * .8, dp), matrix: trs(0, h * .4, 0), color: 0xc0c8d0 });
+        parts.push({ geo: new THREE.CylinderGeometry(.26, .26, .12, 10), matrix: trs(0, h * .45, dp * .52, Math.PI / 2), color: 0x6d6a63 });
+        break;
       default:
         parts.push({ geo: new THREE.BoxGeometry(w, h, dp), matrix: trs(0, h / 2, 0), color: 0x9a7448 });
     }
@@ -8443,6 +8705,7 @@ const Structures = {
   },
 
   warmthAt(pos) {
+    if (this.climateAt(pos)) return 0;    // the AC holds the band by itself
     let warm = 0;
     const list = this.near(pos.x, pos.z, 12);
     for (const s of list) {
@@ -8468,10 +8731,76 @@ const Structures = {
     }
     return false;
   },
+  /** Is this point inside the radius of a running generator? */
+  poweredAt(pos) {
+    for (const g of this.list) {
+      if (g.def.station !== 'generator' || !g.lit) continue;
+      if (g.pos.distanceTo(pos) < 26) return true;
+    }
+    return false;
+  },
+  /** An air conditioner holds the temperature steady around it. */
+  climateAt(pos) {
+    for (const a of this.list) {
+      if (a.def.station !== 'ac' || !a.powered) continue;
+      if (a.pos.distanceTo(pos) < 16) return true;
+    }
+    return false;
+  },
+
   update(dt) {
     for (const s of this.list) {
       const st = STATIONS[s.def.station];
       if (!st) continue;
+      /* --- powered devices ------------------------------------------- */
+      if (s.def.station === 'lamp' || s.def.station === 'fridge' || s.def.station === 'ac') {
+        s.powered = this.poweredAt(s.pos);
+        if (s.def.station === 'lamp') {
+          if (s.powered && !s.light) {
+            s.light = new THREE.PointLight(0xdfe8ff, 3.4, 26, 2);
+            s.light.position.set(s.pos.x, s.pos.y + s.def.size[1] * .85, s.pos.z);
+            Gfx.scene.add(s.light);
+          } else if (!s.powered && s.light) { Gfx.scene.remove(s.light); s.light = null; }
+        }
+        if (s.def.station === 'fridge' && s.inv) s.inv.updateSpoil(dt, s.powered ? .02 : 1);
+      }
+      /* --- crops grow when watered and fed ---------------------------- */
+      if (s.def.station === 'crop' && s.inv) {
+        s.water = clamp((s.water || 0) + (Sky.weather === 'rain' || Sky.weather === 'storm' ? dt * 2.5 : -dt * .12), 0, 100);
+        if (!s.crop) {
+          for (let i = 0; i < s.inv.slots_.length; i++) {
+            const it = ITEMS[s.inv.slots_[i].id];
+            if (it && it.crop) { s.crop = { seed: s.inv.slots_[i].id, t: 0 }; s.inv.removeAt(i, 1); break; }
+          }
+        }
+        if (s.crop) {
+          const seed = ITEMS[s.crop.seed];
+          const fert = s.inv.count('fertilizer') > 0;
+          const rate = (s.water > 5 ? 1 : .12) * (fert ? 2.2 : 1);
+          s.crop.t += dt * rate;
+          if (fert && Math.random() < dt * .02) s.inv.removeId('fertilizer', 1);
+          if (s.water > 5) s.water -= dt * .35;
+          if (!s.plantMesh) {
+            const m = new THREE.Mesh(new THREE.ConeGeometry(.2, .5, 6),
+              new THREE.MeshStandardMaterial({ color: 0x4f8c39, roughness: .9 }));
+            m.position.set(s.pos.x, s.pos.y + .4, s.pos.z);
+            Gfx.scene.add(m);
+            s.plantMesh = m;
+          }
+          const g = clamp01(s.crop.t / (seed.growTime || 300));
+          s.plantMesh.scale.setScalar(.35 + g * 1.5);
+          s.plantMesh.material.color.setHSL(.28, .5, .28 + g * .18);
+          if (g >= 1) {
+            const [a, b] = seed.yieldQty || [8, 14];
+            s.inv.add(seed.crop, rndInt(a, b));
+            s.inv.add(s.crop.seed, rndInt(1, 2));
+            s.crop = null;
+            Gfx.scene.remove(s.plantMesh);
+            s.plantMesh = null;
+            UI.toast('A crop is ready to harvest', 'good');
+          }
+        }
+      }
       if (s.inv) s.inv.updateSpoil(dt, st.spoilMul != null ? st.spoilMul : 1);
       /* fuelled stations burn wood and cook what is inside */
       if (st.fuel) {
@@ -8682,6 +9011,554 @@ const Building = {
       UI.toast('Out of materials for ' + def.name);
       this.stop();
     }
+  },
+};
+
+/* ============================================================================
+ * 72 · CAVES — real underground zones. Each cave is a winding tube of chambers
+ *   built far below the island; walking into a cave mouth moves you into it,
+ *   the sun goes out, and you need a torch, a weapon and a way back.
+ * ==========================================================================*/
+const Caves = {
+  list: [], active: null, group: null, mat: null, crystalMat: null,
+  _restore: null, spawnedInside: [],
+
+  /* ---------------------------------------------------------------- build */
+  *build(rng) {
+    this.list.length = 0;
+    if (this.group) { Gfx.scene.remove(this.group); this.group = null; }
+    this.group = new THREE.Group();
+    this.group.visible = false;
+    Gfx.scene.add(this.group);
+    this.mat = new THREE.MeshStandardMaterial({
+      map: TexLab.rockD, vertexColors: true, roughness: .97, side: THREE.DoubleSide,
+    });
+    this.crystalMat = new THREE.MeshStandardMaterial({
+      color: 0x9fd9ea, emissive: 0x2a6a80, emissiveIntensity: .8, roughness: .2, metalness: .1,
+    });
+
+    const sites = [
+      { biome: 'mountain', name: 'Frozen Hollow', theme: 'ice', depth: 4 },
+      { biome: 'jungle', name: 'Overgrown Cave', theme: 'moss', depth: 5 },
+      { biome: 'highland', name: 'Deep Shaft', theme: 'stone', depth: 6 },
+      { biome: 'swamp', name: 'Sunken Grotto', theme: 'moss', depth: 4 },
+    ];
+    let idx = 0;
+    for (const site of sites) {
+      const mouth = this.findMouth(site.biome, rng);
+      if (!mouth) continue;
+      const cave = this.buildInterior(site, mouth, idx++, rng);
+      this.list.push(cave);
+      yield { p: .955 + .01 * idx, msg: 'Hollowing out the caves…' };
+    }
+  },
+
+  findMouth(biome, rng) {
+    /* a mouth wants a hillside: first try the biome the cave belongs to, then
+       settle for any slope on dry land rather than skipping the cave */
+    for (let pass = 0; pass < 3; pass++) {
+      const wantBiome = pass === 0 ? biome : null;
+      const minSlope = pass < 2 ? .12 : .05;
+      for (let i = 0; i < 3000; i++) {
+        const a = rng() * TAU, r = Math.sqrt(rng()) * World.half * .88;
+        const x = Math.cos(a) * r, z = Math.sin(a) * r;
+        if (!World.inBounds(x, z)) continue;
+        if (wantBiome && World.biomeAt(x, z) !== wantBiome) continue;
+        const slope = World.slopeAt(x, z);
+        if (slope < minSlope || slope > .8) continue;
+        const h = World.heightAt(x, z);
+        if (h < 6) continue;
+        /* keep caves apart so two mouths never overlap */
+        let clash = false;
+        for (const c of this.list) if (c.mouth.distanceTo(new THREE.Vector3(x, h, z)) < 220) { clash = true; break; }
+        if (clash) continue;
+        return new THREE.Vector3(x, h, z);
+      }
+    }
+    return null;
+  },
+
+  /** A tube of chambers descending away from the entrance. */
+  buildInterior(site, mouth, index, rng) {
+    const baseY = -600 - index * 200;                     // each cave gets its own layer
+    const path = [];
+    let x = 0, z = 0, y = 0, dir = rng() * TAU;
+    const nodes = 7 + Math.floor(rng() * 4);
+    for (let i = 0; i < nodes; i++) {
+      const t = i / (nodes - 1);
+      path.push({
+        x, y, z,
+        r: (i === 0 ? 5 : 6 + rng() * 7) * (1 + t * .35),
+      });
+      dir += (rng() - .5) * 1.5;
+      const step = 16 + rng() * 12;
+      x += Math.cos(dir) * step;
+      z += Math.sin(dir) * step;
+      y -= (2 + rng() * 5) * (i < nodes - 2 ? 1 : .2);
+    }
+    /* --- tube geometry ---------------------------------------------------- */
+    const radial = 12, verts = [], colors = [], tris = [];
+    const themeCol = site.theme === 'ice' ? [0x9fb6c4, 0xd8e6ee]
+      : site.theme === 'moss' ? [0x4a5540, 0x7d8a62] : [0x585349, 0x8b8378];
+    const cA = new THREE.Color(themeCol[0]), cB = new THREE.Color(themeCol[1]);
+    const noise = makeNoise2D(1234 + index * 91);
+    for (let i = 0; i < path.length; i++) {
+      const p = path[i];
+      for (let k = 0; k <= radial; k++) {
+        const a = (k / radial) * TAU;
+        const wob = 1 + noise(i * .8, k * .6) * .28;
+        const rr = p.r * wob;
+        const px = p.x + Math.cos(a) * rr * (k <= radial / 2 ? 1 : 1);
+        verts.push(p.x + Math.cos(a) * rr * .28 + (Math.cos(a) * rr), p.y + Math.sin(a) * rr * .72, p.z + Math.sin(a) * 0);
+        const c = cA.clone().lerp(cB, clamp01(.4 + Math.sin(a) * .4 + noise(i, k) * .2));
+        colors.push(c.r, c.g, c.b);
+      }
+    }
+    /* rebuild properly: rings perpendicular to the path direction */
+    verts.length = 0; colors.length = 0;
+    for (let i = 0; i < path.length; i++) {
+      const p = path[i];
+      const prev = path[Math.max(0, i - 1)], next = path[Math.min(path.length - 1, i + 1)];
+      const tx = next.x - prev.x, tz = next.z - prev.z;
+      const tl = Math.hypot(tx, tz) || 1;
+      const nx = -tz / tl, nz = tx / tl;                  // side vector
+      for (let k = 0; k <= radial; k++) {
+        const a = (k / radial) * TAU;
+        const wob = 1 + noise(i * .8, k * .6) * .30;
+        const rr = p.r * wob;
+        const sx = Math.cos(a) * rr, sy = Math.sin(a) * rr * .8;
+        verts.push(p.x + nx * sx, p.y + sy, p.z + nz * sx);
+        const up = Math.sin(a);
+        const c = cA.clone().lerp(cB, clamp01(.45 - up * .35 + noise(i, k) * .25));
+        colors.push(c.r, c.g, c.b);
+      }
+    }
+    for (let i = 0; i < path.length - 1; i++) for (let k = 0; k < radial; k++) {
+      const a = i * (radial + 1) + k, b = a + 1, c = a + radial + 1, d = c + 1;
+      tris.push(a, b, c, b, d, c);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(verts.length / 3 * 2), 2));
+    geo.setIndex(tris);
+    geo.computeVertexNormals();
+
+    const group = new THREE.Group();
+    group.position.set(mouth.x, baseY, mouth.z);
+    const shell = new THREE.Mesh(geo, this.mat);
+    shell.receiveShadow = false;
+    group.add(shell);
+
+    /* --- decoration: stalagmites, glowing crystals, loot ------------------- */
+    const deco = [];
+    for (const p of path) {
+      for (let i = 0; i < 5; i++) {
+        const a = rng() * TAU, rr = p.r * (.3 + rng() * .6);
+        const h = 1 + rng() * 2.4;
+        const up = rng() < .5;
+        deco.push({
+          geo: new THREE.ConeGeometry(.3 + rng() * .35, h, 6),
+          matrix: trs(p.x + Math.cos(a) * rr, p.y - p.r * .72 + (up ? h * .5 : p.r * 1.4 - h * .5), p.z + Math.sin(a) * rr, up ? 0 : Math.PI, rng() * TAU, 0),
+          color: themeCol[0],
+        });
+      }
+    }
+    group.add(new THREE.Mesh(mergeGeos(deco), this.mat));
+
+    const crystals = [];
+    for (const p of path) {
+      if (rng() < .55) {
+        const a = rng() * TAU, rr = p.r * .8;
+        for (let i = 0; i < 4; i++) {
+          crystals.push({
+            geo: new THREE.ConeGeometry(.18 + rng() * .2, .8 + rng() * 1.2, 5),
+            matrix: trs(p.x + Math.cos(a) * rr + rnd(-1, 1), p.y - p.r * .6 + rnd(0, .6), p.z + Math.sin(a) * rr + rnd(-1, 1), rnd(-.4, .4), rng() * TAU, rnd(-.4, .4)),
+            color: 0xcfe9f2,
+          });
+        }
+      }
+    }
+    if (crystals.length) {
+      const cm = new THREE.Mesh(mergeGeos(crystals), this.crystalMat);
+      group.add(cm);
+    }
+    this.group.add(group);
+
+    const cave = {
+      name: site.name, theme: site.theme, index,
+      mouth: mouth.clone(), origin: new THREE.Vector3(mouth.x, baseY, mouth.z),
+      path, group, radial,
+      entry: new THREE.Vector3(mouth.x + path[0].x, baseY + path[0].y - path[0].r * .55, mouth.z + path[0].z),
+      loot: [],
+    };
+    /* treasure at the far end */
+    const last = path[path.length - 1];
+    cave.treasure = new THREE.Vector3(mouth.x + last.x, baseY + last.y - last.r * .6, mouth.z + last.z);
+    /* a marker at the surface so the mouth is findable */
+    const arch = new THREE.Mesh(
+      new THREE.TorusGeometry(2.6, .55, 6, 12, Math.PI),
+      new THREE.MeshStandardMaterial({ color: 0x4a4a48, roughness: .95 }));
+    arch.position.copy(mouth);
+    arch.position.y += .2;
+    arch.rotation.y = rng() * TAU;
+    arch.castShadow = true;
+    Gfx.scene.add(arch);
+    cave.arch = arch;
+    const dark = new THREE.Mesh(new THREE.CircleGeometry(2.4, 12),
+      new THREE.MeshBasicMaterial({ color: 0x05070a, side: THREE.DoubleSide }));
+    dark.position.copy(mouth);
+    dark.position.y += 1.6;
+    dark.rotation.x = -Math.PI / 2 + 1.2;
+    dark.rotation.y = arch.rotation.y;
+    Gfx.scene.add(dark);
+    cave.darkDisc = dark;
+    return cave;
+  },
+
+  /* ---------------------------------------------------------------- floor */
+  /** Height of the cave floor under a point, or null when outside the tube. */
+  floorAt(x, z) {
+    const cave = this.active;
+    if (!cave) return null;
+    let best = null, bestD = Infinity;
+    for (const p of cave.path) {
+      const px = cave.origin.x + p.x, pz = cave.origin.z + p.z;
+      const d = Math.hypot(x - px, z - pz);
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    if (!best || bestD > best.r * 1.25) return null;
+    return cave.origin.y + best.y - best.r * .72 + .2;
+  },
+  /** Keep the player inside the tube. */
+  contain(pos) {
+    const cave = this.active;
+    if (!cave) return;
+    let best = null, bestD = Infinity;
+    for (const p of cave.path) {
+      const px = cave.origin.x + p.x, pz = cave.origin.z + p.z;
+      const d = Math.hypot(pos.x - px, pos.z - pz);
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    if (!best) return;
+    const px = cave.origin.x + best.x, pz = cave.origin.z + best.z;
+    const limit = best.r * .82;
+    if (bestD > limit) {
+      const k = limit / bestD;
+      pos.x = px + (pos.x - px) * k;
+      pos.z = pz + (pos.z - pz) * k;
+    }
+  },
+
+  /* ------------------------------------------------------------ enter/exit */
+  enter(cave) {
+    if (this.active) return;
+    this.active = cave;
+    this.group.visible = true;
+    for (const c of this.list) c.group.visible = (c === cave);
+    this._restore = {
+      pos: Player.pos.clone(),
+      fogDensity: Gfx.scene.fog.density,
+      fogColor: Gfx.scene.fog.color.clone(),
+      sun: Gfx.sun.intensity, moon: Gfx.moon.intensity,
+      hemi: Gfx.hemi.intensity, ambient: Gfx.ambient.intensity,
+    };
+    Player.pos.copy(cave.entry);
+    Player.vel.set(0, 0, 0);
+    World.group.visible = false;
+    if (World.water) World.water.visible = false;
+    if (Flora.grass) Flora.grass.visible = false;
+    Gfx.sky.visible = false;
+    Gfx.scene.fog.color.setHex(0x05070a);
+    Gfx.scene.fog.density = .035;
+    UI.center('You enter ' + cave.name, 'It is pitch black in here — light a torch');
+    Sound.tone(90, 1.6, { type: 'sine', gain: .12, f2: 50 });
+    this.spawnInhabitants(cave);
+    Objectives.event('cave', cave);
+  },
+  exit() {
+    const cave = this.active;
+    if (!cave) return;
+    this.active = null;
+    this.group.visible = false;
+    World.group.visible = true;
+    if (World.water) World.water.visible = true;
+    if (Flora.grass) Flora.grass.visible = true;
+    Gfx.sky.visible = true;
+    if (this._restore) {
+      Gfx.scene.fog.density = this._restore.fogDensity;
+      Gfx.scene.fog.color.copy(this._restore.fogColor);
+    }
+    /* step back out onto the hillside */
+    Player.pos.copy(cave.mouth);
+    Player.pos.y = World.heightAt(cave.mouth.x, cave.mouth.z) + .2;
+    Player.vel.set(0, 0, 0);
+    for (const c of this.spawnedInside) {
+      const i = Creatures.list.indexOf(c);
+      if (i >= 0) { c.remove(); Creatures.list.splice(i, 1); }
+    }
+    this.spawnedInside.length = 0;
+    UI.center('Back in the daylight', '');
+  },
+  spawnInhabitants(cave) {
+    const pool = cave.theme === 'ice' ? ['raptor', 'carno'] : cave.theme === 'moss' ? ['titanoboa', 'dilo', 'raptor'] : ['raptor', 'dilo', 'carno'];
+    this.spawnedInside.length = 0;
+    for (let i = 2; i < cave.path.length; i++) {
+      const p = cave.path[i];
+      if (Math.random() < .75) {
+        const id = pick(pool);
+        const pos = new THREE.Vector3(cave.origin.x + p.x + rnd(-2, 2), cave.origin.y + p.y - p.r * .7 + .3, cave.origin.z + p.z + rnd(-2, 2));
+        const c = Creatures.spawn(id, Creatures.pickLevel() + 20, pos);
+        if (c) { c.inCave = true; c.home.copy(pos); this.spawnedInside.push(c); }
+      }
+    }
+    /* the reward at the far end */
+    const bag = Loot.spawnBag('supply', cave.treasure.clone(), cave.name + ' cache', 1e9);
+    const tierPool = [['crystal', 25], ['metal', 30], ['obsidian', 12], ['arrow_tranq', 20], ['narcotic', 25], ['kibble_regular', 4], ['medbrew', 6]];
+    for (let i = 0; i < 5; i++) { const e = pick(tierPool); bag.inv.add(e[0], e[1]); }
+    this.spawnedInside.push({ bagOnly: true, remove() {}, pos: cave.treasure });
+    this.spawnedInside.pop();
+  },
+
+  /* ---------------------------------------------------------------- update */
+  update(dt) {
+    if (!this.list.length) return;
+    if (!this.active) {
+      /* stepping into a cave mouth */
+      for (const c of this.list) {
+        if (Player.pos.distanceTo(c.mouth) < 3.2) { this.enter(c); break; }
+      }
+    } else {
+      /* the way back is the first chamber */
+      if (Player.pos.distanceTo(this.active.entry) < 3.0 && Player.pos.y > this.active.entry.y - 2) {
+        if (!this._exitHint || Game.clock - this._exitHint > 3) {
+          this._exitHint = Game.clock;
+          UI.setInteract({ kind: 'caveexit', label: 'Leave ' + this.active.name, sub: 'Walk into the entrance' });
+        }
+        if (Player.pos.distanceTo(this.active.entry) < 1.8) this.exit();
+      }
+      /* cave lighting: no sun, no moon, almost no ambient */
+      Gfx.sun.intensity = 0;
+      Gfx.moon.intensity = 0;
+      Gfx.hemi.intensity = .035;
+      Gfx.ambient.intensity = .02;
+      Gfx.scene.fog.color.setHex(0x05070a);
+      Gfx.scene.fog.density = .035;
+      Caves.contain(Player.pos);
+    }
+  },
+};
+
+/* ============================================================================
+ * 73 · OBELISKS & THE BOSS — three obelisks stand over the island. Bring the
+ *   tribute to one and it drops you into the Broodmother's arena.
+ * ==========================================================================*/
+const Boss = {
+  obelisks: [], arena: null, active: false, boss: null, adds: [], phase: 0,
+  addTimer: 0, endTimer: 0, _restore: null,
+
+  TRIBUTE: { metal: 30, keratin: 10, prime_meat: 5, crystal: 8, narcotic: 10 },
+  MIN_LEVEL: 25,
+
+  build(rng) {
+    for (const o of this.obelisks) Gfx.scene.remove(o.mesh);
+    this.obelisks.length = 0;
+    const colours = [0x4fd6c4, 0xd05a5a, 0x8a6ae0];
+    const names = ['Green Obelisk', 'Red Obelisk', 'Blue Obelisk'];
+    for (let i = 0; i < 3; i++) {
+      let spot = null;
+      for (let t = 0; t < 3000 && !spot; t++) {
+        const a = (i / 3) * TAU + rng() * 1.2, r = World.half * (.35 + rng() * .35);
+        const x = Math.cos(a) * r, z = Math.sin(a) * r;
+        if (!World.inBounds(x, z)) continue;
+        const h = World.heightAt(x, z);
+        if (h < 12 || World.slopeAt(x, z) > .25) continue;
+        spot = new THREE.Vector3(x, h, z);
+      }
+      if (!spot) continue;
+      const g = new THREE.Group();
+      const mat = new THREE.MeshStandardMaterial({
+        color: colours[i], emissive: colours[i], emissiveIntensity: .5,
+        roughness: .25, metalness: .3, transparent: true, opacity: .85,
+      });
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 5.5, 46, 4), mat);
+      shaft.position.y = 23;
+      shaft.rotation.y = Math.PI / 4;
+      shaft.castShadow = true;
+      g.add(shaft);
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(3.4, 9, 4), mat);
+      cap.position.y = 50;
+      cap.rotation.y = Math.PI / 4;
+      g.add(cap);
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 300, 8, 1, true),
+        new THREE.MeshBasicMaterial({ color: colours[i], transparent: true, opacity: .10, side: THREE.DoubleSide, depthWrite: false }));
+      beam.position.y = 160;
+      g.add(beam);
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(9, 11, 2.2, 8),
+        new THREE.MeshStandardMaterial({ color: 0x2a2f36, roughness: .8, metalness: .2 }));
+      base.position.y = .6;
+      base.receiveShadow = true;
+      g.add(base);
+      g.position.copy(spot);
+      Gfx.scene.add(g);
+      this.obelisks.push({ name: names[i], pos: spot.clone(), mesh: g, colour: colours[i] });
+    }
+  },
+
+  nearest(pos, range) {
+    for (const o of this.obelisks) if (o.pos.distanceTo(pos) < (range || 14)) return o;
+    return null;
+  },
+
+  /* ------------------------------------------------------------- the arena */
+  buildArena() {
+    if (this.arena) return this.arena;
+    const g = new THREE.Group();
+    const y = -1600;
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x3a3038, roughness: .9 });
+    const floor = new THREE.Mesh(new THREE.CylinderGeometry(46, 48, 3, 32), floorMat);
+    floor.position.y = -1.5;
+    floor.receiveShadow = true;
+    g.add(floor);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x241d24, roughness: .95, side: THREE.DoubleSide });
+    const wall = new THREE.Mesh(new THREE.CylinderGeometry(48, 48, 34, 32, 1, true), wallMat);
+    wall.position.y = 17;
+    g.add(wall);
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(48, 24, 12, 0, TAU, 0, Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: 0x120a14, side: THREE.BackSide }));
+    dome.position.y = 30;
+    g.add(dome);
+    /* pillars and web strands for silhouette */
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * TAU;
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2.2, 30, 6), wallMat);
+      p.position.set(Math.cos(a) * 42, 15, Math.sin(a) * 42);
+      g.add(p);
+    }
+    const glow = new THREE.PointLight(0x8a4ad0, 3.2, 120, 2);
+    glow.position.set(0, 22, 0);
+    g.add(glow);
+    const glow2 = new THREE.PointLight(0xd05a3a, 2.2, 90, 2);
+    glow2.position.set(0, 6, 0);
+    g.add(glow2);
+    g.position.set(0, y, 0);
+    g.visible = false;
+    Gfx.scene.add(g);
+    this.arena = { group: g, y, radius: 44 };
+    return this.arena;
+  },
+
+  canSummon() {
+    if (Player.level < this.MIN_LEVEL) return 'You must be level ' + this.MIN_LEVEL;
+    for (const k in this.TRIBUTE) {
+      if (Inventory.bag.count(k) < this.TRIBUTE[k]) {
+        return 'Missing tribute: ' + this.TRIBUTE[k] + ' ' + ITEMS[k].name;
+      }
+    }
+    return null;
+  },
+  summon(obelisk) {
+    const why = this.canSummon();
+    if (why) { UI.toast(why, 'bad'); return; }
+    Inventory.bag.consume(this.TRIBUTE);
+    const arena = this.buildArena();
+    arena.group.visible = true;
+    this.active = true;
+    this.phase = 1;
+    this.addTimer = 22;
+    this.endTimer = 0;
+    this._restore = { pos: Player.pos.clone(), obelisk };
+    /* stash the surface so nothing else renders down here */
+    World.group.visible = false;
+    if (World.water) World.water.visible = false;
+    if (Flora.grass) Flora.grass.visible = false;
+    Gfx.sky.visible = false;
+    Gfx.scene.fog.color.setHex(0x0a050c);
+    Gfx.scene.fog.density = .012;
+    Player.pos.set(0, arena.y, 34);
+    Player.vel.set(0, 0, 0);
+    /* the guardian */
+    this.boss = Creatures.spawn('broodmother', 120, new THREE.Vector3(0, arena.y, -10));
+    if (this.boss) { this.boss.inArena = true; this.boss.acquire(Player); this.boss.roar(); }
+    this.adds.length = 0;
+    UI.center('The Broodmother wakes', 'Kill it, or it kills you — there is no way out until one of you falls');
+    Sound.voice(SPECIES.broodmother.voice, { vol: 1 });
+  },
+  spawnAdd() {
+    if (!this.arena) return;
+    const a = Math.random() * TAU, r = 30;
+    const p = new THREE.Vector3(Math.cos(a) * r, this.arena.y, Math.sin(a) * r);
+    const c = Creatures.spawn(Math.random() < .5 ? 'raptor' : 'dilo', 60, p);
+    if (c) { c.inArena = true; c.acquire(Player); this.adds.push(c); }
+  },
+  finish(won) {
+    this.active = false;
+    if (this.arena) this.arena.group.visible = false;
+    World.group.visible = true;
+    if (World.water) World.water.visible = true;
+    if (Flora.grass) Flora.grass.visible = true;
+    Gfx.sky.visible = true;
+    for (const c of this.adds) {
+      const i = Creatures.list.indexOf(c);
+      if (i >= 0) { c.remove(); Creatures.list.splice(i, 1); }
+    }
+    this.adds.length = 0;
+    if (this.boss && !won) {
+      const i = Creatures.list.indexOf(this.boss);
+      if (i >= 0) { this.boss.remove(); Creatures.list.splice(i, 1); }
+    }
+    this.boss = null;
+    const back = this._restore ? this._restore.obelisk.pos.clone() : World.findBeachSpawn();
+    back.x += 8;
+    back.y = World.heightAt(back.x, back.z) + .2;
+    Player.pos.copy(back);
+    Player.vel.set(0, 0, 0);
+    if (won) {
+      Inventory.give('element', 25);
+      Inventory.give('trophy_broodmother', 1);
+      Player.addXp(1200, 'Defeated the Broodmother');
+      UI.center('The Broodmother falls', 'You carry out 25 Element and a trophy');
+      Objectives.event('boss', null);
+    } else {
+      UI.center('You were driven out', 'The tribute is gone — bring more and try again');
+    }
+  },
+
+  update(dt) {
+    if (!this.active) return;
+    /* keep the fight inside the arena */
+    const R = this.arena.radius;
+    const d = Math.hypot(Player.pos.x, Player.pos.z);
+    if (d > R) {
+      const k = R / d;
+      Player.pos.x *= k; Player.pos.z *= k;
+    }
+    Player.pos.y = Math.max(Player.pos.y, this.arena.y);
+    Gfx.sun.intensity = 0; Gfx.moon.intensity = 0;
+    Gfx.hemi.intensity = .12; Gfx.ambient.intensity = .05;
+
+    if (this.boss && !this.boss.dead) {
+      const hp = this.boss.cur.health / this.boss.max('health');
+      const newPhase = hp > .66 ? 1 : hp > .33 ? 2 : 3;
+      if (newPhase !== this.phase) {
+        this.phase = newPhase;
+        this.boss.roar();
+        UI.center('Phase ' + this.phase, this.phase === 3 ? 'It is enraged' : 'It calls for help');
+        for (let i = 0; i < this.phase + 1; i++) this.spawnAdd();
+      }
+      this.addTimer -= dt;
+      if (this.addTimer <= 0) {
+        this.addTimer = 26 - this.phase * 5;
+        if (this.adds.filter(a => !a.dead).length < 4 + this.phase) this.spawnAdd();
+      }
+      /* the boss never wanders off */
+      if (!this.boss.target || this.boss.target.dead) this.boss.acquire(Player);
+      this.boss.pos.y = this.arena.y;
+    } else if (this.boss && this.boss.dead) {
+      this.endTimer += dt;
+      if (this.endTimer > 6) this.finish(true);
+    }
+    if (!Player.alive) this.finish(false);
   },
 };
 
@@ -8993,6 +9870,8 @@ const UI = {
     };
     for (const c of Creatures.tamedList) if (!c.dead) dot(c.pos.x, c.pos.z, '#7fd45b', 4);
     for (const b of Loot.bags) if (b.kind === 'supply') dot(b.pos.x, b.pos.z, '#9a6ae0', 5);
+    for (const o of Boss.obelisks) dot(o.pos.x, o.pos.z, '#' + o.colour.toString(16).padStart(6, '0'), 5);
+    for (const c of Caves.list) dot(c.mouth.x, c.mouth.z, '#2a2a2a', 4);
     if (Player.bedPos) dot(Player.bedPos.x, Player.bedPos.z, '#f0a842', 4);
     if (Player.deathPos) dot(Player.deathPos.x, Player.deathPos.z, '#e0524a', 4);
     if (this.mapWaypoint) dot(this.mapWaypoint.x, this.mapWaypoint.z, '#4fd6c4', 4);
@@ -9587,6 +10466,41 @@ Object.assign(UI, {
     $('#dpWeight').textContent = Math.round(c.inv.weight()) + ' / ' + Math.round(c.max('weight'));
   },
 
+  /* --------------------------------------------------------------- obelisk */
+  openObelisk(ob) {
+    if ($('#obeliskModal')) $('#obeliskModal').remove();
+    const wrap = el('div', 'screen on');
+    wrap.id = 'obeliskModal';
+    wrap.style.zIndex = 300;
+    const box = el('div', 'win panel');
+    box.style.cssText = 'max-width:520px;height:auto;align-self:center;justify-self:center;padding:22px';
+    const why = Boss.canSummon();
+    const rows = Object.entries(Boss.TRIBUTE).map(([k, v]) => {
+      const have = Inventory.bag.count(k);
+      return '<div class="tstat"><span>' + ITEMS[k].name + '</span><b class="' + (have >= v ? 'eff-hi' : 'eff-lo') + '">'
+        + have + ' / ' + v + '</b></div>';
+    }).join('');
+    box.innerHTML = '<div class="sec-title">' + ob.name + '</div>'
+      + '<div style="font-size:13px;color:var(--bone-soft);margin-bottom:10px">The obelisk hums. Offer the tribute and it will drop you'
+      + ' into the Broodmother\'s arena — you come back with Element, or you do not come back.</div>'
+      + rows
+      + '<div class="tstat"><span>Survivor level</span><b class="' + (Player.level >= Boss.MIN_LEVEL ? 'eff-hi' : 'eff-lo') + '">'
+      + Player.level + ' / ' + Boss.MIN_LEVEL + '</b></div>';
+    const row = el('div');
+    row.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;margin-top:16px';
+    const go = el('button', 'btn primary', 'Summon the Broodmother');
+    if (why) { go.setAttribute('disabled', ''); go.textContent = why; }
+    const cancel = el('button', 'btn ghost', 'Step back');
+    row.appendChild(cancel); row.appendChild(go);
+    box.appendChild(row);
+    wrap.appendChild(box);
+    document.body.appendChild(wrap);
+    Input.unlock();
+    const close = () => { wrap.remove(); if (Game.state === 'play' && !anyScreenOpen()) Input.lock(); };
+    cancel.addEventListener('click', close);
+    go.addEventListener('click', () => { close(); Boss.summon(ob); });
+  },
+
   /* ------------------------------------------------------------------- map */
   openMap() {
     screenOn('map', true);
@@ -9611,6 +10525,8 @@ Object.assign(UI, {
     if (Player.deathPos) addMark(Player.deathPos.x, Player.deathPos.z, '#e0524a', 'Body');
     for (const c of Creatures.tamedList) if (!c.dead) addMark(c.pos.x, c.pos.z, '#7fd45b', c.displayName());
     for (const b of Loot.bags) if (b.kind === 'supply') addMark(b.pos.x, b.pos.z, '#9a6ae0', 'Drop');
+    for (const o of Boss.obelisks) addMark(o.pos.x, o.pos.z, '#' + o.colour.toString(16).padStart(6, '0'), o.name.split(' ')[0]);
+    for (const c of Caves.list) addMark(c.mouth.x, c.mouth.z, '#1a1a1a', c.name);
     if (this.mapWaypoint) addMark(this.mapWaypoint.x, this.mapWaypoint.z, '#ffffff', 'Waypoint');
     const ll = World.latLon(Player.pos.x, Player.pos.z);
     $('#mapCoord').textContent = 'LAT ' + ll.lat.toFixed(1) + ' · LON ' + ll.lon.toFixed(1);
@@ -10198,6 +11114,8 @@ const Game = {
       Flora.buildGrass();
       yield* Flora.populate(rng);
       if (!self.pendingSave) yield* Creatures.populateInitial(Math.round(Creatures.budget * .6));
+      yield* Caves.build(rng);
+      Boss.build(rng);
       yield { p: 1, msg: 'Ready' };
     })();
     this.genQueue = { it: steps, done };
@@ -10275,6 +11193,14 @@ const Game = {
       else Combat.interact(false);
     }
     if (Input.pressed('use2')) Combat.interact(true);
+    /* thrown grenades and the spyglass live on the hotbar */
+    const eqNow = Inventory.equipped();
+    if (eqNow.id === 'grenade' && Input.mouse.leftEdge && Inventory.has('grenade', 1) && Combat.cd <= 0) {
+      Inventory.take('grenade', 1); Combat.throwItem('grenade'); Combat.cd = 1;
+    }
+    if (eqNow.def && eqNow.def.zoom) {
+      Camera.fovScale = Input.mouse.right ? .28 : (Settings.fovScale || 1);
+    } else if (Camera.fovScale < .5) Camera.fovScale = Settings.fovScale || 1;
     if (Input.pressed('toggleView')) Camera.toggle();
     if (Input.pressed('drop')) {
       const eq = Inventory.equipped();
@@ -10336,6 +11262,8 @@ const Game = {
     Combat.update(dt);
     Building.update(dt);
     Creatures.update(dt);
+    Caves.update(dt);
+    Boss.update(dt);
     Breeding.update(dt);
     Structures.update(dt);
     Loot.update(dt);
@@ -10395,7 +11323,7 @@ const Game = {
  * ==========================================================================*/
 window.__ark = {
   Game, World, Player, Camera, ViewModel, PlayerModel, Creatures, Inventory, Structures, Building, Flora, Sky, Gfx, UI, Combat, Riding, Taming,
-  Loot, Objectives, Particles, Physics, Sound, SaveGame, Settings, Breeding, TUNE, SPECIES, ITEMS, RECIPES, ENGRAMS, STRUCTURES, NODES,
+  Loot, Objectives, Particles, Physics, Sound, SaveGame, Settings, Breeding, Caves, Boss, TUNE, SPECIES, ITEMS, RECIPES, ENGRAMS, STRUCTURES, NODES,
   CreatureModel, Creature,
   state: () => ({
     state: Game.state, fps: Math.round(Game.fps), pos: Player.pos.toArray().map(v => Math.round(v)),
