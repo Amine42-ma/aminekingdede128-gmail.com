@@ -879,13 +879,13 @@ const ITEMS = {
   waterskin:  { name: 'Waterskin', cat: 'consumable', w: 1.5, stack: 1, ic: ['skin', '#5b7ea8'], charges: 100,
                 use: { water: 25 }, desc: 'Fill it at a river or the sea shallows. Drink from your hotbar.' },
   kibble_basic:   { name: 'Basic Kibble', cat: 'consumable', w: 0.1, stack: 100, ic: ['kibble', '#c8a05a'], spoil: 10800, rot: 'rot',
-                use: { food: 10 }, tame: { food: 80, affinity: 600, teLoss: 0.15, diet: 'any' }, desc: 'Small-egg kibble. Tames small creatures almost instantly, at near-perfect effectiveness.' },
+                use: { food: 10 }, tame: { food: 80, affinity: 90, teLoss: 0.15, diet: 'any' }, desc: 'Small-egg kibble. Roughly five times the taming affinity of a berry, and it barely costs effectiveness.' },
   kibble_simple:  { name: 'Simple Kibble', cat: 'consumable', w: 0.1, stack: 100, ic: ['kibble', '#c2853f'], spoil: 10800, rot: 'rot',
-                use: { food: 10 }, tame: { food: 80, affinity: 900, teLoss: 0.15, diet: 'any' }, desc: 'Medium-egg kibble.' },
+                use: { food: 10 }, tame: { food: 80, affinity: 130, teLoss: 0.15, diet: 'any' }, desc: 'Medium-egg kibble. The fast way to tame a Parasaur, Pteranodon or Ichthyosaurus.' },
   kibble_regular: { name: 'Regular Kibble', cat: 'consumable', w: 0.1, stack: 100, ic: ['kibble', '#a86a2f'], spoil: 10800, rot: 'rot',
-                use: { food: 10 }, tame: { food: 80, affinity: 1400, teLoss: 0.15, diet: 'any' }, desc: 'Large-egg kibble.' },
+                use: { food: 10 }, tame: { food: 80, affinity: 200, teLoss: 0.15, diet: 'any' }, desc: 'Large-egg kibble. Cuts a Trike, Raptor or Anky tame to a handful of feeds.' },
   kibble_superior:{ name: 'Superior Kibble', cat: 'consumable', w: 0.1, stack: 100, ic: ['kibble', '#8c4c22'], spoil: 10800, rot: 'rot',
-                use: { food: 10 }, tame: { food: 80, affinity: 2200, teLoss: 0.12, diet: 'any' }, desc: 'The kibble a Rex respects.' },
+                use: { food: 10 }, tame: { food: 80, affinity: 300, teLoss: 0.12, diet: 'any' }, desc: 'The kibble a Rex respects — and the only sane way to tame one at high level.' },
 
   /* ---- eggs ------------------------------------------------------------ */
   egg_dodo:     { name: 'Dodo Egg', cat: 'consumable', w: 0.1, stack: 20, ic: ['egg', '#e8dfc8'], spoil: 3600, rot: 'rot', eggTier: 'basic',    use: { food: 20 }, desc: 'Small egg. Basic Kibble.' },
@@ -3402,34 +3402,47 @@ const Flora = {
     return best;
   },
 
-  /* ---------- grass field ------------------------------------------------ */
+  /* ---------- grass field ------------------------------------------------
+     Each instance is a tuft of three crossed blades, so the field reads as a
+     carpet from every angle instead of a forest of cardboard triangles. */
   buildGrass() {
-    const blade = new THREE.BufferGeometry();
-    const w = .055, h = 1;
-    const pos = new Float32Array([
-      -w, 0, 0, w, 0, 0, -w * .55, h * .62, .01,
-      w, 0, 0, w * .55, h * .62, .01, -w * .55, h * .62, .01,
-      -w * .55, h * .62, .01, w * .55, h * .62, .01, 0, h, .02,
-    ]);
-    /* Blades borrow the ground's normal so the field reads as terrain, not as
-       hundreds of individually lit cards. */
-    const nrm = new Float32Array(9 * 3);
-    for (let i = 0; i < 9; i++) { nrm[i * 3] = 0; nrm[i * 3 + 1] = 1; nrm[i * 3 + 2] = 0; }
-    const uvs = new Float32Array([0, 0, 1, 0, 0, .62, 1, 0, 1, .62, 0, .62, 0, .62, 1, .62, .5, 1]);
-    blade.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    blade.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
-    blade.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-    /* darker at the root, brighter at the tip */
-    const bc = new Float32Array(9 * 3);
-    for (let i = 0; i < 9; i++) {
-      const y = pos[i * 3 + 1] / h;
-      const v = .45 + y * .75;
-      bc[i * 3] = v; bc[i * 3 + 1] = v; bc[i * 3 + 2] = v;
+    const blades = [];
+    const bladeVerts = (angle, lean, h, w) => {
+      const c = Math.cos(angle), s2 = Math.sin(angle);
+      const rot = (x, z) => [x * c - z * s2, x * s2 + z * c];
+      const tipOff = lean * h;
+      const p = [];
+      const push = (x, y, z) => { const [rx, rz] = rot(x, z); p.push(rx, y, rz); };
+      /* three stacked segments, narrowing to a point */
+      push(-w, 0, 0); push(w, 0, 0); push(-w * .6, h * .55, tipOff * .35);
+      push(w, 0, 0); push(w * .6, h * .55, tipOff * .35); push(-w * .6, h * .55, tipOff * .35);
+      push(-w * .6, h * .55, tipOff * .35); push(w * .6, h * .55, tipOff * .35); push(0, h, tipOff);
+      return p;
+    };
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI;
+      blades.push(...bladeVerts(a, .18 + i * .06, 1 - i * .12, .026 + i * .004));
     }
-    blade.setAttribute('color', new THREE.BufferAttribute(bc, 3));
+    const pos = new Float32Array(blades);
+    const n = pos.length / 3;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const nrm = new Float32Array(n * 3);
+    const col = new Float32Array(n * 3);
+    const uv = new Float32Array(n * 2);
+    for (let i = 0; i < n; i++) {
+      nrm[i * 3] = 0; nrm[i * 3 + 1] = 1; nrm[i * 3 + 2] = 0;   // borrow the ground normal
+      const y = pos[i * 3 + 1];
+      const v = .72 + y * .42;                                   // darker at the root
+      col[i * 3] = v; col[i * 3 + 1] = v; col[i * 3 + 2] = v;
+      uv[i * 2] = 0; uv[i * 2 + 1] = y;
+    }
+    geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
 
     const mat = this.grassMat = new THREE.MeshStandardMaterial({
-      vertexColors: true, roughness: .95, side: THREE.DoubleSide,
+      vertexColors: true, roughness: .96, side: THREE.DoubleSide,
     });
     mat.onBeforeCompile = sh => {
       sh.uniforms.uTime = { value: 0 };
@@ -3439,14 +3452,15 @@ const Flora = {
         .replace('#include <begin_vertex>', `#include <begin_vertex>
           #ifdef USE_INSTANCING
           vec3 iPos = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
-          float sway = sin(uTime * 1.6 + iPos.x * 0.35 + iPos.z * 0.27) * 0.5 + sin(uTime * 2.7 + iPos.x * 0.8) * 0.22;
-          transformed.x += sway * transformed.y * 0.22;
-          transformed.z += sway * transformed.y * 0.13;
+          float sway = sin(uTime * 1.5 + iPos.x * 0.32 + iPos.z * 0.24) * 0.5
+                     + sin(uTime * 2.6 + iPos.x * 0.75) * 0.2;
+          transformed.x += sway * transformed.y * 0.18;
+          transformed.z += sway * transformed.y * 0.11;
           #endif`);
     };
     mat.customProgramCacheKey = () => 'grass-wind';
-    const max = 26000;
-    const mesh = this.grass = new THREE.InstancedMesh(blade, mat, max);
+    const max = 14000;
+    const mesh = this.grass = new THREE.InstancedMesh(geo, mat, max);
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     /* three r152 only decides USE_INSTANCING_COLOR when the program is first
        compiled, so the attribute has to exist before the first frame. */
@@ -3462,14 +3476,14 @@ const Flora = {
     if (this._grassUniforms) this._grassUniforms.uTime.value = this._t;
     const density = Gfx.q.grass;
     if (density <= 0) { this.grass.count = 0; return; }
-    if (this._grassAnchor.distanceToSquared(camPos) < 28 * 28) return;
+    if (this._grassAnchor.distanceToSquared(camPos) < 22 * 22) return;
     this._grassAnchor.copy(camPos);
-    const R = 34, count = Math.floor(23000 * density);
-    const rng = makeRNG(((camPos.x / 28) | 0) * 7919 ^ ((camPos.z / 28) | 0) * 104729);
+    const R = 30, count = Math.floor(11000 * density);
+    const rng = makeRNG(((camPos.x / 22) | 0) * 7919 ^ ((camPos.z / 22) | 0) * 104729);
     const col = new THREE.Color();
     let n = 0;
-    for (let i = 0; i < count && n < 26000; i++) {
-      const a = rng() * TAU, r = Math.sqrt(rng()) * R;
+    for (let i = 0; i < count && n < 14000; i++) {
+      const a = rng() * TAU, r = Math.pow(rng(), .72) * R;   // bias towards the camera
       const x = camPos.x + Math.cos(a) * r, z = camPos.z + Math.sin(a) * r;
       const h = World.heightAt(x, z);
       if (h < 1.0 || h > 92) continue;
@@ -3477,10 +3491,12 @@ const Flora = {
       const bd = BIOMES[b]; if (!bd || bd.grass <= 0) continue;
       if (rng() > bd.grass) continue;
       if (World.slopeAt(x, z) > .5) continue;
-      const s = (.16 + rng() * .22) * (b === 'beach' ? .7 : 1);
-      this.grass.setMatrixAt(n, trs(x, h, z, 0, rng() * TAU, 0, .9 + rng() * .5, s * 1.9, .9 + rng() * .5));
-      const v = .34 + rng() * .30;
-      col.setRGB(v * (b === 'mountain' ? .85 : .58), v * .92, v * (b === 'swamp' ? .48 : .32));
+      const s = (.16 + rng() * .17) * (b === 'beach' ? .75 : 1);
+      this.grass.setMatrixAt(n, trs(x, h - .02, z, 0, rng() * TAU, 0, .85 + rng() * .4, s, .85 + rng() * .4));
+      /* tint from the ground it grows out of, a shade deeper */
+      const v = .31 + rng() * .21;
+      const dry = b === 'beach' || b === 'mountain' ? .45 : 0;
+      col.setRGB(v * (.55 + dry), v * (.9 - dry * .1), v * (b === 'swamp' ? .42 : .3));
       this.grass.setColorAt(n, col);
       n++;
     }
@@ -3497,7 +3513,7 @@ const Flora = {
  *   really are blocked by structures (which is what makes dino traps work).
  * ==========================================================================*/
 const Physics = {
-  _boxes: [], _actors: [],
+  _boxes: [], _actors: [], _hits: [], _sep: [],
 
   /** Move an actor {pos, radius} by delta, resolving structure/creature overlap. */
   moveActor(actor, delta, dt, opts) {
@@ -3531,7 +3547,7 @@ const Physics = {
   /** Is a capsule at p (radius r) inside a structure or another creature? */
   blocked(p, r, self, stepUp) {
     if (Structures.blocks(p, r, stepUp)) return true;
-    const list = Creatures.near(p.x, p.z, r + 4.2);
+    const list = Creatures.near(p.x, p.z, r + 4.2, this._hits);
     for (let i = 0; i < list.length; i++) {
       const c = list[i];
       if (c === self || c.dead || c.ridden) continue;
@@ -3547,7 +3563,7 @@ const Physics = {
 
   /** Push overlapping creatures apart so herds do not stack into one body. */
   separate(c, dt) {
-    const list = Creatures.near(c.pos.x, c.pos.z, c.radius + 5);
+    const list = Creatures.near(c.pos.x, c.pos.z, c.radius + 5, this._sep);
     let px = 0, pz = 0, n = 0;
     for (let i = 0; i < list.length; i++) {
       const o = list[i];
@@ -3585,7 +3601,7 @@ const Physics = {
 
   /** Sphere-cast against creature bodies — used by melee and projectiles. */
   castCreature(origin, dir, maxDist, radius, ignore) {
-    const list = Creatures.near(origin.x + dir.x * maxDist * .5, origin.z + dir.z * maxDist * .5, maxDist + 8);
+    const list = Creatures.near(origin.x + dir.x * maxDist * .5, origin.z + dir.z * maxDist * .5, maxDist + 8, this._hits);
     let best = null, bestT = Infinity;
     for (const c of list) {
       if (c.dead || c === ignore) continue;
@@ -4994,7 +5010,8 @@ Object.assign(Creature.prototype, {
     this.pos.y = damp(this.pos.y, World.heightAt(this.pos.x, this.pos.z), 8, dt);
     if (!this.tamed) {
       /* eats whatever is in its inventory when hungry enough */
-      const drain = this.max('food') * .0027 * TUNE.rates.dinoFood;
+      /* slow enough that a tame takes real minutes — and narcotics matter */
+      const drain = Math.max(1.2, this.max('food') * .0005) * TUNE.rates.dinoFood;
       this.cur.food = Math.max(0, this.cur.food - drain * dt);
       if (this.cur.food <= 0) this.cur.health -= T.starveDamagePerSec * dt;
       if (this.eatCooldown <= 0) this.tryEatFromInventory();
@@ -5265,13 +5282,12 @@ const Creatures = {
       if (!c.tamed && !c.unconscious && !c.dead && d > TUNE.spawn.despawnRadius) {
         c.remove(); this.list.splice(i, 1); continue;
       }
+      c.root.visible = d < Gfx.q.view + 60;
       if (c.aiLod === 2 && !c.tamed) {
-        if ((Game.frame + c.id) % 6 !== 0) { c.root.visible = false; continue; }
-        c.root.visible = true;
-        c.update(dt * 6);
+        /* far away: think once every six frames, but never blink out */
+        if ((Game.frame + c.id) % 6 === 0) c.update(dt * 6);
         continue;
       }
-      c.root.visible = d < Gfx.q.view + 60;
       /* shadow casting is the expensive half of a creature: keep it close */
       const wantShadow = d < 52 && Gfx.shadowsOn;
       if (c.shadowOn !== wantShadow) {
@@ -5718,6 +5734,7 @@ const Combat = {
     const def = eq.def || ITEMS.fists;
     this.cd = 1 / (def.speed || 1);
     this.swing = 1; this.swingDir *= -1;
+    ViewModel.swing();
     Sound.swing();
     Player.cur.stamina = Math.max(0, Player.cur.stamina - 3);
     const origin = Player.eyePos(_v3a);
@@ -5837,6 +5854,7 @@ const Combat = {
     Inventory.take(ammoId, 1);
     this.cd = 1 / (def.speed || 1);
     Inventory.wearTool(.8);
+    ViewModel.swing('right');
     Sound.bowShot();
     Player.camShake = Math.min(.5, Player.camShake + .2);
 
@@ -6237,6 +6255,246 @@ Combat.harvestCorpseWithDino = function (corpse, c) {
   take('hide', 3 * (mults.hide || 1));
   Particles.blood(corpse.bodyCenter(), 8);
   Sound.hitFlesh(.7);
+};
+
+/* ============================================================================
+ * 63 · VIEWMODEL — the survivor's hands and the tool they are holding, drawn
+ *   in front of the camera with a punch arc, a bow draw and idle sway.
+ * ==========================================================================*/
+const ViewModel = {
+  group: null, armR: null, armL: null, held: null, heldId: null,
+  swingT: 0, swingKind: 'right', bobT: 0, drawAmt: 0, hidden: false,
+  _mats: {},
+
+  build() {
+    const g = this.group = new THREE.Group();
+    g.frustumCulled = false;
+    g.renderOrder = 20;
+    Gfx.camera.add(g);
+    Gfx.scene.add(Gfx.camera);              // the camera must be in the graph for children to render
+
+    const skin = new THREE.MeshStandardMaterial({ color: 0xc08c62, roughness: .85 });
+    const sleeve = new THREE.MeshStandardMaterial({ color: 0x6b5136, roughness: .9 });
+    this._mats = { skin, sleeve };
+
+    const mkArm = (side) => {
+      const arm = new THREE.Group();
+      const fore = new THREE.Mesh(new THREE.CylinderGeometry(.030, .038, .22, 8), skin);
+      fore.rotation.x = Math.PI / 2;
+      fore.position.z = -.11;
+      arm.add(fore);
+      const cuff = new THREE.Mesh(new THREE.CylinderGeometry(.047, .047, .07, 8), sleeve);
+      cuff.rotation.x = Math.PI / 2;
+      cuff.position.z = .015;
+      arm.add(cuff);
+      const fist = new THREE.Mesh(new THREE.BoxGeometry(.078, .07, .085), skin);
+      fist.position.z = -.25;
+      arm.add(fist);
+      const thumb = new THREE.Mesh(new THREE.BoxGeometry(.028, .034, .05), skin);
+      thumb.position.set(side * -.035, .014, -.245);
+      arm.add(thumb);
+      arm.position.set(side * .32, -.36, -.32);
+      arm.rotation.set(.5, side * -.36, side * .12);
+      g.add(arm);
+      arm.userData.home = { pos: arm.position.clone(), rot: arm.rotation.clone() };
+      return arm;
+    };
+    this.armR = mkArm(1);
+    this.armL = mkArm(-1);
+    this.setItem('fists');
+  },
+
+  /* --- simple held-item meshes, built from the same primitive vocabulary -- */
+  makeItem(id) {
+    const def = ITEMS[id];
+    const grp = new THREE.Group();
+    const wood = new THREE.MeshStandardMaterial({ color: 0x7a5228, roughness: .85 });
+    const stone = new THREE.MeshStandardMaterial({ color: 0x9a9a9a, roughness: .8 });
+    const metal = new THREE.MeshStandardMaterial({ color: 0xc8d0d8, roughness: .35, metalness: .7 });
+    const cord = new THREE.MeshStandardMaterial({ color: 0xd8cdae, roughness: .9 });
+    const head = (def && (def.name || '').indexOf('Metal') >= 0) ? metal : stone;
+    const handle = (len, r) => {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(r || .022, (r || .022) * 1.15, len, 7), wood);
+      m.rotation.x = Math.PI / 2;
+      return m;
+    };
+    switch (id) {
+      case 'stone_pick': case 'metal_pick': {
+        const h = handle(.5); h.position.z = -.2; grp.add(h);
+        const blade = new THREE.Mesh(new THREE.ConeGeometry(.032, .3, 5), head);
+        blade.rotation.set(0, 0, Math.PI / 2);
+        blade.position.set(.0, .04, -.42);
+        grp.add(blade);
+        const back = blade.clone(); back.rotation.z = -Math.PI / 2; back.scale.setScalar(.6);
+        grp.add(back);
+        break;
+      }
+      case 'stone_hatchet': case 'metal_hatchet': {
+        const h = handle(.46); h.position.z = -.18; grp.add(h);
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(.055, .17, .13), head);
+        blade.position.set(.045, .03, -.36);
+        blade.rotation.z = .18;
+        grp.add(blade);
+        break;
+      }
+      case 'club': {
+        const h = handle(.42, .026); h.position.z = -.16; grp.add(h);
+        const knob = new THREE.Mesh(new THREE.SphereGeometry(.085, 8, 7), wood);
+        knob.scale.set(.85, .85, 1.35);
+        knob.position.z = -.42;
+        grp.add(knob);
+        for (let i = 0; i < 4; i++) {
+          const s = new THREE.Mesh(new THREE.ConeGeometry(.016, .05, 4), stone);
+          const a = i / 4 * TAU;
+          s.position.set(Math.cos(a) * .07, Math.sin(a) * .07, -.42);
+          s.rotation.x = Math.PI / 2;
+          grp.add(s);
+        }
+        break;
+      }
+      case 'spear': case 'pike': {
+        const h = handle(1.1, .02); h.position.z = -.5; grp.add(h);
+        const tip = new THREE.Mesh(new THREE.ConeGeometry(.03, .18, 5), id === 'pike' ? metal : stone);
+        tip.rotation.x = -Math.PI / 2;
+        tip.position.z = -1.08;
+        grp.add(tip);
+        break;
+      }
+      case 'torch': {
+        const h = handle(.4, .024); h.position.z = -.16; grp.add(h);
+        const flame = new THREE.Mesh(new THREE.ConeGeometry(.05, .16, 6),
+          new THREE.MeshBasicMaterial({ color: 0xffb85c, transparent: true, opacity: .9 }));
+        flame.rotation.x = -Math.PI / 2;
+        flame.position.z = -.42;
+        grp.add(flame);
+        grp.userData.flame = flame;
+        break;
+      }
+      case 'bow': case 'crossbow': {
+        const limb = new THREE.Mesh(new THREE.TorusGeometry(.26, .016, 5, 14, Math.PI * 1.1), wood);
+        limb.rotation.set(0, Math.PI / 2, Math.PI / 2 + .2);
+        limb.position.set(.02, 0, -.42);
+        grp.add(limb);
+        const string = new THREE.Mesh(new THREE.CylinderGeometry(.004, .004, .5, 4), cord);
+        string.position.set(.02, 0, -.42);
+        grp.add(string);
+        grp.userData.string = string;
+        const arrow = new THREE.Mesh(new THREE.CylinderGeometry(.008, .008, .5, 5), wood);
+        arrow.rotation.x = Math.PI / 2;
+        arrow.position.set(.02, 0, -.5);
+        grp.add(arrow);
+        grp.userData.arrow = arrow;
+        break;
+      }
+      case 'slingshot': {
+        const h = handle(.24, .022); h.position.z = -.1; grp.add(h);
+        for (const s of [-1, 1]) {
+          const p = new THREE.Mesh(new THREE.CylinderGeometry(.014, .016, .22, 5), wood);
+          p.position.set(s * .07, .06, -.28);
+          p.rotation.set(-.2, 0, s * .3);
+          grp.add(p);
+        }
+        const band = new THREE.Mesh(new THREE.CylinderGeometry(.005, .005, .18, 4), cord);
+        band.rotation.z = Math.PI / 2;
+        band.position.set(0, .16, -.34);
+        grp.add(band);
+        break;
+      }
+      case 'bola': {
+        for (let i = 0; i < 3; i++) {
+          const a = i / 3 * TAU;
+          const ball = new THREE.Mesh(new THREE.SphereGeometry(.045, 7, 6), stone);
+          ball.position.set(Math.cos(a) * .1, Math.sin(a) * .1 - .02, -.42);
+          grp.add(ball);
+        }
+        const knot = new THREE.Mesh(new THREE.SphereGeometry(.025, 6, 5), cord);
+        knot.position.z = -.36;
+        grp.add(knot);
+        break;
+      }
+      default: {
+        if (!def || id === 'fists') return null;
+        /* everything else: a small crate-ish stand-in so the hand is not empty */
+        const box = new THREE.Mesh(new THREE.BoxGeometry(.13, .11, .1),
+          new THREE.MeshStandardMaterial({ color: 0x9a7448, roughness: .85 }));
+        box.position.z = -.4;
+        grp.add(box);
+      }
+    }
+    grp.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+    return grp;
+  },
+
+  setItem(id) {
+    if (this.heldId === id) return;
+    this.heldId = id;
+    if (this.held) { this.group.remove(this.held); this.held = null; }
+    const m = this.makeItem(id);
+    if (m) {
+      m.scale.setScalar(.82);
+      m.position.set(.26, -.32, -.1);
+      m.rotation.set(.12, -.16, .06);
+      this.group.add(m);
+      this.held = m;
+    }
+    /* the off hand only shows for fists, bows and two-handed weapons */
+    const twoHanded = id === 'bow' || id === 'crossbow' || id === 'spear' || id === 'pike' || id === 'slingshot';
+    this.armL.visible = (id === 'fists') || twoHanded;
+    this.armR.visible = true;
+  },
+
+  swing(kind) { this.swingT = 1; this.swingKind = kind || (this.swingKind === 'right' ? 'left' : 'right'); },
+
+  update(dt) {
+    if (!this.group) return;
+    const show = !Camera.thirdPerson && !Player.mount && Player.alive && !anyScreenOpen();
+    this.group.visible = show;
+    if (!show) return;
+
+    const eq = Inventory.equipped();
+    this.setItem(eq.id || 'fists');
+
+    /* walk bob and weapon sway */
+    const moving = Player.moving && Player.grounded;
+    this.bobT += dt * (Player.sprinting ? 11 : 7) * (moving ? 1 : .25);
+    const bob = moving ? Math.sin(this.bobT) * (Player.sprinting ? .022 : .012) : Math.sin(this.bobT * .4) * .004;
+    const sway = moving ? Math.cos(this.bobT * .5) * (Player.sprinting ? .03 : .016) : 0;
+
+    this.swingT = Math.max(0, this.swingT - dt * (3.2 + (eq.def && eq.def.speed ? eq.def.speed : 1)));
+    const sw = this.swingT;
+    const arc = Math.sin(sw * Math.PI);           // 0 → 1 → 0 over the swing
+
+    const isFist = (eq.id || 'fists') === 'fists';
+    const rightLead = this.swingKind === 'right';
+    const poseArm = (arm, side, lead) => {
+      if (!arm.visible) return;
+      const home = arm.userData.home;
+      const push = lead ? arc : arc * .22;
+      arm.position.set(
+        home.pos.x + sway - push * side * .1,
+        home.pos.y + bob + push * .09,
+        home.pos.z - push * (isFist ? .30 : .16));
+      arm.rotation.set(home.rot.x - push * .55, home.rot.y + push * side * .22, home.rot.z - push * side * .18);
+    };
+    poseArm(this.armR, 1, rightLead || !isFist);
+    poseArm(this.armL, -1, !rightLead && isFist);
+
+    if (this.held) {
+      /* aiming pulls the weapon to the centre; the draw bends the bow string */
+      const aim = Combat.aiming ? 1 : 0;
+      this.drawAmt = damp(this.drawAmt, Combat.aiming ? clamp01(Combat.draw / ((eq.def && eq.def.draw) || .85)) : 0, 10, dt);
+      const px = lerp(.26, .04, aim) + sway;
+      const py = lerp(-.32, -.2, aim) + bob;
+      const pz = lerp(-.1, -.2, aim) - arc * .2;
+      this.held.position.set(px, py, pz);
+      this.held.rotation.set(.1 - arc * .9 + this.drawAmt * .04, -.12 + aim * .1, .06 - arc * .35);
+      const s = this.held.userData.string, a = this.held.userData.arrow;
+      if (s) { s.scale.set(1, 1, 1); s.position.z = -.42 + this.drawAmt * .16; }
+      if (a) a.position.z = -.5 + this.drawAmt * .16;
+      const flame = this.held.userData.flame;
+      if (flame) flame.scale.setScalar(.9 + Math.sin(Game.clock * 14) * .12);
+    }
+  },
 };
 
 /* ============================================================================
@@ -7392,7 +7650,7 @@ const UI = {
     const layer = $('#nameplates');
     const cam = Gfx.camera;
     const seen = new Set();
-    const list = Creatures.near(Player.pos.x, Player.pos.z, 62);
+    const list = Creatures.near(Player.pos.x, Player.pos.z, 62, this._npScan || (this._npScan = []));
     for (const c of list) {
       if (c.dead) continue;
       const d = c.distToPlayer();
@@ -8442,6 +8700,7 @@ const Game = {
     TexLab.build();
     Particles.init();
     Combat.init();
+    ViewModel.build();
     UI.init();
     Input.init(canvas);
     Settings.load();
@@ -8776,6 +9035,7 @@ const Game = {
       Inventory.wearTool(dt * .5);
     }
 
+    ViewModel.update(dt);
     UI.update(dt);
     if ($('#tame').classList.contains('on')) UI.refreshTame();
     if ($('#dinopanel').classList.contains('on') && this.frame % 12 === 0) UI.refreshDino();
@@ -8795,7 +9055,7 @@ const Game = {
  * Debug / automation hook. Also handy for players who want to experiment.
  * ==========================================================================*/
 window.__ark = {
-  Game, World, Player, Camera, Creatures, Inventory, Structures, Building, Flora, Sky, Gfx, UI, Combat, Riding, Taming,
+  Game, World, Player, Camera, ViewModel, Creatures, Inventory, Structures, Building, Flora, Sky, Gfx, UI, Combat, Riding, Taming,
   Loot, Objectives, Particles, Physics, Sound, SaveGame, Settings, TUNE, SPECIES, ITEMS, RECIPES, ENGRAMS, STRUCTURES, NODES,
   CreatureModel, Creature,
   state: () => ({
