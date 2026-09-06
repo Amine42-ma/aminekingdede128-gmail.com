@@ -370,10 +370,31 @@ body.touch #hud{z-index:70}
 
 /* ===== map ============================================================== */
 #map .win{max-width:900px}
-#mapwrap{position:relative;flex:1;min-height:0;display:grid;place-items:center;padding:14px}
-#mapcv{max-width:100%;max-height:100%;border-radius:10px;border:1px solid var(--line-2);
-  box-shadow:var(--shadow);image-rendering:auto}
-#maplayer{position:absolute;inset:14px;pointer-events:none}
+#mapwrap{position:relative;flex:1;min-height:0;display:grid;place-items:center;padding:14px;
+  overflow:hidden}
+/* The displayed size is set in pixels by drawMap, not here: max-width and
+   max-height alone do not keep a replaced element square, so on a window wider
+   than it is tall the island was drawn into a 720x637 box and came out
+   squashed — and a canvas whose box is not the shape of its bitmap also puts
+   every marker in the wrong place. */
+#mapcv{display:block;border-radius:10px;border:1px solid var(--line-2);
+  box-shadow:var(--shadow);image-rendering:auto;cursor:grab;touch-action:none}
+#mapcv.grabbing{cursor:grabbing}
+/* positioned onto the canvas from JS, because the canvas is centred in the
+   wrap and is rarely the same size as it — markers pinned to the wrap drifted
+   away from the land they were marking */
+#maplayer{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;overflow:hidden;
+  border-radius:10px}
+.mapzoom{position:absolute;inset-block-start:22px;inset-inline-end:22px;display:flex;
+  flex-direction:column;gap:6px;z-index:2}
+.mapzoom button{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;
+  border:1px solid var(--line-2);background:var(--panel-2);color:var(--bone);
+  font-size:16px;font-weight:600;line-height:1;backdrop-filter:blur(8px);
+  box-shadow:0 6px 18px -8px rgba(0,0,0,.8);transition:background var(--dur),border-color var(--dur)}
+.mapzoom button:hover{background:rgba(240,168,66,.22);border-color:rgba(240,168,66,.55);color:#fff}
+.mapzoom button:active{transform:scale(.94)}
+.mapzoom .lvl{font-size:11px;font-variant-numeric:tabular-nums;color:var(--bone-soft);
+  text-align:center;pointer-events:none;user-select:none}
 .mmark{position:absolute;transform:translate(-50%,-50%);font-size:11px;color:#fff;
   text-shadow:0 1px 4px #000;display:flex;flex-direction:column;align-items:center;gap:1px}
 .mmark .d{width:9px;height:9px;border-radius:50%;border:1.5px solid #fff}
@@ -1035,14 +1056,21 @@ body.rtl .maplegend span[style*="margin-inline-start"]{margin-inline-start:auto}
     <div class="wtop"><h2 data-i18n="theIsland">The Island</h2><div class="spacer"></div>
       <span class="tag" id="mapCoord"></span>
       <button class="btn sm ghost" id="mapClose"><span data-i18n="close">Close</span> <span class="kbd">M</span></button></div>
-    <div id="mapwrap"><canvas id="mapcv" width="720" height="720"></canvas><div id="maplayer"></div></div>
+    <div id="mapwrap"><canvas id="mapcv" width="720" height="720"></canvas><div id="maplayer"></div>
+      <div class="mapzoom">
+        <button id="mapIn" title="+">+</button>
+        <div class="lvl mono" id="mapLvl">1.0×</div>
+        <button id="mapOut" title="−">−</button>
+        <button id="mapHome" title="⌖">⌖</button>
+      </div>
+    </div>
     <div class="maplegend">
       <span><i style="background:#4fd6c4"></i><span data-i18n="you">You</span></span>
       <span><i style="background:#f0a842"></i><span data-i18n="bed">Bed</span></span>
       <span><i style="background:#7fd45b"></i><span data-i18n="tamed">Tamed</span></span>
       <span><i style="background:#e0524a"></i><span data-i18n="death">Death</span></span>
       <span><i style="background:#9a6ae0"></i><span data-i18n="drop">Supply drop</span></span>
-      <span style="margin-inline-start:auto;color:var(--bone-dim)" data-i18n="mapHint">Click the map to set a waypoint</span>
+      <span style="margin-inline-start:auto;color:var(--bone-dim)" data-i18n="mapHint">Drag to move the map</span>
     </div>
   </div>
 </div>
@@ -2887,15 +2915,19 @@ function creatureSkin(size, pal, opts) {
   if (pattern === 'stripes') {
     /* Real stripes are not bands of even width: they fork, they taper to a
        point, and they are irregularly spaced. */
-    const n = 13 + (rng() * 8 | 0);
+    /* Kept low on purpose. The same sheet is mapped onto the torso, the neck,
+       the tail and every limb segment, so a stripe count that reads well down
+       a body turns a leg into a corrugated pipe: twenty bands around a shin is
+       not markings, it is a screw thread. */
+    const n = 8 + (rng() * 5 | 0);
     for (let i = 0; i < n; i++) {
       const v = (i + (rng() - .5) * .55) / n * S;
-      const w = S * (.020 + rng() * .034);
+      const w = S * (.024 + rng() * .040);
       const wob = S * (.008 + rng() * .016), ph = rng() * 6.28;
-      const alpha = .42 + rng() * .34;
+      const alpha = .36 + rng() * .28;
       stamp(() => {
         pg.globalAlpha = alpha;
-        pg.fillStyle = warm(.55);
+        pg.fillStyle = warm(.62);
         pg.beginPath();
         const edge = (k, off) => {
           const u = k / 26 * S;
@@ -2908,8 +2940,8 @@ function creatureSkin(size, pal, opts) {
         for (let k = 26; k >= 0; k--) { p = edge(k, w); pg.lineTo(p[0], p[1]); }
         pg.closePath(); pg.fill();
         /* a soft halo, so the edge is hide and not vinyl */
-        pg.globalAlpha = alpha * .38;
-        pg.lineWidth = S * .012; pg.strokeStyle = warm(.62); pg.stroke();
+        pg.globalAlpha = alpha * .34;
+        pg.lineWidth = S * .012; pg.strokeStyle = warm(.70); pg.stroke();
       });
     }
   } else if (pattern === 'spots' || pattern === 'rosettes') {
@@ -2965,10 +2997,10 @@ function creatureSkin(size, pal, opts) {
       });
     }
   } else if (pattern === 'banded') {
-    const n = 7 + (rng() * 5 | 0);
+    const n = 5 + (rng() * 4 | 0);
     for (let i = 0; i < n; i++) {
       const y0 = (i + .15 + (rng() - .5) * .3) / n * S;
-      const hgt = S * (.045 + rng() * .055);
+      const hgt = S * (.050 + rng() * .060);
       stamp(() => {
         const grd = pg.createLinearGradient(0, y0 - hgt * .35, 0, y0 + hgt * 1.35);
         grd.addColorStop(0, warm(.62, 0));
@@ -3028,6 +3060,7 @@ function creatureSkin(size, pal, opts) {
      made the relief read as knitwear rather than as hide. */
   const baseCell = scaleKind === 'feather' ? S / 34 : scaleKind === 'hide' ? S / 11 : S / 62;
   for (let y = 0; y < S; y++) {
+    const v = y / S;
     for (let x = 0; x < S; x++) {
       const u = x / S, i = y * S + x, j = i * 4;
       const back = backness(u);
@@ -3052,14 +3085,25 @@ function creatureSkin(size, pal, opts) {
         h = Math.pow(clamp01(cr), 2.0) * .82 + grain * .26;
         gloss = .04 + grain * .08;
       } else {
-        /* scales, broad over the ribs and tightening towards the spine and
-           the belly, every other row offset so they interlock */
+        /* Scales, broad over the ribs and tightening towards the spine and the
+           belly, every other row offset so they interlock.
+
+           The grid is WARPED by the same slow noise field the ground tone uses
+           before the cell is worked out, and each scale then gets its own
+           size and tone from a hash of its row and column. Without both, an
+           interlocking grid of identical domes reads as chain mail or knitwear
+           from any distance — regularity is the tell, not the size. */
         const cell = baseCell * (1.55 - Math.pow(back, 1.5) * .45 - Math.pow(1 - back, 2) * .42);
-        const row = Math.floor(y / cell);
-        const fx = (x / cell + (row % 2) * .5) % 1, fy = (y / cell) % 1;
-        const dx = (fx - .5) * 2, dy = (fy - .5) * 2;
+        const wx = x + sample(slow, u, v) * cell * 1.5;
+        const wy = y + sample(fine, u, v) * cell * 1.1;
+        const row = Math.floor(wy / cell);
+        const colm = Math.floor(wx / cell + (row % 2) * .5);
+        /* a cheap stable hash per scale */
+        const hj = ((Math.sin(row * 127.1 + colm * 311.7) * 43758.5453) % 1 + 1) % 1;
+        const fx = (wx / cell + (row % 2) * .5) % 1, fy = (wy / cell) % 1;
+        const dx = (fx - .5) * 2 / (.78 + hj * .34), dy = (fy - .5) * 2 / (.82 + hj * .26);
         const dome = Math.max(0, 1 - (dx * dx + dy * dy * 1.22));
-        h = Math.pow(dome, .58);
+        h = Math.pow(dome, .52 + hj * .22) * (.82 + hj * .26);
         gloss = .30 * h;
       }
       const grain = fbm(nFine, x * .075, y * .075, 3, 2.2, .5) * .5 + .5;
@@ -3183,7 +3227,10 @@ const TexLab = {
     const t = new THREE.CanvasTexture(make());
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.repeat.set(repeat, repeat);
-    t.anisotropy = 4;
+    /* The ground is the surface you look along at the shallowest angle of
+       anything in the game, which is exactly the case anisotropic filtering
+       exists for; at 4 it smeared into mush a few metres ahead of the player. */
+    t.anisotropy = this.maxAniso();
     if (srgb) t.colorSpace = THREE.SRGBColorSpace;
     t.needsUpdate = true;
     this.cache[name] = t;
@@ -3821,8 +3868,8 @@ const I18N = {
     saves: ['Saves', 'الحفظ'],
     creature: ['Creature', 'الكائن'],
     death: ['Death', 'الموت'],
-    mapHint: ['Tap the map to set a waypoint · tap the minimap to open this',
-              'انقر الخريطة لوضع علامة · انقر الخريطة المصغّرة لفتحها'],
+    mapHint: ['Drag to move · pinch or scroll to zoom · tap to set a waypoint',
+              'اسحب للتحريك · قرّب بإصبعين أو بالعجلة · انقر لوضع علامة'],
     deathInfo: ['Your body and everything you carried is waiting where you fell.',
                 'جثّتك وكل ما كنت تحمله ينتظرك حيث سقطت.'],
     /* photo mode */
@@ -4423,7 +4470,12 @@ const tr = en => I18N.str(en);
    weaker ones simply let it go stale for longer between the day's colours
    changing. 0 would switch it off entirely. */
 const QUALITY = {
-  low:    { shadow: 0, shadowSize: 1024, view: 460, grass: 0, bloom: 0, pixel: 1, foliage: .85, waterSeg: 24,
+  /* `low` drew no grass at all, which on the tier a phone actually runs meant
+     bare terrain with props standing on it — the ground the player looks at
+     for the whole game had nothing growing on it. A third of the density is
+     about four thousand tufts, which even a weak phone carries, and the
+     adaptive step-down is still there if it does not. */
+  low:    { shadow: 0, shadowSize: 1024, view: 460, grass: .35, bloom: 0, pixel: 1, foliage: .85, waterSeg: 24,
             fxaa: 1, creature: 0, ssao: 0, shadowExtent: 55, farShadow: 0, env: 14 },
   medium: { shadow: 1, shadowSize: 1024, view: 560, grass: .5, bloom: 1, pixel: 1, foliage: 1, waterSeg: 48,
             fxaa: 1, creature: 1, ssao: 0, shadowExtent: 70, farShadow: 0, env: 8 },
@@ -4583,6 +4635,7 @@ const Gfx = {
     }
     this.camera.far = Math.max(1400, q.view * 4.2);
     this.camera.updateProjectionMatrix();
+    this._envT = 0;                 // rebuild the sky's light at the new tier
     this.syncSky();
     this.applyResolution();
     this.resize();
@@ -5787,7 +5840,11 @@ const World = {
 
   /* ---------- map render -------------------------------------------------- */
   buildMapCanvas() {
-    const R = 512, c = makeCanvas(R), g = c.getContext('2d');
+    /* 512 was exactly one pixel per heightfield sample — fine while the map
+       could only ever be seen whole, and far too coarse now that it zooms.
+       heightAt interpolates, so the extra pixels are real detail in the hill
+       shading rather than a blur, and this runs once during world generation. */
+    const R = 1024, c = makeCanvas(R), g = c.getContext('2d');
     const img = g.createImageData(R, R);
     const col = {
       ocean: [22, 58, 84], deep: [10, 32, 52], beach: [214, 196, 150], plains: [96, 128, 62],
@@ -14650,22 +14707,79 @@ Object.assign(UI, {
     go.addEventListener('click', () => { close(); Boss.summon(ob); });
   },
 
-  /* ------------------------------------------------------------------- map */
-  openMap() {
-    screenOn('map', true);
-    Input.unlock();
-    Sound.ui('open');
+  /* ------------------------------------------------------------------- map
+     The island is four kilometres across drawn into a 720 pixel square, which
+     is about six metres per pixel: enough to see the shape of the coast and
+     nothing else. You could not read a river, judge a cave mouth or place a
+     waypoint on anything smaller than a bay. It pans and zooms now — drag,
+     wheel, pinch, or the buttons — and everything below is written around one
+     view rectangle so the markers, the waypoint and the drawing all agree
+     about which part of the island is on screen. */
+  mapView: { zoom: 1, cx: .5, cy: .5 },
+  MAP_ZOOM_MAX: 6,
+
+  /** The visible window in map space, as {span, x0, y0} in 0..1 units. */
+  mapWindow() {
+    const v = this.mapView;
+    v.zoom = clamp(v.zoom, 1, this.MAP_ZOOM_MAX);
+    const span = 1 / v.zoom;
+    /* never show past the edge of the island */
+    v.cx = clamp(v.cx, span / 2, 1 - span / 2);
+    v.cy = clamp(v.cy, span / 2, 1 - span / 2);
+    return { span, x0: v.cx - span / 2, y0: v.cy - span / 2 };
+  },
+  /** Zoom about a point given in 0..1 canvas coordinates, so whatever is
+   *  under the cursor or the pinch stays under it. */
+  mapZoomAt(factor, u, v) {
+    const w = this.mapWindow();
+    const mx = w.x0 + u * w.span, my = w.y0 + v * w.span;
+    const before = this.mapView.zoom;
+    this.mapView.zoom = clamp(before * factor, 1, this.MAP_ZOOM_MAX);
+    const k = before / this.mapView.zoom;          // how much the window grew
+    this.mapView.cx = mx + (this.mapView.cx - mx) * k;
+    this.mapView.cy = my + (this.mapView.cy - my) * k;
+    this.drawMap();
+  },
+  mapCenterOnPlayer() {
+    const uv = World.worldToMap(Player.pos.x, Player.pos.z);
+    this.mapView.cx = uv.u; this.mapView.cy = uv.v;
+    this.drawMap();
+  },
+
+  drawMap() {
+    if (!$('#map').classList.contains('on')) return;
     const cv = $('#mapcv'), ctx = cv.getContext('2d');
+    /* keep the element square and inside the panel, whatever shape the window
+       is — a phone held sideways is a very wide, very short box */
+    const wrap0 = $('#mapwrap');
+    const side = Math.max(120, Math.floor(Math.min(wrap0.clientWidth, wrap0.clientHeight) - 28));
+    cv.style.width = side + 'px'; cv.style.height = side + 'px';
+    const w = this.mapWindow();
     ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.clearRect(0, 0, cv.width, cv.height);
-    if (World.mapCanvas) ctx.drawImage(World.mapCanvas, 0, 0, cv.width, cv.height);
-    const layer = $('#maplayer');
+    const src = World.mapCanvas;
+    if (src) {
+      ctx.drawImage(src, w.x0 * src.width, w.y0 * src.height, w.span * src.width, w.span * src.height,
+                    0, 0, cv.width, cv.height);
+    }
+    /* pin the marker layer onto the canvas itself */
+    const layer = $('#maplayer'), wrap = $('#mapwrap');
+    const cr = cv.getBoundingClientRect(), wr = wrap.getBoundingClientRect();
+    layer.style.left = (cr.left - wr.left) + 'px';
+    layer.style.top = (cr.top - wr.top) + 'px';
+    layer.style.width = cr.width + 'px';
+    layer.style.height = cr.height + 'px';
     layer.innerHTML = '';
     const addMark = (x, z, color, label) => {
       const uv = World.worldToMap(x, z);
+      const u = (uv.u - w.x0) / w.span, v = (uv.v - w.y0) / w.span;
+      /* a marker off the edge of the view is not drawn at all, rather than
+         piled up against the border where it would say nothing true */
+      if (u < -.02 || u > 1.02 || v < -.02 || v > 1.02) return;
       const m = el('div', 'mmark');
-      m.style.left = (uv.u * 100) + '%';
-      m.style.top = (uv.v * 100) + '%';
+      m.style.left = (u * 100) + '%';
+      m.style.top = (v * 100) + '%';
       m.innerHTML = '<span class="d" style="background:' + color + '"></span>' + (label ? '<span>' + label + '</span>' : '');
       layer.appendChild(m);
     };
@@ -14677,20 +14791,106 @@ Object.assign(UI, {
     for (const o of Boss.obelisks) addMark(o.pos.x, o.pos.z, '#' + o.colour.toString(16).padStart(6, '0'), o.name.split(' ')[0]);
     for (const c of Caves.list) addMark(c.mouth.x, c.mouth.z, '#1a1a1a', c.name);
     if (this.mapWaypoint) addMark(this.mapWaypoint.x, this.mapWaypoint.z, '#ffffff', tr('Waypoint'));
+    const lvl = $('#mapLvl');
+    if (lvl) lvl.textContent = this.mapView.zoom.toFixed(1) + '×';
     const ll = World.latLon(Player.pos.x, Player.pos.z);
     $('#mapCoord').textContent = 'LAT ' + ll.lat.toFixed(1) + ' · LON ' + ll.lon.toFixed(1);
-    /* pointerdown, not click: a tap does not reliably synthesise a click on
-       every mobile browser, and this is now the only way to set a waypoint */
-    cv.onpointerdown = (e) => {
-      e.preventDefault();
+  },
+
+  openMap() {
+    screenOn('map', true);
+    Input.unlock();
+    Sound.ui('open');
+    if (!this._mapBound) this.bindMap();
+    /* open where the survivor is standing, at whatever zoom they left it on */
+    this.mapCenterOnPlayer();
+  },
+
+  /** Pointer handling, bound once. Drag pans, two fingers pinch, the wheel
+   *  zooms about the cursor, and a press that never became a drag drops a
+   *  waypoint — the distinction is what lets one gesture do both. */
+  bindMap() {
+    this._mapBound = true;
+    const cv = $('#mapcv');
+    const pts = new Map();
+    let moved = 0, pinch = 0;
+
+    const local = (e) => {
       const r = cv.getBoundingClientRect();
-      const u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
-      if (u < 0 || u > 1 || v < 0 || v > 1) return;
-      this.mapWaypoint = new THREE.Vector3(-World.half + u * World.size, 0, -World.half + v * World.size);
-      this.openMap();
-      UI.toast(tr('Waypoint set'));
-      Touch.buzz(10);
+      return { u: (e.clientX - r.left) / r.width, v: (e.clientY - r.top) / r.height, r };
     };
+    cv.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      cv.setPointerCapture(e.pointerId);
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 1) { moved = 0; cv.classList.add('grabbing'); }
+      if (pts.size === 2) {
+        const [a, b] = [...pts.values()];
+        pinch = Math.hypot(a.x - b.x, a.y - b.y);
+      }
+    });
+    cv.addEventListener('pointermove', (e) => {
+      const prev = pts.get(e.pointerId);
+      if (!prev) return;
+      const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+      prev.x = e.clientX; prev.y = e.clientY;
+      const r = cv.getBoundingClientRect();
+      if (pts.size >= 2) {
+        const [a, b] = [...pts.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (pinch > 4 && d > 4) {
+          const mid = { clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 };
+          const l = local(mid);
+          this.mapZoomAt(d / pinch, l.u, l.v);
+        }
+        pinch = d;
+        moved = 99;
+        return;
+      }
+      moved += Math.abs(dx) + Math.abs(dy);
+      if (moved < 4) return;
+      const w = this.mapWindow();
+      this.mapView.cx -= (dx / r.width) * w.span;
+      this.mapView.cy -= (dy / r.height) * w.span;
+      this.drawMap();
+    });
+    const release = (e) => {
+      if (!pts.has(e.pointerId)) return;
+      pts.delete(e.pointerId);
+      if (pts.size === 0) {
+        cv.classList.remove('grabbing');
+        /* a press that never travelled is a tap: drop a waypoint there */
+        if (moved < 6) {
+          const l = local(e);
+          if (l.u >= 0 && l.u <= 1 && l.v >= 0 && l.v <= 1) {
+            const w = this.mapWindow();
+            const mu = w.x0 + l.u * w.span, mv = w.y0 + l.v * w.span;
+            this.mapWaypoint = new THREE.Vector3(-World.half + mu * World.size, 0,
+                                                 -World.half + mv * World.size);
+            this.drawMap();
+            UI.toast(tr('Waypoint set'));
+            Touch.buzz(10);
+          }
+        }
+      }
+      if (pts.size < 2) pinch = 0;
+    };
+    cv.addEventListener('pointerup', release);
+    cv.addEventListener('pointercancel', release);
+    cv.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const l = local(e);
+      this.mapZoomAt(e.deltaY < 0 ? 1.22 : 1 / 1.22, l.u, l.v);
+    }, { passive: false });
+    /* the buttons zoom about the middle of what you are already looking at */
+    const btn = (id, fn) => { const b = $(id); if (b) b.addEventListener('click', fn); };
+    btn('#mapIn', () => { this.mapZoomAt(1.5, .5, .5); Sound.ui('tick'); });
+    btn('#mapOut', () => { this.mapZoomAt(1 / 1.5, .5, .5); Sound.ui('tick'); });
+    btn('#mapHome', () => { this.mapCenterOnPlayer(); Sound.ui('tick'); });
+    /* the square has to be recomputed when the window changes shape, and a
+       phone changes shape every time its address bar slides away */
+    addEventListener('resize', () => this.drawMap());
+    if (window.visualViewport) visualViewport.addEventListener('resize', () => this.drawMap());
   },
   closeMap() { screenOn('map', false); if (Game.state === 'play') Input.lock(); },
 
