@@ -1697,7 +1697,7 @@ const SPECIES = {
     spawn: { biomes: ['plains', 'jungle'], weight: 1.2, group: [1, 2] },
     voice: { pitch: 70, kind: 'bellow', len: 2.2 },
     colors: [['#6b6152', '#bdb3a0', '#8a6a3c'], ['#55604f', '#adb8a4', '#c9863c'], ['#5c5262', '#b2a8bc', '#4a8cb0']],
-    model: { kind: 'hadrosaur', body: [4.4, 2.2, 2.4], neck: { len: 5.2, seg: 8, thick: .75 }, head: { len: .9, w: .42, h: .44, beak: .35 },
+    model: { kind: 'sauropod', body: [4.4, 2.2, 2.4], neck: { len: 5.2, seg: 8, thick: .75 }, head: { len: .9, w: .42, h: .44, beak: .35 },
       tail: { len: 5.6, seg: 9, thick: .8 }, legs: { front: 2.2, back: 2.3, thick: .62 }, feat: ['scales'] },
     info: 'A walking berry farm the size of a house. Nothing on the island argues with it.'
   },
@@ -1716,7 +1716,7 @@ const SPECIES = {
     spawn: { biomes: ['mountain', 'highland'], weight: 2.4, group: [1, 3] },
     voice: { pitch: 130, kind: 'horn', len: 1.4 },
     colors: [['#6b4f38', '#c2a888', '#8a6a4a'], ['#4f4038', '#ab968a', '#6a5a4a'], ['#7a6448', '#cfb99a', '#9a7a58']],
-    model: { kind: 'stegosaur', body: [3.0, 1.7, 1.7], neck: { len: .6, seg: 2, thick: .7 }, head: { len: 1.0, w: .7, h: .7, beak: .3 },
+    model: { kind: 'mammal', body: [3.0, 1.7, 1.7], neck: { len: .6, seg: 2, thick: .7 }, head: { len: 1.0, w: .7, h: .7, beak: .3 },
       tail: { len: 1.0, seg: 3, thick: .22 }, legs: { front: 1.5, back: 1.45, thick: .45 }, feat: ['fur', 'tusks', 'trunk'] },
     info: 'Fur, tusks and a trunk: the best wood harvester on the island.'
   },
@@ -3448,13 +3448,13 @@ const tr = en => I18N.str(en);
    are new knobs for the post chain and the shadow fit. */
 const QUALITY = {
   low:    { shadow: 0, shadowSize: 1024, view: 340, grass: 0, bloom: 0, pixel: .75, foliage: .5, waterSeg: 24,
-            fxaa: 1, ssao: 0, shadowExtent: 55, farShadow: 0 },
+            fxaa: 1, creature: 0, ssao: 0, shadowExtent: 55, farShadow: 0 },
   medium: { shadow: 1, shadowSize: 1024, view: 460, grass: .5, bloom: 1, pixel: .85, foliage: .75, waterSeg: 48,
-            fxaa: 1, ssao: 0, shadowExtent: 70, farShadow: 0 },
+            fxaa: 1, creature: 1, ssao: 0, shadowExtent: 70, farShadow: 0 },
   high:   { shadow: 1, shadowSize: 2048, view: 620, grass: 1, bloom: 1, pixel: 1, foliage: 1, waterSeg: 72,
-            fxaa: 1, ssao: 1, shadowExtent: 95, farShadow: 1 },
+            fxaa: 1, creature: 2, ssao: 1, shadowExtent: 95, farShadow: 1 },
   ultra:  { shadow: 1, shadowSize: 4096, view: 850, grass: 1.4, bloom: 1, pixel: 1, foliage: 1.3, waterSeg: 96,
-            fxaa: 1, ssao: 1, shadowExtent: 120, farShadow: 1 },
+            fxaa: 1, creature: 2, ssao: 1, shadowExtent: 120, farShadow: 1 },
 };
 
 /* The camera's resting field of view. 78 was wide enough to stretch the frame
@@ -5717,7 +5717,20 @@ const Particles = {
  *   and a skeleton the animation system can drive.
  * ==========================================================================*/
 
-/** Build a smooth tapered hull along +X from a list of {x, y, ry, rz} rings. */
+/**
+ * Build a smooth hull along +X from a list of cross-sections.
+ *
+ * A station is { x, y, ry, rz, sq, bias }:
+ *   x      position along the body
+ *   y      vertical centre of the section — a chest hangs low, a shoulder
+ *          hump rides high. Without this every body is a tube around y=0,
+ *          which is most of why they all used to read as the same animal.
+ *   ry/rz  half-height and half-width
+ *   sq     superellipse exponent. 2 is an ellipse; higher is a slab-sided
+ *          barrel (an ankylosaur); lower is a pinched keel.
+ *   bias   how much of ry the underside gets. Below 1 flattens the belly,
+ *          which is what separates a crocodile from a fish.
+ */
 function profileGeo(stations, radial, capStart, capEnd) {
   radial = radial || 9;
   const rings = stations.length;
@@ -5726,11 +5739,18 @@ function profileGeo(stations, radial, capStart, capEnd) {
   let v = 0;
   for (let i = 0; i < rings; i++) {
     const s = stations[i];
+    const sq = s.sq || 2, bias = s.bias == null ? 1 : s.bias;
+    const e = sq === 2 ? 1 : 2 / sq;
     for (let k = 0; k <= radial; k++) {
       const a = (k / radial) * TAU;
+      let cy = Math.cos(a), cz = Math.sin(a);
+      if (e !== 1) {
+        cy = Math.sign(cy) * Math.pow(Math.abs(cy), e);
+        cz = Math.sign(cz) * Math.pow(Math.abs(cz), e);
+      }
       pos[v * 3] = s.x;
-      pos[v * 3 + 1] = (s.y || 0) + Math.cos(a) * s.ry;
-      pos[v * 3 + 2] = Math.sin(a) * s.rz;
+      pos[v * 3 + 1] = (s.y || 0) + cy * (cy < 0 ? s.ry * bias : s.ry);
+      pos[v * 3 + 2] = cz * s.rz;
       uv[v * 2] = k / radial; uv[v * 2 + 1] = i / (rings - 1);
       v++;
     }
@@ -5754,12 +5774,122 @@ function profileGeo(stations, radial, capStart, capEnd) {
   g.computeVertexNormals();
   return g;
 }
+/**
+ * One body plan per kind, as control sections along the body.
+ *
+ * Each row is [t, ry, rz, y, sq, bias]: t runs 0 at the tail end to 1 at the
+ * neck, ry/rz are fractions of the species' half-height and half-width, y is a
+ * fraction of full height, and sq/bias shape the section as described on
+ * profileGeo above.
+ *
+ * This table is the point of the whole rewrite. The old builder branched on
+ * only three kinds and dropped the other eight into a single shared `else`, so
+ * a Triceratops, a Stegosaurus, an Ankylosaurus, a Brontosaurus and a Parasaur
+ * were the same ovoid at different scales — which is exactly what they looked
+ * like side by side.
+ */
+const BODY_PROFILE = {
+  /* deep narrow chest, tall over the hips, laterally compressed */
+  theropod: [[0, .52, .46, .02, 2.0, 1], [.16, .54, .38, 0, 2.2, .95],
+             [.34, .80, .54, -.02, 2.3, .88], [.54, .88, .60, -.03, 2.2, .84],
+             [.72, .80, .56, -.01, 2.1, .9], [.87, .66, .50, .02, 2.0, .96],
+             [1, .58, .46, .05, 2.0, 1]],
+  /* barrel ribcage, heavy shoulders carrying the frill, tapering rear */
+  ceratopsian: [[0, .38, .34, .06, 2.2, 1], [.18, .62, .62, .02, 2.6, .86],
+                [.40, .86, .92, -.02, 2.8, .74], [.62, .92, .96, -.02, 2.8, .74],
+                [.80, .88, .82, .03, 2.5, .84], [1, .72, .60, .08, 2.2, .95]],
+  /* the arched back: hips ride high, shoulders sit low, head end small */
+  stegosaur: [[0, .42, .34, 0, 2.2, 1], [.20, .66, .52, .08, 2.4, .8],
+              [.42, .96, .68, .11, 2.5, .74], [.62, .86, .66, .02, 2.4, .76],
+              [.80, .66, .56, -.04, 2.2, .86], [1, .46, .40, -.06, 2.0, 1]],
+  /* low, very wide, flat-bottomed slab under a domed shell */
+  ankylosaur: [[0, .44, .44, 0, 2.4, 1], [.18, .66, .78, -.02, 3.2, .55],
+               [.42, .86, 1.0, -.04, 3.6, .45], [.66, .88, 1.0, -.04, 3.6, .45],
+               [.84, .70, .82, -.02, 3.0, .55], [1, .52, .56, 0, 2.4, .8]],
+  /* deep chest over a heavy tail base */
+  hadrosaur: [[0, .54, .40, 0, 2.0, 1], [.18, .66, .46, 0, 2.2, .9],
+              [.40, .88, .66, -.03, 2.3, .82], [.62, .92, .70, -.04, 2.3, .8],
+              [.82, .78, .58, .02, 2.1, .9], [1, .56, .44, .06, 2.0, 1]],
+  /* an enormous round barrel that tapers hard at both ends */
+  sauropod: [[0, .44, .42, .02, 2.2, 1], [.16, .60, .60, 0, 2.4, .95],
+             [.38, .92, .94, -.02, 2.5, .9], [.60, .98, 1.0, -.02, 2.5, .9],
+             [.80, .82, .80, .02, 2.4, .95], [1, .56, .52, .06, 2.2, 1]],
+  /* shoulder hump and a back that slopes away behind it */
+  mammal: [[0, .40, .42, 0, 2.4, .9], [.20, .72, .76, -.01, 2.6, .8],
+           [.42, .86, .92, -.02, 2.6, .78], [.62, .94, .94, .04, 2.6, .8],
+           [.80, 1.0, .86, .10, 2.5, .85], [1, .70, .62, .06, 2.3, .95]],
+  /* pressed flat top to bottom, wide, belly flat on the mud */
+  crocodile: [[0, .40, .44, 0, 2.4, .7], [.20, .52, .66, -.02, 3.0, .5],
+              [.42, .66, .92, -.03, 3.4, .42], [.64, .68, .96, -.03, 3.4, .42],
+              [.84, .58, .78, -.01, 3.0, .5], [1, .50, .58, 0, 2.6, .7]],
+  /* fusiform and near-circular: a body shaped by water */
+  aquatic: [[0, .20, .18, 0, 2.0, 1], [.18, .58, .54, 0, 2.0, 1],
+            [.40, .92, .86, 0, 2.0, 1], [.62, .96, .92, 0, 2.0, 1],
+            [.82, .74, .70, 0, 2.0, 1], [1, .46, .44, 0, 2.0, 1]],
+  /* plump, with a keeled breast */
+  bird: [[0, .36, .32, 0, 2.1, 1], [.22, .72, .66, -.02, 2.2, .95],
+         [.48, .96, .90, -.05, 2.2, .88], [.72, .94, .88, -.02, 2.2, .92],
+         [1, .62, .58, .04, 2.1, 1]],
+  /* compact with a deep flight keel */
+  flyer: [[0, .26, .20, 0, 2.0, 1], [.22, .62, .46, -.02, 2.2, .85],
+          [.48, .88, .66, -.07, 2.3, .68], [.74, .80, .62, -.03, 2.2, .8],
+          [1, .54, .44, .02, 2.0, 1]],
+  /* an even muscular tube */
+  snake: [[0, .55, .55, 0, 2.0, 1], [.25, .85, .85, 0, 2.1, 1],
+          [.55, 1.0, 1.0, 0, 2.1, 1], [.80, .90, .90, 0, 2.0, 1],
+          [1, .70, .70, 0, 2.0, 1]],
+  /* bulbous abdomen, pinched waist, small cephalothorax */
+  spider: [[0, .86, .86, .04, 2.2, 1], [.22, .98, .96, .02, 2.2, 1],
+           [.42, .58, .56, 0, 2.0, 1], [.56, .30, .30, -.02, 2.0, 1],
+           [.74, .70, .74, -.02, 2.2, .9], [1, .56, .58, 0, 2.1, .95]],
+};
+BODY_PROFILE.default = BODY_PROFILE.hadrosaur;
+
+/** Resample a body plan to `n` evenly spaced sections. */
+function sampleProfile(prof, n) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1);
+    let k = 0;
+    while (k < prof.length - 2 && prof[k + 1][0] < t) k++;
+    const a = prof[k], b = prof[k + 1];
+    const u = clamp01((t - a[0]) / Math.max(1e-6, b[0] - a[0]));
+    const w = u * u * (3 - 2 * u);        // smooth, so bodies read as grown
+    out.push([t, lerp(a[1], b[1], w), lerp(a[2], b[2], w), lerp(a[3], b[3], w),
+              lerp(a[4], b[4], w), lerp(a[5], b[5], w)]);
+  }
+  return out;
+}
+
 /** Taper helper: a limb segment from r0 to r1 over a length, along +Y down. */
 function limbGeo(len, r0, r1, radial) {
   const g = new THREE.CylinderGeometry(r1, r0, len, radial || 7, 1, false);
   g.translate(0, -len / 2, 0);
   return g;
 }
+
+/**
+ * A limb segment with real mass: thick where it meets the body, swollen at the
+ * joint, narrow between. `prof` is [[t, r], ...] with t from 0 at the top to 1
+ * at the bottom and r a multiple of `thick`.
+ *
+ * The old limbs were plain cones — a 7-sided CylinderGeometry from hip to knee
+ * and a 6-sided one from knee to ankle — so every animal stood on four
+ * identical tapered tubes with no elbow, no haunch and no shoulder.
+ */
+function limbProfileGeo(len, thick, prof, radial) {
+  const st = prof.map(([t, r]) => ({ x: t * len, y: 0, ry: r * thick, rz: r * thick }));
+  const g = profileGeo(st, radial || 10, true, true);
+  g.rotateZ(-Math.PI / 2);          // +X becomes -Y: the limb hangs down
+  return g;
+}
+
+/* Upper limb: heavy haunch or shoulder at the top, narrowing into the joint.
+   Kept well under the old builder's peak radius of 1.7x, which on a Rex made a
+   thigh nearly as thick as the animal was tall. */
+const LIMB_UPPER = [[0, 1.10], [.18, 1.24], [.45, .92], [.78, .78], [1, .74]];
+/* Lower limb: the joint itself, then a taper to the ankle. */
+const LIMB_LOWER = [[0, .80], [.14, .88], [.52, .62], [1, .46]];
 function sphereGeo(r, d) { return new THREE.SphereGeometry(r, 10, 8); }
 
 const CreatureModel = {
@@ -5814,47 +5944,73 @@ const CreatureModel = {
     const limbPaint = (x, y, z) => {
       const c = _col.copy(base);
       const t = clamp01(-y / 1.6);
-      c.lerp(belly, .08 + t * .16);      // legs stay the animal's colour
-      c.multiplyScalar(.90 - t * .06);   // and darken towards the foot
+      /* Only a hint of the belly tone. Pulling a quarter of the way to `belly`
+         made legs read as pale grey stumps hanging off a dark body. */
+      c.lerp(belly, .04 + t * .10);
+      c.multiplyScalar(.88 - t * .12);   // and darken towards the foot
       return c;
     };
 
     /* ---------------- torso -------------------------------------------- */
     const L = M.body[0], HH = M.body[1], W = M.body[2];
     const kind = M.kind;
-    const stations = [];
-    const nSt = 9;
-    for (let i = 0; i < nSt; i++) {
-      const t = i / (nSt - 1);
-      let ry, rz;
-      const bulge = Math.sin(Math.PI * clamp01(t * .92 + .04));
-      if (kind === 'theropod') { ry = HH * .5 * (.55 + bulge * .55); rz = W * .5 * (.5 + bulge * .6); }
-      else if (kind === 'aquatic') { ry = HH * .5 * (.35 + bulge * .8); rz = W * .5 * (.32 + bulge * .82); }
-      else if (kind === 'crocodile') { ry = HH * .5 * (.62 + bulge * .5); rz = W * .5 * (.62 + bulge * .55); }
-      else { ry = HH * .5 * (.62 + bulge * .5); rz = W * .5 * (.6 + bulge * .55); }
-      stations.push({ x: -L / 2 + t * L, y: 0, ry, rz });
-    }
-    const torso = new THREE.Mesh(paint(profileGeo(stations, 11), bodyPaint), mat);
+    /* section counts follow the quality tier: a phone draws the same animal
+       with a coarser skin rather than a different one */
+    const det = Gfx.q.creature == null ? 2 : Gfx.q.creature;
+    const nSt = det >= 2 ? 17 : det === 1 ? 13 : 9;
+    const nRad = det >= 2 ? 18 : det === 1 ? 14 : 10;
+    const prof = sampleProfile(BODY_PROFILE[kind] || BODY_PROFILE.default, nSt);
+    const stations = prof.map(pr => ({
+      x: -L / 2 + pr[0] * L,
+      y: pr[3] * HH,
+      ry: pr[1] * HH * .5,
+      rz: pr[2] * W * .5,
+      sq: pr[4], bias: pr[5],
+    }));
+    const torso = new THREE.Mesh(paint(profileGeo(stations, nRad), bodyPaint), mat);
     torso.castShadow = true; torso.receiveShadow = true;
     bodyRoot.add(torso);
     parts.torso = torso;
+    /* where the neck and tail actually meet the body, so they can start at the
+       body's own radius instead of punching out of it as a step */
+    const front = stations[stations.length - 1], rear = stations[0];
 
     /* ---------------- neck + head --------------------------------------- */
     const neckDef = M.neck || { len: .5, seg: 3, thick: .3 };
     const headDef = M.head || { len: .6, w: .3, h: .3 };
     let attach = bodyRoot;
     const neckBase = new THREE.Group();
-    neckBase.position.set(L / 2 * .92, HH * (kind === 'theropod' ? .22 : kind === 'aquatic' ? 0 : .16), 0);
+    /* the neck leaves the body high on the shoulders for a long-necked
+       browser, level for a swimmer or a crocodile */
+    const neckHigh = kind === 'sauropod' || kind === 'ceratopsian' ? .5
+      : kind === 'aquatic' || kind === 'crocodile' || kind === 'snake' ? 0
+      : kind === 'theropod' ? .34 : .3;
+    neckBase.position.set(L / 2 * .94, front.y + front.ry * neckHigh, 0);
     bodyRoot.add(neckBase);
     attach = neckBase;
     const segLen = neckDef.len / Math.max(1, neckDef.seg);
+    /* Start at the body's own radius and taper to the species' neck thickness.
+       The old code started every neck at neckDef.thick regardless of the body
+       it grew out of, so a Trike's neck (thick .8) sprouted from a torso whose
+       front section was only .46 across and stood proud of it as a visible
+       step. Nothing here can be fatter than what it attaches to. */
+    const frontR = Math.min(front.rz, front.ry);
+    const neckR0 = frontR * .98;
+    /* the far end of the neck is where the skull sits, so size it from the
+       head. Clamped to the body, because a neck cannot be wider than the
+       shoulders it grows out of — bronto's data asks for .75 against a body
+       whose rear section is .29, which is what produced the giant cones. */
+    const neckR1 = clamp(Math.min(headDef.w, headDef.h) * .55, frontR * .16, frontR * .92);
+    const nrad = det >= 2 ? 14 : det === 1 ? 11 : 8;
     for (let i = 0; i < neckDef.seg; i++) {
       const g = new THREE.Group();
-      const t0 = 1 - i / Math.max(1, neckDef.seg) * .35;
+      const u0 = i / neckDef.seg, u1 = (i + 1) / neckDef.seg;
+      const r0 = lerp(neckR0, neckR1, u0 * u0), r1 = lerp(neckR0, neckR1, u1 * u1);
+      /* segments overlap slightly so a bent neck never opens a gap at a joint */
       const geo = profileGeo([
-        { x: 0, y: 0, ry: neckDef.thick * t0, rz: neckDef.thick * t0 * .92 },
-        { x: segLen, y: 0, ry: neckDef.thick * t0 * .9, rz: neckDef.thick * t0 * .85 },
-      ], 8, false, false);
+        { x: -segLen * .06, y: 0, ry: r0, rz: r0 * .93 },
+        { x: segLen * 1.04, y: 0, ry: r1, rz: r1 * .9 },
+      ], nrad, false, false);
       const m = new THREE.Mesh(paint(geo, bodyPaint), mat);
       m.castShadow = true;
       g.add(m);
@@ -5873,16 +6029,28 @@ const CreatureModel = {
     const tailDef = M.tail || { len: 1, seg: 4, thick: .3 };
     const tSeg = tailDef.len / Math.max(1, tailDef.seg);
     let tAttach = new THREE.Group();
-    tAttach.position.set(-L / 2 * .95, HH * (kind === 'theropod' ? .1 : 0), 0);
+    tAttach.position.set(-L / 2 * .96, rear.y, 0);
     bodyRoot.add(tAttach);
     parts.tailBase = tAttach;
+    /* as with the neck: the tail base is the body's rear section, tapering to
+       a point, rather than a stub of constant thickness stuck on the back */
+    /* Respect the species' own tail thickness where it fits, so a mammoth keeps
+       its thin whip off a heavy rump and a Rex keeps its deep muscular base —
+       but never wider than the body it leaves, which is what produced cones. */
+    const rearR = Math.min(rear.rz, rear.ry);
+    const tailR0 = clamp(tailDef.thick, rearR * .30, rearR * .98);
+    const trad = det >= 2 ? 14 : det === 1 ? 11 : 8;
+    /* a crocodile's and a swimmer's tail is a flattened oar, not a rope */
+    const flat = kind === 'crocodile' ? .62 : kind === 'aquatic' ? .7 : .92;
     for (let i = 0; i < tailDef.seg; i++) {
       const g = new THREE.Group();
-      const t0 = 1 - i / tailDef.seg, t1 = 1 - (i + 1) / tailDef.seg;
+      const u0 = i / tailDef.seg, u1 = (i + 1) / tailDef.seg;
+      const r0 = lerp(tailR0, tailR0 * .06, Math.pow(u0, .82));
+      const r1 = lerp(tailR0, tailR0 * .06, Math.pow(u1, .82));
       const geo = profileGeo([
-        { x: 0, y: 0, ry: tailDef.thick * (t0 * .9 + .1), rz: tailDef.thick * (t0 * .9 + .1) * .9 },
-        { x: -tSeg, y: 0, ry: tailDef.thick * (t1 * .9 + .08), rz: tailDef.thick * (t1 * .9 + .08) * .9 },
-      ], 8, false, i === tailDef.seg - 1);
+        { x: tSeg * .06, y: 0, ry: r0, rz: r0 * flat },
+        { x: -tSeg * 1.02, y: 0, ry: r1, rz: r1 * flat },
+      ], trad, false, i === tailDef.seg - 1);
       const m = new THREE.Mesh(paint(geo, bodyPaint), mat);
       m.castShadow = true;
       g.add(m);
@@ -5901,30 +6069,52 @@ const CreatureModel = {
     if (!noLegs) {
       const backLen = legs.back || legs.h || .8, frontLen = legs.front || legs.h || .7;
       const thick = legs.thick || .16;
-      const hipX = -L * .16, shoulderX = L * .3;
-      const spread = W * .48;
-      const hipY = -HH * .18;
+      /* Hips belong under the rump. At -L*.16 they sat only a sixth of the way
+         back on a body running to ±L/2, which is why every quadruped looked
+         like it was standing on its own middle. */
+      const hipX = -L * .30, shoulderX = L * .32;
+
+      /* Read the body's own cross-section where each limb meets it, so legs
+         emerge from the flank instead of from a flat height and a constant
+         spread that ignored the animal's shape entirely. */
+      const sectionAt = (x) => {
+        let k = 0;
+        while (k < stations.length - 2 && stations[k + 1].x < x) k++;
+        const a = stations[k], b = stations[k + 1];
+        const u = clamp01((x - a.x) / Math.max(1e-6, b.x - a.x));
+        return { y: lerp(a.y, b.y, u), ry: lerp(a.ry, b.ry, u), rz: lerp(a.rz, b.rz, u) };
+      };
+      const hipSec = sectionAt(hipX), shSec = sectionAt(shoulderX);
+      const hipY = hipSec.y - hipSec.ry * .45;
+      const shY = shSec.y - shSec.ry * .45;
+
       /* A quadruped with shorter forelegs stands nose-down (Stego, Anky,
          Doedic). Solve the body pitch that puts every foot on the ground:
-             standY + x·sinφ + hipY·cosφ = legLen        (per leg)
+             standY + x·sinφ + y·cosφ = legLen          (per leg)
          then derive the front leg length that closes any remaining gap. */
       const wantArms = !biped || (M.feat && M.feat.indexOf('stubarm') >= 0);
       let restPitch = 0;
       if (!biped) restPitch = clamp(Math.asin(clamp((backLen - frontLen) / (hipX - shoulderX), -1, 1)), -.42, .42);
       const standY = backLen - hipX * Math.sin(restPitch) - hipY * Math.cos(restPitch);
-      const frontReach = Math.max(.12, standY + shoulderX * Math.sin(restPitch) + hipY * Math.cos(restPitch));
+      const frontReach = Math.max(.12, standY + shoulderX * Math.sin(restPitch) + shY * Math.cos(restPitch));
+      const lrad = det >= 2 ? 12 : det === 1 ? 9 : 7;
       const mk = (x, side, len, isFront, isArm) => {
+        const sec = sectionAt(x);
         const hip = new THREE.Group();
-        hip.position.set(x, -HH * .18, side * spread);
+        /* tucked just inside the flank, and splayed by the body's own width */
+        hip.position.set(x, sec.y - sec.ry * .45, side * sec.rz * .78);
         bodyRoot.add(hip);
         const thighLen = len * .55, shinLen = len * .45;
-        const thighM = new THREE.Mesh(paint(limbGeo(thighLen, thick * (isArm ? 1.1 : 1.7), thick * .95, 7), limbPaint), mat);
+        /* forelimbs carry less mass than the hind legs on almost everything
+           that walks, and an arm is slighter still */
+        const gird = isArm ? .78 : isFront ? .92 : 1.06;
+        const thighM = new THREE.Mesh(paint(limbProfileGeo(thighLen, thick * gird, LIMB_UPPER, lrad), limbPaint), mat);
         thighM.castShadow = true;
         hip.add(thighM);
         const knee = new THREE.Group();
         knee.position.y = -thighLen;
         hip.add(knee);
-        const shinM = new THREE.Mesh(paint(limbGeo(shinLen, thick * .95, thick * .62, 6), limbPaint), mat);
+        const shinM = new THREE.Mesh(paint(limbProfileGeo(shinLen, thick * gird, LIMB_LOWER, lrad), limbPaint), mat);
         shinM.castShadow = true;
         knee.add(shinM);
         const ankle = new THREE.Group();
@@ -5960,7 +6150,8 @@ const CreatureModel = {
           cl.rotation.z = -1.9; cl.position.set(thick * 1.6, -thick * .2, 0);
           ankle.add(cl);
         }
-        return { hip, knee, ankle, foot, len, thighLen, shinLen, side, isFront, isArm, phase: 0, x, spread: side * spread };
+        return { hip, knee, ankle, foot, len, thighLen, shinLen, side, isFront, isArm,
+                 phase: 0, x, spread: hip.position.z };
       };
       if (spider) {
         /* four pairs of long legs down the body, no arms */
@@ -5994,6 +6185,7 @@ const CreatureModel = {
       theropod: [.40, -.34], hadrosaur: [.52, -.42], ceratopsian: [.16, -.12],
       stegosaur: [.20, -.16], ankylosaur: [.08, -.06], crocodile: [.02, 0],
       bird: [.72, -.55], flyer: [.34, -.28], aquatic: [0, 0], snake: [.10, -.05], spider: [.05, -.05],
+      sauropod: [.62, -.46], mammal: [.24, -.20],
     };
     const rp = restByKind[kind] || [.2, -.15];
     parts.neckRest = rp[0];
