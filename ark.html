@@ -2219,25 +2219,89 @@ const Sound = {
     this.noise(near ? 2.2 : 3.4, { gain: near ? .5 : .22, f0: near ? 700 : 260, f1: 40, type: 'lowpass', delay: d, dest: this.amb });
   },
   /* --- creature voices -------------------------------------------------- */
+  /**
+   * A big animal's call.
+   *
+   * The old voices were two oscillators sliding in pitch, which sounds like a
+   * synthesiser rather than a throat. Four things change that, and all four
+   * matter: a sub an octave down for weight, amplitude modulation in the
+   * 15-40Hz range (the growl, and the single biggest cue that this is an
+   * animal), a pair of bandpass formants standing in for a vocal tract, and a
+   * pitch arc that rises into the call before falling away.
+   */
+  beast(freq, dur, { gain = .3, pan = 0, growl = 26, bright = 1, rasp = .6, dest = null } = {}) {
+    if (!this.ready) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const out = ctx.createGain();
+    out.gain.setValueAtTime(0, t);
+    out.gain.linearRampToValueAtTime(gain, t + dur * .14);
+    out.gain.setValueAtTime(gain, t + dur * .55);
+    out.gain.exponentialRampToValueAtTime(.0008, t + dur);
+    let node = out;
+    if (pan) { const pn = ctx.createStereoPanner(); pn.pan.value = clamp(pan, -1, 1); out.connect(pn); node = pn; }
+    node.connect(dest || this.sfx);
+
+    /* the throat */
+    const f1 = ctx.createBiquadFilter(); f1.type = 'bandpass';
+    f1.frequency.value = Math.min(12000, freq * 3.1 * bright); f1.Q.value = 3.0;
+    const f2 = ctx.createBiquadFilter(); f2.type = 'bandpass';
+    f2.frequency.value = Math.min(14000, freq * 6.4 * bright); f2.Q.value = 2.2;
+    const f2g = ctx.createGain(); f2g.gain.value = .7;
+    f1.connect(out); f2.connect(f2g); f2g.connect(out);
+
+    /* body, with the pitch arc */
+    const o = ctx.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(freq * .80, t);
+    o.frequency.linearRampToValueAtTime(freq * 1.12, t + dur * .24);
+    o.frequency.exponentialRampToValueAtTime(Math.max(22, freq * .52), t + dur);
+    const og = ctx.createGain(); og.gain.value = .5;
+    o.connect(og); og.connect(f1); og.connect(f2);
+
+    /* the growl itself */
+    const lfo = ctx.createOscillator(); lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(growl, t);
+    lfo.frequency.linearRampToValueAtTime(growl * .58, t + dur);
+    const lg = ctx.createGain(); lg.gain.value = rasp * .42;
+    lfo.connect(lg); lg.connect(og.gain);
+
+    /* weight */
+    const sub = ctx.createOscillator(); sub.type = 'sine';
+    sub.frequency.setValueAtTime(freq * .5, t);
+    sub.frequency.exponentialRampToValueAtTime(Math.max(18, freq * .3), t + dur);
+    const sg = ctx.createGain(); sg.gain.value = .46;
+    sub.connect(sg); sg.connect(out);
+
+    /* breath */
+    const nz = ctx.createBufferSource(); nz.buffer = this.noiseBuf; nz.loop = true;
+    const nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.Q.value = .8;
+    nf.frequency.setValueAtTime(Math.min(15000, freq * 7), t);
+    nf.frequency.exponentialRampToValueAtTime(Math.max(80, freq * 2), t + dur);
+    const ng = ctx.createGain(); ng.gain.value = .20 * rasp;
+    nz.connect(nf); nf.connect(ng); ng.connect(out);
+
+    o.start(t); sub.start(t); lfo.start(t); nz.start(t);
+    const stop = t + dur + .08;
+    o.stop(stop); sub.stop(stop); lfo.stop(stop); nz.stop(stop);
+  },
+
   voice(v, { pan = 0, vol = 1, hurt = false } = {}) {
     if (!this.ready || !v) return;
     const p = v.pitch * (hurt ? 1.25 : 1) * rnd(.94, 1.07), len = v.len * (hurt ? .55 : 1);
     switch (v.kind) {
       case 'roar':
-        this.tone(p, len, { type: 'sawtooth', gain: .3 * vol, f2: p * .55, pan, attack: .04 });
-        this.tone(p * 1.5, len * .8, { type: 'triangle', gain: .12 * vol, f2: p * .8, pan, detune: 12 });
-        this.noise(len, { gain: .16 * vol, f0: p * 6, f1: p * 1.4, type: 'bandpass', q: .9, pan });
+        this.beast(p, len, { gain: .34 * vol, pan, growl: 31, rasp: .8, bright: 1.05 });
+        this.noise(len * .35, { gain: .10 * vol, f0: p * 9, f1: p * 3, type: 'bandpass', q: 1.2, pan, delay: len * .5 });
         break;
       case 'bellow':
-        this.tone(p, len, { type: 'triangle', gain: .26 * vol, f2: p * .75, pan, attack: .06 });
-        this.tone(p * 2, len * .6, { type: 'sine', gain: .1 * vol, f2: p * 1.2, pan });
+        this.beast(p, len, { gain: .30 * vol, pan, growl: 15, rasp: .34, bright: .72 });
         break;
       case 'horn':
         this.tone(p, len, { type: 'square', gain: .16 * vol, f2: p * 1.35, pan, attack: .07 });
         this.tone(p * 1.5, len * .9, { type: 'sine', gain: .09 * vol, f2: p * 1.9, pan });
+        this.tone(p * .5, len, { type: 'sine', gain: .12 * vol, f2: p * .4, pan, attack: .08 });
         break;
       case 'screech':
-        this.tone(p, len, { type: 'sawtooth', gain: .17 * vol, f2: p * 2.1, pan, attack: .012 });
+        this.beast(p * 1.6, len * .8, { gain: .18 * vol, pan, growl: 52, rasp: 1.0, bright: 1.5 });
         this.noise(len * .7, { gain: .13 * vol, f0: p * 4, f1: p * 8, type: 'bandpass', q: 3, pan });
         break;
       case 'chirp':
@@ -2248,8 +2312,7 @@ const Sound = {
         this.noise(len, { gain: .18 * vol, f0: 5200, f1: 2200, type: 'bandpass', q: 2.2, pan });
         break;
       case 'growl':
-        this.tone(p, len, { type: 'sawtooth', gain: .2 * vol, f2: p * .8, pan, attack: .05 });
-        this.noise(len, { gain: .1 * vol, f0: p * 4, f1: p * 2, type: 'lowpass', pan });
+        this.beast(p, len, { gain: .24 * vol, pan, growl: 39, rasp: .9, bright: .66 });
         break;
       case 'grunt':
         this.tone(p, len * .5, { type: 'triangle', gain: .2 * vol, f2: p * .6, pan });
@@ -2669,6 +2732,44 @@ const TexLab = {
        — the "broccoli tree" look. Cutting leaf shapes out of the surface with
        alphaTest turns the same geometry into something with gaps you can see
        sky through, which is most of what makes foliage look like foliage. */
+    /* A palm frond is a mid-rib with dozens of narrow leaflets along it, and
+       no arrangement of solid cones will ever look like one. This is that
+       shape as an alpha mask, cut out of a drooping ribbon of quads. */
+    this.frondMask = this.tex('frondMask', () => {
+      const S = 256, c = makeCanvas(S, S), g = c.getContext('2d');
+      const rng = makeRNG(4471);
+      g.clearRect(0, 0, S, S);
+      /* v runs base (0) to tip (1) along the frond; u is across it */
+      const rib = (v) => S * .5;
+      const halfW = (v) => S * .49 * Math.sin(Math.PI * Math.pow(clamp01(v), .48)) * (1 - v * .14);
+      /* the mid-rib itself */
+      g.strokeStyle = 'rgb(150,150,150)';
+      g.lineWidth = S * .022;
+      g.beginPath(); g.moveTo(rib(0), 2); g.lineTo(rib(1), S - 2); g.stroke();
+      /* leaflets, angled forward, shorter towards the tip */
+      /* Dense enough that neighbouring leaflets touch at the base: a palm
+         frond is a solid blade near the rib that only splits toward the tip.
+         Thirty-four sparse ones read as wire, not foliage. */
+      const n = 58;
+      for (let i = 0; i < n; i++) {
+        const v = (i + .5) / n;
+        const y = v * S;
+        const w = halfW(v) * (.88 + rng() * .22);
+        for (const side of [-1, 1]) {
+          const tone = 180 + (rng() * 66 | 0);
+          g.fillStyle = `rgb(${tone},${tone},${tone})`;
+          g.beginPath();
+          g.moveTo(rib(v), y - S * .014);
+          g.quadraticCurveTo(rib(v) + side * w * .5, y + S * .004,
+                             rib(v) + side * w, y + S * .072 * (1 - v * .42));
+          g.quadraticCurveTo(rib(v) + side * w * .42, y + S * .034,
+                             rib(v), y + S * .020);
+          g.closePath(); g.fill();
+        }
+      }
+      return c;
+    });
+
     this.leafMask = this.tex('leafMask', () => {
       const S = 256, c = makeCanvas(S, S), g = c.getContext('2d');
       const rng = makeRNG(9182);
@@ -5150,6 +5251,13 @@ const Flora = {
       alphaTest: .42, transparent: false,
     });
     leafMat.map.repeat.set(2.4, 2.4);
+    /* fronds get their own material: the mask must map once across the whole
+       frond, not tile, or the leaflets repeat down its length */
+    this.mats.frond = new THREE.MeshStandardMaterial({
+      map: TexLab.frondMask, vertexColors: true, roughness: .8,
+      side: THREE.DoubleSide, alphaTest: .38, transparent: false,
+    });
+    this.addWind(this.mats.frond, 'frond-wind', .8);
     const rockMat = this.mats.rock = new THREE.MeshStandardMaterial({ map: TexLab.rockD, vertexColors: true, roughness: .95 });
     const oreMat = this.mats.ore = new THREE.MeshStandardMaterial({ map: TexLab.rockD, vertexColors: true, roughness: .55, metalness: .55 });
     this.mats.crystal = new THREE.MeshStandardMaterial({
@@ -5266,6 +5374,36 @@ const Flora = {
     };
 
     /* --- palm: curved trunk, drooping fronds, coconuts -------------------- */
+    /* A frond as a strip of quads that arcs outward and droops under its own
+       weight, UV-mapped so the pinnate mask runs base to tip exactly once.
+       Built along +X, drooping in -Y. */
+    const frondGeo = (len, wid, droop, segs) => {
+      segs = segs || 7;
+      const pos = [], uv = [], idx = [];
+      for (let i = 0; i <= segs; i++) {
+        const t = i / segs;
+        const x = len * t;
+        /* the arc: rises a little at the base, then falls away */
+        const y = Math.sin(t * 1.15) * len * .16 - Math.pow(t, 2.1) * len * droop;
+        const w = wid * Math.sin(Math.PI * Math.pow(t, .62)) * (1 - t * .25);
+        /* a slight twist so the blade is not a flat plane */
+        const tw = t * .34;
+        const dz = Math.cos(tw) * w, dy = Math.sin(tw) * w * .35;
+        pos.push(x, y - dy, -dz, x, y + dy, dz);
+        uv.push(0, t, 1, t);
+        if (i < segs) {
+          const a = i * 2;
+          idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+        }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      return g;
+    };
+
     const palm = (seed) => {
       const rng = makeRNG(seed);
       const h = 6.5 + rng() * 3;
@@ -5289,26 +5427,33 @@ const Flora = {
         z += Math.sin(dir) * bend * segH * t * 2;
         y += segH;
       }
-      const nf = 8;
+      /* Fronds used to be 4-sided cones squashed flat, which read as spikes.
+         Each one is now a drooping ribbon carrying the pinnate mask. */
+      const nf = 11;
       for (let i = 0; i < nf; i++) {
-        const a = (i / nf) * TAU + rng() * .3;
-        const droop = .55 + rng() * .5;
-        const len = 2.6 + rng() * .9;
-        /* each frond is two tapered blades meeting along a mid-rib */
-        for (const side of [-1, 1]) {
-          leaves.push({
-            geo: cone(.34, len, 4),
-            matrix: trs(x + Math.cos(a) * len * .38, y + .2 - droop * .5, z + Math.sin(a) * len * .38,
-              Math.sin(a) * (1.35 - droop * .4), -a, -Math.cos(a) * (1.35 - droop * .4) + side * .12, .55, 1, .16),
-            color: [0x4f8c39, 0x5f9c42, 0x6faa50][Math.floor(rng() * 3)],
-          });
-        }
+        const a = (i / nf) * TAU + rng() * .22;
+        const droop = .45 + rng() * .55;
+        const len = 2.7 + rng() * 1.1;
+        leaves.push({
+          geo: frondGeo(len, .62 + rng() * .16, droop, 9),
+          matrix: trs(x, y + .16, z, 0, -a, -.16 + rng() * .1),
+          color: [0x4f8c39, 0x5f9c42, 0x6faa50, 0x46803a][Math.floor(rng() * 4)],
+        });
+      }
+      /* a few dead fronds hanging under the crown, as palms always have */
+      for (let i = 0; i < 3; i++) {
+        const a = rng() * TAU;
+        leaves.push({
+          geo: frondGeo(1.7 + rng() * .4, .44, 1.1, 6),
+          matrix: trs(x, y + .04, z, 0, -a, -.78),
+          color: 0x8a7340,
+        });
       }
       for (let i = 0; i < 3; i++) {
         const a = rng() * TAU;
         parts.push({ geo: ico(.19, 0), matrix: trs(x + Math.cos(a) * .35, y - .2, z + Math.sin(a) * .35), color: 0x6b4a2c });
       }
-      return { trunk: mergeGeos(parts), leaves: mergeGeos(leaves), h: h + 1.5, r: .8 };
+      return { trunk: mergeGeos(parts), leaves: mergeGeos(leaves), leafMat: 'frond', h: h + 1.5, r: .8 };
     };
 
     /* --- dead tree -------------------------------------------------------- */
@@ -5434,25 +5579,47 @@ const Flora = {
     const rockShape = (seed, radius, moss) => {
       const rng = makeRNG(seed);
       const n = makeNoise2D(seed);
-      const geo = ico(radius, 1);
+      const geo = ico(radius, 2);
       const pos = geo.attributes.position;
       const v = new THREE.Vector3();
+      /* one random cleavage plane per rock, so boulders come out with flat
+         faces and edges instead of all being the same lumpy potato */
+      const pl = new THREE.Vector3(rng() - .5, rng() * .4 - .1, rng() - .5).normalize();
+      const plD = (rng() * .35 + .18) * radius;
+      const pl2 = new THREE.Vector3(rng() - .5, rng() * .5, rng() - .5).normalize();
+      const plD2 = (rng() * .4 + .25) * radius;
+      const squash = .62 + rng() * .22;
       for (let i = 0; i < pos.count; i++) {
         v.fromBufferAttribute(pos, i);
-        const d = 1 + fbm(n, v.x * 1.4 + 3, v.z * 1.4 + v.y, 3, 2.1, .5) * .38;
+        /* ridged noise gives creases and edges; plain fbm only gives lumps */
+        const rg = ridged(n, v.x * 1.5 + 3, v.z * 1.5 + v.y, 3, 2.2, .5);
+        const d = 1 + (rg - .45) * .5 + fbm(n, v.x * 3.1, v.z * 3.1 + 7, 2, 2.3, .5) * .16;
         v.multiplyScalar(d);
-        v.y *= .78 + rng() * .12;
+        v.y *= squash;                       // boulders sit, they do not float
+        /* slice off anything past a cleavage plane */
+        const s1 = v.dot(pl) - plD;
+        if (s1 > 0) v.addScaledVector(pl, -s1);
+        const s2 = v.dot(pl2) - plD2;
+        if (s2 > 0) v.addScaledVector(pl2, -s2);
+        /* and flatten the base so it beds into the ground */
+        if (v.y < -radius * .34) v.y = -radius * .34 - (v.y + radius * .34) * .12;
         pos.setXYZ(i, v.x, v.y, v.z);
       }
       geo.computeVertexNormals();
       /* strata + moss baked into the vertex colours */
       const cnt = pos.count, col = new Float32Array(cnt * 3), c = new THREE.Color();
       const nrm = geo.attributes.normal;
-      const base = new THREE.Color(0x8e8b84), dark = new THREE.Color(0x6a6862), mossC = new THREE.Color(0x4f7a35);
+      const base = new THREE.Color(0x8e8b84), dark = new THREE.Color(0x5d5b56),
+            warm = new THREE.Color(0x9c9083), mossC = new THREE.Color(0x4f7a35);
       for (let i = 0; i < cnt; i++) {
         v.fromBufferAttribute(pos, i);
-        const band = Math.sin(v.y * 3.4 + seed) * .5 + .5;
-        c.copy(base).lerp(dark, band * .5);
+        /* strata warped by the same noise, so the banding follows the stone
+           instead of ringing it in clean horizontal stripes */
+        const warp = fbm(n, v.x * .8, v.z * .8 + 11, 2, 2.1, .5) * 1.4;
+        const band = Math.sin(v.y * 4.2 + warp * 2.6 + seed) * .5 + .5;
+        c.copy(base).lerp(dark, band * .62).lerp(warm, fbm(n, v.x * 2.2 + 5, v.z * 2.2, 2, 2.2, .5) * .4);
+        /* creases catch less light: darken where the surface turns away */
+        c.multiplyScalar(.86 + clamp01(nrm.getY(i)) * .22);
         if (moss) {
           const up = nrm.getY(i);
           c.lerp(mossC, clamp01((up - .45) / .5) * (.35 + rng() * .3));
@@ -5643,7 +5810,8 @@ const Flora = {
       const variants = this.protos[type]; if (!variants || !variants.length) continue;
       const proto = variants[Math.min(vi, variants.length - 1)];
       const arr = byType[key];
-      const parts = [['trunk', proto.mat ? this.mats[proto.mat] : this.mats.bark], ['leaves', this.mats.leaf]];
+      const parts = [['trunk', proto.mat ? this.mats[proto.mat] : this.mats.bark],
+                     ['leaves', proto.leafMat ? this.mats[proto.leafMat] : this.mats.leaf]];
       for (const part of parts) {
         const geo = proto[part[0]]; if (!geo) continue;
         const mat = part[1];
@@ -6205,6 +6373,56 @@ const BODY_PROFILE = {
 };
 BODY_PROFILE.default = BODY_PROFILE.hadrosaur;
 
+/**
+ * Skull shapes, as [t, ry, rz, y, sq, bias] running from the back of the head
+ * (0) to the tip of the snout (1); ry/rz are fractions of head height and
+ * width. Same vocabulary as BODY_PROFILE.
+ *
+ * Every species used to share one four-station skull, so a crocodile, a
+ * duck-billed hadrosaur and a Tyrannosaurus had the same head at different
+ * sizes — with only the surface features (a beak, a frill, teeth) to tell
+ * them apart.
+ */
+const HEAD_PROFILE = {
+  /* deep and narrow, tall over the jaw hinge, boxy in section */
+  theropod: [[0, .92, .90, .02, 2.4, .92], [.22, 1.0, .96, .04, 2.5, .9],
+             [.52, .78, .70, 0, 2.5, .88], [.78, .60, .50, -.04, 2.4, .9],
+             [1, .34, .30, -.08, 2.2, 1]],
+  /* long, flat and wide: a snout built to lie level with the water */
+  crocodile: [[0, .95, .78, 0, 2.4, .8], [.18, .86, .84, -.02, 2.8, .6],
+              [.45, .52, .78, -.04, 3.2, .5], [.75, .42, .70, -.04, 3.2, .5],
+              [1, .32, .52, -.05, 3.0, .55]],
+  /* short and deep, carrying a beak under a heavy brow */
+  ceratopsian: [[0, 1.0, .96, .04, 2.5, .9], [.28, .94, .88, .02, 2.6, .85],
+                [.60, .70, .62, -.02, 2.5, .85], [.82, .52, .44, -.06, 2.4, .9],
+                [1, .34, .28, -.10, 2.2, 1]],
+  /* the duckbill: narrows behind, then flares out flat at the tip */
+  hadrosaur: [[0, .88, .78, .02, 2.3, .95], [.30, .74, .62, 0, 2.4, .9],
+              [.58, .56, .50, -.02, 2.4, .9], [.80, .48, .58, -.04, 2.8, .7],
+              [1, .40, .78, -.05, 3.2, .6]],
+  /* small and blunt on a very long neck */
+  sauropod: [[0, .90, .86, .02, 2.3, .95], [.34, .82, .78, 0, 2.4, .9],
+             [.68, .58, .54, -.02, 2.3, .9], [1, .38, .34, -.05, 2.2, 1]],
+  /* light skull, big orbit, tapering hard to the beak */
+  bird: [[0, .96, .94, .02, 2.2, .96], [.32, .88, .86, 0, 2.2, .95],
+         [.66, .54, .50, -.02, 2.2, .95], [1, .28, .26, -.04, 2.1, 1]],
+  flyer: [[0, .90, .82, .02, 2.2, .95], [.30, .80, .70, 0, 2.3, .9],
+          [.64, .48, .40, -.02, 2.3, .9], [1, .24, .20, -.04, 2.1, 1]],
+  /* broad and rounded, with a heavy muzzle */
+  mammal: [[0, .96, .92, .02, 2.4, .92], [.30, 1.0, .96, 0, 2.5, .9],
+           [.62, .76, .74, -.02, 2.5, .9], [1, .52, .52, -.06, 2.3, .95]],
+  /* wedge-shaped, flat on top */
+  snake: [[0, .80, .90, 0, 2.6, .7], [.30, .96, 1.0, 0, 2.8, .6],
+          [.66, .62, .68, -.02, 2.8, .6], [1, .30, .34, -.03, 2.4, .8]],
+  aquatic: [[0, .88, .86, 0, 2.2, .95], [.30, .78, .74, 0, 2.3, .9],
+            [.66, .48, .44, 0, 2.3, .9], [1, .22, .20, 0, 2.1, 1]],
+  spider: [[0, .96, 1.0, 0, 2.3, .95], [.36, .88, .92, 0, 2.4, .9],
+           [.72, .60, .62, -.02, 2.4, .9], [1, .38, .40, -.04, 2.2, .95]],
+};
+HEAD_PROFILE.stegosaur = HEAD_PROFILE.sauropod;
+HEAD_PROFILE.ankylosaur = HEAD_PROFILE.ceratopsian;
+HEAD_PROFILE.default = HEAD_PROFILE.theropod;
+
 /** What a body plan is covered in, when the species does not say otherwise. */
 function kindSkin(kind) {
   if (kind === 'mammal') return 'hide';
@@ -6624,22 +6842,38 @@ const CreatureModel = {
         knee.add(ankle);
         /* foot, toes and claws merged into one mesh: the detail reads at
            ground level without multiplying draw calls by four legs */
+        /* A foot, not a slab. The old one was a box with box toes and cone
+           claws bolted to the front; this has a weight-bearing pad that
+           spreads where it meets the ground, and toes that taper into their
+           claws instead of butting against them. */
         const footParts = [];
-        const footGeo = new THREE.BoxGeometry(thick * 2.0, thick * .55, thick * 1.5);
-        footGeo.translate(thick * .35, -thick * .28, 0);
         const limbCol = limbPaint(0, -1, 0).getHex();
-        footParts.push({ geo: footGeo, matrix: new THREE.Matrix4(), color: limbCol });
+        const pad = profileGeo([
+          { x: -thick * .55, y: 0, ry: thick * .30, rz: thick * .58, sq: 2.6, bias: .55 },
+          { x: -thick * .10, y: -thick * .04, ry: thick * .34, rz: thick * .80, sq: 3.0, bias: .42 },
+          { x: thick * .55, y: -thick * .06, ry: thick * .30, rz: thick * .86, sq: 3.0, bias: .40 },
+          { x: thick * 1.00, y: -thick * .06, ry: thick * .22, rz: thick * .72, sq: 2.8, bias: .45 },
+        ], 12);
+        footParts.push({ geo: pad, matrix: trs(thick * .30, -thick * .20, 0), color: limbCol });
         const toes = isArm ? 3 : (kind === 'theropod' || kind === 'bird' || kind === 'flyer') ? 3 : 4;
         for (let t = 0; t < toes; t++) {
-          const off = (t - (toes - 1) / 2) * thick * .62;
+          const off = (t - (toes - 1) / 2) * thick * .64;
+          /* splay the outer toes outward, as a real foot does */
+          const splay = (t - (toes - 1) / 2) / Math.max(1, (toes - 1) / 2);
+          const toe = profileGeo([
+            { x: 0, y: 0, ry: thick * .21, rz: thick * .23, sq: 2.6, bias: .7 },
+            { x: thick * .52, y: -thick * .03, ry: thick * .17, rz: thick * .18, sq: 2.5, bias: .7 },
+            { x: thick * .92, y: -thick * .06, ry: thick * .10, rz: thick * .11, sq: 2.4, bias: .8 },
+          ], 9);
           footParts.push({
-            geo: new THREE.BoxGeometry(thick * .9, thick * .40, thick * .40),
-            matrix: trs(thick * 1.15, -thick * .3, off),
+            geo: toe,
+            matrix: trs(thick * 1.02, -thick * .26, off, 0, splay * .30, 0),
             color: limbCol,
           });
           footParts.push({
-            geo: new THREE.ConeGeometry(thick * .17, thick * .55, 4),
-            matrix: trs(thick * 1.72, -thick * .34, off, 0, 0, -Math.PI / 2),
+            geo: new THREE.ConeGeometry(thick * .12, thick * .48, 6),
+            matrix: trs(thick * 1.94 + Math.abs(splay) * thick * -.10, -thick * .34,
+                        off + splay * thick * .26, 0, 0, -Math.PI / 2 - .22),
             color: 0x3a3128,
           });
         }
@@ -6710,24 +6944,33 @@ const CreatureModel = {
     const bodyPaint = (x, y) => _col.copy(base).lerp(belly, clamp01((-y + .2) / .5) * .7);
     const isBeak = hd.beak != null;
     const snout = hd.beak || hd.jaw || hd.len * .5;
-    /* skull */
-    const skull = new THREE.Mesh(paint(profileGeo([
-      { x: 0, y: 0, ry: hd.h * .5, rz: hd.w * .55 },
-      { x: hd.len * .32, y: hd.h * .06, ry: hd.h * .55, rz: hd.w * .6 },
-      { x: hd.len * .68, y: 0, ry: hd.h * .38, rz: hd.w * .42 },
-      { x: hd.len, y: -hd.h * .06, ry: hd.h * .2, rz: hd.w * .22 },
-    ], 9), bodyPaint), mat);
+    /* skull, shaped by the body plan rather than one generic wedge for all */
+    const hp = sampleProfile(HEAD_PROFILE[M.kind] || HEAD_PROFILE.default, 9);
+    const skull = new THREE.Mesh(paint(profileGeo(hp.map(q => ({
+      x: q[0] * hd.len,
+      y: q[3] * hd.h,
+      ry: q[1] * hd.h * .5,
+      rz: q[2] * hd.w * .55,
+      sq: q[4], bias: q[5],
+    })), 14), bodyPaint), mat);
     skull.castShadow = true;
     head.add(skull);
     /* jaw — animated open/close */
     const jaw = new THREE.Group();
     jaw.position.set(hd.len * .18, -hd.h * .18, 0);
     head.add(jaw);
+    /* the lower jaw tracks the skull it closes against, so a crocodile gets a
+       long flat one and a ceratopsian a short deep one */
+    const jawAt = (u) => {
+      const q = hp[Math.min(hp.length - 1, Math.round(u * (hp.length - 1)))];
+      return { ry: q[1] * hd.h * .5, rz: q[2] * hd.w * .55 };
+    };
+    const j0 = jawAt(.25), j1 = jawAt(.62), j2 = jawAt(1);
     const jawMesh = new THREE.Mesh(paint(profileGeo([
-      { x: 0, y: 0, ry: hd.h * .14, rz: hd.w * .42 },
-      { x: snout * .6, y: 0, ry: hd.h * .12, rz: hd.w * .34 },
-      { x: snout, y: hd.h * .02, ry: hd.h * .07, rz: hd.w * .18 },
-    ], 8), bodyPaint), mat);
+      { x: 0, y: 0, ry: j0.ry * .34, rz: j0.rz * .84, sq: 2.4, bias: .8 },
+      { x: snout * .6, y: 0, ry: j1.ry * .34, rz: j1.rz * .86, sq: 2.5, bias: .75 },
+      { x: snout, y: hd.h * .02, ry: j2.ry * .30, rz: j2.rz * .70, sq: 2.4, bias: .8 },
+    ], 12), bodyPaint), mat);
     jawMesh.castShadow = true;
     jaw.add(jawMesh);
     parts.jaw = jaw;
