@@ -253,7 +253,36 @@ try {
   if (controls.length) fail.push(...controls);
   else note('keyboard and touch toggles both fire exactly once');
 
-  console.log('8. save / load round trip');
+  console.log('8. audio');
+  const audio = await page.evaluate(() => {
+    const { Sound } = window.__ark;
+    const bad = [];
+    Sound.init(); Sound.resume(); Sound.startMusic();
+    if (!Sound.ready) { bad.push('audio never became ready'); return { bad }; }
+    if (!Sound._mus) { bad.push('music never started'); return { bad }; }
+
+    /* The music bus and its volume slider existed long before anything played
+       through them, so "there is a bus" proves nothing: count the notes the
+       scheduler actually creates, and check the mode follows the world. */
+    let made = 0;
+    const realTone = Sound.tone.bind(Sound);
+    Sound.tone = (...a) => { made++; return realTone(...a); };
+    const modes = [];
+    for (const [h, threat] of [[12, 0], [22, 0], [7, 0], [19, 0], [12, 1]]) {
+      Sound._mus.next = Sound.ctx.currentTime;      // force a bar to be due
+      Sound.musicTick(.05, h, threat);
+      modes.push(Sound._mus.mode);
+    }
+    Sound.tone = realTone;
+    if (made < 10) bad.push(`music scheduled only ${made} notes over five bars`);
+    const want = ['day', 'night', 'dawn', 'dusk', 'danger'];
+    if (modes.join() !== want.join()) bad.push(`music modes ${modes.join()} != ${want.join()}`);
+    return { bad, made, modes };
+  });
+  if (audio.bad.length) fail.push(...audio.bad);
+  else note(`music: ${audio.made} notes over 5 bars, modes ${audio.modes.join(' / ')}`);
+
+  console.log('9. save / load round trip');
   const save = await page.evaluate(() => {
     const { SaveGame } = window.__ark;
     SaveGame.save(2);

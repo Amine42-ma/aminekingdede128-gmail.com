@@ -2253,6 +2253,110 @@ const Sound = {
   },
 
   /* --- ambience --------------------------------------------------------- */
+  /* --------------------------------------------------------------- music
+     There has always been a music bus and a music volume slider, and nothing
+     has ever played through them. This is a generative score: a slow chord
+     pad with a sparse pentatonic melody over it, scheduled a bar at a time so
+     it costs almost nothing and never repeats exactly.
+
+     It follows the island rather than looping regardless of it — the mode
+     shifts with the time of day, and a predator nearby pulls it into
+     something darker. */
+  MUSIC: {
+    /* semitone offsets from the root, as [chord, ...] progressions */
+    dawn: { root: 55, scale: [0, 2, 4, 7, 9], chords: [[0, 4, 7], [5, 9, 12], [7, 11, 14], [2, 5, 9]], tempo: 3.4, air: .55 },
+    day: { root: 57, scale: [0, 2, 4, 7, 9], chords: [[0, 4, 7], [7, 11, 14], [9, 12, 16], [5, 9, 12]], tempo: 3.0, air: .42 },
+    dusk: { root: 53, scale: [0, 3, 5, 7, 10], chords: [[0, 3, 7], [8, 12, 15], [5, 8, 12], [3, 7, 10]], tempo: 3.8, air: .62 },
+    night: { root: 45, scale: [0, 3, 5, 7, 10], chords: [[0, 3, 7], [5, 8, 12], [3, 7, 10], [10, 14, 17]], tempo: 4.6, air: .78 },
+    danger: { root: 41, scale: [0, 1, 5, 6, 8], chords: [[0, 6, 11], [1, 7, 12], [0, 5, 10], [6, 11, 15]], tempo: 2.4, air: .3 },
+  },
+  _mus: null,
+
+  startMusic() {
+    if (!this.ready || this._mus) return;
+    const ctx = this.ctx;
+    /* one shared feedback delay gives the whole score a sense of space
+       without an impulse response or a convolver */
+    const dly = ctx.createDelay(1.2);
+    dly.delayTime.value = .38;
+    const fb = ctx.createGain(); fb.gain.value = .34;
+    const wet = ctx.createGain(); wet.gain.value = .5;
+    const damp = ctx.createBiquadFilter();
+    damp.type = 'lowpass'; damp.frequency.value = 2200;
+    dly.connect(fb); fb.connect(dly);
+    dly.connect(damp); damp.connect(wet); wet.connect(this.music);
+    this._mus = { dly, wet, next: ctx.currentTime + .4, bar: 0, mode: 'day', t: 0 };
+  },
+
+  /** Pick the mode from the world, then schedule any bar that is due. */
+  musicTick(dt, hour, threat) {
+    const m = this._mus;
+    if (!m || !this.ctx || this.muted) return;
+    m.t += dt;
+    const mode = threat > .5 ? 'danger'
+      : hour < 6.5 || hour > 20.5 ? 'night'
+      : hour < 8.5 ? 'dawn'
+      : hour > 17.5 ? 'dusk' : 'day';
+    m.mode = mode;
+    const M = this.MUSIC[mode];
+
+    /* schedule ahead of the clock, never on it: a dropped frame must not
+       leave a hole in the music */
+    const now = this.ctx.currentTime;
+    if (now < m.next - .25) return;
+    const t0 = Math.max(now + .05, m.next);
+    const bar = M.tempo;
+    const chord = M.chords[m.bar % M.chords.length];
+    const midi = (n) => 440 * Math.pow(2, (M.root + n - 69) / 12);
+
+    /* pad: each chord tone as two slightly detuned voices */
+    for (let i = 0; i < chord.length; i++) {
+      const f = midi(chord[i]);
+      for (const det of [-4, 4]) {
+        this.tone(f, bar * 1.15, {
+          type: 'sine', gain: .055 * (i === 0 ? 1.25 : .8), detune: det,
+          dest: this.music, delay: t0 - now, attack: bar * .32,
+        });
+      }
+      if (i === 0) {
+        this.tone(f * .5, bar * 1.2, {
+          type: 'triangle', gain: .05, dest: this.music,
+          delay: t0 - now, attack: bar * .3,
+        });
+      }
+    }
+
+    /* melody: a few notes from the scale, never on every beat */
+    const rng = makeRNG((m.bar * 9176 + M.root) >>> 0);
+    const steps = 6;
+    for (let i = 0; i < steps; i++) {
+      if (rng() > (mode === 'danger' ? .34 : .40)) continue;
+      const deg = M.scale[(rng() * M.scale.length) | 0] + (rng() < .3 ? 12 : 0);
+      const when = t0 - now + (i / steps) * bar + rng() * .04;
+      this.tone(midi(deg + 12), .5 + rng() * .5, {
+        type: 'triangle', gain: .05 + rng() * .03, dest: this.music,
+        delay: when, attack: .02,
+      });
+      /* and the same note into the delay, so it echoes away behind itself */
+      this.tone(midi(deg + 12), .4, {
+        type: 'sine', gain: .03, dest: this._mus.dly, delay: when, attack: .02,
+      });
+    }
+
+    /* a low pulse only when something is hunting you */
+    if (mode === 'danger') {
+      for (let i = 0; i < 2; i++) {
+        this.tone(midi(-12), .3, {
+          type: 'sine', gain: .09, dest: this.music,
+          delay: t0 - now + i * bar * .5, attack: .01, f2: midi(-12) * .6,
+        });
+      }
+    }
+
+    m.bar++;
+    m.next = t0 + bar;
+  },
+
   startAmbience() {
     if (!this.ready || this._amb) return;
     const ctx = this.ctx;
@@ -13626,13 +13730,13 @@ const Game = {
     $('#respawnBed').addEventListener('click', () => Player.respawn(true));
     $('#respawnBeach').addEventListener('click', () => Player.respawn(false));
     $('#gl').addEventListener('mousedown', () => {
-      Sound.init(); Sound.resume(); Sound.startAmbience();
+      Sound.init(); Sound.resume(); Sound.startAmbience(); Sound.startMusic();
       if (this.state === 'play' && !anyScreenOpen() && !Input.locked) Input.lock();
     });
     /* a phone needs a real gesture to go fullscreen, and audio needs one to
        start; the first touch anywhere is it */
     addEventListener('pointerdown', () => {
-      Sound.init(); Sound.resume();
+      Sound.init(); Sound.resume(); Sound.startAmbience(); Sound.startMusic();
       if (Touch.active && Settings.touchFullscreen !== false) Touch.goFullscreen();
     }, { once: true });
   },
@@ -13961,6 +14065,20 @@ const Game = {
     World.updateWater(dt, Gfx.camera.position);
     Flora.update(dt, Player.pos);
     Sound.ambient(Sky.time / 24, Sky.weather, Player.inWater || World.heightAt(Player.pos.x, Player.pos.z) < 3);
+    /* how hunted the player is: the nearest hostile that is actually coming
+       for them, faded over distance. Drives the music into its darker mode. */
+    let threat = 0;
+    for (const c of Creatures.list) {
+      if (c.dead || c.tamed || c.unconscious) continue;
+      /* `target` is also set on a herbivore FLEEING the player, so the state
+         matters: only something actually chasing counts as a threat. */
+      if (c.state !== 'chase' || c.target !== Player) continue;
+      const d = Math.hypot(c.pos.x - Player.pos.x, c.pos.z - Player.pos.z);
+      threat = Math.max(threat, clamp01(1 - d / 42));
+      if (threat > .95) break;
+    }
+    if (Boss.active) threat = 1;
+    Sound.musicTick(dt, Sky.time, threat);
 
     /* how far shadows reach is a quality decision, not a view-distance one */
     Gfx.setShadowExtent(Gfx.q.shadowExtent || 70);
