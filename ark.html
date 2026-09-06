@@ -8002,6 +8002,8 @@ Object.assign(Creature.prototype, {
 
   acquire(target) {
     if (this.unconscious || this.dead) return;
+    /* a swimmer does not pick a fight with something standing on the beach */
+    if (this.sp.aquatic && target && target.pos && target.pos.y > World.seaLevel - .2) return;
     this.target = target;
     this.setState('chase');
     this.aggroT = Math.max(this.aggroT, 18);
@@ -8053,11 +8055,32 @@ Object.assign(Creature.prototype, {
       this.pos.y = damp(this.pos.y, Math.max(World.heightAt(this.pos.x, this.pos.z) + 3, want), 1.6, dt);
       this.pos.x += _v3a.x; this.pos.z += _v3a.z;
     } else if (this.sp.aquatic) {
+      /* A swimmer must stay in water it fits in.  This step used to be taken
+         unconditionally, and the depth was then clamped with the bounds the
+         wrong way round: on a beach the sea floor is ABOVE the surface, so
+         clamp(want, floor, surface) returned `floor` and damped the animal up
+         onto the sand, where it kept swimming inland at full speed — aquatics
+         never go through moveActor, so nothing stopped it.  That is how a
+         megalodon ended up chasing a player along the beach.
+
+         Now the destination is tested first: if it is too shallow to swim in,
+         the step is refused and the animal turns along the shore instead. */
+      const need = this.height * .9;                    // depth it needs to swim
+      const nx = this.pos.x + _v3a.x, nz = this.pos.z + _v3a.z;
+      if (World.seaLevel - World.heightAt(nx, nz) >= need * .55) {
+        this.pos.x = nx; this.pos.z = nz;
+      } else {
+        /* shore ahead — swing away from it and stay put this frame */
+        this.yaw += ((this.id % 2) ? 1 : -1) * dt * 2.2;
+        this.wanderTarget = null;
+      }
       const surface = World.seaLevel - this.height * .55;
       const floor = World.heightAt(this.pos.x, this.pos.z) + this.height * .35;
-      const want = ty != null ? ty : Math.min(surface, Math.max(floor, this.pos.y));
-      this.pos.y = damp(this.pos.y, clamp(want, floor, surface), 2, dt);
-      this.pos.x += _v3a.x; this.pos.z += _v3a.z;
+      /* if the bounds cross — shallower than the animal is thick — the surface
+         wins, so it never rises above the waterline */
+      const lo = Math.min(floor, surface), hi = surface;
+      const want = ty != null ? ty : Math.min(surface, Math.max(lo, this.pos.y));
+      this.pos.y = damp(this.pos.y, clamp(want, lo, hi), 2, dt);
     } else {
       Physics.moveActor(this, _v3a, dt, { stepUp: .9 });
       this.pos.y = damp(this.pos.y, World.groundAt(this.pos.x, this.pos.z), 14, dt);
@@ -8267,6 +8290,13 @@ Object.assign(Creature.prototype, {
         const d = Math.hypot((t.pos.x) - this.pos.x, (t.pos.z) - this.pos.z);
         const giveUp = (sp.aggroRange || 25) * 2.2;
         if (d > giveUp) { this.target = null; this.setState('return'); break; }
+        /* A swimmer cannot follow you onto the sand.  Chasing had no water
+           gate at all — only wandering did — so a shark would keep tracking a
+           target standing on dry land and grind against the shore forever.
+           Once the prey is out of the water it breaks off and goes home. */
+        if (sp.aquatic && t.pos.y > World.seaLevel - .2) {
+          this.target = null; this.setState('return'); break;
+        }
         this.attackTarget(dt);
         break;
       }
