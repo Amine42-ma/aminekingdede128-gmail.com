@@ -142,6 +142,51 @@ console.log('FEEL — stick response and look smoothing');
   await ctx.close();
 }
 
+/* --------------------------------------------------------------- SCREENS */
+console.log('\nSCREENS — the inventory is operable with a finger');
+{
+  const { ctx, page, errs } = await boot({ width: 802, height: 293 });
+  const r = await page.evaluate(() => {
+    const { UI, Inventory, Touch } = window.__ark;
+    const out = {};
+    Inventory.give('wood', 12);
+    UI.openInventory();
+    const slots = [...document.querySelectorAll('#youGrid .islot, .grid .islot')];
+    out.hasSlots = slots.length > 0;
+    if (!out.hasSlots) return out;
+
+    const tap = (el) => el.dispatchEvent(new PointerEvent('pointerdown',
+      { pointerId: 3, pointerType: 'touch', isPrimary: true, bubbles: true, cancelable: true }));
+
+    tap(slots[0]);
+    const sheet = document.querySelector('#sheet');
+    out.opened = sheet.classList.contains('on');
+    out.labelled = [...sheet.querySelectorAll('.acts button')].map((b) => b.textContent);
+    out.hasActions = out.labelled.length >= 2;
+    /* the sheet must stay inside the viewport on a 293px-tall screen */
+    const sr = sheet.getBoundingClientRect();
+    out.onScreen = sr.left >= 0 && sr.top >= 0 && sr.right <= innerWidth + 1 && sr.bottom <= innerHeight + 1;
+    /* every action must be a real touch target */
+    out.bigEnough = [...sheet.querySelectorAll('.acts button')]
+      .every((b) => b.getBoundingClientRect().height >= 40);
+
+    /* and one of them must actually do something */
+    const before = Inventory.bag.count ? Inventory.bag.count('wood') : null;
+    const drop = [...sheet.querySelectorAll('.acts button')].find((b) => /drop|إسقاط/i.test(b.textContent));
+    if (drop) { tap(drop); out.acted = true; out.closed = !sheet.classList.contains('on'); }
+    out.before = before;
+    return out;
+  });
+  check('inventory renders slots', r.hasSlots);
+  check('tapping a slot opens the action sheet', r.opened);
+  check('the sheet offers labelled actions', r.hasActions, (r.labelled || []).join(', '));
+  check('the sheet stays on screen', r.onScreen);
+  check('every action is a 40px+ target', r.bigEnough);
+  check('an action runs and closes the sheet', r.acted && r.closed);
+  if (errs.length) check('no console errors in screens', false, errs[0]);
+  await ctx.close();
+}
+
 /* ---------------------------------------------------------------- LAYOUT */
 console.log('\nLAYOUT — nothing overlaps, runs off-screen, or is too small to hit');
 for (const [label, viewport] of [
