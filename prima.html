@@ -2782,129 +2782,339 @@ function normalFromField(field, size, strength) {
  * already live in vertex colours, and replacing them would mean re-deriving
  * every one of them. Markings darken and warm; scales add relief.
  *
- * It is painted into the cylindrical UV space profileGeo produces — u around
- * the body, v along it — so markings resolve properly however coarse the mesh
- * is. Vertex colour on a hundred-vertex torso could never show a stripe, which
- * is why every animal used to be a flat smear of two tones.
+ * The painting frame is the cylindrical UV space profileGeo produces:
  *
- * Returns { map, normalMap }.
+ *   u — around the body. 0 and 1 are BOTH the spine (the sheet wraps there,
+ *       so the seam falls along the dorsal line where nothing shows), .25 and
+ *       .75 are the flanks, .5 is the belly.
+ *   v — along the body, tail at 0, neck at 1.
+ *
+ * Knowing that is the whole difference between a noise texture laid over an
+ * animal and markings that follow an anatomy. Everything below reads `u` and
+ * places itself accordingly: stripes taper and die out before they reach the
+ * belly, spots thin where the sun never falls, the spine carries a darker
+ * ridge, dust collects underneath, scales are broad across the ribs and
+ * tighten over the backbone — which is how they sit on a real animal.
+ *
+ * Returns { map, normalMap, roughnessMap }.
  */
 function creatureSkin(size, pal, opts) {
   const { pattern = 'plain', seed = 1, scaleKind = 'scale' } = opts || {};
-  const c = makeCanvas(size, size), g = c.getContext('2d');
+  const S = size;
+  const c = makeCanvas(S, S), g = c.getContext('2d');
   const rng = makeRNG(seed);
   const accent = new THREE.Color(pal[2] || pal[0]);
+  const nSlow = makeNoise2D(seed * 5 + 3);
+  const nFine = makeNoise2D(seed * 11 + 7);
+  const nCell = makeNoise2D(seed * 17 + 23);
+
+  /** 1 on the spine, 0 on the belly. */
+  const backness = (u) => 1 - Math.min(u, 1 - u) * 2;
+
   /* how far the accent pulls the hue where a marking sits */
-  const warm = (k) => {
-    const r = Math.round(255 * (k + accent.r * .10));
-    const gg = Math.round(255 * (k + accent.g * .10));
-    const b = Math.round(255 * (k + accent.b * .10));
-    return `rgb(${clamp(r, 0, 255) | 0},${clamp(gg, 0, 255) | 0},${clamp(b, 0, 255) | 0})`;
+  const warm = (k, a) => {
+    const r = clamp(Math.round(255 * (k + accent.r * .10)), 0, 255);
+    const gg = clamp(Math.round(255 * (k + accent.g * .10)), 0, 255);
+    const b = clamp(Math.round(255 * (k + accent.b * .10)), 0, 255);
+    return a == null ? `rgb(${r},${gg},${b})` : `rgba(${r},${gg},${b},${a})`;
   };
 
-  g.fillStyle = '#ffffff';
-  g.fillRect(0, 0, size, size);
+  /* --- 1 · ground tone ---------------------------------------------------
+     The old skin started from flat #ffffff, so the space between the markings
+     was dead — the reason a body read as painted plastic however good the
+     pattern on top of it was. Living hide is mottled everywhere, darker along
+     the spine, dusty underneath. That goes down first, and the markings sit
+     on it rather than on nothing.
 
-  /* --- markings ---------------------------------------------------------- */
+     The two noise fields are built at a quarter resolution and sampled
+     bilinearly: they carry only low frequencies, so a full-resolution pass
+     would cost sixteen times as much for detail that is not there. Each is
+     cross-faded with a copy shifted one period in u so it tiles around the
+     body with no seam. */
+  const LOW = Math.max(48, S >> 2);
+  const slow = new Float32Array(LOW * LOW), fine = new Float32Array(LOW * LOW);
+  for (let y = 0; y < LOW; y++) for (let x = 0; x < LOW; x++) {
+    const u = x / LOW, v = y / LOW, i = y * LOW + x;
+    slow[i] = lerp(fbm(nSlow, u * 4.2, v * 5.0, 4, 2.1, .5),
+                   fbm(nSlow, (u - 1) * 4.2, v * 5.0, 4, 2.1, .5), u);
+    fine[i] = lerp(fbm(nFine, u * 13, v * 15, 3, 2.3, .55),
+                   fbm(nFine, (u - 1) * 13, v * 15, 3, 2.3, .55), u);
+  }
+  const sample = (f, u, v) => {
+    const fx = u * LOW - .5, fy = clamp(v * LOW - .5, 0, LOW - 1.001);
+    const x0 = Math.floor(fx), y0 = Math.floor(fy);
+    const tx = fx - x0, ty = fy - y0;
+    const wx0 = ((x0 % LOW) + LOW) % LOW, wx1 = (wx0 + 1) % LOW;
+    const wy0 = clamp(y0, 0, LOW - 1), wy1 = Math.min(wy0 + 1, LOW - 1);
+    return lerp(lerp(f[wy0 * LOW + wx0], f[wy0 * LOW + wx1], tx),
+                lerp(f[wy1 * LOW + wx0], f[wy1 * LOW + wx1], tx), ty);
+  };
+
+  {
+    const img = g.createImageData(S, S), d = img.data;
+    for (let y = 0; y < S; y++) {
+      const v = y / S;
+      for (let x = 0; x < S; x++) {
+        const u = x / S, i = (y * S + x) * 4;
+        const back = backness(u);
+        const a = sample(slow, u, v), b = sample(fine, u, v);
+        let k = (.955 + a * .105) * (.982 + b * .036);
+        /* the darker line down the spine most reptiles and mammals carry */
+        k *= 1 - Math.pow(clamp01(back), 7) * .11;
+        /* and the paler, dustier underside */
+        const belly = Math.pow(clamp01(1 - back), 2.4);
+        k *= 1 + belly * .06;
+        const dust = belly * clamp01(b * 1.4 + .45) * .09;
+        /* dust is warm and desaturating, so it cannot be a grey multiply */
+        const r = k * (1 - dust * .35), gg = k * (1 - dust * .55), bb = k * (1 - dust * .85);
+        d[i] = clamp(r * 255, 0, 255); d[i + 1] = clamp(gg * 255, 0, 255);
+        d[i + 2] = clamp(bb * 255, 0, 255); d[i + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+  }
+
+  /* --- 2 · markings ------------------------------------------------------
+     Painted on their own sheet and then multiplied down over the ground tone,
+     because that is the only way to give them a per-pixel strength: a
+     horizontal alpha ramp erases them into the belly before they are
+     composited, which is what stops a Rex looking like a striped balloon.
+     Every shape is stamped three times, one period apart in u, so nothing is
+     ever cut in half at the seam. */
+  const pc = makeCanvas(S, S), pg = pc.getContext('2d');
+  const stamp = (draw) => { for (const ox of [-S, 0, S]) { pg.save(); pg.translate(ox, 0); draw(); pg.restore(); } };
+
   if (pattern === 'stripes') {
-    const n = 11 + (rng() * 7 | 0);
+    /* Real stripes are not bands of even width: they fork, they taper to a
+       point, and they are irregularly spaced. */
+    const n = 13 + (rng() * 8 | 0);
     for (let i = 0; i < n; i++) {
-      const v = (i + rng() * .4) / n * size;
-      const w = size * (.02 + rng() * .035);
-      g.globalAlpha = .5 + rng() * .35;
-      g.fillStyle = warm(.64);
-      g.beginPath();
-      for (let k = 0; k <= 20; k++) {
-        const u = k / 20 * size, wob = Math.sin(k * .8 + i * 1.7) * size * .014;
-        k === 0 ? g.moveTo(u, v + wob) : g.lineTo(u, v + wob);
-      }
-      for (let k = 20; k >= 0; k--) {
-        const u = k / 20 * size, wob = Math.sin(k * .8 + i * 1.7) * size * .014;
-        g.lineTo(u, v + wob + w);
-      }
-      g.closePath(); g.fill();
+      const v = (i + (rng() - .5) * .55) / n * S;
+      const w = S * (.020 + rng() * .034);
+      const wob = S * (.008 + rng() * .016), ph = rng() * 6.28;
+      const alpha = .42 + rng() * .34;
+      stamp(() => {
+        pg.globalAlpha = alpha;
+        pg.fillStyle = warm(.55);
+        pg.beginPath();
+        const edge = (k, off) => {
+          const u = k / 26 * S;
+          /* stripes narrow and fade as they run down the flank */
+          const taper = .35 + .65 * Math.sin(Math.PI * clamp01(k / 26));
+          return [u, v + Math.sin(k * .62 + ph) * wob + off * taper];
+        };
+        let p = edge(0, 0); pg.moveTo(p[0], p[1]);
+        for (let k = 1; k <= 26; k++) { p = edge(k, 0); pg.lineTo(p[0], p[1]); }
+        for (let k = 26; k >= 0; k--) { p = edge(k, w); pg.lineTo(p[0], p[1]); }
+        pg.closePath(); pg.fill();
+        /* a soft halo, so the edge is hide and not vinyl */
+        pg.globalAlpha = alpha * .38;
+        pg.lineWidth = S * .012; pg.strokeStyle = warm(.62); pg.stroke();
+      });
     }
   } else if (pattern === 'spots' || pattern === 'rosettes') {
-    const n = 110 + (rng() * 80 | 0);
+    const n = 150 + (rng() * 110 | 0);
     for (let i = 0; i < n; i++) {
-      const u = rng() * size, v = rng() * size;
-      const r = size * (.009 + rng() * .024);
-      g.globalAlpha = .45 + rng() * .4;
-      g.fillStyle = warm(.66);
-      g.beginPath(); g.ellipse(u, v, r, r * (.7 + rng() * .6), rng() * 6.28, 0, 6.28); g.fill();
-      if (pattern === 'rosettes') {
-        g.globalAlpha = .5;
-        g.fillStyle = warm(1.05);
-        g.beginPath(); g.ellipse(u, v, r * .48, r * .4, 0, 0, 6.28); g.fill();
-      }
+      const u = rng() * S, v = rng() * S;
+      const r = S * (.008 + Math.pow(rng(), 1.6) * .030);
+      const rot = rng() * 6.28, sq = .62 + rng() * .7;
+      const alpha = .38 + rng() * .42;
+      stamp(() => {
+        pg.globalAlpha = alpha;
+        pg.fillStyle = warm(.58);
+        if (pattern === 'rosettes') {
+          /* a rosette is a broken ring of blotches, not a filled disc */
+          const lobes = 4 + (rng() * 3 | 0);
+          for (let k = 0; k < lobes; k++) {
+            const a = rot + k / lobes * 6.283 + rng() * .3;
+            pg.beginPath();
+            pg.ellipse(u + Math.cos(a) * r * .82, v + Math.sin(a) * r * .82,
+                       r * .46, r * .34, a, 0, 6.283);
+            pg.fill();
+          }
+          pg.globalAlpha = alpha * .30;
+          pg.beginPath(); pg.ellipse(u, v, r * .55, r * .48, rot, 0, 6.283); pg.fill();
+        } else {
+          pg.beginPath(); pg.ellipse(u, v, r, r * sq, rot, 0, 6.283); pg.fill();
+        }
+      });
     }
   } else if (pattern === 'blotches') {
-    const n = 30 + (rng() * 20 | 0);
+    const n = 34 + (rng() * 22 | 0);
     for (let i = 0; i < n; i++) {
-      const u = rng() * size, v = rng() * size, r = size * (.035 + rng() * .06);
-      g.globalAlpha = .42;
-      g.fillStyle = warm(.70);
-      g.beginPath();
-      for (let k = 0; k <= 14; k++) {
-        const a = k / 14 * 6.283, rr = r * (.6 + rng() * .7);
-        const x = u + Math.cos(a) * rr, y = v + Math.sin(a) * rr;
-        k === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+      const u = rng() * S, v = rng() * S, r = S * (.030 + rng() * .058);
+      const alpha = .30 + rng() * .22;
+      /* the outline is sampled once and reused for both passes, so the halo
+         actually follows the blotch instead of being a second random shape */
+      const pts = [];
+      for (let k = 0; k < 18; k++) {
+        const a = k / 18 * 6.283, rr = r * (.55 + rng() * .75);
+        pts.push([u + Math.cos(a) * rr, v + Math.sin(a) * rr * .82]);
       }
-      g.closePath(); g.fill();
+      stamp(() => {
+        pg.globalAlpha = alpha;
+        pg.fillStyle = warm(.60);
+        pg.beginPath(); pg.moveTo(pts[0][0], pts[0][1]);
+        for (let k = 1; k < pts.length; k++) {
+          const p = pts[k], q = pts[(k + 1) % pts.length];
+          pg.quadraticCurveTo(p[0], p[1], (p[0] + q[0]) / 2, (p[1] + q[1]) / 2);
+        }
+        pg.closePath(); pg.fill();
+        pg.globalAlpha = alpha * .5;
+        pg.lineWidth = S * .018; pg.strokeStyle = warm(.68); pg.stroke();
+      });
     }
   } else if (pattern === 'banded') {
-    const n = 6 + (rng() * 4 | 0);
+    const n = 7 + (rng() * 5 | 0);
     for (let i = 0; i < n; i++) {
-      g.globalAlpha = .6;
-      g.fillStyle = warm(.62);
-      g.fillRect(0, (i + .2) / n * size, size, size * (.055 + rng() * .05));
+      const y0 = (i + .15 + (rng() - .5) * .3) / n * S;
+      const hgt = S * (.045 + rng() * .055);
+      stamp(() => {
+        const grd = pg.createLinearGradient(0, y0 - hgt * .35, 0, y0 + hgt * 1.35);
+        grd.addColorStop(0, warm(.62, 0));
+        grd.addColorStop(.5, warm(.55, .62));
+        grd.addColorStop(1, warm(.62, 0));
+        pg.globalAlpha = 1; pg.fillStyle = grd;
+        pg.fillRect(0, y0 - hgt * .35, S, hgt * 1.7);
+      });
+    }
+  } else {
+    /* `plain` is not "nothing": an unmarked animal still has broad tonal
+       patches, they are simply low contrast. */
+    const n = 16 + (rng() * 10 | 0);
+    for (let i = 0; i < n; i++) {
+      const u = rng() * S, v = rng() * S, r = S * (.06 + rng() * .10);
+      stamp(() => {
+        const grd = pg.createRadialGradient(u, v, 0, u, v, r);
+        grd.addColorStop(0, warm(.74, .30));
+        grd.addColorStop(1, warm(.74, 0));
+        pg.globalAlpha = 1; pg.fillStyle = grd;
+        pg.beginPath(); pg.ellipse(u, v, r, r * .8, 0, 0, 6.283); pg.fill();
+      });
     }
   }
-  g.globalAlpha = 1;
+  /* fade the whole marking sheet out towards the belly, then multiply it on */
+  pg.globalAlpha = 1;
+  pg.globalCompositeOperation = 'destination-in';
+  const fade = pg.createLinearGradient(0, 0, S, 0);
+  fade.addColorStop(0, 'rgba(0,0,0,1)');
+  fade.addColorStop(.30, 'rgba(0,0,0,.92)');
+  fade.addColorStop(.44, 'rgba(0,0,0,.30)');
+  fade.addColorStop(.50, 'rgba(0,0,0,.06)');
+  fade.addColorStop(.56, 'rgba(0,0,0,.30)');
+  fade.addColorStop(.70, 'rgba(0,0,0,.92)');
+  fade.addColorStop(1, 'rgba(0,0,0,1)');
+  pg.fillStyle = fade; pg.fillRect(0, 0, S, S);
+  pg.globalCompositeOperation = 'source-over';
+  g.globalCompositeOperation = 'multiply';
+  g.drawImage(pc, 0, 0);
+  g.globalCompositeOperation = 'source-over';
 
-  /* --- relief: scales, hide or feathers ---------------------------------- */
-  const px = g.getImageData(0, 0, size, size), d = px.data;
-  const cell = scaleKind === 'feather' ? size / 34 : scaleKind === 'hide' ? size / 11 : size / 44;
-  const height = new Float32Array(size * size);
-  const nz = makeNoise2D(seed * 7 + 3);
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    /* offset every other row so scales interlock instead of forming a grid */
-    const row = Math.floor(y / cell);
-    const fx = (x / cell + (row % 2) * .5) % 1, fy = (y / cell) % 1;
-    let h;
-    if (scaleKind === 'feather') {
-      h = Math.pow(Math.max(0, 1 - Math.abs(fx - .5) * 2), .7) * (1 - fy) * .85;
-    } else if (scaleKind === 'hide') {
-      h = fbm(nz, x * .10, y * .10, 4, 2.1, .5);
-    } else {
-      const dx = (fx - .5) * 2, dy = (fy - .5) * 2;
-      h = Math.max(0, 1 - (dx * dx + dy * dy));
+  /* --- 3 · relief: scales, hide or feathers ------------------------------
+     One pass builds three things at once: the height field the normal map is
+     derived from, a light modulation of the albedo so the relief is still
+     legible with the normals turned down, and a roughness map — because a
+     uniform roughness is most of why the old animals looked like they were cut
+     from the same rubber. Scale crowns are glossy, the creases between them
+     are not, dusty undersides are matte. */
+  const px = g.getImageData(0, 0, S, S), d = px.data;
+  /* half resolution: roughness carries no fine detail the eye can resolve on
+     a moving animal, and a third full-size sheet per species is real memory */
+  const RS = S >> 1;
+  const rgh = g.createImageData(RS, RS), rd = rgh.data;
+  const height = new Float32Array(S * S);
+  /* Scale rows across the whole sheet, and the sheet covers a whole animal:
+     46 rows down a Rex is a scale the size of a dinner plate, which is what
+     made the relief read as knitwear rather than as hide. */
+  const baseCell = scaleKind === 'feather' ? S / 34 : scaleKind === 'hide' ? S / 11 : S / 62;
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const u = x / S, i = y * S + x, j = i * 4;
+      const back = backness(u);
+      let h, gloss;
+      if (scaleKind === 'feather') {
+        /* a vane of barbs either side of a shaft, each row overlapping the
+           one below it the way a real contour feather does */
+        const cell = baseCell * (1.15 - back * .22);
+        const row = Math.floor(y / cell);
+        const fx = (x / cell + (row % 2) * .5) % 1, fy = (y / cell) % 1;
+        const sx = (fx - .5) * 2;
+        const vane = Math.pow(Math.max(0, 1 - Math.abs(sx)), .5) * (1 - fy * .78);
+        const shaft = Math.exp(-sx * sx * 52) * (1 - fy * .45);
+        h = vane * .74 + shaft * .5;
+        gloss = .10 + shaft * .26;
+      } else if (scaleKind === 'hide') {
+        /* wrinkles, not noise. Ridged fbm has sharp valleys and rounded
+           tops, which is exactly what a crease network in thick hide is —
+           smooth fbm only ever produced the soft lumps it produced before. */
+        const cr = ridged(nCell, x * .034, y * .034, 4, 2.15, .5);
+        const grain = fbm(nFine, x * .17, y * .17, 3, 2.2, .5) * .5 + .5;
+        h = Math.pow(clamp01(cr), 2.0) * .82 + grain * .26;
+        gloss = .04 + grain * .08;
+      } else {
+        /* scales, broad over the ribs and tightening towards the spine and
+           the belly, every other row offset so they interlock */
+        const cell = baseCell * (1.55 - Math.pow(back, 1.5) * .45 - Math.pow(1 - back, 2) * .42);
+        const row = Math.floor(y / cell);
+        const fx = (x / cell + (row % 2) * .5) % 1, fy = (y / cell) % 1;
+        const dx = (fx - .5) * 2, dy = (fy - .5) * 2;
+        const dome = Math.max(0, 1 - (dx * dx + dy * dy * 1.22));
+        h = Math.pow(dome, .58);
+        gloss = .30 * h;
+      }
+      const grain = fbm(nFine, x * .075, y * .075, 3, 2.2, .5) * .5 + .5;
+      h = clamp01(h * .80 + grain * .20);
+      height[i] = h;
+      /* The relief belongs in the NORMAL map. Baking a fifth of it into the
+         albedo as well is what turned a regular grid of scales into a woven
+         pattern you could see from thirty metres. */
+      const k = .945 + h * .105;        // stays near 1: this multiplies a colour
+      d[j] = Math.min(255, d[j] * k);
+      d[j + 1] = Math.min(255, d[j + 1] * k);
+      d[j + 2] = Math.min(255, d[j + 2] * k);
+      if ((x & 1) === 0 && (y & 1) === 0) {
+        const rj = ((y >> 1) * RS + (x >> 1)) * 4;
+        const r = clamp01(.90 - gloss - (1 - back) * .05 + (1 - h) * .07) * 255;
+        rd[rj] = rd[rj + 1] = rd[rj + 2] = r; rd[rj + 3] = 255;
+      }
     }
-    h = h * .72 + fbm(nz, x * .05, y * .05, 3, 2.2, .5) * .28;
-    height[y * size + x] = h;
-    const i = (y * size + x) * 4;
-    const k = .93 + h * .18;          // stays near 1: this multiplies a colour
-    d[i] = Math.min(255, d[i] * k);
-    d[i + 1] = Math.min(255, d[i + 1] * k);
-    d[i + 2] = Math.min(255, d[i + 2] * k);
   }
   g.putImageData(px, 0, 0);
+  const rc = makeCanvas(RS, RS); rc.getContext('2d').putImageData(rgh, 0, 0);
 
+  const aniso = TexLab.maxAniso();
   const map = new THREE.CanvasTexture(c);
   map.colorSpace = THREE.SRGBColorSpace;
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
-  map.anisotropy = 4;
+  map.anisotropy = aniso;
   map.needsUpdate = true;
 
-  const nrm = new THREE.CanvasTexture(normalFromField(height, size, scaleKind === 'hide' ? 2.0 : 3.2));
+  const nrm = new THREE.CanvasTexture(normalFromField(height, S, scaleKind === 'hide' ? 2.2 : 2.8));
   nrm.wrapS = nrm.wrapT = THREE.RepeatWrapping;
-  nrm.anisotropy = 4;
+  nrm.anisotropy = aniso;
   nrm.needsUpdate = true;
-  return { map, normalMap: nrm };
+
+  const rough = new THREE.CanvasTexture(rc);
+  rough.wrapS = rough.wrapT = THREE.RepeatWrapping;
+  rough.anisotropy = aniso;
+  rough.needsUpdate = true;
+  return { map, normalMap: nrm, roughnessMap: rough };
 }
 
 const TexLab = {
   cache: {},
+
+  /* Every texture in here used to be pinned at anisotropy 4, which is where a
+     skin goes to mush the moment you look along a flank instead of straight at
+     it — and looking along a flank is most of what you do while walking past
+     an animal. Ask the driver what it can actually do, once, and cache it. */
+  _aniso: 0,
+  maxAniso() {
+    if (this._aniso) return this._aniso;
+    let m = 8;
+    try { m = Gfx.renderer.capabilities.getMaxAnisotropy() || 8; } catch (e) { /* pre-init */ }
+    return (this._aniso = clamp(m, 1, 16));
+  },
 
   /* Painted skins are cached per species+variant, never per creature: a herd of
      twenty parasaurs shares one pair of textures. Bounded, because 23 species x
@@ -2914,14 +3124,25 @@ const TexLab = {
     const key = id + ':' + variant;
     const hit = this.skins[key];
     if (hit) return hit;
-    const size = (Gfx.q.creature == null ? 2 : Gfx.q.creature) >= 2 ? 512 : 256;
+    /* A phone runs the `medium` tier, which used to paint a whole animal into
+       256 pixels — the lowest resolution surface in a game whose whole subject
+       is standing next to animals. It gets the full sheet now; only the
+       weakest tier still halves it. The painter's slow fields are built at a
+       quarter of this and the roughness map at a half, so the extra cost is
+       nothing like four times. */
+    const det = Gfx.q.creature == null ? 2 : Gfx.q.creature;
+    const size = det >= 1 ? 512 : 256;
     const made = creatureSkin(size, pal, opts);
     this.skins[key] = made;
     this.skinOrder.push(key);
     while (this.skinOrder.length > 16) {
       const old = this.skinOrder.shift();
       const t = this.skins[old];
-      if (t) { t.map.dispose(); t.normalMap.dispose(); delete this.skins[old]; }
+      if (t) {
+        t.map.dispose(); t.normalMap.dispose();
+        if (t.roughnessMap) t.roughnessMap.dispose();
+        delete this.skins[old];
+      }
     }
     return made;
   },
@@ -3007,13 +3228,18 @@ const TexLab = {
       const S = 256, c = makeCanvas(S, S), g = c.getContext('2d');
       const rng = makeRNG(4471);
       g.clearRect(0, 0, S, S);
-      /* v runs base (0) to tip (1) along the frond; u is across it */
+      /* v runs base (0) to tip (1) along the frond; u is across it.
+         Drawn upside down: a canvas texture uploads flipped, so v = 0 is the
+         BOTTOM of the sheet. Painting base-at-the-top, as this did, put the
+         frond's tip at the geometry's base and angled every leaflet backwards
+         — the fronds have been on back to front since they were written. */
+      const Y = (v) => (1 - clamp01(v)) * S;
       const rib = (v) => S * .5;
       const halfW = (v) => S * .49 * Math.sin(Math.PI * Math.pow(clamp01(v), .48)) * (1 - v * .14);
       /* the mid-rib itself */
       g.strokeStyle = 'rgb(150,150,150)';
       g.lineWidth = S * .022;
-      g.beginPath(); g.moveTo(rib(0), 2); g.lineTo(rib(1), S - 2); g.stroke();
+      g.beginPath(); g.moveTo(rib(0), Y(0) - 2); g.lineTo(rib(1), Y(1) + 2); g.stroke();
       /* leaflets, angled forward, shorter towards the tip */
       /* Dense enough that neighbouring leaflets touch at the base: a palm
          frond is a solid blade near the rib that only splits toward the tip.
@@ -3021,17 +3247,17 @@ const TexLab = {
       const n = 58;
       for (let i = 0; i < n; i++) {
         const v = (i + .5) / n;
-        const y = v * S;
+        const y = Y(v);
         const w = halfW(v) * (.88 + rng() * .22);
         for (const side of [-1, 1]) {
           const tone = 180 + (rng() * 66 | 0);
           g.fillStyle = `rgb(${tone},${tone},${tone})`;
           g.beginPath();
-          g.moveTo(rib(v), y - S * .014);
-          g.quadraticCurveTo(rib(v) + side * w * .5, y + S * .004,
-                             rib(v) + side * w, y + S * .072 * (1 - v * .42));
-          g.quadraticCurveTo(rib(v) + side * w * .42, y + S * .034,
-                             rib(v), y + S * .020);
+          g.moveTo(rib(v), y + S * .014);
+          g.quadraticCurveTo(rib(v) + side * w * .5, y - S * .004,
+                             rib(v) + side * w, y - S * .072 * (1 - v * .42));
+          g.quadraticCurveTo(rib(v) + side * w * .42, y - S * .034,
+                             rib(v), y - S * .020);
           g.closePath(); g.fill();
         }
       }
@@ -3066,6 +3292,51 @@ const TexLab = {
           leaf(x + ox * S, y + oy * S, len, wid, ang, tone);
         }
       }
+      return this.bleedAlpha(c);
+    });
+    /* A single long blade with a rib down it, mapped once from base to tip.
+       Fibre plants are rosettes of exactly this shape, and they used to be
+       drawn as solid cones wearing the tiling LEAF sheet — a mask of scattered
+       little leaves, cut out at alphaTest, over geometry it has nothing to do
+       with. That is what shredded every fibre plant into the ragged black
+       spikes standing all over the island. */
+    this.bladeMask = this.tex('bladeMask', () => {
+      const S = 256, c = makeCanvas(S, S), g = c.getContext('2d');
+      const rng = makeRNG(2213);
+      g.clearRect(0, 0, S, S);
+      /* v runs base (0) to tip (1). A canvas texture is uploaded flipped, so
+         v maps to the BOTTOM of the sheet — the blade is drawn upside down on
+         purpose, base at y = S, and it comes out the right way up on the card. */
+      const Y = (v) => (1 - v) * S;
+      const halfW = (v) => S * .46 * Math.sin(Math.PI * Math.pow(clamp01(v), .40)) * (1 - v * v * .55);
+      g.beginPath();
+      g.moveTo(S * .5 - halfW(0), Y(0));
+      for (let i = 0; i <= 40; i++) {
+        const v = i / 40;
+        /* a shallow serration, so the edge is a leaf and not a razor */
+        const k = 1 + Math.sin(v * 46) * .035;
+        g.lineTo(S * .5 - halfW(v) * k, Y(v));
+      }
+      for (let i = 40; i >= 0; i--) {
+        const v = i / 40;
+        const k = 1 + Math.sin(v * 41 + 1.7) * .035;
+        g.lineTo(S * .5 + halfW(v) * k, Y(v));
+      }
+      g.closePath();
+      g.fillStyle = 'rgb(215,215,215)'; g.fill();
+      /* the rib, and a vein either side of it */
+      g.strokeStyle = 'rgba(160,160,160,.9)'; g.lineWidth = S * .012;
+      g.beginPath(); g.moveTo(S * .5, Y(.02)); g.lineTo(S * .5, Y(.97)); g.stroke();
+      g.lineWidth = S * .005; g.strokeStyle = 'rgba(180,180,180,.55)';
+      for (const side of [-1, 1]) {
+        g.beginPath();
+        for (let i = 0; i <= 20; i++) {
+          const v = i / 20, x = S * .5 + side * halfW(v) * .45;
+          i === 0 ? g.moveTo(x, Y(v)) : g.lineTo(x, Y(v));
+        }
+        g.stroke();
+      }
+      void rng;
       return this.bleedAlpha(c);
     });
     this.rockD = this.tex('rockD', () => tintedNoiseTexture(256, ['#8e8e8e', '#c0c0c0', '#eaeaea'], { scale: 5, octaves: 6, detail: true, seed: 33 }));
@@ -4146,15 +4417,20 @@ const tr = en => I18N.str(en);
    lets a player make the trade themselves rather than trusting the detector.
    `view` and `foliage` go up with them, because sharpening the image and then
    cutting the trees off at 210 m only makes the cut more obvious. */
+/* `env` is how many seconds may pass between rebuilds of the sky's image-based
+   light (see Gfx.updateEnv). Every tier gets one — it is the single largest
+   step this renderer takes away from looking like a 1990s hardware demo — the
+   weaker ones simply let it go stale for longer between the day's colours
+   changing. 0 would switch it off entirely. */
 const QUALITY = {
   low:    { shadow: 0, shadowSize: 1024, view: 460, grass: 0, bloom: 0, pixel: 1, foliage: .85, waterSeg: 24,
-            fxaa: 1, creature: 0, ssao: 0, shadowExtent: 55, farShadow: 0 },
+            fxaa: 1, creature: 0, ssao: 0, shadowExtent: 55, farShadow: 0, env: 14 },
   medium: { shadow: 1, shadowSize: 1024, view: 560, grass: .5, bloom: 1, pixel: 1, foliage: 1, waterSeg: 48,
-            fxaa: 1, creature: 1, ssao: 0, shadowExtent: 70, farShadow: 0 },
+            fxaa: 1, creature: 1, ssao: 0, shadowExtent: 70, farShadow: 0, env: 8 },
   high:   { shadow: 1, shadowSize: 2048, view: 620, grass: 1, bloom: 1, pixel: 1, foliage: 1, waterSeg: 72,
-            fxaa: 1, creature: 2, ssao: 1, shadowExtent: 95, farShadow: 1 },
+            fxaa: 1, creature: 2, ssao: 1, shadowExtent: 95, farShadow: 1, env: 4 },
   ultra:  { shadow: 1, shadowSize: 4096, view: 850, grass: 1.4, bloom: 1, pixel: 1, foliage: 1.3, waterSeg: 96,
-            fxaa: 1, creature: 2, ssao: 1, shadowExtent: 120, farShadow: 1 },
+            fxaa: 1, creature: 2, ssao: 1, shadowExtent: 120, farShadow: 1, env: 3 },
 };
 
 /* The camera's resting field of view. 78 was wide enough to stretch the frame
@@ -4378,6 +4654,16 @@ const Gfx = {
         uSunCol: { value: new THREE.Color(0xfff0cc) },
         uCloud: { value: 0.42 },
         uStorm: { value: 0.0 },
+        /* 1 while the dome is being pre-filtered into the environment map.
+           Two things have to change for that pass. The sun's disc has to go:
+           the directional light already delivers the sun, and leaving a term
+           worth 22x the sky in the map means the whole world gets its sunlight
+           twice, from every direction at once — which is a flat, shadowless,
+           everything-lit-from-everywhere image, exactly the thing an
+           environment map is supposed to cure. And the rest is scaled down to
+           roughly the share of a clear day's light that actually arrives as
+           skylight rather than as sun. */
+        uEnv: { value: 0.0 },
       },
       vertexShader: `
         varying vec3 vDir;
@@ -4386,7 +4672,7 @@ const Gfx = {
         precision highp float;
         varying vec3 vDir;
         uniform vec3 uSun, uZenith, uHorizon, uGround, uSunCol;
-        uniform float uTime, uDay, uCloud, uStorm;
+        uniform float uTime, uDay, uCloud, uStorm, uEnv;
         float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453123); }
         float vnoise(vec2 p){
           vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
@@ -4401,9 +4687,10 @@ const Gfx = {
           if(h < 0.0) col = mix(uHorizon, uGround, clamp(-h*3.2,0.0,1.0));
           // sun disc + halo
           float sd = max(dot(d, normalize(uSun)), 0.0);
-          col += uSunCol * pow(sd, 850.0) * 22.0;
-          col += uSunCol * pow(sd, 12.0) * 0.30 * uDay;
-          col += uSunCol * pow(sd, 3.0) * 0.09;
+          float disc = 1.0 - uEnv;
+          col += uSunCol * pow(sd, 850.0) * 22.0 * disc;
+          col += uSunCol * pow(sd, 12.0) * 0.30 * uDay * disc;
+          col += uSunCol * pow(sd, 3.0) * 0.09 * disc;
           // the moon, opposite the sun
           float night = 1.0 - uDay;
           vec3 moonDir = -normalize(uSun);
@@ -4430,6 +4717,7 @@ const Gfx = {
           cloudLit = mix(cloudLit, cloudLit*vec3(0.42,0.44,0.5), uStorm);
           cloudLit += uSunCol * pow(sd, 6.0) * 0.5 * uDay;
           col = mix(col, cloudLit, cl * (0.55 + uCloud*0.45));
+          col *= mix(1.0, 0.42, uEnv);
           gl_FragColor = vec4(col, 1.0);
         }`,
     });
@@ -4438,6 +4726,58 @@ const Gfx = {
     this.sky.renderOrder = -1000;
     this.sky.matrixAutoUpdate = false;
     this.scene.add(this.sky);
+
+    /* A second, small copy of the same dome, sharing the same material and so
+       the same time of day, living alone in its own scene. updateEnv renders
+       the six faces of a cube from inside it and pre-filters the result; that
+       becomes scene.environment. */
+    this._envScene = new THREE.Scene();
+    this._envSky = new THREE.Mesh(new THREE.SphereGeometry(10, 24, 16), mat);
+    this._envSky.frustumCulled = false;
+    this._envScene.add(this._envSky);
+  },
+
+  /* --- image-based light from the sky ------------------------------------
+     Every surface in the game was lit by one directional light, one hemisphere
+     and a flat 6% ambient. That is a 1990s lighting rig, and it is most of why
+     the island reads as plastic: a hemisphere light is a two-colour guess at
+     the sky, so nothing anywhere picks up the colour of the horizon it is
+     standing against, no shaded side ever carries a bounce, and every rough
+     surface reflects nothing at all.
+
+     Pre-filtering the actual sky dome into an environment map fixes all three
+     at once, and because the sky only changes as slowly as the sun moves, it
+     can be rebuilt every few seconds instead of every frame — a few
+     milliseconds every `q.env` seconds, for the largest single improvement in
+     the picture. */
+  _envRT: null, _pmrem: null, _envT: 0, _envDay: -99,
+  updateEnv(dt) {
+    const every = this.q.env;
+    if (!every) {
+      if (this.scene.environment) { this.scene.environment = null; }
+      return;
+    }
+    this._envT -= dt;
+    /* rebuild on the clock, or immediately when the light has moved enough to
+       see — dawn and dusk change fast, midday and midnight barely at all */
+    const day = Sky.dayFactor ? Sky.dayFactor() : 1;
+    if (this._envT > 0 && Math.abs(day - this._envDay) < .06 && this._envRT) return;
+    this._envT = every;
+    this._envDay = day;
+    try {
+      if (!this._pmrem) this._pmrem = new THREE.PMREMGenerator(this.renderer);
+      this.skyMat.uniforms.uEnv.value = 1;
+      const rt = this._pmrem.fromScene(this._envScene, 0, 1, 40);
+      this.skyMat.uniforms.uEnv.value = 0;
+      if (this._envRT) this._envRT.dispose();
+      this._envRT = rt;
+      this.scene.environment = rt.texture;
+    } catch (e) {
+      this.skyMat.uniforms.uEnv.value = 0;
+      /* an environment map is a luxury: if the device cannot build one, the
+         hemisphere light below still lights the world */
+      this.q.env = 0;
+    }
   },
 
   /* --- post processing -------------------------------------------------- */
@@ -4613,7 +4953,7 @@ const Gfx = {
     });
 
     this.matBright = new THREE.ShaderMaterial({
-      uniforms: { tDiffuse: { value: null }, uThreshold: { value: 1.02 }, uSoft: { value: .55 } },
+      uniforms: { tDiffuse: { value: null }, uThreshold: { value: 1.15 }, uSoft: { value: .48 } },
       vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0);} `,
       fragmentShader: `
         varying vec2 vUv; uniform sampler2D tDiffuse; uniform float uThreshold, uSoft;
@@ -4645,9 +4985,9 @@ const Gfx = {
       uniforms: {
         tScene: { value: null }, tBloom: { value: null }, tAO: { value: null },
         uAO: { value: 0 },
-        uBloom: { value: .55 }, uTime: { value: 0 }, uVignette: { value: .85 },
-        uUnder: { value: 0 }, uDamage: { value: 0 }, uGrain: { value: .035 },
-        uFlash: { value: 0 }, uSat: { value: 1.04 }, uContrast: { value: 1.04 }, uTint: { value: new THREE.Color(1, 1, 1) },
+        uBloom: { value: .55 }, uTime: { value: 0 }, uVignette: { value: .78 },
+        uUnder: { value: 0 }, uDamage: { value: 0 }, uGrain: { value: .016 },
+        uFlash: { value: 0 }, uSat: { value: 1.10 }, uContrast: { value: 1.10 }, uTint: { value: new THREE.Color(1, 1, 1) },
       },
       vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0);} `,
       fragmentShader: `
@@ -4679,6 +5019,16 @@ const Gfx = {
           c = mix(c, c * vec3(0.36,0.68,0.92) + vec3(0.0,0.03,0.07), uUnder * 0.85);
           // damage grade
           c = mix(c, vec3(dot(c, vec3(0.3,0.59,0.11))) * vec3(1.25,0.45,0.42), uDamage*0.55);
+          /* Split tone: cool the shadows, warm the highlights.
+
+             Nothing else in this chain separates the two ends of the range,
+             and a frame where shadow and highlight carry the same hue is
+             exactly what "it looks like a game from the sixties" describes —
+             every rendered image that reads as modern does some version of
+             this, because every photographic process does. Two multiplies. */
+          float lum0 = dot(c, vec3(0.2126,0.7152,0.0722));
+          c *= mix(vec3(0.965, 0.985, 1.075), vec3(1.045, 1.005, 0.955),
+                   smoothstep(0.03, 0.78, lum0));
           // contrast + saturation
           c = (c - 0.5) * uContrast + 0.5;
           float l = dot(c, vec3(0.2126,0.7152,0.0722));
@@ -4800,10 +5150,10 @@ const Gfx = {
     /* photo mode drives the grade straight through the composite, so whatever
        you see is exactly what lands in the exported PNG */
     const ph = this.fx.photo;
-    u.uVignette.value = ph ? ph.vignette : .85;
-    u.uSat.value = ph ? ph.sat : 1.04;
-    u.uContrast.value = ph ? ph.contrast : 1.04;
-    u.uGrain.value = ph ? ph.grain : .035;
+    u.uVignette.value = ph ? ph.vignette : .78;
+    u.uSat.value = ph ? ph.sat : 1.10;
+    u.uContrast.value = ph ? ph.contrast : 1.10;
+    u.uGrain.value = ph ? ph.grain : .016;
     if (ph) u.uTint.value.setRGB(ph.tint[0], ph.tint[1], ph.tint[2]);
     else u.uTint.value.setRGB(1, 1, 1);
     /* Composite into rtC and antialias on the way to the screen. The composite
@@ -4914,17 +5264,26 @@ const Sky = {
     S.target.position.copy(snapped); S.target.updateMatrixWorld();
     const sunCol = new THREE.Color().setHSL(lerp(0.13, 0.07, dusk), lerp(0.25, 0.85, dusk), lerp(0.92, 0.56, dusk));
     S.color.copy(sunCol);
-    S.intensity = clamp01(elev * 2.6) * (1.95 - this.cloud * .95) * (1 - this.storm * .35);
+    /* A touch stronger and, more importantly, cut back much harder by cloud:
+       direct sun and a bright sky ambient at the same time is the flat,
+       shadowless "everything is lit from everywhere" look. */
+    S.intensity = clamp01(elev * 2.6) * (2.25 - this.cloud * 1.30) * (1 - this.storm * .4);
 
     M.position.copy(this.sunDir).multiplyScalar(-180).add(camPos);
     M.target.position.copy(camPos); M.target.updateMatrixWorld();
     M.intensity = clamp01(-elev * 2.2) * .62;
     M.color.setHex(0x9db4e0);
 
-    Gfx.hemi.intensity = lerp(.145, .42, day) * (1 - this.storm * .3);
+    /* The hemisphere is now a FILL under the environment map, not the whole
+       ambient term. Left at its old strength on top of real image-based
+       lighting the world simply washed out; at these levels the two together
+       land close to where the hemisphere alone used to sit, but with the
+       sky's actual colour and direction in it. */
+    const envOn = !!Gfx.q.env && !!Gfx.scene.environment;
+    Gfx.hemi.intensity = lerp(.145, .42, day) * (1 - this.storm * .3) * (envOn ? .6 : 1);
     Gfx.hemi.color.setHSL(lerp(.62, .58, day), lerp(.35, .45, day), lerp(.22, .72, day));
     Gfx.hemi.groundColor.setHSL(.1, .25, lerp(.06, .3, day));
-    Gfx.ambient.intensity = lerp(.06, .075, day);
+    Gfx.ambient.intensity = lerp(.06, .075, day) * (envOn ? .55 : 1);
 
     /* sky + fog colours */
     const zen = new THREE.Color().setHSL(lerp(.62, .58, day), lerp(.55, .62, day), lerp(.05, .42, day));
@@ -4943,14 +5302,21 @@ const Sky = {
     const fogCol = hor.clone().lerp(zen, .28);
     if (this.weather === 'fog') fogCol.lerp(new THREE.Color(0xb9c4c9), .55);
     Gfx.scene.fog.color.copy(fogCol);
-    const baseDens = this.weather === 'fog' ? .0085 : this.weather === 'storm' ? .0045 : .0018;
+    /* Clear weather was carrying .0018, which is 40% grey over a surface 400 m
+       away — a permanent haze on a supposedly clear day, and a large part of
+       what flattened every distant hill into the sky behind it. Clear air is
+       clear; the overcast states keep their weight. */
+    const baseDens = this.weather === 'fog' ? .0085 : this.weather === 'storm' ? .0042
+      : this.weather === 'cloudy' ? .0016 : .0011;
     /* Fog was thinned only above `high`, so the tiers with the SHORTEST draw
        distance — the ones that needed the horizon most — also got the
        thickest fog, and grey closed in a couple of hundred metres out. It now
        scales with the draw distance instead of stepping at one threshold. */
     const fogScale = clamp(340 / Math.max(220, Gfx.q.view), .55, 1.15) * (Gfx.fogMul || 1);
     Gfx.scene.fog.density = lerp(baseDens * 1.6, baseDens, day) * fogScale;
-    Gfx.renderer.toneMappingExposure = lerp(1.18, .82, day) * Gfx.fx.exposureBoost;
+    /* .82 at midday under ACES is a dim, milky frame. Opening up and letting
+       the tone curve's shoulder do the work is what the curve is for. */
+    Gfx.renderer.toneMappingExposure = lerp(1.06, .90, day) * Gfx.fx.exposureBoost;
 
     /* rain particles follow the camera */
     if (this.rain) {
@@ -5516,6 +5882,30 @@ function mergeGeos(parts) {
   out.computeBoundingSphere();
   return out;
 }
+/** Tilt a foliage geometry's normals towards the sky.
+ *
+ *  A leaf card standing on edge has a horizontal normal, and a horizontal
+ *  normal takes essentially no light from a sun overhead: every upright blade
+ *  and frond in the game rendered as a black spike at midday, which is most of
+ *  what "the plants look bad" means. Real foliage is thin enough to scatter
+ *  light through itself and is never that dark from any angle; biasing the
+ *  normals towards +Y is the cheap stand-in for that, and it is exactly what
+ *  the grass field has always done for its blades.
+ *
+ *  Called on the MERGED geometry, in the plant's own space, so +Y really is
+ *  up — doing it inside a card builder would bias towards whatever direction
+ *  that particular card happens to be rotated to. */
+function liftNormals(geo, k) {
+  const n = geo.attributes.normal;
+  if (!n) return geo;
+  for (let i = 0; i < n.count; i++) {
+    const x = n.getX(i) * (1 - k), y = n.getY(i) * (1 - k) + k, z = n.getZ(i) * (1 - k);
+    const l = Math.hypot(x, y, z) || 1;
+    n.setXYZ(i, x / l, y / l, z / l);
+  }
+  n.needsUpdate = true;
+  return geo;
+}
 const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s3 = new THREE.Vector3();
 function trs(x, y, z, rx, ry, rz, sx, sy, sz) {
   _e.set(rx || 0, ry || 0, rz || 0);
@@ -5557,7 +5947,7 @@ const Flora = {
     const P = this.protos;
     const barkMat = this.mats.bark = new THREE.MeshStandardMaterial({ map: TexLab.barkD, vertexColors: true, roughness: .93 });
     const leafMat = this.mats.leaf = new THREE.MeshStandardMaterial({
-      map: TexLab.leafMask, vertexColors: true, roughness: .82,
+      map: TexLab.leafMask, vertexColors: true, roughness: .95, envMapIntensity: .55,
       side: THREE.DoubleSide,
       /* cut out rather than blend: alphaTest needs no sorting, works with
          instancing, and still casts a correctly shaped shadow */
@@ -5567,10 +5957,24 @@ const Flora = {
     /* fronds get their own material: the mask must map once across the whole
        frond, not tile, or the leaflets repeat down its length */
     this.mats.frond = new THREE.MeshStandardMaterial({
-      map: TexLab.frondMask, vertexColors: true, roughness: .8,
+      map: TexLab.frondMask, vertexColors: true, roughness: .92, envMapIntensity: .55,
       side: THREE.DoubleSide, alphaTest: .38, transparent: false,
     });
     this.addWind(this.mats.frond, 'frond-wind', .8);
+    /* a single blade, mapped once, for rosette plants */
+    this.mats.blade = new THREE.MeshStandardMaterial({
+      map: TexLab.bladeMask, vertexColors: true, roughness: .94, envMapIntensity: .55,
+      side: THREE.DoubleSide, alphaTest: .40, transparent: false,
+    });
+    this.addWind(this.mats.blade, 'blade-wind', 1.1);
+    /* Solid foliage — stems, reeds, petals. These are closed geometry and want
+       no cutout at all: putting the tiling leaf mask on a flower stalk only
+       ever ate holes in it. Near-white grain, because the colour is in the
+       vertices. */
+    this.mats.plant = new THREE.MeshStandardMaterial({
+      map: TexLab.leafD, vertexColors: true, roughness: .94, envMapIntensity: .6,
+    });
+    this.addWind(this.mats.plant, 'plant-wind', 1.0);
     const rockMat = this.mats.rock = new THREE.MeshStandardMaterial({ map: TexLab.rockD, vertexColors: true, roughness: .95 });
     const oreMat = this.mats.ore = new THREE.MeshStandardMaterial({ map: TexLab.rockD, vertexColors: true, roughness: .55, metalness: .55 });
     this.mats.crystal = new THREE.MeshStandardMaterial({
@@ -5662,7 +6066,7 @@ const Flora = {
         leaves.push(...canopyCluster(tipX, bh + len * .8, tipZ, (big ? 2.0 : 1.5) * (.8 + rng() * .4), cols, rng, 4));
       }
       leaves.push(...canopyCluster(trunk.topX, h + (big ? 1.4 : 1.0), trunk.topZ, (big ? 2.4 : 1.8), cols, rng, 5));
-      return { trunk: mergeGeos(parts), leaves: mergeGeos(leaves), h: h + 3, r: r0 * 2.4 };
+      return { trunk: mergeGeos(parts), leaves: liftNormals(mergeGeos(leaves), .26), h: h + 3, r: r0 * 2.4 };
     };
 
     /* --- pine / redwood: buttressed trunk and stacked skirts -------------- */
@@ -5683,7 +6087,7 @@ const Flora = {
         const c = new THREE.Color(cols[0]).lerp(new THREE.Color(cols[1]), .25 + t * .6);
         leaves.push({ geo: cone(rr, rr * 1.5, 9), matrix: trs(trunk.topX * t, y, trunk.topZ * t, 0, rng() * TAU, 0), color: c.getHex() });
       }
-      return { trunk: mergeGeos(parts), leaves: mergeGeos(leaves), h: h + 6, r: r0 * 2 };
+      return { trunk: mergeGeos(parts), leaves: liftNormals(mergeGeos(leaves), .26), h: h + 6, r: r0 * 2 };
     };
 
     /* --- palm: curved trunk, drooping fronds, coconuts -------------------- */
@@ -5766,7 +6170,7 @@ const Flora = {
         const a = rng() * TAU;
         parts.push({ geo: ico(.19, 0), matrix: trs(x + Math.cos(a) * .35, y - .2, z + Math.sin(a) * .35), color: 0x6b4a2c });
       }
-      return { trunk: mergeGeos(parts), leaves: mergeGeos(leaves), leafMat: 'frond', h: h + 1.5, r: .8 };
+      return { trunk: mergeGeos(parts), leaves: liftNormals(mergeGeos(leaves), .48), leafMat: 'frond', h: h + 1.5, r: .8 };
     };
 
     /* --- dead tree -------------------------------------------------------- */
@@ -5813,67 +6217,133 @@ const Flora = {
         const a = rng() * TAU;
         parts.push({ geo: cyl(.02, .035, .4, 4), matrix: trs(Math.cos(a) * .1, .2, Math.sin(a) * .1, 0, 0, Math.cos(a) * .3), color: 0x6b5136 });
       }
-      return { trunk: null, leaves: mergeGeos(parts), h: 1.4, r: .8 };
+      return { trunk: null, leaves: liftNormals(mergeGeos(parts), .34), h: 1.4, r: .8 };
     };
 
-    /* --- small plants ------------------------------------------------------ */
+    /* --- small plants ------------------------------------------------------
+       All four of these used to be built from cones and cylinders and then
+       handed `mats.leaf` — the TILING sheet of scattered little leaf shapes,
+       cut out at alphaTest .42. A mask of leaves has no relationship to the
+       surface of a cone, so it simply punched holes through them at random and
+       left ragged, dark, spiky fragments: the things standing all over the
+       island in every screenshot. Each one now gets geometry and a material
+       that belong together — cards carrying a blade or a frond mapped once,
+       or solid geometry with no cutout at all. */
     const fiberPlant = (seed) => {
       const rng = makeRNG(seed);
       const parts = [];
-      const n = 10 + Math.floor(rng() * 5);
+      /* a rosette of long blades that rise and then arch outward, the way a
+         sedge or a young flax does */
+      const n = 9 + Math.floor(rng() * 5);
       for (let i = 0; i < n; i++) {
         const a = (i / n) * TAU + rng() * .5;
-        const len = .8 + rng() * .7, lean = .3 + rng() * .5;
+        const len = .85 + rng() * .7;
+        const droop = .30 + rng() * .55;
         parts.push({
-          geo: cone(.045, len, 3),
-          matrix: trs(Math.cos(a) * .12, len * .42, Math.sin(a) * .12, Math.sin(a) * lean, -a, -Math.cos(a) * lean, .8, 1, .3),
-          color: [0x6f9c3c, 0x7fae48, 0x638d34][Math.floor(rng() * 3)],
+          geo: frondGeo(len, .075 + rng() * .045, droop, 5),
+          matrix: trs(Math.cos(a) * .05, .05, Math.sin(a) * .05, 0, -a, -1.10 + rng() * .30),
+          color: [0x6f9c3c, 0x7fae48, 0x638d34, 0x87b552][Math.floor(rng() * 4)],
         });
       }
-      return { trunk: null, leaves: mergeGeos(parts), h: 1.2, r: .4 };
+      /* a couple of shorter blades filling the middle */
+      for (let i = 0; i < 3; i++) {
+        const a = rng() * TAU;
+        parts.push({
+          geo: frondGeo(.42 + rng() * .22, .06, .2, 4),
+          matrix: trs(0, .04, 0, 0, -a, -1.38),
+          color: 0x5f8d33,
+        });
+      }
+      return { trunk: null, leaves: liftNormals(mergeGeos(parts), .62), leafMat: 'blade', h: 1.2, r: .45 };
     };
     const fern = (seed) => {
       const rng = makeRNG(seed);
       const parts = [];
-      const n = 7;
+      /* a fern frond IS pinnate, which is exactly what the palm's mask draws,
+         so it costs nothing to give ferns real fronds instead of stacked cones */
+      const n = 7 + Math.floor(rng() * 3);
       for (let i = 0; i < n; i++) {
-        const a = (i / n) * TAU + rng() * .4;
-        const len = .9 + rng() * .5;
-        for (let k = 0; k < 4; k++) {
-          const t = k / 4;
-          parts.push({
-            geo: cone(.12 * (1 - t * .6), len * .35, 3),
-            matrix: trs(Math.cos(a) * len * (.2 + t * .6), .18 + len * (.5 - t * .32), Math.sin(a) * len * (.2 + t * .6),
-              Math.sin(a) * (.9 + t), -a, -Math.cos(a) * (.9 + t), 1, 1, .22),
-            color: [0x2f5a24, 0x3c6b2c, 0x497c34][Math.floor(rng() * 3)],
-          });
-        }
+        const a = (i / n) * TAU + rng() * .45;
+        const len = .95 + rng() * .55;
+        const droop = .5 + rng() * .5;
+        parts.push({
+          geo: frondGeo(len, .30 + rng() * .10, droop, 7),
+          matrix: trs(Math.cos(a) * .06, .10, Math.sin(a) * .06, 0, -a, -.78 + rng() * .26),
+          color: [0x2f5a24, 0x3c6b2c, 0x497c34, 0x437429][Math.floor(rng() * 4)],
+        });
       }
-      return { trunk: null, leaves: mergeGeos(parts), h: 1, r: .6 };
+      /* the tight fiddleheads at the centre a fern always has coming up */
+      for (let i = 0; i < 2; i++) {
+        const a = rng() * TAU;
+        parts.push({
+          geo: frondGeo(.34, .13, .1, 4),
+          matrix: trs(0, .08, 0, 0, -a, -1.30),
+          color: 0x54832f,
+        });
+      }
+      return { trunk: null, leaves: liftNormals(mergeGeos(parts), .52), leafMat: 'frond', h: 1, r: .6 };
     };
     const flowers = (seed) => {
       const rng = makeRNG(seed);
       const parts = [];
       const petal = [0xd8d24a, 0xd85a6a, 0xc06ad8, 0xe8e2d4][Math.floor(rng() * 4)];
-      for (let i = 0; i < 6; i++) {
-        const a = rng() * TAU, r = rng() * .28, hh = .22 + rng() * .22;
-        parts.push({ geo: cyl(.012, .016, hh, 4), matrix: trs(Math.cos(a) * r, hh * .5, Math.sin(a) * r), color: 0x5f8c34 });
-        parts.push({ geo: ico(.055, 0), matrix: trs(Math.cos(a) * r, hh, Math.sin(a) * r, 0, 0, 0, 1, .5, 1), color: petal });
+      const heart = [0xe8c24a, 0xf0d878][Math.floor(rng() * 2)];
+      for (let i = 0; i < 7; i++) {
+        const a = rng() * TAU, r = rng() * .30, hh = .20 + rng() * .24;
+        const lean = (rng() - .5) * .3;
+        parts.push({
+          geo: cyl(.010, .015, hh, 5),
+          matrix: trs(Math.cos(a) * r, hh * .5, Math.sin(a) * r, Math.sin(a) * lean, 0, -Math.cos(a) * lean),
+          color: 0x5f8c34,
+        });
+        /* a ring of real petals around a centre, not one squashed ball */
+        const np = 5 + (rng() * 2 | 0), tilt = rng() * TAU;
+        for (let k = 0; k < np; k++) {
+          const pa = tilt + k / np * TAU;
+          parts.push({
+            geo: ico(.045, 0),
+            matrix: trs(Math.cos(a) * r + Math.cos(pa) * .045, hh + .004, Math.sin(a) * r + Math.sin(pa) * .045,
+              0, pa, .35, 1.15, .34, .7),
+            color: petal,
+          });
+        }
+        parts.push({ geo: ico(.024, 0), matrix: trs(Math.cos(a) * r, hh + .012, Math.sin(a) * r, 0, 0, 0, 1, .6, 1), color: heart });
+        /* two low leaves at the base, so a flower is not a stick in the dirt */
+        for (let k = 0; k < 2; k++) {
+          const la = a + k * Math.PI + rng() * .5;
+          parts.push({
+            geo: ico(.055, 0),
+            matrix: trs(Math.cos(a) * r + Math.cos(la) * .06, .035, Math.sin(a) * r + Math.sin(la) * .06,
+              0, la, .2, 1.5, .22, .8),
+            color: 0x5a8a30,
+          });
+        }
       }
-      return { trunk: null, leaves: mergeGeos(parts), h: .5, r: .3 };
+      return { trunk: null, leaves: liftNormals(mergeGeos(parts), .30), leafMat: 'plant', h: .5, r: .35 };
     };
     const reed = (seed) => {
       const rng = makeRNG(seed);
       const parts = [];
-      for (let i = 0; i < 12; i++) {
-        const a = rng() * TAU, r = rng() * .3, hh = 1.1 + rng() * .9;
+      for (let i = 0; i < 14; i++) {
+        const a = rng() * TAU, r = rng() * .32, hh = 1.1 + rng() * .9;
+        const lean = .10 + rng() * .16;
+        const col = [0x8a9a4a, 0x9aa85a, 0x7a8a3f][Math.floor(rng() * 3)];
         parts.push({
-          geo: cyl(.012, .026, hh, 4),
-          matrix: trs(Math.cos(a) * r, hh * .5, Math.sin(a) * r, Math.sin(a) * .12, 0, -Math.cos(a) * .12),
-          color: [0x8a9a4a, 0x9aa85a, 0x7a8a3f][Math.floor(rng() * 3)],
+          geo: cyl(.010, .024, hh, 5),
+          matrix: trs(Math.cos(a) * r, hh * .5, Math.sin(a) * r, Math.sin(a) * lean, 0, -Math.cos(a) * lean),
+          color: col,
         });
+        /* the seed head at the top, which is most of what reads as a reed */
+        if (rng() < .55) {
+          parts.push({
+            geo: cyl(.012, .030, hh * .18, 5),
+            matrix: trs(Math.cos(a) * (r + hh * lean * .5), hh * 1.02, Math.sin(a) * (r + hh * lean * .5),
+              Math.sin(a) * lean, 0, -Math.cos(a) * lean),
+            color: 0x9c7d43,
+          });
+        }
       }
-      return { trunk: null, leaves: mergeGeos(parts), h: 2, r: .4 };
+      return { trunk: null, leaves: liftNormals(mergeGeos(parts), .40), leafMat: 'plant', h: 2, r: .45 };
     };
     const log = (seed) => {
       const rng = makeRNG(seed);
@@ -5991,12 +6461,32 @@ const Flora = {
     P.oilnode = [oreRock(1701, 1.0, 'oil')];
   },
 
+  /** Undo three's double-sided normal flip.
+   *
+   *  Every foliage material in the game is DoubleSide, and three inverts the
+   *  shading normal on a back face — the right thing for a solid surface seen
+   *  from inside, and completely wrong for a leaf card, whose two sides are
+   *  the same leaf. A blade whose normal was carefully aimed at the sky got
+   *  it aimed at the ground the moment you walked round to its other side, so
+   *  roughly half of every grass tuft, every fern and every palm frond
+   *  rendered as an unlit black spike. That is the black grass in every
+   *  screenshot of this game, and it is one line.
+   *
+   *  `faceDirection` is declared by normal_fragment_begin, so multiplying by
+   *  it again immediately afterwards cancels the flip exactly. */
+  unflipNormals(sh) {
+    sh.fragmentShader = sh.fragmentShader.replace(
+      '#include <normal_fragment_begin>',
+      '#include <normal_fragment_begin>\n\tnormal *= faceDirection;');
+  },
+
   /** Attach the shared wind sway to a foliage material. */
   addWind(mat, cacheKey, strength) {
     mat.onBeforeCompile = sh => {
       sh.uniforms.uTime = { value: 0 };
       sh.uniforms.uWind = { value: strength };
       (this._windUniforms = this._windUniforms || []).push(sh.uniforms);
+      this.unflipNormals(sh);
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform float uWind;')
         .replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -6227,39 +6717,71 @@ const Flora = {
 
   /* ---------- grass field ------------------------------------------------
      Each instance is a tuft of three crossed blades, so the field reads as a
-     carpet from every angle instead of a forest of cardboard triangles. */
+     carpet from every angle instead of a forest of cardboard triangles.
+
+     The blades used to be straight triangles that leaned by `lean * h` in the
+     tuft's own space — and then updateGrass scaled that space by about 1.0
+     across and 0.25 up. A 20% lean measured against a full-height blade came
+     out four times longer than the blade was tall, so every tuft splayed flat
+     into a black star lying on the ground. That is the thing sprawled across
+     the middle of the screen in every screenshot of this game, and it is why
+     the grass reads as dead spiders rather than as grass. Two fixes, and they
+     have to go together: the blade arcs over along its own length instead of
+     shearing sideways, and the instance scale is uniform, so a blade's
+     proportions survive being placed. */
   buildGrass() {
     const blades = [];
     const bladeVerts = (angle, lean, h, w) => {
       const c = Math.cos(angle), s2 = Math.sin(angle);
       const rot = (x, z) => [x * c - z * s2, x * s2 + z * c];
-      const tipOff = lean * h;
-      const p = [];
-      const push = (x, y, z) => { const [rx, rz] = rot(x, z); p.push(rx, y, rz); };
-      /* three stacked segments, narrowing to a point */
-      push(-w, 0, 0); push(w, 0, 0); push(-w * .6, h * .55, tipOff * .35);
-      push(w, 0, 0); push(w * .6, h * .55, tipOff * .35); push(-w * .6, h * .55, tipOff * .35);
-      push(-w * .6, h * .55, tipOff * .35); push(w * .6, h * .55, tipOff * .35); push(0, h, tipOff);
-      return p;
+      const p = [], nr = [];
+      /* the blade's own facing, so it is not lit purely as flat ground */
+      const fx = -s2, fz = c;
+      const push = (x, y, z) => {
+        const [rx, rz] = rot(x, z); p.push(rx, y, rz);
+        nr.push(fx * .34, .94, fz * .34);
+      };
+      /* a blade rises and bends over under its own weight; `lean` is now how
+         far the TIP falls, as a fraction of the blade's height */
+      const at = (t) => ({
+        y: h * Math.sin(t * 1.30) / Math.sin(1.30),
+        z: lean * h * Math.pow(t, 1.9),
+        w: w * Math.pow(1 - t, .5),          // a blade tapers the whole way up
+      });
+      const SEG = 3;
+      for (let i = 0; i < SEG; i++) {
+        const a = at(i / SEG), b = at((i + 1) / SEG);
+        if (i === SEG - 1) {                       // the tip is a single triangle
+          push(-a.w, a.y, a.z); push(a.w, a.y, a.z); push(0, b.y, b.z);
+        } else {
+          push(-a.w, a.y, a.z); push(a.w, a.y, a.z); push(-b.w, b.y, b.z);
+          push(a.w, a.y, a.z); push(b.w, b.y, b.z); push(-b.w, b.y, b.z);
+        }
+      }
+      return { p, nr };
     };
+    const nrmList = [];
     for (let i = 0; i < 3; i++) {
       const a = (i / 3) * Math.PI;
-      blades.push(...bladeVerts(a, .18 + i * .06, 1 - i * .12, .026 + i * .004));
+      const bl = bladeVerts(a, .22 + i * .07, 1 - i * .13, .034 + i * .005);
+      blades.push(...bl.p); nrmList.push(...bl.nr);
     }
     const pos = new Float32Array(blades);
     const n = pos.length / 3;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const nrm = new Float32Array(n * 3);
+    const nrm = new Float32Array(nrmList);
     const col = new Float32Array(n * 3);
     const uv = new Float32Array(n * 2);
     for (let i = 0; i < n; i++) {
-      nrm[i * 3] = 0; nrm[i * 3 + 1] = 1; nrm[i * 3 + 2] = 0;   // borrow the ground normal
+      /* normals lean mostly up, so a blade still borrows the ground's own
+         lighting rather than blowing out white against it, but not perfectly
+         up any more: a little of the blade's own facing is what stops a whole
+         field shading as one flat sheet */
+      const l = Math.hypot(nrm[i * 3], nrm[i * 3 + 1], nrm[i * 3 + 2]) || 1;
+      nrm[i * 3] /= l; nrm[i * 3 + 1] /= l; nrm[i * 3 + 2] /= l;
       const y = pos[i * 3 + 1];
-      /* Blade normals point straight up to borrow the ground's lighting, which
-         means they take the full sky and sun term; at .96 the tips blew out to
-         near-white against the terrain they are supposed to sit in. */
-      const v = .52 + y * .26;                                   // darker at the root
+      const v = .30 + y * .26;                                   // darker at the root
       col[i * 3] = v; col[i * 3 + 1] = v; col[i * 3 + 2] = v;
       uv[i * 2] = 0; uv[i * 2 + 1] = y;
     }
@@ -6268,11 +6790,16 @@ const Flora = {
     geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
 
     const mat = this.grassMat = new THREE.MeshStandardMaterial({
-      vertexColors: true, roughness: .96, side: THREE.DoubleSide,
+      vertexColors: true, roughness: 1, side: THREE.DoubleSide,
+      /* Foliage is dominated by transmitted light, not by a mirror reflection
+         of the sky. Left at full strength the environment map lays a white
+         sheen over every blade and the field goes grey-green. */
+      envMapIntensity: .55,
     });
     mat.onBeforeCompile = sh => {
       sh.uniforms.uTime = { value: 0 };
       this._grassUniforms = sh.uniforms;
+      this.unflipNormals(sh);
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nuniform float uTime;')
         .replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -6311,18 +6838,24 @@ const Flora = {
     for (let i = 0; i < count && n < 14000; i++) {
       const a = rng() * TAU, r = Math.pow(rng(), .72) * R;   // bias towards the camera
       const x = camPos.x + Math.cos(a) * r, z = camPos.z + Math.sin(a) * r;
-      const h = World.heightAt(x, z);
+      /* the DRAWN surface, not the heightfield: the chunk mesh interpolates
+         between its own grid vertices, and grass planted on the raw field
+         hovers over every ridge and sinks into every hollow — the props have
+         used lodHeightAt since they were written, the grass never did */
+      const h = World.lodHeightAt(x, z, World.segsAt(x, z));
       if (h < 1.0 || h > 92) continue;
       const b = World.biomeAt(x, z);
       const bd = BIOMES[b]; if (!bd || bd.grass <= 0) continue;
       if (rng() > bd.grass) continue;
       if (World.slopeAt(x, z) > .5) continue;
-      const s = (.16 + rng() * .17) * (b === 'beach' ? .75 : 1);
-      this.grass.setMatrixAt(n, trs(x, h - .02, z, 0, rng() * TAU, 0, .85 + rng() * .4, s, .85 + rng() * .4));
-      /* tint from the ground it grows out of, a shade deeper */
+      /* ONE scale for all three axes. A tuft is about knee height and its
+         blades keep the proportions they were built with; scaling x and z by
+         four times y is what flattened every tuft into a splayed star. */
+      const s = (.30 + rng() * .26) * (b === 'beach' ? .7 : b === 'mountain' ? .6 : 1);
+      this.grass.setMatrixAt(n, trs(x, h - .02, z, 0, rng() * TAU, 0, s, s * (.85 + rng() * .35), s));
       /* tint towards the ground it grows from, with dry patches mixed in */
-      const dry = (b === 'beach' || b === 'mountain') ? .45 : rng() < .10 ? .3 : 0;
-      const v = .30 + rng() * .22;
+      const dry = (b === 'beach' || b === 'mountain') ? .30 : rng() < .10 ? .28 : 0;
+      const v = .40 + rng() * .22;
       col.setRGB(v * (.60 + dry * .5), v * (.98 - dry * .1), v * (b === 'swamp' ? .46 : .32 + dry * .08));
       this.grass.setColorAt(n, col);
       n++;
@@ -6949,14 +7482,19 @@ const CreatureModel = {
     const skin = TexLab.creature((sp.id || sp.en || sp.name) + '', variant, pal,
       { pattern, seed: hashString((sp.id || sp.name) + variant), scaleKind });
 
+    /* roughness comes from the painted sheet now, so a scale crown catches a
+       highlight the crease beside it does not — a uniform .78 over an entire
+       animal is most of why they all read as the same moulded rubber. The
+       constant is kept as the multiplier the map works against. */
     const mat = new THREE.MeshStandardMaterial({
-      vertexColors: true, roughness: .78, metalness: .02,
-      map: skin.map, normalMap: skin.normalMap,
-      normalScale: new THREE.Vector2(.85, .85),
+      vertexColors: true, roughness: 1, metalness: .02,
+      map: skin.map, normalMap: skin.normalMap, roughnessMap: skin.roughnessMap || null,
+      normalScale: new THREE.Vector2(1.05, 1.05),
+      envMapIntensity: .7,
     });
     /* teeth, eyes, bumps and feathers are shadow-free: they cost more in the
        shadow pass than they add to the silhouette */
-    const matAccent = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .7, metalness: .03 });
+    const matAccent = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .62, metalness: .03, envMapIntensity: .8 });
     const root = new THREE.Group();
     /* Every creature is modelled along +X — neck at +L/2, tail at -L/2, hips
        behind the middle — but animate() sets root.rotation.y = yaw, which makes
@@ -14960,6 +15498,7 @@ const Game = {
     }
     this.day++;
     Sky.update(0, Gfx.camera.position);
+    Gfx.updateEnv(1e9);          // build the first environment map now
   },
 
   /* ------------------------------------------------------------ input glue */
@@ -15122,6 +15661,7 @@ const Game = {
     Objectives.update();
 
     Sky.update(dt, Gfx.camera.position);
+    Gfx.updateEnv(dt);
     if (Sky.time < prevTime) { this.day++; UI.toast(tr('Day ') + this.day + ' on the island'); }
     Player.updateCamera(dt);
     World.updateChunks(Player.pos.x, Player.pos.z);
