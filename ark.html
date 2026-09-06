@@ -124,7 +124,12 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
 .chip.on,.chip:hover{border-color:var(--amber);background:rgba(240,168,66,.16);color:#fff}
 
 /* ===== HUD ============================================================== */
-#hud{position:fixed;inset:0;z-index:20;pointer-events:none;opacity:0;transition:opacity .5s}
+/* --hud-scale lets a player size the whole overlay to their screen: the HUD
+   was laid out for a desktop monitor and is small at arm's length on a phone.
+   Scaling from the centre keeps every element in the place it was designed
+   for, so nothing has to be re-laid-out per scale. */
+#hud{position:fixed;inset:0;z-index:20;pointer-events:none;opacity:0;transition:opacity .5s;
+     transform:scale(var(--hud-scale,1));transform-origin:50% 50%}
 #hud.on{opacity:1}
 /* the HUD ignores the pointer, but the hotbar is a control: without this its
    slots are unclickable, which on a phone means you can never leave your fists */
@@ -3607,6 +3612,14 @@ const I18N = {
     "Dehydration": "العطش",
     "Dismounted": "ترجّلت",
     "Draw distance, shadows, foliage": "مدى الرسم والظلال والنباتات",
+    "Render resolution": "دقّة الصورة",
+    "Sharper image, fewer frames. The single biggest lever on how clear the picture is": "صورة أوضح مقابل إطارات أقل — أقوى إعداد لوضوح الصورة",
+    "Draw distance": "مدى الرؤية",
+    "How far the island is drawn before fog takes over": "إلى أي بعد تُرسم الجزيرة قبل أن يبتلعها الضباب",
+    "Fog": "الضباب",
+    "Thin it out to see further on a hazy island": "خفّفه لترى أبعد في الجوّ الضبابي",
+    "Interface size": "حجم الواجهة",
+    "Scales the whole overlay — bars, hotbar, compass": "يكبّر كل عناصر الواجهة — الأشرطة والحقيبة والبوصلة",
     "Drink": "اشرب",
     "Drop": "ارمِ",
     "Drowned": "غرقت",
@@ -3898,10 +3911,19 @@ const tr = en => I18N.str(en);
 /* `foliage` was declared here from the start and never read by anything; it
    now drives flora draw distance. `fxaa`, `ssao`, `shadowExtent` and `far`
    are new knobs for the post chain and the shadow fit. */
+/* `pixel` was the whole cause of the soft image on a phone. detectQuality
+   caps a touch device at low/medium, and those tiers rendered at 75% and 85%
+   of an already-clamped ratio — a phone was drawing well under its own screen
+   and then upscaling, which is exactly what "I cannot see anything far away"
+   looks like. Both are at native now; the adaptive step-down is the safety net
+   if a device cannot hold it, and the render-resolution slider in Settings
+   lets a player make the trade themselves rather than trusting the detector.
+   `view` and `foliage` go up with them, because sharpening the image and then
+   cutting the trees off at 210 m only makes the cut more obvious. */
 const QUALITY = {
-  low:    { shadow: 0, shadowSize: 1024, view: 340, grass: 0, bloom: 0, pixel: .75, foliage: .5, waterSeg: 24,
+  low:    { shadow: 0, shadowSize: 1024, view: 460, grass: 0, bloom: 0, pixel: 1, foliage: .85, waterSeg: 24,
             fxaa: 1, creature: 0, ssao: 0, shadowExtent: 55, farShadow: 0 },
-  medium: { shadow: 1, shadowSize: 1024, view: 460, grass: .5, bloom: 1, pixel: .85, foliage: .75, waterSeg: 48,
+  medium: { shadow: 1, shadowSize: 1024, view: 560, grass: .5, bloom: 1, pixel: 1, foliage: 1, waterSeg: 48,
             fxaa: 1, creature: 1, ssao: 0, shadowExtent: 70, farShadow: 0 },
   high:   { shadow: 1, shadowSize: 2048, view: 620, grass: 1, bloom: 1, pixel: 1, foliage: 1, waterSeg: 72,
             fxaa: 1, creature: 2, ssao: 1, shadowExtent: 95, farShadow: 1 },
@@ -3957,6 +3979,11 @@ const Gfx = {
   rtScene: null, rtA: null, rtB: null, fxScene: null, fxCam: null,
   matBright: null, matBlur: null, matComposite: null, quad: null,
   bloomOn: true, shadowsOn: true, fxaaOn: true, ssaoOn: true,
+  /* Player overrides on top of the tier: the detector is a guess, and someone
+     who finds the image hard to read should be able to buy clarity with frame
+     rate themselves instead of arguing with it. 1 means "whatever the tier
+     says". */
+  resScale: 1, viewScale: 1, fogMul: 1, hudScale: 1,
   fx: { underwater: 0, damage: 0, grade: 1, exposureBoost: 1, flash: 0, photo: null },
   W: 1, H: 1,
 
@@ -4055,8 +4082,26 @@ const Gfx = {
     this.camera.far = Math.max(1400, q.view * 4.2);
     this.camera.updateProjectionMatrix();
     this.syncSky();
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2) * q.pixel);
+    this.applyResolution();
     this.resize();
+  },
+  /** The tier's pixel ratio with the player's own scale on top of it. */
+  applyResolution() {
+    const q = this.q;
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2) * q.pixel * this.resScale);
+  },
+  setResScale(v) { this.resScale = clamp(v, .5, 1.5); this.applyResolution(); this.resize(); },
+  /** Draw distance on top of the tier, which also moves the flora cut. */
+  setViewScale(v) {
+    this.viewScale = clamp(v, .6, 1.8);
+    const base = QUALITY[this.qname];
+    this.q.view = base.view * this.viewScale;
+    this.camera.far = Math.max(1400, this.q.view * 4.2);
+    this.camera.updateProjectionMatrix();
+  },
+  setHudScale(v) {
+    this.hudScale = clamp(v, .75, 1.4);
+    document.documentElement.style.setProperty('--hud-scale', this.hudScale);
   },
   setShadows(on) {
     this.shadowsOn = on;
@@ -4673,7 +4718,12 @@ const Sky = {
     if (this.weather === 'fog') fogCol.lerp(new THREE.Color(0xb9c4c9), .55);
     Gfx.scene.fog.color.copy(fogCol);
     const baseDens = this.weather === 'fog' ? .0085 : this.weather === 'storm' ? .0045 : .0018;
-    Gfx.scene.fog.density = lerp(baseDens * 1.6, baseDens, day) * (Gfx.q.view > 600 ? .8 : 1);
+    /* Fog was thinned only above `high`, so the tiers with the SHORTEST draw
+       distance — the ones that needed the horizon most — also got the
+       thickest fog, and grey closed in a couple of hundred metres out. It now
+       scales with the draw distance instead of stepping at one threshold. */
+    const fogScale = clamp(340 / Math.max(220, Gfx.q.view), .55, 1.15) * (Gfx.fogMul || 1);
+    Gfx.scene.fog.density = lerp(baseDens * 1.6, baseDens, day) * fogScale;
     Gfx.renderer.toneMappingExposure = lerp(1.18, .82, day) * Gfx.fx.exposureBoost;
 
     /* rain particles follow the camera */
@@ -5908,7 +5958,10 @@ const Flora = {
     /* `foliage` was dead: it sat in the quality table from the start and
        nothing ever read it, so every tier drew flora to the same flat 420m. */
     const C = TUNE.world.chunk;
-    const view = Math.min(Gfx.q.view, 420 * (Gfx.q.foliage || 1));
+    /* 420 was a hard ceiling on top of the tier's own foliage factor, so even
+       `ultra` cut its trees at 546 m inside a 850 m view — a bald horizon in
+       front of a visible one. The ceiling now follows the draw distance. */
+    const view = Math.min(Gfx.q.view, Gfx.q.view * (Gfx.q.foliage || 1));
     const range = Math.ceil(view / C);
     const ccx = Math.round(camPos.x / C), ccz = Math.round(camPos.z / C);
     const want = new Set();
@@ -13803,6 +13856,26 @@ Object.assign(UI, {
       row(tr('Auto quality'), tr('Lower the settings by itself if the frame rate drops'),
         toggle(Gfx.autoTier, v => { Gfx.autoTier = v; Settings.autoTier = v; Settings.save(); }));
       {
+        const [i, v] = slider(.5, 1.5, .05, Gfx.resScale, val => { Gfx.setResScale(val); Settings.save(); },
+          x => Math.round(x * 100) + '%');
+        row(tr('Render resolution'), tr('Sharper image, fewer frames. The single biggest lever on how clear the picture is'), i, v);
+      }
+      {
+        const [i, v] = slider(.6, 1.8, .05, Gfx.viewScale, val => { Gfx.setViewScale(val); Settings.save(); },
+          x => Math.round(QUALITY[Gfx.qname].view * x) + ' m');
+        row(tr('Draw distance'), tr('How far the island is drawn before fog takes over'), i, v);
+      }
+      {
+        const [i, v] = slider(.4, 1.4, .05, Gfx.fogMul, val => { Gfx.fogMul = val; Settings.save(); },
+          x => Math.round(x * 100) + '%');
+        row(tr('Fog'), tr('Thin it out to see further on a hazy island'), i, v);
+      }
+      {
+        const [i, v] = slider(.75, 1.4, .05, Gfx.hudScale, val => { Gfx.setHudScale(val); Settings.save(); },
+          x => Math.round(x * 100) + '%');
+        row(tr('Interface size'), tr('Scales the whole overlay — bars, hotbar, compass'), i, v);
+      }
+      {
         const [i, v] = slider(60, 110, 1, Player.targetFov, val => { Camera.fovScale = val / BASE_FOV; Settings.save(); }, x => x + '°');
         row(tr('Field of view'), '', i, v);
       }
@@ -14162,6 +14235,7 @@ const Settings = {
       localStorage.setItem(this.KEY, JSON.stringify({
         quality: Gfx.qname, shadows: Gfx.shadowsOn, bloom: Gfx.bloomOn,
         fxaa: Gfx.fxaaOn, ssao: Gfx.ssaoOn, autoTier: Gfx.autoTier,
+        resScale: Gfx.resScale, viewScale: Gfx.viewScale, fogMul: Gfx.fogMul, hudScale: Gfx.hudScale,
         sensitivity: Camera.sensitivity, invertY: Camera.invertY, fovScale: Camera.fovScale,
         vol: Sound.vol, binds: Input.binds, showFps: Game.showFps,
         rates: TUNE.rates, dayLength: Sky.dayLength,
@@ -14185,6 +14259,12 @@ const Settings = {
       if (d.fxaa != null) Gfx.setFxaa(d.fxaa);
       if (d.ssao != null) Gfx.setSsao(d.ssao);
       if (d.autoTier != null) Gfx.autoTier = d.autoTier;
+      /* after applyQuality, so these layer on top of the tier rather than
+         being overwritten by it */
+      if (d.resScale) Gfx.setResScale(d.resScale);
+      if (d.viewScale) Gfx.setViewScale(d.viewScale);
+      if (d.fogMul) Gfx.fogMul = d.fogMul;
+      if (d.hudScale) Gfx.setHudScale(d.hudScale);
       if (d.sensitivity) Camera.sensitivity = d.sensitivity;
       if (d.invertY != null) Camera.invertY = d.invertY;
       if (d.fovScale) Camera.fovScale = d.fovScale;
@@ -14757,7 +14837,7 @@ const Game = {
 window.__ark = {
   Game, World, Player, Camera, ViewModel, PlayerModel, Creatures, Inventory, Structures, Building, Flora, Sky, Gfx, UI, Combat, Riding, Taming,
   Loot, Objectives, Particles, Physics, Sound, SaveGame, Settings, Breeding, Caves, Boss, TUNE, SPECIES, ITEMS, RECIPES, ENGRAMS, STRUCTURES, NODES,
-  CreatureModel, Creature, I18N, Photo, Touch, Input, STATIONS, BIOMES,
+  CreatureModel, Creature, I18N, Photo, Touch, Input, STATIONS, BIOMES, QUALITY,
   state: () => ({
     state: Game.state, fps: Math.round(Game.fps), pos: Player.pos.toArray().map(v => Math.round(v)),
     level: Player.level, health: Math.round(Player.cur.health), creatures: Creatures.list.length,
