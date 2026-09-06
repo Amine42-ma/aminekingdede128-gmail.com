@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<title>ARK — Survival Reborn</title>
+<title>PRIMA — عصر البداية</title>
 <meta name="description" content="A single-file, offline 3D dinosaur survival game: punch, hunt, tranquilize, knock out and tame dinosaurs, ride them, build a base and survive the island.">
 
 <style>
 /* ============================================================================
-   ARK — SURVIVAL REBORN · UI design system
+   PRIMA — عصر البداية · UI design system
    Dark glass panels, bone typography, amber accent. No external assets.
    ========================================================================== */
 :root{
@@ -97,6 +97,8 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
 #menu .inner{position:relative;flex:1;display:grid;grid-template-columns:minmax(320px,420px) 1fr;
   gap:24px;padding:min(6vh,54px) min(6vw,64px)}
 #menu .brand{align-self:start}
+#menu .brand .mark{width:clamp(66px,7vw,92px);margin-bottom:14px;filter:drop-shadow(0 6px 18px rgba(0,0,0,.6))}
+#menu .brand .mark svg{width:100%;height:auto;display:block}
 #menu .brand h1{font-size:clamp(36px,5.4vw,62px);font-weight:800;letter-spacing:.2em;line-height:1;
   background:linear-gradient(180deg,#fff,#f0a842 75%,#7d4f14);-webkit-background-clip:text;
   background-clip:text;color:transparent}
@@ -438,9 +440,24 @@ body.touch #hud{z-index:70}
 #fadeout{position:fixed;inset:0;z-index:170;background:#000;opacity:0;pointer-events:none;transition:opacity .6s}
 #fadeout.on{opacity:1}
 @media (max-width:900px){
-  #menu .inner{grid-template-columns:1fr}
-  #menu .side{justify-self:start;width:min(420px,92vw)}
+  /* One column on a narrow screen, which puts the island/rates/graphics cards
+     BELOW the menu — off the bottom of a phone in landscape, with no way to
+     reach them, because .inner has no scroll of its own. It gets one here. */
+  #menu .inner{grid-template-columns:1fr;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    padding-bottom:64px}
+  #menu .side{justify-self:start;width:min(420px,92vw);align-self:start;margin-top:18px}
+  #menu .foot{position:static;margin-top:16px}
   #inventory .wbody{grid-template-columns:1fr}
+}
+/* a phone held in landscape is short, not narrow: shrink the wordmark so the
+   buttons are still on screen without scrolling for them */
+@media (max-height:460px){
+  #menu .inner{padding:14px min(5vw,28px)}
+  #menu .brand .mark{width:52px;margin-bottom:8px}
+  #menu .brand h1{font-size:34px}
+  #menu .brand .tagline{margin-top:4px;font-size:11px}
+  #menu nav{margin-top:16px;gap:7px}
+  #menu nav .btn{padding:9px 14px;font-size:14px}
 }
 
 /* ===== touch controls ===================================================
@@ -724,8 +741,8 @@ body.rtl .maplegend span[style*="margin-inline-start"]{margin-inline-start:auto}
 <!-- ===================== loading ===================== -->
 <div id="boot">
   <div class="wrap">
-    <div class="logo">ARK</div>
-    <div class="sub" data-i18n="tagline">Survival Reborn</div>
+    <div class="logo">PRIMA</div>
+    <div class="sub" data-i18n="tagline">The First Age</div>
     <div class="bar"><i id="bootbar"></i></div>
     <div class="msg" id="bootmsg">Waking the island…</div>
     <div class="tip" id="boottip"></div>
@@ -737,8 +754,34 @@ body.rtl .maplegend span[style*="margin-inline-start"]{margin-inline-start:auto}
   <div class="vignette"></div>
   <div class="inner">
     <div class="brand">
-      <h1>ARK</h1>
-      <div class="tagline" data-i18n="tagline">Survival Reborn</div>
+      <div class="mark" aria-hidden="true">
+        <!-- The logo is drawn here rather than loaded, like every other image
+             in this file: a sun coming up over three strata, with an ammonite
+             turning in front of it. First light on the first age. -->
+        <svg viewBox="0 0 120 120">
+          <defs>
+            <linearGradient id="lgSun" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0" stop-color="#7d4f14"/><stop offset=".55" stop-color="#f0a842"/>
+              <stop offset="1" stop-color="#ffe6b0"/>
+            </linearGradient>
+            <linearGradient id="lgSpiral" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#fff3dc"/><stop offset="1" stop-color="#4bbfae"/>
+            </linearGradient>
+          </defs>
+          <!-- the sun, with the ammonite cut out of it as negative space -->
+          <circle cx="60" cy="48" r="32" fill="url(#lgSun)"/>
+          <path d="M60 48 m0 -24 a24 24 0 1 1 -17 41 a17.5 17.5 0 1 1 24.7 -24.7 a11.5 11.5 0 1 1 -16.3 16.3"
+                fill="none" stroke="#05080c" stroke-width="5" stroke-linecap="round" opacity=".82"/>
+          <!-- three strata under it: the ages the island is built out of -->
+          <g stroke-linecap="round" fill="none">
+            <path d="M14 90h92" stroke="url(#lgSpiral)" stroke-width="6"/>
+            <path d="M24 102h72" stroke="#f0a842" stroke-width="5" opacity=".75"/>
+            <path d="M36 112h48" stroke="#f0a842" stroke-width="4" opacity=".45"/>
+          </g>
+        </svg>
+      </div>
+      <h1>PRIMA</h1>
+      <div class="tagline" data-i18n="tagline">The First Age</div>
       <nav>
         <button class="btn primary" id="mNew">▶  <span data-i18n="play">New Island</span></button>
         <button class="btn" id="mContinue">⟲  <span data-i18n="continue">Continue</span></button>
@@ -2383,6 +2426,9 @@ const Sound = {
     dusk: { root: 53, scale: [0, 3, 5, 7, 10], chords: [[0, 3, 7], [8, 12, 15], [5, 8, 12], [3, 7, 10]], tempo: 3.8, air: .62 },
     night: { root: 45, scale: [0, 3, 5, 7, 10], chords: [[0, 3, 7], [5, 8, 12], [3, 7, 10], [10, 14, 17]], tempo: 4.6, air: .78 },
     danger: { root: 41, scale: [0, 1, 5, 6, 8], chords: [[0, 6, 11], [1, 7, 12], [0, 5, 10], [6, 11, 15]], tempo: 2.4, air: .3 },
+    /* The title theme: the same score, slower and wider, so the menu sounds
+       like the island it is standing on rather than a different game. */
+    menu: { root: 50, scale: [0, 2, 4, 7, 9, 11], chords: [[0, 4, 7, 11], [5, 9, 12, 16], [7, 11, 14, 18], [2, 5, 9, 12]], tempo: 5.2, air: .7 },
   },
   _mus: null,
 
@@ -2407,7 +2453,10 @@ const Sound = {
     const m = this._mus;
     if (!m || !this.ctx || this.muted) return;
     m.t += dt;
-    const mode = threat > .5 ? 'danger'
+    /* `menu` is passed in explicitly rather than derived from the world: the
+       menu runs before there is a world to derive anything from. */
+    const mode = threat === 'menu' ? 'menu'
+      : threat > .5 ? 'danger'
       : hour < 6.5 || hour > 20.5 ? 'night'
       : hour < 8.5 ? 'dawn'
       : hour > 17.5 ? 'dusk' : 'day';
@@ -3309,7 +3358,7 @@ const I18N = {
     bloom: ['Bloom', 'التوهّج'],
     grass: ['Grass', 'العشب'],
     language: ['Language', 'اللغة'],
-    tagline: ['Survival Reborn', 'البقاء من جديد'],
+    tagline: ['The First Age', 'عصر البداية'],
     /* menu extras */
     menuFoot: ['Single file · runs offline · WASD to move · everything you see is generated at runtime',
                'ملف واحد · يعمل بلا إنترنت · WASD للحركة · كل ما تراه مولَّد أثناء التشغيل'],
@@ -14318,7 +14367,7 @@ const Game = {
     try {
       Gfx.init(canvas);
     } catch (e) {
-      $('#boot').innerHTML = '<div class="wrap"><div class="logo">ARK</div><div class="msg">'
+      $('#boot').innerHTML = '<div class="wrap"><div class="logo">PRIMA</div><div class="msg">'
         + 'This game needs WebGL. Try a recent Chrome, Edge, Firefox or Safari.<br><small>' + e.message + '</small></div></div>';
       return;
     }
@@ -14741,6 +14790,10 @@ const Game = {
         Sky.update(dt * 2, Gfx.camera.position);
         if (World.group) World.updateChunks(Gfx.camera.position.x, Gfx.camera.position.z);
         if (World.water) World.updateWater(dt, Gfx.camera.position);
+        /* The menu was silent by construction: startMusic built the bus and
+           then musicTick was only ever called from Game.update, which runs in
+           play alone — so no bar was ever scheduled behind the title screen. */
+        Sound.musicTick(dt, Sky.time, 'menu');
       }
       /* paused, dead or in a menu nothing calls update(), so without this the
          edges would pile up and all fire at once the moment play resumes */

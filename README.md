@@ -108,7 +108,7 @@ OpenAI-compatible endpoint gives fully human voices and unlocks WAV export of th
 
 ---
 
-# 🦖 آرك · ARK — Survival Reborn
+# 🦖 بريما · PRIMA — عصر البداية
 
 في هذا المستودع أيضاً **لعبة بقاء ثلاثية الأبعاد كاملة داخل ملف واحد**: `ark.html`.
 
@@ -131,13 +131,19 @@ python3 -m http.server 8000
 ## على الهاتف
 
 اللعبة تتعرّف على شاشة اللمس تلقائياً وتعرض أزرار تحكم مصمّمة للهاتف: عصا حركة على اليسار،
-نظر حر على اليمين، وأزرار الأفعال على شكل حلقة — بنفس أسلوب ARK Mobile.
+نظر حر على اليمين، وأزرار الأفعال على شكل حلقة، مصمّمة على غرار ألعاب البقاء على الهاتف.
 
 ## اختبار سريع
 
 ```bash
-node scripts/smoke.mjs    # اللعبة كاملة: عالم، كل الأنواع، الحفظ
-node scripts/touch.mjs    # تحكّم الهاتف: إحساس العصا والنظر، وتخطيط الأزرار
+node scripts/smoke.mjs      # اللعبة كاملة: عالم، كل الأنواع، الحفظ
+node scripts/touch.mjs      # تحكّم الهاتف: إحساس العصا والنظر، وتخطيط الأزرار
+node scripts/gameplay.mjs   # اتجاه مشي الحيوانات، واحتساب الضربة داخل قطيع
+node scripts/aquatic.mjs    # حيوانات البحر لا تخرج إلى الشاطئ ولا تلاحقك عليه
+node scripts/survival.mjs   # زمن الجوع والعطش، وأثر الصعوبة على ما يظهر في الشاطئ
+node scripts/feedback.mjs   # صوت الضربة، والفرق بين الإصابة والضربة في الفراغ
+node scripts/legible.mjs    # دقّة الصورة والمدى والضباب ومؤشرات الإعدادات
+node scripts/brand.mjs      # اسم اللعبة وشعارها وموسيقى الواجهة
 ```
 
 الأول يشغّل اللعبة في متصفح بلا واجهة، يولّد عالماً، يستدعي نوعاً من كل الديناصورات،
@@ -155,7 +161,7 @@ browser at load time.
 
 Serve it (`python3 -m http.server 8000` → `http://localhost:8000/ark.html`) or just open the file —
 it never touches the network. It detects your device and picks a graphics tier automatically, and
-switches to ARK-Mobile-style touch controls on a phone.
+switches to a phone control layer — floating stick, free look, a ring of action buttons.
 
 `node scripts/smoke.mjs` runs it headlessly: generate a world, spawn every species, simulate, and
 check for console errors, NaN transforms and a working save. `node scripts/touch.mjs` checks the phone
