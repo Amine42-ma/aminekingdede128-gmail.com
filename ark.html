@@ -259,7 +259,11 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
 .sic.bad{border-color:rgba(217,72,63,.55);color:#ffb4ae;animation:pulse 1.4s infinite}
 
 /* ===== screens (inventory, taming, map, settings) ======================= */
-.screen{position:fixed;inset:0;z-index:120;display:none;place-items:center;padding:3vh 3vw;
+/* z-index 160, not 120: the main menu is 150, so at 120 the settings panel
+   opened BEHIND it. Its close button was unreachable, the screen therefore
+   stayed flagged open, and handleInput()'s `if (anyScreenOpen()) return` then
+   silently discarded every gameplay input for the rest of the session. */
+.screen{position:fixed;inset:0;z-index:160;display:none;place-items:center;padding:3vh 3vw;
   background:rgba(2,4,6,.62);backdrop-filter:blur(6px)}
 .screen.on{display:grid}
 .screen .win{width:100%;height:100%;max-width:1500px;display:flex;flex-direction:column;overflow:hidden}
@@ -3339,6 +3343,9 @@ const I18N = {
   },
   phr: {
     "corpse": "جثة",
+    "Auto quality": "الجودة التلقائية",
+    "Lower the settings by itself if the frame rate drops": "يخفض الإعدادات تلقائياً إذا انخفضت سرعة الإطارات",
+    "Graphics lowered to keep the frame rate steady": "تم خفض الجرافيكس للحفاظ على ثبات الأداء",
     "Antialiasing": "تنعيم الحواف",
     "Smooths the crawling edges on grass and leaves": "يزيل تشقق حواف العشب والأوراق",
     "Ambient occlusion": "الظلال الملامسة",
@@ -3780,8 +3787,16 @@ function detectQuality() {
     else if (/rtx|radeon rx|geforce (gtx|rtx)|apple m[1-9]/i.test(name)) score += 1;
     if (gl) gl.getExtension('WEBGL_lose_context')?.loseContext();
   } catch (e) { /* the detector must never be the thing that fails to boot */ }
+  /* A touch device is capped regardless of what it claims: phones report eight
+     cores and then thermally throttle a minute later, and starting too high is
+     far more damaging than starting too low — the adaptive step-down below
+     only ever goes one way. */
+  if (coarse) return score <= 1.5 ? 'low' : 'medium';
   return score <= 0.5 ? 'low' : score <= 2.5 ? 'medium' : 'high';
 }
+
+/** Tiers in order, so the adaptive step-down knows which way is cheaper. */
+const QUALITY_ORDER = ['low', 'medium', 'high', 'ultra'];
 
 const Gfx = {
   renderer: null, scene: null, camera: null, canvas: null,
@@ -3874,6 +3889,10 @@ const Gfx = {
   applyQuality(name) {
     const q = QUALITY[name] || QUALITY.high;
     this.q = q; this.qname = name;
+    /* No cache clear here: the detail tier is part of the model cache key, so
+       creatures spawned after a quality change pick up the new tier by
+       themselves while the ones already alive keep the geometry they are
+       drawing. */
     this.shadowsOn = !!q.shadow && this.shadowsOn !== false;
     this.renderer.shadowMap.enabled = !!q.shadow;
     this.sun.castShadow = !!q.shadow;
@@ -3895,6 +3914,30 @@ const Gfx = {
   },
   setBloom(on) { this.bloomOn = on; },
   setFxaa(on) { this.fxaaOn = on; },
+
+  /* Watch the frame rate and drop a tier if it stays bad.
+
+     The detector guesses from core count and a GPU string, and on Android both
+     lie: a phone advertises eight cores and then throttles. Measuring what the
+     device actually delivers is the only reliable signal. Only ever downward,
+     and at most twice, so it settles instead of oscillating. */
+  autoTier: true, _adaptT: 0, _adaptFrames: 0, _steppedDown: 0,
+  adapt(dt) {
+    if (!this.autoTier || this._steppedDown >= 2) return;
+    this._adaptT += dt; this._adaptFrames++;
+    if (this._adaptT < 4) return;
+    const fps = this._adaptFrames / this._adaptT;
+    this._adaptT = 0; this._adaptFrames = 0;
+    if (fps >= 26) return;
+    const i = QUALITY_ORDER.indexOf(this.qname);
+    if (i <= 0) return;
+    const next = QUALITY_ORDER[i - 1];
+    this._steppedDown++;
+    this.applyQuality(next);
+    if (typeof UI !== 'undefined' && UI.toast) {
+      UI.toast(tr('Graphics lowered to keep the frame rate steady'));
+    }
+  },
   setSsao(on) { this.ssaoOn = on; },
 
   /* --- sky dome -------------------------------------------------------- */
@@ -6223,11 +6266,114 @@ const LIMB_UPPER = [[0, 1.16], [.32, 1.00], [.68, .87], [1, .80]];
 const LIMB_LOWER = [[0, .80], [.36, .66], [.74, .54], [1, .44]];
 function sphereGeo(r, d) { return new THREE.SphereGeometry(r, 10, 8); }
 
+/* --- sharing one built model across every individual ----------------------
+   Object3D.clone() gives each creature its own transforms while sharing the
+   geometry and materials. The only thing that does not survive a clone is the
+   `parts` map of named joints the animation code drives, so each Object3D in
+   it is stamped with its path on the template and looked up again on the copy.
+   ------------------------------------------------------------------------ */
+
+/* Only arrays and object literals are walked. Anything else — a Material, a
+   Texture, a Vector3 — is left alone: three.js objects reference each other in
+   cycles, and following them recurses until the stack gives out. */
+const isPlain = (v) => v !== null && typeof v === 'object'
+  && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null);
+
+/** Walk `parts` and record where every Object3D sits, as `userData.pk`.
+    `seen` matters: `parts` holds the same objects under more than one key
+    (groundLegs is a filtered view of legs), and without it a shared reference
+    is walked once per path. */
+function stampParts(parts, node, path, seen) {
+  const v = node === undefined ? parts : node;
+  const at = path || '';
+  const marked = seen || new Set();
+  if (!v || typeof v !== 'object') return;
+  if (v.isObject3D) { v.userData.pk = at; return; }
+  if (marked.has(v)) return;
+  marked.add(v);
+  if (Array.isArray(v)) { v.forEach((x, i) => stampParts(parts, x, at + '.' + i, marked)); return; }
+  if (!isPlain(v)) return;
+  for (const k in v) stampParts(parts, v[k], at ? at + '.' + k : k, marked);
+}
+
+/** Rebuild a `parts` map against a fresh clone of the template's root.
+    `memo` keeps references that were shared on the template shared on the copy
+    — groundLegs must stay the very same leg objects as legs, not duplicates. */
+function remapParts(v, index, memo) {
+  if (!v || typeof v !== 'object') return v;
+  if (v.isObject3D) return index.get(v.userData.pk) || v;
+  const m = memo || new Map();
+  if (m.has(v)) return m.get(v);
+  if (Array.isArray(v)) {
+    const arr = [];
+    m.set(v, arr);
+    v.forEach(x => arr.push(remapParts(x, index, m)));
+    return arr;
+  }
+  if (!isPlain(v)) return v;          // materials, colours, vectors: shared as-is
+  const out = {};
+  m.set(v, out);
+  for (const k in v) out[k] = remapParts(v[k], index, m);
+  return out;
+}
+
+function instantiateParts(tpl) {
+  const root = tpl.root.clone(true);
+  root.visible = true;
+  const index = new Map();
+  root.traverse(o => { if (o.userData && o.userData.pk !== undefined) index.set(o.userData.pk, o); });
+  const parts = remapParts(tpl, index);
+  parts.root = root;
+  return parts;
+}
+
 const CreatureModel = {
-  /** Build a whole creature. Returns {root, parts, bounds} with named joints. */
+  /* One built model per species + palette + detail tier, cloned for every
+     individual. Object3D.clone() shares geometry and materials by reference,
+     so a herd of twenty parasaurs costs one set of meshes instead of twenty.
+
+     This matters a lot: building a creature runs profileGeo plus a per-vertex
+     paint pass over roughly forty meshes, and the spawn director cycles
+     eighty to a hundred creatures. That work used to happen on every single
+     spawn, and it is what made the game stutter on a phone. */
+  _cache: {},
+
+  /** Drop the cache so later spawns rebuild.
+
+      Deliberately does NOT dispose: every creature currently alive is still
+      drawing this exact geometry and these exact materials, and freeing them
+      here blanks the whole world — it showed up as the ambient-occlusion pass
+      going completely black, because the depth buffer was being written from
+      disposed buffers. The entries are released to the garbage collector
+      instead, and the detail tier is part of the cache key, so a quality
+      change simply starts filling a new set. */
+  clearCache() { this._cache = {}; },
+
   build(sp, tint) {
-    const M = sp.model, S = sp.scale || 1;
     const pal = tint || pick(sp.colors);
+    const det = Gfx.q.creature == null ? 2 : Gfx.q.creature;
+    /* keyed on the palette's contents, not its index: a bred or mutated
+       animal can carry a palette that is not one of the species' three */
+    const key = (sp.id || sp.en || sp.name) + '|' + pal.join(',') + '|' + det;
+    let tpl = this._cache[key];
+    if (!tpl) {
+      const parts = this.buildTemplate(sp, pal, det);
+      stampParts(parts);
+      /* mark everything as shared so Creature.remove() leaves it alone */
+      parts.root.traverse(o => {
+        if (o.geometry) o.geometry.userData.shared = true;
+        if (o.material) (Array.isArray(o.material) ? o.material : [o.material])
+          .forEach(m => { m.userData.shared = true; });
+      });
+      parts.root.visible = false;
+      tpl = this._cache[key] = parts;
+    }
+    return instantiateParts(tpl);
+  },
+
+  /** Build one model from scratch. Everything below is the original builder. */
+  buildTemplate(sp, pal, det) {
+    const M = sp.model, S = sp.scale || 1;
     const base = new THREE.Color(pal[0]), belly = new THREE.Color(pal[1]), accent = new THREE.Color(pal[2] || pal[0]);
     /* Which markings and what kind of hide. Driven by the species rather than
        by `hash % 4`, which used to hand a Rex rosettes and a Dodo stripes. */
@@ -6236,6 +6382,7 @@ const CreatureModel = {
       : kindSkin(M.kind);
     const pattern = SKIN_PATTERN[sp.en || sp.name] || SKIN_PATTERN['#' + M.kind] || 'plain';
     const variant = Math.max(0, (sp.colors || []).findIndex(v => v === pal));
+    void variant;
     const skin = TexLab.creature((sp.id || sp.en || sp.name) + '', variant, pal,
       { pattern, seed: hashString((sp.id || sp.name) + variant), scaleKind });
 
@@ -6298,8 +6445,7 @@ const CreatureModel = {
     const kind = M.kind;
     /* section counts follow the quality tier: a phone draws the same animal
        with a coarser skin rather than a different one */
-    const det = Gfx.q.creature == null ? 2 : Gfx.q.creature;
-    const nSt = det >= 2 ? 17 : det === 1 ? 13 : 9;
+    const nSt = det >= 2 ? 13 : det === 1 ? 11 : 9;
     const nRad = det >= 2 ? 18 : det === 1 ? 14 : 10;
     const prof = sampleProfile(BODY_PROFILE[kind] || BODY_PROFILE.default, nSt);
     const stations = prof.map(pr => ({
@@ -7330,9 +7476,15 @@ class Creature {
   }
   remove() {
     Gfx.scene.remove(this.root);
+    /* Geometry and materials are shared with every other individual of this
+       species and palette — disposing them here would blank the whole herd.
+       Only per-creature resources are freed. */
     this.root.traverse(o => {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material) { if (Array.isArray(o.material)) o.material.forEach(m => m.dispose()); else o.material.dispose(); }
+      if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
+      if (o.material) {
+        (Array.isArray(o.material) ? o.material : [o.material])
+          .forEach(m => { if (!m.userData.shared) m.dispose(); });
+      }
     });
   }
   panFrom() {
@@ -10103,37 +10255,52 @@ const Touch = {
   },
 
   /* ---------------------------------------------------------------- stick */
+  /* Why move/up listen on `window` rather than on the zone:
+
+     A thumb that starts on the stick very often ends up outside the zone —
+     it is only 44% of the screen wide. setPointerCapture is supposed to keep
+     the events coming, but Android refuses it in several situations and the
+     helper below deliberately swallows that failure. When it did not take,
+     two things happened: the stick stopped tracking as soon as the thumb left
+     the box, and — far worse — lifting the thumb outside the zone never fired
+     `up`, so stickId stayed set and every later press was rejected by the
+     guard at the top of pointerdown. Movement was then dead for good.
+
+     Listening on the window and filtering by pointer id works whether or not
+     capture succeeds, which is the whole point. */
   bindStick() {
     const zone = $('#tzoneL');
     zone.addEventListener('pointerdown', e => {
-      if (!this.active || this.stickId !== null) return;
+      if (!this.active) return;
+      /* take over a stale id instead of refusing: a missed `up` must never be
+         able to brick the stick */
       this.stickId = e.pointerId;
       /* the stick comes to the thumb, not the other way round */
       this.stickEl.style.left = e.clientX + 'px';
       this.stickEl.style.top = e.clientY + 'px';
       this.stickEl.classList.add('on');
       this.dragStick(e);
-      /* capture last, and never let it throw: Safari and a few Android
-         builds reject it for a pointer they consider already gone, and an
-         exception here would abort the whole gesture */
-      capture(zone, e.pointerId);
+      capture(zone, e.pointerId);       // a bonus when it works, never relied on
       e.preventDefault();
     });
-    zone.addEventListener('pointermove', e => {
+    addEventListener('pointermove', e => {
       if (e.pointerId !== this.stickId) return;
       this.dragStick(e);
-      e.preventDefault();
-    });
+    }, { passive: true });
     const up = e => {
       if (e.pointerId !== this.stickId) return;
-      this.stickId = null;
-      this.raw.x = this.raw.y = this.raw.mag = 0;
-      this.sprintStick = false;
-      this.stickEl.classList.remove('on', 'moving', 'sprint');
-      this.knob.style.transform = '';
+      this.releaseStick();
     };
-    zone.addEventListener('pointerup', up);
-    zone.addEventListener('pointercancel', up);
+    addEventListener('pointerup', up);
+    addEventListener('pointercancel', up);
+  },
+
+  releaseStick() {
+    this.stickId = null;
+    this.raw.x = this.raw.y = this.raw.mag = 0;
+    this.sprintStick = false;
+    if (this.stickEl) this.stickEl.classList.remove('on', 'moving', 'sprint');
+    if (this.knob) this.knob.style.transform = '';
   },
 
   dragStick(e) {
@@ -10161,8 +10328,8 @@ const Touch = {
   bindLook() {
     const zone = $('#tzoneR');
     zone.addEventListener('pointerdown', e => {
-      if (!this.active || this.lookId !== null) return;
-      this.lookId = e.pointerId;
+      if (!this.active) return;
+      this.lookId = e.pointerId;        // take over a stale id, never refuse
       /* origin first: if this were set after a throwing capture, the first
          move would be measured from (0,0) and spin the camera a half turn */
       this.lookX = e.clientX; this.lookY = e.clientY;
@@ -10170,7 +10337,8 @@ const Touch = {
       capture(zone, e.pointerId);
       e.preventDefault();
     });
-    zone.addEventListener('pointermove', e => {
+    /* on the window, for the same reason as the stick above */
+    addEventListener('pointermove', e => {
       if (e.pointerId !== this.lookId) return;
       /* accumulate only — the camera is moved in update(), so its speed does
          not depend on how fast this device fires pointer events */
@@ -10187,8 +10355,7 @@ const Touch = {
       const k = 16.67 / ms;                       // → pixels per 60Hz frame
       this.velX = this.velX * .55 + dx * k * .45;
       this.velY = this.velY * .55 + dy * k * .45;
-      e.preventDefault();
-    });
+    }, { passive: true });
     const up = e => {
       if (e.pointerId !== this.lookId) return;
       this.lookId = null;
@@ -10201,8 +10368,8 @@ const Touch = {
       }
       this.velX = this.velY = 0; this.lastMoveT = 0;
     };
-    zone.addEventListener('pointerup', up);
-    zone.addEventListener('pointercancel', up);
+    addEventListener('pointerup', up);
+    addEventListener('pointercancel', up);
   },
 
   /* -------------------------------------------------------------- buttons */
@@ -10397,8 +10564,8 @@ const Touch = {
 
   releaseAll() {
     this.held = {}; this.edge = {};
-    this.stickId = this.lookId = null;
-    this.raw.x = this.raw.y = this.raw.mag = 0;
+    this.releaseStick();
+    this.lookId = null;
     this.stick.x = this.stick.y = this.stick.mag = 0;
     this.move.x = this.move.y = 0;
     this.penX = this.penY = this.velX = this.velY = 0;
@@ -13183,6 +13350,8 @@ Object.assign(UI, {
         toggle(Gfx.fxaaOn, v => { Gfx.setFxaa(v); Settings.save(); }));
       row(tr('Ambient occlusion'), tr('Contact shadows where things meet the ground'),
         toggle(Gfx.ssaoOn, v => { Gfx.setSsao(v); Settings.save(); }));
+      row(tr('Auto quality'), tr('Lower the settings by itself if the frame rate drops'),
+        toggle(Gfx.autoTier, v => { Gfx.autoTier = v; Settings.autoTier = v; Settings.save(); }));
       {
         const [i, v] = slider(60, 110, 1, Player.targetFov, val => { Camera.fovScale = val / BASE_FOV; Settings.save(); }, x => x + '°');
         row(tr('Field of view'), '', i, v);
@@ -13540,7 +13709,7 @@ const Settings = {
     try {
       localStorage.setItem(this.KEY, JSON.stringify({
         quality: Gfx.qname, shadows: Gfx.shadowsOn, bloom: Gfx.bloomOn,
-        fxaa: Gfx.fxaaOn, ssao: Gfx.ssaoOn,
+        fxaa: Gfx.fxaaOn, ssao: Gfx.ssaoOn, autoTier: Gfx.autoTier,
         sensitivity: Camera.sensitivity, invertY: Camera.invertY, fovScale: Camera.fovScale,
         vol: Sound.vol, binds: Input.binds, showFps: Game.showFps,
         rates: TUNE.rates, dayLength: Sky.dayLength,
@@ -13563,6 +13732,7 @@ const Settings = {
       if (d.bloom != null) Gfx.setBloom(d.bloom);
       if (d.fxaa != null) Gfx.setFxaa(d.fxaa);
       if (d.ssao != null) Gfx.setSsao(d.ssao);
+      if (d.autoTier != null) Gfx.autoTier = d.autoTier;
       if (d.sensitivity) Camera.sensitivity = d.sensitivity;
       if (d.invertY != null) Camera.invertY = d.invertY;
       if (d.fovScale) Camera.fovScale = d.fovScale;
@@ -13649,7 +13819,14 @@ const Game = {
     requestAnimationFrame(t => this.loop(t));
   },
 
+  /** Nothing may survive a world-state change still flagged open. */
+  closeAllScreens() {
+    $$('.screen').forEach(n => n.classList.remove('on'));
+    if (typeof UI !== 'undefined' && UI.closeSheet) UI.closeSheet();
+  },
+
   showMenu() {
+    this.closeAllScreens();
     this.state = 'menu';
     show('#menu', true);
     $('#menu').classList.remove('hidden');
@@ -13744,6 +13921,7 @@ const Game = {
 
   /* -------------------------------------------------------- world building */
   startNew() {
+    this.closeAllScreens();
     const seedText = ($('#optSeed').value || '').trim() || String(Math.floor(Math.random() * 999999));
     const seed = /^\d+$/.test(seedText) ? parseInt(seedText, 10) : hashString(seedText);
     TUNE.rates.taming = parseFloat($('#optTame').value);
@@ -13751,6 +13929,9 @@ const Game = {
     TUNE.rates.xp = parseFloat($('#optXp').value);
     Sky.dayLength = TUNE.time.dayLength = parseFloat($('#optDay').value) * 60;
     Creatures.budget = TUNE.spawn.budget = parseInt($('#optDinos').value, 10);
+    /* a phone has neither the fill rate nor the CPU for a desktop-sized
+       population, and the difference is not something you notice while playing */
+    if (Touch.active) Creatures.budget = TUNE.spawn.budget = Math.round(Creatures.budget * .55);
     Creatures.difficulty = parseFloat($('#optDiff').value);
     const name = ($('#optName').value || 'Survivor').slice(0, 18);
     this.pendingSave = null;
@@ -14008,6 +14189,7 @@ const Game = {
       this.fpsT = 0; this.fpsN = 0;
       if (this.showFps) $('#fps').textContent = Math.round(this.fps) + ' fps · ' + Creatures.list.length + ' creatures';
     }
+    if (this.state === 'play' && !this.paused) Gfx.adapt(dt);
 
     /* Outside the pause gate on purpose: on a phone the pause button is also
        the only way back OUT of the pause screen. Touch.update() comes first,

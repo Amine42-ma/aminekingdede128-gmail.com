@@ -142,6 +142,74 @@ console.log('FEEL — stick response and look smoothing');
   await ctx.close();
 }
 
+/* -------------------------------------------------------------- BLOCKERS */
+/* The exact sequence a player hit: settings opened from the main menu drew
+   BEHIND it (menu z-150, screens z-120), so its close button was unreachable,
+   the screen stayed flagged open, and handleInput's `if (anyScreenOpen())
+   return` then discarded every input for the rest of the session. */
+console.log('BLOCKERS — a stuck screen or a stuck stick must not kill input');
+{
+  const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', (e) => errs.push(e.message));
+  await page.goto(PAGE, { waitUntil: 'load', timeout: 60_000 });
+  await page.waitForFunction(() => window.__ark && window.__ark.Game.state === 'menu', null, { timeout: 60_000 });
+
+  const menu = await page.evaluate(() => {
+    const { UI } = window.__ark;
+    UI.settingsTab = 'gfx'; UI.openSettings();
+    const set = document.querySelector('#settings');
+    const top = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
+    return {
+      above: +getComputedStyle(set).zIndex > +getComputedStyle(document.querySelector('#menu')).zIndex,
+      reachable: !!(top && set.contains(top)),
+    };
+  });
+  check('settings opens above the main menu', menu.above);
+  check('settings is the element a tap actually hits', menu.reachable);
+
+  /* leave it open and start a game, exactly as the player did */
+  await page.evaluate((sd) => { document.querySelector('#optSeed').value = sd; window.__ark.Game.startNew(); }, SEED);
+  await page.waitForFunction(() => window.__ark.Game.state === 'play', null, { timeout: 180_000 });
+
+  const play = await page.evaluate(() => {
+    const { Touch, Input } = window.__ark;
+    const step = (n) => { for (let i = 0; i < (n || 1); i++) Touch.update(1 / 60); };
+    const axis = () => Math.hypot(Input.axisStr(), Input.axisFwd());
+    const out = { noStuckScreen: document.querySelectorAll('.screen.on').length === 0 };
+    const zL = document.querySelector('#tzoneL'), st = document.querySelector('#tstick');
+    const r = zL.getBoundingClientRect();
+    const cx = r.left + r.width * .5, cy = r.top + r.height * .6;
+    const down = (x, y, id) => zL.dispatchEvent(new PointerEvent('pointerdown',
+      { pointerId: id, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y, bubbles: true, cancelable: true }));
+    const win = (t, x, y, id) => dispatchEvent(new PointerEvent(t,
+      { pointerId: id, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y, bubbles: true }));
+
+    down(cx, cy, 1);
+    const lim = st.getBoundingClientRect().width * .40;
+    win('pointermove', cx, cy - lim, 1); step(200);
+    out.movesWhenHeld = axis() > .9;
+    /* drag right out of the zone: the stick must keep following the thumb */
+    win('pointermove', innerWidth - 20, 20, 1); step(200);
+    out.tracksOutsideZone = axis() > .9 && st.classList.contains('on');
+    /* release OUTSIDE the zone — this is what used to brick movement */
+    win('pointerup', innerWidth - 20, 20, 1); step(200);
+    out.releasesOutsideZone = Touch.stickId === null && axis() === 0;
+    /* and a second press must still be accepted */
+    down(cx, cy, 2); win('pointermove', cx, cy - lim, 2); step(200);
+    out.secondPressAccepted = axis() > .9;
+    return out;
+  });
+  check('starting a game clears a screen left open', play.noStuckScreen);
+  check('the stick moves the player', play.movesWhenHeld);
+  check('the stick tracks the thumb outside its zone', play.tracksOutsideZone);
+  check('releasing outside the zone releases the stick', play.releasesOutsideZone);
+  check('a second press is still accepted', play.secondPressAccepted);
+  if (errs.length) check('no console errors in blockers', false, errs[0]);
+  await ctx.close();
+}
+
 /* --------------------------------------------------------------- SCREENS */
 console.log('\nSCREENS — the inventory is operable with a finger');
 {

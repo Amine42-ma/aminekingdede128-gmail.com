@@ -253,7 +253,36 @@ try {
   if (controls.length) fail.push(...controls);
   else note('keyboard and touch toggles both fire exactly once');
 
-  console.log('8. audio');
+  console.log('8. creature model cache');
+  const cache = await page.evaluate(() => {
+    const { SPECIES, CreatureModel } = window.__ark;
+    const ids = Object.keys(SPECIES);
+    const pals = {}; ids.forEach((id) => { pals[id] = SPECIES[id].colors[0]; });
+    /* Building a creature runs profileGeo plus a per-vertex paint pass over
+       about forty meshes, and the spawn director cycles the population
+       constantly — so this used to run on every single spawn. */
+    CreatureModel.clearCache();
+    let t = performance.now();
+    for (const id of ids) CreatureModel.build(SPECIES[id], pals[id]);
+    const cold = performance.now() - t;
+    t = performance.now();
+    for (let r = 0; r < 5; r++) for (const id of ids) CreatureModel.build(SPECIES[id], pals[id]);
+    const warm = (performance.now() - t) / 5;
+    const bad = [];
+    if (!(warm < cold / 10)) bad.push(`model cache is not helping: ${cold.toFixed(0)}ms cold vs ${warm.toFixed(0)}ms warm`);
+    /* and a clone must be its own object, or every creature shares one body */
+    /* build() returns the parts map itself, so these are two parts maps */
+    const a = CreatureModel.build(SPECIES.rex, SPECIES.rex.colors[0]);
+    const b2 = CreatureModel.build(SPECIES.rex, SPECIES.rex.colors[0]);
+    if (a === b2) bad.push('two creatures share one parts map');
+    if (a.root === b2.root) bad.push('two creatures share one root object');
+    if (a.legs[0].hip === b2.legs[0].hip) bad.push('two creatures share one leg joint');
+    return { bad, cold: +cold.toFixed(0), warm: +warm.toFixed(1) };
+  });
+  if (cache.bad.length) fail.push(...cache.bad);
+  else note(`model cache: ${cache.cold}ms cold -> ${cache.warm}ms warm for 23 species`);
+
+  console.log('9. audio');
   const audio = await page.evaluate(() => {
     const { Sound } = window.__ark;
     const bad = [];
@@ -282,7 +311,7 @@ try {
   if (audio.bad.length) fail.push(...audio.bad);
   else note(`music: ${audio.made} notes over 5 bars, modes ${audio.modes.join(' / ')}`);
 
-  console.log('9. save / load round trip');
+  console.log('10. save / load round trip');
   const save = await page.evaluate(() => {
     const { SaveGame } = window.__ark;
     SaveGame.save(2);
