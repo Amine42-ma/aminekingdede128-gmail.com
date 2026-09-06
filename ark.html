@@ -750,9 +750,9 @@ body.rtl .maplegend span[style*="margin-inline-start"]{margin-inline-start:auto}
         <div class="field"><label data-i18n="seed">World seed</label><input type="text" id="optSeed" maxlength="12" value=""></div>
         <div class="field"><label data-i18n="difficulty">Difficulty</label>
           <select id="optDiff">
-            <option value="0.5" data-i18n="diffEasy">Easy — wild lv 1–75</option>
-            <option value="1" selected data-i18n="diffNormal">Normal — wild lv 1–150</option>
-            <option value="1.5" data-i18n="diffHard">Hard — wild lv 1–225</option>
+            <option value="easy" data-i18n="diffEasy">Easy — gentle island</option>
+            <option value="normal" selected data-i18n="diffNormal">Normal — the island as intended</option>
+            <option value="hard" data-i18n="diffHard">Hard — it wants you dead</option>
           </select></div>
         <div class="field"><label data-i18n="language">Language</label>
           <select id="optLang">
@@ -1378,7 +1378,7 @@ const SPECIES = {
     kibble: 'kibble_basic', egg: 'egg_dodo', eggRate: 420,
     attack: { dmg: 5, range: 1.4, cd: 1.6, torpor: 0 }, aggroRange: 0, fleeRange: 6, courage: .1,
     harvest: { berry: 1.2, fiber: 1 }, rideable: false, drops: { raw_meat: [2, 3], hide: [1, 2] }, xp: 4,
-    spawn: { biomes: ['beach', 'plains', 'jungle'], weight: 10, group: [1, 4] },
+    spawn: { biomes: ['beach', 'plains', 'jungle'], weight: 18, group: [2, 5] },
     voice: { pitch: 620, kind: 'chirp', len: .25 },
     colors: [['#d8cdb4', '#efe7d4', '#e0a63c'], ['#c9b78f', '#e8dcc0', '#cf7a3a'], ['#b9a98e', '#ded1b4', '#8c6a3f']],
     model: { kind: 'bird', body: [.62, .46, .5], neck: { len: .28, seg: 3, thick: .16 }, head: { len: .28, w: .2, h: .22, beak: .22 },
@@ -2078,7 +2078,14 @@ const TUNE = {
     baseTorpor: 50, baseMelee: 1, baseSpeed: 1, baseFort: 0,
     perPoint: { health: 10, stamina: 10, oxygen: 20, food: 10, water: 10, weight: 10, melee: .05, speed: .025, fort: 2 },
     walk: 4.4, run: 8.2, crouch: 2.0, swim: 3.6, jump: 5.4, gravity: 22,
-    foodDrain: .28, waterDrain: .36, staminaDrain: 9, staminaRegen: 11, staminaJump: 12,
+    /* Both bars hold 100 by default, so these are seconds-to-empty in
+       disguise: water at .36 emptied in 4.6 minutes, FASTER than food, and a
+       sprinting survivor was taking dehydration damage two minutes in and dead
+       a minute after that.  At .11 and .10 a fresh survivor has a quarter of
+       an hour of ordinary exploring before either bar is pressing, and food is
+       the one that bites first — as it should be, since water is the easier
+       of the two to find on an island. */
+    foodDrain: .11, waterDrain: .10, staminaDrain: 9, staminaRegen: 11, staminaJump: 12,
     healthRegenFood: 26, healthRegen: .55, oxygenDrain: 5, oxygenRegen: 22,
     torporDrain: 1.6, starveDmg: 1.6, dehydrateDmg: 1.9, drownDmg: 6, coldDmg: .9, heatDmg: .7,
     fallSafe: 6.5, fallDmgPerM: 8, reachInteract: 4.2, pickupRange: 3.2,
@@ -2100,6 +2107,16 @@ const TUNE = {
   },
   time: { dayLength: 1200, startHour: 8.5, sunriseHour: 5.6, sunsetHour: 19.2 },
   spawn: { budget: 120, radius: 460, despawnRadius: 620, minDist: 55, respawnDelay: 25 },
+  /* Difficulty used to be a single number read in exactly one place — the wild
+     level roll — so "Easy" and "Hard" differed only in the numbers over a
+     dinosaur's head.  One table now drives everything that makes the island
+     kind or cruel: how hard the wildlife hits, how high it levels, how much of
+     what spawns wants to eat you, and how fast you starve. */
+  difficulty: {
+    easy:   { level: .5,  damage: .6,  drain: .7,  predator: .5, label: 'Easy' },
+    normal: { level: 1,   damage: 1,   drain: 1,   predator: 1,  label: 'Normal' },
+    hard:   { level: 1.5, damage: 1.5, drain: 1.35, predator: 1.6, label: 'Hard' },
+  },
   rates: { taming: 5, harvest: 2, xp: 2, spoil: 1, dinoFood: 1, breeding: 5 },
   save: { slots: 3, autosaveEvery: 120 },
 };
@@ -3271,9 +3288,9 @@ const I18N = {
     /* menu extras */
     menuFoot: ['Single file · runs offline · WASD to move · everything you see is generated at runtime',
                'ملف واحد · يعمل بلا إنترنت · WASD للحركة · كل ما تراه مولَّد أثناء التشغيل'],
-    diffEasy: ['Easy — wild lv 1–75', 'سهل — بري ١–٧٥'],
-    diffNormal: ['Normal — wild lv 1–150', 'عادي — بري ١–١٥٠'],
-    diffHard: ['Hard — wild lv 1–225', 'صعب — بري ١–٢٢٥'],
+    diffEasy: ['Easy — gentle island', 'سهل — جزيرة رفيقة'],
+    diffNormal: ['Normal — the island as intended', 'عادي — الجزيرة كما صُمّمت'],
+    diffHard: ['Hard — it wants you dead', 'صعب — الجزيرة تريد قتلك'],
     qLow: ['Low — potato friendly', 'منخفضة — لأجهزة ضعيفة'],
     qMedium: ['Medium', 'متوسطة'],
     qHigh: ['High', 'عالية'],
@@ -8108,7 +8125,9 @@ Object.assign(Creature.prototype, {
       if (this.attackCd <= 0) {
         this.attackCd = atk.cd;
         this.bite();
-        const dmg = this.max('damage');
+        /* only what a WILD animal does to the player scales with difficulty —
+           a tamed mount hits the same however the island is set */
+        const dmg = this.max('damage') * (this.tamed ? 1 : Creatures.diff.damage);
         if (t === Player) {
           const dir = _v3a.set(this.pos.x - Player.pos.x, 0, this.pos.z - Player.pos.z).normalize();
           Player.damage(dmg, 'Killed by a ' + this.sp.name, dir);
@@ -8375,7 +8394,13 @@ Object.assign(Creature.prototype, {
  * ==========================================================================*/
 const Creatures = {
   list: [], tamedList: [], hash: new SpatialHash(26), _tmp: [], spawnTimer: 2,
-  difficulty: 1, budget: TUNE.spawn.budget,
+  difficulty: 1, diffKey: 'normal', diff: TUNE.difficulty.normal, budget: TUNE.spawn.budget,
+
+  setDifficulty(key) {
+    this.diffKey = TUNE.difficulty[key] ? key : 'normal';
+    this.diff = TUNE.difficulty[this.diffKey];
+    this.difficulty = this.diff.level;      // kept: saves store the old number
+  },
 
   reset() {
     for (const c of this.list) c.remove();
@@ -8390,17 +8415,45 @@ const Creatures = {
   },
 
   pickLevel(rng) {
-    const maxLv = Math.max(5, Math.round(150 * this.difficulty));
+    const maxLv = Math.max(5, Math.round(150 * this.diff.level));
     const t = Math.pow(rng ? rng() : Math.random(), 2.1);
     return clamp(Math.ceil(t * maxLv / 5) * 5, 1, maxLv);
   },
+  /** Which biome the next spawn should be drawn from.
+   *
+   *  This was a uniform pick over seven biomes that ignored where the player
+   *  actually was, so a beach start filled the beach one roll in seven — and
+   *  most of the other six rolls failed to place anything within the spawn
+   *  radius anyway.  The result was an empty beach and a report that dodos
+   *  were nowhere and monsters were everywhere.  Biasing the roll toward the
+   *  ground under the player's feet fills the place they are standing in
+   *  without freezing the rest of the island. */
+  biomeRoll() {
+    const all = ['plains', 'jungle', 'beach', 'highland', 'mountain', 'swamp', 'ocean'];
+    const here = World.biomeAt(Player.pos.x, Player.pos.z);
+    return (here && Math.random() < .55) ? here : pick(all);
+  },
+
   speciesForBiome(biome) {
+    const diff = this.diff;
     const pool = [];
     for (const id in SPECIES) {
       const sp = SPECIES[id];
       if (sp.noSpawn) continue;
       if (sp.spawn.biomes.indexOf(biome) < 0) continue;
-      pool.push([id, sp.spawn.weight]);
+      let w = sp.spawn.weight;
+      const hunter = sp.temper === 'aggressive' || sp.temper === 'apex';
+      if (hunter) {
+        /* A beach is where a survivor wakes up with nothing.  A Spinosaurus
+           standing on it is not a difficulty curve, it is a loading screen.
+           Anything heavy and hungry is kept off the sand below Hard — it still
+           spawns in the swamp and jungle it belongs to. */
+        if (biome === 'beach' && sp.mass >= 1200 && diff.predator < 1.5) continue;
+        w *= diff.predator;
+      } else if (biome === 'beach') {
+        w *= 1.5;                     // the shore should feel like a nursery
+      }
+      if (w > 0) pool.push([id, w]);
     }
     if (!pool.length) return null;
     let total = 0; for (const p of pool) total += p[1];
@@ -8490,7 +8543,7 @@ const Creatures = {
       let wild = 0;
       for (const c of this.list) if (!c.tamed && !c.dead) wild++;
       if (wild < this.budget) {
-        const biome = pick(['plains', 'jungle', 'beach', 'highland', 'mountain', 'swamp', 'ocean']);
+        const biome = this.biomeRoll();
         const id = this.speciesForBiome(biome);
         if (id) {
           const pos = this.findSpawnPos(SPECIES[id]);
@@ -8514,7 +8567,7 @@ const Creatures = {
     let made = 0;
     let guard = 0;
     while (made < count && guard++ < count * 12) {
-      const biome = pick(['plains', 'plains', 'jungle', 'jungle', 'beach', 'highland', 'mountain', 'swamp', 'ocean']);
+      const biome = pick(['plains', 'plains', 'jungle', 'jungle', 'beach', 'beach', 'highland', 'mountain', 'swamp', 'ocean']);
       const id = this.speciesForBiome(biome);
       if (!id) continue;
       const sp = SPECIES[id];
@@ -8770,8 +8823,9 @@ const Player = {
     const activity = (this.sprinting ? 2.1 : this.moving ? 1.25 : 1);
     this.temp = World.tempAt(this.pos.x, this.pos.z, Sky.time) + Inventory.insulation(World.tempAt(this.pos.x, this.pos.z, Sky.time)) + Structures.warmthAt(this.pos);
     const cold = this.temp < 8 - this.fortitude() * .4, hot = this.temp > 36 + this.fortitude() * .5;
-    this.cur.food -= P.foodDrain * activity * dt * (cold ? 1.5 : 1);
-    this.cur.water -= P.waterDrain * activity * dt * (hot ? 1.8 : 1);
+    const drainMul = Creatures.diff.drain;
+    this.cur.food -= P.foodDrain * activity * drainMul * dt * (cold ? 1.5 : 1);
+    this.cur.water -= P.waterDrain * activity * drainMul * dt * (hot ? 1.8 : 1);
     if (this.swimming) this.cur.water = Math.min(this.max('water'), this.cur.water + 1.2 * dt);
 
     if (this.submerged) {
@@ -8791,7 +8845,7 @@ const Player = {
     /* regenerate slowly when fed and watered */
     if (this.cur.food > this.max('food') * .35 && this.cur.water > 0 && this.cur.health < maxH) {
       this.cur.health = Math.min(maxH, this.cur.health + P.healthRegen * dt);
-      this.cur.food -= P.healthRegen * dt * .35;
+      this.cur.food -= P.healthRegen * dt * .18;   // healing is paid for in food
     }
     this.cur.torpor = Math.max(0, this.cur.torpor - P.torporDrain * dt);
     Gfx.fx.damage = damp(Gfx.fx.damage, Math.max(0, 1 - this.cur.health / (maxH * .35)) * .6, 2, dt);
@@ -13919,7 +13973,7 @@ const SaveGame = {
       time: Sky.time, day: Game.day, dayLength: Sky.dayLength,
       weather: Sky.weather, clock: Game.clock,
       rates: Object.assign({}, TUNE.rates),
-      difficulty: Creatures.difficulty, budget: Creatures.budget,
+      difficulty: Creatures.difficulty, diffKey: Creatures.diffKey, budget: Creatures.budget,
       player: {
         name: Player.name, level: Player.level, xp: Player.xp, xpNext: Player.xpNext,
         statPoints: Player.statPoints, engramPoints: Player.engramPoints,
@@ -14000,7 +14054,9 @@ const SaveGame = {
     Sky.time = d.time; Sky.dayLength = d.dayLength || TUNE.time.dayLength;
     Game.day = d.day || 1; Game.clock = d.clock || 0;
     if (d.rates) Object.assign(TUNE.rates, d.rates);
-    Creatures.difficulty = d.difficulty || 1;
+    /* older saves carry only the number; map it back onto a named tier */
+    Creatures.setDifficulty(d.diffKey ||
+      ((d.difficulty || 1) <= .75 ? 'easy' : (d.difficulty || 1) >= 1.25 ? 'hard' : 'normal'));
     Creatures.budget = d.budget || TUNE.spawn.budget;
 
     const p = d.player;
@@ -14280,7 +14336,7 @@ const Game = {
     /* a phone has neither the fill rate nor the CPU for a desktop-sized
        population, and the difference is not something you notice while playing */
     if (Touch.active) Creatures.budget = TUNE.spawn.budget = Math.round(Creatures.budget * .55);
-    Creatures.difficulty = parseFloat($('#optDiff').value);
+    Creatures.setDifficulty($('#optDiff').value);
     const name = ($('#optName').value || 'Survivor').slice(0, 18);
     this.pendingSave = null;
     this.generate(seed, () => {
