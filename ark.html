@@ -1437,7 +1437,9 @@ const SPECIES = {
     attack: { dmg: 5, range: 1.4, cd: 1.6, torpor: 0 }, aggroRange: 0, fleeRange: 6, courage: .1,
     harvest: { berry: 1.2, fiber: 1 }, rideable: false, drops: { raw_meat: [2, 3], hide: [1, 2] }, xp: 4,
     spawn: { biomes: ['beach', 'plains', 'jungle'], weight: 18, group: [2, 5] },
-    voice: { pitch: 620, kind: 'chirp', len: .25 },
+    voice: { pitch: 620, kind: 'chirp', len: .25,
+      growl: 7, rasp: .3, bright: 1.3, sub: .18, bend: 1.1, form: 1.15,
+      syl: [[1, 1, 1, 0], [1.18, .8, .7, 1.5], [.94, .7, .5, 2.7]] },
     colors: [['#d8cdb4', '#efe7d4', '#e0a63c'], ['#c9b78f', '#e8dcc0', '#cf7a3a'], ['#b9a98e', '#ded1b4', '#8c6a3f']],
     model: { kind: 'bird', body: [.62, .46, .5], neck: { len: .28, seg: 3, thick: .16 }, head: { len: .28, w: .2, h: .22, beak: .22 },
       tail: { len: .22, seg: 2, thick: .12 }, legs: { h: .3, thick: .06, back: true }, feat: ['plump', 'stubwing', 'feathers'] },
@@ -1456,7 +1458,9 @@ const SPECIES = {
     harvest: { berry: 2.2, thatch: 1.5, fiber: 1.4 }, rideable: true, saddleLv: 9,
     drops: { raw_meat: [6, 10], hide: [8, 14] }, xp: 12,
     spawn: { biomes: ['beach', 'plains', 'jungle', 'swamp'], weight: 8, group: [2, 5] },
-    voice: { pitch: 240, kind: 'horn', len: .8 },
+    voice: { pitch: 240, kind: 'horn', len: .8,
+      growl: 5, rasp: .22, bright: .8, sub: .55, bend: 1.35, form: 1.55,
+      syl: [[1, 1, 1, 0], [1.5, .85, .8, .85]] },
     colors: [['#7c8f6a', '#c9c2a4', '#d0663c'], ['#6d7f8c', '#c3cbd0', '#e0a63c'], ['#8c7a5e', '#d5c8a8', '#7a9ad0']],
     model: { kind: 'hadrosaur', body: [2.3, 1.05, 1.15], neck: { len: 1.1, seg: 4, thick: .5 }, head: { len: .9, w: .42, h: .46, beak: .5 },
       tail: { len: 2.2, seg: 6, thick: .42 }, legs: { front: .95, back: 1.3, thick: .28 }, feat: ['crest', 'stripes'] },
@@ -1476,7 +1480,9 @@ const SPECIES = {
     harvest: { berry: 4.5, thatch: 2.5, fiber: 2, wood: .5 }, rideable: true, saddleLv: 16,
     drops: { raw_meat: [12, 18], hide: [18, 26], keratin: [4, 8] }, xp: 26,
     spawn: { biomes: ['plains', 'jungle', 'highland'], weight: 6, group: [1, 3] },
-    voice: { pitch: 140, kind: 'bellow', len: 1.1 },
+    voice: { pitch: 140, kind: 'bellow', len: 1.1,
+      growl: 13, rasp: .4, bright: .66, sub: .78, bend: .78, form: .92,
+      syl: [[1, 1, 1, 0], [.86, .6, .55, 1.1]] },
     colors: [['#7a6a52', '#c2b393', '#a83c2e'], ['#5f6b52', '#b6bd9a', '#c98a2c'], ['#6b5f6b', '#bdb2bd', '#3c6ea8']],
     model: { kind: 'ceratopsian', body: [2.6, 1.35, 1.5], neck: { len: .5, seg: 2, thick: .8 }, head: { len: 1.25, w: .8, h: .6, beak: .45 },
       tail: { len: 1.5, seg: 5, thick: .38 }, legs: { front: 1.05, back: 1.15, thick: .38 }, feat: ['frill', 'horns3', 'beak'] },
@@ -1495,7 +1501,9 @@ const SPECIES = {
     harvest: { berry: 6, thatch: 3.5, fiber: 3, wood: 1 }, rideable: true, saddleLv: 25,
     drops: { raw_meat: [18, 26], hide: [26, 38], keratin: [8, 14] }, xp: 40,
     spawn: { biomes: ['plains', 'jungle', 'highland'], weight: 4, group: [1, 2] },
-    voice: { pitch: 120, kind: 'bellow', len: 1.3 },
+    voice: { pitch: 120, kind: 'bellow', len: 1.3,
+      growl: 11, rasp: .34, bright: .58, sub: .82, bend: .74, form: .84,
+      syl: [[1, 1, 1, 0]] },
     colors: [['#6e6350', '#b6ab90', '#c2703a'], ['#57614f', '#a8b096', '#8c5ea8'], ['#7a6a6a', '#c0b0b0', '#3f7a6a']],
     model: { kind: 'stegosaur', body: [3.2, 1.5, 1.6], neck: { len: .8, seg: 3, thick: .45 }, head: { len: .7, w: .34, h: .34, beak: .3 },
       tail: { len: 2.5, seg: 6, thick: .4 }, legs: { front: .95, back: 1.45, thick: .4 }, feat: ['plates', 'thagomizer'] },
@@ -1514,7 +1522,9 @@ const SPECIES = {
     harvest: { meat: 2.6, hide: 2, prime: .6 }, rideable: true, saddleLv: 18,
     drops: { raw_meat: [8, 12], hide: [10, 16] }, xp: 22,
     spawn: { biomes: ['jungle', 'plains', 'highland'], weight: 6, group: [1, 3] },
-    voice: { pitch: 420, kind: 'screech', len: .5 },
+    voice: { pitch: 420, kind: 'screech', len: .5,
+      growl: 58, rasp: 1.05, bright: 1.62, sub: .16, bend: 1.55, form: 1.35,
+      syl: [[1, 1, 1, 0], [1.22, .55, .85, .55], [1.42, .4, .6, .95]] },
     colors: [['#6b5a3c', '#c4b58c', '#d04a2e'], ['#4f5a44', '#a8b391', '#e0a63c'], ['#5a4a4a', '#b09a9a', '#8ad0c4']],
     model: { kind: 'theropod', body: [1.5, .7, .68], neck: { len: .68, seg: 4, thick: .26 }, head: { len: .62, w: .3, h: .34, jaw: .3 },
       tail: { len: 1.7, seg: 6, thick: .2 }, legs: { front: .5, back: .95, thick: .19 }, feat: ['claw', 'feathers', 'crest_small'] },
@@ -1533,7 +1543,9 @@ const SPECIES = {
     harvest: { meat: 1.8, hide: 1.4 }, rideable: false,
     drops: { raw_meat: [5, 8], hide: [5, 9] }, xp: 14,
     spawn: { biomes: ['beach', 'jungle', 'swamp'], weight: 7, group: [1, 3] },
-    voice: { pitch: 500, kind: 'hiss', len: .45 },
+    voice: { pitch: 500, kind: 'hiss', len: .45,
+      growl: 44, rasp: 1.25, bright: 1.48, sub: .14, bend: 1.3, form: 1.7,
+      syl: [[1, 1, 1, 0], [1.1, .5, .6, 1.2]] },
     colors: [['#4d5f3c', '#b6c49a', '#d0402e'], ['#5c4f3c', '#c0b294', '#e0b03c'], ['#3f4f5c', '#9fb4c4', '#c04a8a']],
     model: { kind: 'theropod', body: [1.1, .52, .5], neck: { len: .5, seg: 3, thick: .2 }, head: { len: .5, w: .24, h: .28, jaw: .26 },
       tail: { len: 1.25, seg: 5, thick: .16 }, legs: { front: .38, back: .74, thick: .15 }, feat: ['frill_neck', 'crest_twin'] },
@@ -1552,7 +1564,9 @@ const SPECIES = {
     harvest: { meat: 3.5, hide: 3, prime: 1.2 }, rideable: true, saddleLv: 40,
     drops: { raw_meat: [16, 24], prime_meat: [1, 3], hide: [18, 28] }, xp: 55,
     spawn: { biomes: ['highland', 'plains', 'jungle'], weight: 3, group: [1, 1] },
-    voice: { pitch: 190, kind: 'roar', len: 1.2 },
+    voice: { pitch: 190, kind: 'roar', len: 1.2,
+      growl: 24, rasp: .82, bright: .98, sub: .7, bend: .7, form: 1.05,
+      syl: [[1, 1, 1, 0], [.8, .5, .55, 1.15]] },
     colors: [['#8a6250', '#d4bda8', '#c8402c'], ['#6a5c48', '#c2b295', '#e09a3c'], ['#75505f', '#c4a8b0', '#8a5ad8']],
     model: { kind: 'theropod', body: [2.6, 1.15, 1.1], neck: { len: .9, seg: 4, thick: .48 }, head: { len: 1.0, w: .5, h: .58, jaw: .5 },
       tail: { len: 2.4, seg: 7, thick: .38 }, legs: { front: .55, back: 1.6, thick: .34 }, feat: ['horns2', 'stubarm', 'scales'] },
@@ -1571,7 +1585,9 @@ const SPECIES = {
     harvest: { meat: 5, hide: 4.5, prime: 2.5 }, rideable: true, saddleLv: 74,
     drops: { raw_meat: [40, 60], prime_meat: [4, 8], hide: [40, 60] }, xp: 140,
     spawn: { biomes: ['highland', 'mountain'], weight: 1.2, group: [1, 1] },
-    voice: { pitch: 90, kind: 'roar', len: 2.0 },
+    voice: { pitch: 90, kind: 'roar', len: 2.0,
+      growl: 17, rasp: .7, bright: .74, sub: 1, bend: .56, form: .88,
+      syl: [[1, 1, 1, 0], [.72, .55, .7, 1.05]] },
     colors: [['#6b5c4c', '#c3b5a2', '#a03028'], ['#55604f', '#b0bda6', '#d08434'], ['#5c4d5c', '#b3a4b3', '#3a80a8']],
     model: { kind: 'theropod', body: [4.2, 1.9, 1.7], neck: { len: 1.3, seg: 4, thick: .85 }, head: { len: 1.9, w: .9, h: 1.0, jaw: 1.0 },
       tail: { len: 3.7, seg: 8, thick: .58 }, legs: { front: .6, back: 2.5, thick: .52 }, feat: ['teeth', 'stubarm', 'scales', 'brow'] },
@@ -1590,7 +1606,9 @@ const SPECIES = {
     harvest: { meat: 1.6, hide: 1.4 }, rideable: true, saddleLv: 38,
     drops: { raw_meat: [6, 10], hide: [8, 14] }, xp: 30,
     spawn: { biomes: ['beach', 'plains', 'mountain', 'highland'], weight: 4, group: [1, 2] },
-    voice: { pitch: 700, kind: 'screech', len: .6 },
+    voice: { pitch: 700, kind: 'screech', len: .6,
+      growl: 72, rasp: 1.15, bright: 1.75, sub: .1, bend: 1.85, form: 1.25,
+      syl: [[1, 1, 1, 0], [1.3, .5, .75, .7], [1.1, .45, .5, 1.25]] },
     colors: [['#7a6a58', '#c8bda6', '#c05038'], ['#5c6a7a', '#aebcc8', '#e0a63c'], ['#6a5a6a', '#bfaebf', '#4ad0a8']],
     model: { kind: 'flyer', body: [1.2, .5, .5], neck: { len: .6, seg: 3, thick: .2 }, head: { len: 1.0, w: .22, h: .3, beak: .8 },
       tail: { len: .5, seg: 2, thick: .12 }, legs: { front: .4, back: .5, thick: .08 },
@@ -1610,7 +1628,9 @@ const SPECIES = {
     harvest: { metal: 6, stone: 3, crystal: 2, berry: 1 }, rideable: true, saddleLv: 32,
     drops: { raw_meat: [14, 20], hide: [20, 30], keratin: [10, 16] }, xp: 48,
     spawn: { biomes: ['mountain', 'highland'], weight: 3, group: [1, 2] },
-    voice: { pitch: 150, kind: 'grunt', len: .8 },
+    voice: { pitch: 150, kind: 'grunt', len: .8,
+      growl: 9, rasp: .48, bright: .7, sub: .74, bend: .84, form: .78,
+      syl: [[1, 1, 1, 0], [.9, .7, .5, 1.2]] },
     colors: [['#5f5a4a', '#a8a48c', '#8c6a3c'], ['#4a5550', '#95a09a', '#c98a2c'], ['#5a4a55', '#a094a0', '#4a8c8c']],
     model: { kind: 'ankylosaur', body: [2.4, 1.0, 1.5], neck: { len: .4, seg: 2, thick: .55 }, head: { len: .6, w: .5, h: .34, beak: .3 },
       tail: { len: 1.8, seg: 5, thick: .38 }, legs: { front: .65, back: .75, thick: .3 }, feat: ['shell', 'clubtail', 'spikes'] },
@@ -1629,7 +1649,9 @@ const SPECIES = {
     harvest: { stone: 8, flint: 3, berry: 1 }, rideable: true, saddleLv: 30,
     drops: { raw_meat: [10, 16], hide: [14, 22], keratin: [6, 10] }, xp: 42,
     spawn: { biomes: ['highland', 'mountain', 'plains'], weight: 3, group: [1, 2] },
-    voice: { pitch: 260, kind: 'grunt', len: .6 },
+    voice: { pitch: 260, kind: 'grunt', len: .6,
+      growl: 15, rasp: .55, bright: .92, sub: .52, bend: .9, form: .86,
+      syl: [[1, 1, 1, 0], [1.06, .6, .6, 1.15]] },
     colors: [['#6a5a44', '#b0a086', '#8c5a2c'], ['#55503f', '#9c9880', '#c07a2c'], ['#5f4a4a', '#a89090', '#6a8cd0']],
     model: { kind: 'ankylosaur', body: [1.7, .95, 1.15], neck: { len: .3, seg: 2, thick: .4 }, head: { len: .45, w: .36, h: .3, beak: .2 },
       tail: { len: 1.5, seg: 5, thick: .3 }, legs: { front: .55, back: .6, thick: .24 }, feat: ['shell', 'clubtail_big'] },
@@ -1648,7 +1670,9 @@ const SPECIES = {
     harvest: { meat: 3, hide: 4 }, rideable: true, saddleLv: 35,
     drops: { raw_meat: [14, 20], hide: [22, 34] }, xp: 46,
     spawn: { biomes: ['swamp', 'beach'], weight: 3, group: [1, 2] },
-    voice: { pitch: 130, kind: 'growl', len: .9 },
+    voice: { pitch: 130, kind: 'growl', len: .9,
+      growl: 33, rasp: .95, bright: .6, sub: .88, bend: .66, form: .74,
+      syl: [[1, 1, 1, 0]] },
     colors: [['#4f5544', '#9aa088', '#6a7a4a'], ['#444a4f', '#8c9298', '#5a6a7a'], ['#5a4f44', '#a09488', '#7a6a4a']],
     model: { kind: 'crocodile', body: [3.0, .7, 1.0], neck: { len: .35, seg: 2, thick: .5 }, head: { len: 1.5, w: .42, h: .34, jaw: 1.2 },
       tail: { len: 2.8, seg: 7, thick: .42 }, legs: { front: .38, back: .44, thick: .16 }, feat: ['scutes', 'teeth'] },
@@ -1667,7 +1691,9 @@ const SPECIES = {
     harvest: { meat: 2, hide: 1 }, rideable: true, saddleLv: 20,
     drops: { raw_meat: [8, 12], hide: [8, 12] }, xp: 24,
     spawn: { biomes: ['ocean'], weight: 6, group: [2, 4] },
-    voice: { pitch: 900, kind: 'click', len: .3 },
+    voice: { pitch: 900, kind: 'click', len: .3,
+      growl: 95, rasp: .35, bright: 1.9, sub: .06, bend: 1.05, form: 2.1,
+      syl: [[1, .5, 1, 0], [1.05, .4, .8, .5], [1.12, .35, .65, .9], [1, .3, .5, 1.25]] },
     colors: [['#3f6a7a', '#cfe0e4', '#8ad0e0'], ['#4a5f7a', '#d4dde8', '#a0c0e0'], ['#5a6a6a', '#dde4e4', '#7ad0c0']],
     model: { kind: 'aquatic', body: [2.2, .8, .8], neck: { len: .2, seg: 1, thick: .5 }, head: { len: .9, w: .34, h: .34, beak: .7 },
       tail: { len: 1.6, seg: 5, thick: .3 }, legs: { front: 0, back: 0, thick: 0 }, feat: ['flippers', 'dorsalfin', 'flukes'] },
@@ -1686,7 +1712,9 @@ const SPECIES = {
     harvest: { meat: 4, hide: 3 }, rideable: true, saddleLv: 55,
     drops: { raw_meat: [20, 30], hide: [20, 30] }, xp: 70,
     spawn: { biomes: ['ocean'], weight: 2.5, group: [1, 2] },
-    voice: { pitch: 110, kind: 'growl', len: .8 },
+    voice: { pitch: 110, kind: 'growl', len: .8,
+      growl: 21, rasp: .58, bright: .48, sub: 1, bend: .6, form: .68,
+      syl: [[1, 1, 1, 0]] },
     colors: [['#41505c', '#d8dde0', '#2c3a44'], ['#4a5a5a', '#dfe4e0', '#33484a']],
     model: { kind: 'aquatic', body: [3.4, 1.2, 1.1], neck: { len: .2, seg: 1, thick: .8 }, head: { len: 1.3, w: .7, h: .6, jaw: .9 },
       tail: { len: 2.0, seg: 5, thick: .45 }, legs: { front: 0, back: 0, thick: 0 }, feat: ['flippers', 'dorsalfin_big', 'flukes', 'teeth'] },
@@ -1705,7 +1733,9 @@ const SPECIES = {
     harvest: { meat: 6, hide: 5 }, rideable: false,
     drops: { raw_meat: [60, 90], hide: [60, 90], chitin: [80, 140] }, xp: 900,
     spawn: { biomes: [], weight: 0, group: [1, 1] },
-    voice: { pitch: 150, kind: 'screech', len: 1.8 },
+    voice: { pitch: 150, kind: 'screech', len: 1.8,
+      growl: 67, rasp: 1.35, bright: 1.55, sub: .34, bend: 1.2, form: 2.3,
+      syl: [[1, 1, 1, 0], [1.3, .6, .8, .75], [.9, .7, .6, 1.3]] },
     colors: [['#3a2a3a', '#8a6a8a', '#c04a30'], ['#2a2a3a', '#7a7a9a', '#d06a20']],
     model: { kind: 'spider', body: [2.2, 1.2, 1.8], neck: { len: .3, seg: 1, thick: .5 }, head: { len: .8, w: .7, h: .55, jaw: .5 },
       tail: { len: 1.6, seg: 3, thick: .9 }, legs: { front: 3.2, back: 3.4, thick: .18 }, feat: ['fangs', 'abdomen', 'teeth'] },
@@ -1726,7 +1756,9 @@ const SPECIES = {
     harvest: { meat: 4, hide: 3.5, prime: 1.8 }, rideable: true, saddleLv: 60,
     drops: { raw_meat: [22, 34], prime_meat: [2, 5], hide: [24, 36] }, xp: 90,
     spawn: { biomes: ['swamp', 'jungle', 'beach'], weight: 1.6, group: [1, 1] },
-    voice: { pitch: 110, kind: 'roar', len: 1.6 },
+    voice: { pitch: 110, kind: 'roar', len: 1.6,
+      growl: 19, rasp: .78, bright: .82, sub: .96, bend: .6, form: 1.15,
+      syl: [[1, 1, 1, 0], [1.15, .5, .75, .95]] },
     colors: [['#4a5a4a', '#b8c2b0', '#c05028'], ['#3f4f5c', '#a8b6c0', '#e0a63c'], ['#5a4a5c', '#b4a8b8', '#4ad0a8']],
     model: { kind: 'theropod', body: [3.4, 1.5, 1.35], neck: { len: 1.2, seg: 4, thick: .55 }, head: { len: 1.7, w: .5, h: .6, jaw: 1.3 },
       tail: { len: 3.4, seg: 8, thick: .5 }, legs: { front: .7, back: 2.0, thick: .4 }, feat: ['sail', 'teeth', 'stubarm', 'scales', 'claw'] },
@@ -1745,7 +1777,9 @@ const SPECIES = {
     harvest: { meat: 2.6, hide: 2.2 }, rideable: true, saddleLv: 62,
     drops: { raw_meat: [10, 16], hide: [12, 20] }, xp: 60,
     spawn: { biomes: ['mountain', 'highland'], weight: 2.2, group: [1, 2] },
-    voice: { pitch: 520, kind: 'screech', len: .8 },
+    voice: { pitch: 520, kind: 'screech', len: .8,
+      growl: 63, rasp: 1, bright: 1.68, sub: .18, bend: 1.7, form: 1.45,
+      syl: [[1, 1, 1, 0], [1.35, .45, .7, .8]] },
     colors: [['#6a4a38', '#c8b49c', '#d84a2c'], ['#4a4038', '#b0a494', '#e0a63c'], ['#5c4a5c', '#bcaebc', '#8ad0e0']],
     model: { kind: 'flyer', body: [1.8, .8, .8], neck: { len: .9, seg: 4, thick: .28 }, head: { len: .8, w: .3, h: .36, beak: .55 },
       tail: { len: 1.0, seg: 3, thick: .2 }, legs: { front: .5, back: .8, thick: .12 },
@@ -1765,7 +1799,9 @@ const SPECIES = {
     harvest: { berry: 9, thatch: 6, fiber: 5, wood: 2 }, rideable: true, saddleLv: 63,
     drops: { raw_meat: [40, 60], hide: [50, 80], keratin: [10, 18] }, xp: 150,
     spawn: { biomes: ['plains', 'jungle'], weight: 1.2, group: [1, 2] },
-    voice: { pitch: 70, kind: 'bellow', len: 2.2 },
+    voice: { pitch: 70, kind: 'bellow', len: 2.2,
+      growl: 6, rasp: .26, bright: .52, sub: 1, bend: .82, form: .7,
+      syl: [[1, 1, 1, 0], [1.12, .75, .6, 1.05]] },
     colors: [['#6b6152', '#bdb3a0', '#8a6a3c'], ['#55604f', '#adb8a4', '#c9863c'], ['#5c5262', '#b2a8bc', '#4a8cb0']],
     model: { kind: 'sauropod', body: [4.4, 2.2, 2.4], neck: { len: 5.2, seg: 8, thick: .75 }, head: { len: .9, w: .42, h: .44, beak: .35 },
       tail: { len: 5.6, seg: 9, thick: .8 }, legs: { front: 2.2, back: 2.3, thick: .62 }, feat: ['scales'] },
@@ -1784,7 +1820,9 @@ const SPECIES = {
     harvest: { wood: 7, thatch: 4, berry: 2 }, rideable: true, saddleLv: 46,
     drops: { raw_meat: [22, 34], hide: [30, 46], pelt: [24, 40], keratin: [8, 14] }, xp: 80,
     spawn: { biomes: ['mountain', 'highland'], weight: 2.4, group: [1, 3] },
-    voice: { pitch: 130, kind: 'horn', len: 1.4 },
+    voice: { pitch: 130, kind: 'horn', len: 1.4,
+      growl: 8, rasp: .3, bright: .9, sub: .92, bend: 1.45, form: 1.6,
+      syl: [[1, 1, 1, 0], [1.6, .7, .85, .7]] },
     colors: [['#6b4f38', '#c2a888', '#8a6a4a'], ['#4f4038', '#ab968a', '#6a5a4a'], ['#7a6448', '#cfb99a', '#9a7a58']],
     model: { kind: 'mammal', body: [3.0, 1.7, 1.7], neck: { len: .6, seg: 2, thick: .7 }, head: { len: 1.0, w: .7, h: .7, beak: .3 },
       tail: { len: 1.0, seg: 3, thick: .22 }, legs: { front: 1.5, back: 1.45, thick: .45 }, feat: ['fur', 'tusks', 'trunk'] },
@@ -1803,7 +1841,9 @@ const SPECIES = {
     harvest: { wood: 5, thatch: 5, berry: 5, fiber: 6, hide: 3, meat: 2 }, rideable: true, saddleLv: 57,
     drops: { raw_meat: [16, 24], hide: [22, 34], keratin: [6, 12] }, xp: 85,
     spawn: { biomes: ['jungle', 'highland'], weight: 2, group: [1, 1] },
-    voice: { pitch: 260, kind: 'screech', len: .9 },
+    voice: { pitch: 260, kind: 'screech', len: .9,
+      growl: 37, rasp: .88, bright: 1.18, sub: .42, bend: 1.05, form: 1.1,
+      syl: [[1, 1, 1, 0], [.88, .6, .6, 1.1]] },
     colors: [['#5f6a4a', '#c0c6a8', '#d0a83c'], ['#6a5a4a', '#c8bca8', '#c05a3c'], ['#4a5a5f', '#aebcc0', '#7ad0a0']],
     model: { kind: 'theropod', body: [2.2, 1.3, 1.1], neck: { len: 1.4, seg: 5, thick: .34 }, head: { len: .7, w: .3, h: .34, beak: .4 },
       tail: { len: 1.6, seg: 5, thick: .3 }, legs: { front: .9, back: 1.6, thick: .3 }, feat: ['feathers', 'bigclaws', 'stubarm'] },
@@ -1823,7 +1863,9 @@ const SPECIES = {
     harvest: { meat: 2, hide: 2 }, rideable: false,
     drops: { raw_meat: [8, 14], hide: [10, 18] }, xp: 40,
     spawn: { biomes: ['swamp', 'jungle'], weight: 3, group: [1, 2] },
-    voice: { pitch: 320, kind: 'hiss', len: .9 },
+    voice: { pitch: 320, kind: 'hiss', len: .9,
+      growl: 26, rasp: 1.45, bright: 1.35, sub: .1, bend: 1, form: 1.9,
+      syl: [[1, 1, 1, 0]] },
     colors: [['#3f4a30', '#9aa880', '#c9a83c'], ['#4a3f4a', '#a8a0a8', '#d04a4a'], ['#35404a', '#95a0a8', '#5ad0a0']],
     model: { kind: 'snake', body: [1.2, .55, .55], neck: { len: 1.6, seg: 5, thick: .28 }, head: { len: .6, w: .3, h: .26, jaw: .5 },
       tail: { len: 3.6, seg: 9, thick: .3 }, legs: {}, feat: ['scales', 'teeth'] },
@@ -1843,7 +1885,9 @@ const SPECIES = {
     harvest: { berry: 2, fiber: 2 }, rideable: false,
     drops: { raw_meat: [2, 4], hide: [2, 5] }, xp: 10,
     spawn: { biomes: ['jungle', 'highland'], weight: 5, group: [1, 3] },
-    voice: { pitch: 780, kind: 'chirp', len: .3 },
+    voice: { pitch: 780, kind: 'chirp', len: .3,
+      growl: 12, rasp: .4, bright: 1.42, sub: .12, bend: 1.25, form: 1.3,
+      syl: [[1, 1, 1, 0], [1.25, .7, .75, 1.4]] },
     colors: [['#6b5a44', '#cbb89a', '#d0a040'], ['#4f4438', '#b4a48c', '#a0703c']],
     model: { kind: 'theropod', body: [.7, .45, .4], neck: { len: .28, seg: 2, thick: .14 }, head: { len: .3, w: .2, h: .22, jaw: .16 },
       tail: { len: 1.0, seg: 5, thick: .08 }, legs: { front: .5, back: .55, thick: .07 }, feat: ['fur', 'stubarm'] },
@@ -1862,7 +1906,9 @@ const SPECIES = {
     harvest: { meat: 1.5, hide: .5 }, rideable: false,
     drops: { raw_fish: [3, 6], hide: [1, 3] }, xp: 6,
     spawn: { biomes: ['ocean'], weight: 7, group: [2, 5] },
-    voice: { pitch: 1100, kind: 'click', len: .2 },
+    voice: { pitch: 1100, kind: 'click', len: .2,
+      growl: 110, rasp: .28, bright: 2.05, sub: .04, bend: 1, form: 2.4,
+      syl: [[1, .4, 1, 0], [1.08, .35, .75, .45], [1, .3, .5, .85]] },
     colors: [['#4a6a7a', '#cfe0e4', '#8ad0e0'], ['#5a6a5a', '#d4e0d8', '#a0e0c0']],
     model: { kind: 'aquatic', body: [.9, .45, .4], neck: { len: .1, seg: 1, thick: .2 }, head: { len: .35, w: .2, h: .22, beak: .2 },
       tail: { len: .5, seg: 3, thick: .14 }, legs: {}, feat: ['flippers', 'dorsalfin', 'flukes'] },
@@ -2324,9 +2370,25 @@ const Sound = {
    * animal), a pair of bandpass formants standing in for a vocal tract, and a
    * pitch arc that rises into the call before falling away.
    */
-  beast(freq, dur, { gain = .3, pan = 0, growl = 26, bright = 1, rasp = .6, dest = null } = {}) {
+  /** One animal throat.
+   *
+   *  `growl`, `bright` and `rasp` were here from the start; `sub`, `bend`,
+   *  `form` and `delay` are what turned this from one voice with a pitch knob
+   *  into twenty-three animals. All 23 species had a distinct pitch and length
+   *  and still sounded like the same creature, because those were the only two
+   *  things that ever differed — the throat itself was identical.
+   *
+   *    growl  vibrato rate in Hz — a fast flutter or a slow heave
+   *    bright where the two formants sit; a skull's resonance
+   *    rasp   how much breath is in it
+   *    sub    body weight under the note
+   *    bend   how far the pitch falls across the call
+   *    form   spreads the two formants apart, widening the throat
+   *    delay  seconds from now, for building a call out of syllables */
+  beast(freq, dur, { gain = .3, pan = 0, growl = 26, bright = 1, rasp = .6,
+                     sub = .46, bend = 1, form = 1, delay = 0, dest = null } = {}) {
     if (!this.ready) return;
-    const ctx = this.ctx, t = ctx.currentTime;
+    const ctx = this.ctx, t = ctx.currentTime + Math.max(0, delay);
     const out = ctx.createGain();
     out.gain.setValueAtTime(0, t);
     out.gain.linearRampToValueAtTime(gain, t + dur * .14);
@@ -2340,7 +2402,7 @@ const Sound = {
     const f1 = ctx.createBiquadFilter(); f1.type = 'bandpass';
     f1.frequency.value = Math.min(12000, freq * 3.1 * bright); f1.Q.value = 3.0;
     const f2 = ctx.createBiquadFilter(); f2.type = 'bandpass';
-    f2.frequency.value = Math.min(14000, freq * 6.4 * bright); f2.Q.value = 2.2;
+    f2.frequency.value = Math.min(14000, freq * 6.4 * bright * form); f2.Q.value = 2.2;
     const f2g = ctx.createGain(); f2g.gain.value = .7;
     f1.connect(out); f2.connect(f2g); f2g.connect(out);
 
@@ -2348,7 +2410,7 @@ const Sound = {
     const o = ctx.createOscillator(); o.type = 'sawtooth';
     o.frequency.setValueAtTime(freq * .80, t);
     o.frequency.linearRampToValueAtTime(freq * 1.12, t + dur * .24);
-    o.frequency.exponentialRampToValueAtTime(Math.max(22, freq * .52), t + dur);
+    o.frequency.exponentialRampToValueAtTime(Math.max(22, freq * .52 * bend), t + dur);
     const og = ctx.createGain(); og.gain.value = .5;
     o.connect(og); og.connect(f1); og.connect(f2);
 
@@ -2360,11 +2422,12 @@ const Sound = {
     lfo.connect(lg); lg.connect(og.gain);
 
     /* weight */
-    const sub = ctx.createOscillator(); sub.type = 'sine';
-    sub.frequency.setValueAtTime(freq * .5, t);
-    sub.frequency.exponentialRampToValueAtTime(Math.max(18, freq * .3), t + dur);
-    const sg = ctx.createGain(); sg.gain.value = .46;
-    sub.connect(sg); sg.connect(out);
+    const subLevel = sub;                       // the option, before it is shadowed
+    const subOsc = ctx.createOscillator(); subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(freq * .5, t);
+    subOsc.frequency.exponentialRampToValueAtTime(Math.max(18, freq * .3 * bend), t + dur);
+    const sg = ctx.createGain(); sg.gain.value = subLevel;
+    subOsc.connect(sg); sg.connect(out);
 
     /* breath */
     const nz = ctx.createBufferSource(); nz.buffer = this.noiseBuf; nz.loop = true;
@@ -2374,48 +2437,85 @@ const Sound = {
     const ng = ctx.createGain(); ng.gain.value = .20 * rasp;
     nz.connect(nf); nf.connect(ng); ng.connect(out);
 
-    o.start(t); sub.start(t); lfo.start(t); nz.start(t);
+    o.start(t); subOsc.start(t); lfo.start(t); nz.start(t);
     const stop = t + dur + .08;
-    o.stop(stop); sub.stop(stop); lfo.stop(stop); nz.stop(stop);
+    o.stop(stop); subOsc.stop(stop); lfo.stop(stop); nz.stop(stop);
   },
 
-  voice(v, { pan = 0, vol = 1, hurt = false } = {}) {
+  /* How an utterance is shaped. A call is the animal's full voice; an attack
+     is short, higher and harder-edged; being hurt is a clipped yelp; dying
+     falls away. These used to be the same clip at different volumes — roar()
+     and bite() literally played one sound, the bite just quieter — so nothing
+     an animal did sounded like the thing it was doing. */
+  VOICE_MODE: {
+    call:   { pitch: 1,    len: 1,   gain: 1,    rasp: 1,   bright: 1,    bend: 1,    syl: 1 },
+    attack: { pitch: 1.18, len: .42, gain: 1.15, rasp: 1.3, bright: 1.25, bend: 1.1,  syl: 1 },
+    hurt:   { pitch: 1.34, len: .30, gain: .95,  rasp: 1.6, bright: 1.35, bend: 1.5,  syl: 1 },
+    die:    { pitch: .82,  len: 1.5, gain: 1,    rasp: 1.2, bright: .8,   bend: .45,  syl: 1 },
+  },
+
+  /** An animal's voice.
+   *
+   *  Every one of the 23 species already carried its own pitch and length,
+   *  and they still all sounded like the same creature: those were the only
+   *  two numbers that differed, and nine hard-coded recipes had to cover the
+   *  whole roster — seven species shared `screech`. The recipe is now a
+   *  starting point and the species' own throat (growl rate, rasp, formant
+   *  spread, sub weight, pitch bend) and syllable pattern do the work, so no
+   *  two animals land on the same sound.
+   *
+   *  `mode` is what the animal is doing: call, attack, hurt or die. */
+  voice(v, { pan = 0, vol = 1, hurt = false, mode = null } = {}) {
     if (!this.ready || !v) return;
-    const p = v.pitch * (hurt ? 1.25 : 1) * rnd(.94, 1.07), len = v.len * (hurt ? .55 : 1);
-    switch (v.kind) {
-      case 'roar':
-        this.beast(p, len, { gain: .34 * vol, pan, growl: 31, rasp: .8, bright: 1.05 });
-        this.noise(len * .35, { gain: .10 * vol, f0: p * 9, f1: p * 3, type: 'bandpass', q: 1.2, pan, delay: len * .5 });
-        break;
-      case 'bellow':
-        this.beast(p, len, { gain: .30 * vol, pan, growl: 15, rasp: .34, bright: .72 });
-        break;
-      case 'horn':
-        this.tone(p, len, { type: 'square', gain: .16 * vol, f2: p * 1.35, pan, attack: .07 });
-        this.tone(p * 1.5, len * .9, { type: 'sine', gain: .09 * vol, f2: p * 1.9, pan });
-        this.tone(p * .5, len, { type: 'sine', gain: .12 * vol, f2: p * .4, pan, attack: .08 });
-        break;
-      case 'screech':
-        this.beast(p * 1.6, len * .8, { gain: .18 * vol, pan, growl: 52, rasp: 1.0, bright: 1.5 });
-        this.noise(len * .7, { gain: .13 * vol, f0: p * 4, f1: p * 8, type: 'bandpass', q: 3, pan });
-        break;
-      case 'chirp':
-        this.tone(p, len * .4, { type: 'square', gain: .1 * vol, f2: p * 1.6, pan });
-        this.tone(p * 1.4, len * .3, { type: 'sine', gain: .07 * vol, f2: p * .9, pan, delay: len * .35 });
-        break;
-      case 'hiss':
-        this.noise(len, { gain: .18 * vol, f0: 5200, f1: 2200, type: 'bandpass', q: 2.2, pan });
-        break;
-      case 'growl':
-        this.beast(p, len, { gain: .24 * vol, pan, growl: 39, rasp: .9, bright: .66 });
-        break;
-      case 'grunt':
-        this.tone(p, len * .5, { type: 'triangle', gain: .2 * vol, f2: p * .6, pan });
-        this.noise(len * .4, { gain: .1 * vol, f0: 800, f1: 200, pan });
-        break;
-      case 'click':
-        for (let i = 0; i < 4; i++) this.noise(.03, { gain: .1 * vol, f0: p * 3, f1: p * 2, type: 'bandpass', q: 6, delay: i * .07, pan });
-        break;
+    const M = this.VOICE_MODE[mode || (hurt ? 'hurt' : 'call')] || this.VOICE_MODE.call;
+    /* the base recipe for this articulation, before the species is applied */
+    const base = {
+      chirp:   { gain: .17, rasp: .5,  bright: 1.4, air: .5 },
+      horn:    { gain: .24, rasp: .3,  bright: 1.0, air: .2 },
+      bellow:  { gain: .30, rasp: .34, bright: .72, air: .25 },
+      screech: { gain: .21, rasp: 1.0, bright: 1.5, air: .9 },
+      hiss:    { gain: .18, rasp: 1.5, bright: 1.3, air: 1.5 },
+      roar:    { gain: .34, rasp: .8,  bright: 1.05, air: .6 },
+      growl:   { gain: .26, rasp: .9,  bright: .66, air: .35 },
+      grunt:   { gain: .24, rasp: .6,  bright: .9,  air: .4 },
+      click:   { gain: .15, rasp: .3,  bright: 1.9, air: .3 },
+    }[v.kind] || { gain: .26, rasp: .7, bright: 1, air: .5 };
+
+    const jitter = rnd(.95, 1.06);      // no two calls are identical
+    const p0 = v.pitch * M.pitch * jitter;
+    const l0 = v.len * M.len;
+    const g0 = base.gain * M.gain * vol;
+    const rasp = (v.rasp != null ? v.rasp : base.rasp) * M.rasp;
+    const bright = (v.bright != null ? v.bright : base.bright) * M.bright;
+    const growl = v.growl != null ? v.growl : 26;
+    const subW = v.sub != null ? v.sub : .46;
+    const bend = (v.bend != null ? v.bend : 1) * M.bend;
+    const form = v.form != null ? v.form : 1;
+    const syl = v.syl && v.syl.length ? v.syl : [[1, 1, 1, 0]];
+
+    for (let i = 0; i < syl.length; i++) {
+      /* an attack is one bark, not a whole call — the later syllables are
+         what makes an idle call sound conversational, and a bite must not */
+      if (i > 0 && (mode === 'attack' || mode === 'hurt')) break;
+      const [pm, lm, gm, df] = syl[i];
+      const p = p0 * pm, len = Math.max(.05, l0 * lm), delay = l0 * df;
+      this.beast(p, len, {
+        gain: g0 * gm, pan, growl, rasp, bright, sub: subW, bend, form, delay,
+      });
+      /* the breath over the top: a hiss is nearly all of this, a bellow
+         almost none, and where it sits in the spectrum is the species' own */
+      if (base.air > .05) {
+        this.noise(len * .6, {
+          gain: g0 * gm * base.air * .45, pan, delay: delay + len * .12,
+          f0: Math.min(16000, p * 6 * bright * form),
+          f1: Math.min(16000, p * 2.2 * bright),
+          type: 'bandpass', q: 1 + rasp,
+        });
+      }
+    }
+    /* the transient that tells you a thing just snapped at you */
+    if (mode === 'attack') {
+      this.noise(.07, { gain: g0 * .6, pan, f0: p0 * 7, f1: p0 * 1.8, type: 'bandpass', q: 1.4 });
     }
   },
 
@@ -2455,7 +2555,17 @@ const Sound = {
     damp.type = 'lowpass'; damp.frequency.value = 2200;
     dly.connect(fb); fb.connect(dly);
     dly.connect(damp); damp.connect(wet); wet.connect(this.music);
-    this._mus = { dly, wet, next: ctx.currentTime + .4, bar: 0, mode: 'day', t: 0 };
+    this._mus = { dly, wet, next: ctx.currentTime + .4, bar: 0, mode: 'day', t: 0,
+                  danger: false, dangerHold: 0 };
+  },
+
+  /** The moment something turns on you: a low hit and a rising third, once. */
+  dangerStinger() {
+    const g = .09;
+    this.tone(58, 1.1, { type: 'sawtooth', gain: g * 1.5, f2: 40, dest: this.music, attack: .01 });
+    this.tone(233, .5, { type: 'triangle', gain: g, f2: 277, dest: this.music, attack: .02 });
+    this.tone(277, .7, { type: 'triangle', gain: g * .8, f2: 311, dest: this.music, delay: .16, attack: .02 });
+    this.noise(.5, { gain: g * .7, f0: 2600, f1: 300, type: 'bandpass', q: .9, dest: this.music });
   },
 
   /** Pick the mode from the world, then schedule any bar that is due. */
@@ -2465,17 +2575,42 @@ const Sound = {
     m.t += dt;
     /* `menu` is passed in explicitly rather than derived from the world: the
        menu runs before there is a world to derive anything from. */
+    /* Hysteresis, so the score does not flicker every time an animal loses
+       interest for a second: it takes .45 to turn the music dangerous and it
+       stays dangerous until the threat has been under .18 for three seconds. */
+    if (threat !== 'menu') {
+      if (threat > .45) { m.danger = true; m.dangerHold = 3; }
+      else if (m.danger) {
+        if (threat > .18) m.dangerHold = 3;
+        else { m.dangerHold -= dt; if (m.dangerHold <= 0) m.danger = false; }
+      }
+    } else { m.danger = false; }
+
     const mode = threat === 'menu' ? 'menu'
-      : threat > .5 ? 'danger'
+      : m.danger ? 'danger'
       : hour < 6.5 || hour > 20.5 ? 'night'
       : hour < 8.5 ? 'dawn'
       : hour > 17.5 ? 'dusk' : 'day';
+    const wasMode = m.mode;
     m.mode = mode;
     const M = this.MUSIC[mode];
 
     /* schedule ahead of the clock, never on it: a dropped frame must not
        leave a hole in the music */
     const now = this.ctx.currentTime;
+
+    /* Turning dangerous must not wait out the rest of the bar. A bar is up to
+       5.2 s long, so by the time the music turned the fight was over — the
+       music never once reacted to being attacked. A rise into danger cuts the
+       scheduled tail and starts the next bar within a beat, with a stinger
+       over the top so the change is unmistakable. Falling back out is left to
+       the bar line, where a soft landing belongs. */
+    if (mode === 'danger' && wasMode !== 'danger') {
+      m.next = Math.min(m.next, now + .12);
+      m.bar = 0;
+      this.dangerStinger();
+    }
+
     if (now < m.next - .25) return;
     const t0 = Math.max(now + .05, m.next);
     const bar = M.tempo;
@@ -7797,7 +7932,7 @@ class Creature {
       this.flinch = Math.min(1, this.flinch + .5);
       Particles.blood(opts.point || this.bodyCenter(), 6 + Math.min(14, dealt * .2));
       Sound.hitFlesh(clamp01(dealt / 40));
-      if (Math.random() < .5) Sound.voice(this.sp.voice, { hurt: true, vol: .7, pan: this.panFrom() });
+      if (Math.random() < .5) Sound.voice(this.sp.voice, { mode: 'hurt', vol: .7, pan: this.panFrom() });
     }
     /* torpidity (tranq) */
     if (opts.torpor) {
@@ -7835,7 +7970,7 @@ class Creature {
     this.target = null;
     this.ridden = false;
     Sound.knockout();
-    Sound.voice(this.sp.voice, { hurt: true, vol: .8, pan: this.panFrom() });
+    Sound.voice(this.sp.voice, { mode: 'hurt', vol: .8, pan: this.panFrom() });
     if (!this.tamed) {
       UI.toast(this.sp.name + ' (Lv ' + this.level + ') is unconscious', 'good');
       UI.center(tr('Knocked out'), tr('Press ') + keyLabel(Input.binds.use) + ' to open its inventory and feed it');
@@ -7938,7 +8073,7 @@ class Creature {
     this.corpse = true;
     this.decayT = 300;
     this.vel.set(0, 0, 0);
-    Sound.voice(this.sp.voice, { hurt: true, vol: 1 });
+    Sound.voice(this.sp.voice, { mode: 'die', vol: 1 });
     Sound.die();
     /* corpse holds the harvestable drops */
     const d = this.sp.drops || {};
@@ -8161,11 +8296,15 @@ class Creature {
   }
   roar() {
     this.targetJaw = 1; this.mouthT = this.sp.voice.len * .8;
-    Sound.voice(this.sp.voice, { pan: this.panFrom(), vol: clamp01(1 - this.distToPlayer() / 90) });
+    Sound.voice(this.sp.voice, { mode: 'call', pan: this.panFrom(),
+      vol: clamp01(1 - this.distToPlayer() / 90) });
   }
+  /* A bite used to play the roar at half volume, so a Rex snapping at you
+     sounded exactly like a Rex calling across the valley. */
   bite() {
     this.targetJaw = 1; this.mouthT = .35;
-    Sound.voice(this.sp.voice, { pan: this.panFrom(), vol: .5 * clamp01(1 - this.distToPlayer() / 60) });
+    Sound.voice(this.sp.voice, { mode: 'attack', pan: this.panFrom(),
+      vol: .8 * clamp01(1 - this.distToPlayer() / 60) });
   }
 }
 const _hp1 = new THREE.Vector3(), _hp2 = new THREE.Vector3(), _hp3 = new THREE.Vector3();
@@ -14998,7 +15137,13 @@ const Game = {
          matters: only something actually chasing counts as a threat. */
       if (c.state !== 'chase' || c.target !== Player) continue;
       const d = Math.hypot(c.pos.x - Player.pos.x, c.pos.z - Player.pos.z);
-      threat = Math.max(threat, clamp01(1 - d / 42));
+      /* Anything that has decided to hunt you is a threat from the moment it
+         starts running, not from the moment it arrives. The old curve —
+         1 - d/42 against a .5 switch — needed the animal inside 21 m, which
+         is close enough that it is already biting you, so in practice the
+         music never reacted to an attack at all. This crosses the threshold
+         at about 40 m, roughly when you first see it coming. */
+      threat = Math.max(threat, clamp01(1 - d / 72) + (d < 8 ? .35 : 0));
       if (threat > .95) break;
     }
     if (Boss.active) threat = 1;
