@@ -131,6 +131,13 @@ try {
   const gfx = await page.evaluate(async () => {
     const { Gfx, Sky, Camera, Game } = window.__ark;
     const bad = [];
+    /* The adaptive step-down must be off for this measurement. Software GL
+       runs at about 1 fps, so after four seconds of frames it demotes the tier
+       to `medium`, which has ssao: 0 — and applyQuality reallocates rtAO,
+       leaving an all-black buffer for the check below to read. That is the
+       step-down doing its job, not a broken AO pass, but it means the test
+       would otherwise be grading a tier it no longer has. */
+    Gfx.autoTier = false;
     Gfx.applyQuality('high');
     Sky.time = 10; Camera.thirdPerson = true;
     const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -144,6 +151,9 @@ try {
        so an AO pass ordered after it sees only the player's hands and the
        buffer comes back almost entirely white — which is exactly the bug this
        catches. A real outdoor frame occludes somewhere. */
+    /* and say so out loud if something demoted us anyway, rather than
+       reporting a number that came from a different tier */
+    if (Gfx.qname !== 'high') bad.push(`tier changed to ${Gfx.qname} before the AO was read`);
     const ao = Gfx.rtAO;
     const abuf = new Uint8Array(ao.width * ao.height * 4);
     r.setRenderTarget(ao);

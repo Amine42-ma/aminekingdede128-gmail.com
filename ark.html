@@ -241,19 +241,29 @@ body.touch #hud{z-index:70}
 #interact .sub{color:var(--bone-dim);font-size:11.5px}
 
 #nameplates{position:absolute;inset:0;overflow:hidden}
-.np{position:absolute;transform:translate(-50%,-100%);width:150px;text-align:center;
+/* 150px wide meant two animals standing near each other overlapped into one
+   long bar across the screen. A plate is now only as wide as its name. */
+.np{position:absolute;transform:translate(-50%,-100%);width:104px;text-align:center;
   filter:drop-shadow(0 2px 6px rgba(0,0,0,.9));transition:opacity .2s}
-.np .nm{font-size:12px;font-weight:650;color:#fff;letter-spacing:.02em;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis}
-.np .lv{color:var(--bone-soft);font-family:var(--mono);font-size:11px}
-.np .bar{height:3.5px;margin-top:2px;border-radius:3px;background:rgba(0,0,0,.65);overflow:hidden;
+.np .nm{font-size:11.5px;font-weight:600;color:rgba(255,255,255,.9);letter-spacing:.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.np .lv{color:var(--bone-soft);font-family:var(--mono);font-size:10.5px}
+.np .bar{height:3px;margin-top:2px;border-radius:3px;background:rgba(0,0,0,.65);overflow:hidden;
   border:1px solid rgba(255,255,255,.1)}
 .np .bar i{display:block;height:100%;background:var(--hp)}
 .np .bar.tor i{background:var(--torpor)}
 .np .bar.tame i{background:var(--amber)}
-.np .st{font-size:10.5px;color:var(--violet);letter-spacing:.1em;text-transform:uppercase}
+.np .st{font-size:10px;color:var(--violet);letter-spacing:.1em;text-transform:uppercase}
+/* the numbers are earned by getting close and looking at it: the name alone
+   until then, so the world is not papered over with red stat panels */
+.np .lv,.np .bar,.np .st{display:none}
+.np.detail .lv,.np.detail .bar,.np.detail .st{display:block}
+/* the torpor and taming bars stay driven by the inline display the JS sets,
+   which wins over the rule above when it says none and defers to it when it
+   is cleared — so they still only appear when there is progress to show */
 .np.tamed .nm{color:var(--teal)}
-.np.hostile .nm{color:#ffb0a8}
+/* a warm tint, not the alarm red it used to be */
+.np.hostile .nm{color:#ffd9cf}
 
 #dmgvig{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .35s;
   background:radial-gradient(120% 100% at 50% 50%,transparent 45%,rgba(150,10,5,.75) 100%)}
@@ -2780,6 +2790,38 @@ const TexLab = {
     }
     return made;
   },
+  /** Push the drawn colour out into the transparent region of a cutout mask.
+   *
+   *  A mask canvas starts at clearRect — transparent BLACK, rgb(0,0,0,0) —
+   *  and three.js does not premultiply a canvas texture. The GPU then builds
+   *  mipmaps by averaging RGB and alpha independently, so a texel straddling
+   *  a leaflet edge keeps enough alpha to pass alphaTest while its RGB has
+   *  been dragged toward black. That is the black grit that appeared along
+   *  every palm frond and grass blade, worst at distance where the small mips
+   *  are used.
+   *
+   *  The shape of a cutout lives entirely in its alpha channel and the colour
+   *  comes from vertexColors on the mesh, so flooding RGB with the mask's own
+   *  tone changes nothing visible — it just leaves mip averaging with no black
+   *  to average in. */
+  bleedAlpha(canvas, tone = 235) {
+    const g = canvas.getContext('2d');
+    const img = g.getImageData(0, 0, canvas.width, canvas.height);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      /* Alpha 1, not 0. A canvas stores its pixels premultiplied, so colour
+         written into a fully transparent texel is multiplied away and reads
+         back as black however carefully it was set — there is no way to keep
+         a colour at alpha 0. One step of alpha is enough to carry it, and it
+         is two orders of magnitude below the alphaTest cutoff, so not one of
+         these texels is ever drawn. They exist only to give the mip chain
+         something other than black to average. */
+      if (d[i + 3] === 0) { d[i] = d[i + 1] = d[i + 2] = tone; d[i + 3] = 1; }
+    }
+    g.putImageData(img, 0, 0);
+    return canvas;
+  },
+
   tex(name, make, { repeat = 1, srgb = true } = {}) {
     if (this.cache[name]) return this.cache[name];
     const t = new THREE.CanvasTexture(make());
@@ -2858,7 +2900,7 @@ const TexLab = {
           g.closePath(); g.fill();
         }
       }
-      return c;
+      return this.bleedAlpha(c);
     });
 
     this.leafMask = this.tex('leafMask', () => {
@@ -2889,7 +2931,7 @@ const TexLab = {
           leaf(x + ox * S, y + oy * S, len, wid, ang, tone);
         }
       }
-      return c;
+      return this.bleedAlpha(c);
     });
     this.rockD = this.tex('rockD', () => tintedNoiseTexture(256, ['#8e8e8e', '#c0c0c0', '#eaeaea'], { scale: 5, octaves: 6, detail: true, seed: 33 }));
   },
@@ -9051,6 +9093,10 @@ const Combat = {
   aiming: false, draw: 0, cd: 0, swing: 0, swingRate: 5, swingDir: 1, projectiles: [], lastHitT: 0,
   arrowGeo: null, arrowMat: null, tranqMat: null, bolaGeo: null,
   focus: null,       // what the crosshair is on right now
+  /* What the player is LOOKING at, as opposed to what they can reach. The
+     interaction focus above only casts as far as your arm (reachInteract +
+     1.5 ≈ 5.7 m), which is no use for deciding whose name to show. */
+  aimed: null, aimedDist: 0,
 
   init() {
     this.arrowGeo = new THREE.CylinderGeometry(.018, .028, .95, 5);
@@ -9091,6 +9137,7 @@ const Combat = {
     }
     this.updateProjectiles(dt);
     this.updateFocus();
+    this.updateAim();
   },
 
   /** What a thing sounds like when you swing it. Derived from the item rather
@@ -9417,6 +9464,30 @@ const Combat = {
     const p = this.projectiles[i];
     Gfx.scene.remove(p.mesh);
     this.projectiles.splice(i, 1);
+  },
+
+  /** One ray a frame for "which animal am I looking at".
+   *
+   *  Nameplates used to be drawn for every creature within 55 m that fell in
+   *  the camera frustum, with no line-of-sight test at all — so an animal
+   *  behind a dune got a name hanging in the air over empty beach. This is
+   *  what replaces that: a single cast down the crosshair, rejected if the
+   *  terrain is closer than the animal, so a plate only ever appears on
+   *  something you can actually see. */
+  AIM_RANGE: 38,
+  updateAim() {
+    this.aimed = null; this.aimedDist = 0;
+    if (anyScreenOpen() || Building.active) return;
+    const origin = Player.eyePos(_v3a);
+    const dir = Player.forward(_v3b);
+    /* a forgiving radius: you should not have to be pixel-accurate on a phone
+       to read the name of the thing in front of you */
+    const hit = Physics.castCreature(origin, dir, this.AIM_RANGE, 1.1, null);
+    if (!hit) return;
+    const terr = Physics.raycastTerrain(origin, dir, hit.dist, .9);
+    if (terr.hit && terr.dist < hit.dist - .5) return;   // a hill is in the way
+    this.aimed = hit.creature;
+    this.aimedDist = hit.dist;
   },
 
   /* -------------------------------------------------------------- crosshair */
@@ -10749,6 +10820,11 @@ const Touch = {
   move: { x: 0, y: 0 },                 // deadzoned + normalised movement axes
   held: {}, edge: {},
   stickId: null, lookId: null, lookX: 0, lookY: 0,
+  /* The stick's centre, in viewport coordinates, owned by this object.
+     It used to be read back out of the DOM on every pointer event — see
+     dragStick — which made the direction you walk a function of where the
+     browser thinks a floating div is. */
+  stickOX: 0, stickOY: 0, stickR: 54,
   penX: 0, penY: 0,                     // look not yet applied to the camera
   velX: 0, velY: 0,                     // recent look speed, for release glide
   sprintStick: false, sprintLatch: false,
@@ -10783,6 +10859,7 @@ const Touch = {
     this.knob = $('#tstick .knob');
     this.wheelEl = $('#twheel');
 
+    this.bindPointerCensus();   // first, so the census is complete before use
     this.bindStick();
     this.bindLook();
     this.bindButtons();
@@ -10819,12 +10896,16 @@ const Touch = {
     const zone = $('#tzoneL');
     zone.addEventListener('pointerdown', e => {
       if (!this.active) return;
-      /* take over a stale id instead of refusing: a missed `up` must never be
-         able to brick the stick */
+      /* A second finger in the left zone used to steal stickId outright. When
+         it lifted, the stick released while the first thumb was still down —
+         and that thumb's moves were now filtered out by id, so movement was
+         dead until it was lifted and pressed again. Only take over when the
+         held id is genuinely gone (a lost `up`), which a missed `up` must
+         still never be able to brick the stick with. */
+      if (this.stickId !== null && this.stickId !== e.pointerId
+          && this._downIds.has(this.stickId)) return;
       this.stickId = e.pointerId;
-      /* the stick comes to the thumb, not the other way round */
-      this.stickEl.style.left = e.clientX + 'px';
-      this.stickEl.style.top = e.clientY + 'px';
+      this.anchorStick(e.clientX, e.clientY);
       this.stickEl.classList.add('on');
       this.dragStick(e);
       capture(zone, e.pointerId);       // a bonus when it works, never relied on
@@ -10840,6 +10921,43 @@ const Touch = {
     };
     addEventListener('pointerup', up);
     addEventListener('pointercancel', up);
+    /* The first touch of the session asks for fullscreen, which resizes the
+       viewport DURING the gesture that asked for it — the browser chrome goes
+       away and every clientY shifts. That moved the thumb relative to a stick
+       anchored before the resize, which is one concrete way the walk direction
+       came out reversed. Re-anchoring under the thumb makes it a no-op.
+       (An orientation change is already handled: it calls releaseAll.) */
+    addEventListener('resize', () => {
+      if (this.stickId === null) return;
+      this.anchorStick(this._lastX, this._lastY);
+      this.raw.x = this.raw.y = this.raw.mag = 0;
+      if (this.knob) this.knob.style.transform = '';
+    });
+  },
+
+  /* Which pointers are physically down, so the stick can tell a second finger
+     landing beside the first (ignore it) from a first finger whose `up` was
+     lost (take over). Every panic path clears it, so a dropped `up` can never
+     leave the stick permanently unclaimable. */
+  _downIds: new Set(), _lastX: 0, _lastY: 0,
+
+  bindPointerCensus() {
+    addEventListener('pointerdown', e => this._downIds.add(e.pointerId), true);
+    const gone = e => this._downIds.delete(e.pointerId);
+    addEventListener('pointerup', gone, true);
+    addEventListener('pointercancel', gone, true);
+  },
+
+  /** Put the stick's centre at a point in viewport coordinates. */
+  anchorStick(x, y) {
+    this.stickOX = x; this.stickOY = y;
+    this._lastX = x; this._lastY = y;
+    this.stickEl.style.left = x + 'px';
+    this.stickEl.style.top = y + 'px';
+    /* the travel limit comes from the element's configured size, read once
+       here rather than per event — --tstick only changes in the settings */
+    const w = this.stickEl.offsetWidth;
+    if (w > 0) this.stickR = w * .40;
   },
 
   releaseStick() {
@@ -10850,13 +10968,33 @@ const Touch = {
     if (this.knob) this.knob.style.transform = '';
   },
 
+  /** Where the thumb is, relative to an origin this object owns.
+   *
+   *  This used to measure against getBoundingClientRect() on every single
+   *  event, so the direction you walked depended on where the DOM said a
+   *  floating div was at that instant. Anything that moved the element or
+   *  shifted the coordinate space mid-gesture — the fullscreen request fired
+   *  by the very first touch, an orientation change — inverted the vector,
+   *  and the player walked backwards.
+   *
+   *  The origin also SLIDES: push past the limit and it is dragged along
+   *  behind the thumb rather than clamping in place. That is how a good phone
+   *  stick behaves, and it makes this self-healing — one full-radius push
+   *  re-anchors the centre under the thumb, so even a wrong origin corrects
+   *  itself on the next movement instead of staying wrong for the whole hold. */
   dragStick(e) {
-    const r = this.stickEl.getBoundingClientRect();
-    const lim = r.width * .40;
-    let dx = e.clientX - (r.left + r.width / 2);
-    let dy = e.clientY - (r.top + r.height / 2);
+    this._lastX = e.clientX; this._lastY = e.clientY;
+    const lim = this.stickR;
+    let dx = e.clientX - this.stickOX;
+    let dy = e.clientY - this.stickOY;
     const m = Math.hypot(dx, dy);
-    if (m > lim) { dx *= lim / m; dy *= lim / m; }
+    if (m > lim) {
+      const pull = (m - lim) / m;
+      this.stickOX += dx * pull; this.stickOY += dy * pull;
+      this.stickEl.style.left = this.stickOX + 'px';
+      this.stickEl.style.top = this.stickOY + 'px';
+      dx *= lim / m; dy *= lim / m;
+    }
     this.knob.style.transform = `translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px)`;
     this.raw.x = dx / lim;
     this.raw.y = -dy / lim;
@@ -11111,6 +11249,7 @@ const Touch = {
 
   releaseAll() {
     this.held = {}; this.edge = {};
+    this._downIds.clear();
     this.releaseStick();
     this.lookId = null;
     this.stick.x = this.stick.y = this.stick.mag = 0;
@@ -13007,7 +13146,21 @@ const UI = {
     const layer = $('#nameplates');
     const cam = Gfx.camera;
     const seen = new Set();
-    const list = Creatures.near(Player.pos.x, Player.pos.z, 62, this._npScan || (this._npScan = []));
+    /* Who gets a plate at all.
+     *
+     *  This used to be "every creature within 55 m that is in the frustum",
+     *  with no line-of-sight test — which is why plates appeared over empty
+     *  beach for animals standing behind a dune, in red, at full detail, two
+     *  of them overlapping into one long bar. Now it is the animal under the
+     *  crosshair (Combat.updateAim, which does test line of sight) plus your
+     *  own tamed animals, which you always want to be able to find. */
+    const aimed = Combat.aimed;
+    const list = this._npScan || (this._npScan = []);
+    list.length = 0;
+    if (aimed && !aimed.dead) list.push(aimed);
+    for (const c of Creatures.tamedList) {
+      if (c !== aimed && !c.dead && c.distToPlayer() < 55) list.push(c);
+    }
     for (const c of list) {
       if (c.dead) continue;
       const d = c.distToPlayer();
@@ -13031,6 +13184,10 @@ const UI = {
       np.style.opacity = clamp01(1.6 - d / 55);
       np.classList.toggle('tamed', c.tamed);
       np.classList.toggle('hostile', !c.tamed && (c.sp.temper === 'aggressive' || c.sp.temper === 'apex'));
+      /* The name is always there; the numbers are for something you are close
+         enough to size up. Get near it and look at it, and it tells you what
+         it is worth fighting. */
+      np.classList.toggle('detail', c.tamed || (c === aimed && d < 26));
       np.querySelector('.nm').textContent = c.displayName();
       np.querySelector('.lv').textContent = tr('Lv ') + c.level
         + (c.tamed ? ' ' + c.genderMark() + (c.isBaby() ? ' · ' + c.growthStage() : '') : '')
@@ -14890,7 +15047,7 @@ const Game = {
 window.__ark = {
   Game, World, Player, Camera, ViewModel, PlayerModel, Creatures, Inventory, Structures, Building, Flora, Sky, Gfx, UI, Combat, Riding, Taming,
   Loot, Objectives, Particles, Physics, Sound, SaveGame, Settings, Breeding, Caves, Boss, TUNE, SPECIES, ITEMS, RECIPES, ENGRAMS, STRUCTURES, NODES,
-  CreatureModel, Creature, I18N, Photo, Touch, Input, STATIONS, BIOMES, QUALITY,
+  CreatureModel, Creature, I18N, Photo, Touch, Input, STATIONS, BIOMES, QUALITY, TexLab,
   state: () => ({
     state: Game.state, fps: Math.round(Game.fps), pos: Player.pos.toArray().map(v => Math.round(v)),
     level: Player.level, health: Math.round(Player.cur.health), creatures: Creatures.list.length,
