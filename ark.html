@@ -2191,7 +2191,27 @@ const Sound = {
     this.noise(.12, { gain: .28, f0: 900, f1: 160, type: 'lowpass' });
     if (hit) { this.tone(120, .1, { type: 'square', gain: .12, f2: 60 }); this.noise(.07, { gain: .2, f0: 2600, f1: 700, type: 'bandpass', q: 1.6 }); }
   },
-  swing() { this.noise(.16, { gain: .12, f0: 2400, f1: 500, type: 'bandpass', q: .8 }); },
+  /* A swing used to be one 0.16 s hiss at gain .12 — the quietest sound in
+     the bank, quieter than picking an item up — whatever you were holding and
+     whether or not it connected.  Now the weapon has a weight to it and the
+     air it moves is audible: a fist thumps, a blade cuts, a club shoulders
+     through.  `whiff` is the same swing with the tail of empty air left on it,
+     so a miss sounds different from a hit without a word of UI. */
+  swing(kind) {
+    const v = {
+      fists:  { d: .13, g: .22, f0: 1500, f1: 380, q: .7 },
+      blade:  { d: .15, g: .30, f0: 3800, f1: 700, q: 2.2 },
+      heavy:  { d: .22, g: .32, f0: 1100, f1: 240, q: .5 },
+      polearm:{ d: .19, g: .26, f0: 2600, f1: 520, q: 1.1 },
+    }[kind] || { d: .16, g: .26, f0: 2400, f1: 500, q: .9 };
+    this.noise(v.d, { gain: v.g, f0: v.f0, f1: v.f1, type: 'bandpass', q: v.q });
+    if (kind === 'heavy') this.tone(70, .12, { type: 'sine', gain: .1, f2: 40 });
+  },
+  whiff(kind) {
+    this.swing(kind);
+    /* the low sigh of air closing behind a swing that hit nothing */
+    this.noise(.26, { gain: .12, f0: 700, f1: 130, type: 'bandpass', q: .6, delay: .05 });
+  },
   hitFlesh(v = 1) {
     this.noise(.14, { gain: .3 * v, f0: 700, f1: 120 });
     this.tone(90, .14, { type: 'sine', gain: .18 * v, f2: 45 });
@@ -8926,7 +8946,7 @@ const Camera = {
  *   thrown spears and bolas, plus the context interaction under the crosshair.
  * ==========================================================================*/
 const Combat = {
-  aiming: false, draw: 0, cd: 0, swing: 0, swingDir: 1, projectiles: [], lastHitT: 0,
+  aiming: false, draw: 0, cd: 0, swing: 0, swingRate: 5, swingDir: 1, projectiles: [], lastHitT: 0,
   arrowGeo: null, arrowMat: null, tranqMat: null, bolaGeo: null,
   focus: null,       // what the crosshair is on right now
 
@@ -8941,7 +8961,7 @@ const Combat = {
   /* ------------------------------------------------------------------ tick */
   update(dt) {
     this.cd -= dt;
-    this.swing = Math.max(0, this.swing - dt * 3.4);
+    this.swing = Math.max(0, this.swing - dt * (this.swingRate || 5));
     const eq = Inventory.equipped();
     const def = eq.def;
     const ranged = def && def.ranged;
@@ -8971,13 +8991,30 @@ const Combat = {
     this.updateFocus();
   },
 
+  /** What a thing sounds like when you swing it. Derived from the item rather
+   *  than stored on every one of them, so a new tool inherits a sensible
+   *  voice instead of falling back to the same flat hiss for everything. */
+  swingKindFor(eq) {
+    const id = (eq && eq.id) || 'fists';
+    if (id === 'fists' || id === 'torch') return 'fists';
+    if (id === 'spear' || id === 'pike') return 'polearm';
+    if (id === 'club') return 'heavy';
+    return 'blade';
+  },
+
   /* --------------------------------------------------------------- melee */
   melee(eq) {
     const def = eq.def || ITEMS.fists;
     this.cd = 1 / (def.speed || 1);
+    /* One clock for the swing.  Combat.swing decayed at a flat 3.4 while the
+       viewmodel ran its own swingT at 3.2 + weapon speed, so the arms and the
+       third-person body were never at the same point in the same swing, and a
+       fast weapon smeared its snap into a lean.  Combat.swing is the clock
+       now, and it decays at the rate the weapon actually swings. */
     this.swing = 1; this.swingDir *= -1;
+    this.swingRate = 3.6 + (def.speed || 1) * 1.4;
     ViewModel.swing();
-    Sound.swing();
+    Sound.swing(this.swingKindFor(eq));
     Player.cur.stamina = Math.max(0, Player.cur.stamina - 3);
     const origin = Player.eyePos(_v3a);
     const dir = Player.forward(_v3b);
@@ -8998,7 +9035,10 @@ const Combat = {
       } else {
         c.damage(dmg, { part: hit.part, point: hit.point, source: Player, torpor });
         UI.hitMarker(hit.part === 'head');
-        Player.camShake = Math.min(.6, Player.camShake + .12);
+        /* a landed hit kicks the camera in proportion to what it did — a
+           headshot with a pike should not feel like a slap with a torch */
+        const weight = clamp(dmg / 45, .25, 1) * (hit.part === 'head' ? 1.35 : 1);
+        Player.camShake = Math.min(.7, Player.camShake + .1 + weight * .18);
         Inventory.wearTool(1);
         Player.addXp(dmg * .04, null);
       }
@@ -9011,9 +9051,13 @@ const Combat = {
     /* then structures (demolish with a hatchet/pick) */
     const st = Structures.pick(origin, dir, reach);
     if (st) { Structures.damage(st, (def.dmg || 5) * 2); return; }
-    /* whiff */
+    /* Nothing was hit.  This used to be silent unless the swing happened to
+       clip the ground, which read as the game ignoring the input — the
+       complaint that a swing "did not count".  A miss now has its own sound,
+       so a hit and a miss are told apart by ear. */
     const t = Physics.raycastTerrain(origin, dir, reach);
     if (t.hit) { Sound.hitStone(); Particles.dust(t.point, 4); }
+    else Sound.whiff(this.swingKindFor(eq));
   },
 
   harvestNode(node, tool) {
@@ -9171,10 +9215,10 @@ const Combat = {
     const dir = Player.forward(new THREE.Vector3());
     if (kind === 'bola') {
       this.spawnProjectile({ kind: 'bola', origin, dir, speed: 30, dmg: 0, gravity: 11, bola: true });
-      Sound.swing();
+      Sound.swing('polearm');
     } else if (kind === 'grenade') {
       this.spawnProjectile({ kind: 'grenade', origin, dir, speed: 26, dmg: 0, gravity: 11, fuse: 3, blast: ITEMS.grenade.blast, blastDmg: ITEMS.grenade.blastDmg });
-      Sound.swing();
+      Sound.swing('heavy');
     } else if (kind === 'spear') {
       this.spawnProjectile({ kind: 'spear', origin, dir, speed: 34, dmg: ITEMS.spear.dmg * Player.melee(), torpor: 10, gravity: 10 });
       Sound.bowShot();
@@ -9822,9 +9866,13 @@ const ViewModel = {
     const bob = moving ? Math.sin(this.bobT) * (Player.sprinting ? .022 : .012) : Math.sin(this.bobT * .4) * .004;
     const sway = moving ? Math.cos(this.bobT * .5) * (Player.sprinting ? .03 : .016) : 0;
 
-    this.swingT = Math.max(0, this.swingT - dt * (3.2 + (eq.def && eq.def.speed ? eq.def.speed : 1)));
+    /* the hands run off Combat's swing clock, so the viewmodel and the
+       third-person body are always at the same point in the same swing */
+    this.swingT = Combat.swing;
     const sw = this.swingT;
-    const arc = Math.sin(sw * Math.PI);           // 0 → 1 → 0 over the swing
+    /* sharpened from a plain sine: the arm leaves fast and returns slower,
+       which is what makes a swing read as a strike rather than a wave */
+    const arc = Math.sin(Math.pow(sw, .68) * Math.PI);
 
     const isFist = (eq.id || 'fists') === 'fists';
     const rightLead = this.swingKind === 'right';
@@ -10215,7 +10263,7 @@ const PlayerModel = {
       if (mount) { shX = -.75; shZ = A.side * .18; elX = .55; }
       else if (swim) { shX = -1.6 + Math.sin(ph) * .9; shZ = A.side * .35; elX = .5; }
       else if (A.side > 0 && swingArm > .05) {          // the right arm swings the tool
-        const arc = Math.sin(swingArm * Math.PI);
+        const arc = Math.sin(Math.pow(swingArm, .68) * Math.PI);   // same shaped arc as the viewmodel
         shX = -1.9 * arc + .1; shZ = .25 * arc; elX = .5 - arc * .35;
       } else if (A.side > 0 && this.heldId !== 'fists') {
         shX = -.55; shZ = .16; elX = .75;               // carry the tool at the ready
