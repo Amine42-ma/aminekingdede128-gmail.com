@@ -3046,6 +3046,10 @@ const I18N = {
   },
   phr: {
     "corpse": "جثة",
+    "Antialiasing": "تنعيم الحواف",
+    "Smooths the crawling edges on grass and leaves": "يزيل تشقق حواف العشب والأوراق",
+    "Ambient occlusion": "الظلال الملامسة",
+    "Contact shadows where things meet the ground": "ظلال عند التقاء الأجسام بالأرض",
     "Tap for actions": "اضغط لعرض الخيارات",
     "Double-click to use": "انقر مرتين للاستخدام",
     "Double-click to wear": "انقر مرتين للارتداء",
@@ -3439,12 +3443,52 @@ const tr = en => I18N.str(en);
  *   (bright pass → separable blur → composite with vignette, grain, grading),
  *   plus the sky dome, sun/moon lighting and the weather system.
  * ==========================================================================*/
+/* `foliage` was declared here from the start and never read by anything; it
+   now drives flora draw distance. `fxaa`, `ssao`, `shadowExtent` and `far`
+   are new knobs for the post chain and the shadow fit. */
 const QUALITY = {
-  low:    { shadow: 0, shadowSize: 1024, view: 340, grass: 0, bloom: 0, pixel: .75, foliage: .5, waterSeg: 24 },
-  medium: { shadow: 1, shadowSize: 1024, view: 460, grass: .5, bloom: 1, pixel: .85, foliage: .75, waterSeg: 48 },
-  high:   { shadow: 1, shadowSize: 2048, view: 620, grass: 1, bloom: 1, pixel: 1, foliage: 1, waterSeg: 72 },
-  ultra:  { shadow: 1, shadowSize: 4096, view: 850, grass: 1.4, bloom: 1, pixel: 1, foliage: 1.3, waterSeg: 96 },
+  low:    { shadow: 0, shadowSize: 1024, view: 340, grass: 0, bloom: 0, pixel: .75, foliage: .5, waterSeg: 24,
+            fxaa: 1, ssao: 0, shadowExtent: 55, farShadow: 0 },
+  medium: { shadow: 1, shadowSize: 1024, view: 460, grass: .5, bloom: 1, pixel: .85, foliage: .75, waterSeg: 48,
+            fxaa: 1, ssao: 0, shadowExtent: 70, farShadow: 0 },
+  high:   { shadow: 1, shadowSize: 2048, view: 620, grass: 1, bloom: 1, pixel: 1, foliage: 1, waterSeg: 72,
+            fxaa: 1, ssao: 1, shadowExtent: 95, farShadow: 1 },
+  ultra:  { shadow: 1, shadowSize: 4096, view: 850, grass: 1.4, bloom: 1, pixel: 1, foliage: 1.3, waterSeg: 96,
+            fxaa: 1, ssao: 1, shadowExtent: 120, farShadow: 1 },
 };
+
+/* The camera's resting field of view. 78 was wide enough to stretch the frame
+   corners and exaggerate every model near the camera; 70 is calmer and still
+   generous. Sprinting and riding widen it from here. */
+const BASE_FOV = 70;
+
+/* scratch vectors for the shadow snap; allocated once, never escape */
+const _sv0 = new THREE.Vector3(), _sv1 = new THREE.Vector3();
+const _sv2 = new THREE.Vector3(), _sv3 = new THREE.Vector3();
+const _sv4 = new THREE.Vector3();
+
+/** Guess what this device can carry, so a phone does not open on `high` and a
+    desktop does not open on `low`. An explicit setting always wins over this. */
+function detectQuality() {
+  let score = 2;                                   // assume a middling laptop
+  const cores = navigator.hardwareConcurrency || 4;
+  const mem = navigator.deviceMemory || 4;
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  score += cores >= 8 ? 1 : cores <= 3 ? -1 : 0;
+  score += mem >= 8 ? 1 : mem <= 3 ? -1 : 0;
+  if (coarse) score -= 1.5;                        // a phone GPU at phone power
+  if ((devicePixelRatio || 1) >= 3) score -= .5;   // and it is pushing 3x pixels
+  try {
+    const c = document.createElement('canvas');
+    const gl = c.getContext('webgl2') || c.getContext('webgl');
+    const dbg = gl && gl.getExtension('WEBGL_debug_renderer_info');
+    const name = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
+    if (/swiftshader|llvmpipe|software|basic render/i.test(name)) score -= 3;
+    else if (/rtx|radeon rx|geforce (gtx|rtx)|apple m[1-9]/i.test(name)) score += 1;
+    if (gl) gl.getExtension('WEBGL_lose_context')?.loseContext();
+  } catch (e) { /* the detector must never be the thing that fails to boot */ }
+  return score <= 0.5 ? 'low' : score <= 2.5 ? 'medium' : 'high';
+}
 
 const Gfx = {
   renderer: null, scene: null, camera: null, canvas: null,
@@ -3452,7 +3496,7 @@ const Gfx = {
   sun: null, moon: null, hemi: null, ambient: null, sky: null, skyMat: null,
   rtScene: null, rtA: null, rtB: null, fxScene: null, fxCam: null,
   matBright: null, matBlur: null, matComposite: null, quad: null,
-  bloomOn: true, shadowsOn: true,
+  bloomOn: true, shadowsOn: true, fxaaOn: true, ssaoOn: true,
   fx: { underwater: 0, damage: 0, grade: 1, exposureBoost: 1, flash: 0, photo: null },
   W: 1, H: 1,
 
@@ -3471,7 +3515,7 @@ const Gfx = {
     const scene = this.scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x9fc4d8, 0.0022);
 
-    this.camera = new THREE.PerspectiveCamera(78, 1, 0.12, 4600);
+    this.camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.12, 4600);
 
     /* --- lights --------------------------------------------------------- */
     const sun = this.sun = new THREE.DirectionalLight(0xfff2dd, 1.9);
@@ -3508,8 +3552,30 @@ const Gfx = {
   },
 
   setShadowExtent(d) {
+    if (this.shadowExtent === d) return;      // updateProjectionMatrix is not free
+    this.shadowExtent = d;
     const c = this.sun.shadow.camera;
     c.left = -d; c.right = d; c.top = d; c.bottom = -d; c.updateProjectionMatrix();
+  },
+
+  /** Snap the shadow camera's target to whole shadow-map texels.
+
+      The sun is repositioned relative to the camera every frame, so without
+      this the whole shadow map slides by a fraction of a texel each frame and
+      every shadow edge crawls and fizzes while you walk. Rounding the target
+      in the light's own plane — and only in that plane, so depth is untouched —
+      makes the map move in whole texels instead, and the crawling stops. */
+  snapShadowTarget(pos, out) {
+    const texel = (2 * (this.shadowExtent || 70)) / (this.sun.shadow.mapSize.x || 1024);
+    const L = _sv0.copy(Sky.sunDir).normalize();
+    const up = Math.abs(L.y) > .95 ? _sv1.set(1, 0, 0) : _sv1.set(0, 1, 0);
+    const rt = _sv2.crossVectors(up, L).normalize();
+    const uv = _sv3.crossVectors(L, rt).normalize();
+    const x = Math.round(pos.dot(rt) / texel) * texel;
+    const y = Math.round(pos.dot(uv) / texel) * texel;
+    const z = pos.dot(L);
+    out.set(0, 0, 0).addScaledVector(rt, x).addScaledVector(uv, y).addScaledVector(L, z);
+    return out;
   },
 
   applyQuality(name) {
@@ -3535,6 +3601,8 @@ const Gfx = {
     this.scene.traverse(o => { if (o.isMesh && o.material) o.material.needsUpdate = true; });
   },
   setBloom(on) { this.bloomOn = on; },
+  setFxaa(on) { this.fxaaOn = on; },
+  setSsao(on) { this.ssaoOn = on; },
 
   /* --- sky dome -------------------------------------------------------- */
   buildSky() {
@@ -3617,11 +3685,173 @@ const Gfx = {
   buildFX() {
     const rtOpts = { type: THREE.HalfFloatType, depthBuffer: true, stencilBuffer: false, samples: 0 };
     this.rtScene = new THREE.WebGLRenderTarget(2, 2, rtOpts);
+    /* rtScene has always had a depth buffer and nothing has ever read it.
+       Attaching a DepthTexture makes it sampleable, which is what the ambient
+       occlusion pass below needs — and it costs nothing when SSAO is off. */
+    this.rtScene.depthTexture = new THREE.DepthTexture(2, 2);
+    this.rtScene.depthTexture.type = THREE.UnsignedShortType;
+    this.rtScene.depthTexture.minFilter = THREE.NearestFilter;
+    this.rtScene.depthTexture.magFilter = THREE.NearestFilter;
+    /* half-res AO, then a depth-aware blur so it does not bleed across edges */
+    const aoOpts = { type: THREE.UnsignedByteType, depthBuffer: false,
+                     minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter };
+    this.rtAO = new THREE.WebGLRenderTarget(2, 2, aoOpts);
+    this.rtAOB = new THREE.WebGLRenderTarget(2, 2, aoOpts);
     this.rtA = new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType, depthBuffer: false });
     this.rtB = new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType, depthBuffer: false });
+    /* The composite writes here instead of straight to the screen, so the FXAA
+       pass has a texture to sample. 8-bit on purpose: the grade has already
+       ended in sRGB, and FXAA's luma maths expects gamma space. */
+    this.rtC = new THREE.WebGLRenderTarget(2, 2, {
+      type: THREE.UnsignedByteType, depthBuffer: false,
+      minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+    });
     this.fxScene = new THREE.Scene();
     this.fxCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const quadGeo = new THREE.PlaneGeometry(2, 2);
+
+    /* FXAA 3.11, console variant. The renderer is created with antialias:false
+       and the scene is full of one-pixel-wide grass blades, leaf-card edges and
+       tool silhouettes, so without this every edge crawls as the camera moves.
+       One full-screen pass, and by far the biggest image-quality win per
+       millisecond in the whole pipeline. */
+    this.matFxaa = new THREE.ShaderMaterial({
+      uniforms: { tDiffuse: { value: null }, uRes: { value: new THREE.Vector2(1, 1) } },
+      vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0);} `,
+      fragmentShader: `
+        precision highp float;
+        varying vec2 vUv; uniform sampler2D tDiffuse; uniform vec2 uRes;
+        #define SPAN 8.0
+        #define REDUCE_MIN (1.0/128.0)
+        #define REDUCE_MUL (1.0/8.0)
+        float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+        void main(){
+          vec2 px = 1.0 / uRes;
+          vec3 rgbM = texture2D(tDiffuse, vUv).rgb;
+          vec3 rgbNW = texture2D(tDiffuse, vUv + vec2(-1.0,-1.0)*px).rgb;
+          vec3 rgbNE = texture2D(tDiffuse, vUv + vec2( 1.0,-1.0)*px).rgb;
+          vec3 rgbSW = texture2D(tDiffuse, vUv + vec2(-1.0, 1.0)*px).rgb;
+          vec3 rgbSE = texture2D(tDiffuse, vUv + vec2( 1.0, 1.0)*px).rgb;
+          float lNW = luma(rgbNW), lNE = luma(rgbNE);
+          float lSW = luma(rgbSW), lSE = luma(rgbSE), lM = luma(rgbM);
+          float lMin = min(lM, min(min(lNW,lNE), min(lSW,lSE)));
+          float lMax = max(lM, max(max(lNW,lNE), max(lSW,lSE)));
+          /* a flat neighbourhood has no edge to soften — leave it alone */
+          if (lMax - lMin < lMax * 0.10) { gl_FragColor = vec4(rgbM, 1.0); return; }
+          vec2 dir = vec2(-((lNW + lNE) - (lSW + lSE)), ((lNW + lSW) - (lNE + lSE)));
+          float dirReduce = max((lNW + lNE + lSW + lSE) * 0.25 * REDUCE_MUL, REDUCE_MIN);
+          float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);
+          dir = clamp(dir * rcpDirMin, vec2(-SPAN), vec2(SPAN)) * px;
+          vec3 rgbA = 0.5 * (texture2D(tDiffuse, vUv + dir * (1.0/3.0 - 0.5)).rgb
+                           + texture2D(tDiffuse, vUv + dir * (2.0/3.0 - 0.5)).rgb);
+          vec3 rgbB = rgbA * 0.5 + 0.25 * (texture2D(tDiffuse, vUv - dir * 0.5).rgb
+                                         + texture2D(tDiffuse, vUv + dir * 0.5).rgb);
+          float lB = luma(rgbB);
+          gl_FragColor = vec4((lB < lMin || lB > lMax) ? rgbA : rgbB, 1.0);
+        }`,
+      depthTest: false, depthWrite: false,
+    });
+
+    /* Ambient occlusion from depth alone.
+
+       An earlier version reconstructed a view-space normal with dFdx/dFdy and
+       sampled a hemisphere around it; measured against the real buffer it
+       produced almost no occlusion (mean 254.6 out of 255) while costing a
+       full pass, because the reconstructed normal is too noisy on a heightmap
+       and needs a WebGL1 extension besides. This is the depth-delta form
+       instead: sample a disc in screen space and count how much of the
+       neighbourhood sits in front of this pixel. Fewer assumptions, and it
+       actually darkens where surfaces meet. */
+    this.matAO = new THREE.ShaderMaterial({
+      uniforms: {
+        tDepth: { value: null }, uRes: { value: new THREE.Vector2(1, 1) },
+        uNear: { value: .12 }, uFar: { value: 4600 }, uProjScale: { value: 1 },
+        /* Tuned against the rendered AO buffer, not by eye on the final frame.
+           A wider radius turns the grass field into a uniform grey haze,
+           because thin blades produce a depth discontinuity at every pixel;
+           keeping it tight makes this read as contact shading instead. */
+        uRadius: { value: .5 },      // world metres sampled around each pixel
+        uBias: { value: .03 },       // ignore differences this small: self-shadow
+        uRange: { value: .9 },       // beyond this it is a different surface
+        uStrength: { value: .95 },
+      },
+      vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0);} `,
+      fragmentShader: `
+        precision highp float;
+        varying vec2 vUv;
+        uniform sampler2D tDepth; uniform vec2 uRes;
+        uniform float uNear, uFar, uProjScale, uRadius, uBias, uRange, uStrength;
+
+        float linDepth(vec2 uv){
+          float d = texture2D(tDepth, uv).x * 2.0 - 1.0;
+          return (2.0 * uNear * uFar) / (uFar + uNear - d * (uFar - uNear));
+        }
+        float rand(vec2 c){ return fract(sin(dot(c, vec2(12.9898,78.233))) * 43758.5453); }
+
+        void main(){
+          float raw = texture2D(tDepth, vUv).x;
+          if (raw >= 0.9999) { gl_FragColor = vec4(1.0); return; }   // sky
+          float z = linDepth(vUv);
+
+          /* a fixed world radius covers fewer pixels the further away it is */
+          float rad = uRadius * uProjScale / max(z, 0.0001);
+          float aspect = uRes.x / uRes.y;
+          rad = clamp(rad, 1.5 / uRes.y, 0.09);
+
+          float occ = 0.0;
+          float a0 = rand(vUv * uRes) * 6.2831853;
+          const int N = 12;
+          for (int i = 0; i < N; i++){
+            float t = (float(i) + 0.5) / float(N);
+            /* golden-angle spiral: even coverage from very few samples */
+            float ang = a0 + float(i) * 2.39996323;
+            float r = rad * sqrt(t);
+            vec2 uv = vUv + vec2(cos(ang) / aspect, sin(ang)) * r;
+            if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) continue;
+            float zs = linDepth(uv);
+            float diff = z - zs;                       // positive: sample is nearer
+            /* count it only if it is meaningfully in front, and close enough
+               to be the same object rather than something across the valley */
+            occ += step(uBias, diff) * (1.0 - smoothstep(0.0, uRange, diff - uBias));
+          }
+          occ = 1.0 - (occ / float(N)) * uStrength;
+
+          /* fade out with distance, where the radius is sub-pixel anyway */
+          float fade = smoothstep(140.0, 340.0, z);
+          gl_FragColor = vec4(vec3(mix(clamp(occ, 0.0, 1.0), 1.0, fade)), 1.0);
+        }`,
+      depthTest: false, depthWrite: false,
+    });
+
+    /* Bilateral blur: averages AO only across samples at a similar depth, so
+       the occlusion does not smear over silhouette edges. */
+    this.matAOBlur = new THREE.ShaderMaterial({
+      uniforms: {
+        tAO: { value: null }, tDepth: { value: null },
+        uRes: { value: new THREE.Vector2(1, 1) }, uDir: { value: new THREE.Vector2(1, 0) },
+      },
+      vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0);} `,
+      fragmentShader: `
+        precision highp float;
+        varying vec2 vUv; uniform sampler2D tAO, tDepth;
+        uniform vec2 uRes, uDir;
+        void main(){
+          vec2 px = uDir / uRes;
+          float d0 = texture2D(tDepth, vUv).x;
+          float sum = texture2D(tAO, vUv).r * 0.4, wsum = 0.4;
+          for (int i = 1; i <= 3; i++){
+            float o = float(i);
+            for (int s = 0; s < 2; s++){
+              vec2 uv = vUv + px * o * (s == 0 ? 1.0 : -1.0);
+              float d = texture2D(tDepth, uv).x;
+              float w = exp(-abs(d - d0) * 900.0) * (1.0 - o * 0.22);
+              sum += texture2D(tAO, uv).r * w; wsum += w;
+            }
+          }
+          gl_FragColor = vec4(vec3(sum / max(wsum, 0.0001)), 1.0);
+        }`,
+      depthTest: false, depthWrite: false,
+    });
 
     this.matBright = new THREE.ShaderMaterial({
       uniforms: { tDiffuse: { value: null }, uThreshold: { value: 1.02 }, uSoft: { value: .55 } },
@@ -3654,7 +3884,8 @@ const Gfx = {
     });
     this.matComposite = new THREE.ShaderMaterial({
       uniforms: {
-        tScene: { value: null }, tBloom: { value: null },
+        tScene: { value: null }, tBloom: { value: null }, tAO: { value: null },
+        uAO: { value: 0 },
         uBloom: { value: .55 }, uTime: { value: 0 }, uVignette: { value: .85 },
         uUnder: { value: 0 }, uDamage: { value: 0 }, uGrain: { value: .035 },
         uFlash: { value: 0 }, uSat: { value: 1.04 }, uContrast: { value: 1.04 }, uTint: { value: new THREE.Color(1, 1, 1) },
@@ -3662,7 +3893,8 @@ const Gfx = {
       vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0);} `,
       fragmentShader: `
         varying vec2 vUv;
-        uniform sampler2D tScene, tBloom;
+        uniform sampler2D tScene, tBloom, tAO;
+        uniform float uAO;
         uniform float uBloom, uTime, uVignette, uUnder, uDamage, uGrain, uFlash, uSat, uContrast;
         uniform vec3 uTint;
         float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
@@ -3674,6 +3906,13 @@ const Gfx = {
             uv += vec2(sin(uv.y*28.0 + uTime*1.7), cos(uv.x*24.0 + uTime*1.3)) * 0.0022 * uUnder;
           }
           vec3 c = texture2D(tScene, uv).rgb;
+          /* Occlusion multiplies the frame before bloom is added, so contact
+             shadows darken the surface without eating the highlights that
+             bloom is meant to pick up. */
+          if (uAO > 0.001) {
+            float ao = texture2D(tAO, uv).r;
+            c *= mix(1.0, ao, uAO);
+          }
           c += texture2D(tBloom, uv).rgb * uBloom;
           c *= uTint;
           c += vec3(1.0,0.96,0.9) * uFlash;
@@ -3709,7 +3948,12 @@ const Gfx = {
     const pr = this.renderer.getPixelRatio();
     const rw = Math.max(2, Math.floor(w * pr)), rh = Math.max(2, Math.floor(h * pr));
     this.rtScene.setSize(rw, rh);
+    this.rtC.setSize(rw, rh);
+    this.matFxaa.uniforms.uRes.value.set(rw, rh);
     const bw = Math.max(2, rw >> 1), bh = Math.max(2, rh >> 1);
+    this.rtAO.setSize(bw, bh); this.rtAOB.setSize(bw, bh);
+    this.matAO.uniforms.uRes.value.set(bw, bh);
+    this.matAOBlur.uniforms.uRes.value.set(bw, bh);
     this.rtA.setSize(bw, bh); this.rtB.setSize(bw, bh);
     this.matBlur.uniforms.uRes.value.set(bw, bh);
     if (typeof ViewModel !== 'undefined' && ViewModel.resize) ViewModel.resize();
@@ -3736,14 +3980,42 @@ const Gfx = {
     r.setRenderTarget(this.rtScene);
     r.clear();
     r.render(this.scene, this.camera);
+
+    /* Ambient occlusion runs HERE, before the viewmodel.
+
+       The viewmodel is drawn over the world with clearDepth() first, which
+       wipes the world's depth out of the buffer — so an AO pass placed after
+       it sees nothing but the player's hands, which is exactly what the first
+       version of this did. The result lands in rtAO and survives the clear. */
+    const ao = this.ssaoOn && this.q.ssao;
+    if (ao) {
+      const cam = this.camera;
+      this.matAO.uniforms.tDepth.value = this.rtScene.depthTexture;
+      this.matAO.uniforms.uNear.value = cam.near;
+      this.matAO.uniforms.uFar.value = cam.far;
+      /* how many screen heights a metre covers at one metre away */
+      this.matAO.uniforms.uProjScale.value = 0.5 * cam.projectionMatrix.elements[5];
+      this.blit(this.matAO, this.rtAO);
+      this.matAOBlur.uniforms.tDepth.value = this.rtScene.depthTexture;
+      this.matAOBlur.uniforms.tAO.value = this.rtAO.texture;
+      this.matAOBlur.uniforms.uDir.value.set(1, 0);
+      this.blit(this.matAOBlur, this.rtAOB);
+      this.matAOBlur.uniforms.tAO.value = this.rtAOB.texture;
+      this.matAOBlur.uniforms.uDir.value.set(0, 1);
+      this.blit(this.matAOBlur, this.rtAO);
+      r.setRenderTarget(this.rtScene);          // blit() left us pointed elsewhere
+    }
+
     /* first-person hands: separate pass, own FOV, drawn over the world */
     if (typeof ViewModel !== 'undefined' && ViewModel.scene && ViewModel.group && ViewModel.group.visible
         && typeof Game !== 'undefined' && Game.state === 'play') {
+      r.setRenderTarget(this.rtScene);
       r.autoClear = false;
       r.clearDepth();
       r.render(ViewModel.scene, ViewModel.cam);
       r.autoClear = true;
     }
+
     if (this.bloomOn && this.q.bloom) {
       this.matBright.uniforms.tDiffuse.value = this.rtScene.texture;
       this.blit(this.matBright, this.rtA);
@@ -3759,6 +4031,8 @@ const Gfx = {
     const u = this.matComposite.uniforms;
     u.tScene.value = this.rtScene.texture;
     u.tBloom.value = (this.bloomOn && this.q.bloom) ? this.rtA.texture : null;
+    u.tAO.value = ao ? this.rtAO.texture : null;
+    u.uAO.value = ao ? .6 : 0;
     u.uBloom.value = (this.bloomOn && this.q.bloom) ? .5 : 0;
     u.uTime.value = t;
     u.uUnder.value = this.fx.underwater;
@@ -3773,7 +4047,14 @@ const Gfx = {
     u.uGrain.value = ph ? ph.grain : .035;
     if (ph) u.uTint.value.setRGB(ph.tint[0], ph.tint[1], ph.tint[2]);
     else u.uTint.value.setRGB(1, 1, 1);
-    this.blit(this.matComposite, null);
+    /* Composite into rtC and antialias on the way to the screen. The composite
+       already ends in sRGB, which is exactly the space FXAA wants. */
+    const aa = this.fxaaOn && this.q.fxaa;
+    this.blit(this.matComposite, aa ? this.rtC : null);
+    if (aa) {
+      this.matFxaa.uniforms.tDiffuse.value = this.rtC.texture;
+      this.blit(this.matFxaa, null);
+    }
     this.quad.material = this.matComposite;
   },
 };
@@ -3868,8 +4149,10 @@ const Sky = {
     const dusk = clamp01(1 - Math.abs(elev) * 5.2);       // strong near the horizon
 
     const S = Gfx.sun, M = Gfx.moon;
-    S.position.copy(this.sunDir).multiplyScalar(180).add(camPos);
-    S.target.position.copy(camPos); S.target.updateMatrixWorld();
+    /* the shadow map follows the player, but in whole-texel steps */
+    const snapped = Gfx.snapShadowTarget(camPos, _sv4);
+    S.position.copy(this.sunDir).multiplyScalar(180).add(snapped);
+    S.target.position.copy(snapped); S.target.updateMatrixWorld();
     const sunCol = new THREE.Color().setHSL(lerp(0.13, 0.07, dusk), lerp(0.25, 0.85, dusk), lerp(0.92, 0.56, dusk));
     S.color.copy(sunCol);
     S.intensity = clamp01(elev * 2.6) * (1.95 - this.cloud * .95) * (1 - this.storm * .35);
@@ -5060,7 +5343,10 @@ const Flora = {
       const gust = Sky.weather === 'storm' ? 2.4 : Sky.weather === 'rain' ? 1.5 : 1;
       for (const u of this._windUniforms) { u.uTime.value = this._t; u.uWind.value = .55 * gust; }
     }
-    const C = TUNE.world.chunk, view = Math.min(Gfx.q.view, 420);
+    /* `foliage` was dead: it sat in the quality table from the start and
+       nothing ever read it, so every tier drew flora to the same flat 420m. */
+    const C = TUNE.world.chunk;
+    const view = Math.min(Gfx.q.view, 420 * (Gfx.q.foliage || 1));
     const range = Math.ceil(view / C);
     const ccx = Math.round(camPos.x / C), ccz = Math.round(camPos.z / C);
     const want = new Set();
@@ -7234,7 +7520,7 @@ const Player = {
   alive: true, deathCause: '', spawnPoint: null, bedPos: null, deathPos: null,
   mount: null,             // creature we are riding
   lastGroundY: 0, fallStart: 0, bobT: 0, camShake: 0, viewBobAmt: 0,
-  invBonus: 0, fov: 78, targetFov: 78,
+  invBonus: 0, fov: BASE_FOV, targetFov: BASE_FOV,
   eatTimer: 0, sickT: 0, spitT: 0, boundT: 0, waypoint: null,
 
   /* ARK-style stat spread: base + points spent */
@@ -7525,7 +7811,7 @@ const Player = {
       cam.rotateX(this.pitch);
       cam.rotateZ((Math.random() - .5) * shake * .05);
     }
-    this.targetFov = (this.sprinting ? 84 : 78) + (Combat.aiming ? -16 : 0);
+    this.targetFov = (this.sprinting ? BASE_FOV + 6 : BASE_FOV) + (Combat.aiming ? -16 : 0);
     this.fov = damp(this.fov, this.targetFov * (Camera.fovScale || 1), 8, dt);
     if (Math.abs(cam.fov - this.fov) > .01) { cam.fov = this.fov; cam.updateProjectionMatrix(); }
   },
@@ -8146,7 +8432,7 @@ const Riding = {
     want.y = Math.max(want.y, World.heightAt(want.x, want.z) + .8);
     cam.position.lerp(want, 1 - Math.exp(-12 * dt));
     cam.lookAt(focus.x, focus.y, focus.z);
-    const targetFov = 78 + clamp(c.speed * .7, 0, 12);
+    const targetFov = BASE_FOV + clamp(c.speed * .7, 0, 12);
     Player.fov = damp(Player.fov, targetFov, 6, dt);
     cam.fov = Player.fov; cam.updateProjectionMatrix();
   },
@@ -12247,8 +12533,12 @@ Object.assign(UI, {
       row(tr('Quality preset'), tr('Draw distance, shadows, foliage'), sel);
       row(t('shadows'), tr('Sun and moon shadow maps'), toggle(Gfx.shadowsOn, v => { Gfx.setShadows(v); Settings.save(); }));
       row(tr('Bloom & grading'), tr('Post processing'), toggle(Gfx.bloomOn, v => { Gfx.setBloom(v); Settings.save(); }));
+      row(tr('Antialiasing'), tr('Smooths the crawling edges on grass and leaves'),
+        toggle(Gfx.fxaaOn, v => { Gfx.setFxaa(v); Settings.save(); }));
+      row(tr('Ambient occlusion'), tr('Contact shadows where things meet the ground'),
+        toggle(Gfx.ssaoOn, v => { Gfx.setSsao(v); Settings.save(); }));
       {
-        const [i, v] = slider(60, 110, 1, Player.targetFov, val => { Camera.fovScale = val / 78; Settings.save(); }, x => x + '°');
+        const [i, v] = slider(60, 110, 1, Player.targetFov, val => { Camera.fovScale = val / BASE_FOV; Settings.save(); }, x => x + '°');
         row(tr('Field of view'), '', i, v);
       }
       {
@@ -12604,6 +12894,7 @@ const Settings = {
     try {
       localStorage.setItem(this.KEY, JSON.stringify({
         quality: Gfx.qname, shadows: Gfx.shadowsOn, bloom: Gfx.bloomOn,
+        fxaa: Gfx.fxaaOn, ssao: Gfx.ssaoOn,
         sensitivity: Camera.sensitivity, invertY: Camera.invertY, fovScale: Camera.fovScale,
         vol: Sound.vol, binds: Input.binds, showFps: Game.showFps,
         rates: TUNE.rates, dayLength: Sky.dayLength,
@@ -12624,6 +12915,8 @@ const Settings = {
       if (d.quality) Gfx.applyQuality(d.quality);
       if (d.shadows != null) Gfx.setShadows(d.shadows);
       if (d.bloom != null) Gfx.setBloom(d.bloom);
+      if (d.fxaa != null) Gfx.setFxaa(d.fxaa);
+      if (d.ssao != null) Gfx.setSsao(d.ssao);
       if (d.sensitivity) Camera.sensitivity = d.sensitivity;
       if (d.invertY != null) Camera.invertY = d.invertY;
       if (d.fovScale) Camera.fovScale = d.fovScale;
@@ -12688,6 +12981,10 @@ const Game = {
     PlayerModel.build();
     UI.init();
     Input.init(canvas);
+    /* Guess a tier from the device first; Settings.load() below overrides it
+       whenever the player has actually chosen one, so this only ever decides
+       what a brand new player sees. */
+    Gfx.applyQuality(detectQuality());
     Settings.load();
     I18N.init();
     Photo.init();
@@ -13123,9 +13420,8 @@ const Game = {
     Flora.update(dt, Player.pos);
     Sound.ambient(Sky.time / 24, Sky.weather, Player.inWater || World.heightAt(Player.pos.x, Player.pos.z) < 3);
 
-    /* shadow camera follows the player */
-    const sc = Gfx.sun.shadow.camera;
-    Gfx.setShadowExtent(Gfx.q.view > 600 ? 95 : 68);
+    /* how far shadows reach is a quality decision, not a view-distance one */
+    Gfx.setShadowExtent(Gfx.q.shadowExtent || 70);
 
     /* torch light */
     const eq = Inventory.equipped();

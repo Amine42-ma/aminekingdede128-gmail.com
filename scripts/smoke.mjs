@@ -127,7 +127,61 @@ try {
   note(`state=${health.state} creatures=${health.alive} biome=${health.biome}`);
   fail.push(...health.bad);
 
-  console.log('6. controls: keyboard, then touch');
+  console.log('6. render pipeline');
+  const gfx = await page.evaluate(async () => {
+    const { Gfx, Sky, Camera, Game } = window.__ark;
+    const bad = [];
+    Gfx.applyQuality('high');
+    Sky.time = 10; Camera.thirdPerson = true;
+    const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    for (let i = 0; i < 6; i++) await frame();
+    Game.paused = true;
+    await frame();
+
+    const r = Gfx.renderer, gl = r.getContext();
+
+    /* AO must see the WORLD's depth. The viewmodel pass calls clearDepth(),
+       so an AO pass ordered after it sees only the player's hands and the
+       buffer comes back almost entirely white — which is exactly the bug this
+       catches. A real outdoor frame occludes somewhere. */
+    const ao = Gfx.rtAO;
+    const abuf = new Uint8Array(ao.width * ao.height * 4);
+    r.setRenderTarget(ao);
+    gl.readPixels(0, 0, ao.width, ao.height, gl.RGBA, gl.UNSIGNED_BYTE, abuf);
+    r.setRenderTarget(null);
+    let amin = 255, asum = 0;
+    for (let i = 0; i < ao.width * ao.height; i++) { const v = abuf[i * 4]; if (v < amin) amin = v; asum += v; }
+    const amean = asum / (ao.width * ao.height);
+    if (amin > 220) bad.push(`SSAO produced almost no occlusion (min ${amin}, mean ${amean.toFixed(1)})`);
+
+    /* FXAA must measurably soften edges */
+    const W = gl.drawingBufferWidth, H = gl.drawingBufferHeight;
+    const grab = () => {
+      const buf = new Uint8Array(W * H * 4);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+      return buf;
+    };
+    const harsh = (buf) => {
+      let s = 0, n = 0;
+      for (let y = 0; y < H; y += 2) for (let x = 0; x < W - 1; x++) {
+        const i = (y * W + x) * 4, j = i + 4;
+        s += Math.abs(buf[i] - buf[j]) + Math.abs(buf[i + 1] - buf[j + 1]) + Math.abs(buf[i + 2] - buf[j + 2]);
+        n++;
+      }
+      return s / n;
+    };
+    Gfx.setFxaa(false); await frame(); await frame(); const off = harsh(grab());
+    Gfx.setFxaa(true); await frame(); await frame(); const on = harsh(grab());
+    if (!(on < off * 0.95)) bad.push(`FXAA did not soften edges (${off.toFixed(1)} -> ${on.toFixed(1)})`);
+
+    Game.paused = false; Camera.thirdPerson = false;
+    return { bad, amin, amean: +amean.toFixed(1), off: +off.toFixed(1), on: +on.toFixed(1) };
+  });
+  if (gfx.bad.length) fail.push(...gfx.bad);
+  else note(`SSAO min=${gfx.amin} mean=${gfx.amean} · FXAA harshness ${gfx.off} -> ${gfx.on}`);
+
+  console.log('7. controls: keyboard, then touch');
   const controls = await page.evaluate(async () => {
     const { Game, Touch, Input, Inventory, UI } = window.__ark;
     const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -178,7 +232,7 @@ try {
   if (controls.length) fail.push(...controls);
   else note('keyboard and touch toggles both fire exactly once');
 
-  console.log('7. save / load round trip');
+  console.log('8. save / load round trip');
   const save = await page.evaluate(() => {
     const { SaveGame } = window.__ark;
     SaveGame.save(2);
