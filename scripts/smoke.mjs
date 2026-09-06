@@ -153,6 +153,11 @@ try {
     for (let i = 0; i < ao.width * ao.height; i++) { const v = abuf[i * 4]; if (v < amin) amin = v; asum += v; }
     const amean = asum / (ao.width * ao.height);
     if (amin > 220) bad.push(`SSAO produced almost no occlusion (min ${amin}, mean ${amean.toFixed(1)})`);
+    /* The opposite failure is just as bad and used to pass silently: an AO
+       buffer that is uniformly black multiplies the whole frame to nothing.
+       An outdoor frame is mostly unoccluded, so a near-zero mean is a broken
+       pass, not a dark scene. */
+    if (amean < 40) bad.push(`SSAO occluded the entire frame (min ${amin}, mean ${amean.toFixed(1)})`);
 
     /* FXAA must measurably soften edges */
     const W = gl.drawingBufferWidth, H = gl.drawingBufferHeight;

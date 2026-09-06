@@ -6094,9 +6094,14 @@ const Physics = {
   },
 
   /** Ray against the terrain heightfield (marching, good enough for aiming). */
+  _rayP: new THREE.Vector3(),
+
+  /** Same hazard as castCreature: Combat.melee passes `Player.eyePos(_v3a)` as
+      the origin, and this used to walk along the ray in _v3a — mutating the
+      caller's origin under it mid-loop. Own scratch, no aliasing. */
   raycastTerrain(origin, dir, maxDist, step) {
     step = step || .6;
-    const p = _v3a.copy(origin);
+    const p = this._rayP.copy(origin);
     let t = 0;
     while (t < maxDist) {
       p.copy(origin).addScaledVector(dir, t);
@@ -6110,7 +6115,17 @@ const Physics = {
     return { hit: false, dist: maxDist };
   },
 
-  /** Sphere-cast against creature bodies — used by melee and projectiles. */
+  _castA: new THREE.Vector3(), _castB: new THREE.Vector3(),
+
+  /** Sphere-cast against creature bodies — used by melee and projectiles.
+   *
+   *  This used to borrow the shared _v3b/_v3c scratch vectors. Every caller
+   *  passes its aim direction in one of those — Combat.melee hands us
+   *  `Player.forward(_v3b)` — so the first sphere tested overwrote the
+   *  direction we were casting along, and every test after it dotted against
+   *  garbage. That is why a swing lined up on a creature missed at random,
+   *  depending on which body happened to come out of the spatial hash first.
+   *  These scratch vectors belong to this function and to nothing else. */
   castCreature(origin, dir, maxDist, radius, ignore) {
     const list = Creatures.near(origin.x + dir.x * maxDist * .5, origin.z + dir.z * maxDist * .5, maxDist + 8, this._hits);
     let best = null, bestT = Infinity;
@@ -6118,10 +6133,10 @@ const Physics = {
       if (c.dead || c === ignore) continue;
       const parts = c.hitParts();
       for (const part of parts) {
-        const oc = _v3b.copy(part.p).sub(origin);
+        const oc = this._castA.copy(part.p).sub(origin);
         const t = oc.dot(dir);
         if (t < -part.r || t > maxDist + part.r) continue;
-        const closest = _v3c.copy(dir).multiplyScalar(clamp(t, 0, maxDist)).add(origin);
+        const closest = this._castB.copy(dir).multiplyScalar(clamp(t, 0, maxDist)).add(origin);
         const d2 = closest.distanceToSquared(part.p);
         const rr = part.r + radius;
         if (d2 < rr * rr && t < bestT) { bestT = Math.max(0, t); best = { creature: c, part: part.name, dist: bestT, point: closest.clone() }; }
@@ -6627,8 +6642,21 @@ const CreatureModel = {
        shadow pass than they add to the silhouette */
     const matAccent = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .7, metalness: .03 });
     const root = new THREE.Group();
+    /* Every creature is modelled along +X — neck at +L/2, tail at -L/2, hips
+       behind the middle — but animate() sets root.rotation.y = yaw, which makes
+       the model's +Z the direction of travel. So every animal in the game has
+       been walking 90 degrees sideways since the first commit; it only became
+       visible once the bodies gained real heads and tails.
+
+       Correcting it here, with a constant quarter turn between the root and
+       the body, rather than by changing the rotation convention: `yaw` is read
+       by the AI, riding, nameplates and attack direction, and all of that stays
+       untouched. */
+    const facing = new THREE.Group();
+    facing.rotation.y = -Math.PI / 2;
+    root.add(facing);
     const bodyRoot = new THREE.Group();          // pitch/roll/bounce applied here
-    root.add(bodyRoot);
+    facing.add(bodyRoot);
     const parts = { root, body: bodyRoot, legs: [], neck: [], tail: [], mats: [mat, matAccent], eyes: [] };
 
     const paint = (geo, colorFn) => {
@@ -7537,11 +7565,29 @@ class Creature {
   }
   hitParts() {
     /* Sphere approximation used by melee and projectiles — the head sphere is
-       what makes headshots (and tranq headshots) land for extra torpor. */
+       what makes headshots (and tranq headshots) land for extra torpor.
+       Three spheres left a big animal's flank, shoulder and legs as dead
+       space: aim at a Brontosaurus's leg and the ray passed under the body
+       sphere and hit nothing, with the whole animal filling the screen. The
+       torso is covered along its length now, and the neck too. */
     const p = this.parts;
-    const out = [];
+    const out = this._hitCache || (this._hitCache = []);
+    out.length = 0;
     if (p.head) out.push({ name: 'head', p: p.head.getWorldPosition(_hp1), r: Math.max(.28, this.height * .16) });
-    out.push({ name: 'body', p: this.bodyCenter(_hp2), r: Math.max(.45, this.radius * .95) });
+    const bodyR = Math.max(.45, this.radius * .95);
+    out.push({ name: 'body', p: this.bodyCenter(_hp2), r: bodyR });
+    /* the torso along its own axis, so long bodies are hittable end to end */
+    if (p.torso) {
+      const c = this.bodyCenter(_hpA);
+      const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
+      const half = this.length ? this.length * .32 : bodyR * 1.1;
+      out.push({ name: 'body', p: _hpB.set(c.x + fx * half, c.y, c.z + fz * half), r: bodyR * .82 });
+      out.push({ name: 'body', p: _hpC.set(c.x - fx * half, c.y, c.z - fz * half), r: bodyR * .82 });
+    }
+    if (p.neck && p.neck.length) {
+      out.push({ name: 'body', p: p.neck[Math.floor(p.neck.length / 2)].getWorldPosition(_hpD),
+                 r: Math.max(.24, this.radius * .55) });
+    }
     if (p.tail && p.tail.length) out.push({ name: 'tail', p: p.tail[Math.floor(p.tail.length / 2)].getWorldPosition(_hp3), r: Math.max(.22, this.radius * .5) });
     return out;
   }
@@ -7923,7 +7969,11 @@ class Creature {
   lookAt(target) {
     if (!target || !this.parts.head) { this.headLook.set(0, 0); return; }
     const dx = target.x - this.pos.x, dz = target.z - this.pos.z;
-    const rel = wrapAngle(Math.atan2(dx, dz) - (this.yaw + Math.PI / 2));
+    /* The quarter turn that used to be compensated for here now lives in the
+       model's own facing group, so this is simply the angle relative to the
+       creature's heading. It also had the sign the wrong way round, which made
+       heads turn away from whatever they were tracking. */
+    const rel = wrapAngle(Math.atan2(dx, dz) - this.yaw);
     this.headLook.x = clamp(rel, -.9, .9);
     const dy = (target.y - (this.pos.y + this.height * .7));
     this.headLook.y = clamp(dy / Math.max(3, Math.hypot(dx, dz)), -.7, .7);
@@ -7938,6 +7988,8 @@ class Creature {
   }
 }
 const _hp1 = new THREE.Vector3(), _hp2 = new THREE.Vector3(), _hp3 = new THREE.Vector3();
+const _hpA = new THREE.Vector3(), _hpB = new THREE.Vector3();
+const _hpC = new THREE.Vector3(), _hpD = new THREE.Vector3();
 
 /* ============================================================================
  * 52 · AI & SPAWNING — wild behaviour (wander, graze, flee, hunt, pack),
@@ -8847,8 +8899,12 @@ const Combat = {
     const dir = Player.forward(_v3b);
     const reach = (def.reach || 2.6);
 
-    /* creatures first */
-    const hit = Physics.castCreature(origin, dir, reach, .55, null);
+    /* creatures first.  The swing is a sphere-cast, and TUNE.combat.meleeArc
+       is how fat that sphere is — how far off dead centre an aim still counts
+       as a hit.  It was declared and then never read, with the same number
+       hard-coded here; wiring it up makes the forgiveness of a swing tunable
+       in one place instead of buried in a call. */
+    const hit = Physics.castCreature(origin, dir, reach, TUNE.combat.meleeArc, null);
     if (hit) {
       const c = hit.creature;
       const dmg = (def.dmg || 5) * Player.melee();
