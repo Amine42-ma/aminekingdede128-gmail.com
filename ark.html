@@ -132,6 +132,11 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
 /* and so is the minimap: tapping it opens the full map, which is where you set
    a waypoint. That is one less button on a screen that has no room for it. */
 #hud #minimap{pointer-events:auto;cursor:pointer}
+/* In touch mode the HUD has to sit ABOVE the touch overlay, or the full-height
+   look zone covers the minimap and swallows every tap on it. The HUD itself is
+   pointer-events:none, so only the minimap and the hotbar actually take input;
+   everything else still falls through to the zones underneath. */
+body.touch #hud{z-index:70}
 #hud #minimap:active .frame{border-color:var(--amber)}
 #crosshair{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px}
 #crosshair .l{position:absolute;background:rgba(255,255,255,.85);box-shadow:0 0 3px rgba(0,0,0,.9);
@@ -3083,7 +3088,16 @@ const Input = {
       UI.onPointerLock(this.locked);
     });
   },
-  lock() { const c = Gfx.canvas; if (c && !this.locked) c.requestPointerLock && c.requestPointerLock(); },
+  lock() {
+    /* Never on a touch device. Pointer lock is a mouse concept, and while it is
+       held the browser reports clientX/clientY as 0 on EVERY pointer event —
+       which silently zeroes the virtual stick, the look drag and the map tap.
+       Only the buttons kept working, because a button does not read
+       coordinates. That is exactly the "I can only open the backpack" report. */
+    if (typeof Touch !== 'undefined' && Touch.active) return;
+    const c = Gfx.canvas;
+    if (c && !this.locked) c.requestPointerLock && c.requestPointerLock();
+  },
   unlock() { if (this.locked && document.exitPointerLock) document.exitPointerLock(); },
 
   setBind(action, code) {
@@ -10604,6 +10618,11 @@ const Touch = {
   apply() {
     const was = this.active;
     this.active = this.wanted();
+    /* a lock acquired before touch mode was resolved would zero every
+       coordinate from here on */
+    if (this.active && document.pointerLockElement && document.exitPointerLock) {
+      try { document.exitPointerLock(); } catch (e) { }
+    }
     if (this.root) this.root.classList.toggle('hidden', !this.active);
     document.body.classList.toggle('touch', this.active);
     if (was && !this.active) this.releaseAll();

@@ -142,6 +142,62 @@ console.log('FEEL — stick response and look smoothing');
   await ctx.close();
 }
 
+/* ------------------------------------------------------------ REAL TOUCH */
+/* Driven through the browser's own touch pipeline (CDP), not by dispatching
+   PointerEvent objects.
+
+   This section exists because the synthetic tests below passed for a build in
+   which the game was completely unplayable on a phone: the canvas held a
+   pointer lock, and while a pointer lock is held the browser reports
+   clientX/clientY as 0 on every event. Hand-made events carry whatever
+   coordinates you give them, so they sailed straight past it. Only a real
+   touch reproduces that class of bug. */
+console.log('REAL TOUCH — driven through the browser, not synthesised');
+{
+  const ctx = await browser.newContext({ viewport: { width: 915, height: 412 }, deviceScaleFactor: 2.6, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on('pageerror', (e) => errs.push(e.message));
+  await page.goto(PAGE, { waitUntil: 'load', timeout: 60_000 });
+  await page.waitForFunction(() => window.__ark && window.__ark.Game.state === 'menu', null, { timeout: 60_000 });
+  await page.evaluate((sd) => { document.querySelector('#optSeed').value = sd; window.__ark.Game.startNew(); }, SEED);
+  await page.waitForFunction(() => window.__ark.Game.state === 'play', null, { timeout: 180_000 });
+
+  const cdp = await ctx.newCDPSession(page);
+  const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', {
+    type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, radiusX: 12, radiusY: 12, force: 1, id: 1 }],
+  });
+  const frames = (n) => page.evaluate((k) => new Promise((r) => {
+    let i = 0; const s = () => (++i >= k ? r() : requestAnimationFrame(s)); requestAnimationFrame(s);
+  }), n);
+
+  const lock = await page.evaluate(() => document.pointerLockElement ? (document.pointerLockElement.id || 'yes') : null);
+  check('no pointer lock while touch is active', lock === null, lock ? `locked to #${lock}` : undefined);
+
+  const before = await page.evaluate(() => ({ x: window.__ark.Player.pos.x, z: window.__ark.Player.pos.z }));
+  const sx = 915 * 0.20, sy = 412 * 0.68;
+  await touch('touchStart', sx, sy); await frames(2);
+  for (let i = 1; i <= 6; i++) { await touch('touchMove', sx, sy - i * 9); await frames(2); }
+  const held = await page.evaluate(() => Math.hypot(window.__ark.Input.axisStr(), window.__ark.Input.axisFwd()));
+  await frames(40);
+  const after = await page.evaluate(() => ({ x: window.__ark.Player.pos.x, z: window.__ark.Player.pos.z }));
+  await touch('touchEnd', sx, sy - 54); await frames(3);
+  const stickId = await page.evaluate(() => window.__ark.Touch.stickId);
+  const walked = Math.hypot(after.x - before.x, after.z - before.z);
+
+  check('a real touch drives the movement axis', held > .9, `axis ${held.toFixed(2)}`);
+  check('a real touch actually moves the player', walked > 2, `${walked.toFixed(1)} m`);
+  check('a real release clears the stick', stickId === null);
+
+  const mm = await page.evaluate(() => { const r = document.querySelector('#minimap').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await touch('touchStart', mm.x, mm.y); await frames(2);
+  await touch('touchEnd', mm.x, mm.y); await frames(3);
+  const mapOpen = await page.evaluate(() => document.querySelector('#map').classList.contains('on'));
+  check('a real tap on the minimap opens the map', mapOpen);
+  if (errs.length) check('no console errors under real touch', false, errs[0]);
+  await ctx.close();
+}
+
 /* -------------------------------------------------------------- BLOCKERS */
 /* The exact sequence a player hit: settings opened from the main menu drew
    BEHIND it (menu z-150, screens z-120), so its close button was unreachable,
