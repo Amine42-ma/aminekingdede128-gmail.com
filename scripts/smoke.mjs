@@ -210,12 +210,33 @@ try {
       b.dispatchEvent(new PointerEvent('pointerup', opt));
       await frame();
     };
-    for (const [name, sel] of [['inventory', '#inventory'], ['map', '#map'], ['pause', '#pause']]) {
+    for (const [name, sel] of [['inventory', '#inventory'], ['pause', '#pause']]) {
       await tap(name);
       if (!on(sel)) bad.push(`touch: ${name} did not open`);
       await tap(name);
       if (on(sel)) bad.push(`touch: ${name} did not close`);
     }
+
+    /* The map has no button of its own: the minimap opens it, and tapping the
+       map sets a waypoint that the minimap then shows. */
+    if (document.querySelector('[data-touch=map]')) bad.push('touch: map button came back');
+    const mm = document.querySelector('#minimap');
+    const mr = mm.getBoundingClientRect();
+    mm.dispatchEvent(new PointerEvent('pointerdown', {
+      pointerId: 5, pointerType: 'touch', isPrimary: true, bubbles: true, cancelable: true,
+      clientX: mr.left + mr.width / 2, clientY: mr.top + mr.height / 2,
+    }));
+    await frame();
+    if (!on('#map')) bad.push('touch: tapping the minimap did not open the map');
+    const mcv = document.querySelector('#mapcv'), cr = mcv.getBoundingClientRect();
+    mcv.dispatchEvent(new PointerEvent('pointerdown', {
+      pointerId: 6, pointerType: 'touch', isPrimary: true, bubbles: true, cancelable: true,
+      clientX: cr.left + cr.width * .35, clientY: cr.top + cr.height * .6,
+    }));
+    await frame();
+    if (!UI.mapWaypoint) bad.push('touch: tapping the map did not set a waypoint');
+    UI.closeMap();
+    await frame();
 
     /* --- hotbar must be reachable by pointer (it is inside a
            pointer-events:none HUD, so this is easy to break again) -------- */

@@ -2551,6 +2551,41 @@ const TexLab = {
        so a colourful map would multiply the albedo down into mud. */
     this.barkD = this.tex('barkD', () => tintedNoiseTexture(128, ['#9a9a9a', '#c8c8c8', '#efefef'], { scale: 3, octaves: 4, streaks: true, seed: 66 }), { repeat: 2 });
     this.leafD = this.tex('leafD', () => tintedNoiseTexture(128, ['#a8a8a8', '#d8d8d8', '#f4f4f4'], { scale: 8, octaves: 4, seed: 77 }));
+    /* A leaf mask with real holes in it. Canopies are clumps of low-poly
+       icosahedra, and with an opaque texture they read as solid green boulders
+       — the "broccoli tree" look. Cutting leaf shapes out of the surface with
+       alphaTest turns the same geometry into something with gaps you can see
+       sky through, which is most of what makes foliage look like foliage. */
+    this.leafMask = this.tex('leafMask', () => {
+      const S = 256, c = makeCanvas(S, S), g = c.getContext('2d');
+      const rng = makeRNG(9182);
+      g.clearRect(0, 0, S, S);
+      const leaf = (x, y, len, wid, ang, tone) => {
+        g.save(); g.translate(x, y); g.rotate(ang);
+        g.beginPath();
+        g.moveTo(0, -len * .5);
+        g.quadraticCurveTo(wid, 0, 0, len * .5);
+        g.quadraticCurveTo(-wid, 0, 0, -len * .5);
+        g.closePath();
+        g.fillStyle = `rgb(${tone},${tone},${tone})`;
+        g.fill();
+        /* midrib, so a leaf is not a flat blob when it catches the light */
+        g.strokeStyle = `rgba(${(tone * .72) | 0},${(tone * .72) | 0},${(tone * .72) | 0},.85)`;
+        g.lineWidth = Math.max(1, wid * .13);
+        g.beginPath(); g.moveTo(0, -len * .45); g.lineTo(0, len * .45); g.stroke();
+        g.restore();
+      };
+      /* drawn nine times on a 3x3 offset grid so the sheet tiles seamlessly */
+      for (let i = 0; i < 130; i++) {
+        const x = rng() * S, y = rng() * S;
+        const len = S * (.10 + rng() * .13), wid = len * (.26 + rng() * .18);
+        const ang = rng() * Math.PI * 2, tone = 170 + (rng() * 85 | 0);
+        for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
+          leaf(x + ox * S, y + oy * S, len, wid, ang, tone);
+        }
+      }
+      return c;
+    });
     this.rockD = this.tex('rockD', () => tintedNoiseTexture(256, ['#8e8e8e', '#c0c0c0', '#eaeaea'], { scale: 5, octaves: 6, detail: true, seed: 33 }));
   },
 };
@@ -4946,7 +4981,14 @@ const Flora = {
   buildProtos() {
     const P = this.protos;
     const barkMat = this.mats.bark = new THREE.MeshStandardMaterial({ map: TexLab.barkD, vertexColors: true, roughness: .93 });
-    const leafMat = this.mats.leaf = new THREE.MeshStandardMaterial({ map: TexLab.leafD, vertexColors: true, roughness: .82, side: THREE.DoubleSide });
+    const leafMat = this.mats.leaf = new THREE.MeshStandardMaterial({
+      map: TexLab.leafMask, vertexColors: true, roughness: .82,
+      side: THREE.DoubleSide,
+      /* cut out rather than blend: alphaTest needs no sorting, works with
+         instancing, and still casts a correctly shaped shadow */
+      alphaTest: .42, transparent: false,
+    });
+    leafMat.map.repeat.set(2.4, 2.4);
     const rockMat = this.mats.rock = new THREE.MeshStandardMaterial({ map: TexLab.rockD, vertexColors: true, roughness: .95 });
     const oreMat = this.mats.ore = new THREE.MeshStandardMaterial({ map: TexLab.rockD, vertexColors: true, roughness: .55, metalness: .55 });
     this.mats.crystal = new THREE.MeshStandardMaterial({
@@ -5569,7 +5611,10 @@ const Flora = {
     for (let i = 0; i < n; i++) {
       nrm[i * 3] = 0; nrm[i * 3 + 1] = 1; nrm[i * 3 + 2] = 0;   // borrow the ground normal
       const y = pos[i * 3 + 1];
-      const v = .66 + y * .30;                                   // darker at the root
+      /* Blade normals point straight up to borrow the ground's lighting, which
+         means they take the full sky and sun term; at .96 the tips blew out to
+         near-white against the terrain they are supposed to sit in. */
+      const v = .52 + y * .26;                                   // darker at the root
       col[i * 3] = v; col[i * 3 + 1] = v; col[i * 3 + 2] = v;
       uv[i * 2] = 0; uv[i * 2 + 1] = y;
     }
@@ -9187,20 +9232,40 @@ const PlayerModel = {
     const hips = P.hips = new THREE.Group();
     hips.position.y = .92;
     root.add(hips);
-    const pelvis = new THREE.Mesh(new THREE.BoxGeometry(.30, .18, .20), cloth);
+    /* A wrapped cloth skirt rather than two boxes. The old loincloth was a
+       .32 x .28 x .22 cube with hard corners, and it was the first thing you
+       saw of the survivor from behind. */
+    const pelvisGeo = profileGeo([
+      { x: -.26, y: 0, ry: .196, rz: .132, sq: 2.5, bias: 1 },
+      { x: -.16, y: 0, ry: .198, rz: .134, sq: 2.6, bias: 1 },
+      { x: -.04, y: 0, ry: .174, rz: .122, sq: 2.6, bias: 1 },
+      { x: .08, y: 0, ry: .140, rz: .102, sq: 2.4, bias: 1 },
+    ], 18);
+    pelvisGeo.rotateZ(Math.PI / 2);
+    const pelvis = new THREE.Mesh(pelvisGeo, cloth);
     pelvis.castShadow = true;
     hips.add(pelvis);
-    const loin = new THREE.Mesh(new THREE.BoxGeometry(.32, .28, .22), cloth);
-    loin.position.y = -.12;
-    hips.add(loin);
 
     const torso = P.torso = new THREE.Group();
     torso.position.y = .09;
     hips.add(torso);
-    const chestGeo = new THREE.CylinderGeometry(.20, .155, .46, 8);
+    /* Built on the same profile system as the creatures. It was an 8-sided
+       cylinder squashed on Z: a tube with no shoulders, no waist and no chest,
+       whose facets were plainly visible at any distance.
+       Sections are given along +X and rotated up: after rotateZ(+90) a
+       section's ry becomes half the shoulder width and rz half the chest
+       depth. */
+    const chestGeo = profileGeo([
+      { x: -.02, y: 0, ry: .128, rz: .092, sq: 2.3, bias: 1 },
+      { x: .10, y: 0, ry: .142, rz: .100, sq: 2.4, bias: .95 },
+      { x: .24, y: 0, ry: .180, rz: .124, sq: 2.5, bias: .92 },
+      { x: .36, y: 0, ry: .203, rz: .130, sq: 2.6, bias: .95 },
+      { x: .44, y: 0, ry: .150, rz: .108, sq: 2.3, bias: 1 },
+      { x: .48, y: 0, ry: .098, rz: .085, sq: 2.2, bias: 1 },
+    ], 20);
+    chestGeo.rotateZ(Math.PI / 2);
     const chest = new THREE.Mesh(chestGeo, skin);
-    chest.scale.z = .72;
-    chest.position.y = .23;
+    chest.position.y = .02;
     chest.castShadow = true;
     torso.add(chest);
     const belt = new THREE.Mesh(new THREE.CylinderGeometry(.165, .165, .07, 8), strap);
@@ -9219,9 +9284,25 @@ const PlayerModel = {
     skull.scale.set(.92, 1.08, .96);
     skull.castShadow = true;
     head.add(skull);
-    const jaw = new THREE.Mesh(new THREE.BoxGeometry(.13, .07, .12), skin);
-    jaw.position.set(0, -.07, .01);
+    const jaw = new THREE.Mesh(new THREE.SphereGeometry(.072, 10, 8), skin);
+    jaw.scale.set(.86, .62, .92);
+    jaw.position.set(0, -.062, -.012);
     head.add(jaw);
+    /* a brow, a nose and ears: without them the head is a bare sphere, and a
+       bare sphere is the single clearest tell that a model is a placeholder */
+    const brow = new THREE.Mesh(new THREE.BoxGeometry(.115, .022, .035), skin);
+    brow.position.set(0, .035, -.098);
+    head.add(brow);
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(.021, .05, 6), skin);
+    nose.rotation.x = -Math.PI * .46;
+    nose.position.set(0, -.008, -.116);
+    head.add(nose);
+    for (const s2 of [-1, 1]) {
+      const ear = new THREE.Mesh(new THREE.SphereGeometry(.026, 7, 6), skin);
+      ear.scale.set(.42, 1, .78);
+      ear.position.set(s2 * .112, -.004, .006);
+      head.add(ear);
+    }
     const cap = new THREE.Mesh(new THREE.SphereGeometry(.121, 10, 8, 0, TAU, 0, Math.PI * .58), hair);
     cap.position.y = .012;
     head.add(cap);
@@ -9234,50 +9315,85 @@ const PlayerModel = {
     }
 
     /* --- limbs ------------------------------------------------------------ */
-    const limb = (len, r0, r1) => {
-      const g = new THREE.CylinderGeometry(r1, r0, len, 7);
-      g.translate(0, -len / 2, 0);
-      return g;
+    /* The old helper was CylinderGeometry(r1, r0, len): radiusTop = r1, so
+       `limb(.30, .062, .05)` was THINNER at the shoulder than at the elbow —
+       tapering the wrong way on every arm and leg. limbProfileGeo tapers from
+       the body down, and the lower segment starts where the upper one ends. */
+    const limb = (len, thick, prof) => limbProfileGeo(len, thick, prof, 12);
+    /* Each limb segment is a closed mesh, so wherever two meet there is a
+       visible crease that opens into a gap as the joint bends. A small sphere
+       at the pivot covers it and reads as the joint itself. */
+    const joint = (parent, r) => {
+      const j = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), skin);
+      j.scale.set(1, .82, .94);      // flattened, so it fills rather than bulges
+      j.castShadow = true;
+      parent.add(j);
+      return j;
     };
     const mkArm = (side) => {
       const shoulder = new THREE.Group();
       shoulder.position.set(side * .215, .40, 0);
       torso.add(shoulder);
-      const upper = new THREE.Mesh(limb(.30, .062, .05), skin);
+      const upper = new THREE.Mesh(limb(.30, .062, LIMB_UPPER), skin);
       upper.castShadow = true;
       shoulder.add(upper);
+      joint(shoulder, .052);
       const elbow = new THREE.Group();
       elbow.position.y = -.30;
       shoulder.add(elbow);
-      const fore = new THREE.Mesh(limb(.27, .05, .042), skin);
+      joint(elbow, .039);
+      const fore = new THREE.Mesh(limb(.27, .062, LIMB_LOWER), skin);
       fore.castShadow = true;
       elbow.add(fore);
       const hand = new THREE.Group();
       hand.position.y = -.27;
       elbow.add(hand);
-      const palm = new THREE.Mesh(new THREE.BoxGeometry(.07, .10, .055), skin);
-      palm.position.y = -.045;
+      const palm = new THREE.Mesh(new THREE.BoxGeometry(.062, .075, .05), skin);
+      palm.position.y = -.036;
       hand.add(palm);
+      /* four fingers and a thumb. A single box for a hand is very visible when
+         it is the thing holding every tool in the game. */
+      for (let f = 0; f < 4; f++) {
+        const fin = new THREE.Mesh(new THREE.BoxGeometry(.0125, .046, .0155), skin);
+        fin.position.set((f - 1.5) * .0155, -.094, .002);
+        fin.rotation.x = .12;
+        hand.add(fin);
+      }
+      const thumb = new THREE.Mesh(new THREE.BoxGeometry(.014, .036, .016), skin);
+      thumb.position.set(side * .034, -.058, -.014);
+      thumb.rotation.z = side * .62;
+      hand.add(thumb);
       return { shoulder, elbow, hand, side };
     };
     const mkLeg = (side) => {
       const hip = new THREE.Group();
       hip.position.set(side * .095, -.12, 0);
       hips.add(hip);
-      const thigh = new THREE.Mesh(limb(.44, .085, .066), skin);
+      const thigh = new THREE.Mesh(limb(.44, .082, LIMB_UPPER), skin);
       thigh.castShadow = true;
       hip.add(thigh);
+      /* no sphere at the hip: the cloth already covers that joint, and a
+         skin-coloured ball showing through the skirt looks worse than the
+         seam it was hiding */
       const knee = new THREE.Group();
       knee.position.y = -.44;
       hip.add(knee);
-      const shin = new THREE.Mesh(limb(.40, .066, .05), skin);
+      joint(knee, .052);
+      const shin = new THREE.Mesh(limb(.40, .082, LIMB_LOWER), skin);
       shin.castShadow = true;
       knee.add(shin);
       const ankle = new THREE.Group();
       ankle.position.y = -.40;
       knee.add(ankle);
-      const foot = new THREE.Mesh(new THREE.BoxGeometry(.095, .06, .24), strap);
-      foot.position.set(0, -.03, -.05);
+      const footGeo = profileGeo([
+        { x: -.085, y: 0, ry: .046, rz: .042, sq: 2.4, bias: .7 },
+        { x: -.02, y: .006, ry: .056, rz: .050, sq: 2.6, bias: .5 },
+        { x: .08, y: .002, ry: .044, rz: .046, sq: 2.6, bias: .45 },
+        { x: .15, y: -.006, ry: .028, rz: .034, sq: 2.4, bias: .5 },
+      ], 14);
+      const foot = new THREE.Mesh(footGeo, strap);
+      foot.rotation.y = Math.PI / 2;      // +X becomes forward (-Z)
+      foot.position.set(0, -.038, -.03);
       foot.castShadow = true;
       ankle.add(foot);
       return { hip, knee, ankle, side, len: .84, thighLen: .44, shinLen: .40 };
