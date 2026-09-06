@@ -129,6 +129,10 @@ h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:.01em}
 /* the HUD ignores the pointer, but the hotbar is a control: without this its
    slots are unclickable, which on a phone means you can never leave your fists */
 #hud #hotbar{pointer-events:auto}
+/* and so is the minimap: tapping it opens the full map, which is where you set
+   a waypoint. That is one less button on a screen that has no room for it. */
+#hud #minimap{pointer-events:auto;cursor:pointer}
+#hud #minimap:active .frame{border-color:var(--amber)}
 #crosshair{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px}
 #crosshair .l{position:absolute;background:rgba(255,255,255,.85);box-shadow:0 0 3px rgba(0,0,0,.9);
   transition:transform .09s ease}
@@ -817,7 +821,6 @@ body.rtl .maplegend span[style*="margin-inline-start"]{margin-inline-start:auto}
   <!-- right edge: screens, plus the press-and-hold whistle wheel -->
   <div id="tquick">
     <button class="tb sm" data-touch="inventory">🎒</button>
-    <button class="tb sm" data-touch="map">🗺</button>
     <button class="tb sm hidden" data-touch="build">🔨</button>
     <button class="tb sm hidden" data-touch="whistle">📣</button>
     <button class="tb sm" data-touch="pause">⏸</button>
@@ -2358,8 +2361,158 @@ function normalFromField(field, size, strength) {
   return c;
 }
 
+/**
+ * A painted skin for one species variant.
+ *
+ * This is a MODULATION layer, not a colour layer: it is centred on white and
+ * multiplies whatever colour the vertex already carries. That matters, because
+ * counter-shading, per-variant palettes, plate colours and taming tints all
+ * already live in vertex colours, and replacing them would mean re-deriving
+ * every one of them. Markings darken and warm; scales add relief.
+ *
+ * It is painted into the cylindrical UV space profileGeo produces — u around
+ * the body, v along it — so markings resolve properly however coarse the mesh
+ * is. Vertex colour on a hundred-vertex torso could never show a stripe, which
+ * is why every animal used to be a flat smear of two tones.
+ *
+ * Returns { map, normalMap }.
+ */
+function creatureSkin(size, pal, opts) {
+  const { pattern = 'plain', seed = 1, scaleKind = 'scale' } = opts || {};
+  const c = makeCanvas(size, size), g = c.getContext('2d');
+  const rng = makeRNG(seed);
+  const accent = new THREE.Color(pal[2] || pal[0]);
+  /* how far the accent pulls the hue where a marking sits */
+  const warm = (k) => {
+    const r = Math.round(255 * (k + accent.r * .10));
+    const gg = Math.round(255 * (k + accent.g * .10));
+    const b = Math.round(255 * (k + accent.b * .10));
+    return `rgb(${clamp(r, 0, 255) | 0},${clamp(gg, 0, 255) | 0},${clamp(b, 0, 255) | 0})`;
+  };
+
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, size, size);
+
+  /* --- markings ---------------------------------------------------------- */
+  if (pattern === 'stripes') {
+    const n = 11 + (rng() * 7 | 0);
+    for (let i = 0; i < n; i++) {
+      const v = (i + rng() * .4) / n * size;
+      const w = size * (.02 + rng() * .035);
+      g.globalAlpha = .5 + rng() * .35;
+      g.fillStyle = warm(.64);
+      g.beginPath();
+      for (let k = 0; k <= 20; k++) {
+        const u = k / 20 * size, wob = Math.sin(k * .8 + i * 1.7) * size * .014;
+        k === 0 ? g.moveTo(u, v + wob) : g.lineTo(u, v + wob);
+      }
+      for (let k = 20; k >= 0; k--) {
+        const u = k / 20 * size, wob = Math.sin(k * .8 + i * 1.7) * size * .014;
+        g.lineTo(u, v + wob + w);
+      }
+      g.closePath(); g.fill();
+    }
+  } else if (pattern === 'spots' || pattern === 'rosettes') {
+    const n = 110 + (rng() * 80 | 0);
+    for (let i = 0; i < n; i++) {
+      const u = rng() * size, v = rng() * size;
+      const r = size * (.009 + rng() * .024);
+      g.globalAlpha = .45 + rng() * .4;
+      g.fillStyle = warm(.66);
+      g.beginPath(); g.ellipse(u, v, r, r * (.7 + rng() * .6), rng() * 6.28, 0, 6.28); g.fill();
+      if (pattern === 'rosettes') {
+        g.globalAlpha = .5;
+        g.fillStyle = warm(1.05);
+        g.beginPath(); g.ellipse(u, v, r * .48, r * .4, 0, 0, 6.28); g.fill();
+      }
+    }
+  } else if (pattern === 'blotches') {
+    const n = 30 + (rng() * 20 | 0);
+    for (let i = 0; i < n; i++) {
+      const u = rng() * size, v = rng() * size, r = size * (.035 + rng() * .06);
+      g.globalAlpha = .42;
+      g.fillStyle = warm(.70);
+      g.beginPath();
+      for (let k = 0; k <= 14; k++) {
+        const a = k / 14 * 6.283, rr = r * (.6 + rng() * .7);
+        const x = u + Math.cos(a) * rr, y = v + Math.sin(a) * rr;
+        k === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+      }
+      g.closePath(); g.fill();
+    }
+  } else if (pattern === 'banded') {
+    const n = 6 + (rng() * 4 | 0);
+    for (let i = 0; i < n; i++) {
+      g.globalAlpha = .6;
+      g.fillStyle = warm(.62);
+      g.fillRect(0, (i + .2) / n * size, size, size * (.055 + rng() * .05));
+    }
+  }
+  g.globalAlpha = 1;
+
+  /* --- relief: scales, hide or feathers ---------------------------------- */
+  const px = g.getImageData(0, 0, size, size), d = px.data;
+  const cell = scaleKind === 'feather' ? size / 34 : scaleKind === 'hide' ? size / 11 : size / 44;
+  const height = new Float32Array(size * size);
+  const nz = makeNoise2D(seed * 7 + 3);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    /* offset every other row so scales interlock instead of forming a grid */
+    const row = Math.floor(y / cell);
+    const fx = (x / cell + (row % 2) * .5) % 1, fy = (y / cell) % 1;
+    let h;
+    if (scaleKind === 'feather') {
+      h = Math.pow(Math.max(0, 1 - Math.abs(fx - .5) * 2), .7) * (1 - fy) * .85;
+    } else if (scaleKind === 'hide') {
+      h = fbm(nz, x * .10, y * .10, 4, 2.1, .5);
+    } else {
+      const dx = (fx - .5) * 2, dy = (fy - .5) * 2;
+      h = Math.max(0, 1 - (dx * dx + dy * dy));
+    }
+    h = h * .72 + fbm(nz, x * .05, y * .05, 3, 2.2, .5) * .28;
+    height[y * size + x] = h;
+    const i = (y * size + x) * 4;
+    const k = .93 + h * .18;          // stays near 1: this multiplies a colour
+    d[i] = Math.min(255, d[i] * k);
+    d[i + 1] = Math.min(255, d[i + 1] * k);
+    d[i + 2] = Math.min(255, d[i + 2] * k);
+  }
+  g.putImageData(px, 0, 0);
+
+  const map = new THREE.CanvasTexture(c);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  map.anisotropy = 4;
+  map.needsUpdate = true;
+
+  const nrm = new THREE.CanvasTexture(normalFromField(height, size, scaleKind === 'hide' ? 2.0 : 3.2));
+  nrm.wrapS = nrm.wrapT = THREE.RepeatWrapping;
+  nrm.anisotropy = 4;
+  nrm.needsUpdate = true;
+  return { map, normalMap: nrm };
+}
+
 const TexLab = {
   cache: {},
+
+  /* Painted skins are cached per species+variant, never per creature: a herd of
+     twenty parasaurs shares one pair of textures. Bounded, because 23 species x
+     3 variants at full size would be far more memory than a phone has. */
+  skins: {}, skinOrder: [],
+  creature(id, variant, pal, opts) {
+    const key = id + ':' + variant;
+    const hit = this.skins[key];
+    if (hit) return hit;
+    const size = (Gfx.q.creature == null ? 2 : Gfx.q.creature) >= 2 ? 512 : 256;
+    const made = creatureSkin(size, pal, opts);
+    this.skins[key] = made;
+    this.skinOrder.push(key);
+    while (this.skinOrder.length > 16) {
+      const old = this.skinOrder.shift();
+      const t = this.skins[old];
+      if (t) { t.map.dispose(); t.normalMap.dispose(); delete this.skins[old]; }
+    }
+    return made;
+  },
   tex(name, make, { repeat = 1, srgb = true } = {}) {
     if (this.cache[name]) return this.cache[name];
     const t = new THREE.CanvasTexture(make());
@@ -2871,7 +3024,8 @@ const I18N = {
     saves: ['Saves', 'الحفظ'],
     creature: ['Creature', 'الكائن'],
     death: ['Death', 'الموت'],
-    mapHint: ['Click the map to set a waypoint', 'انقر الخريطة لوضع علامة'],
+    mapHint: ['Tap the map to set a waypoint · tap the minimap to open this',
+              'انقر الخريطة لوضع علامة · انقر الخريطة المصغّرة لفتحها'],
     deathInfo: ['Your body and everything you carried is waiting where you fell.',
                 'جثّتك وكل ما كنت تحمله ينتظرك حيث سقطت.'],
     /* photo mode */
@@ -5845,6 +5999,32 @@ const BODY_PROFILE = {
 };
 BODY_PROFILE.default = BODY_PROFILE.hadrosaur;
 
+/** What a body plan is covered in, when the species does not say otherwise. */
+function kindSkin(kind) {
+  if (kind === 'mammal') return 'hide';
+  if (kind === 'bird' || kind === 'flyer') return 'feather';
+  if (kind === 'sauropod' || kind === 'ankylosaur' || kind === 'ceratopsian') return 'hide';
+  return 'scale';
+}
+
+/** Markings per species, falling back to one per body plan. Named entries win.
+    This replaces picking a pattern with `patSeed % 4`, which was stable per
+    species but arbitrary — a Dodo came out striped and a Rex spotted. */
+const SKIN_PATTERN = {
+  Raptor: 'stripes', Dilophosaur: 'spots', Carnotaurus: 'blotches',
+  Tyrannosaurus: 'stripes', Spinosaurus: 'banded', Therizinosaur: 'blotches',
+  Parasaur: 'stripes', Triceratops: 'blotches', Stegosaurus: 'blotches',
+  Ankylosaurus: 'plain', Doedicurus: 'plain', Brontosaurus: 'blotches',
+  Mammoth: 'plain', Sarcosuchus: 'banded', Ichthyosaurus: 'spots',
+  Megalodon: 'plain', Pteranodon: 'banded', Argentavis: 'blotches',
+  Dodo: 'spots', Titanoboa: 'rosettes', Broodmother: 'banded',
+  Mesopithecus: 'plain', Coelacanth: 'spots',
+  '#theropod': 'stripes', '#hadrosaur': 'stripes', '#ceratopsian': 'blotches',
+  '#stegosaur': 'blotches', '#ankylosaur': 'plain', '#sauropod': 'blotches',
+  '#mammal': 'plain', '#crocodile': 'banded', '#aquatic': 'spots',
+  '#bird': 'spots', '#flyer': 'banded', '#snake': 'rosettes', '#spider': 'banded',
+};
+
 /** Resample a body plan to `n` evenly spaced sections. */
 function sampleProfile(prof, n) {
   const out = [];
@@ -5884,12 +6064,14 @@ function limbProfileGeo(len, thick, prof, radial) {
   return g;
 }
 
-/* Upper limb: heavy haunch or shoulder at the top, narrowing into the joint.
-   Kept well under the old builder's peak radius of 1.7x, which on a Rex made a
-   thigh nearly as thick as the animal was tall. */
-const LIMB_UPPER = [[0, 1.10], [.18, 1.24], [.45, .92], [.78, .78], [1, .74]];
-/* Lower limb: the joint itself, then a taper to the ankle. */
-const LIMB_LOWER = [[0, .80], [.14, .88], [.52, .62], [1, .46]];
+/* Upper and lower limb, as one continuous taper across the pair: the lower
+   segment starts at exactly the radius the upper one ends on.
+   Bulges at the segment ends were a mistake — each segment is a closed mesh, so
+   a swelling next to a joint reads as the rim of a cup, and a leg came out
+   looking like a stack of them. Mass now comes from being thicker at the top
+   and tapering all the way down, which is also how a leg actually works. */
+const LIMB_UPPER = [[0, 1.16], [.32, 1.00], [.68, .87], [1, .80]];
+const LIMB_LOWER = [[0, .80], [.36, .66], [.74, .54], [1, .44]];
 function sphereGeo(r, d) { return new THREE.SphereGeometry(r, 10, 8); }
 
 const CreatureModel = {
@@ -5898,9 +6080,20 @@ const CreatureModel = {
     const M = sp.model, S = sp.scale || 1;
     const pal = tint || pick(sp.colors);
     const base = new THREE.Color(pal[0]), belly = new THREE.Color(pal[1]), accent = new THREE.Color(pal[2] || pal[0]);
+    /* Which markings and what kind of hide. Driven by the species rather than
+       by `hash % 4`, which used to hand a Rex rosettes and a Dodo stripes. */
+    const featList = M.feat || [];
+    const scaleKind = featList.indexOf('fur') >= 0 || featList.indexOf('feathers') >= 0 ? 'feather'
+      : kindSkin(M.kind);
+    const pattern = SKIN_PATTERN[sp.en || sp.name] || SKIN_PATTERN['#' + M.kind] || 'plain';
+    const variant = Math.max(0, (sp.colors || []).findIndex(v => v === pal));
+    const skin = TexLab.creature((sp.id || sp.en || sp.name) + '', variant, pal,
+      { pattern, seed: hashString((sp.id || sp.name) + variant), scaleKind });
+
     const mat = new THREE.MeshStandardMaterial({
-      vertexColors: true, roughness: .82, metalness: .02,
-      bumpMap: TexLab.scale, bumpScale: .012,
+      vertexColors: true, roughness: .78, metalness: .02,
+      map: skin.map, normalMap: skin.normalMap,
+      normalScale: new THREE.Vector2(.85, .85),
     });
     /* teeth, eyes, bumps and feathers are shadow-free: they cost more in the
        shadow pass than they add to the silhouette */
@@ -6318,12 +6511,18 @@ const CreatureModel = {
     if (feat.indexOf('frill') >= 0) {
       /* A ceratopsian frill: a thin shield standing behind the skull, tilted
          back, with epoccipital bumps around the rim. */
-      const R = hd.len * .82;
-      const shield = new THREE.CylinderGeometry(R, R * .88, hd.w * .14, 11, 1, false);
-      shield.rotateZ(Math.PI / 2);           // flat faces point forward/back
-      shield.scale(1, 1.12, 1.2);
+      /* An 11-sided cylinder read as a flat octagonal plate the size of the
+         animal's head. This is a rounded shield: thickest through the middle,
+         tapering to the rim, with enough segments that the edge is a curve. */
+      const R = hd.len * .66, th = hd.w * .17;
+      const shield = profileGeo([
+        { x: -th * .5, y: 0, ry: R * .82, rz: R * .94 },
+        { x: -th * .16, y: 0, ry: R * .99, rz: R * 1.13 },
+        { x: th * .16, y: 0, ry: R * .99, rz: R * 1.13 },
+        { x: th * .5, y: 0, ry: R * .82, rz: R * .94 },
+      ], 30);
       const frill = new THREE.Mesh(paint(shield, (x, y) => _col.copy(accent).lerp(base, clamp01(.55 - y * .3))), matAccent);
-      frill.position.set(-hd.len * .1, hd.h * .5, 0);
+      frill.position.set(-hd.len * .06, hd.h * .42, 0);
       frill.rotation.z = .38;
       frill.castShadow = true;
       head.add(frill);
@@ -6331,7 +6530,7 @@ const CreatureModel = {
       for (let i = 0; i < 9; i++) {
         const a = -Math.PI * .55 + (i / 8) * Math.PI * 1.1;
         const b = new THREE.Mesh(new THREE.ConeGeometry(hd.w * .07, hd.w * .2, 5), bumpMat);
-        b.position.set(-hd.len * .1 + Math.sin(a) * R * .18, hd.h * .5 + Math.cos(a) * R * 1.16, Math.sin(a) * R * 1.2);
+        b.position.set(-hd.len * .06 + Math.sin(a) * R * .14, hd.h * .42 + Math.cos(a) * R * 1.06, Math.sin(a) * R * 1.18);
         b.rotation.x = -a;
         head.add(b);
       }
@@ -11672,6 +11871,12 @@ const UI = {
       hb.appendChild(s);
     }
     this.mmCtx = $('#mmcv').getContext('2d');
+    /* tap the minimap to open the map; that is where waypoints are placed */
+    $('#minimap').addEventListener('pointerdown', e => {
+      if (Game.state !== 'play' || anyScreenOpen()) return;
+      e.preventDefault();
+      this.openMap();
+    });
     this.refreshHotbar();
     this.buildCompass();
   },
@@ -11943,7 +12148,31 @@ const UI = {
     for (const c of Caves.list) dot(c.mouth.x, c.mouth.z, '#2a2a2a', 4);
     if (Player.bedPos) dot(Player.bedPos.x, Player.bedPos.z, '#f0a842', 4);
     if (Player.deathPos) dot(Player.deathPos.x, Player.deathPos.z, '#e0524a', 4);
-    if (this.mapWaypoint) dot(this.mapWaypoint.x, this.mapWaypoint.z, '#4fd6c4', 4);
+    if (this.mapWaypoint) {
+      const w = this.mapWaypoint;
+      const dx = w.x - Player.pos.x, dz = w.z - Player.pos.z;
+      const c = Math.cos(Player.yaw), sn = Math.sin(Player.yaw);
+      let rx = dx * c - dz * sn, rz = dx * sn + dz * c;
+      let x = size / 2 + (rx / span) * size, y = size / 2 + (rz / span) * size;
+      const R = size / 2 - 14;
+      const off = Math.hypot(x - size / 2, y - size / 2) > R;
+      if (off) {
+        /* pin it to the rim so the marker never simply disappears when the
+           waypoint is further away than the minimap can show */
+        const a = Math.atan2(y - size / 2, x - size / 2);
+        x = size / 2 + Math.cos(a) * R; y = size / 2 + Math.sin(a) * R;
+      }
+      ctx.save();
+      ctx.beginPath(); ctx.arc(x, y, off ? 7 : 6, 0, TAU);
+      ctx.fillStyle = '#ffffff'; ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = '#0b0f14'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, 2.4, 0, TAU);
+      ctx.fillStyle = '#0b0f14'; ctx.fill();
+      ctx.restore();
+      const dist = Math.round(Math.hypot(dx, dz));
+      const lab = $('#mmcoords');
+      if (lab) lab.textContent = tr('Waypoint') + ' ' + dist + 'm';
+    }
     /* player arrow (always centred, pointing up) */
     ctx.save();
     ctx.translate(size / 2, size / 2);
@@ -12677,12 +12906,17 @@ Object.assign(UI, {
     if (this.mapWaypoint) addMark(this.mapWaypoint.x, this.mapWaypoint.z, '#ffffff', tr('Waypoint'));
     const ll = World.latLon(Player.pos.x, Player.pos.z);
     $('#mapCoord').textContent = 'LAT ' + ll.lat.toFixed(1) + ' · LON ' + ll.lon.toFixed(1);
-    cv.onclick = (e) => {
+    /* pointerdown, not click: a tap does not reliably synthesise a click on
+       every mobile browser, and this is now the only way to set a waypoint */
+    cv.onpointerdown = (e) => {
+      e.preventDefault();
       const r = cv.getBoundingClientRect();
       const u = (e.clientX - r.left) / r.width, v = (e.clientY - r.top) / r.height;
+      if (u < 0 || u > 1 || v < 0 || v > 1) return;
       this.mapWaypoint = new THREE.Vector3(-World.half + u * World.size, 0, -World.half + v * World.size);
       this.openMap();
       UI.toast(tr('Waypoint set'));
+      Touch.buzz(10);
     };
   },
   closeMap() { screenOn('map', false); if (Game.state === 'play') Input.lock(); },

@@ -24,7 +24,7 @@ const IDS = argv.slice(1);
 const browser = await chromium.launch({
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
 });
-const page = await browser.newPage({ viewport: { width: 1400, height: 500 } });
+const page = await browser.newPage({ viewport: { width: 1500, height: 760 } });
 page.on('pageerror', (e) => console.log('PAGEERR', e.message));
 page.on('console', (m) => { if (m.type() === 'error') console.log('ERR', m.text().slice(0, 200)); });
 
@@ -67,16 +67,20 @@ const view = await page.evaluate((ids) => {
     const h = World.heightAt(x, z);
     if (h < 14 || h > 45) continue;
     let hmin = h, hmax = h, flat = true;
-    for (let j = 0; j <= span; j += 5) {
-      const hh = World.heightAt(x + j, z);
-      hmin = Math.min(hmin, hh); hmax = Math.max(hmax, hh);
-      if (hmax - hmin > 2.5) { flat = false; break; }
+    /* check the ground the camera stands on too, not just the row itself */
+    for (let j = -10; j <= span + 10 && flat; j += 5) {
+      for (let k = 0; k <= span * .3 + 12; k += 6) {
+        const hh = World.heightAt(x + j, z + k);
+        if (hh < 18) { flat = false; break; }        // no water in frame
+        hmin = Math.min(hmin, hh); hmax = Math.max(hmax, hh);
+        if (hmax - hmin > 3.0) { flat = false; break; }
+      }
     }
     if (flat) { best = { x, z, h }; break; }
   }
   if (!best) best = { x: 0, z: 0, h: World.heightAt(0, 0) };
 
-  const cx = best.x + span / 2, dist = span * 0.30 + 7;
+  const cx = best.x + span / 2, dist = span * 0.19 + 5;
   Player.pos.set(cx, World.heightAt(cx, best.z + dist) + 2, best.z + dist);
   Camera.thirdPerson = false;
   return { list, span, cx, cz: best.z, x0: best.x, h: best.h, dist };
