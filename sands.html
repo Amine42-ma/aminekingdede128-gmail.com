@@ -2981,7 +2981,9 @@ function refreshHud(){
   $('#plLv').textContent=ad(S.level||1);
   $('#plName').textContent=S.name;
   $('#plXp').style.width=clamp((S.xpIn||0)/(S.xpNeed||1)*100,0,100)+'%';
-  $('#troBadge').innerHTML='🏆 <b>'+ad(S.trophies)+'</b>';
+  const lg=leagueOf(S.trophies);
+  $('#troBadge').innerHTML=lg.ic+' <b style="color:'+lg.c+'">'+ad(S.trophies)+'</b>'+
+    '<span style="font-size:11px;color:var(--ink-3);font-weight:700">'+lg.n+'</span>';
   $('#thBadge').innerHTML='🏛 القصر <b>'+ad(S.th)+'</b>';
   /* البنّاؤون */
   const bh=$('#builders');bh.innerHTML='';
@@ -3328,7 +3330,10 @@ function openSettings(){openSheet('الإعدادات','',null,body=>{
   const st=el('div','list');
   const d=Math.floor((Date.now()-S.created)/86400000);
   st.appendChild(el('div','row','🏛 <span>مستوى القصر</span><span class="v">'+ad(S.th)+'</span>'));
-  st.appendChild(el('div','row','🏆 <span>أفضل كؤوس</span><span class="v">'+ad(S.best||0)+'</span>'));
+  const lg2=leagueOf(S.trophies), nx=leagueNext(S.trophies);
+    st.appendChild(el('div','row',lg2.ic+' <span>درجتك</span><span class="v" style="color:'+lg2.c+'">'+
+      lg2.n+(nx?' · '+ad(nx.t-S.trophies)+' كأساً للتالية':'')+'</span>'));
+    st.appendChild(el('div','row','🏆 <span>أفضل كؤوس</span><span class="v">'+ad(S.best||0)+'</span>'));
   st.appendChild(el('div','row','⚔️ <span>غارات ناجحة</span><span class="v">'+ad(S.wins||0)+'</span>'));
   st.appendChild(el('div','row','🛡 <span>هجمات صُدّت</span><span class="v">'+ad(S.losses||0)+'</span>'));
   st.appendChild(el('div','row','📅 <span>عمر الإمارة</span><span class="v">'+ad(d)+' يوم</span>'));
@@ -3364,14 +3369,25 @@ function openRank(){
         const row=el('div','li2'+(r.pid===S.pid?' me':''));
         row.innerHTML='<div class="rk'+(i<3?' g'+(i+1):'')+'">'+ad(i+1)+'</div>'+
           '<div class="info"><div class="t1">'+esc(r.name)+(r.pid===S.pid?' (أنت)':'')+'</div>'+
-          '<div class="t2">🏛 قصر '+ad(r.th)+' · ⚔️ '+ad(r.wins||0)+' غارة</div></div>'+
-          '<div class="t1" style="color:var(--gold)">🏆 '+ad(r.trophies|0)+'</div>';
+          '<div class="t2">'+leagueOf(r.trophies).ic+' '+leagueOf(r.trophies).n+
+          ' · 🏛 قصر '+ad(r.th)+' · ⚔️ '+ad(r.wins||0)+' غارة</div></div>'+
+          '<div class="t1" style="color:'+leagueOf(r.trophies).c+'">🏆 '+ad(r.trophies|0)+'</div>';
         list.appendChild(row);
       });
       body.appendChild(list);
     });
   });
 }
+const LEAGUES=[
+  {n:'الرمال',t:0,c:'#b8935e',ic:'🏜'},
+  {n:'النحاس',t:400,c:'#c07a3a',ic:'🥉'},
+  {n:'الفضة',t:800,c:'#c8ccd4',ic:'🥈'},
+  {n:'الذهب',t:1400,c:'#f5c451',ic:'🥇'},
+  {n:'العقيق',t:2200,c:'#d9455f',ic:'💠'},
+  {n:'السلطان',t:3200,c:'#9b8bff',ic:'👑'},
+];
+function leagueOf(t){let L=LEAGUES[0];for(const g of LEAGUES)if((t|0)>=g.t)L=g;return L;}
+function leagueNext(t){const i=LEAGUES.indexOf(leagueOf(t));return LEAGUES[i+1]||null;}
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 /* ══════════════════════════════════════════════════════════════════
@@ -4037,6 +4053,7 @@ function endBattle(){
   BT.over=true;BT.phase='over';
   const p=destructionPct(), st=BT.stars;
   const isCampaign=BT.mode==='campaign';
+  const beforeLg=leagueOf(S.trophies);
   let dTro=0;
   if(!isCampaign){
     const diff=(BT.def.trophies||0)-S.trophies;
@@ -4045,6 +4062,10 @@ function endBattle(){
     S.trophies=Math.max(0,S.trophies+dTro);
     S.best=Math.max(S.best||0,S.trophies);
     if(st>0)S.wins=(S.wins||0)+1;
+    const afterLg=leagueOf(S.trophies);
+    if(afterLg!==beforeLg)setTimeout(()=>toast(
+      (LEAGUES.indexOf(afterLg)>LEAGUES.indexOf(beforeLg)?'⬆ صعدت إلى درجة ':'⬇ هبطت إلى درجة ')+afterLg.n,
+      LEAGUES.indexOf(afterLg)>LEAGUES.indexOf(beforeLg)?'good':'bad',4200),1400);
   }
   /* الغنائم */
   const got={};
