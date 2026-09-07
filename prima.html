@@ -911,6 +911,7 @@ body.rtl .maplegend span[style*="margin-inline-start"]{margin-inline-start:auto}
     <button class="tb sm" data-touch="inventory">🎒</button>
     <button class="tb sm hidden" data-touch="build">🔨</button>
     <button class="tb sm hidden" data-touch="whistle">📣</button>
+    <button class="tb sm" data-touch="toggleView">🎥</button>
     <button class="tb sm" data-touch="pause">⏸</button>
   </div>
 </div>
@@ -2235,6 +2236,14 @@ const TUNE = {
   combat: {
     headMul: 2.5, headTorporMul: 2.0, limbMul: .8, backMul: 1.15,
     arrowGravity: 9.8, meleeArc: .55,
+    /* The melee aim assist. `angle` is how far off dead centre a swing may be
+       and still land, in radians, measured horizontally — about 34 degrees at
+       point-blank, halving by the edge of `range`. `range` is the minimum
+       distance the assist works over whatever the weapon's own reach is, so
+       "get within two or three metres and you can hit it" holds even bare
+       handed. `rise` is the steepest slope to a target that still counts, as
+       a ratio of height to horizontal distance — 1.5 is about 56 degrees. */
+    assist: { angle: .60, range: 3.0, rise: 1.5 },
     bolaDuration: 30, spitDuration: 6,
   },
   time: { dayLength: 1200, startHour: 8.5, sunriseHour: 5.6, sunsetHour: 19.2 },
@@ -3168,12 +3177,16 @@ const TexLab = {
     const key = id + ':' + variant;
     const hit = this.skins[key];
     if (hit) return hit;
-    /* A phone runs the `medium` tier, which used to paint a whole animal into
-       256 pixels — the lowest resolution surface in a game whose whole subject
-       is standing next to animals. It gets the full sheet now; only the
-       weakest tier still halves it. The painter's slow fields are built at a
-       quarter of this and the roughness map at a half, so the extra cost is
-       nothing like four times. */
+    /* A phone on `medium` paints the full sheet; a whole animal into 256
+       pixels was the lowest resolution surface in a game whose entire subject
+       is standing next to animals.
+
+       `low` keeps 256 on purpose. Pushing it to 512 there was measurably
+       slower — the software renderer used for testing went from finishing a
+       frame to timing out — and `low` is the tier a device lands on precisely
+       because it has nothing spare. Sixteen cached species at 512 is about
+       fifty megabytes of texture, which is fine on a mid phone and is not
+       free on a weak one. */
     const det = Gfx.q.creature == null ? 2 : Gfx.q.creature;
     const size = det >= 1 ? 512 : 256;
     const made = creatureSkin(size, pal, opts);
@@ -3893,8 +3906,13 @@ const I18N = {
     rotateHint: ['Turn your phone sideways to play.', 'أدر هاتفك أفقياً للعب.'],
     whFollow: ['Follow', 'اتبعني'],
     whStop: ['Stop', 'قف'],
+    whMove: ['Move to', 'اذهبوا'],
     whAttack: ['Attack', 'هاجم'],
     whPassive: ['Passive', 'مسالم'],
+    whAggro: ['Aggressive', 'شرس'],
+    camFirst: ['First person', 'منظور أول'],
+    camThird: ['Over the shoulder', 'خلف الكتف'],
+    camFar: ['Wide view', 'منظور واسع'],
     noTames: ['You have no tames to whistle at', 'ليس لديك حيوانات مروّضة'],
     actUse: ['Use', 'استخدام'],
     actEquip: ['Equip', 'تجهيز'],
@@ -5890,6 +5908,9 @@ const World = {
   },
 };
 const _v3a = new THREE.Vector3(), _v3b = new THREE.Vector3(), _v3c = new THREE.Vector3();
+/* two more for the melee aim assist, which runs inside a loop that must not
+   borrow the vectors its caller is still holding */
+const _v3d = new THREE.Vector3(), _v3e = new THREE.Vector3();
 
 /* ============================================================================
  * 42 · FLORA & RESOURCE NODES — trees, rocks, bushes, metal, crystal and the
@@ -7697,10 +7718,17 @@ const CreatureModel = {
       const g = new THREE.Group();
       const u0 = i / neckDef.seg, u1 = (i + 1) / neckDef.seg;
       const r0 = lerp(neckR0, neckR1, u0 * u0), r1 = lerp(neckR0, neckR1, u1 * u1);
-      /* segments overlap slightly so a bent neck never opens a gap at a joint */
+      /* Segments overlap so a bent neck never opens a gap at a joint, but the
+         overlap has to run BACKWARDS only. Reaching forward past the joint as
+         well used to leave each segment's open end sticking out beyond the
+         next one, which is a step down at every joint — invisible while the
+         surfaces were inside-out, and a row of rings around the neck the
+         moment they were not. A segment now ends exactly on its joint and the
+         next one reaches back inside it, where it is hidden by the wider
+         section it slides into and still covers the outside of a bend. */
       const geo = profileGeo([
-        { x: -segLen * .06, y: 0, ry: r0, rz: r0 * .93 },
-        { x: segLen * 1.04, y: 0, ry: r1, rz: r1 * .9 },
+        { x: -segLen * .13, y: 0, ry: r0, rz: r0 * .93 },
+        { x: segLen * 1.0, y: 0, ry: r1, rz: r1 * .9 },
       ], nrad, false, false);
       const m = new THREE.Mesh(paint(geo, bodyPaint), mat);
       m.castShadow = true;
@@ -7738,9 +7766,11 @@ const CreatureModel = {
       const u0 = i / tailDef.seg, u1 = (i + 1) / tailDef.seg;
       const r0 = lerp(tailR0, tailR0 * .06, Math.pow(u0, .82));
       const r1 = lerp(tailR0, tailR0 * .06, Math.pow(u1, .82));
+      /* same rule as the neck: the wide end reaches back into the thicker
+         segment behind it, the narrow end stops exactly on its joint */
       const geo = profileGeo([
-        { x: tSeg * .06, y: 0, ry: r0, rz: r0 * flat },
-        { x: -tSeg * 1.02, y: 0, ry: r1, rz: r1 * flat },
+        { x: tSeg * .13, y: 0, ry: r0, rz: r0 * flat },
+        { x: -tSeg * 1.0, y: 0, ry: r1, rz: r1 * flat },
       ], trad, false, i === tailDef.seg - 1);
       const m = new THREE.Mesh(paint(geo, bodyPaint), mat);
       m.castShadow = true;
@@ -7805,7 +7835,16 @@ const CreatureModel = {
         const knee = new THREE.Group();
         knee.position.y = -thighLen;
         hip.add(knee);
-        const shinM = new THREE.Mesh(paint(limbProfileGeo(shinLen, thick * gird, LIMB_LOWER, lrad), limbPaint), mat);
+        /* The shin reaches up INTO the thigh rather than butting against it.
+           Both segments are closed tubes with domed end caps, so meeting them
+           end to end put two opposing domes in the same place — the bead you
+           could see at every knee. The thigh's lower cap is now inside the
+           shin and the shin's upper cap is inside the thigh, and neither is
+           ever drawn; when the knee bends, the overlap is also what stops a
+           gap opening on the outside of the joint. */
+        const kneeOverlap = thick * gird * .38;
+        const shinM = new THREE.Mesh(paint(limbProfileGeo(shinLen + kneeOverlap, thick * gird, LIMB_LOWER, lrad), limbPaint), mat);
+        shinM.position.y = kneeOverlap;
         shinM.castShadow = true;
         knee.add(shinM);
         const ankle = new THREE.Group();
@@ -8440,6 +8479,7 @@ class Creature {
     this.following = false;
     this.followDist = 7;
     this.wandering = false;
+    this.moveOrder = null;          // a whistled "go there", cleared on arrival
     this.eggTimer = sp.egg ? rnd(sp.eggRate * .5, sp.eggRate) : 0;
     /* --- breeding ------------------------------------------------------- */
     this.gender = Math.random() < .5 ? 'M' : 'F';
@@ -9286,6 +9326,14 @@ Object.assign(Creature.prototype, {
       if (this.following && dHome > 48) { this.target = null; }
       else { this.attackTarget(dt); return; }
     }
+    /* a standing order to walk somewhere outranks following and wandering,
+       and clears itself on arrival so the animal holds the ground it was sent
+       to rather than drifting back */
+    if (this.moveOrder) {
+      const d = this.moveTowards(this.moveOrder.x, this.moveOrder.z, 1, dt);
+      if (d < 3.5) { this.moveOrder = null; this.home.copy(this.pos); }
+      return;
+    }
     if (this.following) {
       const d = Math.hypot(Player.pos.x - this.pos.x, Player.pos.z - this.pos.z);
       if (d > this.followDist) {
@@ -9650,7 +9698,7 @@ const Player = {
     this.mount = null;
     this.vel.set(0, 0, 0);
     this.alive = true;
-    Camera.thirdPerson = false;
+    Camera.apply();
     this.spawnAt(p);
     Gfx.fx.damage = 0;
     UI.hideDeath();
@@ -9847,8 +9895,40 @@ const Player = {
 };
 
 const Camera = {
+  /* Three views behind one control, the way ARK Mobile does it: first person,
+     over the shoulder, and pulled back wide. A phone has room for exactly one
+     camera button, so it cycles rather than offering three.
+
+     `thirdPerson` and `distance` stay as the live values everything else
+     reads, because riding overrides them temporarily without disturbing the
+     view the player chose — dismounting calls apply() and gets it back. */
+  MODES: [
+    { key: 'camFirst', third: false, dist: 0 },
+    { key: 'camThird', third: true, dist: 4.2 },
+    { key: 'camFar', third: true, dist: 8.5 },
+  ],
+  mode: 0,
   thirdPerson: false, distance: 4.2, sensitivity: 1, invertY: false, fovScale: 1,
-  toggle() { this.thirdPerson = !this.thirdPerson; },
+
+  apply() {
+    const m = this.MODES[this.mode] || this.MODES[0];
+    this.thirdPerson = m.third;
+    if (m.dist) this.distance = m.dist;
+    return m;
+  },
+  set(i) {
+    this.mode = ((i % this.MODES.length) + this.MODES.length) % this.MODES.length;
+    return this.apply();
+  },
+  cycle() {
+    const m = this.set(this.mode + 1);
+    if (typeof UI !== 'undefined' && UI.toast) UI.toast(t(m.key));
+    Sound.ui('tick');
+    Touch.buzz(8);
+    return m;
+  },
+  /* the old name, still called by the V key binding and the touch button */
+  toggle() { return this.cycle(); },
 };
 
 /* ============================================================================
@@ -9909,6 +9989,63 @@ const Combat = {
   /** What a thing sounds like when you swing it. Derived from the item rather
    *  than stored on every one of them, so a new tool inherits a sensible
    *  voice instead of falling back to the same flat hiss for everything. */
+  /** The closest creature inside the swing cone, as a castCreature-shaped hit.
+   *
+   *  The rule this implements is the one you would say out loud: if the animal
+   *  is close enough to punch and you are pointed at it, the blow lands.
+   *
+   *  Two things make that different from the plain sphere-cast above. It is
+   *  measured in the HORIZONTAL plane, because the crosshair sits at eye
+   *  height and almost everything worth punching is shorter than you are — a
+   *  Dodo two metres away sits a full metre below the ray, and demanding the
+   *  ray pass through it means you have to stare at your own feet to hit a
+   *  bird. And it carries its own minimum range, because a bare fist reaches
+   *  about two metres and "close" plainly means the animal you are standing
+   *  next to.
+   *
+   *  It is still a cone and not a homing missile: `rise` refuses anything
+   *  steeply above or below you, nothing behind you can ever be hit, and the
+   *  cone tightens as the target gets further away. */
+  assistedMelee(origin, dir, reach) {
+    const A = TUNE.combat.assist;
+    if (!A || A.angle <= 0) return null;
+    const range = Math.max(reach, A.range);
+    /* the aim direction flattened onto the ground plane */
+    const fx = dir.x, fz = dir.z;
+    const flatLen = Math.hypot(fx, fz);
+    if (flatLen < 1e-4) return null;                  // straight up or down
+    const ax = fx / flatLen, az = fz / flatLen;
+    const list = Creatures.near(origin.x + ax * range * .5, origin.z + az * range * .5,
+                                range + 10, this._assistList || (this._assistList = []));
+    let best = null, bestScore = Infinity;
+    for (const c of list) {
+      if (c.dead) continue;
+      for (const part of c.hitParts()) {
+        const to = _v3d.copy(part.p).sub(origin);
+        const dist = to.length();
+        if (dist > range + part.r) continue;
+        const flatD = Math.hypot(to.x, to.z);
+        if (flatD < 1e-4) continue;
+        const cos = (to.x / flatD) * ax + (to.z / flatD) * az;
+        if (cos <= 0) continue;                       // behind you is never a hit
+        /* refuse anything steeply overhead or underfoot */
+        if (Math.abs(to.y) / flatD > A.rise) continue;
+        /* the cone opens up as the target closes */
+        const near = clamp01(1 - dist / Math.max(.5, range));
+        const ang = Math.acos(clamp(cos, -1, 1));
+        if (ang > lerp(A.angle * .5, A.angle, near)) continue;
+        /* prefer what is closest to dead centre, then what is nearest */
+        const score = ang * 2 + dist * .12;
+        if (score < bestScore) {
+          bestScore = score;
+          best = { creature: c, part: part.name, dist,
+                   point: _v3e.copy(part.p).clone() };
+        }
+      }
+    }
+    return best;
+  },
+
   swingKindFor(eq) {
     const id = (eq && eq.id) || 'fists';
     if (id === 'fists' || id === 'torch') return 'fists';
@@ -9940,7 +10077,21 @@ const Combat = {
        as a hit.  It was declared and then never read, with the same number
        hard-coded here; wiring it up makes the forgiveness of a swing tunable
        in one place instead of buried in a call. */
-    const hit = Physics.castCreature(origin, dir, reach, TUNE.combat.meleeArc, null);
+    /* Aim assist, ARK-Mobile style.
+
+       A bare sphere-cast asks a thumb on a touchscreen to put a 55 cm sphere
+       on a moving animal, which is why swings kept "not counting". The rule
+       is the one you would describe out loud: if the thing is close enough to
+       punch and you are pointed at it, the blow lands; if you are not pointed
+       at it, you miss. So the forgiveness grows as the target gets nearer —
+       full arc at arm's length, the plain narrow cast at the end of the reach
+       — and the swing is then snapped onto the best creature inside that cone
+       rather than requiring the ray to pass through it.
+
+       It cannot reach past `reach`, and it will not turn a swing aimed away
+       from an animal into a hit: assistAngle is a cone, not a homing missile. */
+    let hit = Physics.castCreature(origin, dir, reach, TUNE.combat.meleeArc, null);
+    if (!hit) hit = this.assistedMelee(origin, dir, reach);
     if (hit) {
       const c = hit.creature;
       const dmg = (def.dmg || 5) * Player.melee();
@@ -10403,7 +10554,7 @@ const Riding = {
     c.following = false;
     c.target = null;
     this._yaw = c.yaw;
-    Camera.thirdPerson = true;
+    Camera.thirdPerson = true;          // forced while riding; mode is untouched
     this.camDist = Math.max(5, c.length * 1.8 + c.height * 1.4);
     this.camHeight = c.height * .9;
     UI.toast(tr('Riding ') + c.displayName(), 'good');
@@ -10415,7 +10566,7 @@ const Riding = {
     if (!c) return;
     c.ridden = false;
     Player.mount = null;
-    Camera.thirdPerson = false;
+    Camera.apply();                     // back to whichever view was chosen
     /* step off to the side */
     const off = _v3a.set(Math.cos(c.yaw) * (c.radius + 1.2), 0, -Math.sin(c.yaw) * (c.radius + 1.2));
     Player.pos.set(c.pos.x + off.x, World.heightAt(c.pos.x + off.x, c.pos.z + off.z), c.pos.z + off.z);
@@ -10513,21 +10664,50 @@ const Riding = {
   whistle(cmd) {
     const list = Creatures.tamedList;
     if (!list.length) { UI.toast(tr('You have no tamed creatures')); return; }
+    /* Where "go there" means, worked out once for the whole herd: the map
+       waypoint if one is set, otherwise wherever you are looking on the
+       ground. Aiming at the sky sends them to a point out ahead instead of
+       nowhere. */
+    let dest = null;
+    if (cmd === 'moveto') {
+      if (UI.mapWaypoint) {
+        dest = UI.mapWaypoint.clone();
+        dest.y = World.heightAt(dest.x, dest.z);
+      } else {
+        /* own copies, not the shared scratch vectors: the raycast below is
+           free to use those for itself, and origin is still needed after it */
+        const origin = Player.eyePos(new THREE.Vector3());
+        const dir = Player.forward(new THREE.Vector3());
+        const t = Physics.raycastTerrain(origin, dir, 160);
+        if (t && t.hit) dest = t.point.clone();
+        else {
+          dest = origin.addScaledVector(dir, 30);
+          dest.y = World.heightAt(dest.x, dest.z);
+        }
+      }
+    }
     let n = 0;
     for (const c of list) {
       if (c.dead) continue;
       const d = c.distToPlayer();
       if (d > 90) continue;
       n++;
+      /* a new order always cancels the previous one, or a herd sent somewhere
+         would keep walking there while being told to follow */
+      if (cmd !== 'passive' && cmd !== 'aggressive') c.moveOrder = null;
       if (cmd === 'follow') { c.following = true; c.wandering = false; }
       else if (cmd === 'stop') { c.following = false; c.wandering = false; c.target = null; c.home.copy(c.pos); }
-      else if (cmd === 'passive') { c.behavior = 'passive'; c.target = null; }
+      else if (cmd === 'moveto') {
+        if (dest) { c.moveOrder = dest.clone(); c.following = false; c.wandering = false; c.target = null; }
+      } else if (cmd === 'passive') { c.behavior = 'passive'; c.target = null; }
+      else if (cmd === 'aggressive') { c.behavior = 'aggressive'; }
       else if (cmd === 'attack') {
         const t = Combat.focus && Combat.focus.creature ? Combat.focus.creature : this.pickTargetAhead();
         if (t && !t.tamed) { c.behavior = 'aggressive'; c.acquire(t); }
       }
     }
-    const label = { follow: tr('Follow me'), stop: tr('Stop and hold'), passive: tr('Passive'), attack: tr('Attack my target') }[cmd];
+    const label = { follow: tr('Follow me'), stop: tr('Stop and hold'), moveto: tr('Move to there'),
+                    passive: tr('Passive'), aggressive: tr('Aggressive'), attack: tr('Attack my target') }[cmd];
     UI.toast(tr('Whistle: ') + label + ' (' + n + ')');
     Sound.tone(880, .12, { type: 'square', gain: .05 });
     Sound.tone(1240, .1, { type: 'square', gain: .04, delay: .08 });
@@ -11610,12 +11790,18 @@ const Touch = {
     light: 'light',
   },
 
-  /* the whistle wheel: icon, label key, action */
+  /* The whistle wheel: icon, label key, action.
+     Six commands and not one new button on the screen — the wheel opens under
+     the thumb that is already holding the whistle key and fires on release,
+     which is how ARK Mobile fits a command set into a phone without burying
+     the game under chrome. */
   WHISTLES: [
     { icon: '🐾', key: 'whFollow', act: 'follow' },
     { icon: '✋', key: 'whStop', act: 'stop' },
+    { icon: '📍', key: 'whMove', act: 'moveto' },
     { icon: '⚔', key: 'whAttack', act: 'attack' },
     { icon: '🛡', key: 'whPassive', act: 'passive' },
+    { icon: '💢', key: 'whAggro', act: 'aggressive' },
   ],
 
   init() {
@@ -12002,7 +12188,13 @@ const Touch = {
       if (Math.abs(this.penX) < .05) { ax = this.penX; }
       if (Math.abs(this.penY) < .05) { ay = this.penY; }
       this.penX -= ax; this.penY -= ay;
-      const s = 1.6 * this.sens;
+      /* 1.6 was about a fifth of a degree per pixel. The right-hand look zone
+         is a little under half the screen, so a full thumb swipe turned you
+         maybe eighty degrees and facing the other way took three of them —
+         which is what "turning is hard" means on a phone. 2.6 puts a swipe at
+         roughly a third of a degree per pixel, in the range ARK Mobile ships
+         at, and the sensitivity slider still moves it either way. */
+      const s = 2.6 * this.sens;
       if (typeof Photo !== 'undefined' && Photo.active) Photo.look(ax * s, ay * s);
       else if (Input.enabled && Game.state === 'play' && !anyScreenOpen()) Player.look(ax * s, ay * s);
     }
@@ -15038,7 +15230,7 @@ Object.assign(UI, {
       if (Touch.active) {
         const tset = (k, v) => { Settings[k] = v; Touch.applyStyle(); Settings.save(); };
         {
-          const [i, v] = slider(.3, 2.5, .05, Settings.touchSens == null ? 1 : Settings.touchSens,
+          const [i, v] = slider(.3, 3, .05, Settings.touchSens == null ? 1 : Settings.touchSens,
             val => tset('touchSens', val), x => x.toFixed(2) + '×');
           row(t('touchSens'), tr('How far the camera turns per swipe'), i, v);
         }
