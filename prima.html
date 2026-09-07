@@ -7204,18 +7204,50 @@ function profileGeo(stations, radial, capStart, capEnd) {
       v++;
     }
   }
+  /* Which way the stations run along X. Everything here is a tube built along
+     X, but not every call site writes its stations in the same direction: a
+     tail is written from its root at +x out to its tip at -x, and so is a
+     pteranodon's crest. The outward winding is the opposite one for those, and
+     so is the direction a cap has to bulge, so it is worked out once here
+     rather than asked of seventeen call sites. */
+  const dir = (stations[rings - 1].x >= stations[0].x) ? 1 : -1;
   const startCap = v, s0 = stations[0];
-  pos[v * 3] = s0.x - s0.rz * .35; pos[v * 3 + 1] = s0.y || 0; pos[v * 3 + 2] = 0; v++;
+  pos[v * 3] = s0.x - dir * s0.rz * .35; pos[v * 3 + 1] = s0.y || 0; pos[v * 3 + 2] = 0; v++;
   const endCap = v, s1 = stations[rings - 1];
-  pos[v * 3] = s1.x + s1.rz * .35; pos[v * 3 + 1] = s1.y || 0; pos[v * 3 + 2] = 0; v++;
+  pos[v * 3] = s1.x + dir * s1.rz * .35; pos[v * 3 + 1] = s1.y || 0; pos[v * 3 + 2] = 0; v++;
 
+  /* WINDING. Every triangle below is ordered so that (B-A)x(C-A) points OUT
+     of the solid, and it has to stay that way.
+
+     It used to be the other way round — every wall quad and both caps were
+     wound inside-out — and because these materials are FrontSide, that turned
+     the outer surface of every torso, neck, tail, skull, jaw, limb and foot in
+     the game into a back face, which the GPU then culled. What you saw was the
+     INNER surface of the far wall, sitting at the wrong depth, with anything
+     inside or behind the near wall drawing straight over it. That is why the
+     animals and the survivor looked half transparent, why you could see grass
+     through a body, and why bits of a neck or a head appeared to be missing.
+
+     computeVertexNormals() reads the same winding, so it was also lighting
+     every creature from the wrong side: the surfaces facing the sun came out
+     dark, which is why limbs rendered as flat near-black sheets.
+
+     One function, seventeen call sites, every animal and the player. */
   const tris = [];
   for (let i = 0; i < rings - 1; i++) for (let k = 0; k < radial; k++) {
     const a = i * (radial + 1) + k, b = a + 1, c = a + radial + 1, d = c + 1;
-    tris.push(a, c, b, b, c, d);
+    if (dir > 0) tris.push(a, b, c, b, d, c);
+    else tris.push(a, c, b, b, c, d);
   }
-  if (capStart !== false) for (let k = 0; k < radial; k++) tris.push(startCap, k, k + 1);
-  if (capEnd !== false) { const off = (rings - 1) * (radial + 1); for (let k = 0; k < radial; k++) tris.push(endCap, off + k + 1, off + k); }
+  if (capStart !== false) for (let k = 0; k < radial; k++) {
+    if (dir > 0) tris.push(startCap, k + 1, k); else tris.push(startCap, k, k + 1);
+  }
+  if (capEnd !== false) {
+    const off = (rings - 1) * (radial + 1);
+    for (let k = 0; k < radial; k++) {
+      if (dir > 0) tris.push(endCap, off + k, off + k + 1); else tris.push(endCap, off + k + 1, off + k);
+    }
+  }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
