@@ -2205,7 +2205,15 @@ const BIOMES = {
 /* --- the tuning box ------------------------------------------------------
    Everything the designer might want to move lives here, not in the logic. */
 const TUNE = {
-  world: { size: 2048, sea: 0, chunk: 128, heightRes: 4, maxHeight: 165 },
+  /* The island is four kilometres across. It was two, and doubling it costs
+     almost nothing: measured end to end, world generation went from 4.4 to
+     5.2 seconds — the fixed work (textures, models, three.js) dominates, and
+     the heightfield loop is a small part of it. What it buys is four times
+     the land: 24,000 props instead of 6,000, room for seven caves instead of
+     four, and a coastline you cannot see the other side of. The heightfield
+     is 4 MB at this size, and every distance in the game is already written
+     as a fraction of World.size or World.half, so nothing else had to move. */
+  world: { size: 4096, sea: 0, chunk: 128, heightRes: 4, maxHeight: 165 },
   player: {
     baseHealth: 100, baseStamina: 100, baseOxygen: 100, baseFood: 100, baseWater: 100, baseWeight: 100,
     baseTorpor: 50, baseMelee: 1, baseSpeed: 1, baseFort: 0,
@@ -4842,7 +4850,10 @@ const Gfx = {
       this.skyMat.uniforms.uEnv.value = 0;
       if (this._envRT) this._envRT.dispose();
       this._envRT = rt;
-      this.scene.environment = rt.texture;
+      /* not while underground: Caves switches the environment off, and this
+         runs every few seconds and would switch it straight back on */
+      const buried = typeof Caves !== 'undefined' && Caves.active && Caves._envOn === false;
+      if (!buried) this.scene.environment = rt.texture;
     } catch (e) {
       this.skyMat.uniforms.uEnv.value = 0;
       /* an environment map is a luxury: if the device cannot build one, the
@@ -5858,11 +5869,14 @@ const World = {
 
   /* ---------- map render -------------------------------------------------- */
   buildMapCanvas() {
-    /* 512 was exactly one pixel per heightfield sample — fine while the map
-       could only ever be seen whole, and far too coarse now that it zooms.
-       heightAt interpolates, so the extra pixels are real detail in the hill
-       shading rather than a blur, and this runs once during world generation. */
-    const R = 1024, c = makeCanvas(R), g = c.getContext('2d');
+    /* Two metres to the pixel across a four kilometre island.
+       512 was one pixel per heightfield sample on a two kilometre island —
+       fine while the map could only be seen whole, too coarse the moment it
+       zoomed, and four times too coarse once the island doubled. The minimap
+       reads this same canvas through a 240 metre window, so its sharpness is
+       set here too. heightAt interpolates, so the extra pixels are real detail
+       in the hill shading rather than a blur, and this runs once. */
+    const R = 2048, c = makeCanvas(R), g = c.getContext('2d');
     const img = g.createImageData(R, R);
     const col = {
       ocean: [22, 58, 84], deep: [10, 32, 52], beach: [214, 196, 150], plains: [96, 128, 62],
@@ -9540,10 +9554,22 @@ const Creatures = {
     }
   },
 
-  /** Populate the island once at world start so it feels alive immediately. */
-  *populateInitial(count) {
+  /** Seed the island with life before the first frame.
+   *
+   *  `centre` is where the survivor is about to wash ashore, and it matters a
+   *  great deal. This used to scatter over the whole island, which was fine
+   *  while the island was two kilometres across and stopped being fine when it
+   *  became four: the spawn director despawns anything further than
+   *  despawnRadius from the player, so nearly every one of these was deleted
+   *  on the first update and you woke up on an empty beach. Filling the ring
+   *  the director itself works in means the world is alive from the first
+   *  second, at any island size, and nothing is spawned only to be thrown
+   *  away. The rest of the island populates as you walk into it. */
+  *populateInitial(count, centre) {
     let made = 0;
     let guard = 0;
+    const cx = centre ? centre.x : 0, cz = centre ? centre.z : 0;
+    const R = TUNE.spawn.radius;
     while (made < count && guard++ < count * 12) {
       const biome = pick(['plains', 'plains', 'jungle', 'jungle', 'beach', 'beach', 'highland', 'mountain', 'swamp', 'ocean']);
       const id = this.speciesForBiome(biome);
@@ -9551,8 +9577,8 @@ const Creatures = {
       const sp = SPECIES[id];
       let pos = null;
       for (let i = 0; i < 20 && !pos; i++) {
-        const a = Math.random() * TAU, r = Math.sqrt(Math.random()) * World.half * .9;
-        const x = Math.cos(a) * r, z = Math.sin(a) * r;
+        const a = Math.random() * TAU, r = Math.sqrt(Math.random()) * R;
+        const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
         if (!World.inBounds(x, z)) continue;
         if (World.biomeAt(x, z) !== biome) continue;
         const h = World.heightAt(x, z);
@@ -13329,7 +13355,10 @@ const Caves = {
     this.list.length = 0;
     if (this.group) { Gfx.scene.remove(this.group); this.group = null; }
     this.group = new THREE.Group();
-    this.group.visible = false;
+    /* Visible from the start. The caves are part of the island now rather than
+       a separate scene swapped in on a trigger, and each one is culled by
+       distance below instead of by whether you happen to be inside it. */
+    this.group.visible = true;
     Gfx.scene.add(this.group);
     this.mat = new THREE.MeshStandardMaterial({
       map: TexLab.rockD, vertexColors: true, roughness: .97, side: THREE.DoubleSide,
@@ -13343,14 +13372,24 @@ const Caves = {
       { biome: 'jungle', en: tr('Overgrown Cave'), theme: 'moss', depth: 5 },
       { biome: 'highland', en: tr('Deep Shaft'), theme: 'stone', depth: 6 },
       { biome: 'swamp', en: tr('Sunken Grotto'), theme: 'moss', depth: 4 },
+      { biome: 'highland', en: tr('Old Mine'), theme: 'stone', depth: 5 },
+      { biome: 'jungle', en: tr('Hollow Root'), theme: 'moss', depth: 4 },
+      { biome: 'mountain', en: tr('Wind Cavern'), theme: 'ice', depth: 5 },
     ];
     let idx = 0;
     for (const site of sites) {
-      const mouth = this.findMouth(site.biome, rng);
-      if (!mouth) continue;
-      const cave = this.buildInterior(site, mouth, idx++, rng);
+      /* buildInterior refuses a hillside that cannot hold a walk-in cave, so
+         each site gets several attempts at a mouth before it is given up on */
+      let cave = null;
+      for (let attempt = 0; attempt < 14 && !cave; attempt++) {
+        const mouth = this.findMouth(site.biome, rng);
+        if (!mouth) break;
+        cave = this.buildInterior(site, mouth, idx, rng);
+      }
+      if (!cave) continue;
+      idx++;
       this.list.push(cave);
-      yield { p: .955 + .01 * idx, msg: tr('Hollowing out the caves…') };
+      yield { p: .955 + .006 * idx, msg: tr('Hollowing out the caves…') };
     }
   },
 
@@ -13379,11 +13418,38 @@ const Caves = {
     return null;
   },
 
-  /** A tube of chambers descending away from the entrance. */
+  /** A tube of chambers driven into a hillside from its entrance.
+   *
+   *  These used to be built on their own layer six hundred metres beneath the
+   *  island, which is why walking into a mouth had to teleport you: there was
+   *  nowhere continuous to walk to. A cave now sits in the hill it belongs to,
+   *  a few metres under the surface, and you walk down into it.
+   *
+   *  Two things make that work in a heightfield world, which cannot have
+   *  overhangs or holes:
+   *
+   *  · The tunnel heads INTO the hill, along the uphill gradient at the mouth,
+   *    rather than in a random direction. A cave driven downhill comes out of
+   *    the slope a few metres later.
+   *  · The whole cave is then sunk until every chamber past the first has at
+   *    least three metres of rock over it. If that sinking would put the
+   *    entrance more than MAX_DROP below the mouth — the entrance pit would be
+   *    a quarry — this hillside is refused and the caller tries another.
+   *
+   *  Returns null when the site will not hold a cave. */
+  /* How far below its mouth a cave's entrance floor may end up. The hollow
+     carved at the mouth is thirteen metres across, so nine metres of drop is
+     a walkable slope of about thirty-five degrees; much more and the entrance
+     reads as a quarry. Sites that cannot fit inside it are refused, and the
+     caller tries a different hillside. */
+  MAX_DROP: 9,
   buildInterior(site, mouth, index, rng) {
-    const baseY = -600 - index * 200;                     // each cave gets its own layer
     const path = [];
-    let x = 0, z = 0, y = 0, dir = rng() * TAU;
+    let x = 0, z = 0, y = 0;
+    /* uphill at the mouth: normalAt's horizontal part points downhill, so the
+       way into the hill is the other way */
+    const n = World.normalAt(mouth.x, mouth.z, new THREE.Vector3());
+    let dir = Math.atan2(-n.z, -n.x);
     const nodes = 7 + Math.floor(rng() * 4);
     for (let i = 0; i < nodes; i++) {
       const t = i / (nodes - 1);
@@ -13391,12 +13457,34 @@ const Caves = {
         x, y, z,
         r: (i === 0 ? 5 : 6 + rng() * 7) * (1 + t * .35),
       });
-      dir += (rng() - .5) * 1.5;
+      /* the first couple of steps hold their line so the tunnel commits to
+         the hill; after that it may wander */
+      dir += (rng() - .5) * (i < 2 ? .5 : 1.5);
       const step = 16 + rng() * 12;
       x += Math.cos(dir) * step;
       z += Math.sin(dir) * step;
       y -= (2 + rng() * 5) * (i < nodes - 2 ? 1 : .2);
     }
+
+    /* --- how deep the cave has to sit ------------------------------------ */
+    /* start just under the mouth, then drop as far as the thinnest roof asks */
+    let baseY = mouth.y - (path[0].r * .30);
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i], b = path[i + 1];
+      /* along the segment, not just at its ends: the thinnest roof is often
+         halfway between two chambers, where the hill dips */
+      for (let k = (i === 0 ? 1 : 0); k <= 4; k++) {
+        const f = k / 4;
+        const px = lerp(a.x, b.x, f), pz = lerp(a.z, b.z, f);
+        const py = lerp(a.y, b.y, f), pr = lerp(a.r, b.r, f);
+        const terr = World.heightAt(mouth.x + px, mouth.z + pz);
+        const maxBase = terr - 3 - py - pr * .8;
+        if (maxBase < baseY) baseY = maxBase;
+      }
+    }
+    /* how far below the mouth the entrance floor ends up */
+    const entryFloor = baseY + path[0].y - path[0].r * .72 + .2;
+    if (mouth.y - entryFloor > this.MAX_DROP) return null;
     /* --- tube geometry ---------------------------------------------------- */
     const radial = 12, verts = [], colors = [], tris = [];
     const themeCol = site.theme === 'ice' ? [0x9fb6c4, 0xd8e6ee]
@@ -13494,112 +13582,166 @@ const Caves = {
       loot: [],
     };
     Object.defineProperty(cave, 'name', { get: () => tr(cave.en), enumerable: true });
+    /* cut the way in, and clear whatever was growing on it */
+    this.carveEntrance(cave);
     /* treasure at the far end */
     const last = path[path.length - 1];
     cave.treasure = new THREE.Vector3(mouth.x + last.x, baseY + last.y - last.r * .6, mouth.z + last.z);
-    /* a marker at the surface so the mouth is findable */
+    /* A stone arch over the way in, so a mouth is findable across a four
+       kilometre island. It sits on the hollow's floor, which is several metres
+       below where the hillside used to be — placed at the old surface height
+       it would hang in the air over its own entrance. It is also turned to
+       face along the tunnel rather than at a random angle, now that there is a
+       real tunnel for it to frame.
+
+       The black disc that used to be painted here is gone. It was a fake: a
+       flat dark circle standing in for an opening that did not exist, and with
+       a real tunnel behind it all it can do is block the view into it. */
+    const inX = path[1] ? path[1].x : 1, inZ = path[1] ? path[1].z : 0;
     const arch = new THREE.Mesh(
       new THREE.TorusGeometry(2.6, .55, 6, 12, Math.PI),
       new THREE.MeshStandardMaterial({ color: 0x4a4a48, roughness: .95 }));
-    arch.position.copy(mouth);
-    arch.position.y += .2;
-    arch.rotation.y = rng() * TAU;
+    arch.position.set(mouth.x, World.heightAt(mouth.x, mouth.z) + .1, mouth.z);
+    arch.rotation.y = Math.atan2(inX, inZ) + Math.PI / 2;
     arch.castShadow = true;
     Gfx.scene.add(arch);
     cave.arch = arch;
-    const dark = new THREE.Mesh(new THREE.CircleGeometry(2.4, 12),
-      new THREE.MeshBasicMaterial({ color: 0x05070a, side: THREE.DoubleSide }));
-    dark.position.copy(mouth);
-    dark.position.y += 1.6;
-    dark.rotation.x = -Math.PI / 2 + 1.2;
-    dark.rotation.y = arch.rotation.y;
-    Gfx.scene.add(dark);
-    cave.darkDisc = dark;
     return cave;
   },
 
   /* ---------------------------------------------------------------- floor */
   /** Height of the cave floor under a point, or null when outside the tube. */
+  /** The nearest point on the tunnel's centre line to (x, z), as
+   *  { x, z, y, r, d } — where the axis is, how high its centre sits, how wide
+   *  the tunnel is there, and how far off the axis the query point lies.
+   *
+   *  SEGMENTS, not chambers. Every one of these tests used to pick the nearest
+   *  path NODE and compare against its radius, but consecutive chambers are up
+   *  to twenty-eight metres apart and only five to thirteen across — so
+   *  between two chambers there was a stretch that belonged to neither, where
+   *  the floor simply did not exist. The tunnel mesh lofts between rings, so
+   *  the corridor is plainly there; measuring against the line between them is
+   *  what the geometry has always been. */
+  tubeAt(cave, x, z) {
+    const path = cave.path, ox = cave.origin.x, oz = cave.origin.z;
+    let best = null, bestD = Infinity;
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i], b = path[i + 1];
+      const ax = ox + a.x, az = oz + a.z;
+      const dx = (ox + b.x) - ax, dz = (oz + b.z) - az;
+      const len2 = dx * dx + dz * dz || 1;
+      const t = clamp01(((x - ax) * dx + (z - az) * dz) / len2);
+      const px = ax + dx * t, pz = az + dz * t;
+      const d = Math.hypot(x - px, z - pz);
+      if (d < bestD) {
+        bestD = d;
+        best = { x: px, z: pz, y: lerp(a.y, b.y, t), r: lerp(a.r, b.r, t), d };
+      }
+    }
+    if (!best && path.length) {
+      const a = path[0];
+      best = { x: ox + a.x, z: oz + a.z, y: a.y, r: a.r,
+               d: Math.hypot(x - (ox + a.x), z - (oz + a.z)) };
+    }
+    return best;
+  },
+
   floorAt(x, z) {
     const cave = this.active;
     if (!cave) return null;
-    let best = null, bestD = Infinity;
-    for (const p of cave.path) {
-      const px = cave.origin.x + p.x, pz = cave.origin.z + p.z;
-      const d = Math.hypot(x - px, z - pz);
-      if (d < bestD) { bestD = d; best = p; }
-    }
-    if (!best || bestD > best.r * 1.25) return null;
-    return cave.origin.y + best.y - best.r * .72 + .2;
+    const t = this.tubeAt(cave, x, z);
+    if (!t || t.d > t.r * 1.25) return null;
+    return cave.origin.y + t.y - t.r * .72 + .2;
   },
   /** Keep the player inside the tube. */
   contain(pos) {
     const cave = this.active;
     if (!cave) return;
-    let best = null, bestD = Infinity;
-    for (const p of cave.path) {
-      const px = cave.origin.x + p.x, pz = cave.origin.z + p.z;
-      const d = Math.hypot(pos.x - px, pos.z - pz);
-      if (d < bestD) { bestD = d; best = p; }
+    const t = this.tubeAt(cave, pos.x, pos.z);
+    if (!t) return;
+    const limit = t.r * .82;
+    if (t.d > limit) {
+      const k = limit / t.d;
+      pos.x = t.x + (pos.x - t.x) * k;
+      pos.z = t.z + (pos.z - t.z) * k;
     }
-    if (!best) return;
-    const px = cave.origin.x + best.x, pz = cave.origin.z + best.z;
-    const limit = best.r * .82;
-    if (bestD > limit) {
-      const k = limit / bestD;
-      pos.x = px + (pos.x - px) * k;
-      pos.z = pz + (pos.z - pz) * k;
+  },
+
+  /** Sink the heightfield at the mouth into a ramp down to the entrance.
+   *
+   *  This is the half of a walk-in cave the terrain has to provide. A
+   *  heightfield cannot have a hole in it, but it can have a hollow, and a
+   *  hollow leading to a tunnel mouth under the brow of a hill is exactly what
+   *  a cave entrance looks like. Everything that stands on the ground reads
+   *  World.height — physics, props, the grass — so lowering it here is all
+   *  that is needed for the descent to be real.
+   *
+   *  Runs during cave generation, which is after the terrain and the flora but
+   *  before any chunk mesh has been built, so nothing needs rebuilding. */
+  carveEntrance(cave) {
+    const H = World.height, N = World.N, res = World.res, half = World.half;
+    if (!H) return;
+    const floor = cave.entry.y - .4;
+    const R = 13;                                   // how wide the hollow is
+    const i0 = Math.max(0, Math.floor((cave.mouth.x - R + half) / res));
+    const i1 = Math.min(N - 1, Math.ceil((cave.mouth.x + R + half) / res));
+    const j0 = Math.max(0, Math.floor((cave.mouth.z - R + half) / res));
+    const j1 = Math.min(N - 1, Math.ceil((cave.mouth.z + R + half) / res));
+    /* the hollow is deepest at the mouth and eases out to nothing at R, so it
+       reads as a dip in the hillside rather than a rectangular pit */
+    for (let j = j0; j <= j1; j++) {
+      const z = -half + j * res;
+      for (let i = i0; i <= i1; i++) {
+        const x = -half + i * res;
+        const d = Math.hypot(x - cave.mouth.x, z - cave.mouth.z);
+        if (d > R) continue;
+        const t = smoothstep(clamp01(1 - d / R));   // 1 at the mouth, 0 at the rim
+        const k = j * N + i;
+        const want = lerp(H[k], floor, t);
+        if (want < H[k]) H[k] = want;               // only ever dig, never fill
+      }
+    }
+    /* nothing should be growing in the hole */
+    if (Flora.nodes && Flora.nodes.length) {
+      const keep = [];
+      for (const nd of Flora.nodes) {
+        if (Math.hypot(nd.x - cave.mouth.x, nd.z - cave.mouth.z) < R * .8) continue;
+        keep.push(nd);
+      }
+      if (keep.length !== Flora.nodes.length) {
+        Flora.nodes.length = 0;
+        for (const nd of keep) Flora.nodes.push(nd);
+        Flora.hash.clear();
+        for (const nd of Flora.nodes) Flora.hash.insert(nd, nd.x, nd.z);
+      }
     }
   },
 
   /* ------------------------------------------------------------ enter/exit */
+  /* Entering is no longer a scene swap and a teleport. You walk down the
+     hollow at the mouth and under the brow of the hill, and at the moment the
+     rock closes over your head the cave takes over the floor beneath you. The
+     player is never moved, nothing is hidden, and the daylight behind you is
+     still there in the mouth — which is the whole point of a cave you can walk
+     into. All this does is mark which cave you are in and wake it up. */
   enter(cave) {
     if (this.active) return;
     this.active = cave;
-    this.group.visible = true;
-    for (const c of this.list) c.group.visible = (c === cave);
-    this._restore = {
-      pos: Player.pos.clone(),
-      fogDensity: Gfx.scene.fog.density,
-      fogColor: Gfx.scene.fog.color.clone(),
-      sun: Gfx.sun.intensity, moon: Gfx.moon.intensity,
-      hemi: Gfx.hemi.intensity, ambient: Gfx.ambient.intensity,
-    };
-    Player.pos.copy(cave.entry);
-    Player.vel.set(0, 0, 0);
-    World.group.visible = false;
-    if (World.water) World.water.visible = false;
-    if (Flora.grass) Flora.grass.visible = false;
-    Gfx.sky.visible = false;
-    Gfx.scene.fog.color.setHex(0x05070a);
-    Gfx.scene.fog.density = .035;
-    UI.center(tr('You enter ') + cave.name, tr('It is pitch black in here — light a torch'));
+    UI.center(tr('You enter ') + cave.name, tr('It is dark in here — light a torch'));
     Sound.tone(90, 1.6, { type: 'sine', gain: .12, f2: 50 });
-    this.spawnInhabitants(cave);
+    if (!cave.populated) { cave.populated = true; this.spawnInhabitants(cave); }
     Objectives.event('cave', cave);
   },
+  /* Leaving is walking back out of the mouth, so there is nothing to restore
+     and nobody to move. What lives in the cave stays in the cave. */
   exit() {
-    const cave = this.active;
-    if (!cave) return;
+    if (!this.active) return;
     this.active = null;
-    this.group.visible = false;
-    World.group.visible = true;
-    if (World.water) World.water.visible = true;
-    if (Flora.grass) Flora.grass.visible = true;
-    Gfx.sky.visible = true;
-    if (this._restore) {
-      Gfx.scene.fog.density = this._restore.fogDensity;
-      Gfx.scene.fog.color.copy(this._restore.fogColor);
+    this._deep = 0;
+    if (this._envOn === false) {
+      this._envOn = true;
+      if (Gfx._envRT) Gfx.scene.environment = Gfx._envRT.texture;
     }
-    /* step back out onto the hillside */
-    Player.pos.copy(cave.mouth);
-    Player.pos.y = World.heightAt(cave.mouth.x, cave.mouth.z) + .2;
-    Player.vel.set(0, 0, 0);
-    for (const c of this.spawnedInside) {
-      const i = Creatures.list.indexOf(c);
-      if (i >= 0) { c.remove(); Creatures.list.splice(i, 1); }
-    }
-    this.spawnedInside.length = 0;
     UI.center(tr('Back in the daylight'), '');
   },
   spawnInhabitants(cave) {
@@ -13622,34 +13764,88 @@ const Caves = {
     this.spawnedInside.pop();
   },
 
+  /** Is this point inside the tunnel itself — within a chamber horizontally
+   *  AND within its height?
+   *
+   *  Being under the terrain is the wrong test, and it took a walk-in test to
+   *  show why. The player stands on whatever `groundAt` returns, so while they
+   *  are outside they are on the surface by definition and can never be below
+   *  it: they would simply walk up over the hill the tunnel runs into. Asking
+   *  whether they are in the tube instead breaks the circle. The hollow carved
+   *  at the mouth brings the ground down to the tunnel floor, so walking into
+   *  it puts you in the tube's own space, the floor is handed over, and from
+   *  there you follow the tunnel down while the hill closes overhead.
+   *
+   *  The height test is also what stops the reverse: standing on the hillside
+   *  directly above a tunnel is within a chamber horizontally, and without it
+   *  the ground would drop out from under you. */
+  insideTube(cave, pos, pad) {
+    const t = this.tubeAt(cave, pos.x, pos.z);
+    if (!t || t.d > t.r * 1.25) return false;
+    const cy = cave.origin.y + t.y;
+    const m = pad || 0;
+    return pos.y > cy - t.r * .95 - m && pos.y < cy + t.r * .85 + m;
+  },
+
   /* ---------------------------------------------------------------- update */
   update(dt) {
     if (!this.list.length) return;
-    if (!this.active) {
-      /* stepping into a cave mouth */
+    const p = Player.pos;
+    /* a tunnel on the other side of a four kilometre island is not worth
+       submitting; checked a few times a second rather than every frame */
+    if ((this._cullT = (this._cullT || 0) + dt) > .25) {
+      this._cullT = 0;
       for (const c of this.list) {
-        if (Player.pos.distanceTo(c.mouth) < 3.2) { this.enter(c); break; }
+        c.group.visible = Math.hypot(p.x - c.mouth.x, p.z - c.mouth.z) < 260;
+      }
+    }
+    if (!this.active) {
+      /* walking in under the hill — no trigger volume, no teleport */
+      for (const c of this.list) {
+        if (Math.hypot(p.x - c.mouth.x, p.z - c.mouth.z) > 140) continue;
+        if (this.insideTube(c, p, 0)) { this.enter(c); break; }
       }
     } else {
-      /* the way back is the first chamber */
-      if (Player.pos.distanceTo(this.active.entry) < 3.0 && Player.pos.y > this.active.entry.y - 2) {
-        if (!this._exitHint || Game.clock - this._exitHint > 3) {
-          this._exitHint = Game.clock;
-          UI.setInteract({ kind: 'caveexit', label: tr('Leave ') + this.active.name, sub: tr('Walk into the entrance') });
+      const cave = this.active;
+      /* leaving is walking back out into the light. The hysteresis matters:
+         without it, standing on the threshold flickers between the two states
+         and the floor under you flickers with it. */
+      /* a little slack on the way out, so standing on the threshold does not
+         flicker between the tunnel floor and the hillside under your feet */
+      if (!this.insideTube(cave, p, 1.2)) { this.exit(); return; }
+      Caves.contain(p);
+
+      /* How deep in you are, as 0 at the mouth to 1 well inside. The old code
+         switched the lights off the instant you crossed the trigger; this
+         darkens as the entrance falls behind you, so the mouth stays a bright
+         hole you can find your way back to. */
+      const dMouth = Math.hypot(p.x - cave.mouth.x, p.z - cave.mouth.z);
+      const deep = clamp01((dMouth - 5) / 15);
+      this._deep = damp(this._deep == null ? deep : this._deep, deep, 6, dt);
+      const k = this._deep;
+      Gfx.sun.intensity *= 1 - k;
+      Gfx.moon.intensity *= 1 - k;
+      Gfx.hemi.intensity = lerp(Gfx.hemi.intensity, .035, k);
+      Gfx.ambient.intensity = lerp(Gfx.ambient.intensity, .02, k);
+      Gfx.scene.fog.color.lerp(_caveFog, k);
+      Gfx.scene.fog.density = lerp(Gfx.scene.fog.density, .035, k);
+      /* The environment map is the sky, and underground there is no sky. It
+         is switched rather than faded because three recompiles every material
+         when a scene's environment appears or disappears — once on the way in
+         and once on the way out is fine, once a frame is not, hence the gap
+         between the two thresholds. */
+      const wantEnv = k < .35;
+      if (wantEnv !== this._envOn) {
+        if (k > .6 || k < .35) {
+          this._envOn = wantEnv;
+          Gfx.scene.environment = wantEnv ? (Gfx._envRT ? Gfx._envRT.texture : null) : null;
         }
-        if (Player.pos.distanceTo(this.active.entry) < 1.8) this.exit();
       }
-      /* cave lighting: no sun, no moon, almost no ambient */
-      Gfx.sun.intensity = 0;
-      Gfx.moon.intensity = 0;
-      Gfx.hemi.intensity = .035;
-      Gfx.ambient.intensity = .02;
-      Gfx.scene.fog.color.setHex(0x05070a);
-      Gfx.scene.fog.density = .035;
-      Caves.contain(Player.pos);
     }
   },
 };
+/* the colour the air takes underground */
+const _caveFog = new THREE.Color(0x05070a);
 
 /* ============================================================================
  * 73 · OBELISKS & THE BOSS — three obelisks stand over the island. Bring the
@@ -15776,7 +15972,7 @@ const Game = {
     this.pendingSave = null;
     this.generate(seed, () => {
       Player.reset(name);
-      Player.spawnAt(World.findBeachSpawn());
+      Player.spawnAt(World.startSpawn || World.findBeachSpawn());
       Inventory.reset();
       /* a survivor starts with nothing but the engrams they can afford */
       Objectives.reset();
@@ -15821,7 +16017,14 @@ const Game = {
       Flora.buildProtos();
       Flora.buildGrass();
       yield* Flora.populate(rng);
-      if (!self.pendingSave) yield* Creatures.populateInitial(Math.round(Creatures.budget * .6));
+      /* Pick the landing beach HERE and remember it, so the creatures are
+         seeded around the shore the survivor actually wakes up on.
+         findBeachSpawn draws at random, so calling it twice would have given
+         the animals one beach and the player another. */
+      World.startSpawn = World.findBeachSpawn();
+      if (!self.pendingSave) {
+        yield* Creatures.populateInitial(Math.round(Creatures.budget * .6), World.startSpawn);
+      }
       yield* Caves.build(rng);
       Boss.build(rng);
       yield { p: 1, msg: tr('Ready') };
@@ -16074,7 +16277,6 @@ const Game = {
     Combat.update(dt);
     Building.update(dt);
     Creatures.update(dt);
-    Caves.update(dt);
     Boss.update(dt);
     Breeding.update(dt);
     Structures.update(dt);
@@ -16085,6 +16287,12 @@ const Game = {
     Objectives.update();
 
     Sky.update(dt, Gfx.camera.position);
+    /* After the sky, not before it. Sky.update assigns the sun, the hemisphere
+       and the fog outright every frame, so the cave darkness that used to be
+       applied ahead of it was overwritten before it ever reached the screen —
+       caves have never actually been dark. It also has to stay ahead of
+       updateCamera, because contain() can move the player. */
+    Caves.update(dt);
     Gfx.updateEnv(dt);
     if (Sky.time < prevTime) { this.day++; UI.toast(tr('Day ') + this.day + ' on the island'); }
     Player.updateCamera(dt);
