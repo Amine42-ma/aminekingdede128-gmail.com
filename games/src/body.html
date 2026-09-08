@@ -1,0 +1,95 @@
+<header class="hdr">
+  <button class="hbtn menu-btn" id="menuBtn" aria-label="القائمة">☰</button>
+  <a class="logo" href="#/"><span class="mark">🎮</span><span>مجنون <b>ألعاب</b></span></a>
+  <div class="search">
+    <input id="q" type="search" placeholder="ابحث عن لعبة… (اكتب: مضحكة، مزعجة، عصبية…)" autocomplete="off">
+    <span class="ico">🔍</span>
+  </div>
+  <button class="hbtn hide-s" id="randBtn">🎲 لعبة عشوائية</button>
+  <button class="hbtn hide-s" id="favBtn">❤️ المفضلة</button>
+</header>
+
+<div class="mask" id="mask"></div>
+
+<div class="wrap">
+  <nav class="side" id="side">
+    <h4>تصفح</h4>
+    <button class="cat on" data-cat="all"><i>🏠</i>كل الألعاب<b id="cAll">0</b></button>
+    <button class="cat" data-cat="__fav"><i>❤️</i>المفضلة<b id="cFav">0</b></button>
+    <button class="cat" data-cat="__recent"><i>🕒</i>لعبت مؤخراً<b id="cRec">0</b></button>
+    <h4>التصنيفات</h4>
+    <div id="catList"></div>
+    <h4>عن التطبيق</h4>
+    <div style="padding:6px 11px;font-size:12px;color:var(--dim2);line-height:1.7">
+      كل الألعاب مكتوبة داخل هذا الملف وتعمل بلا إنترنت.<br>لا إعلانات · لا تتبّع.
+    </div>
+  </nav>
+
+  <main class="main" id="main">
+    <section class="hero">
+      <div>
+        <h1>مئات الألعاب… ولا لعبتان متشابهتان</h1>
+        <p>مضحكة، مزعجة، تُغضبك، وأفكار لم ترها في أي مكان. كلها في ملف واحد يعمل بلا إنترنت.</p>
+        <div class="cta">
+          <button class="big-btn" id="heroPlay">▶ العب الآن</button>
+          <button class="big-btn alt" id="heroRand">🎲 فاجئني</button>
+        </div>
+      </div>
+      <div class="hero-art">🕹️</div>
+    </section>
+    <div class="chips" id="chips"></div>
+    <div id="content"></div>
+    <footer>مجنون ألعاب · <span id="gCount">0</span> لعبة أصلية · صُنعت لتكون كلها مختلفة</footer>
+  </main>
+</div>
+
+<div class="play" id="play">
+  <div class="play-bar">
+    <button class="ibtn" id="backBtn" title="رجوع">✕</button>
+    <div>
+      <div class="ttl" id="pTitle">—</div>
+      <div class="tag" id="pTag">—</div>
+    </div>
+    <div class="sp"></div>
+    <button class="ibtn" id="soundBtn" title="الصوت">🔊</button>
+    <button class="ibtn" id="pFav" title="مفضلة">🤍</button>
+    <button class="ibtn" id="restartBtn" title="إعادة">↻</button>
+    <button class="ibtn" id="fsBtn" title="ملء الشاشة">⛶</button>
+  </div>
+  <div class="play-body">
+    <div class="stage" id="stage">
+      <div class="stage-in">
+        <canvas id="cv" width="800" height="600"></canvas>
+        <div class="hint" id="hint"></div>
+        <div class="overlay" id="ov">
+          <div class="box">
+            <h2 class="big" id="ovTitle">انتهت</h2>
+            <p class="sub" id="ovSub"></p>
+            <div class="sc" id="ovScore"></div>
+            <button class="big-btn" id="ovBtn">▶ العب مرة أخرى</button>
+            <button class="big-btn alt" id="ovNext" style="margin-inline-start:8px">لعبة أخرى ›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <aside class="play-side">
+      <h3 id="sTitle" style="margin:0 0 6px;font-size:17px"></h3>
+      <div id="sTags"></div>
+      <p id="sDesc" style="color:var(--dim);font-size:13.5px;line-height:1.7"></p>
+      <div class="stat"><span>أفضل نتيجة</span><b id="sBest">—</b></div>
+      <div class="stat"><span>مرات اللعب</span><b id="sPlays">0</b></div>
+      <div class="stat"><span>التحكم</span><span id="sHow" style="text-align:end;max-width:60%;font-size:12.5px"></span></div>
+      <div class="row-h" style="margin:18px 0 10px"><h2 style="font-size:15px">ألعاب مشابهة</h2></div>
+      <div class="grid" id="sMore" style="grid-template-columns:repeat(2,1fr)"></div>
+    </aside>
+  </div>
+  <div class="pad" id="pad">
+    <button data-k="ArrowRight">▶</button>
+    <button data-k="ArrowUp">▲</button>
+    <button data-k="ArrowDown">▼</button>
+    <button data-k="ArrowLeft">◀</button>
+    <button data-k=" " class="wide">مسافة</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
