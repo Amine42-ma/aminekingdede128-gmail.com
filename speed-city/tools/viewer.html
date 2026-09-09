@@ -1,0 +1,71 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Model inspector</title>
+<style>html,body{margin:0;background:#20242c;overflow:hidden}canvas{display:block}
+#lab{position:fixed;inset:auto 0 8px 0;color:#fff;font:600 16px system-ui;text-align:center}</style></head>
+<body><div id="lab"></div>
+<script src="../vendor/three.bundle.min.js"></script>
+<script src="../src/00_util.js"></script>
+<script src="../src/10_assets.js"></script>
+<script>
+const q = new URLSearchParams(location.search);
+const SET = q.get('set') || 'cars';
+const VIEW = q.get('view') || 'iso';
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x2a2f38);
+scene.add(new THREE.HemisphereLight(0xbcd6ff, 0x40403a, 2.2));
+const dl = new THREE.DirectionalLight(0xffffff, 2.0); dl.position.set(5,12,8); scene.add(dl);
+const grid = new THREE.GridHelper(200, 200, 0x66788f, 0x39424e); scene.add(grid);
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 3000);
+
+const SRC = {
+  cars: {
+    car_cortina:  {url:'../assets/models/car_cortina.glb',  length:4.3},
+    bike_cyberpunk:{url:'../assets/models/bike_cyberpunk.glb', length:2.2},
+    van_motorhome:{url:'../assets/models/van_motorhome.glb', length:9.3}
+  },
+  buildings: {
+    building_residential5:{url:'../assets/models/building_residential5.glb'},
+    building_stanley:{url:'../assets/models/building_stanley.glb'}
+  },
+  new1: {
+    building_office2:{url:'../assets/models/building_office2.glb'},
+    building_shop:{url:'../assets/models/building_shop.glb'},
+    building_house:{url:'../assets/models/building_house.glb'}
+  },
+  new2: {
+    building_school:{url:'../assets/models/building_school.glb'}
+  }
+}[SET];
+
+SC.assets.loadAll(SRC).then(() => {
+  const keys = Object.keys(SRC);
+  let x = 0, maxDim = 0, spans=[];
+  keys.forEach((k) => {
+    const m = SC.assets.get(k);
+    const w = m.size.x, d = m.size.z;
+    const g = SC.assets.clone(k);
+    x += w/2 + 2;
+    g.position.x = x;
+    scene.add(g);
+    const ax = new THREE.AxesHelper(Math.max(3, Math.max(w,d)*0.35)); ax.position.set(x,0.05,0); scene.add(ax);
+    spans.push(k+': '+m.size.x.toFixed(1)+'×'+m.size.y.toFixed(1)+'×'+m.size.z.toFixed(1));
+    maxDim = Math.max(maxDim, w, d, m.size.y);
+    x += w/2 + 2;
+  });
+  document.getElementById('lab').textContent = SET+' | '+VIEW+' | (X أحمر، Z أزرق) '+spans.join('   •   ');
+  const cx = x/2, R = Math.max(x*0.75, maxDim*2.2);
+  const target = new THREE.Vector3(cx, maxDim*0.3, 0);
+  const pos = {
+    front: new THREE.Vector3(cx, maxDim*0.5, R),        // ينظر من +Z
+    back:  new THREE.Vector3(cx, maxDim*0.5, -R),
+    side:  new THREE.Vector3(cx + R, maxDim*0.5, 0),    // ينظر من +X
+    iso:   new THREE.Vector3(cx + R*0.6, maxDim*0.9, R*0.75),
+    top:   new THREE.Vector3(cx, R, 0.001)
+  }[VIEW];
+  camera.position.copy(pos); camera.lookAt(target);
+  renderer.render(scene, camera);
+  document.title = 'READY';
+}).catch(e => { document.getElementById('lab').textContent = 'ERR '+e.message; document.title='ERR'; });
+</script></body></html>

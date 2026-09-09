@@ -1,0 +1,289 @@
+/* ============================================================================
+   SPEED CITY — الواجهة
+   ========================================================================== */
+:root{
+  --bg:#0b0f17; --glass:rgba(12,17,26,.74); --glass2:rgba(18,24,36,.9);
+  --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.18);
+  --txt:#eaf0f8; --dim:rgba(234,240,248,.62);
+  --gold:#ffd23f; --cyan:#38bdf8; --green:#7fe8c0; --red:#ff5c5c; --violet:#a78bfa;
+  --r:16px; --sh:0 10px 30px rgba(0,0,0,.45);
+  --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-l:env(safe-area-inset-left,0px); --safe-r:env(safe-area-inset-right,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
+  font-family:system-ui,-apple-system,"Segoe UI",Tahoma,"Noto Naskh Arabic",sans-serif;
+  user-select:none;-webkit-user-select:none;touch-action:none;overscroll-behavior:none}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+button{font-family:inherit;color:inherit;cursor:pointer;border:0;background:none}
+.hidden{display:none!important}
+
+/* ------------------------------- أزرار عامة ------------------------------ */
+.btn{background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.04));
+  border:1px solid var(--line2);border-radius:12px;padding:11px 18px;font-size:15px;font-weight:700;
+  color:var(--txt);transition:transform .12s,filter .12s,background .2s;white-space:nowrap}
+.btn:active,.btn.pressed{transform:scale(.96);filter:brightness(1.25)}
+.btn.primary{background:linear-gradient(180deg,#ffd85c,#f0a500);color:#20160a;border-color:#ffe89a}
+.btn.danger{background:linear-gradient(180deg,rgba(255,92,92,.25),rgba(255,92,92,.12));border-color:rgba(255,92,92,.5);color:#ffb3b3}
+.btn.ghost{background:rgba(255,255,255,.05)}
+.btn.tiny{padding:7px 12px;font-size:13px;border-radius:10px}
+.btn.xl{padding:15px 22px;font-size:17px;border-radius:14px;width:100%}
+.btn.disabled{opacity:.42;pointer-events:none}
+
+/* -------------------------------- الشاشات -------------------------------- */
+.screen{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center}
+.screen.show{display:flex}
+.screen.boot{background:radial-gradient(1200px 700px at 50% 30%,#16243c,#080b12 70%);z-index:200}
+.boot-inner{text-align:center;padding:24px;max-width:560px}
+.logo{font-size:44px;font-weight:900;letter-spacing:-1px;line-height:1.1}
+.logo span{background:linear-gradient(90deg,var(--gold),#ff8a3c);-webkit-background-clip:text;background-clip:text;color:transparent}
+.logo.big{font-size:min(15vw,74px)}
+.logo-sub{color:var(--dim);margin-top:8px;font-size:14px;letter-spacing:2px}
+.bar{width:min(80vw,420px);height:8px;background:rgba(255,255,255,.10);border-radius:99px;margin:26px auto 10px;overflow:hidden}
+.bar b{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--gold),#ff8a3c);transition:width .25s}
+.boot-text{color:var(--dim);font-size:14px}
+.boot-tip{margin-top:26px;color:rgba(234,240,248,.4);font-size:12.5px}
+
+/* القائمة الرئيسية */
+.menu{background:rgba(6,9,15,.55);backdrop-filter:blur(8px)}
+.menu-inner{text-align:center;padding:24px;max-width:520px;width:100%}
+.menu-btns{display:grid;gap:10px;margin:26px auto 0;max-width:340px}
+.menu-hint{margin-top:22px;color:var(--dim);font-size:12.5px;line-height:2}
+.menu-hint b{color:var(--txt);background:rgba(255,255,255,.08);padding:2px 7px;border-radius:6px}
+
+/* لوحات (متجر/مهام/خريطة/إعدادات) */
+.panel{background:rgba(6,9,15,.72);backdrop-filter:blur(10px);flex-direction:column;
+  padding:calc(10px + var(--safe-t)) calc(12px + var(--safe-r)) calc(10px + var(--safe-b)) calc(12px + var(--safe-l))}
+.p-head{display:flex;align-items:center;gap:12px;width:min(980px,100%);margin:0 auto 10px}
+.p-head h2{margin:0;font-size:20px;font-weight:800}
+.p-head .wallet{margin-inline-start:auto;background:var(--glass);border:1px solid var(--line);
+  padding:8px 14px;border-radius:99px;font-weight:800;color:var(--gold)}
+.x{width:42px;height:42px;border-radius:12px;background:var(--glass);border:1px solid var(--line);font-size:17px}
+.p-body{width:min(980px,100%);margin:0 auto;overflow-y:auto;flex:1;padding:4px 2px 20px;
+  display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+  align-content:start;align-items:start;touch-action:pan-y}
+
+/* بطاقة سيارة */
+.car-card{background:var(--glass2);border:1px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--sh)}
+.car-card.active{border-color:rgba(255,210,63,.55);box-shadow:0 0 0 1px rgba(255,210,63,.25),var(--sh)}
+.car-shot{height:118px;margin:-6px -6px 8px;border-radius:12px;overflow:hidden;
+  background:radial-gradient(120% 90% at 50% 20%,rgba(90,120,170,.28),rgba(10,14,22,.15));
+  display:grid;place-items:center}
+.car-shot img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 8px 14px rgba(0,0,0,.5))}
+.car-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+.car-name{font-size:17px;font-weight:800}
+.car-tag{color:var(--dim);font-size:12.5px;margin-top:2px}
+.car-cls{margin-inline-start:auto;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
+  font-weight:900;background:rgba(255,255,255,.08);border:1px solid var(--line2)}
+.cls-S{color:#ff8a3c;border-color:rgba(255,138,60,.5)}
+.cls-B{color:var(--cyan)} .cls-D{color:var(--green)}
+.stat{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--dim);margin:5px 0}
+.stat span{width:56px}
+.stat i{flex:1;height:6px;background:rgba(255,255,255,.09);border-radius:99px;overflow:hidden}
+.stat i b{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--gold))}
+.car-actions{display:flex;gap:8px;margin-top:12px}
+.car-actions .btn{flex:1}
+.owned-tag{flex:1;text-align:center;padding:11px;border-radius:12px;background:rgba(127,232,192,.12);
+  color:var(--green);font-weight:700;border:1px solid rgba(127,232,192,.3)}
+.upgrades{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;display:grid;gap:7px}
+.up-row{display:flex;align-items:center;gap:8px;font-size:13px}
+.up-ic{width:22px} .up-name{width:60px;color:var(--dim)}
+.up-dots{display:flex;gap:4px;flex:1}
+.up-dots i{width:12px;height:6px;border-radius:3px;background:rgba(255,255,255,.14)}
+.up-dots i.on{background:var(--gold)}
+.colors{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+.swatch{width:26px;height:26px;border-radius:8px;border:2px solid rgba(255,255,255,.25)}
+.swatch:active{transform:scale(.9)}
+
+/* بطاقة مهمّة */
+.mission-card{background:var(--glass2);border:1px solid var(--line);border-radius:var(--r);
+  padding:13px;display:flex;gap:12px;align-items:center;box-shadow:var(--sh)}
+.m-icon{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:22px;flex:none}
+.m-body{flex:1;min-width:0}
+.m-title{font-weight:800;font-size:15.5px}
+.m-title .done{color:var(--green);font-style:normal}
+.m-desc{color:var(--dim);font-size:12.5px;margin:3px 0}
+.m-meta{font-size:12px;color:rgba(234,240,248,.5)}
+.m-actions{display:grid;gap:6px;flex:none}
+
+/* الخريطة */
+.map .map-wrap{width:min(980px,100%);margin:0 auto;flex:1;border-radius:var(--r);overflow:hidden;
+  border:1px solid var(--line);background:#080b12;position:relative;touch-action:none}
+.map canvas{width:100%;height:100%;display:block;touch-action:none}
+.map-tools{display:flex;gap:6px;margin-inline-start:auto}
+.map-info{width:min(980px,100%);margin:8px auto 0;text-align:center;color:var(--dim);font-size:13px}
+
+/* الإعدادات */
+.settings{grid-template-columns:1fr;max-width:640px}
+.set-row{background:var(--glass2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.set-label{font-weight:700;font-size:14.5px;flex:1;min-width:120px}
+.set-label span{display:block;font-weight:400;color:var(--dim);font-size:12px;margin-top:2px}
+.seg{display:flex;background:rgba(255,255,255,.06);border-radius:12px;padding:3px;gap:3px}
+.seg-btn{padding:9px 13px;border-radius:9px;font-size:13.5px;font-weight:700;color:var(--dim)}
+.seg-btn.on{background:linear-gradient(180deg,rgba(255,210,63,.9),rgba(240,165,0,.9));color:#20160a}
+input[type=range]{flex:1;min-width:140px;accent-color:var(--gold);height:28px}
+
+/* الحوارات */
+.dialog{background:rgba(4,6,11,.72);backdrop-filter:blur(8px)}
+.dlg{background:var(--glass2);border:1px solid var(--line2);border-radius:20px;padding:24px;
+  width:min(420px,92vw);box-shadow:var(--sh);text-align:center}
+.res-title{font-size:26px;font-weight:900}
+.res-title.ok{color:var(--green)} .res-title.bad{color:var(--red)}
+.res-sub{color:var(--dim);margin:6px 0 16px;font-size:14px}
+.res-rows{display:grid;gap:8px;margin-bottom:18px}
+.res-row{display:flex;justify-content:space-between;background:rgba(255,255,255,.05);
+  padding:10px 14px;border-radius:11px;font-size:14px}
+.res-row b{color:var(--gold)}
+.pause-btns{display:grid;gap:9px;margin-top:18px}
+
+/* ================================= HUD ================================== */
+.hud{position:fixed;inset:0;z-index:20;pointer-events:none;
+  padding:calc(8px + var(--safe-t)) calc(8px + var(--safe-r)) calc(8px + var(--safe-b)) calc(8px + var(--safe-l))}
+.hud.dim{opacity:.15;filter:blur(1px)}
+.hud button{pointer-events:auto}
+
+.topbar{position:absolute;top:calc(8px + var(--safe-t));left:calc(8px + var(--safe-l));
+  right:calc(188px + var(--safe-r));display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:var(--glass);border:1px solid var(--line);border-radius:99px;padding:7px 13px;
+  font-size:13px;font-weight:800;display:flex;align-items:center;gap:6px;backdrop-filter:blur(6px)}
+.chip.money{color:var(--gold)}
+.chip.lvl{position:relative;overflow:hidden}
+.chip .xp{position:absolute;inset:auto 0 0 0;height:3px;background:rgba(255,255,255,.12)}
+.chip .xp b{display:block;height:100%;width:0;background:var(--cyan)}
+.chip.wp{display:none;color:var(--cyan)}
+.chip.wp.show{display:flex}
+.topbtns{display:flex;gap:6px;margin-inline-start:auto}
+.tbtn{background:var(--glass);border:1px solid var(--line);border-radius:13px;width:52px;height:50px;
+  display:grid;place-items:center;gap:1px;backdrop-filter:blur(6px);transition:transform .1s}
+.tbtn i{font-style:normal;font-size:17px;line-height:1}
+.tbtn span{font-size:9.5px;color:var(--dim)}
+.tbtn:active,.tbtn.pressed{transform:scale(.92);background:rgba(255,210,63,.18)}
+
+/* لوحة المهمّة */
+.objective{position:absolute;top:calc(66px + var(--safe-t));left:calc(8px + var(--safe-l));
+  width:min(310px,64vw);background:var(--glass);border:1px solid var(--line);border-radius:14px;
+  overflow:hidden;display:none;backdrop-filter:blur(6px);box-shadow:var(--sh)}
+.objective.show{display:block}
+.objective .obj-bar{height:3px;background:linear-gradient(90deg,var(--gold),#ff8a3c)}
+.objective.warn .obj-bar{background:linear-gradient(90deg,var(--red),#ff8a3c);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.obj-body{padding:9px 12px}
+.obj-title{font-size:14px;font-weight:800;color:var(--gold)}
+.obj-text{font-size:13px;margin-top:3px;line-height:1.5}
+.obj-meta{font-size:12px;color:var(--dim);margin-top:5px;display:flex;gap:8px;flex-wrap:wrap}
+.obj-meta b{color:var(--txt)} .obj-meta b.red{color:var(--red)}
+
+/* الخريطة المصغّرة */
+.minimap{position:absolute;top:calc(8px + var(--safe-t));right:calc(8px + var(--safe-r));
+  width:170px;height:170px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,.18);
+  box-shadow:var(--sh);background:#0b0f17}
+.minimap canvas{width:100%;height:100%;display:block}
+.mini-ring{position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  box-shadow:inset 0 0 22px rgba(0,0,0,.75)}
+.compass{position:absolute;top:4px;left:50%;transform-origin:50% 81px;margin-left:-11px;
+  width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.55);display:grid;place-items:center;
+  font-size:11px;font-weight:800;color:var(--red)}
+.fps{position:absolute;bottom:5px;left:0;right:0;text-align:center;font-size:9.5px;color:rgba(255,255,255,.45)}
+
+/* عدّاد السرعة */
+.speedo{position:absolute;bottom:calc(6px + var(--safe-b));left:50%;transform:translateX(-50%);
+  width:238px;height:151px;filter:drop-shadow(0 6px 16px rgba(0,0,0,.65))}
+
+/* ------------------------------ التحكّم ------------------------------ */
+.ctl{position:absolute;bottom:calc(12px + var(--safe-b));display:flex;align-items:flex-end;gap:12px;
+  direction:ltr}   /* ترتيب فيزيائي ثابت: زر اليسار يسار وزر اليمين يمين */
+.ctl-left{left:calc(14px + var(--safe-l))}
+.ctl-right{right:calc(14px + var(--safe-r));flex-direction:column;align-items:flex-end;gap:8px}
+
+.steer-buttons{display:flex;gap:12px;direction:ltr}
+.pad{width:88px;height:78px;border-radius:20px;background:var(--glass);border:1px solid var(--line2);
+  backdrop-filter:blur(6px);display:grid;place-items:center;box-shadow:var(--sh);transition:transform .08s,background .1s}
+.pad svg{width:40px;height:40px;fill:none;stroke:rgba(255,255,255,.85);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.pad:active,.pad.pressed{background:rgba(255,210,63,.30);transform:scale(.94)}
+.pad.pressed svg{stroke:#fff}
+
+.steer-wheel{display:none;width:150px;height:150px;position:relative}
+.steer-wheel svg{width:100%;height:100%;fill:none;stroke:rgba(255,255,255,.65);stroke-width:3.4}
+.steer-wheel .hub{fill:rgba(255,255,255,.10)}
+.steer-wheel.pressed svg{stroke:var(--gold)}
+.wheel-hint{position:absolute;inset:auto 0 -18px 0;text-align:center;font-size:10px;color:var(--dim)}
+body[data-steer="wheel"] .steer-buttons{display:none}
+body[data-steer="wheel"] .steer-wheel{display:block}
+body[data-steer="tilt"] .steer-buttons{opacity:.45}
+
+.pedals{display:flex;align-items:flex-end;gap:10px;direction:ltr}
+.pedal{width:92px;height:96px;border-radius:20px;background:var(--glass);border:1px solid var(--line2);
+  backdrop-filter:blur(6px);display:grid;place-items:center;box-shadow:var(--sh);transition:transform .08s,background .1s}
+.pedal svg{width:44px;height:44px;fill:none;stroke:rgba(255,255,255,.85);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.pedal span{font-size:12.5px;font-weight:800;color:var(--dim)}
+.pedal.gas{height:120px;background:linear-gradient(180deg,rgba(127,232,192,.20),rgba(12,17,26,.75));border-color:rgba(127,232,192,.35)}
+.pedal.gas svg{stroke:var(--green)}
+.pedal.brake{height:96px;background:linear-gradient(180deg,rgba(255,92,92,.18),rgba(12,17,26,.75));border-color:rgba(255,92,92,.3)}
+.pedal.brake svg{stroke:var(--red)}
+.pedal.nitro{width:66px;height:66px;background:linear-gradient(180deg,rgba(56,189,248,.22),rgba(12,17,26,.75));border-color:rgba(56,189,248,.4)}
+.pedal.nitro span{color:var(--cyan)}
+.pedal.hand{width:66px;height:66px}
+.pedal:active,.pedal.pressed{transform:scale(.94);filter:brightness(1.4)}
+
+.side-btns{display:flex;gap:8px;direction:ltr}
+.round{width:50px;height:50px;border-radius:50%;background:var(--glass);border:1px solid var(--line);
+  backdrop-filter:blur(6px);font-size:19px;display:grid;place-items:center;transition:transform .1s}
+.round:active,.round.pressed{transform:scale(.9);background:rgba(255,210,63,.2)}
+
+/* التنبيهات */
+.toasts{position:absolute;top:calc(76px + var(--safe-t));left:50%;transform:translateX(-50%);
+  display:grid;gap:6px;justify-items:center;pointer-events:none;width:max-content;max-width:80vw}
+.toast{background:var(--glass2);border:1px solid var(--line);border-radius:99px;padding:8px 18px;
+  font-size:13.5px;font-weight:700;opacity:0;transform:translateY(-8px);transition:.28s;box-shadow:var(--sh)}
+.toast.show{opacity:1;transform:none}
+.toast.ok{border-color:rgba(127,232,192,.5);color:var(--green)}
+.toast.bad{border-color:rgba(255,92,92,.5);color:var(--red)}
+
+.banner{position:absolute;top:34%;left:50%;transform:translate(-50%,-50%) scale(.8);
+  text-align:center;opacity:0;transition:.25s;pointer-events:none}
+.banner.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.banner .b-title{font-size:min(13vw,64px);font-weight:900;color:var(--gold);
+  text-shadow:0 6px 22px rgba(0,0,0,.8),0 0 30px rgba(255,210,63,.35)}
+.banner .b-sub{font-size:16px;color:#fff;text-shadow:0 3px 12px rgba(0,0,0,.8)}
+
+/* دعوة بدء المهمّة */
+.prompt{position:absolute;bottom:calc(150px + var(--safe-b));left:50%;transform:translate(-50%,14px);
+  background:var(--glass2);border:1px solid var(--line2);border-radius:16px;padding:14px 18px;
+  width:min(330px,80vw);text-align:center;box-shadow:var(--sh);opacity:0;pointer-events:none;transition:.25s}
+.prompt.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.prompt-x{position:absolute;top:6px;left:8px;width:26px;height:26px;border-radius:8px;
+  color:var(--dim);font-size:13px}
+.p-title{font-weight:800;font-size:16px;color:var(--gold)}
+.p-desc{font-size:12.5px;color:var(--dim);margin:4px 0 6px}
+.p-reward{font-size:13px;margin-bottom:10px}
+.prompt .btn{width:100%}
+
+/* ---------------------------- شاشات صغيرة ---------------------------- */
+@media (max-width:900px){
+  .pedal{width:76px;height:82px} .pedal.gas{height:100px}
+  .pedal.nitro,.pedal.hand{width:58px;height:58px}
+  .pad{width:76px;height:70px}
+  .speedo{width:200px;height:127px}
+  .round{width:44px;height:44px;font-size:17px}
+}
+@media (max-height:480px){
+  .topbar{right:calc(150px + var(--safe-r))}
+  .minimap{width:132px;height:132px}
+  .compass{transform-origin:50% 62px}
+  .speedo{width:190px;height:120px}
+  .pad{width:78px;height:66px} .pedal{width:80px;height:82px}
+  .pedal.gas{height:104px} .pedal.nitro,.pedal.hand{width:56px;height:56px}
+  .round{width:42px;height:42px;font-size:16px}
+  .tbtn{width:46px;height:44px}
+  .objective{width:min(260px,52vw)}
+}
+@media (max-width:520px){
+  .topbar{right:calc(8px + var(--safe-r))}
+  .topbtns{margin-top:6px;width:100%;justify-content:flex-end}
+  .minimap{width:112px;height:112px;top:calc(58px + var(--safe-t))}
+  .compass{transform-origin:50% 52px}
+  .objective{top:calc(120px + var(--safe-t));width:min(260px,58vw)}
+  .p-body{grid-template-columns:1fr}
+}

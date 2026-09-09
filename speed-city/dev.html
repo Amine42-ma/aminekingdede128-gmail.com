@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f17">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>مدينة السرعة — SPEED CITY</title>
+<link rel="stylesheet" href="css/game.css">
+</head>
+<body data-steer="buttons">
+
+<canvas id="c"></canvas>
+
+<!-- ======================= شاشة التحميل ======================= -->
+<div id="loading" class="screen show boot">
+  <div class="boot-inner">
+    <div class="logo">مدينة <span>السرعة</span></div>
+    <div class="logo-sub">SPEED CITY · نموذج أوّلي</div>
+    <div class="bar"><b id="loadBar"></b></div>
+    <div class="boot-text" id="loadText">جارٍ التحضير…</div>
+    <div class="boot-tip">💡 تُدار اللعبة كاملةً داخل المتصفح — لا حاجة لأي خادم</div>
+  </div>
+</div>
+
+<!-- =========================== HUD =========================== -->
+<div id="hud" class="hud hidden">
+
+  <div class="topbar">
+    <div class="chips">
+      <div class="chip money"><i>💰</i><span id="money">$0</span></div>
+      <div class="chip lvl"><span id="level">المستوى ١</span><i class="xp"><b id="xpBar"></b></i></div>
+      <div class="chip wp" id="wpChip"></div>
+    </div>
+    <div class="topbtns">
+      <button class="tbtn" id="btnMissions"><i>📋</i><span>المهام</span></button>
+      <button class="tbtn" id="btnShop"><i>🏬</i><span>المتجر</span></button>
+      <button class="tbtn" id="btnMap"><i>🗺️</i><span>الخريطة</span></button>
+      <button class="tbtn" id="btnSettings"><i>⚙️</i><span>الإعدادات</span></button>
+      <button class="tbtn" id="btnPause"><i>⏸</i><span>إيقاف</span></button>
+    </div>
+  </div>
+
+  <!-- لوحة المهمّة -->
+  <div class="objective" id="objective">
+    <div class="obj-bar"></div>
+    <div class="obj-body">
+      <div class="obj-title" id="objTitle">المهمّة</div>
+      <div class="obj-text" id="objText"></div>
+      <div class="obj-meta" id="objMeta"></div>
+    </div>
+  </div>
+
+  <!-- الخريطة المصغّرة -->
+  <div class="minimap">
+    <canvas id="mini"></canvas>
+    <div class="mini-ring"></div>
+    <div class="compass" id="compass"><span>ش</span></div>
+    <div class="fps" id="fps"></div>
+  </div>
+
+  <!-- عدّاد السرعة -->
+  <canvas id="speed" class="speedo"></canvas>
+
+  <!-- أزرار التوجيه (يسار) -->
+  <div class="ctl ctl-left">
+    <div class="steer-buttons">
+      <button class="pad big" id="btnLeft"><svg viewBox="0 0 24 24"><path d="M15 4 L7 12 L15 20" /></svg></button>
+      <button class="pad big" id="btnRight"><svg viewBox="0 0 24 24"><path d="M9 4 L17 12 L9 20" /></svg></button>
+    </div>
+    <div class="steer-wheel" id="wheel">
+      <svg viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="42" />
+        <circle cx="50" cy="50" r="15" class="hub" />
+        <path d="M50 35 L50 8 M35 58 L12 72 M65 58 L88 72" />
+      </svg>
+      <div class="wheel-hint">اسحب يميناً/يساراً</div>
+    </div>
+  </div>
+
+  <!-- الدواسات والأزرار (يمين) -->
+  <div class="ctl ctl-right">
+    <div class="side-btns">
+      <button class="round" id="btnCam" title="الكاميرا">🎥</button>
+      <button class="round" id="btnHorn" title="المنبّه">📢</button>
+      <button class="round" id="btnLight" title="الأضواء">💡</button>
+      <button class="round" id="btnFlip" title="إعادة للطريق">🔄</button>
+    </div>
+    <div class="pedals">
+      <button class="pedal nitro" id="btnBoost"><span>نيترو</span></button>
+      <button class="pedal hand" id="btnHand"><span>يد</span></button>
+      <button class="pedal brake" id="btnBrake">
+        <svg viewBox="0 0 24 24"><path d="M4 9 L12 17 L20 9" /></svg>
+      </button>
+      <button class="pedal gas" id="btnGas">
+        <svg viewBox="0 0 24 24"><path d="M4 15 L12 7 L20 15" /><path d="M4 20 L12 12 L20 20" /></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="toasts" class="toasts"></div>
+  <div id="banner" class="banner"></div>
+
+  <!-- دعوة بدء المهمّة -->
+  <div class="prompt" id="prompt">
+    <button class="prompt-x" id="promptClose">✕</button>
+    <div class="p-title" id="promptTitle"></div>
+    <div class="p-desc" id="promptDesc"></div>
+    <div class="p-reward" id="promptReward"></div>
+    <button class="btn primary" id="promptStart">ابدأ المهمّة</button>
+  </div>
+</div>
+
+<!-- ====================== القائمة الرئيسية ====================== -->
+<div class="screen menu" id="screenMenu">
+  <div class="menu-bg"></div>
+  <div class="menu-inner">
+    <div class="logo big">مدينة <span>السرعة</span></div>
+    <div class="logo-sub">SPEED CITY · نموذج أوّلي للعبة سيارات مفتوحة العالم</div>
+    <div class="menu-btns">
+      <button class="btn primary xl" id="btnPlay">ابدأ القيادة</button>
+      <button class="btn xl" id="btnMenuMissions">المهام والسباقات</button>
+      <button class="btn xl" id="btnMenuShop">المعرض والمتجر</button>
+      <button class="btn xl" id="btnMenuSettings">الإعدادات</button>
+    </div>
+    <div class="menu-hint">
+      لوحة المفاتيح: <b>W A S D</b> أو الأسهم · <b>مسافة</b> فرامل اليد · <b>Shift</b> نيترو ·
+      <b>C</b> الكاميرا · <b>R</b> إعادة للطريق · <b>M</b> الخريطة
+    </div>
+  </div>
+</div>
+
+<!-- ============================ المتجر ============================ -->
+<div class="screen panel" id="screenShop">
+  <div class="p-head">
+    <h2>المعرض والمتجر</h2>
+    <div class="wallet">💰 <span class="wallet-val">$0</span></div>
+    <button class="x" data-close>✕</button>
+  </div>
+  <div class="p-body" id="shopList"></div>
+</div>
+
+<!-- ============================ المهام ============================ -->
+<div class="screen panel" id="screenMissions">
+  <div class="p-head">
+    <h2>المهام والسباقات</h2>
+    <div class="wallet">💰 <span class="wallet-val">$0</span></div>
+    <button class="x" data-close>✕</button>
+  </div>
+  <div class="p-body" id="missionList"></div>
+</div>
+
+<!-- =========================== الخريطة =========================== -->
+<div class="screen panel map" id="screenMap">
+  <div class="p-head">
+    <h2>خريطة المدينة</h2>
+    <div class="map-tools">
+      <button class="btn tiny" id="mapIn">+</button>
+      <button class="btn tiny" id="mapOut">−</button>
+      <button class="btn tiny" id="mapCenter">سيارتي</button>
+      <button class="btn tiny" id="mapClear">حذف النقطة</button>
+    </div>
+    <button class="x" data-close>✕</button>
+  </div>
+  <div class="map-wrap"><canvas id="mapCanvas"></canvas></div>
+  <div class="map-info" id="mapInfo">اضغط على الخريطة لتعيين نقطة مسار</div>
+</div>
+
+<!-- ========================== الإعدادات ========================== -->
+<div class="screen panel" id="screenSettings">
+  <div class="p-head">
+    <h2>الإعدادات</h2>
+    <button class="x" data-close>✕</button>
+  </div>
+  <div class="p-body settings" id="settingsList"></div>
+</div>
+
+<!-- =========================== النتائج =========================== -->
+<div class="screen dialog" id="screenResult">
+  <div class="dlg">
+    <div class="res-title ok" id="resultTitle">أحسنت!</div>
+    <div class="res-sub" id="resultSub"></div>
+    <div class="res-rows" id="resultRows"></div>
+    <button class="btn primary xl" data-close>متابعة</button>
+  </div>
+</div>
+
+<!-- ============================ الإيقاف ============================ -->
+<div class="screen dialog" id="screenPause">
+  <div class="dlg">
+    <div class="res-title">إيقاف مؤقّت</div>
+    <div class="pause-btns">
+      <button class="btn primary xl" data-close>متابعة اللعب</button>
+      <button class="btn xl" id="btnPauseMissions">المهام</button>
+      <button class="btn xl" id="btnPauseShop">المتجر</button>
+      <button class="btn xl" id="btnPauseSettings">الإعدادات</button>
+      <button class="btn xl danger" id="btnAbort">إلغاء المهمّة الحالية</button>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/three.bundle.min.js"></script>
+<script src="src/00_util.js"></script>
+<script src="src/10_assets.js"></script>
+<script src="src/20_world.js"></script>
+<script src="src/25_wheels.js"></script>
+<script src="src/30_vehicle.js"></script>
+<script src="src/35_fx.js"></script>
+<script src="src/40_ai.js"></script>
+<script src="src/50_input.js"></script>
+<script src="src/60_audio.js"></script>
+<script src="src/70_hud.js"></script>
+<script src="src/80_missions.js"></script>
+<script src="src/85_ui.js"></script>
+<script src="src/90_game.js"></script>
+<script src="src/95_boot.js"></script>
+</body>
+</html>
