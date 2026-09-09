@@ -235,12 +235,17 @@ SC.missions = (function () {
       if (state.timeLeft <= 0) return finish(false, 'انتهى الوقت');
     }
 
-    /* دوران علامات نقاط التفتيش */
-    state.checkpoints.forEach((c) => {
-      if (c.mesh && c.mesh.userData.spin) c.mesh.userData.spin.rotation.z += dt * 1.2;
-    });
-
     const px = car.pos.x, pz = car.pos.z;
+
+    /* دوران علامات نقاط التفتيش وتخفيتها عند الاقتراب */
+    state.checkpoints.forEach((c) => {
+      if (!c.mesh) return;
+      if (c.mesh.userData.spin) c.mesh.userData.spin.rotation.z += dt * 1.2;
+      if (c.mesh.userData.setFade) {
+        const d = Math.hypot(c.x - px, c.z - pz);
+        c.mesh.userData.setFade(U.clamp((d - 8) / 16, 0, 1));
+      }
+    });
     const near = (c) => Math.hypot(c.x - px, c.z - pz) < c.r + 2.2;
 
     if (def.type === 'delivery') {

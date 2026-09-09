@@ -192,8 +192,8 @@ SC.world = (function () {
     }`;
 
   const PRESETS = {
-    day:    { cloud: 0xffffff, cloudAmt: 0.9, top: 0x2f6fd0, mid: 0x7fb6ef, bottom: 0xd8e6f2, sun: 0xfff3d6, sunI: 3.0, hemi: 1.05, fog: 0xbdd3e8, fogFar: 900, amb: 0xbcd0e8, sunPos: [0.45, 0.72, 0.28], exposure: 1.05 },
-    sunset: { cloud: 0xffc9a0, cloudAmt: 1.0, top: 0x21386e, mid: 0xe0774a, bottom: 0xf6c58a, sun: 0xffb066, sunI: 2.4, hemi: 0.75, fog: 0xe0a077, fogFar: 780, amb: 0xd08a6a, sunPos: [-0.85, 0.20, -0.35], exposure: 1.0 },
+    day:    { cloud: 0xffffff, cloudAmt: 0.9, top: 0x2f6fd0, mid: 0x7fb6ef, bottom: 0xd8e6f2, sun: 0xfff3d6, sunI: 2.9, hemi: 1.35, fog: 0xbdd3e8, fogFar: 900, amb: 0xbcd0e8, sunPos: [0.45, 0.72, 0.28], exposure: 1.05 },
+    sunset: { cloud: 0xffc9a0, cloudAmt: 1.0, top: 0x21386e, mid: 0xe0774a, bottom: 0xf6c58a, sun: 0xffb066, sunI: 2.4, hemi: 0.95, fog: 0xe0a077, fogFar: 780, amb: 0xd08a6a, sunPos: [-0.85, 0.20, -0.35], exposure: 1.0 },
     night:  { cloud: 0x2a3855, cloudAmt: 0.55, top: 0x050c1c, mid: 0x0d1e3a, bottom: 0x1b2c4a, sun: 0xa8c0ee, sunI: 0.5, hemi: 0.42, fog: 0x0c1628, fogFar: 560, amb: 0x35486e, sunPos: [0.3, 0.62, -0.5], exposure: 1.2 }
   };
 

@@ -146,7 +146,7 @@ SC.game = (function () {
     buildMissionMarkers();
 
     /* سهم التوجيه فوق السيارة */
-    const arrowGeo = new THREE.ConeGeometry(0.55, 1.5, 4);
+    const arrowGeo = new THREE.ConeGeometry(0.42, 1.15, 4);
     arrowGeo.rotateX(Math.PI / 2);
     G.arrow = new THREE.Mesh(arrowGeo, new THREE.MeshBasicMaterial({ color: 0xffd23f, transparent: true, opacity: 0.9 }));
     G.arrow.visible = false;
@@ -410,9 +410,10 @@ SC.game = (function () {
   /* -------------------------- مهمّة قريبة للبدء ------------------------- */
   function checkNearMission(car) {
     if (SC.missions.state.active) { if (G.nearMission) { G.nearMission = null; SC.ui.showPrompt(null); } return; }
-    let best = null, bd = 14;
+    let best = null, bd = 16;
     for (const m of G.missionMarkers) {
       const d = Math.hypot(m.def.from.x - car.pos.x, m.def.from.z - car.pos.z);
+      if (m.mesh.userData.setFade) m.mesh.userData.setFade(U.clamp((d - 8) / 16, 0, 1));
       if (d < bd) { bd = d; best = m.def; }
     }
     if (best !== G.nearMission) {
@@ -537,7 +538,7 @@ SC.game = (function () {
     const d = Math.hypot(target.x - car.pos.x, target.z - car.pos.z);
     G.arrow.visible = d > 12;
     if (!G.arrow.visible) return;
-    G.arrow.position.set(car.pos.x, car.pos.y + car.size.y + 1.5 + Math.sin(G.time * 3) * 0.12, car.pos.z);
+    G.arrow.position.set(car.pos.x, car.pos.y + car.size.y + 2.1 + Math.sin(G.time * 3) * 0.12, car.pos.z);
     G.arrow.rotation.set(0, Math.atan2(target.x - car.pos.x, target.z - car.pos.z), 0);
   }
 

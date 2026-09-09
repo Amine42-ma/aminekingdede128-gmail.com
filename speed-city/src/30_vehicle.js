@@ -10,21 +10,21 @@ SC.cars = {
       price: 0, cls: 'B', color: 0xf2f2f2,
       mass: 1050, power: 9800, brake: 15000, topSpeed: 51,       // م/ث ≈ 184 كم/س
       grip: 1.06, steerMax: 0.60, dragK: 0.42, nitro: 1.0,
-      stats: { speed: 62, accel: 58, grip: 70 }, seatH: 0.62
+      stats: { speed: 62, accel: 58, grip: 70 }, seatH: 0.62, lean: 0.26
     },
     bike: {
       key: 'bike_cyberpunk', name: 'دراجة سايبر X', tag: 'خارقة · تجريبية',
       price: 32000, cls: 'S', color: 0x22d3ee,
       mass: 260, power: 4200, brake: 7200, topSpeed: 68,          // ≈ 245 كم/س
       grip: 1.02, steerMax: 0.68, dragK: 0.18, nitro: 1.35,
-      stats: { speed: 92, accel: 95, grip: 66 }, seatH: 0.55, lean: 0.55
+      stats: { speed: 92, accel: 95, grip: 66 }, seatH: 0.55, lean: 0.78
     },
     van: {
       key: 'van_motorhome', name: 'بيت متنقّل GMC', tag: 'ثقيلة · رحلات',
       price: 58000, cls: 'D', color: 0xd08a2a,
       mass: 3400, power: 21000, brake: 30000, topSpeed: 39,       // ≈ 140 كم/س
       grip: 0.86, steerMax: 0.46, dragK: 1.05, nitro: 0.75,
-      stats: { speed: 40, accel: 30, grip: 42 }, seatH: 1.35
+      stats: { speed: 40, accel: 30, grip: 42 }, seatH: 1.35, lean: 0.20
     }
   }
 };
@@ -354,8 +354,9 @@ SC.Vehicle = (function () {
 
     /* --------------------------- المظهر والميلان ------------------------ */
     _visuals(dt, accLong, accLat) {
-      const lean = this.def.lean || 0.16;
-      const targetRoll = U.clamp(-accLat / 26, -0.5, 0.5) * (this.def.lean ? 1.9 : 1) * lean * 6;
+      /* ميلان الهيكل: السيارات تميل قليلاً، والدراجة تميل كثيراً كالحقيقة */
+      const leanK = (this.def.lean || 0.30) * U.clamp(this.kmh / 55, 0, 1);
+      const targetRoll = U.clamp(-accLat / 22, -1, 1) * leanK;
       const targetPitch = U.clamp(accLong / 40, -0.32, 0.32) * 0.55;
       this.roll = U.damp(this.roll, targetRoll, 7, dt);
       this.pitch = U.damp(this.pitch, targetPitch, 6.5, dt);

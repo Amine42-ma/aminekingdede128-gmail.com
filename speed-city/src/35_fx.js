@@ -201,6 +201,12 @@ SC.fx = (function () {
     g.add(beam);
     g.userData.spin = ring;
     g.renderOrder = 4;
+    /* تخفيت العلامة عند الاقتراب حتى لا تغطّي الشاشة عند المرور بداخلها */
+    const mats = [[cyl.material, 0.30], [ring.material, 0.85], [beam.material, 0.12]];
+    g.userData.setFade = (f) => {
+      mats.forEach(([m, base]) => { m.opacity = base * f; });
+      g.visible = f > 0.02;
+    };
     return g;
   }
 
