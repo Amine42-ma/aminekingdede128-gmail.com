@@ -32,6 +32,7 @@
     <div class="chips">
       <div class="chip money"><i>💰</i><span id="money">$0</span></div>
       <div class="chip lvl"><span id="level">المستوى ١</span><i class="xp"><b id="xpBar"></b></i></div>
+      <div class="chip rep" id="repChip"><i>🤝</i><span id="repVal">70%</span></div>
       <div class="chip wp" id="wpChip"></div>
     </div>
     <div class="topbtns">
@@ -39,6 +40,7 @@
       <button class="tbtn" id="btnShop"><i>🏬</i><span>المتجر</span></button>
       <button class="tbtn" id="btnMap"><i>🗺️</i><span>الخريطة</span></button>
       <button class="tbtn" id="btnSettings"><i>⚙️</i><span>الإعدادات</span></button>
+      <button class="tbtn" id="btnOnline"><i>🌐</i><span>أون لاين</span></button>
       <button class="tbtn" id="btnPause"><i>⏸</i><span>إيقاف</span></button>
     </div>
   </div>
@@ -121,14 +123,60 @@
     <div class="logo big">مدينة <span>السرعة</span></div>
     <div class="logo-sub">SPEED CITY · نموذج أوّلي للعبة سيارات مفتوحة العالم</div>
     <div class="menu-btns">
-      <button class="btn primary xl" id="btnPlay">ابدأ القيادة</button>
-      <button class="btn xl" id="btnMenuMissions">المهام والسباقات</button>
-      <button class="btn xl" id="btnMenuShop">المعرض والمتجر</button>
-      <button class="btn xl" id="btnMenuSettings">الإعدادات</button>
+      <button class="btn primary xl" id="btnPlay"><i>🎮</i> لعب أوف لاين</button>
+      <button class="btn xl net" id="btnPlayOnline"><i>🌐</i> لعب أون لاين</button>
+      <button class="btn xl" id="btnMenuMissions"><i>📋</i> المهام والسباقات</button>
+      <button class="btn xl" id="btnMenuShop"><i>🏬</i> المعرض والمتجر</button>
+      <button class="btn xl" id="btnMenuSettings"><i>⚙️</i> الإعدادات</button>
     </div>
     <div class="menu-hint">
       لوحة المفاتيح: <b>W A S D</b> أو الأسهم · <b>مسافة</b> فرامل اليد · <b>Shift</b> نيترو ·
       <b>C</b> الكاميرا · <b>R</b> إعادة للطريق · <b>M</b> الخريطة
+    </div>
+  </div>
+</div>
+
+<!-- ============================ أون لاين ============================ -->
+<div class="screen panel" id="screenOnline">
+  <div class="p-head">
+    <h2>اللعب الجماعي</h2>
+    <div class="net-status" id="netStatus">غير متّصل</div>
+    <button class="x" data-close>✕</button>
+  </div>
+  <div class="p-body online">
+    <div class="net-card">
+      <div class="net-row">
+        <label>اسمك في اللعبة</label>
+        <input id="netName" type="text" maxlength="18" placeholder="السائق">
+      </div>
+      <div class="net-row">
+        <label>عنوان الخادم</label>
+        <input id="netUrl" type="text" placeholder="ws://192.168.1.5:8080">
+      </div>
+      <div class="net-actions">
+        <button class="btn primary" id="netConnect">اتّصال</button>
+        <button class="btn" id="netDisconnect">قطع الاتّصال</button>
+        <button class="btn ghost" id="netMic">🎙 الميكروفون</button>
+      </div>
+      <div class="net-hint">
+        شغّل الخادم المرفق على حاسوبك:
+        <code>node server/server.mjs</code>
+        ثم اكتب هنا <code>ws://عنوان-الجهاز:8080</code>.
+        كل من على نفس الشبكة (أو عبر الإنترنت إن نشرت الخادم) يستطيع اللعب معك،
+        مع الصوت المباشر بالميكروفون.
+      </div>
+    </div>
+    <div class="net-card">
+      <div class="net-title">اللاعبون المتّصلون <span id="netCount">(0)</span></div>
+      <div id="netPlayers" class="net-players"></div>
+    </div>
+    <div class="net-card">
+      <div class="net-title">الدردشة</div>
+      <div id="netChat" class="net-chat"></div>
+      <div class="net-row">
+        <input id="netMsg" type="text" maxlength="120" placeholder="اكتب رسالة…">
+        <button class="btn tiny" id="netSend">إرسال</button>
+      </div>
     </div>
   </div>
 </div>
@@ -208,6 +256,7 @@
 <script src="src/20_world.js"></script>
 <script src="src/25_wheels.js"></script>
 <script src="src/28_character.js"></script>
+<script src="src/29_peds.js"></script>
 <script src="src/30_vehicle.js"></script>
 <script src="src/35_fx.js"></script>
 <script src="src/40_ai.js"></script>
@@ -217,6 +266,7 @@
 <script src="src/80_missions.js"></script>
 <script src="src/85_ui.js"></script>
 <script src="src/90_game.js"></script>
+<script src="src/92_net.js"></script>
 <script src="src/95_boot.js"></script>
 </body>
 </html>

@@ -6,7 +6,7 @@ SC.game = (function () {
   const SAVE_KEY = 'speedcity.save.v2';
 
   const save = {
-    money: 2500, xp: 0, level: 1,
+    money: 2500, xp: 0, level: 1, rep: 70,
     owned: ['cortina'], current: 'cortina',
     upgrades: { cortina: { engine: 0, tires: 0, brakes: 0, nitro: 0 } },
     colors: {}, done: {}, best: {},
@@ -15,7 +15,8 @@ SC.game = (function () {
 
   const settings = {
     quality: 'auto', shadows: true, steerMode: 'buttons', steerSense: 1.0,
-    invertTilt: false, sound: true, volume: 0.85, haptics: true, assist: true, lookSense: 1.0,
+    invertTilt: false, sound: true, volume: 0.85, music: 0.45, haptics: true, assist: true,
+    lookSense: 1.0, peds: true, micOn: false,
     mapRotate: true, timeOfDay: 'day', traffic: true, camera: 'chase'
   };
   SC.settings = settings;
@@ -35,11 +36,11 @@ SC.game = (function () {
     if (q === 'auto') q = mob ? 'low' : 'high';
     const presets = {
       low:   { pixelRatio: Math.min(dpr, 1.5), shadows: false, shadowSize: 1024, shadowRange: 60,
-               skidCount: 400, particles: 200, traffic: 6, far: 480, aa: false },
+               skidCount: 400, particles: 200, traffic: 6, peds: 7, far: 480, aa: false },
       medium:{ pixelRatio: Math.min(dpr, 1.75), shadows: true, shadowSize: 1024, shadowRange: 70,
-               skidCount: 700, particles: 320, traffic: 10, far: 720, aa: true },
+               skidCount: 700, particles: 320, traffic: 10, peds: 12, far: 720, aa: true },
       high:  { pixelRatio: Math.min(dpr, 2), shadows: true, shadowSize: 2048, shadowRange: 95,
-               skidCount: 1000, particles: 460, traffic: 16, far: 1000, aa: true }
+               skidCount: 1000, particles: 460, traffic: 16, peds: 18, far: 1000, aa: true }
     };
     const p = presets[q] || presets.medium;
     if (!settings.shadows) p.shadows = false;
@@ -65,6 +66,19 @@ SC.game = (function () {
     persist();
     SC.ui && SC.ui.refreshWallet();
   }
+  /* الثقة/السمعة: تقلّ عند صدم المارّة وتزيد بإنجاز المهام والقيادة الهادئة */
+  function addRep(n, reason) {
+    const before = save.rep;
+    save.rep = U.clamp((save.rep || 70) + n, 0, 100);
+    if (Math.floor(before) !== Math.floor(save.rep)) persist();
+    SC.ui && SC.ui.refreshWallet();
+    if (n < 0 && save.rep < 25 && before >= 25) {
+      SC.hud.toast('سمعتك سيّئة جداً — لن يثق بك أحد!', 'bad', 3200);
+    }
+    return save.rep;
+  }
+  const repMult = () => 0.8 + (save.rep || 70) / 250;
+
   function addXp(n) {
     save.xp += n;
     const need = () => save.level * 500;
@@ -132,15 +146,18 @@ SC.game = (function () {
     /* اللاعب */
     spawnPlayer(save.current);
 
-    /* المرور */
+    /* المرور والمارّة */
     SC.traffic.init(scene, 0);
     if (settings.traffic) SC.traffic.setCount(q.traffic, G.car.pos);
+    SC.peds.init(scene, 0);
+    if (settings.peds !== false) SC.peds.setCount(q.peds, G.car.pos);
+    G.onPedHit = onPedHit;
 
     /* المهام */
     G.missions = SC.missions.generate(4242);
     SC.missions.init({
       scene, get car() { return G.car; },
-      addRival, clearRivals, setRivalsActive, racePosition,
+      addRival, clearRivals, setRivalsActive, racePosition, setPassenger,
       onFinish: onMissionFinish, onStart: () => {}
     });
     buildMissionMarkers();
@@ -255,10 +272,15 @@ SC.game = (function () {
   }
 
   function onMissionFinish(res) {
+    if (res.def.online && res.success && SC.net && SC.net.connected) {
+      SC.net.send({ t: 'race', to: res.def.opponent, kind: 'finish', time: res.time });
+      SC.hud.banner('فزت بالسباق!', '', 2600);
+    }
     setMissionMarkersVisible(true);
     refreshFreeMarkers();
     if (res.success) {
-      addMoney(res.money); addXp(res.xp);
+      addMoney(Math.round(res.money * repMult())); addXp(res.xp);
+      addRep(res.def.type === 'taxi' ? 3 : 1.5);
       save.stats.missions++;
       if (res.def.type === 'race') save.stats.races++;
       const key = res.def.id;
@@ -274,11 +296,39 @@ SC.game = (function () {
   }
 
   function startMission(def) {
+    const need = def.minRep || 0;
+    if ((save.rep || 70) < need) {
+      SC.hud.toast('ثقتهم بك منخفضة (' + Math.round(save.rep) + '٪) — لن يقبلوا العمل معك', 'bad', 3200);
+      SC.audio.bad();
+      return false;
+    }
+    if (def.type === 'taxi' && G.car.def.driver && G.car.def.driver.pose === 'bike') {
+      SC.hud.toast('لا يمكن نقل الركّاب بالدرّاجة — بدّل إلى سيارة', 'bad', 3000);
+      return false;
+    }
     setMissionMarkersVisible(false);
     G.mode = 'mission';
     SC.missions.start(def);
     SC.ui.hideAll();
     G.paused = false;
+    return true;
+  }
+
+  /* راكب يجلس بجوار السائق أثناء مهمّات الأجرة */
+  function setPassenger(on) {
+    const car = G.car;
+    if (!on) {
+      if (G.passenger) { car.cabin.remove(G.passenger.root); G.passenger = null; }
+      return;
+    }
+    if (G.passenger || !car.def.driver) return;
+    const d = car.def.driver;
+    const p = SC.character.create({ pose: 'car' });
+    p.root.position.set(-d.seat[0], d.seat[1], d.seat[2] - 0.05);
+    p.root.scale.setScalar((d.scale || 1) * 0.97);
+    p.root.rotation.y = 0.12;
+    car.cabin.add(p.root);
+    G.passenger = p;
   }
 
   /* ------------------------------ الكاميرا ------------------------------ */
@@ -338,6 +388,7 @@ SC.game = (function () {
       clampCamera(car.pos, _cv);            // لا تخترق الكاميرا المباني
       const lag = orbit ? 12 : (mode === 'far' ? 7 : (9 + spd * 9));
       camState.pos.lerp(_cv, 1 - Math.exp(-lag * dt));
+      clampCamera(car.pos, camState.pos);   // بعد التنعيم كذلك، حتى لا تعبر الجدار
 
       // ننظر إلى الأمام عند القيادة، وإلى السيارة نفسها عند تدوير الكاميرا
       const ahead = (9 + spd * 7) * Math.max(0, Math.cos(look.yaw)) * (orbit ? 0 : 1);
@@ -366,19 +417,23 @@ SC.game = (function () {
   }
 
   /* يمنع الكاميرا من الدخول داخل المباني: نقصّر المسافة عند أول اصطدام */
+  /* يمنع الكاميرا من الدخول داخل المباني أو الرؤية من خلفها.
+     نفحص الشعاع من المركبة إلى الكاميرا، ونقصّر المسافة عند أول جدار،
+     ثم نُخرج الكاميرا من أي صندوق تكون بداخله (يحدث عند الاصطدام بالجدار). */
+  const CAM_PAD = 0.95;              // هامش أكبر من مستوى القصّ الأمامي
   function clampCamera(from, want) {
     const dx = want.x - from.x, dz = want.z - from.z;
     const len = Math.hypot(dx, dz);
-    if (len < 0.35) return want;
+    if (len < 0.2) return want;
     const ux = dx / len, uz = dz / len;
     let hit = len;
-    const list = SC.world.queryColliders(from.x + ux * len * 0.5, from.z + uz * len * 0.5, len * 0.5 + 4);
+    const list = SC.world.queryColliders(from.x + ux * len * 0.5, from.z + uz * len * 0.5, len * 0.5 + 6);
     for (const c of list) {
       if (c.h && c.h < 1.2) continue;
-      // تقاطع شعاع مع مستطيل (طريقة الشرائح) في المستوى الأفقي
+      if (want.y > (c.h || 8) + 1.2) continue;         // الكاميرا أعلى من المبنى
       let t0 = 0, t1 = len;
-      const pad = 0.55;
-      const slabs = [[from.x, ux, c.minX - pad, c.maxX + pad], [from.z, uz, c.minZ - pad, c.maxZ + pad]];
+      const slabs = [[from.x, ux, c.minX - CAM_PAD, c.maxX + CAM_PAD],
+                     [from.z, uz, c.minZ - CAM_PAD, c.maxZ + CAM_PAD]];
       let ok = true;
       for (const [p, d, lo, hi] of slabs) {
         if (Math.abs(d) < 1e-6) { if (p < lo || p > hi) { ok = false; break; } continue; }
@@ -387,16 +442,40 @@ SC.game = (function () {
         t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
         if (t0 > t1) { ok = false; break; }
       }
-      if (ok && t0 > 0.1 && t0 < hit) hit = t0;
+      if (!ok) continue;
+      if (t1 <= 0.02) continue;                        // الصندوق خلف المركبة
+      const t = Math.max(0, t0);
+      if (t < hit) hit = t;
     }
     if (hit < len) {
-      const d = Math.max(1.8, hit - 0.5);
+      const d = Math.max(1.4, hit - 0.35);
       want.x = from.x + ux * d;
       want.z = from.z + uz * d;
-      want.y = Math.min(want.y, from.y + 2.6 + d * 0.25);
+      want.y = Math.max(want.y, from.y + 1.2 + (len - d) * 0.35);   // ارفعها فوق العائق
     }
-    want.y = Math.max(want.y, SC.world.groundHeight(want.x, want.z) + 0.55);
+    pushOutOfWalls(want);
+    want.y = Math.max(want.y, SC.world.groundHeight(want.x, want.z) + 0.6);
     return want;
+  }
+
+  /* إخراج نقطة من داخل أي مبنى إلى أقرب حافة */
+  function pushOutOfWalls(p) {
+    const list = SC.world.queryColliders(p.x, p.z, 2.5);
+    for (const c of list) {
+      if (c.h && c.h < 1.2) continue;
+      if (p.y > (c.h || 8) + 0.8) continue;
+      const pad = CAM_PAD;
+      if (p.x > c.minX - pad && p.x < c.maxX + pad && p.z > c.minZ - pad && p.z < c.maxZ + pad) {
+        const dl = p.x - (c.minX - pad), dr = (c.maxX + pad) - p.x;
+        const db = p.z - (c.minZ - pad), dt = (c.maxZ + pad) - p.z;
+        const m = Math.min(dl, dr, db, dt);
+        if (m === dl) p.x = c.minX - pad;
+        else if (m === dr) p.x = c.maxX + pad;
+        else if (m === db) p.z = c.minZ - pad;
+        else p.z = c.maxZ + pad;
+      }
+    }
+    return p;
   }
 
   function setCamera(mode) {
@@ -454,6 +533,24 @@ SC.game = (function () {
     }
     skidTimer += dt;
     if (skidTimer > 0.5) { SC.fx.fadeSkid(G.time); skidTimer = 0; }
+  }
+
+  /* --------------------------- صدم أحد المارّة --------------------------- */
+  function onPedHit(power, ped) {
+    const penalty = Math.round(4 + power * 11);
+    const fine = Math.round(60 + power * 240);
+    G.lastPedHit = G.time;
+    addRep(-penalty);
+    addMoney(-Math.min(save.money, fine));
+    SC.audio.crash(power * 0.85);
+    SC.audio.bad();
+    shake(power * 0.7);
+    U.vibrate(160);
+    SC.hud.toast('صدمت أحد المارّة! −' + penalty + ' ثقة · −' + U.money(fine), 'bad', 2600);
+    const ms = SC.missions.state;
+    if (ms.active && ms.active.type === 'taxi' && ms.phase === 'drive') {
+      ms.comfort = Math.max(0, (ms.comfort || 1) - 0.35);
+    }
   }
 
   /* ------------------------------- البحر -------------------------------- */
@@ -557,6 +654,13 @@ SC.game = (function () {
       /* تصادم اللاعب مع المركبات الأخرى */
       collideVehicles(car, G.rivals.concat(SC.traffic.vehicles()));
 
+      if (settings.peds !== false) SC.peds.update(dt, car, G);
+      /* تعافي بطيء للسمعة أثناء القيادة الهادئة */
+      G.repTimer = (G.repTimer || 0) + dt;
+      if (G.repTimer > 5) {
+        G.repTimer = 0;
+        if (car.impact < 0.05 && G.time - (G.lastPedHit || -99) > 25) addRep(0.35);
+      }
       updateSkids(dt, car);
       updateWater(dt, car);
       SC.fx.updateParticles(dt);
@@ -574,6 +678,7 @@ SC.game = (function () {
         G.playerPathIdx = best;
       }
 
+      if (SC.net && SC.net.connected) SC.net.update(dt, car);
       SC.missions.update(dt, car);
       checkNearMission(car);
       updateArrow(car);
@@ -672,13 +777,38 @@ SC.game = (function () {
     G.mode = 'free';
     snapCamera();
     SC.audio.resume();
+    SC.audio.setSfxVolume(settings.sound ? 1 : 0);
+    SC.audio.setMusicVolume(settings.music == null ? 0.45 : settings.music);
+    if ((settings.music == null ? 0.45 : settings.music) > 0) SC.audio.startMusic();
+  }
+
+  /* تشغيل/إيقاف المارّة */
+  function setPeds(on) {
+    settings.peds = on;
+    SC.peds.setCount(on ? SC.quality.peds : 0, G.car.pos);
+    persist();
+  }
+
+  /* سباق مباشر ضدّ لاعب آخر عبر الإنترنت */
+  function startOnlineRace(defId, opponentId) {
+    const base = G.missions.find((m) => m.id === defId) ||
+                 G.missions.find((m) => m.type === 'race');
+    if (!base) return false;
+    const rival = SC.net.state.players.get(opponentId);
+    const def = Object.assign({}, base, {
+      rivals: 0, online: true, opponent: opponentId,
+      title: 'سباق ضدّ ' + (rival ? rival.name : 'لاعب'),
+      desc: 'سباق مباشر — أول من يُنهي اللفّات يفوز'
+    });
+    return startMission(def);
   }
 
   return {
     G, save, settings, init, frame, step, start, spawnPlayer, respawn, startMission,
     setCamera, cycleCamera, CAM_MODES, CAM_NAMES,
-    setTimeOfDay, setTraffic, setQuality, setWaypoint, togglePause, persist,
-    addMoney, addXp, shake, snapCamera, refreshFreeMarkers, buildMissionMarkers,
+    setTimeOfDay, setTraffic, setQuality, setWaypoint, togglePause, persist, setPeds, startOnlineRace,
+    addMoney, addXp, addRep, repMult, setPassenger, shake, snapCamera,
+    refreshFreeMarkers, buildMissionMarkers,
     get car() { return G.car; }
   };
 })();

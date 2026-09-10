@@ -111,6 +111,22 @@ SC.missions = (function () {
       });
     });
 
+    /* سيارة أجرة: نقل الركّاب — تحتاج ثقة عالية */
+    const taxiNames = [
+      ['توصيل راكب', 'أوصِل الراكب بهدوء وبلا اصطدامات'],
+      ['رحلة إلى المطار', 'راكب مستعجل — قِد بثبات']
+    ];
+    for (let i = 0; i < 2; i++) {
+      const a = spot(), bdst = spot();
+      const dist = Math.hypot(a.x - bdst.x, a.z - bdst.z);
+      const nm = taxiNames[i];
+      list.push({
+        id: 'taxi' + i, type: 'taxi', title: nm[0], desc: nm[1],
+        from: a, to: bdst, time: Math.max(90, dist / 12 + 45), minRep: 45,
+        reward: Math.round(420 + dist * 1.8), xp: 45, icon: '🚕', color: '#f2c14e'
+      });
+    }
+
     /* جمع الطرود */
     for (let i = 0; i < 1; i++) {
       const pts = [];
@@ -151,6 +167,11 @@ SC.missions = (function () {
     if (def.type === 'delivery') {
       state.phase = 'pickup';
       addCheckpoint(def.from.x, def.from.z, '#f4b942', 7);
+    } else if (def.type === 'taxi') {
+      state.phase = 'pickup';
+      state.comfort = 1;
+      addCheckpoint(def.from.x, def.from.z, '#f2c14e', 7);
+      state.rider = SC.peds.makeWaiting(def.from.x + 1.5, def.from.z + 1.5);
     } else if (def.type === 'collect') {
       def.points.forEach((p) => addCheckpoint(p.x, p.z, '#a78bfa', 5.5));
       state.collected = 0;
@@ -271,6 +292,40 @@ SC.missions = (function () {
         meta: '<span>' + U.distText(d) + '</span> · <b class="' + (state.timeLeft < 15 ? 'red' : '') + '">' + U.clock(state.timeLeft) + '</b>',
         warn: state.timeLeft < 15
       });
+    } else if (def.type === 'taxi') {
+      const cp = state.checkpoints[0];
+      const slow = car.kmh < 14;
+      if (cp && near(cp) && slow) {
+        if (state.phase === 'pickup') {
+          state.phase = 'drive';
+          ctx.scene.remove(cp.mesh);
+          state.checkpoints.length = 0;
+          if (state.rider) { SC.peds.removePed(state.rider); state.rider = null; }
+          ctx.setPassenger(true);
+          addCheckpoint(def.to.x, def.to.z, '#7fe8c0', 7);
+          SC.audio.good();
+          SC.hud.toast('ركب معك — قِد بهدوء', 'ok', 2400);
+          updateHudMarkers();
+        } else {
+          ctx.setPassenger(false);
+          return finish(true);
+        }
+      }
+      /* الراحة تقلّ مع الاصطدامات والسرعة الجنونية */
+      if (state.phase === 'drive') {
+        if (car.impact > 0.25) state.comfort = Math.max(0, state.comfort - car.impact * dt * 3.2);
+        if (car.kmh > 170) state.comfort = Math.max(0, state.comfort - dt * 0.05);
+      }
+      const target = state.checkpoints[0];
+      const d = target ? Math.hypot(target.x - px, target.z - pz) : 0;
+      const comfortPct = Math.round((state.comfort || 1) * 100);
+      SC.hud.setObjective({
+        title: def.title,
+        text: state.phase === 'pickup' ? 'توقّف عند الراكب لتقلّه' : 'أوصِل الراكب إلى وجهته وتوقّف',
+        meta: '<span>' + U.distText(d) + '</span> · <span>راحة ' + comfortPct + '٪</span> · <b class="' +
+          (state.timeLeft < 20 ? 'red' : '') + '">' + U.clock(state.timeLeft) + '</b>',
+        warn: state.timeLeft < 20 || comfortPct < 40
+      });
     } else if (def.type === 'collect') {
       let remaining = 0, nearest = null, nd = 1e9;
       state.checkpoints.forEach((c) => {
@@ -327,7 +382,7 @@ SC.missions = (function () {
   function finish(success, reason) {
     const def = state.active;
     if (!def) return;
-    let money = 0, xp = 0, pos = 1;
+    let money = 0, xp = 0, pos = 1, result_comfort = null;
     if (success) {
       money = def.reward;
       xp = def.xp;
@@ -337,12 +392,19 @@ SC.missions = (function () {
         money = Math.round(def.reward * mult);
         xp = Math.round(def.xp * mult);
       }
+      if (def.type === 'taxi') {
+        const cm = U.clamp(state.comfort == null ? 1 : state.comfort, 0, 1);
+        money = Math.round(money * (0.55 + cm * 0.65));
+        result_comfort = Math.round(cm * 100);
+      }
       if (def.time && state.timeLeft > 0) money += Math.round(state.timeLeft * 6);
     }
     const result = {
-      def, success, reason, money, xp, pos,
+      def, success, reason, money, xp, pos, comfort: result_comfort,
       time: state.elapsed, top: Math.round(ctx.car.topSpeedSeen)
     };
+    ctx.setPassenger(false);
+    if (state.rider) { SC.peds.removePed(state.rider); state.rider = null; }
     cancel(true);
     SC.hud.setObjective(null);
     ctx.onFinish && ctx.onFinish(result);

@@ -35,13 +35,18 @@
     canvas: $('c'), hud: $('hud'),
     loadBar: $('loadBar'), loadText: $('loadText'),
     money: $('money'), level: $('level'), xpBar: $('xpBar'), wpChip: $('wpChip'), fps: $('fps'),
+    repChip: $('repChip'), repVal: $('repVal'),
     objective: $('objective'), objTitle: $('objTitle'), objText: $('objText'), objMeta: $('objMeta'),
     mini: $('mini'), compass: $('compass'), speed: $('speed'),
     toasts: $('toasts'), banner: $('banner'),
     prompt: $('prompt'), promptTitle: $('promptTitle'), promptDesc: $('promptDesc'),
     promptReward: $('promptReward'), promptStart: $('promptStart'), promptClose: $('promptClose'),
     btnMissions: $('btnMissions'), btnShop: $('btnShop'), btnMap: $('btnMap'),
-    btnSettings: $('btnSettings'), btnPause: $('btnPause'),
+    btnSettings: $('btnSettings'), btnPause: $('btnPause'), btnOnline: $('btnOnline'),
+    screenOnline: $('screenOnline'), netStatus: $('netStatus'), netName: $('netName'),
+    netUrl: $('netUrl'), netConnect: $('netConnect'), netDisconnect: $('netDisconnect'),
+    netMic: $('netMic'), netPlayers: $('netPlayers'), netCount: $('netCount'),
+    netChat: $('netChat'), netMsg: $('netMsg'), netSend: $('netSend'),
     screenMenu: $('screenMenu'), screenShop: $('screenShop'), screenMap: $('screenMap'),
     screenMissions: $('screenMissions'), screenSettings: $('screenSettings'),
     screenResult: $('screenResult'), screenPause: $('screenPause'),
@@ -82,6 +87,7 @@
         SC.hud.toast('استكشف المدينة أو ابدأ مهمّة من العلامات الذهبية', '', 3800);
       };
       SC.input.bindTap($('btnPlay'), play);
+      SC.input.bindTap($('btnPlayOnline'), () => { play(); SC.ui.open('online'); });
       SC.input.bindTap($('btnMenuMissions'), () => SC.ui.open('missions'));
       SC.input.bindTap($('btnMenuShop'), () => SC.ui.open('shop'));
       SC.input.bindTap($('btnMenuSettings'), () => SC.ui.open('settings'));

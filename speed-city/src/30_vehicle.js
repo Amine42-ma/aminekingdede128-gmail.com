@@ -12,7 +12,7 @@ SC.cars = {
       grip: 1.06, steerMax: 0.60, dragK: 0.42, nitro: 1.0,
       stats: { speed: 62, accel: 58, grip: 70 }, seatH: 0.62, lean: 0.26,
       driver: { pose: 'car', scale: 0.92, seat: [0.32, 0.40, 0.08], wheel: [0.30, 0.83, 0.58],
-                wheelR: 0.19, eye: [0.32, 1.00, 0.14] }
+                wheelR: 0.19, eye: [0.32, 1.10, 0.04] }
     },
     bike: {
       key: 'bike_cyberpunk', name: 'دراجة سايبر X', tag: 'خارقة · تجريبية',
@@ -21,7 +21,7 @@ SC.cars = {
       grip: 1.02, steerMax: 0.68, dragK: 0.18, nitro: 1.35,
       stats: { speed: 92, accel: 95, grip: 66 }, seatH: 0.55, lean: 0.78, leanIn: true,
       driver: { pose: 'bike', scale: 0.90, seat: [0, 0.71, -0.20], wheel: [0, 0.86, 0.47],
-                wheelR: 0.235, eye: [0, 1.26, 0.06] }
+                wheelR: 0.235, eye: [0, 1.34, -0.02] }
     },
     van: {
       key: 'van_motorhome', name: 'بيت متنقّل GMC', tag: 'ثقيلة · رحلات',
@@ -30,7 +30,7 @@ SC.cars = {
       grip: 0.86, steerMax: 0.46, dragK: 1.05, nitro: 0.75,
       stats: { speed: 40, accel: 30, grip: 42 }, seatH: 1.35, lean: 0.20,
       driver: { pose: 'car', scale: 1.0, seat: [0.70, 1.26, 2.98], wheel: [0.70, 1.84, 3.32],
-                wheelR: 0.22, eye: [0.70, 1.88, 3.06] }
+                wheelR: 0.22, eye: [0.70, 1.99, 2.94] }
     }
   }
 };
@@ -321,7 +321,9 @@ SC.Vehicle = (function () {
       const accLong = F / mass + this.yawRate * this.vLat;
       const accLat = (Fyf * Math.cos(this.steerAngle) + Fyr) / mass - this.yawRate * this.vLong;
       const Izz = mass * (this.wheelBase * this.wheelBase + this.size.x * this.size.x) / 11;
-      const yawAcc = (a * Fyf * Math.cos(this.steerAngle) - b * Fyr) / Izz;
+      /* تخميد الالتفاف: يمنع دوران المركبة حول نفسها بلا توقّف */
+      const yawDamp = this.yawRate * (2.6 + Math.abs(this.vLong) * 0.10) * (hb ? 0.45 : 1);
+      const yawAcc = (a * Fyf * Math.cos(this.steerAngle) - b * Fyr) / Izz - yawDamp;
 
       this.vLong += accLong * dt;
       this.vLat += accLat * dt;
@@ -333,7 +335,10 @@ SC.Vehicle = (function () {
       this.yawRate = U.lerp(kinYaw, this.yawRate, lowT);
       this.vLat *= (0.02 + 0.98 * lowT);
       if (Math.abs(this.vLong) < 0.25 && thr < 0.02 && brk < 0.02) { this.vLong *= 0.86; this.yawRate *= 0.7; }
-      this.yawRate = U.clamp(this.yawRate, -3.4, 3.4);
+      /* عند السرعة شبه المعدومة لا معنى لدوران المركبة حول نفسها */
+      if (Math.abs(this.vLong) < 1.2) this.yawRate = U.damp(this.yawRate, 0, 9, dt);
+      const yawCap = Math.min(3.2, 0.9 + Math.abs(this.vLong) * 0.20);
+      this.yawRate = U.clamp(this.yawRate, -yawCap, yawCap);
 
       /* --- دمج الحركة --- */
       this.yaw += this.yawRate * dt;

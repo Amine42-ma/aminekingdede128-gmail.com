@@ -28,6 +28,8 @@ SC.ui = (function () {
     SC.input.bindTap(dom.btnMap, () => open('map'));
     SC.input.bindTap(dom.btnSettings, () => open('settings'));
     SC.input.bindTap(dom.btnPause, () => open('pause'));
+    SC.input.bindTap(dom.btnOnline, () => open('online'));
+    initOnline();
 
     U.$$('[data-close]').forEach((b) => SC.input.bindTap(b, () => hideAll()));
 
@@ -54,6 +56,7 @@ SC.ui = (function () {
     current = name;
     const el = dom['screen' + name.charAt(0).toUpperCase() + name.slice(1)];
     if (!el) return;
+    if (name === 'online') buildOnline();
     if (name === 'shop') buildShop();
     if (name === 'missions') buildMissions();
     if (name === 'map') { centerMap(); drawMap(); }
@@ -64,7 +67,8 @@ SC.ui = (function () {
     SC.audio.ui();
   }
   function hideAll(silent) {
-    ['screenMenu', 'screenShop', 'screenMap', 'screenMissions', 'screenSettings', 'screenResult', 'screenPause']
+    ['screenMenu', 'screenShop', 'screenMap', 'screenMissions', 'screenSettings', 'screenResult',
+     'screenPause', 'screenOnline']
       .forEach((k) => dom[k] && dom[k].classList.remove('show'));
     current = null;
     dom.hud.classList.remove('dim');
@@ -76,6 +80,15 @@ SC.ui = (function () {
 
   function refreshWallet() {
     const s = SC.game.save;
+    if (dom.repVal) {
+      const r = Math.round(s.rep == null ? 70 : s.rep);
+      dom.repVal.textContent = r + '%';
+      if (dom.repChip) {
+        dom.repChip.classList.toggle('low', r < 35);
+        dom.repChip.classList.toggle('high', r >= 75);
+        dom.repChip.title = 'ثقة الناس بك';
+      }
+    }
     if (dom.money) dom.money.textContent = U.money(s.money);
     if (dom.level) dom.level.textContent = 'المستوى ' + s.level;
     if (dom.xpBar) dom.xpBar.style.width = U.clamp(s.xp / (s.level * 500) * 100, 0, 100) + '%';
@@ -90,6 +103,141 @@ SC.ui = (function () {
     const car = SC.game.car;
     car.lightsOn = !car.lightsOn;
     SC.hud.toast(car.lightsOn ? 'الأضواء مُشغّلة' : 'الأضواء مُطفأة', '', 1200);
+  }
+
+  /* ----------------------------- أون لاين ------------------------------- */
+  function setNetStatus(text, cls) {
+    if (!dom.netStatus) return;
+    dom.netStatus.textContent = text;
+    dom.netStatus.className = 'net-status ' + (cls || '');
+  }
+
+  function initOnline() {
+    if (!dom.netConnect) return;
+    const saved = U.store.get('speedcity.net', {});
+    dom.netName.value = saved.name || ('سائق ' + Math.floor(Math.random() * 900 + 100));
+    dom.netUrl.value = saved.url || (location.protocol === 'https:' ? 'wss://' : 'ws://') +
+      (location.host || 'localhost:8080');
+
+    SC.input.bindTap(dom.netConnect, async () => {
+      const url = dom.netUrl.value.trim(), name = dom.netName.value.trim() || 'سائق';
+      U.store.set('speedcity.net', { url, name });
+      setNetStatus('جارٍ الاتّصال…');
+      try {
+        await SC.net.connect(url, name);
+      } catch (e) {
+        setNetStatus('فشل الاتّصال', 'err');
+        SC.hud.toast('تعذّر الاتّصال بالخادم — تأكّد من تشغيله ومن العنوان', 'bad', 4200);
+      }
+    });
+    SC.input.bindTap(dom.netDisconnect, () => { SC.net.disconnect(); setNetStatus('غير متّصل'); });
+    SC.input.bindTap(dom.netMic, async () => {
+      if (SC.net.state.mic) SC.net.stopMic();
+      else await SC.net.startMic();
+    });
+    SC.input.bindTap(dom.netSend, sendChat);
+    dom.netMsg && dom.netMsg.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
+
+    SC.net.onEvent = (type, data) => {
+      if (type === 'open') {
+        setNetStatus('متّصل ✓', 'on');
+        SC.hud.toast('اتّصلت باللعب الجماعي', 'ok');
+        buildOnline();
+      } else if (type === 'close') {
+        setNetStatus('انقطع الاتّصال', 'err');
+        SC.hud.toast('انقطع الاتّصال بالخادم', 'bad');
+        buildOnline();
+      } else if (type === 'players') {
+        buildOnline();
+      } else if (type === 'toast') {
+        SC.hud.toast(data.text, data.kind);
+      } else if (type === 'chat') {
+        addChat(data.name, data.msg);
+        if (current !== 'online') SC.hud.toast('💬 ' + data.name + ': ' + data.msg, '', 3000);
+      } else if (type === 'mic') {
+        if (dom.netMic) dom.netMic.classList.toggle('primary', !!data);
+        SC.hud.toast(data ? '🎙 الميكروفون مفتوح' : 'الميكروفون مغلق', data ? 'ok' : '');
+      } else if (type === 'invite') {
+        onInvite(data);
+      } else if (type === 'accept') {
+        SC.hud.toast((data.name || 'اللاعب') + ' قبل التحدّي — انطلق!', 'ok', 3000);
+        SC.game.startOnlineRace(data.race, data.from);
+      } else if (type === 'race') {
+        if (data.kind === 'finish') {
+          SC.hud.banner('خسرت السباق', (data.name || 'الخصم') + ' وصل أولاً', 3000);
+        }
+      }
+    };
+  }
+
+  function sendChat() {
+    const v = dom.netMsg.value.trim();
+    if (!v || !SC.net.connected) return;
+    SC.net.chat(v);
+    addChat('أنت', v);
+    dom.netMsg.value = '';
+  }
+  function addChat(name, msg) {
+    if (!dom.netChat) return;
+    const line = U.el('div', 'line', '<b>' + name + ':</b> ' + msg.replace(/[<>]/g, ''));
+    dom.netChat.appendChild(line);
+    while (dom.netChat.children.length > 40) dom.netChat.removeChild(dom.netChat.firstChild);
+    dom.netChat.scrollTop = dom.netChat.scrollHeight;
+  }
+
+  function buildOnline() {
+    if (!dom.netPlayers) return;
+    const list = SC.net.playerList();
+    dom.netCount.textContent = '(' + list.length + ')';
+    dom.netPlayers.innerHTML = '';
+    if (!SC.net.connected) {
+      dom.netPlayers.appendChild(U.el('div', 'net-empty', 'اتّصل بالخادم لرؤية اللاعبين'));
+      return;
+    }
+    if (!list.length) {
+      dom.netPlayers.appendChild(U.el('div', 'net-empty', 'لا يوجد لاعبون آخرون الآن'));
+      return;
+    }
+    list.forEach((p) => {
+      const row = U.el('div', 'net-player');
+      row.innerHTML = '<span>🚗</span><b>' + p.name + '</b>' +
+        '<span class="car">' + ((SC.cars.defs[p.car] || {}).name || '') + '</span>';
+      const race = U.el('button', 'btn tiny primary', 'تحدّه في سباق');
+      SC.input.bindTap(race, () => {
+        SC.net.invite(p.id);
+        SC.hud.toast('أُرسلت الدعوة إلى ' + p.name, 'ok');
+      });
+      const go = U.el('button', 'btn tiny ghost', 'اذهب إليه');
+      SC.input.bindTap(go, () => { SC.game.setWaypoint({ x: p.x, z: p.z }); hideAll(); });
+      row.appendChild(race); row.appendChild(go);
+      dom.netPlayers.appendChild(row);
+    });
+  }
+
+  function onInvite(data) {
+    const name = data.name || 'لاعب';
+    const el = dom.screenResult;
+    dom.resultTitle.textContent = 'تحدّي سباق!';
+    dom.resultTitle.className = 'res-title';
+    dom.resultSub.textContent = name + ' يدعوك إلى سباق';
+    dom.resultRows.innerHTML = '';
+    const wrap = U.el('div', 'pause-btns');
+    const ok = U.el('button', 'btn primary xl', 'قبول والانطلاق');
+    SC.input.bindTap(ok, () => {
+      const raceDef = (SC.game.G.missions.find((m) => m.type === 'race') || {}).id;
+      SC.net.acceptInvite(data.from, raceDef);
+      hideAll();
+      SC.game.startOnlineRace(raceDef, data.from);
+    });
+    const no = U.el('button', 'btn xl', 'رفض');
+    SC.input.bindTap(no, () => { SC.net.decline(data.from); hideAll(); });
+    wrap.appendChild(ok); wrap.appendChild(no);
+    dom.resultRows.appendChild(wrap);
+    el.classList.add('show');
+    dom.hud.classList.add('dim');
+    current = 'result';
+    SC.game.togglePause(true);
+    SC.audio.good();
   }
 
   /* ------------------------------ المتجر -------------------------------- */
@@ -369,7 +517,28 @@ SC.ui = (function () {
       SC.game.persist();
     });
     dom.vol = vol;
-    row('مستوى الصوت', vol);
+    row('مؤثّرات الصوت', vol);
+
+    const mvol = U.el('input');
+    mvol.type = 'range'; mvol.min = '0'; mvol.max = '1'; mvol.step = '0.05';
+    mvol.addEventListener('input', () => {
+      SC.settings.music = +mvol.value;
+      SC.audio.setMusicVolume(+mvol.value);
+      if (+mvol.value > 0) SC.audio.startMusic();
+      SC.game.persist();
+    });
+    dom.mvol = mvol;
+    row('الموسيقى الخلفية', mvol);
+
+    row('الميكروفون (أون لاين)', seg('mic', [['1', 'مفتوح'], ['0', 'مغلق']], null,
+      async (v) => {
+        if (v === '1') await SC.net.startMic(); else SC.net.stopMic();
+        SC.settings.micOn = v === '1';
+        SC.game.persist();
+      }), 'للتحدّث مع اللاعبين أثناء اللعب الجماعي');
+
+    row('المارّة في الشوارع', seg('peds', [['1', 'مفعّل'], ['0', 'مطفأ']], null,
+      (v) => { SC.settings.peds = v === '1'; SC.game.setPeds(v === '1'); }));
 
     row('الاهتزاز', seg('haptics', [['1', 'مُفعّل'], ['0', 'مُطفأ']], null,
       (v) => { SC.settings.haptics = v === '1'; SC.game.persist(); }));
@@ -396,6 +565,9 @@ SC.ui = (function () {
     if (dom.sens) dom.sens.value = s.steerSense;
     if (dom.lookS) dom.lookS.value = s.lookSense || 1;
     if (dom.vol) dom.vol.value = s.sound ? s.volume : 0;
+    if (dom.mvol) dom.mvol.value = s.music == null ? 0.5 : s.music;
+    setGroup('mic', SC.net && SC.net.state.mic ? '1' : '0');
+    setGroup('peds', s.peds === false ? '0' : '1');
   }
 
   /* ------------------------------ النتائج ------------------------------- */
@@ -406,6 +578,7 @@ SC.ui = (function () {
     dom.resultSub.textContent = res.def.title + (res.reason ? ' — ' + res.reason : '');
     const rows = [];
     if (res.def.type === 'race') rows.push(['المركز', res.pos + ' / ' + (res.def.rivals + 1)]);
+    if (res.comfort != null) rows.push(['راحة الراكب', res.comfort + '٪']);
     rows.push(['الزمن', U.time(res.time)]);
     rows.push(['أعلى سرعة', res.top + ' كم/س']);
     rows.push(['المكافأة', res.success ? U.money(res.money) : U.money(0)]);

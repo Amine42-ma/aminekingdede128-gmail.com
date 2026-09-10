@@ -90,6 +90,17 @@ SC.character = (function () {
     const collar = new THREE.Mesh(geo('collar', () => new THREE.CylinderGeometry(0.085, 0.10, 0.06, 12)), M.jacket2);
     collar.position.y = 0.415;
     torso.add(collar);
+    /* سحّاب أمامي + حزام + شارة صدر */
+    const zip = new THREE.Mesh(geo('zip', () => new THREE.BoxGeometry(0.022, 0.30, 0.015)), M.jacket2);
+    zip.position.set(0, 0.28, 0.128);
+    torso.add(zip);
+    const belt = new THREE.Mesh(geo('belt', () => new THREE.BoxGeometry(0.30, 0.045, 0.185)), M.boots);
+    belt.position.set(0, 0.075, 0);
+    torso.add(belt);
+    const badge = new THREE.Mesh(geo('badge', () => new THREE.BoxGeometry(0.055, 0.03, 0.012)),
+      new THREE.MeshStandardMaterial({ color: 0xffd23f, roughness: 0.35, metalness: 0.6 }));
+    badge.position.set(0.075, 0.34, 0.126);
+    torso.add(badge);
 
     /* الرأس */
     const neck = joint(torso, 0, 0.44, 0);
@@ -155,6 +166,14 @@ SC.character = (function () {
     stripe.rotation.set(0, Math.PI / 2, Math.PI * 0.05);
     stripe.position.y = 0.082;
     helmet.add(stripe);
+    const vent = new THREE.Mesh(geo('vent', () => new THREE.BoxGeometry(0.075, 0.022, 0.05)), M.visor);
+    vent.position.set(0, 0.155, 0.095);
+    vent.rotation.x = -0.35;
+    helmet.add(vent);
+    const rim = new THREE.Mesh(geo('hrim', () => new THREE.TorusGeometry(0.128, 0.014, 8, 22)), M.jacket2);
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = -0.005;
+    helmet.add(rim);
     helmet.visible = false;
     head.add(helmet);
 
@@ -178,6 +197,16 @@ SC.character = (function () {
       thumb.rotation.z = side * 0.9;
       thumb.position.set(-side * 0.032, -0.032, 0.02);
       wrist.add(thumb);
+      /* أصابع مبسّطة + سوار المعصم */
+      for (let f = 0; f < 3; f++) {
+        const fin = new THREE.Mesh(geo('finger', () => new THREE.CapsuleGeometry(0.013, 0.035, 3, 5)), M.glove);
+        fin.rotation.x = 0.5;
+        fin.position.set((f - 1) * 0.019, -0.088, 0.026);
+        wrist.add(fin);
+      }
+      const cuff = new THREE.Mesh(geo('cuff', () => new THREE.CylinderGeometry(0.052, 0.046, 0.045, 10)), M.jacket);
+      cuff.position.y = 0.012;
+      wrist.add(cuff);
       return { shoulder, elbow, wrist, hand, upperLen: 0.29, foreLen: 0.27, side };
     }
     const armL = arm(1), armR = arm(-1);
@@ -193,6 +222,14 @@ SC.character = (function () {
       const ankle = joint(knee, 0, -0.38, 0);
       const foot = new THREE.Mesh(geo('foot', () => new THREE.BoxGeometry(0.088, 0.062, 0.215)), M.boots);
       foot.position.set(0, -0.03, 0.062);
+      const sole = new THREE.Mesh(geo('sole', () => new THREE.BoxGeometry(0.094, 0.022, 0.225)),
+        new THREE.MeshStandardMaterial({ color: 0x2c2c30, roughness: 0.95 }));
+      sole.position.set(0, -0.062, 0.066);
+      ankle.add(sole);
+      const kneePad = new THREE.Mesh(geo('kneepad', () => new THREE.SphereGeometry(0.068, 10, 8)), M.jacket2);
+      kneePad.scale.set(1, 0.85, 0.9);
+      kneePad.position.set(0, 0.01, 0.02);
+      knee.add(kneePad);
       foot.castShadow = true;
       ankle.add(foot);
       return { hip, knee, ankle, foot, thighLen: 0.40, shinLen: 0.38, side };
@@ -333,6 +370,119 @@ SC.character = (function () {
     };
   }
 
+  /* ====================================================================
+     المارّة: جسم مدموج بألوان مخبوزة في الرؤوس (٣ رسمات فقط لكل شخص)
+     ==================================================================== */
+  function mergeParts(parts) {
+    let vtot = 0, itot = 0;
+    parts.forEach((p) => {
+      const g = p.geo;
+      vtot += g.attributes.position.count;
+      itot += g.index ? g.index.count : g.attributes.position.count;
+    });
+    const P = new Float32Array(vtot * 3), N = new Float32Array(vtot * 3), C = new Float32Array(vtot * 3);
+    const I = new Uint32Array(itot);
+    let vo = 0, io = 0;
+    const v = new THREE.Vector3(), col = new THREE.Color();
+    parts.forEach((p) => {
+      const g = p.geo, pos = g.attributes.position, nor = g.attributes.normal;
+      const nm = new THREE.Matrix3().getNormalMatrix(p.matrix);
+      col.setHex(p.color).convertSRGBToLinear();
+      for (let i = 0; i < pos.count; i++) {
+        v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).applyMatrix4(p.matrix);
+        P[(vo + i) * 3] = v.x; P[(vo + i) * 3 + 1] = v.y; P[(vo + i) * 3 + 2] = v.z;
+        if (nor) {
+          v.set(nor.getX(i), nor.getY(i), nor.getZ(i)).applyMatrix3(nm).normalize();
+          N[(vo + i) * 3] = v.x; N[(vo + i) * 3 + 1] = v.y; N[(vo + i) * 3 + 2] = v.z;
+        }
+        C[(vo + i) * 3] = col.r; C[(vo + i) * 3 + 1] = col.g; C[(vo + i) * 3 + 2] = col.b;
+      }
+      if (g.index) for (let i = 0; i < g.index.count; i++) I[io + i] = g.index.getX(i) + vo;
+      else for (let i = 0; i < pos.count; i++) I[io + i] = i + vo;
+      io += g.index ? g.index.count : pos.count;
+      vo += pos.count;
+    });
+    const out = new THREE.BufferGeometry();
+    out.setAttribute('position', new THREE.BufferAttribute(P, 3));
+    out.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+    out.setAttribute('color', new THREE.BufferAttribute(C, 3));
+    out.setIndex(new THREE.BufferAttribute(I, 1));
+    out.computeBoundingSphere();
+    return out;
+  }
+
+  const M4 = (x, y, z, rx, ry, rz, sx, sy, sz) => new THREE.Matrix4().compose(
+    new THREE.Vector3(x, y, z),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(rx || 0, ry || 0, rz || 0)),
+    new THREE.Vector3(sx == null ? 1 : sx, sy == null ? 1 : sy, sz == null ? 1 : sz));
+
+  const PED_OUTFITS = [
+    { skin: 0xd9a17a, hair: 0x2b2119, top: 0x2f4f7a, pants: 0x2a2f3a, shoe: 0x1a1a1c },
+    { skin: 0xf0c9a0, hair: 0x6b4a2a, top: 0x8c2f2f, pants: 0x3b4250, shoe: 0x222 },
+    { skin: 0xa9714b, hair: 0x141414, top: 0x2f7a52, pants: 0x54586a, shoe: 0x2a2a2a },
+    { skin: 0xe8b98d, hair: 0xa8823c, top: 0xd9b13a, pants: 0x27303f, shoe: 0x191919 },
+    { skin: 0x8d5a3b, hair: 0x1c1712, top: 0x6b4a9e, pants: 0x3a3f4a, shoe: 0x202020 },
+    { skin: 0xf2d3b3, hair: 0x8a8a8a, top: 0xdedede, pants: 0x2f3548, shoe: 0x151515 }
+  ];
+
+  /* يبني أشكال المارّة مرّة واحدة: الجزء العلوي + ساقان */
+  let pedCache = null;
+  function walkerVariants() {
+    if (pedCache) return pedCache;
+    const capsule = (r, len, seg) => new THREE.CapsuleGeometry(r, len, 3, seg || 8);
+    const sphere = (r, s) => new THREE.SphereGeometry(r, s || 10, 8);
+    const box = (x, y, z) => new THREE.BoxGeometry(x, y, z);
+
+    pedCache = PED_OUTFITS.map((o) => {
+      const upper = mergeParts([
+        { geo: capsule(0.135, 0.30, 10), matrix: M4(0, 1.18, 0, 0, 0, 0, 1.28, 1, 0.82), color: o.top },
+        { geo: capsule(0.10, 0.12, 8), matrix: M4(0, 0.95, 0, 0, 0, 0, 1.25, 1, 0.9), color: o.pants },
+        { geo: new THREE.CylinderGeometry(0.05, 0.055, 0.07, 8), matrix: M4(0, 1.44, 0), color: o.skin },
+        { geo: sphere(0.093, 12), matrix: M4(0, 1.545, 0, 0, 0, 0, 0.95, 1.06, 1), color: o.skin },
+        { geo: new THREE.SphereGeometry(0.098, 12, 8, 0, 6.283, 0, 1.9), matrix: M4(0, 1.548, -0.004, 0, 0, 0, 0.99, 1.06, 1.02), color: o.hair },
+        { geo: sphere(0.021, 6), matrix: M4(0, 1.53, 0.085), color: o.skin },
+        // الذراعان
+        { geo: capsule(0.05, 0.17, 8), matrix: M4(0.175, 1.30, 0.02, 0.22, 0, 0.12), color: o.top },
+        { geo: capsule(0.05, 0.17, 8), matrix: M4(-0.175, 1.30, 0.02, -0.22, 0, -0.12), color: o.top },
+        { geo: capsule(0.044, 0.16, 8), matrix: M4(0.20, 1.04, 0.10, 0.55, 0, 0.10), color: o.skin },
+        { geo: capsule(0.044, 0.16, 8), matrix: M4(-0.20, 1.04, 0.10, -0.55, 0, -0.10), color: o.skin }
+      ]);
+      // الساق: أصلها عند مفصل الورك (0,0,0) وتتدلّى للأسفل
+      const leg = (side) => mergeParts([
+        { geo: capsule(0.072, 0.30, 8), matrix: M4(0, -0.22, 0), color: o.pants },
+        { geo: capsule(0.06, 0.26, 8), matrix: M4(0, -0.62, 0), color: o.pants },
+        { geo: box(0.085, 0.06, 0.20), matrix: M4(0, -0.855, 0.045), color: o.shoe }
+      ]);
+      return { upper, legL: leg(1), legR: leg(-1), outfit: o };
+    });
+    return pedCache;
+  }
+
+  let pedMat = null;
+  function walkerMaterial() {
+    if (!pedMat) pedMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.02 });
+    return pedMat;
+  }
+
+  /* يبني ماشياً جاهزاً للتحريك */
+  function createWalker(variantIndex) {
+    const vars = walkerVariants();
+    const v = vars[variantIndex % vars.length];
+    const mat = walkerMaterial();
+    const root = new THREE.Group();
+    const upper = new THREE.Mesh(v.upper, mat);
+    upper.castShadow = true;
+    root.add(upper);
+    const hipY = 0.92;
+    const legL = new THREE.Group(); legL.position.set(0.085, hipY, 0);
+    const legR = new THREE.Group(); legR.position.set(-0.085, hipY, 0);
+    const mL = new THREE.Mesh(v.legL, mat), mR = new THREE.Mesh(v.legR, mat);
+    mL.castShadow = mR.castShadow = true;
+    legL.add(mL); legR.add(mR);
+    root.add(legL); root.add(legR);
+    return { root, upper, legL, legR, phase: Math.random() * 6.283 };
+  }
+
   /* ------------------------ مقود قابل للدوران ------------------------- */
   function steeringWheel(radius, color) {
     const g = new THREE.Group();
@@ -354,5 +504,5 @@ SC.character = (function () {
     return g;
   }
 
-  return { create, createSimple, steeringWheel, PALETTE };
+  return { create, createSimple, createWalker, walkerVariants, mergeParts, steeringWheel, PALETTE, PED_OUTFITS };
 })();
