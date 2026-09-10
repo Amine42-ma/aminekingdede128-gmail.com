@@ -15,7 +15,7 @@ SC.game = (function () {
 
   const settings = {
     quality: 'auto', shadows: true, steerMode: 'buttons', steerSense: 1.0,
-    invertTilt: false, sound: true, volume: 0.85, haptics: true,
+    invertTilt: false, sound: true, volume: 0.85, haptics: true, assist: true, lookSense: 1.0,
     mapRotate: true, timeOfDay: 'day', traffic: true, camera: 'chase'
   };
   SC.settings = settings;
@@ -91,7 +91,7 @@ SC.game = (function () {
 
     const scene = new THREE.Scene();
     G.scene = scene;
-    const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.35, q.far * 4);
+    const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.42, q.far * 3.6);
     camera.position.set(0, 12, -20);
     G.camera = camera;
 

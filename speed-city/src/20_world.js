@@ -209,7 +209,8 @@ SC.world = (function () {
       }
     });
     const sky = new THREE.Mesh(geo, mat);
-    sky.scale.setScalar(4000);
+    // نصف قطر القبّة يتبع مدى الكاميرا، وإلا قُصّت السماء وظهرت سوداء
+    sky.scale.setScalar(Math.max(1200, (SC.quality ? SC.quality.far : 1000) * 3.4));
     sky.frustumCulled = false;
     sky.renderOrder = -1000;
     scene.add(sky);
@@ -337,6 +338,7 @@ SC.world = (function () {
     scene.add(sun); scene.add(sun.target);
     state.sun = sun;
     state.sky = buildSky(scene);
+    state.sky.scale.setScalar(Math.max(1200, quality.far * 3.4));
 
     /* --- الأرض: أسفلت المدينة، ثم شاطئ رملي، ثم البحر --- */
     const S = CFG.span, HALF = CFG.half, MARGIN = CFG.road;
@@ -361,17 +363,23 @@ SC.world = (function () {
       G.add(m);
     });
 
+    /* البحر: حلقة حول الشاطئ فقط (لا يمتدّ تحت المدينة حتى لا يتداخل مع الأسفلت) */
     const waterMat = new THREE.MeshStandardMaterial({
       color: 0x246e91, roughness: 0.08, metalness: 0.62,
       normalMap: TEX.waterN, normalScale: new THREE.Vector2(0.85, 0.85)
     });
-    const water = new THREE.Mesh(new THREE.PlaneGeometry(26000, 26000), waterMat);
-    water.rotation.x = -Math.PI / 2;
-    water.position.y = -0.55;
-    water.receiveShadow = false;
-    water.name = 'water';
-    G.add(water);
-    state.water = water;
+    const sea = new THREE.Group();
+    sea.name = 'water';
+    const wIn = CFG.shore * 2, wOut = 24000, WB = (wOut - wIn) / 2;
+    [[0, (wIn + WB) / 2, wOut, WB], [0, -(wIn + WB) / 2, wOut, WB],
+     [(wIn + WB) / 2, 0, WB, wIn], [-(wIn + WB) / 2, 0, WB, wIn]].forEach(([x, z, sx, sz]) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(sx, sz), waterMat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(x, -0.35, z);
+      G.add(m);
+      sea.add(m.clone());       // نسخة للمرجع فقط
+    });
+    state.water = { material: waterMat, visible: true };
 
     /* --- المربعات السكنية: رصيف + سطح داخلي --- */
     const NB = CFG.blocks, P = CFG.pitch, R = CFG.road, W = CFG.walk;
@@ -808,7 +816,7 @@ SC.world = (function () {
       state.sky.position.set(focus.x, 0, focus.z);
       state.sky.material.uniforms.uTime.value += dt;
     }
-    if (state.water) {
+    if (state.water && state.water.material) {
       const n = state.water.material.normalMap;
       n.offset.x += dt * 0.012;
       n.offset.y += dt * 0.007;

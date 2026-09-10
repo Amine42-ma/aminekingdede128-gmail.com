@@ -331,6 +331,15 @@ SC.ui = (function () {
     dom.sens = sens;
     row('حساسية التوجيه', sens);
 
+    row('مساعدة الثبات', seg('assist', [['1', 'مفعّلة'], ['0', 'مطفأة']], null,
+      (v) => { SC.settings.assist = v === '1'; SC.game.persist(); }), 'تصحيح تلقائي خفيف عند الانزلاق');
+
+    const lookS = U.el('input');
+    lookS.type = 'range'; lookS.min = '0.4'; lookS.max = '2'; lookS.step = '0.05';
+    lookS.addEventListener('input', () => { SC.settings.lookSense = +lookS.value; SC.game.persist(); });
+    dom.lookS = lookS;
+    row('حساسية تدوير الكاميرا', lookS);
+
     row('الكاميرا', seg('cam', [['chase', 'خلفية'], ['far', 'بعيدة'], ['hood', 'داخل المقصورة'], ['orbit', 'دوران حر']],
       null, (v) => SC.hud.toast('الكاميرا: ' + SC.game.setCamera(v), '', 1400)),
       'اسحب بإصبعك على الشاشة للنظر حولك، وبإصبعين للتقريب');
@@ -383,7 +392,9 @@ SC.ui = (function () {
     setGroup('traffic', s.traffic ? '1' : '0');
     setGroup('rotate', s.mapRotate ? '1' : '0');
     setGroup('haptics', s.haptics ? '1' : '0');
+    setGroup('assist', s.assist ? '1' : '0');
     if (dom.sens) dom.sens.value = s.steerSense;
+    if (dom.lookS) dom.lookS.value = s.lookSense || 1;
     if (dom.vol) dom.vol.value = s.sound ? s.volume : 0;
   }
 

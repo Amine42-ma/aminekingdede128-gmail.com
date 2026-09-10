@@ -271,6 +271,13 @@ SC.Vehicle = (function () {
       this.steerAngle = U.clamp(this.steerAngle, -steerLimit, steerLimit);
       if (Math.abs(inp.steer) < 0.02) this.steerAngle = U.damp(this.steerAngle, 0, 9, dt);
 
+      /* مساعدة الثبات: تصحيح تلقائي خفيف عكس الانزلاق (يمكن إطفاؤها) */
+      if (SC.settings && SC.settings.assist !== false && inp.handbrake < 0.5 && spd > 4) {
+        const beta = Math.atan2(this.vLat, Math.abs(this.vLong) + 1.5);
+        this.steerAngle = U.clamp(this.steerAngle + U.clamp(beta * 0.42, -0.14, 0.14),
+          -steerLimit * 1.35, steerLimit * 1.35);
+      }
+
       /* --- النيترو --- */
       const wantBoost = inp.boost > 0.5 && this.nitro > 0.02 && this.vLong > -1;
       this.nitroActive = wantBoost;

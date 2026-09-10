@@ -4936,7 +4936,8 @@ SC.world = (function () {
       }
     });
     const sky = new THREE.Mesh(geo, mat);
-    sky.scale.setScalar(4000);
+    // نصف قطر القبّة يتبع مدى الكاميرا، وإلا قُصّت السماء وظهرت سوداء
+    sky.scale.setScalar(Math.max(1200, (SC.quality ? SC.quality.far : 1000) * 3.4));
     sky.frustumCulled = false;
     sky.renderOrder = -1000;
     scene.add(sky);
@@ -5064,6 +5065,7 @@ SC.world = (function () {
     scene.add(sun); scene.add(sun.target);
     state.sun = sun;
     state.sky = buildSky(scene);
+    state.sky.scale.setScalar(Math.max(1200, quality.far * 3.4));
 
     /* --- الأرض: أسفلت المدينة، ثم شاطئ رملي، ثم البحر --- */
     const S = CFG.span, HALF = CFG.half, MARGIN = CFG.road;
@@ -5088,17 +5090,23 @@ SC.world = (function () {
       G.add(m);
     });
 
+    /* البحر: حلقة حول الشاطئ فقط (لا يمتدّ تحت المدينة حتى لا يتداخل مع الأسفلت) */
     const waterMat = new THREE.MeshStandardMaterial({
       color: 0x246e91, roughness: 0.08, metalness: 0.62,
       normalMap: TEX.waterN, normalScale: new THREE.Vector2(0.85, 0.85)
     });
-    const water = new THREE.Mesh(new THREE.PlaneGeometry(26000, 26000), waterMat);
-    water.rotation.x = -Math.PI / 2;
-    water.position.y = -0.55;
-    water.receiveShadow = false;
-    water.name = 'water';
-    G.add(water);
-    state.water = water;
+    const sea = new THREE.Group();
+    sea.name = 'water';
+    const wIn = CFG.shore * 2, wOut = 24000, WB = (wOut - wIn) / 2;
+    [[0, (wIn + WB) / 2, wOut, WB], [0, -(wIn + WB) / 2, wOut, WB],
+     [(wIn + WB) / 2, 0, WB, wIn], [-(wIn + WB) / 2, 0, WB, wIn]].forEach(([x, z, sx, sz]) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(sx, sz), waterMat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(x, -0.35, z);
+      G.add(m);
+      sea.add(m.clone());       // نسخة للمرجع فقط
+    });
+    state.water = { material: waterMat, visible: true };
 
     /* --- المربعات السكنية: رصيف + سطح داخلي --- */
     const NB = CFG.blocks, P = CFG.pitch, R = CFG.road, W = CFG.walk;
@@ -5535,7 +5543,7 @@ SC.world = (function () {
       state.sky.position.set(focus.x, 0, focus.z);
       state.sky.material.uniforms.uTime.value += dt;
     }
-    if (state.water) {
+    if (state.water && state.water.material) {
       const n = state.water.material.normalMap;
       n.offset.x += dt * 0.012;
       n.offset.y += dt * 0.007;
@@ -6393,6 +6401,13 @@ SC.Vehicle = (function () {
       this.steerAngle = U.moveToward(this.steerAngle, -inp.steer * steerLimit, steerRate * def.steerMax * 4);
       this.steerAngle = U.clamp(this.steerAngle, -steerLimit, steerLimit);
       if (Math.abs(inp.steer) < 0.02) this.steerAngle = U.damp(this.steerAngle, 0, 9, dt);
+
+      /* مساعدة الثبات: تصحيح تلقائي خفيف عكس الانزلاق (يمكن إطفاؤها) */
+      if (SC.settings && SC.settings.assist !== false && inp.handbrake < 0.5 && spd > 4) {
+        const beta = Math.atan2(this.vLat, Math.abs(this.vLong) + 1.5);
+        this.steerAngle = U.clamp(this.steerAngle + U.clamp(beta * 0.42, -0.14, 0.14),
+          -steerLimit * 1.35, steerLimit * 1.35);
+      }
 
       /* --- النيترو --- */
       const wantBoost = inp.boost > 0.5 && this.nitro > 0.02 && this.vLong > -1;
@@ -8502,6 +8517,15 @@ SC.ui = (function () {
     dom.sens = sens;
     row('حساسية التوجيه', sens);
 
+    row('مساعدة الثبات', seg('assist', [['1', 'مفعّلة'], ['0', 'مطفأة']], null,
+      (v) => { SC.settings.assist = v === '1'; SC.game.persist(); }), 'تصحيح تلقائي خفيف عند الانزلاق');
+
+    const lookS = U.el('input');
+    lookS.type = 'range'; lookS.min = '0.4'; lookS.max = '2'; lookS.step = '0.05';
+    lookS.addEventListener('input', () => { SC.settings.lookSense = +lookS.value; SC.game.persist(); });
+    dom.lookS = lookS;
+    row('حساسية تدوير الكاميرا', lookS);
+
     row('الكاميرا', seg('cam', [['chase', 'خلفية'], ['far', 'بعيدة'], ['hood', 'داخل المقصورة'], ['orbit', 'دوران حر']],
       null, (v) => SC.hud.toast('الكاميرا: ' + SC.game.setCamera(v), '', 1400)),
       'اسحب بإصبعك على الشاشة للنظر حولك، وبإصبعين للتقريب');
@@ -8554,7 +8578,9 @@ SC.ui = (function () {
     setGroup('traffic', s.traffic ? '1' : '0');
     setGroup('rotate', s.mapRotate ? '1' : '0');
     setGroup('haptics', s.haptics ? '1' : '0');
+    setGroup('assist', s.assist ? '1' : '0');
     if (dom.sens) dom.sens.value = s.steerSense;
+    if (dom.lookS) dom.lookS.value = s.lookSense || 1;
     if (dom.vol) dom.vol.value = s.sound ? s.volume : 0;
   }
 
@@ -8625,7 +8651,7 @@ SC.game = (function () {
 
   const settings = {
     quality: 'auto', shadows: true, steerMode: 'buttons', steerSense: 1.0,
-    invertTilt: false, sound: true, volume: 0.85, haptics: true,
+    invertTilt: false, sound: true, volume: 0.85, haptics: true, assist: true, lookSense: 1.0,
     mapRotate: true, timeOfDay: 'day', traffic: true, camera: 'chase'
   };
   SC.settings = settings;
@@ -8701,7 +8727,7 @@ SC.game = (function () {
 
     const scene = new THREE.Scene();
     G.scene = scene;
-    const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.35, q.far * 4);
+    const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.42, q.far * 3.6);
     camera.position.set(0, 12, -20);
     G.camera = camera;
 
