@@ -501,6 +501,10 @@ SC.ui = (function () {
         setTimeout(() => SC.game.setQuality(v), 700);
       }), 'خفيفة = أنسب للهواتف');
 
+    row('ضبط تلقائي للأداء', seg('auto', [['1', 'مفعّل'], ['0', 'مطفأ']], null,
+      (v) => { SC.settings.autoScale = v === '1'; SC.game.persist(); }),
+      'يقلّل مدى الرؤية تلقائياً إن تباطأت اللعبة');
+
     row('مرور المدينة', seg('traffic', [['1', 'مُفعّل'], ['0', 'مُطفأ']], null,
       (v) => SC.game.setTraffic(v === '1')));
 
@@ -568,6 +572,7 @@ SC.ui = (function () {
     if (dom.mvol) dom.mvol.value = s.music == null ? 0.5 : s.music;
     setGroup('mic', SC.net && SC.net.state.mic ? '1' : '0');
     setGroup('peds', s.peds === false ? '0' : '1');
+    setGroup('auto', s.autoScale === false ? '0' : '1');
   }
 
   /* ------------------------------ النتائج ------------------------------- */

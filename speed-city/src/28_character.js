@@ -183,14 +183,14 @@ SC.character = (function () {
       const pad = new THREE.Mesh(geo('jaw', () => new THREE.SphereGeometry(0.072, 12, 10)), M.jacket);
       pad.scale.set(1, 0.9, 0.95);
       shoulder.add(pad);
-      const upper = bone(0.055, 0.20, M.jacket, 0.048);
+      const upper = bone(0.050, 0.20, M.jacket, 0.043);
       shoulder.add(upper);
       const elbow = joint(shoulder, 0, -0.29, 0);
-      const fore = bone(0.048, 0.19, M.jacket2, 0.040);
+      const fore = bone(0.042, 0.19, M.jacket2, 0.036);
       elbow.add(fore);
       const wrist = joint(elbow, 0, -0.27, 0);
-      const hand = new THREE.Mesh(geo('hand', () => new THREE.BoxGeometry(0.056, 0.105, 0.075)), M.glove);
-      hand.position.y = -0.045;
+      const hand = new THREE.Mesh(geo('hand', () => new THREE.BoxGeometry(0.052, 0.092, 0.070)), M.glove);
+      hand.position.y = -0.042;
       hand.castShadow = true;
       wrist.add(hand);
       const thumb = new THREE.Mesh(geo('thumb', () => new THREE.CapsuleGeometry(0.017, 0.04, 3, 6)), M.glove);
@@ -199,9 +199,9 @@ SC.character = (function () {
       wrist.add(thumb);
       /* أصابع مبسّطة + سوار المعصم */
       for (let f = 0; f < 3; f++) {
-        const fin = new THREE.Mesh(geo('finger', () => new THREE.CapsuleGeometry(0.013, 0.035, 3, 5)), M.glove);
-        fin.rotation.x = 0.5;
-        fin.position.set((f - 1) * 0.019, -0.088, 0.026);
+        const fin = new THREE.Mesh(geo('finger', () => new THREE.CapsuleGeometry(0.013, 0.040, 3, 5)), M.glove);
+        fin.rotation.x = 1.25;                            // أصابع منحنية للقبض
+        fin.position.set((f - 1) * 0.019, -0.086, 0.034);
         wrist.add(fin);
       }
       const cuff = new THREE.Mesh(geo('cuff', () => new THREE.CylinderGeometry(0.052, 0.046, 0.045, 10)), M.jacket);
@@ -294,7 +294,7 @@ SC.character = (function () {
 
       _local.copy(_axis).applyQuaternion(_qa.copy(a.shoulder.quaternion).invert()).normalize();
       a.elbow.quaternion.setFromAxisAngle(_local, -bend);
-      a.wrist.rotation.set(0.35, 0, a.side * 0.25);
+      a.wrist.rotation.set(1.15, 0, a.side * 0.42);   // تلتفّ الكفّ حول الإطار
     }
 
     /* ------------------------------ الواجهة ---------------------------- */
@@ -434,6 +434,11 @@ SC.character = (function () {
     const box = (x, y, z) => new THREE.BoxGeometry(x, y, z);
 
     pedCache = PED_OUTFITS.map((o) => {
+      const arm = (side) => mergeParts([
+        { geo: capsule(0.05, 0.17, 8), matrix: M4(0, -0.13, 0), color: o.top },
+        { geo: capsule(0.044, 0.15, 8), matrix: M4(0, -0.38, 0.01), color: o.skin },
+        { geo: sphere(0.038, 8), matrix: M4(0, -0.53, 0.02), color: o.skin }
+      ]);
       const upper = mergeParts([
         { geo: capsule(0.135, 0.30, 10), matrix: M4(0, 1.18, 0, 0, 0, 0, 1.28, 1, 0.82), color: o.top },
         { geo: capsule(0.10, 0.12, 8), matrix: M4(0, 0.95, 0, 0, 0, 0, 1.25, 1, 0.9), color: o.pants },
@@ -441,11 +446,7 @@ SC.character = (function () {
         { geo: sphere(0.093, 12), matrix: M4(0, 1.545, 0, 0, 0, 0, 0.95, 1.06, 1), color: o.skin },
         { geo: new THREE.SphereGeometry(0.098, 12, 8, 0, 6.283, 0, 1.9), matrix: M4(0, 1.548, -0.004, 0, 0, 0, 0.99, 1.06, 1.02), color: o.hair },
         { geo: sphere(0.021, 6), matrix: M4(0, 1.53, 0.085), color: o.skin },
-        // الذراعان
-        { geo: capsule(0.05, 0.17, 8), matrix: M4(0.175, 1.30, 0.02, 0.22, 0, 0.12), color: o.top },
-        { geo: capsule(0.05, 0.17, 8), matrix: M4(-0.175, 1.30, 0.02, -0.22, 0, -0.12), color: o.top },
-        { geo: capsule(0.044, 0.16, 8), matrix: M4(0.20, 1.04, 0.10, 0.55, 0, 0.10), color: o.skin },
-        { geo: capsule(0.044, 0.16, 8), matrix: M4(-0.20, 1.04, 0.10, -0.55, 0, -0.10), color: o.skin }
+        { geo: new THREE.CylinderGeometry(0.115, 0.125, 0.05, 12), matrix: M4(0, 1.40, 0), color: o.pants }
       ]);
       // الساق: أصلها عند مفصل الورك (0,0,0) وتتدلّى للأسفل
       const leg = (side) => mergeParts([
@@ -453,7 +454,7 @@ SC.character = (function () {
         { geo: capsule(0.06, 0.26, 8), matrix: M4(0, -0.62, 0), color: o.pants },
         { geo: box(0.085, 0.06, 0.20), matrix: M4(0, -0.855, 0.045), color: o.shoe }
       ]);
-      return { upper, legL: leg(1), legR: leg(-1), outfit: o };
+      return { upper, legL: leg(1), legR: leg(-1), armL: arm(1), armR: arm(-1), outfit: o };
     });
     return pedCache;
   }
@@ -480,7 +481,16 @@ SC.character = (function () {
     mL.castShadow = mR.castShadow = true;
     legL.add(mL); legR.add(mR);
     root.add(legL); root.add(legR);
-    return { root, upper, legL, legR, phase: Math.random() * 6.283 };
+
+    const shY = 1.38;
+    const armL = new THREE.Group(); armL.position.set(0.185, shY, 0);
+    const armR = new THREE.Group(); armR.position.set(-0.185, shY, 0);
+    const aL = new THREE.Mesh(v.armL, mat), aR = new THREE.Mesh(v.armR, mat);
+    aL.castShadow = aR.castShadow = true;
+    armL.add(aL); armR.add(aR);
+    root.add(armL); root.add(armR);
+
+    return { root, upper, legL, legR, armL, armR, phase: Math.random() * 6.283 };
   }
 
   /* ------------------------ مقود قابل للدوران ------------------------- */

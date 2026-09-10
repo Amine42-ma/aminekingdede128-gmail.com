@@ -16,7 +16,7 @@ SC.game = (function () {
   const settings = {
     quality: 'auto', shadows: true, steerMode: 'buttons', steerSense: 1.0,
     invertTilt: false, sound: true, volume: 0.85, music: 0.45, haptics: true, assist: true,
-    lookSense: 1.0, peds: true, micOn: false,
+    lookSense: 1.0, peds: true, micOn: false, autoScale: true,
     mapRotate: true, timeOfDay: 'day', traffic: true, camera: 'chase'
   };
   SC.settings = settings;
@@ -35,12 +35,12 @@ SC.game = (function () {
     let q = settings.quality;
     if (q === 'auto') q = mob ? 'low' : 'high';
     const presets = {
-      low:   { pixelRatio: Math.min(dpr, 1.5), shadows: false, shadowSize: 1024, shadowRange: 60,
-               skidCount: 400, particles: 200, traffic: 6, peds: 7, far: 480, aa: false },
+      low:   { pixelRatio: Math.min(dpr, 1.25), shadows: false, shadowSize: 1024, shadowRange: 60,
+               skidCount: 400, particles: 200, traffic: 6, peds: 6, far: 480, aa: false },
       medium:{ pixelRatio: Math.min(dpr, 1.75), shadows: true, shadowSize: 1024, shadowRange: 70,
-               skidCount: 700, particles: 320, traffic: 10, peds: 12, far: 720, aa: true },
+               skidCount: 700, particles: 320, traffic: 10, peds: 10, far: 720, aa: true },
       high:  { pixelRatio: Math.min(dpr, 2), shadows: true, shadowSize: 2048, shadowRange: 95,
-               skidCount: 1000, particles: 460, traffic: 16, peds: 18, far: 1000, aa: true }
+               skidCount: 1000, particles: 460, traffic: 16, peds: 14, far: 1000, aa: true }
     };
     const p = presets[q] || presets.medium;
     if (!settings.shadows) p.shadows = false;
@@ -355,6 +355,7 @@ SC.game = (function () {
       _cv.set(eye[0], eye[1], eye[2]);
       car.cabin.updateMatrixWorld(true);
       car.cabin.localToWorld(_cv);
+      pushOutOfWalls(_cv, 0.25);
       camState.pos.lerp(_cv, 1 - Math.exp(-30 * dt));
 
       const yaw = car.yaw + look.yaw;
@@ -408,6 +409,12 @@ SC.game = (function () {
     G.camera.position.copy(camState.pos);
     G.camera.lookAt(camState.look);
 
+    /* داخل المقصورة نقرّب مستوى القصّ حتى لا تُقطع أجزاء السيارة */
+    const wantNear = mode === 'hood' ? 0.10 : 0.42;
+    if (Math.abs(G.camera.near - wantNear) > 0.001) {
+      G.camera.near = wantNear;
+      G.camera.updateProjectionMatrix();
+    }
     const targetFov = (mode === 'hood' ? 68 : 62) + spd * 12 + (car.nitroActive ? 6 : 0);
     camState.fov = U.damp(camState.fov, targetFov, 5, dt);
     if (Math.abs(G.camera.fov - camState.fov) > 0.05) {
@@ -459,12 +466,12 @@ SC.game = (function () {
   }
 
   /* إخراج نقطة من داخل أي مبنى إلى أقرب حافة */
-  function pushOutOfWalls(p) {
+  function pushOutOfWalls(p, padOverride) {
     const list = SC.world.queryColliders(p.x, p.z, 2.5);
     for (const c of list) {
       if (c.h && c.h < 1.2) continue;
       if (p.y > (c.h || 8) + 0.8) continue;
-      const pad = CAM_PAD;
+      const pad = padOverride == null ? CAM_PAD : padOverride;
       if (p.x > c.minX - pad && p.x < c.maxX + pad && p.z > c.minZ - pad && p.z < c.maxZ + pad) {
         const dl = p.x - (c.minX - pad), dr = (c.maxX + pad) - p.x;
         const db = p.z - (c.minZ - pad), dt = (c.maxZ + pad) - p.z;
@@ -623,67 +630,40 @@ SC.game = (function () {
     G.renderer.render(G.scene, G.camera);
   }
 
-  /* خطوة منطقية واحدة (منفصلة عن الرسم لتسهيل الاختبار) */
+  /* خطوة منطقية واحدة (منفصلة عن الرسم لتسهيل الاختبار).
+     الفيزياء تعمل بخطوة ثابتة 60 مرّة في الثانية مهما كان عدد الإطارات،
+     وهذا يمنع اهتزاز السيارات وتغيّر الإحساس بالقيادة على الأجهزة البطيئة. */
+  const FIXED = 1 / 60;
+
   function step(dt) {
     G.time += dt;
     G.frames++;
     const car = G.car;
-    const active = !G.paused;
 
-    if (active) {
+    if (!G.paused) {
       const inp = SC.input.update(dt, settings);
       const frozen = SC.missions.state.countdown > 0;
       car.input = frozen
         ? { throttle: 0, brake: 1, steer: 0, handbrake: 1, boost: 0 }
         : { throttle: inp.throttle, brake: inp.brake, steer: inp.steer, handbrake: inp.handbrake, boost: inp.boost };
-      car.update(dt, car.input);
-      save.stats.distance += car.distance - (car._lastDist || 0);
-      car._lastDist = car.distance;
-      save.stats.topSpeed = Math.max(save.stats.topSpeed, Math.round(car.kmh));
 
-      /* المنافسون */
-      const all = [car].concat(G.rivals);
-      G.rivalAI.forEach((a) => {
-        if (a.active) a.update(dt, all);
-        else { a.v.input = { throttle: 0, brake: 1, steer: 0, handbrake: 1, boost: 0 }; a.v.update(dt, a.v.input); }
-      });
-
-      /* المرور */
-      if (settings.traffic) SC.traffic.update(dt, car, all.concat(SC.traffic.vehicles()));
-
-      /* تصادم اللاعب مع المركبات الأخرى */
-      collideVehicles(car, G.rivals.concat(SC.traffic.vehicles()));
-
-      if (settings.peds !== false) SC.peds.update(dt, car, G);
-      /* تعافي بطيء للسمعة أثناء القيادة الهادئة */
-      G.repTimer = (G.repTimer || 0) + dt;
-      if (G.repTimer > 5) {
-        G.repTimer = 0;
-        if (car.impact < 0.05 && G.time - (G.lastPedHit || -99) > 25) addRep(0.35);
+      /* خطوات فيزياء ثابتة */
+      G.acc = Math.min((G.acc || 0) + dt, 0.30);
+      let n = 0;
+      while (G.acc >= FIXED && n < 6) { physicsStep(FIXED, car); G.acc -= FIXED; n++; }
+      if (n === 0 && dt > 0.0005 && (G.sinceStep = (G.sinceStep || 0) + dt) > FIXED) {
+        G.sinceStep = 0; physicsStep(FIXED, car);
       }
-      updateSkids(dt, car);
-      updateWater(dt, car);
+
+      /* تحديثات لا تحتاج خطوة ثابتة */
       SC.fx.updateParticles(dt);
-
-      /* تتبّع موضع اللاعب على مسار السباق */
-      const ms = SC.missions.state;
-      if (ms.active && ms.active.path) {
-        const p = ms.active.path;
-        let best = G.playerPathIdx, bd = 1e9;
-        for (let k = -4; k < 14; k++) {
-          const i = (G.playerPathIdx + k + p.length) % p.length;
-          const d = (p[i].x - car.pos.x) ** 2 + (p[i].z - car.pos.z) ** 2;
-          if (d < bd) { bd = d; best = i; }
-        }
-        G.playerPathIdx = best;
-      }
-
       if (SC.net && SC.net.connected) SC.net.update(dt, car);
       SC.missions.update(dt, car);
       checkNearMission(car);
       updateArrow(car);
     }
 
+    autoQuality(dt);
     if (!G.freezeCam) updateCamera(dt, car);
     SC.world.update(dt, car.pos);
     SC.audio.update(dt, car, G.paused);
@@ -692,6 +672,75 @@ SC.game = (function () {
       mapRotate: settings.mapRotate, miniZoom: G.miniZoom
     });
     SC.ui.tick(dt, G);
+  }
+
+  /* ضبط تلقائي لمدى الرؤية ودقّة الرسم حسب سلاسة اللعب على الجهاز */
+  function autoQuality(dt) {
+    if (settings.autoScale === false || !G.renderer) return;
+    G.qTimer = (G.qTimer || 0) + dt;
+    if (G.qTimer < 1.2) return;
+    G.qTimer = 0;
+    const fps = G.fps;
+    const q = SC.quality;
+    G.qScale = G.qScale == null ? 1 : G.qScale;
+    const before = G.qScale;
+    if (fps < 28) G.qScale = Math.max(0.55, G.qScale - 0.08);
+    else if (fps > 48) G.qScale = Math.min(1, G.qScale + 0.04);
+    if (Math.abs(G.qScale - before) > 0.001) {
+      const far = q.far * G.qScale;
+      G.scene.fog.far = far;
+      G.scene.fog.near = far * 0.12;
+      G.camera.far = far * 3.6;
+      G.camera.updateProjectionMatrix();
+      if (SC.world.state.sky) SC.world.state.sky.scale.setScalar(Math.max(1200, far * 3.4));
+    }
+    /* خفض دقّة الرسم عند البطء الشديد (خطوات ثابتة تفادياً لإعادة البناء المتكرّر) */
+    const want = fps < 24 ? 1 : (fps > 42 ? q.pixelRatio : (G.pxRatio || q.pixelRatio));
+    if (want !== G.pxRatio) {
+      G.pxRatio = want;
+      G.renderer.setPixelRatio(want);
+      G.renderer.setSize(innerWidth, innerHeight, false);
+    }
+  }
+
+  /* كل ما يتعلّق بالحركة والاصطدام — بخطوة زمنية ثابتة */
+  function physicsStep(h, car) {
+    car.update(h, car.input);
+    save.stats.distance += car.distance - (car._lastDist || 0);
+    car._lastDist = car.distance;
+    save.stats.topSpeed = Math.max(save.stats.topSpeed, Math.round(car.kmh));
+
+    const all = [car].concat(G.rivals);
+    G.rivalAI.forEach((a) => {
+      if (a.active) a.update(h, all);
+      else { a.v.input = { throttle: 0, brake: 1, steer: 0, handbrake: 1, boost: 0 }; a.v.update(h, a.v.input); }
+    });
+
+    if (settings.traffic) SC.traffic.update(h, car, all.concat(SC.traffic.vehicles()));
+    collideVehicles(car, G.rivals.concat(SC.traffic.vehicles()));
+
+    if (settings.peds !== false) SC.peds.update(h, car, G);
+    G.repTimer = (G.repTimer || 0) + h;
+    if (G.repTimer > 5) {
+      G.repTimer = 0;
+      if (car.impact < 0.05 && G.time - (G.lastPedHit || -99) > 25) addRep(0.35);
+    }
+
+    updateSkids(h, car);
+    updateWater(h, car);
+
+    /* تتبّع موضع اللاعب على مسار السباق */
+    const ms = SC.missions.state;
+    if (ms.active && ms.active.path) {
+      const p = ms.active.path;
+      let best = G.playerPathIdx, bd = 1e9;
+      for (let k = -4; k < 14; k++) {
+        const i = (G.playerPathIdx + k + p.length) % p.length;
+        const d = (p[i].x - car.pos.x) ** 2 + (p[i].z - car.pos.z) ** 2;
+        if (d < bd) { bd = d; best = i; }
+      }
+      G.playerPathIdx = best;
+    }
   }
 
   /* اصطدام بسيط بين المركبات (دوائر) */

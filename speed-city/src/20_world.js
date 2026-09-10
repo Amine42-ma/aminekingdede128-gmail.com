@@ -585,7 +585,7 @@ SC.world = (function () {
     ];
 
     const addCollider = (px, pz, ex, ez, h, shrink) => {
-      const k = shrink == null ? 0.4 : shrink;
+      const k = shrink == null ? 0.12 : shrink;
       state.colliders.push({
         minX: px - ex / 2 + k, maxX: px + ex / 2 - k,
         minZ: pz - ez / 2 + k, maxZ: pz + ez / 2 - k,

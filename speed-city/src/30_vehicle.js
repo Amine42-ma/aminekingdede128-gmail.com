@@ -12,7 +12,7 @@ SC.cars = {
       grip: 1.06, steerMax: 0.60, dragK: 0.42, nitro: 1.0,
       stats: { speed: 62, accel: 58, grip: 70 }, seatH: 0.62, lean: 0.26,
       driver: { pose: 'car', scale: 0.92, seat: [0.32, 0.40, 0.08], wheel: [0.30, 0.83, 0.58],
-                wheelR: 0.19, eye: [0.32, 1.10, 0.04] }
+                wheelR: 0.19, eye: [0.32, 1.12, 0.02] }
     },
     bike: {
       key: 'bike_cyberpunk', name: 'دراجة سايبر X', tag: 'خارقة · تجريبية',
@@ -113,8 +113,8 @@ SC.Vehicle = (function () {
       const cfg = this.def.driver;
       const r = cfg.wheelR;
       // اليدان تنزلقان على المقود مع زاوية التوجيه
-      const a = U.clamp(this.steerAngle * 2.4, -0.85, 0.85);
-      const base = cfg.pose === 'bike' ? 0 : 0.30;
+      const a = U.clamp(this.steerAngle * 2.2, -0.9, 0.9);
+      const base = cfg.pose === 'bike' ? 0 : 0.85;      // وضع اليدين ١٠ و٢
       const aL = base + a, aR = -base + a;
       this._handL.set(this.wheelPos.x + Math.cos(aL) * r, this.wheelPos.y + Math.sin(aL) * r * 0.72, this.wheelPos.z - Math.sin(aL) * r * 0.30);
       this._handR.set(this.wheelPos.x - Math.cos(aR) * r, this.wheelPos.y - Math.sin(aR) * r * 0.72, this.wheelPos.z + Math.sin(aR) * r * 0.30);
@@ -263,7 +263,7 @@ SC.Vehicle = (function () {
 
       /* --- المقود: تقلّ زاويته كلما زادت السرعة --- */
       const spd = Math.abs(this.vLong);
-      const steerLimit = def.steerMax * (1 - 0.55 * U.clamp(spd / 42, 0, 1));
+      const steerLimit = def.steerMax * (1 - 0.38 * U.clamp(spd / 46, 0, 1));
       const steerRate = (5.2 - 2.2 * U.clamp(spd / 40, 0, 1)) * dt;
       // ملاحظة: محور yaw في three يدور نحو +X، وهو يسار الشاشة عند النظر للأمام،
       // لذا نعكس الإشارة حتى يكون "يمين" في الأزرار = يمين على الشاشة فعلاً.
@@ -308,9 +308,12 @@ SC.Vehicle = (function () {
 
       let slipF = Math.atan2(this.vLat + this.yawRate * a, vAbs) - this.steerAngle * Math.sign(this.vLong || 1);
       let slipR = Math.atan2(this.vLat - this.yawRate * b, vAbs);
-      const Cf = 11.5 * mass * grip, Cr = 12.5 * mass * grip * (hb ? 0.42 : 1);
-      const maxF = grip * mass * G * 0.55;
-      const maxR = grip * mass * G * 0.55 * (hb ? 0.42 : 1);
+      /* ثبات خلفي يزداد مع السرعة (مثل الضغط الهوائي): انعطاف حادّ في المدينة
+         بلا فقدان السيطرة على السرعات العالية */
+      const dfR = 1 + U.clamp(Math.abs(this.vLong) / 52, 0, 0.95);
+      const Cf = 14.0 * mass * grip, Cr = 13.0 * mass * grip * dfR * (hb ? 0.42 : 1);
+      const maxF = grip * mass * G * 0.64;
+      const maxR = grip * mass * G * 0.58 * dfR * (hb ? 0.42 : 1);
       let Fyf = U.clamp(-Cf * slipF, -maxF, maxF);
       let Fyr = U.clamp(-Cr * slipR, -maxR, maxR);
 
@@ -322,7 +325,7 @@ SC.Vehicle = (function () {
       const accLat = (Fyf * Math.cos(this.steerAngle) + Fyr) / mass - this.yawRate * this.vLong;
       const Izz = mass * (this.wheelBase * this.wheelBase + this.size.x * this.size.x) / 11;
       /* تخميد الالتفاف: يمنع دوران المركبة حول نفسها بلا توقّف */
-      const yawDamp = this.yawRate * (2.6 + Math.abs(this.vLong) * 0.10) * (hb ? 0.45 : 1);
+      const yawDamp = this.yawRate * (1.15 + Math.abs(this.vLong) * 0.045) * (hb ? 0.4 : 1);
       const yawAcc = (a * Fyf * Math.cos(this.steerAngle) - b * Fyr) / Izz - yawDamp;
 
       this.vLong += accLong * dt;
@@ -361,10 +364,13 @@ SC.Vehicle = (function () {
 
     /* --------------------------- الاصطدامات ---------------------------- */
     _collide(dt) {
-      const r = this.halfWid * 0.92;
+      const r = this.halfWid * 0.95;
+      const s0 = Math.sin(this.yaw), c0 = Math.cos(this.yaw);
+      const L = this.halfLen;
       const pts = [
-        { x: this.pos.x + Math.sin(this.yaw) * this.halfLen * 0.62, z: this.pos.z + Math.cos(this.yaw) * this.halfLen * 0.62 },
-        { x: this.pos.x - Math.sin(this.yaw) * this.halfLen * 0.62, z: this.pos.z - Math.cos(this.yaw) * this.halfLen * 0.62 }
+        { x: this.pos.x + s0 * L * 0.80, z: this.pos.z + c0 * L * 0.80 },
+        { x: this.pos.x, z: this.pos.z },
+        { x: this.pos.x - s0 * L * 0.80, z: this.pos.z - c0 * L * 0.80 }
       ];
       const list = SC.world.queryColliders(this.pos.x, this.pos.z, this.halfLen + 2);
       let hit = 0, nx = 0, nz = 0;

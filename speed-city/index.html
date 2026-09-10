@@ -5390,7 +5390,7 @@ SC.world = (function () {
     ];
 
     const addCollider = (px, pz, ex, ez, h, shrink) => {
-      const k = shrink == null ? 0.4 : shrink;
+      const k = shrink == null ? 0.12 : shrink;
       state.colliders.push({
         minX: px - ex / 2 + k, maxX: px + ex / 2 - k,
         minZ: pz - ez / 2 + k, maxZ: pz + ez / 2 - k,
@@ -6030,14 +6030,14 @@ SC.character = (function () {
       const pad = new THREE.Mesh(geo('jaw', () => new THREE.SphereGeometry(0.072, 12, 10)), M.jacket);
       pad.scale.set(1, 0.9, 0.95);
       shoulder.add(pad);
-      const upper = bone(0.055, 0.20, M.jacket, 0.048);
+      const upper = bone(0.050, 0.20, M.jacket, 0.043);
       shoulder.add(upper);
       const elbow = joint(shoulder, 0, -0.29, 0);
-      const fore = bone(0.048, 0.19, M.jacket2, 0.040);
+      const fore = bone(0.042, 0.19, M.jacket2, 0.036);
       elbow.add(fore);
       const wrist = joint(elbow, 0, -0.27, 0);
-      const hand = new THREE.Mesh(geo('hand', () => new THREE.BoxGeometry(0.056, 0.105, 0.075)), M.glove);
-      hand.position.y = -0.045;
+      const hand = new THREE.Mesh(geo('hand', () => new THREE.BoxGeometry(0.052, 0.092, 0.070)), M.glove);
+      hand.position.y = -0.042;
       hand.castShadow = true;
       wrist.add(hand);
       const thumb = new THREE.Mesh(geo('thumb', () => new THREE.CapsuleGeometry(0.017, 0.04, 3, 6)), M.glove);
@@ -6046,9 +6046,9 @@ SC.character = (function () {
       wrist.add(thumb);
       /* أصابع مبسّطة + سوار المعصم */
       for (let f = 0; f < 3; f++) {
-        const fin = new THREE.Mesh(geo('finger', () => new THREE.CapsuleGeometry(0.013, 0.035, 3, 5)), M.glove);
-        fin.rotation.x = 0.5;
-        fin.position.set((f - 1) * 0.019, -0.088, 0.026);
+        const fin = new THREE.Mesh(geo('finger', () => new THREE.CapsuleGeometry(0.013, 0.040, 3, 5)), M.glove);
+        fin.rotation.x = 1.25;                            // أصابع منحنية للقبض
+        fin.position.set((f - 1) * 0.019, -0.086, 0.034);
         wrist.add(fin);
       }
       const cuff = new THREE.Mesh(geo('cuff', () => new THREE.CylinderGeometry(0.052, 0.046, 0.045, 10)), M.jacket);
@@ -6141,7 +6141,7 @@ SC.character = (function () {
 
       _local.copy(_axis).applyQuaternion(_qa.copy(a.shoulder.quaternion).invert()).normalize();
       a.elbow.quaternion.setFromAxisAngle(_local, -bend);
-      a.wrist.rotation.set(0.35, 0, a.side * 0.25);
+      a.wrist.rotation.set(1.15, 0, a.side * 0.42);   // تلتفّ الكفّ حول الإطار
     }
 
     /* ------------------------------ الواجهة ---------------------------- */
@@ -6281,6 +6281,11 @@ SC.character = (function () {
     const box = (x, y, z) => new THREE.BoxGeometry(x, y, z);
 
     pedCache = PED_OUTFITS.map((o) => {
+      const arm = (side) => mergeParts([
+        { geo: capsule(0.05, 0.17, 8), matrix: M4(0, -0.13, 0), color: o.top },
+        { geo: capsule(0.044, 0.15, 8), matrix: M4(0, -0.38, 0.01), color: o.skin },
+        { geo: sphere(0.038, 8), matrix: M4(0, -0.53, 0.02), color: o.skin }
+      ]);
       const upper = mergeParts([
         { geo: capsule(0.135, 0.30, 10), matrix: M4(0, 1.18, 0, 0, 0, 0, 1.28, 1, 0.82), color: o.top },
         { geo: capsule(0.10, 0.12, 8), matrix: M4(0, 0.95, 0, 0, 0, 0, 1.25, 1, 0.9), color: o.pants },
@@ -6288,11 +6293,7 @@ SC.character = (function () {
         { geo: sphere(0.093, 12), matrix: M4(0, 1.545, 0, 0, 0, 0, 0.95, 1.06, 1), color: o.skin },
         { geo: new THREE.SphereGeometry(0.098, 12, 8, 0, 6.283, 0, 1.9), matrix: M4(0, 1.548, -0.004, 0, 0, 0, 0.99, 1.06, 1.02), color: o.hair },
         { geo: sphere(0.021, 6), matrix: M4(0, 1.53, 0.085), color: o.skin },
-        // الذراعان
-        { geo: capsule(0.05, 0.17, 8), matrix: M4(0.175, 1.30, 0.02, 0.22, 0, 0.12), color: o.top },
-        { geo: capsule(0.05, 0.17, 8), matrix: M4(-0.175, 1.30, 0.02, -0.22, 0, -0.12), color: o.top },
-        { geo: capsule(0.044, 0.16, 8), matrix: M4(0.20, 1.04, 0.10, 0.55, 0, 0.10), color: o.skin },
-        { geo: capsule(0.044, 0.16, 8), matrix: M4(-0.20, 1.04, 0.10, -0.55, 0, -0.10), color: o.skin }
+        { geo: new THREE.CylinderGeometry(0.115, 0.125, 0.05, 12), matrix: M4(0, 1.40, 0), color: o.pants }
       ]);
       // الساق: أصلها عند مفصل الورك (0,0,0) وتتدلّى للأسفل
       const leg = (side) => mergeParts([
@@ -6300,7 +6301,7 @@ SC.character = (function () {
         { geo: capsule(0.06, 0.26, 8), matrix: M4(0, -0.62, 0), color: o.pants },
         { geo: box(0.085, 0.06, 0.20), matrix: M4(0, -0.855, 0.045), color: o.shoe }
       ]);
-      return { upper, legL: leg(1), legR: leg(-1), outfit: o };
+      return { upper, legL: leg(1), legR: leg(-1), armL: arm(1), armR: arm(-1), outfit: o };
     });
     return pedCache;
   }
@@ -6327,7 +6328,16 @@ SC.character = (function () {
     mL.castShadow = mR.castShadow = true;
     legL.add(mL); legR.add(mR);
     root.add(legL); root.add(legR);
-    return { root, upper, legL, legR, phase: Math.random() * 6.283 };
+
+    const shY = 1.38;
+    const armL = new THREE.Group(); armL.position.set(0.185, shY, 0);
+    const armR = new THREE.Group(); armR.position.set(-0.185, shY, 0);
+    const aL = new THREE.Mesh(v.armL, mat), aR = new THREE.Mesh(v.armR, mat);
+    aL.castShadow = aR.castShadow = true;
+    armL.add(aL); armR.add(aR);
+    root.add(armL); root.add(armR);
+
+    return { root, upper, legL, legR, armL, armR, phase: Math.random() * 6.283 };
   }
 
   /* ------------------------ مقود قابل للدوران ------------------------- */
@@ -6505,6 +6515,7 @@ SC.peds = (function () {
         p.x += ax * 3.1 * dt;
         p.z += az * 3.1 * dt;
         p.yaw = Math.atan2(ax, az);
+        pushOutOfBuildings(p);
         if (p.timer <= 0) p.state = STATE.WALK;
       } else if (p.state === STATE.WALK) {
         walkStep(p, dt);
@@ -6523,6 +6534,12 @@ SC.peds = (function () {
       const sw = Math.sin(p.w.phase) * (speed > 2 ? 0.85 : 0.55);
       p.w.legL.rotation.x = sw;
       p.w.legR.rotation.x = -sw;
+      if (p.w.armL) {
+        p.w.armL.rotation.x = -sw * 0.75;
+        p.w.armR.rotation.x = sw * 0.75;
+        p.w.armL.rotation.z = 0.12;
+        p.w.armR.rotation.z = -0.12;
+      }
       p.w.upper.rotation.x = speed > 2 ? 0.14 : 0.03;
       p.w.root.position.set(p.x, SC.world.groundHeight(p.x, p.z) + Math.abs(Math.sin(p.w.phase)) * 0.03, p.z);
       p.w.root.rotation.y = U.damp(p.w.root.rotation.y, p.yaw, 9, dt);
@@ -6568,7 +6585,7 @@ SC.cars = {
       grip: 1.06, steerMax: 0.60, dragK: 0.42, nitro: 1.0,
       stats: { speed: 62, accel: 58, grip: 70 }, seatH: 0.62, lean: 0.26,
       driver: { pose: 'car', scale: 0.92, seat: [0.32, 0.40, 0.08], wheel: [0.30, 0.83, 0.58],
-                wheelR: 0.19, eye: [0.32, 1.10, 0.04] }
+                wheelR: 0.19, eye: [0.32, 1.12, 0.02] }
     },
     bike: {
       key: 'bike_cyberpunk', name: 'دراجة سايبر X', tag: 'خارقة · تجريبية',
@@ -6669,8 +6686,8 @@ SC.Vehicle = (function () {
       const cfg = this.def.driver;
       const r = cfg.wheelR;
       // اليدان تنزلقان على المقود مع زاوية التوجيه
-      const a = U.clamp(this.steerAngle * 2.4, -0.85, 0.85);
-      const base = cfg.pose === 'bike' ? 0 : 0.30;
+      const a = U.clamp(this.steerAngle * 2.2, -0.9, 0.9);
+      const base = cfg.pose === 'bike' ? 0 : 0.85;      // وضع اليدين ١٠ و٢
       const aL = base + a, aR = -base + a;
       this._handL.set(this.wheelPos.x + Math.cos(aL) * r, this.wheelPos.y + Math.sin(aL) * r * 0.72, this.wheelPos.z - Math.sin(aL) * r * 0.30);
       this._handR.set(this.wheelPos.x - Math.cos(aR) * r, this.wheelPos.y - Math.sin(aR) * r * 0.72, this.wheelPos.z + Math.sin(aR) * r * 0.30);
@@ -6819,7 +6836,7 @@ SC.Vehicle = (function () {
 
       /* --- المقود: تقلّ زاويته كلما زادت السرعة --- */
       const spd = Math.abs(this.vLong);
-      const steerLimit = def.steerMax * (1 - 0.55 * U.clamp(spd / 42, 0, 1));
+      const steerLimit = def.steerMax * (1 - 0.38 * U.clamp(spd / 46, 0, 1));
       const steerRate = (5.2 - 2.2 * U.clamp(spd / 40, 0, 1)) * dt;
       // ملاحظة: محور yaw في three يدور نحو +X، وهو يسار الشاشة عند النظر للأمام،
       // لذا نعكس الإشارة حتى يكون "يمين" في الأزرار = يمين على الشاشة فعلاً.
@@ -6864,9 +6881,12 @@ SC.Vehicle = (function () {
 
       let slipF = Math.atan2(this.vLat + this.yawRate * a, vAbs) - this.steerAngle * Math.sign(this.vLong || 1);
       let slipR = Math.atan2(this.vLat - this.yawRate * b, vAbs);
-      const Cf = 11.5 * mass * grip, Cr = 12.5 * mass * grip * (hb ? 0.42 : 1);
-      const maxF = grip * mass * G * 0.55;
-      const maxR = grip * mass * G * 0.55 * (hb ? 0.42 : 1);
+      /* ثبات خلفي يزداد مع السرعة (مثل الضغط الهوائي): انعطاف حادّ في المدينة
+         بلا فقدان السيطرة على السرعات العالية */
+      const dfR = 1 + U.clamp(Math.abs(this.vLong) / 52, 0, 0.95);
+      const Cf = 14.0 * mass * grip, Cr = 13.0 * mass * grip * dfR * (hb ? 0.42 : 1);
+      const maxF = grip * mass * G * 0.64;
+      const maxR = grip * mass * G * 0.58 * dfR * (hb ? 0.42 : 1);
       let Fyf = U.clamp(-Cf * slipF, -maxF, maxF);
       let Fyr = U.clamp(-Cr * slipR, -maxR, maxR);
 
@@ -6878,7 +6898,7 @@ SC.Vehicle = (function () {
       const accLat = (Fyf * Math.cos(this.steerAngle) + Fyr) / mass - this.yawRate * this.vLong;
       const Izz = mass * (this.wheelBase * this.wheelBase + this.size.x * this.size.x) / 11;
       /* تخميد الالتفاف: يمنع دوران المركبة حول نفسها بلا توقّف */
-      const yawDamp = this.yawRate * (2.6 + Math.abs(this.vLong) * 0.10) * (hb ? 0.45 : 1);
+      const yawDamp = this.yawRate * (1.15 + Math.abs(this.vLong) * 0.045) * (hb ? 0.4 : 1);
       const yawAcc = (a * Fyf * Math.cos(this.steerAngle) - b * Fyr) / Izz - yawDamp;
 
       this.vLong += accLong * dt;
@@ -6917,10 +6937,13 @@ SC.Vehicle = (function () {
 
     /* --------------------------- الاصطدامات ---------------------------- */
     _collide(dt) {
-      const r = this.halfWid * 0.92;
+      const r = this.halfWid * 0.95;
+      const s0 = Math.sin(this.yaw), c0 = Math.cos(this.yaw);
+      const L = this.halfLen;
       const pts = [
-        { x: this.pos.x + Math.sin(this.yaw) * this.halfLen * 0.62, z: this.pos.z + Math.cos(this.yaw) * this.halfLen * 0.62 },
-        { x: this.pos.x - Math.sin(this.yaw) * this.halfLen * 0.62, z: this.pos.z - Math.cos(this.yaw) * this.halfLen * 0.62 }
+        { x: this.pos.x + s0 * L * 0.80, z: this.pos.z + c0 * L * 0.80 },
+        { x: this.pos.x, z: this.pos.z },
+        { x: this.pos.x - s0 * L * 0.80, z: this.pos.z - c0 * L * 0.80 }
       ];
       const list = SC.world.queryColliders(this.pos.x, this.pos.z, this.halfLen + 2);
       let hit = 0, nx = 0, nz = 0;
@@ -9315,6 +9338,10 @@ SC.ui = (function () {
         setTimeout(() => SC.game.setQuality(v), 700);
       }), 'خفيفة = أنسب للهواتف');
 
+    row('ضبط تلقائي للأداء', seg('auto', [['1', 'مفعّل'], ['0', 'مطفأ']], null,
+      (v) => { SC.settings.autoScale = v === '1'; SC.game.persist(); }),
+      'يقلّل مدى الرؤية تلقائياً إن تباطأت اللعبة');
+
     row('مرور المدينة', seg('traffic', [['1', 'مُفعّل'], ['0', 'مُطفأ']], null,
       (v) => SC.game.setTraffic(v === '1')));
 
@@ -9382,6 +9409,7 @@ SC.ui = (function () {
     if (dom.mvol) dom.mvol.value = s.music == null ? 0.5 : s.music;
     setGroup('mic', SC.net && SC.net.state.mic ? '1' : '0');
     setGroup('peds', s.peds === false ? '0' : '1');
+    setGroup('auto', s.autoScale === false ? '0' : '1');
   }
 
   /* ------------------------------ النتائج ------------------------------- */
@@ -9453,7 +9481,7 @@ SC.game = (function () {
   const settings = {
     quality: 'auto', shadows: true, steerMode: 'buttons', steerSense: 1.0,
     invertTilt: false, sound: true, volume: 0.85, music: 0.45, haptics: true, assist: true,
-    lookSense: 1.0, peds: true, micOn: false,
+    lookSense: 1.0, peds: true, micOn: false, autoScale: true,
     mapRotate: true, timeOfDay: 'day', traffic: true, camera: 'chase'
   };
   SC.settings = settings;
@@ -9472,12 +9500,12 @@ SC.game = (function () {
     let q = settings.quality;
     if (q === 'auto') q = mob ? 'low' : 'high';
     const presets = {
-      low:   { pixelRatio: Math.min(dpr, 1.5), shadows: false, shadowSize: 1024, shadowRange: 60,
-               skidCount: 400, particles: 200, traffic: 6, peds: 7, far: 480, aa: false },
+      low:   { pixelRatio: Math.min(dpr, 1.25), shadows: false, shadowSize: 1024, shadowRange: 60,
+               skidCount: 400, particles: 200, traffic: 6, peds: 6, far: 480, aa: false },
       medium:{ pixelRatio: Math.min(dpr, 1.75), shadows: true, shadowSize: 1024, shadowRange: 70,
-               skidCount: 700, particles: 320, traffic: 10, peds: 12, far: 720, aa: true },
+               skidCount: 700, particles: 320, traffic: 10, peds: 10, far: 720, aa: true },
       high:  { pixelRatio: Math.min(dpr, 2), shadows: true, shadowSize: 2048, shadowRange: 95,
-               skidCount: 1000, particles: 460, traffic: 16, peds: 18, far: 1000, aa: true }
+               skidCount: 1000, particles: 460, traffic: 16, peds: 14, far: 1000, aa: true }
     };
     const p = presets[q] || presets.medium;
     if (!settings.shadows) p.shadows = false;
@@ -9792,6 +9820,7 @@ SC.game = (function () {
       _cv.set(eye[0], eye[1], eye[2]);
       car.cabin.updateMatrixWorld(true);
       car.cabin.localToWorld(_cv);
+      pushOutOfWalls(_cv, 0.25);
       camState.pos.lerp(_cv, 1 - Math.exp(-30 * dt));
 
       const yaw = car.yaw + look.yaw;
@@ -9845,6 +9874,12 @@ SC.game = (function () {
     G.camera.position.copy(camState.pos);
     G.camera.lookAt(camState.look);
 
+    /* داخل المقصورة نقرّب مستوى القصّ حتى لا تُقطع أجزاء السيارة */
+    const wantNear = mode === 'hood' ? 0.10 : 0.42;
+    if (Math.abs(G.camera.near - wantNear) > 0.001) {
+      G.camera.near = wantNear;
+      G.camera.updateProjectionMatrix();
+    }
     const targetFov = (mode === 'hood' ? 68 : 62) + spd * 12 + (car.nitroActive ? 6 : 0);
     camState.fov = U.damp(camState.fov, targetFov, 5, dt);
     if (Math.abs(G.camera.fov - camState.fov) > 0.05) {
@@ -9896,12 +9931,12 @@ SC.game = (function () {
   }
 
   /* إخراج نقطة من داخل أي مبنى إلى أقرب حافة */
-  function pushOutOfWalls(p) {
+  function pushOutOfWalls(p, padOverride) {
     const list = SC.world.queryColliders(p.x, p.z, 2.5);
     for (const c of list) {
       if (c.h && c.h < 1.2) continue;
       if (p.y > (c.h || 8) + 0.8) continue;
-      const pad = CAM_PAD;
+      const pad = padOverride == null ? CAM_PAD : padOverride;
       if (p.x > c.minX - pad && p.x < c.maxX + pad && p.z > c.minZ - pad && p.z < c.maxZ + pad) {
         const dl = p.x - (c.minX - pad), dr = (c.maxX + pad) - p.x;
         const db = p.z - (c.minZ - pad), dt = (c.maxZ + pad) - p.z;
@@ -10060,67 +10095,40 @@ SC.game = (function () {
     G.renderer.render(G.scene, G.camera);
   }
 
-  /* خطوة منطقية واحدة (منفصلة عن الرسم لتسهيل الاختبار) */
+  /* خطوة منطقية واحدة (منفصلة عن الرسم لتسهيل الاختبار).
+     الفيزياء تعمل بخطوة ثابتة 60 مرّة في الثانية مهما كان عدد الإطارات،
+     وهذا يمنع اهتزاز السيارات وتغيّر الإحساس بالقيادة على الأجهزة البطيئة. */
+  const FIXED = 1 / 60;
+
   function step(dt) {
     G.time += dt;
     G.frames++;
     const car = G.car;
-    const active = !G.paused;
 
-    if (active) {
+    if (!G.paused) {
       const inp = SC.input.update(dt, settings);
       const frozen = SC.missions.state.countdown > 0;
       car.input = frozen
         ? { throttle: 0, brake: 1, steer: 0, handbrake: 1, boost: 0 }
         : { throttle: inp.throttle, brake: inp.brake, steer: inp.steer, handbrake: inp.handbrake, boost: inp.boost };
-      car.update(dt, car.input);
-      save.stats.distance += car.distance - (car._lastDist || 0);
-      car._lastDist = car.distance;
-      save.stats.topSpeed = Math.max(save.stats.topSpeed, Math.round(car.kmh));
 
-      /* المنافسون */
-      const all = [car].concat(G.rivals);
-      G.rivalAI.forEach((a) => {
-        if (a.active) a.update(dt, all);
-        else { a.v.input = { throttle: 0, brake: 1, steer: 0, handbrake: 1, boost: 0 }; a.v.update(dt, a.v.input); }
-      });
-
-      /* المرور */
-      if (settings.traffic) SC.traffic.update(dt, car, all.concat(SC.traffic.vehicles()));
-
-      /* تصادم اللاعب مع المركبات الأخرى */
-      collideVehicles(car, G.rivals.concat(SC.traffic.vehicles()));
-
-      if (settings.peds !== false) SC.peds.update(dt, car, G);
-      /* تعافي بطيء للسمعة أثناء القيادة الهادئة */
-      G.repTimer = (G.repTimer || 0) + dt;
-      if (G.repTimer > 5) {
-        G.repTimer = 0;
-        if (car.impact < 0.05 && G.time - (G.lastPedHit || -99) > 25) addRep(0.35);
+      /* خطوات فيزياء ثابتة */
+      G.acc = Math.min((G.acc || 0) + dt, 0.30);
+      let n = 0;
+      while (G.acc >= FIXED && n < 6) { physicsStep(FIXED, car); G.acc -= FIXED; n++; }
+      if (n === 0 && dt > 0.0005 && (G.sinceStep = (G.sinceStep || 0) + dt) > FIXED) {
+        G.sinceStep = 0; physicsStep(FIXED, car);
       }
-      updateSkids(dt, car);
-      updateWater(dt, car);
+
+      /* تحديثات لا تحتاج خطوة ثابتة */
       SC.fx.updateParticles(dt);
-
-      /* تتبّع موضع اللاعب على مسار السباق */
-      const ms = SC.missions.state;
-      if (ms.active && ms.active.path) {
-        const p = ms.active.path;
-        let best = G.playerPathIdx, bd = 1e9;
-        for (let k = -4; k < 14; k++) {
-          const i = (G.playerPathIdx + k + p.length) % p.length;
-          const d = (p[i].x - car.pos.x) ** 2 + (p[i].z - car.pos.z) ** 2;
-          if (d < bd) { bd = d; best = i; }
-        }
-        G.playerPathIdx = best;
-      }
-
       if (SC.net && SC.net.connected) SC.net.update(dt, car);
       SC.missions.update(dt, car);
       checkNearMission(car);
       updateArrow(car);
     }
 
+    autoQuality(dt);
     if (!G.freezeCam) updateCamera(dt, car);
     SC.world.update(dt, car.pos);
     SC.audio.update(dt, car, G.paused);
@@ -10129,6 +10137,75 @@ SC.game = (function () {
       mapRotate: settings.mapRotate, miniZoom: G.miniZoom
     });
     SC.ui.tick(dt, G);
+  }
+
+  /* ضبط تلقائي لمدى الرؤية ودقّة الرسم حسب سلاسة اللعب على الجهاز */
+  function autoQuality(dt) {
+    if (settings.autoScale === false || !G.renderer) return;
+    G.qTimer = (G.qTimer || 0) + dt;
+    if (G.qTimer < 1.2) return;
+    G.qTimer = 0;
+    const fps = G.fps;
+    const q = SC.quality;
+    G.qScale = G.qScale == null ? 1 : G.qScale;
+    const before = G.qScale;
+    if (fps < 28) G.qScale = Math.max(0.55, G.qScale - 0.08);
+    else if (fps > 48) G.qScale = Math.min(1, G.qScale + 0.04);
+    if (Math.abs(G.qScale - before) > 0.001) {
+      const far = q.far * G.qScale;
+      G.scene.fog.far = far;
+      G.scene.fog.near = far * 0.12;
+      G.camera.far = far * 3.6;
+      G.camera.updateProjectionMatrix();
+      if (SC.world.state.sky) SC.world.state.sky.scale.setScalar(Math.max(1200, far * 3.4));
+    }
+    /* خفض دقّة الرسم عند البطء الشديد (خطوات ثابتة تفادياً لإعادة البناء المتكرّر) */
+    const want = fps < 24 ? 1 : (fps > 42 ? q.pixelRatio : (G.pxRatio || q.pixelRatio));
+    if (want !== G.pxRatio) {
+      G.pxRatio = want;
+      G.renderer.setPixelRatio(want);
+      G.renderer.setSize(innerWidth, innerHeight, false);
+    }
+  }
+
+  /* كل ما يتعلّق بالحركة والاصطدام — بخطوة زمنية ثابتة */
+  function physicsStep(h, car) {
+    car.update(h, car.input);
+    save.stats.distance += car.distance - (car._lastDist || 0);
+    car._lastDist = car.distance;
+    save.stats.topSpeed = Math.max(save.stats.topSpeed, Math.round(car.kmh));
+
+    const all = [car].concat(G.rivals);
+    G.rivalAI.forEach((a) => {
+      if (a.active) a.update(h, all);
+      else { a.v.input = { throttle: 0, brake: 1, steer: 0, handbrake: 1, boost: 0 }; a.v.update(h, a.v.input); }
+    });
+
+    if (settings.traffic) SC.traffic.update(h, car, all.concat(SC.traffic.vehicles()));
+    collideVehicles(car, G.rivals.concat(SC.traffic.vehicles()));
+
+    if (settings.peds !== false) SC.peds.update(h, car, G);
+    G.repTimer = (G.repTimer || 0) + h;
+    if (G.repTimer > 5) {
+      G.repTimer = 0;
+      if (car.impact < 0.05 && G.time - (G.lastPedHit || -99) > 25) addRep(0.35);
+    }
+
+    updateSkids(h, car);
+    updateWater(h, car);
+
+    /* تتبّع موضع اللاعب على مسار السباق */
+    const ms = SC.missions.state;
+    if (ms.active && ms.active.path) {
+      const p = ms.active.path;
+      let best = G.playerPathIdx, bd = 1e9;
+      for (let k = -4; k < 14; k++) {
+        const i = (G.playerPathIdx + k + p.length) % p.length;
+        const d = (p[i].x - car.pos.x) ** 2 + (p[i].z - car.pos.z) ** 2;
+        if (d < bd) { bd = d; best = i; }
+      }
+      G.playerPathIdx = best;
+    }
   }
 
   /* اصطدام بسيط بين المركبات (دوائر) */

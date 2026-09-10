@@ -146,6 +146,7 @@ SC.peds = (function () {
         p.x += ax * 3.1 * dt;
         p.z += az * 3.1 * dt;
         p.yaw = Math.atan2(ax, az);
+        pushOutOfBuildings(p);
         if (p.timer <= 0) p.state = STATE.WALK;
       } else if (p.state === STATE.WALK) {
         walkStep(p, dt);
@@ -164,6 +165,12 @@ SC.peds = (function () {
       const sw = Math.sin(p.w.phase) * (speed > 2 ? 0.85 : 0.55);
       p.w.legL.rotation.x = sw;
       p.w.legR.rotation.x = -sw;
+      if (p.w.armL) {
+        p.w.armL.rotation.x = -sw * 0.75;
+        p.w.armR.rotation.x = sw * 0.75;
+        p.w.armL.rotation.z = 0.12;
+        p.w.armR.rotation.z = -0.12;
+      }
       p.w.upper.rotation.x = speed > 2 ? 0.14 : 0.03;
       p.w.root.position.set(p.x, SC.world.groundHeight(p.x, p.z) + Math.abs(Math.sin(p.w.phase)) * 0.03, p.z);
       p.w.root.rotation.y = U.damp(p.w.root.rotation.y, p.yaw, 9, dt);
