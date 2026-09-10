@@ -74,6 +74,21 @@ SC.audio = (function () {
     init();
     if (ctx && ctx.state === 'suspended') ctx.resume();
   }
+  /* كتم مرشّح تحت الماء */
+  let uwFilter = null;
+  function setUnderwater(on) {
+    if (!ready) return;
+    if (!uwFilter) {
+      uwFilter = ctx.createBiquadFilter();
+      uwFilter.type = 'lowpass';
+      uwFilter.frequency.value = 22000;
+      master.disconnect();
+      master.connect(uwFilter);
+      uwFilter.connect(ctx.destination);
+    }
+    uwFilter.frequency.setTargetAtTime(on ? 380 : 22000, ctx.currentTime, 0.15);
+  }
+
   function setEnabled(v) {
     enabled = v;
     if (master) master.gain.value = v ? 0.85 : 0;
@@ -233,20 +248,25 @@ SC.audio = (function () {
       if (st % 8 === 4) drum('snare', t);
       if (st % 2 === 0) drum('hat', t);
 
+      const section = Math.floor(music.step / 64) % 2;       // مقطعان يتبادلان
       // الباس
       if (st % 2 === 0) {
-        const oct = st % 8 === 0 ? 0 : (st % 4 === 0 ? 0 : 12);
-        voice('sawtooth', NOTE(root + oct), t, 0.24, 0.14);
+        const oct = (st % 8 === 0 || st % 4 === 0) ? 0 : 12;
+        voice('sawtooth', NOTE(root + oct), t, 0.26, 0.15);
+        if (section === 1 && st % 8 === 6) voice('sawtooth', NOTE(root + 7), t, 0.18, 0.10);
       }
       // وتر ممتدّ في بداية كل مازورة
       if (st === 0) {
-        [0, 3, 7].forEach((iv, k) => voice('triangle', NOTE(root + 24 + iv), t, 1.6, 0.045, null, k * 6));
+        [0, 3, 7, 10].forEach((iv, k) =>
+          voice('triangle', NOTE(root + 24 + iv), t, 1.7, 0.042, null, (k - 1) * 7));
       }
-      // لحن خفيف
-      if (st % 4 === 2 && bar % 2 === 1) {
-        const n = music.scale[(music.step / 2 + bar) % music.scale.length];
-        voice('square', NOTE(root + 36 + n), t, 0.20, 0.035);
+      // لحن
+      if (section === 1 ? (st % 2 === 1) : (st % 4 === 2 && bar % 2 === 1)) {
+        const n = music.scale[(Math.floor(music.step / 2) + bar) % music.scale.length];
+        voice('square', NOTE(root + 36 + n), t, 0.18, section === 1 ? 0.030 : 0.024);
       }
+      // تصفيق خفيف في نهاية كل أربع مازورات
+      if (bar === 3 && st >= 12 && st % 2 === 0) drum('hat', t);
       music.step++;
       music.next = (music.next || ctx.currentTime) + spb;
     }
@@ -274,7 +294,7 @@ SC.audio = (function () {
   }
   function setSfxVolume(v) { if (sfxBus) sfxBus.gain.value = v; }
 
-  return { init, resume, update, setEnabled, setVolume, blip, crash, horn, hornBeep, pop,
+  return { init, resume, update, setEnabled, setVolume, setUnderwater, blip, crash, horn, hornBeep, pop,
            startMusic, stopMusic, setMusicVolume, setSfxVolume, music,
            ui, good, bad, cash, check, count, get ctx() { return ctx; } };
 })();

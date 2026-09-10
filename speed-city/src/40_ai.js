@@ -13,7 +13,7 @@ SC.AIDriver = (function () {
       this.path = opts.path || null;                        // مسار السباق
       this.wp = 0; this.lap = 0; this.progress = 0;
       this.stuck = 0; this.reverse = 0;
-      this.avoid = 0;
+      this.avoid = 0; this.smoothSteer = 0; this.cruise = 0;
       this.input = { throttle: 0, brake: 0, steer: 0, handbrake: 0, boost: 0 };
     }
 
@@ -82,22 +82,27 @@ SC.AIDriver = (function () {
           if (o === v) continue;
           const dx = o.pos.x - v.pos.x, dz = o.pos.z - v.pos.z;
           const dist = Math.hypot(dx, dz);
-          if (dist > 26) continue;
+          if (dist > 34) continue;
           const fwdDot = (dx * Math.sin(v.yaw) + dz * Math.cos(v.yaw)) / (dist || 1);
           if (fwdDot < 0.55) continue;
           const lateral = dx * Math.cos(v.yaw) - dz * Math.sin(v.yaw);
           if (Math.abs(lateral) > 3.6) continue;
-          block = Math.max(block, U.clamp(1 - (dist - 6) / 20, 0, 1));
+          block = Math.max(block, U.clamp(1 - (dist - 7) / 26, 0, 1));
           inp.steer += (lateral > 0 ? 0.5 : -0.5) * block * 0.7;
         }
       }
-      inp.steer = U.clamp(inp.steer, -1, 1);
-      wantSpeed *= (1 - block * 0.85);
+      /* تنعيم المقود: يمنع التذبذب يميناً ويساراً */
+      this.smoothSteer = U.damp(this.smoothSteer, U.clamp(inp.steer, -1, 1), 9, dt);
+      inp.steer = U.clamp(this.smoothSteer, -1, 1);
+      wantSpeed *= (1 - block * 0.9);
 
+      /* تهدئة قبل المنعطفات وعلى الأرصفة */
+      if (!SC.world.onRoad(v.pos.x, v.pos.z)) wantSpeed *= 0.55;
       const spd = v.speed;
-      const err = wantSpeed - spd;
-      inp.throttle = U.clamp(err * 0.35, 0, 1);
-      inp.brake = U.clamp(-err * 0.22, 0, 1);
+      this.cruise = U.damp(this.cruise, wantSpeed, 2.2, dt);
+      const err = this.cruise - spd;
+      inp.throttle = U.clamp(err * 0.32, 0, 1);
+      inp.brake = U.clamp(-err * 0.26, 0, 1);
       inp.handbrake = 0;
       inp.boost = (this.path && this.skill > 0.7 && Math.abs(inp.steer) < 0.2 && spd > this.targetSpeed * 0.6) ? 1 : 0;
 
@@ -115,7 +120,7 @@ SC.AIDriver = (function () {
 
     /* ------------------ تجوال في شوارع المدينة (مرور) ------------------- */
     wander(dt) {
-      const W = SC.world, P = W.CFG.pitch, H = W.CFG.half;
+      const W = SC.world, P = W.CFG.pitch;
       const v = this.v;
       if (!this.dir) {
         const snapped = W.snapToRoad(v.pos.x, v.pos.z);
@@ -138,16 +143,17 @@ SC.AIDriver = (function () {
     }
 
     nextNode() {
-      const W = SC.world, P = W.CFG.pitch, H = W.CFG.half;
+      const W = SC.world, P = W.CFG.pitch;
       const v = this.v;
-      const gx = Math.round((v.pos.x + H) / P), gz = Math.round((v.pos.z + H) / P);
+      const isl = W.islandAt(v.pos.x, v.pos.z) || W.nearestIsland(v.pos.x, v.pos.z);
+      const H = isl.half, N = isl.blocks;
+      const gx = Math.round((v.pos.x - isl.cx + H) / P), gz = Math.round((v.pos.z - isl.cz + H) / P);
       let nx = gx + this.dir.x, nz = gz + this.dir.z;
-      const N = W.CFG.blocks;
       if (nx < 0 || nx > N || nz < 0 || nz > N) {          // ارتد عند الحافة
         this.dir = { x: -this.dir.x, z: -this.dir.z };
         nx = gx + this.dir.x; nz = gz + this.dir.z;
       }
-      return { x: -H + U.clamp(nx, 0, N) * P, z: -H + U.clamp(nz, 0, N) * P };
+      return { x: isl.cx - H + U.clamp(nx, 0, N) * P, z: isl.cz - H + U.clamp(nz, 0, N) * P };
     }
   }
 

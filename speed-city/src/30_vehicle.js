@@ -10,7 +10,7 @@ SC.cars = {
       price: 0, cls: 'B', color: 0xf2f2f2,
       mass: 1050, power: 9800, brake: 15000, topSpeed: 51,       // م/ث ≈ 184 كم/س
       grip: 1.06, steerMax: 0.60, dragK: 0.42, nitro: 1.0,
-      stats: { speed: 62, accel: 58, grip: 70 }, seatH: 0.62, lean: 0.26,
+      stats: { speed: 62, accel: 58, grip: 70 }, seatH: 0.62, lean: 0.075,
       driver: { pose: 'car', scale: 0.92, seat: [0.32, 0.40, 0.08], wheel: [0.30, 0.83, 0.58],
                 wheelR: 0.19, eye: [0.32, 1.12, 0.02] }
     },
@@ -19,7 +19,7 @@ SC.cars = {
       price: 32000, cls: 'S', color: 0x22d3ee,
       mass: 260, power: 4200, brake: 7200, topSpeed: 68,          // ≈ 245 كم/س
       grip: 1.02, steerMax: 0.68, dragK: 0.18, nitro: 1.35,
-      stats: { speed: 92, accel: 95, grip: 66 }, seatH: 0.55, lean: 0.78, leanIn: true,
+      stats: { speed: 92, accel: 95, grip: 66 }, seatH: 0.55, lean: 0.62, leanIn: true,
       driver: { pose: 'bike', scale: 0.90, seat: [0, 0.71, -0.20], wheel: [0, 0.86, 0.47],
                 wheelR: 0.235, eye: [0, 1.34, -0.02] }
     },
@@ -28,7 +28,7 @@ SC.cars = {
       price: 58000, cls: 'D', color: 0xd08a2a,
       mass: 3400, power: 21000, brake: 30000, topSpeed: 39,       // ≈ 140 كم/س
       grip: 0.86, steerMax: 0.46, dragK: 1.05, nitro: 0.75,
-      stats: { speed: 40, accel: 30, grip: 42 }, seatH: 1.35, lean: 0.20,
+      stats: { speed: 40, accel: 30, grip: 42 }, seatH: 1.35, lean: 0.06,
       driver: { pose: 'car', scale: 1.0, seat: [0.70, 1.26, 2.98], wheel: [0.70, 1.84, 3.32],
                 wheelR: 0.22, eye: [0.70, 1.99, 2.94] }
     }
@@ -65,7 +65,7 @@ SC.Vehicle = (function () {
       this.speed = 0;                       // م/ث (موجب للأمام)
       this.gear = 1; this.rpm = 0.15;
       this.nitro = 1; this.nitroActive = false;
-      this.groundY = 0; this.bodyY = 0; this.bodyVY = 0;
+      this.groundY = 0; this.bodyY = 0; this.bodyVY = 0; this.sink = 0;
       this.roll = 0; this.pitch = 0;
       this.slip = 0; this.impact = 0; this.airborne = false;
       this.distance = 0; this.topSpeedSeen = 0;
@@ -239,6 +239,7 @@ SC.Vehicle = (function () {
 
     /* --------------------------- إعادة الوضع --------------------------- */
     place(x, z, yaw) {
+      this.sink = 0;
       this.pos.set(x, SC.world.groundHeight(x, z), z);
       this.yaw = yaw || 0;
       this.vLong = this.vLat = this.yawRate = this.speed = 0;
@@ -296,6 +297,7 @@ SC.Vehicle = (function () {
         else if (this.vLong > -8.5) F -= this.power * 0.5 * brk;   // رجوع للخلف بسرعة محدودة
       }
       F -= def.dragK * this.vLong * Math.abs(this.vLong);   // مقاومة الهواء
+      F -= Math.abs(this.vLat) * 26;                        // احتكاك الإطارات في المنعطف
       F -= 11 * this.vLong;                                 // مقاومة الدحرجة
       if (inp.handbrake > 0.5 && this.vLong > 0) F -= this.brakeForce * 0.45;
 
@@ -427,7 +429,7 @@ SC.Vehicle = (function () {
         if (diff > 0) { this.vLong *= 0.985; }
       }
       this.groundY = gy;
-      this.pos.y = gy;
+      this.pos.y = gy - (this.sink || 0);      // الغرق في البحر
 
       /* ارتداد التعليق */
       this.bodyVY += (-this.bodyY * 46 - this.bodyVY * 8.5) * dt;
@@ -438,7 +440,7 @@ SC.Vehicle = (function () {
     /* --------------------------- المظهر والميلان ------------------------ */
     _visuals(dt, accLong, accLat) {
       /* ميلان الهيكل: السيارات تميل قليلاً، والدراجة تميل كثيراً كالحقيقة */
-      const leanK = (this.def.lean || 0.30) * U.clamp(this.kmh / 55, 0, 1);
+      const leanK = (this.def.lean || 0.08) * U.clamp(this.kmh / 55, 0, 1);
       const leanDir = this.def.leanIn ? 1 : -1;     // الدراجة تميل داخل المنعطف
       const targetRoll = U.clamp(-accLat / 22, -1, 1) * leanK * leanDir;
       const targetPitch = U.clamp(accLong / 40, -0.32, 0.32) * 0.55;

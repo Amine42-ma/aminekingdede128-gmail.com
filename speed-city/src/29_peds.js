@@ -10,9 +10,22 @@ SC.peds = (function () {
   const STATE = { WALK: 0, PANIC: 1, DOWN: 2, WAIT: 3, RIDE: 4 };
 
   /* نقطة على رصيف قريبة من موضع معيّن */
+  let cachedRects = null, cacheKey = '';
+  function nearbyRects(near, maxR) {
+    const W = SC.world;
+    const key = Math.round(near.x / 300) + ',' + Math.round(near.z / 300);
+    if (key === cacheKey && cachedRects) return cachedRects;
+    const lim = (maxR || 200) + 260;
+    cachedRects = W.state.blockRects.filter((b) =>
+      Math.abs(b.cx - near.x) < lim && Math.abs(b.cz - near.z) < lim);
+    cacheKey = key;
+    return cachedRects;
+  }
+
   function sidewalkSpot(near, minR, maxR) {
     const W = SC.world;
-    const rects = W.state.blockRects;
+    const rects = near ? nearbyRects(near, maxR) : W.state.blockRects;
+    if (!rects.length) return null;
     for (let i = 0; i < 30; i++) {
       const b = rects[Math.floor(Math.random() * rects.length)];
       if (!b) break;

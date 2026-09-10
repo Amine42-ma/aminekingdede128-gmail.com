@@ -7,17 +7,36 @@ SC.world = (function () {
 
   /* ------------------------- إعدادات المدينة ---------------------------- */
   const CFG = {
-    blocks: 16,       // عدد المربّعات السكنية في كل اتجاه
+    blocks: 16,       // مربّعات الجزيرة الأولى (للتوافق)
     pitch: 176,       // المسافة بين محاور الشوارع (م)
     road: 22,         // عرض الشارع (م)
     walk: 6,          // عرض الرصيف (م)
     curb: 0.16,       // ارتفاع الرصيف (م)
-    beach: 190,       // عرض الشاطئ الرملي حول المدينة (م)
-    seed: 20250909
+    beach: 150,       // عرض الشاطئ الرملي حول كل جزيرة (م)
+    seaY: -1.0,       // مستوى سطح البحر
+    bedY: -32,        // قاع البحر
+    seed: 20250909,
+    /* ثلاث جزر متدرّجة الحجم يربطها جسران بحريّان طويلان */
+    islands: [
+      { id: 0, name: 'المدينة الأم', cx: 0, cz: 0, blocks: 16 },
+      { id: 1, name: 'جزيرة الميناء', cx: 6400, cz: 0, blocks: 20 },
+      { id: 2, name: 'العاصمة الكبرى', cx: 0, cz: 7600, blocks: 24 }
+    ]
   };
-  CFG.span = CFG.blocks * CFG.pitch;         // طول ضلع المدينة (≈ 2.8 كم)
-  CFG.half = CFG.span / 2;
-  CFG.shore = CFG.half + CFG.road / 2 + CFG.beach;   // حدّ الماء
+  CFG.islands.forEach((i) => {
+    i.span = i.blocks * CFG.pitch;
+    i.half = i.span / 2;
+    i.shore = i.half + CFG.road / 2 + CFG.beach;
+  });
+  CFG.span = CFG.islands[0].span;
+  CFG.half = CFG.islands[0].half;
+  CFG.shore = CFG.islands[0].shore;
+
+  /* الجسور: مستطيلات تصل بين شواطئ الجزر */
+  const BRIDGES = [
+    { a: 0, b: 1, axis: 'x', deckY: 11, width: 26, ramp: 190 },
+    { a: 0, b: 2, axis: 'z', deckY: 11, width: 26, ramp: 190 }
+  ];
 
   const state = {
     group: null, colliders: [], grid: null, cellSize: 60, chunks: [],
@@ -210,7 +229,7 @@ SC.world = (function () {
     });
     const sky = new THREE.Mesh(geo, mat);
     // نصف قطر القبّة يتبع مدى الكاميرا، وإلا قُصّت السماء وظهرت سوداء
-    sky.scale.setScalar(Math.max(1200, (SC.quality ? SC.quality.far : 1000) * 3.4));
+    sky.scale.setScalar(Math.max(1500, (SC.quality ? SC.quality.far : 1000) * 3.6) * 0.9);
     sky.frustumCulled = false;
     sky.renderOrder = -1000;
     scene.add(sky);
@@ -243,7 +262,7 @@ SC.world = (function () {
       state.lampMat.emissiveIntensity = state.isNight ? 3.4 : 0.0;
       state.lampMat.color.setHex(state.isNight ? 0xfff0c0 : 0x9aa3ad);
     }
-    if (state.lampGlow) state.lampGlow.visible = state.isNight;
+    (state.lampGlows || []).forEach((g) => { g.visible = state.isNight; });
     if (state.onTimeChange) state.onTimeChange(name, p);
     return p;
   }
@@ -275,36 +294,100 @@ SC.world = (function () {
     return out;
   }
 
-  /* ارتفاع الأرض عند نقطة (الرصيف أعلى من الشارع) */
-  function groundHeight(x, z) {
-    for (const b of state.blockRects) {
-      if (x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1) return CFG.curb;
+  /* الجزيرة التي تقع فيها النقطة (أو null إن كانت في البحر) */
+  function islandAt(x, z) {
+    for (const i of CFG.islands) {
+      if (Math.abs(x - i.cx) <= i.shore && Math.abs(z - i.cz) <= i.shore) return i;
     }
-    return 0;
+    return null;
   }
-  const onRoad = (x, z) => groundHeight(x, z) === 0;
+  const islandById = (id) => CFG.islands[id];
 
-  /* هل النقطة داخل حدود المدينة (بدون الشاطئ) */
-  function inBounds(x, z) {
-    const lim = CFG.half + CFG.road * 0.5 + 8;
-    return x > -lim && x < lim && z > -lim && z < lim;
+  /* معلومات الجسر عند نقطة: {onDeck, y} */
+  function bridgeAt(x, z) {
+    for (const br of state.bridges) {
+      if (br.axis === 'x') {
+        if (z < br.z - br.width / 2 || z > br.z + br.width / 2) continue;
+        if (x < br.x0 || x > br.x1) continue;
+        return { br, y: deckHeight(br, x) };
+      } else {
+        if (x < br.x - br.width / 2 || x > br.x + br.width / 2) continue;
+        if (z < br.z0 || z > br.z1) continue;
+        return { br, y: deckHeight(br, z) };
+      }
+    }
+    return null;
   }
-  /* الماء يبدأ بعد الشاطئ */
-  const isWater = (x, z) => Math.max(Math.abs(x), Math.abs(z)) > CFG.shore;
-  /* المسافة إلى خطّ الماء (سالبة داخل الماء) */
-  const distToWater = (x, z) => CFG.shore - Math.max(Math.abs(x), Math.abs(z));
-  const onSand = (x, z) => {
-    const d = Math.max(Math.abs(x), Math.abs(z));
-    return d > CFG.half + CFG.road * 0.5 && d <= CFG.shore;
+  function deckHeight(br, t) {
+    const a = br.axis === 'x' ? br.x0 : br.z0;
+    const b = br.axis === 'x' ? br.x1 : br.z1;
+    const r = br.ramp;
+    if (t < a + r) return br.deckY * U.smoothstep(U.clamp((t - a) / r, 0, 1));
+    if (t > b - r) return br.deckY * U.smoothstep(U.clamp((b - t) / r, 0, 1));
+    return br.deckY;
+  }
+
+  /* ارتفاع الأرض عند نقطة (الرصيف أعلى من الشارع، والجسر أعلى من الجميع) */
+  function groundHeight(x, z) {
+    const br = bridgeAt(x, z);
+    if (br) return br.y;
+    const isl = islandAt(x, z);
+    if (!isl) return CFG.seaY;
+    const P = CFG.pitch, R = CFG.road;
+    const lx = x - isl.cx + isl.half, lz = z - isl.cz + isl.half;
+    if (lx < 0 || lz < 0 || lx > isl.span || lz > isl.span) return 0;
+    const ox = lx % P, oz = lz % P;
+    const inset = R / 2;
+    return (ox > inset && ox < P - inset && oz > inset && oz < P - inset) ? CFG.curb : 0;
+  }
+  const onRoad = (x, z) => {
+    if (bridgeAt(x, z)) return true;
+    return groundHeight(x, z) === 0 && !!islandAt(x, z);
   };
-  /* أقرب مركز شارع (يُستخدم للولادة وطُرق الذكاء الاصطناعي) */
+
+  /* هل النقطة داخل شوارع إحدى الجزر (بدون الشاطئ) */
+  function inBounds(x, z) {
+    for (const i of CFG.islands) {
+      const lim = i.half + CFG.road * 0.5 + 8;
+      if (Math.abs(x - i.cx) < lim && Math.abs(z - i.cz) < lim) return true;
+    }
+    return false;
+  }
+  /* الماء: خارج كل الجزر وخارج الجسور */
+  const isWater = (x, z) => !islandAt(x, z) && !bridgeAt(x, z);
+  /* المسافة إلى خطّ الماء (سالبة في البحر) */
+  function distToWater(x, z) {
+    if (bridgeAt(x, z)) return 999;
+    let best = -1e9;
+    for (const i of CFG.islands) {
+      const d = i.shore - Math.max(Math.abs(x - i.cx), Math.abs(z - i.cz));
+      if (d > best) best = d;
+    }
+    return best;
+  }
+  function onSand(x, z) {
+    const i = islandAt(x, z);
+    if (!i) return false;
+    const d = Math.max(Math.abs(x - i.cx), Math.abs(z - i.cz));
+    return d > i.half + CFG.road * 0.5;
+  }
+  /* أقرب مركز شارع في الجزيرة الحالية */
   function snapToRoad(x, z) {
-    const P = CFG.pitch, H = CFG.half;
-    const gx = Math.round((x + H) / P) * P - H;
-    const gz = Math.round((z + H) / P) * P - H;
+    const isl = islandAt(x, z) || nearestIsland(x, z);
+    const P = CFG.pitch, H = isl.half;
+    const gx = Math.round((x - isl.cx + H) / P) * P - H + isl.cx;
+    const gz = Math.round((z - isl.cz + H) / P) * P - H + isl.cz;
     return Math.abs(x - gx) < Math.abs(z - gz)
-      ? { x: gx, z: U.clamp(z, -H, H), axis: 'z' }
-      : { x: U.clamp(x, -H, H), z: gz, axis: 'x' };
+      ? { x: gx, z: U.clamp(z, isl.cz - H, isl.cz + H), axis: 'z', island: isl }
+      : { x: U.clamp(x, isl.cx - H, isl.cx + H), z: gz, axis: 'x', island: isl };
+  }
+  function nearestIsland(x, z) {
+    let best = CFG.islands[0], bd = 1e18;
+    for (const i of CFG.islands) {
+      const d = (i.cx - x) ** 2 + (i.cz - z) ** 2;
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best;
   }
 
   /* ================================ البناء ============================== */
@@ -317,7 +400,8 @@ SC.world = (function () {
     state.group = G;
     scene.add(G);
     state.colliders.length = 0; state.blockRects.length = 0; state.spawns.length = 0;
-    state.chunks.length = 0;
+    state.chunks.length = 0; state.lamps.length = 0; state.lampBase = 0;
+    state.bridges = []; state.lampGlows = [];
 
     scene.fog = new THREE.Fog(0xbdd3e8, 100, 900);
 
@@ -338,64 +422,432 @@ SC.world = (function () {
     scene.add(sun); scene.add(sun.target);
     state.sun = sun;
     state.sky = buildSky(scene);
-    state.sky.scale.setScalar(Math.max(1200, quality.far * 3.4));
+    state.sky.scale.setScalar(Math.max(1500, quality.far * 3.6) * 0.9);
 
-    /* --- الأرض: أسفلت المدينة، ثم شاطئ رملي، ثم البحر --- */
-    const S = CFG.span, HALF = CFG.half, MARGIN = CFG.road;
-    const groundMat = new THREE.MeshStandardMaterial({
-      map: TEX.asphalt, roughness: 0.93, metalness: 0.0, color: 0xffffff
+    /* --- البحر وقاعه: عالم واحد يضمّ كل الجزر --- */
+    buildSea(G);
+    buildReef(G);
+
+    /* --- الجزر الثلاث --- */
+    CFG.islands.forEach((isl) => buildIsland(G, isl, U.rng(CFG.seed + isl.id * 9377), quality));
+
+    /* --- الجسور البحرية الطويلة بين الجزر --- */
+    buildBridges(G, quality);
+
+    buildGrid();
+
+    /* --- خريطة البيئة للانعكاسات على السيارات --- */
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    pmrem.compileEquirectangularShader();
+    setTimeOfDay('day');
+    refreshEnv(renderer, pmrem);
+    state.pmrem = pmrem;
+
+    return state;
+  }
+
+  function refreshEnv(renderer, pmrem) {
+    const tmp = new THREE.Scene();
+    const sky = state.sky.clone();
+    sky.material = state.sky.material.clone();
+    sky.material.uniforms = state.sky.material.uniforms;   // نفس الألوان الحالية
+    tmp.add(sky);
+    if (state.envRT) state.envRT.dispose();
+    state.envRT = pmrem.fromScene(tmp, 0.04);
+    state.scene.environment = state.envRT.texture;
+    state.scene.environmentIntensity = state.isNight ? 0.35 : 1.0;
+  }
+
+  /* ------------------------------ البحر ---------------------------------- */
+  function buildSea(G) {
+    const waterMat = new THREE.MeshStandardMaterial({
+      color: 0x1d6485, roughness: 0.07, metalness: 0.6,
+      normalMap: TEX.waterN, normalScale: new THREE.Vector2(0.9, 0.9),
+      side: THREE.DoubleSide
     });
+    const SEA = 46000;
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(SEA, SEA), waterMat);
+    sea.rotation.x = -Math.PI / 2;
+    sea.position.y = CFG.seaY;
+    sea.name = 'water';
+    sea.renderOrder = 1;
+    G.add(sea);
+
+    /* قاع البحر — يظهر عند الغوص */
+    const bedMat = new THREE.MeshStandardMaterial({ map: TEX.sand, color: 0x93a7a4, roughness: 1 });
+    const bed = new THREE.Mesh(new THREE.PlaneGeometry(SEA, SEA), bedMat);
+    bed.rotation.x = -Math.PI / 2;
+    bed.position.y = CFG.bedY;
+    bed.name = 'seabed';
+    bed.visible = false;          // لا يُرسم إلا عند الغوص
+    G.add(bed);
+
+    state.water = { material: waterMat, mesh: sea, bed };
+  }
+
+  /* --------------------- عالم ما تحت البحر (الشُّعب) --------------------- */
+  /* كل ما يظهر عند الغوص: صخور، أعشاب بحرية، مرجان، حطام سفينة، أسماك،
+     وذرّات عالقة في الماء. كله مخفي تماماً أثناء القيادة العادية فلا يكلّف شيئاً. */
+  function buildReef(G) {
+    const reef = new THREE.Group();
+    reef.name = 'reef';
+    reef.visible = false;
+    reef.matrixAutoUpdate = false;
+
+    const N_ROCK = 110, N_KELP = 190, N_CORAL = 90, N_FISH = 84;
+
+    const rockMat  = new THREE.MeshStandardMaterial({ map: TEX.sand, color: 0x7c9298, roughness: 1, metalness: 0 });
+    const kelpMat  = new THREE.MeshStandardMaterial({ color: 0x63d492, roughness: 0.75, side: THREE.DoubleSide,
+                                                      emissive: 0x1c6b3f, emissiveIntensity: 1.0 });
+    const coralMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.05 });
+    const fishMat  = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45, metalness: 0.25,
+                                                      emissive: 0x6fd3f0, emissiveIntensity: 0.35 });
+
+    const rockGeo  = new THREE.IcosahedronGeometry(1, 0);
+    const kelpGeo = (function () {
+      /* شريطان متقاطعان يتضيّقان نحو الأعلى — يبدوان كورقة طحلب من أي زاوية */
+      const seg = 4, verts = [], uvs = [], idx = [];
+      const wAt = (t) => 0.55 * (1 - 0.55 * t) * (1 + 0.35 * Math.sin(t * 3.1));
+      for (let plane = 0; plane < 2; plane++) {
+        const base = verts.length / 3;
+        for (let j = 0; j <= seg; j++) {
+          const t = j / seg, w = wAt(t), y = t;
+          const bend = Math.sin(t * 1.9) * 0.28;          // انحناء طبيعي
+          if (plane === 0) { verts.push(-w, y, bend, w, y, bend); }
+          else             { verts.push(bend, y, -w, bend, y, w); }
+          uvs.push(0, t, 1, t);
+        }
+        for (let j = 0; j < seg; j++) {
+          const a = base + j * 2;
+          idx.push(a, a + 1, a + 3, a, a + 3, a + 2);
+        }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      return g;
+    })();
+    const coralGeo = new THREE.ConeGeometry(0.55, 1, 6);
+    coralGeo.translate(0, 0.5, 0);
+    const fishGeo  = new THREE.ConeGeometry(0.20, 0.85, 4);
+    fishGeo.rotateX(-Math.PI / 2);                       // الأنف نحو +Z
+    fishGeo.scale(1, 0.45, 1);
+
+    const N_DUNE = 16;
+    const duneGeo = new THREE.SphereGeometry(1, 12, 7);
+    const dunes = new THREE.InstancedMesh(duneGeo, rockMat.clone(), N_DUNE);
+    dunes.material.color.setHex(0x9db0ad);
+    dunes.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    dunes.frustumCulled = false;
+    reef.add(dunes);
+
+    const rocks = new THREE.InstancedMesh(rockGeo, rockMat, N_ROCK);
+    const kelp  = new THREE.InstancedMesh(kelpGeo, kelpMat, N_KELP);
+    const coral = new THREE.InstancedMesh(coralGeo, coralMat, N_CORAL);
+    const fish  = new THREE.InstancedMesh(fishGeo, fishMat, N_FISH);
+    [rocks, kelp, coral, fish].forEach((m) => {
+      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      m.frustumCulled = false;
+      reef.add(m);
+    });
+    coral.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(N_CORAL * 3), 3);
+    fish.instanceColor  = new THREE.InstancedBufferAttribute(new Float32Array(N_FISH * 3), 3);
+
+    /* حطام سفينة غارقة */
+    const wreck = new THREE.Group();
+    const hullMat = new THREE.MeshStandardMaterial({ color: 0x8d7c62, roughness: 0.9, metalness: 0.2,
+                                                    emissive: 0x24303a, emissiveIntensity: 0.6 });
+    const hull = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3.4, 22, 10, 1, false, 0, Math.PI), hullMat);
+    hull.rotation.z = Math.PI / 2;
+    hull.rotation.x = Math.PI;
+    hull.position.y = 2.4;
+    wreck.add(hull);
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(22, 0.5, 6.6), hullMat);
+    deck.position.y = 4.6; wreck.add(deck);
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(5.5, 3, 4.6), hullMat);
+    cab.position.set(-3, 6.3, 0); wreck.add(cab);
+    for (const mx of [4, -7]) {
+      const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 11, 6), hullMat);
+      mast.position.set(mx, 9.5, 0); mast.rotation.z = 0.22; wreck.add(mast);
+    }
+    wreck.rotation.z = 0.16;
+    reef.add(wreck);
+
+    /* ذرّات عالقة في الماء تعطي إحساس العمق */
+    const MOTES = 520;
+    const mp = new Float32Array(MOTES * 3);
+    const moteGeo = new THREE.BufferGeometry();
+    moteGeo.setAttribute('position', new THREE.BufferAttribute(mp, 3));
+    const motes = new THREE.Points(moteGeo, new THREE.PointsMaterial({
+      color: 0xbfe6f5, size: 0.16, sizeAttenuation: true, transparent: true,
+      opacity: 0.55, depthWrite: false, map: TEX.glow, blending: THREE.AdditiveBlending
+    }));
+    motes.frustumCulled = false;
+    reef.add(motes);
+
+    /* أشعة ضوء نافذة من السطح إلى الأعماق */
+    if (!TEX.rayGrad) {
+      TEX.rayGrad = canvasTex(8, 128, (c, w, h) => {
+        const g = c.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, '#ffffff'); g.addColorStop(0.45, '#8fd8ff');
+        g.addColorStop(1, '#000000');
+        c.fillStyle = g; c.fillRect(0, 0, w, h);
+      }, 1, 1);
+    }
+    const rayMat = new THREE.MeshBasicMaterial({
+      color: 0x9fe8ff, map: TEX.rayGrad, transparent: true, opacity: 0.075, depthWrite: false,
+      blending: THREE.AdditiveBlending, side: THREE.DoubleSide
+    });
+    const rayGeo = new THREE.CylinderGeometry(1.1, 7, 1, 9, 1, true);
+    rayGeo.translate(0, -0.5, 0);                     // القمة عند السطح
+    const N_RAY = 26;
+    const rays = new THREE.InstancedMesh(rayGeo, rayMat, N_RAY);
+    rays.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    rays.frustumCulled = false;
+    rays.renderOrder = 3;
+    reef.add(rays);
+
+    G.add(reef);
+    state.reef = {
+      rays, dunes,
+      group: reef, rocks, kelp, coral, fish, wreck, motes,
+      fishData: [], kelpData: [], cx: NaN, cz: NaN, t: 0, mp
+    };
+  }
+
+  /* توزيع الشُّعب حول نقطة الغوص — نفس المكان يعطي دائماً نفس المشهد */
+  function placeReef(cx, cz) {
+    const R = state.reef;
+    if (!R) return;
+    const gx = Math.round(cx / 90) * 90, gz = Math.round(cz / 90) * 90;
+    if (gx === R.cx && gz === R.cz) return;
+    R.cx = gx; R.cz = gz;
+
+    const rnd = U.rng(((gx * 73856093) ^ (gz * 19349663) ^ CFG.seed) >>> 0);
+    const M = new THREE.Matrix4(), Q = new THREE.Quaternion(),
+          E = new THREE.Euler(), P = new THREE.Vector3(), S = new THREE.Vector3();
+    const bed = CFG.bedY;
+    const spread = (i, n, r0, r1) => {
+      const a = rnd() * Math.PI * 2, d = r0 + Math.sqrt(rnd()) * (r1 - r0);
+      return [gx + Math.cos(a) * d, gz + Math.sin(a) * d];
+    };
+    const setI = (mesh, i, x, y, z, sx, sy, sz, rx, ry, rz) => {
+      P.set(x, y, z); E.set(rx, ry, rz); Q.setFromEuler(E); S.set(sx, sy, sz);
+      M.compose(P, Q, S); mesh.setMatrixAt(i, M);
+    };
+
+    if (R.dunes) {
+      for (let i = 0; i < R.dunes.count; i++) {
+        const [x, z] = spread(0, 1, 40, 130);
+        setI(R.dunes, i, x, bed - rnd.range(1, 4), z,
+             rnd.range(16, 46), rnd.range(3.5, 9.5), rnd.range(16, 46),
+             0, rnd() * 6.28, 0);
+      }
+      R.dunes.instanceMatrix.needsUpdate = true;
+    }
+    for (let i = 0; i < R.rocks.count; i++) {
+      const [x, z] = spread(i, R.rocks.count, 3, 115);
+      const s = rnd.range(0.7, 4.2);
+      setI(R.rocks, i, x, bed + s * rnd.range(0.15, 0.55), z,
+           s * rnd.range(0.8, 1.5), s * rnd.range(0.5, 1.1), s * rnd.range(0.8, 1.5),
+           rnd.range(-0.3, 0.3), rnd() * 6.28, rnd.range(-0.3, 0.3));
+    }
+    const groves = [];
+    for (let g = 0; g < 13; g++) { const [gx2, gz2] = spread(0, 1, g < 3 ? 7 : 26, g < 3 ? 26 : 100); groves.push([gx2, gz2]); }
+    R.kelpData.length = 0;
+    for (let i = 0; i < R.kelp.count; i++) {
+      const gv = groves[(i / R.kelp.count * groves.length) | 0] || groves[0];
+      const x = gv[0] + rnd.range(-13, 13), z = gv[1] + rnd.range(-13, 13);
+      const h = rnd.range(3.5, 12);
+      const d = { x, z, w: rnd.range(0.45, 1.05), h, w2: rnd.range(0.45, 1.05),
+                  ry: rnd() * 6.28, tx: rnd.range(-0.16, 0.16), tz: rnd.range(-0.16, 0.16),
+                  ph: rnd() * 6.28, amp: rnd.range(0.05, 0.16) };
+      R.kelpData.push(d);
+      setI(R.kelp, i, x, bed, z, d.w, h, d.w2, d.tx, d.ry, d.tz);
+    }
+    const cc = new THREE.Color();
+    const palette = [0xff7a6b, 0xffb057, 0xf06fae, 0x7fd6ff, 0xc79bff, 0x8ce8b6];
+    for (let i = 0; i < R.coral.count; i++) {
+      const [x, z] = spread(i, R.coral.count, 4, 95);
+      const h = rnd.range(0.8, 3.4);
+      setI(R.coral, i, x, bed, z, rnd.range(0.6, 1.5), h, rnd.range(0.6, 1.5),
+           rnd.range(-0.25, 0.25), rnd() * 6.28, rnd.range(-0.25, 0.25));
+      cc.setHex(palette[(rnd() * palette.length) | 0]);
+      R.coral.setColorAt(i, cc);
+    }
+
+    /* أسماك في أسراب */
+    R.fishData.length = 0;
+    const schools = 6, per = Math.floor(R.fish.count / schools);
+    for (let s0 = 0; s0 < schools; s0++) {
+      const [sx, sz] = spread(0, 1, 12, 105);
+      const sy = bed + rnd.range(3, 22);
+      const hue = rnd();
+      for (let k = 0; k < per; k++) {
+        R.fishData.push({
+          ox: sx, oz: sz, oy: sy,
+          r: rnd.range(3, 13), a: rnd() * 6.28, sp: rnd.range(0.28, 0.62) * (rnd() < 0.5 ? -1 : 1),
+          bob: rnd.range(0.3, 1.6), ph: rnd() * 6.28, sc: rnd.range(0.55, 1.9)
+        });
+        cc.setHSL(0.5 + hue * 0.16, 0.55, rnd.range(0.45, 0.72));
+        R.fish.setColorAt(R.fishData.length - 1, cc);
+      }
+    }
+    for (let i = R.fishData.length; i < R.fish.count; i++) setI(R.fish, i, 0, -9999, 0, 0.001, 0.001, 0.001, 0, 0, 0);
+
+    /* الحطام */
+    const [wx, wz] = spread(0, 1, 30, 95);
+    R.wreck.position.set(wx, bed + 0.6, wz);
+    R.wreck.rotation.y = rnd() * 6.28;
+    R.wreck.visible = rnd() < 0.75;
+
+    /* أشعة الضوء */
+    if (R.rays) {
+      for (let i = 0; i < R.rays.count; i++) {
+        const [x, z] = spread(0, 1, 2, 120);
+        const len = rnd.range(20, Math.abs(CFG.bedY - CFG.seaY) + 4);
+        setI(R.rays, i, x, CFG.seaY - 0.4, z, rnd.range(0.6, 2.2), len, rnd.range(0.6, 2.2),
+             rnd.range(-0.10, 0.10), rnd() * 6.28, rnd.range(-0.10, 0.10));
+      }
+      R.rays.instanceMatrix.needsUpdate = true;
+    }
+
+    /* الذرّات العالقة */
+    for (let i = 0; i < R.mp.length; i += 3) {
+      R.mp[i]     = gx + rnd.range(-60, 60);
+      R.mp[i + 1] = bed + rnd.range(0.5, 34);
+      R.mp[i + 2] = gz + rnd.range(-60, 60);
+    }
+    R.motes.geometry.attributes.position.needsUpdate = true;
+
+    R.rocks.instanceMatrix.needsUpdate = true;
+    R.kelp.instanceMatrix.needsUpdate = true;
+    R.coral.instanceMatrix.needsUpdate = true;
+    R.coral.instanceColor.needsUpdate = true;
+    R.fish.instanceColor.needsUpdate = true;
+  }
+
+  /* حركة الأسماك وتمايل الأعشاب */
+  const _rm = new THREE.Matrix4(), _rq = new THREE.Quaternion(),
+        _re = new THREE.Euler(), _rp = new THREE.Vector3(), _rs = new THREE.Vector3(1, 1, 1);
+  function updateReef(dt) {
+    const R = state.reef;
+    if (!R || !R.group.visible) return;
+    R.t += dt;
+    const D = R.fishData;
+    for (let i = 0; i < D.length; i++) {
+      const f = D[i];
+      f.a += f.sp * dt;
+      const x = f.ox + Math.cos(f.a) * f.r;
+      const z = f.oz + Math.sin(f.a) * f.r;
+      const y = f.oy + Math.sin(R.t * 0.9 + f.ph) * f.bob;
+      _rp.set(x, y, z);
+      _re.set(0, f.a + (f.sp > 0 ? -Math.PI / 2 : Math.PI / 2), Math.sin(R.t * 5 + f.ph) * 0.12);
+      _rq.setFromEuler(_re);
+      _rs.set(f.sc, f.sc, f.sc);
+      _rm.compose(_rp, _rq, _rs);
+      R.fish.setMatrixAt(i, _rm);
+    }
+    R.fish.instanceMatrix.needsUpdate = true;
+
+    /* تمايل الأعشاب: كل ورقة تدور حول قاعدتها هي — تدوير الشبكة كلها
+       يُبعد النسخ عشرات الأمتار لأنّها بعيدة عن مركز العالم. */
+    const K = R.kelpData, bed = CFG.bedY;
+    for (let i = 0; i < K.length; i++) {
+      const d = K[i];
+      const sway = Math.sin(R.t * 0.8 + d.ph) * d.amp;
+      _rp.set(d.x, bed, d.z);
+      _re.set(d.tx + sway, d.ry, d.tz + Math.cos(R.t * 0.62 + d.ph) * d.amp * 0.7);
+      _rq.setFromEuler(_re);
+      _rs.set(d.w, d.h, d.w2);
+      _rm.compose(_rp, _rq, _rs);
+      R.kelp.setMatrixAt(i, _rm);
+    }
+    if (K.length) R.kelp.instanceMatrix.needsUpdate = true;
+  }
+
+  /* مضلّع رباعي حرّ (يُستخدم لمنحدر الشاطئ) */
+  function quadMesh(a, b, c, d, mat) {
+    const g = new THREE.BufferGeometry();
+    const p = new Float32Array([
+      a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2],
+      a[0], a[1], a[2], c[0], c[1], c[2], d[0], d[1], d[2]
+    ]);
+    const uv = new Float32Array([0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1]);
+    g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    g.computeVertexNormals();
+    const m = new THREE.Mesh(g, mat);
+    m.receiveShadow = true;
+    return m;
+  }
+
+  /* ------------------------------ جزيرة ---------------------------------- */
+  function buildIsland(G, isl, rnd, quality) {
+    const P = CFG.pitch, R = CFG.road, W = CFG.walk;
+    const S = isl.span, HALF = isl.half, MARGIN = R;
+    const OX = isl.cx, OZ = isl.cz;
+
+    /* الأرض (أسفلت الشوارع) */
+    const groundMat = state.groundMat || (state.groundMat = new THREE.MeshStandardMaterial({
+      map: TEX.asphalt, roughness: 0.93, metalness: 0.0, color: 0xffffff
+    }));
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(S + MARGIN * 2, S + MARGIN * 2), groundMat);
     ground.rotation.x = -Math.PI / 2;
+    ground.position.set(OX, 0, OZ);
     ground.receiveShadow = true;
-    ground.name = 'ground';
+    ground.name = 'ground' + isl.id;
     G.add(ground);
 
-    const sandMat = new THREE.MeshStandardMaterial({ map: TEX.sand, roughness: 1, metalness: 0 });
-    const inner = S + MARGIN * 2, outer = CFG.shore * 2;
-    const B = (CFG.shore * 2 - inner) / 2;
+    /* الشاطئ الرملي */
+    const sandMat = state.sandMat || (state.sandMat =
+      new THREE.MeshStandardMaterial({ map: TEX.sand, roughness: 1, metalness: 0 }));
+    const inner = S + MARGIN * 2, outer = isl.shore * 2;
+    const B = (outer - inner) / 2;
     [[0, (inner + B) / 2, outer, B], [0, -(inner + B) / 2, outer, B],
      [(inner + B) / 2, 0, B, inner], [-(inner + B) / 2, 0, B, inner]].forEach(([x, z, sx, sz]) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(sx, sz), sandMat);
       m.rotation.x = -Math.PI / 2;
-      m.position.set(x, -0.02, z);
+      m.position.set(OX + x, -0.02, OZ + z);
       m.receiveShadow = true;
       G.add(m);
     });
 
-    /* البحر: حلقة حول الشاطئ فقط (لا يمتدّ تحت المدينة حتى لا يتداخل مع الأسفلت) */
-    const waterMat = new THREE.MeshStandardMaterial({
-      color: 0x246e91, roughness: 0.08, metalness: 0.62,
-      normalMap: TEX.waterN, normalScale: new THREE.Vector2(0.85, 0.85)
+    /* منحدر الشاطئ إلى قاع البحر (حتى لا تبدو الجزيرة طافية) */
+    const SL = 55, DEEP = -7;
+    const sh = isl.shore;
+    const corners = [
+      [[-sh, 0, sh], [sh, 0, sh], [sh + SL, DEEP, sh + SL], [-sh - SL, DEEP, sh + SL]],
+      [[sh, 0, -sh], [-sh, 0, -sh], [-sh - SL, DEEP, -sh - SL], [sh + SL, DEEP, -sh - SL]],
+      [[sh, 0, sh], [sh, 0, -sh], [sh + SL, DEEP, -sh - SL], [sh + SL, DEEP, sh + SL]],
+      [[-sh, 0, -sh], [-sh, 0, sh], [-sh - SL, DEEP, sh + SL], [-sh - SL, DEEP, -sh - SL]]
+    ];
+    corners.forEach((q) => {
+      const t = q.map((v) => [v[0] + OX, v[1], v[2] + OZ]);
+      G.add(quadMesh(t[0], t[1], t[2], t[3], sandMat));
     });
-    const sea = new THREE.Group();
-    sea.name = 'water';
-    const wIn = CFG.shore * 2, wOut = 24000, WB = (wOut - wIn) / 2;
-    [[0, (wIn + WB) / 2, wOut, WB], [0, -(wIn + WB) / 2, wOut, WB],
-     [(wIn + WB) / 2, 0, WB, wIn], [-(wIn + WB) / 2, 0, WB, wIn]].forEach(([x, z, sx, sz]) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(sx, sz), waterMat);
-      m.rotation.x = -Math.PI / 2;
-      m.position.set(x, -0.35, z);
-      G.add(m);
-      sea.add(m.clone());       // نسخة للمرجع فقط
-    });
-    state.water = { material: waterMat, visible: true };
 
-    /* --- المربعات السكنية: رصيف + سطح داخلي --- */
-    const NB = CFG.blocks, P = CFG.pitch, R = CFG.road, W = CFG.walk;
-    const blockSize = P - R;                       // ضلع المربّع مع الرصيف
-    const innerSize = blockSize - W * 2;           // المساحة القابلة للبناء
-    const slabGeo = new THREE.BoxGeometry(blockSize, CFG.curb, blockSize);
-    const slabMat = new THREE.MeshStandardMaterial({ map: TEX.walk, roughness: 0.9, metalness: 0 });
-    slabMat.map.repeat.set(blockSize / 4, blockSize / 4);
+    /* المربّعات السكنية: رصيف + سطح داخلي */
+    const NB = isl.blocks;
+    const blockSize = P - R;
+    const innerSize = blockSize - W * 2;
+    const slabGeo = state.slabGeo || (state.slabGeo = new THREE.BoxGeometry(blockSize, CFG.curb, blockSize));
+    const slabMat = state.slabMat || (state.slabMat = (() => {
+      const m = new THREE.MeshStandardMaterial({ map: TEX.walk.clone(), roughness: 0.9, metalness: 0 });
+      m.map.repeat.set(blockSize / 4, blockSize / 4);
+      m.map.needsUpdate = true;
+      return m;
+    })());
     const slabs = new THREE.InstancedMesh(slabGeo, slabMat, NB * NB);
     slabs.receiveShadow = true; slabs.castShadow = false;
 
-    const lotGeo = new THREE.PlaneGeometry(innerSize, innerSize);
-    const lotMats = {
+    const lotGeo = state.lotGeo || (state.lotGeo = new THREE.PlaneGeometry(innerSize, innerSize));
+    const lotMats = state.lotMats || (state.lotMats = {
       grass: new THREE.MeshStandardMaterial({ map: TEX.grass, roughness: 1, metalness: 0 }),
       lot: new THREE.MeshStandardMaterial({ map: TEX.lot, roughness: 0.95, metalness: 0 })
-    };
+    });
     const lotsGrass = [], lotsPark = [];
 
     const mtx = new THREE.Matrix4(), qid = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1);
@@ -403,15 +855,15 @@ SC.world = (function () {
     let n = 0;
     for (let i = 0; i < NB; i++) {
       for (let j = 0; j < NB; j++) {
-        const cx = -HALF + P * i + P / 2;
-        const cz = -HALF + P * j + P / 2;
+        const cx = OX - HALF + P * i + P / 2;
+        const cz = OZ - HALF + P * j + P / 2;
         mtx.compose(new THREE.Vector3(cx, CFG.curb / 2, cz), qid, one);
         slabs.setMatrixAt(n++, mtx);
-        const rect = { x0: cx - blockSize / 2, x1: cx + blockSize / 2, z0: cz - blockSize / 2, z1: cz + blockSize / 2, cx, cz };
+        const rect = { x0: cx - blockSize / 2, x1: cx + blockSize / 2,
+                       z0: cz - blockSize / 2, z1: cz + blockSize / 2, cx, cz, island: isl.id };
         state.blockRects.push(rect);
-        // نوع المربّع: مركز المدينة مبانٍ كبيرة، الأطراف سكنية، وبعضها ساحات
-        const dc = Math.max(Math.abs(i - (NB - 1) / 2), Math.abs(j - (NB - 1) / 2));
-        let kind = dc <= 1 ? 'downtown' : (dc >= 2.5 ? 'suburb' : 'mixed');
+        const dc = Math.max(Math.abs(i - (NB - 1) / 2), Math.abs(j - (NB - 1) / 2)) / (NB / 2);
+        let kind = dc <= 0.22 ? 'downtown' : (dc >= 0.55 ? 'suburb' : 'mixed');
         const roll = rnd();
         if (roll < 0.05) kind = 'school';
         else if (roll < 0.11) kind = 'park';
@@ -437,44 +889,127 @@ SC.world = (function () {
       G.add(im);
     });
 
-    /* --- خطوط الشارع --- */
-    buildRoadMarkings(G, rnd);
-
-    /* --- المباني (من النماذج المرفقة فقط) --- */
-    placeBuildings(G, blocks, rnd);
-
-    /* --- الأعمدة والإنارة والحواجز --- */
-    buildProps(G, rnd, quality);
-
-
-    buildGrid();
-    buildSpawns();
-
-    /* --- خريطة البيئة للانعكاسات على السيارات --- */
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    pmrem.compileEquirectangularShader();
-    setTimeOfDay('day');
-    refreshEnv(renderer, pmrem);
-    state.pmrem = pmrem;
-
-    return state;
+    buildRoadMarkings(G, rnd, isl);
+    placeBuildings(G, blocks, rnd, isl);
+    buildProps(G, rnd, quality, isl);
+    buildSpawns(isl);
   }
 
-  function refreshEnv(renderer, pmrem) {
-    const tmp = new THREE.Scene();
-    const sky = state.sky.clone();
-    sky.material = state.sky.material.clone();
-    sky.material.uniforms = state.sky.material.uniforms;   // نفس الألوان الحالية
-    tmp.add(sky);
-    if (state.envRT) state.envRT.dispose();
-    state.envRT = pmrem.fromScene(tmp, 0.04);
-    state.scene.environment = state.envRT.texture;
-    state.scene.environmentIntensity = state.isNight ? 0.35 : 1.0;
+  /* ------------------------------ الجسور --------------------------------- */
+  function buildBridges(G, quality) {
+    state.bridges = [];
+    const deckMat = new THREE.MeshStandardMaterial({ map: TEX.asphalt, roughness: 0.92, metalness: 0.03 });
+    const railMat = new THREE.MeshStandardMaterial({ color: 0xb9bfc7, roughness: 0.45, metalness: 0.65 });
+    const pylonMat = new THREE.MeshStandardMaterial({ color: 0x8d939b, roughness: 0.85, metalness: 0.05 });
+    const SEG = 24;
+
+    BRIDGES.forEach((spec) => {
+      const A = CFG.islands[spec.a], B2 = CFG.islands[spec.b];
+      const br = { axis: spec.axis, width: spec.width, deckY: spec.deckY, ramp: spec.ramp };
+      if (spec.axis === 'x') {
+        br.z = A.cz;
+        br.x0 = Math.min(A.cx, B2.cx) === A.cx ? A.cx + A.shore : B2.cx + B2.shore;
+        br.x1 = Math.min(A.cx, B2.cx) === A.cx ? B2.cx - B2.shore : A.cx - A.shore;
+        br.len = br.x1 - br.x0;
+      } else {
+        br.x = A.cx;
+        br.z0 = Math.min(A.cz, B2.cz) === A.cz ? A.cz + A.shore : B2.cz + B2.shore;
+        br.z1 = Math.min(A.cz, B2.cz) === A.cz ? B2.cz - B2.shore : A.cz - A.shore;
+        br.len = br.z1 - br.z0;
+      }
+      state.bridges.push(br);
+
+      const count = Math.ceil(br.len / SEG);
+      const deckGeo = new THREE.BoxGeometry(SEG + 0.4, 1.1, br.width);
+      const railGeo = new THREE.BoxGeometry(SEG + 0.4, 1.15, 0.45);
+      const deck = new THREE.InstancedMesh(deckGeo, deckMat, count);
+      const rails = new THREE.InstancedMesh(railGeo, railMat, count * 2);
+      deck.receiveShadow = true; deck.castShadow = quality.shadows;
+      rails.castShadow = false;
+      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1);
+      const pylons = [];
+
+      for (let i = 0; i < count; i++) {
+        const t0 = (br.axis === 'x' ? br.x0 : br.z0) + i * SEG;
+        const t1 = t0 + SEG;
+        const y0 = deckHeight(br, t0), y1 = deckHeight(br, t1);
+        const yc = (y0 + y1) / 2;
+        const pitch = Math.atan2(y1 - y0, SEG);
+        const along = t0 + SEG / 2;
+        const px = br.axis === 'x' ? along : br.x;
+        const pz = br.axis === 'x' ? br.z : along;
+        const yaw = br.axis === 'x' ? 0 : Math.PI / 2;
+        q.setFromEuler(new THREE.Euler(0, yaw, -pitch, 'YXZ'));
+        m.compose(new THREE.Vector3(px, yc - 0.55, pz), q, one);
+        deck.setMatrixAt(i, m);
+        for (let sdx = 0; sdx < 2; sdx++) {
+          const off = (sdx ? 1 : -1) * (br.width / 2 - 0.2);
+          const rx = br.axis === 'x' ? px : px + off;
+          const rz = br.axis === 'x' ? pz + off : pz;
+          m.compose(new THREE.Vector3(rx, yc + 0.55, rz), q, one);
+          rails.setMatrixAt(i * 2 + sdx, m);
+        }
+        if (i % 6 === 0 && yc > 3) pylons.push([px, pz, yc]);
+      }
+      deck.instanceMatrix.needsUpdate = true; deck.computeBoundingSphere();
+      rails.instanceMatrix.needsUpdate = true; rails.computeBoundingSphere();
+      G.add(deck); G.add(rails);
+
+      /* خطّ منقّط في منتصف الجسر */
+      const lineGeo = new THREE.PlaneGeometry(SEG * 0.55, 0.42);
+      const lineMat = state.bridgeLineMat || (state.bridgeLineMat = new THREE.MeshBasicMaterial({
+        color: 0xefe9d6, transparent: true, opacity: 0.75, depthWrite: false
+      }));
+      const lines = new THREE.InstancedMesh(lineGeo, lineMat, count);
+      lines.renderOrder = 2;
+      for (let i = 0; i < count; i++) {
+        const t0 = (br.axis === 'x' ? br.x0 : br.z0) + i * SEG;
+        const yc = deckHeight(br, t0 + SEG / 2);
+        const along = t0 + SEG / 2;
+        const px = br.axis === 'x' ? along : br.x;
+        const pz = br.axis === 'x' ? br.z : along;
+        q.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, br.axis === 'x' ? 0 : Math.PI / 2));
+        m.compose(new THREE.Vector3(px, yc + 0.02, pz), q, one);
+        lines.setMatrixAt(i, m);
+      }
+      lines.instanceMatrix.needsUpdate = true; lines.computeBoundingSphere();
+      G.add(lines);
+
+      if (pylons.length) {
+        const pg = new THREE.BoxGeometry(4.5, 1, 4.5);
+        const pm = new THREE.InstancedMesh(pg, pylonMat, pylons.length);
+        pm.castShadow = quality.shadows;
+        pylons.forEach(([px, pz, yc], i) => {
+          const h = yc - CFG.bedY;
+          m.compose(new THREE.Vector3(px, CFG.bedY + h / 2, pz), qid0, new THREE.Vector3(1, h, 1));
+          pm.setMatrixAt(i, m);
+        });
+        pm.instanceMatrix.needsUpdate = true; pm.computeBoundingSphere();
+        G.add(pm);
+      }
+
+      /* حواجز جانبية للتصادم: صندوقان طويلان */
+      const halfW = br.width / 2;
+      if (br.axis === 'x') {
+        [-1, 1].forEach((sg) => state.colliders.push({
+          minX: br.x0, maxX: br.x1,
+          minZ: br.z + sg * halfW - 0.4, maxZ: br.z + sg * halfW + 0.4,
+          h: 2.2, kind: 'rail'
+        }));
+      } else {
+        [-1, 1].forEach((sg) => state.colliders.push({
+          minX: br.x + sg * halfW - 0.4, maxX: br.x + sg * halfW + 0.4,
+          minZ: br.z0, maxZ: br.z1, h: 2.2, kind: 'rail'
+        }));
+      }
+    });
   }
+  const qid0 = new THREE.Quaternion();
 
   /* --------------------------- خطوط الطرق -------------------------------- */
-  function buildRoadMarkings(G, rnd) {
-    const NB = CFG.blocks, P = CFG.pitch, HALF = CFG.half, R = CFG.road;
+  function buildRoadMarkings(G, rnd, isl) {
+    const NB = isl.blocks, P = CFG.pitch, HALF = isl.half, R = CFG.road;
+    const OX = isl.cx, OZ = isl.cz;
     const segLen = P - R;                      // طول الخط بين تقاطعين
     const dashMat = new THREE.MeshBasicMaterial({ map: TEX.dash, transparent: true, depthWrite: false, opacity: 0.85 });
     TEX.dash.repeat.set(1, segLen / 7);
@@ -516,7 +1051,7 @@ SC.world = (function () {
       const m = new THREE.Matrix4(), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1);
       list.forEach(([x, z, rot], i) => {
         q.setFromEuler(rot);
-        m.compose(new THREE.Vector3(x, y, z), q, one);
+        m.compose(new THREE.Vector3(x + OX, y, z + OZ), q, one);
         im.setMatrixAt(i, m);
       });
       im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere();
@@ -686,15 +1221,17 @@ SC.world = (function () {
   }
 
   /* ------------------------ أعمدة الإنارة والحواجز ----------------------- */
-  function buildProps(G, rnd, quality) {
-    const NB = CFG.blocks, P = CFG.pitch, HALF = CFG.half, R = CFG.road;
+  function buildProps(G, rnd, quality, isl) {
+    const NB = isl.blocks, P = CFG.pitch, HALF = isl.half, R = CFG.road;
+    const OX = isl.cx, OZ = isl.cz;
 
     /* عمود إنارة: عمود + ذراع + مصباح */
     const poleGeo = new THREE.CylinderGeometry(0.13, 0.17, 8.4, 6);
     const armGeo = new THREE.BoxGeometry(1.9, 0.16, 0.16);
     const headGeo = new THREE.BoxGeometry(1.1, 0.22, 0.5);
-    const poleMat = new THREE.MeshStandardMaterial({ color: 0x4c5258, roughness: 0.6, metalness: 0.55 });
-    state.lampMat = new THREE.MeshStandardMaterial({
+    const poleMat = state.poleMat || (state.poleMat =
+      new THREE.MeshStandardMaterial({ color: 0x4c5258, roughness: 0.6, metalness: 0.55 }));
+    state.lampMat = state.lampMat || new THREE.MeshStandardMaterial({
       color: 0x9aa3ad, emissive: 0xffe6ac, emissiveIntensity: 0, roughness: 0.35, metalness: 0.2
     });
 
@@ -703,8 +1240,8 @@ SC.world = (function () {
       const line = -HALF + i * P;
       for (let s = 0; s < NB * 2; s++) {
         const t = -HALF + s * (P / 2) + P / 4;
-        lampPos.push([line - R / 2 - 1.6, t, 1]);     // على يمين الشارع العمودي
-        lampPos.push([t, line + R / 2 + 1.6, 2]);     // على الشارع الأفقي
+        lampPos.push([OX + line - R / 2 - 1.6, OZ + t, 1]);     // على يمين الشارع العمودي
+        lampPos.push([OX + t, OZ + line + R / 2 + 1.6, 2]);     // على الشارع الأفقي
       }
     }
     const mk = (geo, mat, count) => {
@@ -734,15 +1271,17 @@ SC.world = (function () {
       map: TEX.glow, transparent: true, blending: THREE.AdditiveBlending,
       depthWrite: false, opacity: 0.5
     });
-    const glow = new THREE.InstancedMesh(glowGeo, glowMat, state.lamps.length);
-    state.lamps.forEach(([x, y, z], i) => {
+    const glow = new THREE.InstancedMesh(glowGeo, glowMat, state.lamps.length - (state.lampBase || 0));
+    state.lamps.slice(state.lampBase || 0).forEach(([x, y, z], i) => {
       m.compose(new THREE.Vector3(x, 0.06, z),
         new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)), one);
       glow.setMatrixAt(i, m);
     });
     glow.instanceMatrix.needsUpdate = true; glow.computeBoundingSphere();
     glow.visible = false; glow.renderOrder = 3;
+    (state.lampGlows = state.lampGlows || []).push(glow);
     state.lampGlow = glow;
+    state.lampBase = state.lamps.length;
     G.add(glow);
 
     /* مخاريط وحواجز متفرقة على الأرصفة */
@@ -775,14 +1314,14 @@ SC.world = (function () {
   }
 
   /* ------------------------- نقاط الولادة والمواقف ----------------------- */
-  function buildSpawns() {
-    const NB = CFG.blocks, P = CFG.pitch, HALF = CFG.half;
+  function buildSpawns(isl) {
+    const NB = isl.blocks, P = CFG.pitch, HALF = isl.half;
     for (let i = 0; i <= NB; i++) {
       for (let s = 0; s < NB; s++) {
         const line = -HALF + i * P;
         const mid = -HALF + s * P + P / 2;
-        state.spawns.push({ x: line - 6, z: mid, yaw: 0 });          // يمين الشارع
-        state.spawns.push({ x: mid, z: line + 6, yaw: Math.PI / 2 });
+        state.spawns.push({ x: isl.cx + line - 6, z: isl.cz + mid, yaw: 0 });
+        state.spawns.push({ x: isl.cx + mid, z: isl.cz + line + 6, yaw: Math.PI / 2 });
       }
     }
   }
@@ -794,14 +1333,49 @@ SC.world = (function () {
     }
     return best;
   }
-  /* نقطة عشوائية على الشارع (لمهمّات التوصيل والسباقات) */
-  function randomRoadPoint(rnd) {
+  /* نقطة عشوائية على شارع (يمكن تحديد الجزيرة) */
+  function randomRoadPoint(rnd, islandId) {
     const r = rnd || Math.random;
-    const NB = CFG.blocks, P = CFG.pitch, HALF = CFG.half;
+    const isl = islandId == null ? CFG.islands[Math.floor(r() * CFG.islands.length)]
+                                 : CFG.islands[islandId];
+    const NB = isl.blocks, P = CFG.pitch, H = isl.half;
     const i = Math.floor(r() * (NB + 1));
-    const line = -HALF + i * P;
-    const t = -HALF + r() * CFG.span;
-    return r() < 0.5 ? { x: line, z: t } : { x: t, z: line };
+    const line = -H + i * P;
+    const t = -H + r() * isl.span;
+    return r() < 0.5 ? { x: isl.cx + line, z: isl.cz + t, island: isl.id }
+                     : { x: isl.cx + t, z: isl.cz + line, island: isl.id };
+  }
+
+  /* تبديل مظهر «تحت الماء» */
+  function setUnderwater(on, x, z) {
+    if (state.reef && on) placeReef(x || 0, z || 0);
+    if (state.reef) state.reef.group.visible = !!on;
+    if (state.water && state.water.bed) state.water.bed.visible = !!on;
+    if (state.underwater === on) return;
+    state.underwater = on;
+    const p = PRESETS[state.timeOfDay] || PRESETS.day;
+    if (on) {
+      state.fogBackup = { color: state.scene.fog.color.getHex(), near: state.scene.fog.near, far: state.scene.fog.far };
+      state.scene.fog.color.setHex(0x0e5b82);
+      state.scene.fog.near = 2;
+      state.scene.fog.far = 135;
+      state.hemi.intensity = 1.55;
+      state.hemi.color.setHex(0x7ad4f2);
+      state.hemi.groundColor && state.hemi.groundColor.setHex(0x1c5468);
+      state.sun.intensity = 1.15;
+      state.envBackup = state.scene.environmentIntensity;
+      state.scene.environmentIntensity = 0.55;
+    } else {
+      const f = state.fogBackup || { color: p.fog, near: p.fogFar * 0.12, far: p.fogFar };
+      state.scene.fog.color.setHex(f.color);
+      state.scene.fog.near = f.near;
+      state.scene.fog.far = f.far;
+      state.hemi.intensity = p.hemi;
+      state.hemi.color.setHex(p.amb);
+      if (state.hemi.groundColor) state.hemi.groundColor.setHex(p.ground != null ? p.ground : 0x4a4238);
+      state.sun.intensity = p.sunI;
+      if (state.envBackup != null) state.scene.environmentIntensity = state.envBackup;
+    }
   }
 
   function update(dt, focus) {
@@ -816,6 +1390,7 @@ SC.world = (function () {
       state.sky.position.set(focus.x, 0, focus.z);
       state.sky.material.uniforms.uTime.value += dt;
     }
+    if (state.underwater) updateReef(dt);
     if (state.water && state.water.material) {
       const n = state.water.material.normalMap;
       n.offset.x += dt * 0.012;
@@ -835,5 +1410,6 @@ SC.world = (function () {
 
   return { CFG, TEX, state, build, update, groundHeight, onRoad, inBounds, queryColliders,
            snapToRoad, nearestSpawn, randomRoadPoint, setTimeOfDay, refreshEnv, canvasTex, PRESETS,
-           isWater, distToWater, onSand };
+           isWater, distToWater, onSand, islandAt, islandById, nearestIsland, bridgeAt, BRIDGES,
+           setUnderwater, placeReef };
 })();

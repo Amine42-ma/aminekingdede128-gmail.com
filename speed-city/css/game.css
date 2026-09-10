@@ -16,6 +16,8 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--
   user-select:none;-webkit-user-select:none;touch-action:none;overscroll-behavior:none}
 canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
 /* تظليل حوافّ خفيف يعمّق الصورة (بلا كلفة على الأداء) */
+body.underwater .vignette{background:radial-gradient(120% 100% at 50% 40%,rgba(10,60,90,.18),rgba(4,30,50,.62) 90%)}
+body.underwater .hud{filter:hue-rotate(-8deg)}
 .vignette{position:fixed;inset:0;pointer-events:none;z-index:10;
   background:radial-gradient(130% 100% at 50% 45%,rgba(0,0,0,0) 52%,rgba(0,0,0,.28) 88%,rgba(0,0,0,.46) 100%)}
 button{font-family:inherit;color:inherit;cursor:pointer;border:0;background:none}

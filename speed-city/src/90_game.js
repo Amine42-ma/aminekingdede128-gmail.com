@@ -461,7 +461,10 @@ SC.game = (function () {
       want.y = Math.max(want.y, from.y + 1.2 + (len - d) * 0.35);   // ارفعها فوق العائق
     }
     pushOutOfWalls(want);
-    want.y = Math.max(want.y, SC.world.groundHeight(want.x, want.z) + 0.6);
+    /* أثناء الغرق نسمح للكاميرا بالنزول تحت سطح البحر */
+    const sinking = G.car && G.car.sink > 0.4;
+    const floor = sinking ? SC.world.CFG.bedY + 1.5 : SC.world.groundHeight(want.x, want.z) + 0.6;
+    want.y = Math.max(want.y, floor);
     return want;
   }
 
@@ -565,7 +568,7 @@ SC.game = (function () {
   function updateWater(dt, car) {
     if (G.drowning != null) {
       G.drowning += dt;
-      car.root.position.y -= dt * 1.5;
+      car.sink = Math.min((car.sink || 0) + dt * 7.6, Math.abs(SC.world.CFG.bedY) - 1.2);
       car.input.throttle = 0; car.input.brake = 0;
       car.vLong *= 0.90; car.vLat *= 0.90;
       if (G.drowning > 0.35 && !G.drownSplash) {
@@ -576,8 +579,8 @@ SC.game = (function () {
             { life: 1.2, size: 1.1, grow: 1.6, alpha: 0.55, color: [0.72, 0.86, 0.95] });
         }
       }
-      if (G.drowning > 1.9) {
-        G.drowning = null; G.drownSplash = false;
+      if (G.drowning > 6.5) {
+        G.drowning = null; G.drownSplash = false; car.sink = 0;
         const fine = Math.min(save.money, 250);
         if (fine > 0) addMoney(-fine);
         if (SC.missions.state.active) {
@@ -665,6 +668,13 @@ SC.game = (function () {
 
     autoQuality(dt);
     if (!G.freezeCam) updateCamera(dt, car);
+    const under = G.camera.position.y < SC.world.CFG.seaY - 0.1;
+    if (under !== G.wasUnder) {
+      G.wasUnder = under;
+      SC.world.setUnderwater(under, car.pos.x, car.pos.z);
+      SC.audio.setUnderwater(under);
+      document.body.classList.toggle('underwater', under);
+    }
     SC.world.update(dt, car.pos);
     SC.audio.update(dt, car, G.paused);
     SC.hud.update(dt, {
@@ -690,9 +700,10 @@ SC.game = (function () {
       const far = q.far * G.qScale;
       G.scene.fog.far = far;
       G.scene.fog.near = far * 0.12;
-      G.camera.far = far * 3.6;
+      G.camera.far = Math.max(1500, far * 3.6);
       G.camera.updateProjectionMatrix();
-      if (SC.world.state.sky) SC.world.state.sky.scale.setScalar(Math.max(1200, far * 3.4));
+      // القبّة دائماً داخل مدى الكاميرا وإلا ظهرت فجوة سوداء في السماء
+      if (SC.world.state.sky) SC.world.state.sky.scale.setScalar(G.camera.far * 0.9);
     }
     /* خفض دقّة الرسم عند البطء الشديد (خطوات ثابتة تفادياً لإعادة البناء المتكرّر) */
     const want = fps < 24 ? 1 : (fps > 42 ? q.pixelRatio : (G.pxRatio || q.pixelRatio));

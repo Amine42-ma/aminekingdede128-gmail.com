@@ -4,7 +4,7 @@
 SC.ui = (function () {
   const U = SC.util;
   const $ = U.$;
-  let dom = {}, current = null, mapView = { px: 0, py: 0, zoom: 0.55 }, mapCanvas = null;
+  let dom = {}, current = null, mapView = { px: 0, py: 0, zoom: 0.42 }, mapCanvas = null;
 
   const UPGRADES = [
     { key: 'engine', name: 'المحرّك', icon: '⚙️', desc: 'قوة أعلى وسرعة قصوى أكبر' },
@@ -59,7 +59,7 @@ SC.ui = (function () {
     if (name === 'online') buildOnline();
     if (name === 'shop') buildShop();
     if (name === 'missions') buildMissions();
-    if (name === 'map') { centerMap(); drawMap(); }
+    if (name === 'map') { if (!mapView.touched) fitMap(); drawMap(); }
     if (name === 'settings') syncSettings();
     el.classList.add('show');
     dom.hud.classList.add('dim');
@@ -395,7 +395,7 @@ SC.ui = (function () {
       const dx = e.clientX - lastX, dy = e.clientY - lastY;
       lastX = e.clientX; lastY = e.clientY;
       moved += Math.abs(dx) + Math.abs(dy);
-      mapView.px += dx; mapView.py += dy;
+      mapView.px += dx; mapView.py += dy; mapView.touched = true;
       drawMap();
     });
     mapCanvas.addEventListener('pointerup', (e) => {
@@ -419,16 +419,16 @@ SC.ui = (function () {
       drawMap();
     }, { passive: false });
 
-    SC.input.bindTap(dom.mapCenter, () => { centerMap(); drawMap(); });
+    SC.input.bindTap(dom.mapCenter, () => { mapView.touched = true; mapView.zoom = 1.1; centerMap(); drawMap(); });
     SC.input.bindTap(dom.mapClear, () => { SC.game.setWaypoint(null); drawMap(); });
     SC.input.bindTap(dom.mapIn, () => { mapView.zoom = U.clamp(mapView.zoom * 1.25, 0.22, 2.6); drawMap(); });
     SC.input.bindTap(dom.mapOut, () => { mapView.zoom = U.clamp(mapView.zoom / 1.25, 0.22, 2.6); drawMap(); });
   }
   function centerMap() {
     const car = SC.game.car;
-    mapView.px = -(SC.hud.mapX(car.pos.x) - 550) * mapView.zoom;
-    mapView.py = -(SC.hud.mapZ(car.pos.z) - 550) * mapView.zoom;
+    if (mapCanvas) SC.hud.focusBigMap(mapCanvas, mapView, car.pos.x, car.pos.z);
   }
+  function fitMap() { mapView.px = 0; mapView.py = 0; mapView.zoom = 0.42; }
   function drawMap() {
     if (!mapCanvas) return;
     if (mapCanvas.width < 40 && mapCanvas._resize) mapCanvas._resize();
