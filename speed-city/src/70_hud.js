@@ -162,7 +162,8 @@ SC.hud = (function () {
     g.fillStyle = '#0b0f17'; g.fillRect(0, 0, S, S);
 
     g.translate(R, R);
-    const rot = game.mapRotate === false ? 0 : -car.yaw;
+    // زاوية التدوير: (yaw + π) تجعل مقدّمة السيارة للأعلى ويمينها على يمين الشاشة
+    const rot = game.mapRotate === false ? Math.PI : car.yaw + Math.PI;
     g.rotate(rot);
     const scale = zoom / cityScale;
     g.scale(scale, scale);
@@ -171,10 +172,10 @@ SC.hud = (function () {
     g.setTransform(1, 0, 0, 1, 0, 0);
 
     /* العلامات */
+    lastMini = { R, zoom, rot, car };
     const drawDot = (wx, wz, color, size, ring) => {
-      const dx = (wx - car.pos.x) * zoom, dz = (wz - car.pos.z) * zoom;
-      const cos = Math.cos(rot), sin = Math.sin(rot);
-      let px = dx * cos - dz * sin, py = dx * sin + dz * cos;
+      const p = projectMini(wx, wz);
+      let px = p.x - R, py = p.y - R;
       const d = Math.hypot(px, py);
       const edge = R - 10;
       const clamped = d > edge;
@@ -192,7 +193,7 @@ SC.hud = (function () {
     /* سهم اللاعب */
     g.save();
     g.translate(R, R);
-    if (game.mapRotate === false) g.rotate(car.yaw);
+    if (game.mapRotate === false) g.rotate(Math.PI - car.yaw);
     g.beginPath();
     g.moveTo(0, -9); g.lineTo(6.5, 8); g.lineTo(0, 4.5); g.lineTo(-6.5, 8);
     g.closePath();
@@ -201,11 +202,20 @@ SC.hud = (function () {
     g.restore();
     g.restore();
 
-    /* بوصلة */
+    /* بوصلة: تشير إلى الشمال (‑Z) */
     if (dom.compass) {
-      const ang = -car.yaw;
-      dom.compass.style.transform = 'rotate(' + (game.mapRotate === false ? 0 : ang) + 'rad)';
+      dom.compass.style.transform = 'rotate(' + (game.mapRotate === false ? 0 : car.yaw) + 'rad)';
     }
+  }
+
+  /* إسقاط نقطة عالمية على الخريطة المصغّرة (يُستخدم للرسم وللاختبار) */
+  let lastMini = null;
+  function projectMini(wx, wz) {
+    if (!lastMini) return { x: 0, y: 0 };
+    const { R, zoom, rot, car } = lastMini;
+    const dx = (wx - car.pos.x) * zoom, dz = (wz - car.pos.z) * zoom;
+    const cos = Math.cos(rot), sin = Math.sin(rot);
+    return { x: R + dx * cos - dz * sin, y: R + dx * sin + dz * cos };
   }
 
   /* -------------------------- الخريطة الكبيرة --------------------------- */
@@ -245,7 +255,7 @@ SC.hud = (function () {
     if (game && game.car) {
       const p = toScreen(game.car.pos.x, game.car.pos.z);
       g.save();
-      g.translate(p.x, p.y); g.rotate(game.car.yaw);
+      g.translate(p.x, p.y); g.rotate(Math.PI - game.car.yaw);
       g.beginPath(); g.moveTo(0, -12); g.lineTo(8, 10); g.lineTo(0, 5.5); g.lineTo(-8, 10);
       g.closePath();
       g.fillStyle = '#ffd23f'; g.strokeStyle = '#000'; g.lineWidth = 2;
@@ -304,7 +314,7 @@ SC.hud = (function () {
     if (accMini > 1 / 22) { drawMini(car, game); accMini = 0; }
   }
 
-  return { init, buildCityMap, update, toast, banner, setObjective, drawBigMap, screenToWorld,
+  return { init, buildCityMap, update, toast, banner, setObjective, drawBigMap, screenToWorld, projectMini,
            setMarkers, addMarker, clearMarkers, markers, get cityMap() { return cityMap; },
            mapX, mapZ, get cityScale() { return cityScale; } };
 })();

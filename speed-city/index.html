@@ -25,6 +25,9 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--
   font-family:system-ui,-apple-system,"Segoe UI",Tahoma,"Noto Naskh Arabic",sans-serif;
   user-select:none;-webkit-user-select:none;touch-action:none;overscroll-behavior:none}
 canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+/* تظليل حوافّ خفيف يعمّق الصورة (بلا كلفة على الأداء) */
+.vignette{position:fixed;inset:0;pointer-events:none;z-index:10;
+  background:radial-gradient(130% 100% at 50% 45%,rgba(0,0,0,0) 52%,rgba(0,0,0,.28) 88%,rgba(0,0,0,.46) 100%)}
 button{font-family:inherit;color:inherit;cursor:pointer;border:0;background:none}
 .hidden{display:none!important}
 
@@ -303,6 +306,7 @@ body[data-steer="tilt"] .steer-buttons{opacity:.45}
 <body data-steer="buttons">
 
 <canvas id="c"></canvas>
+<div class="vignette"></div>
 
 <!-- ======================= شاشة التحميل ======================= -->
 <div id="loading" class="screen show boot">
@@ -377,6 +381,7 @@ body[data-steer="tilt"] .steer-buttons{opacity:.45}
       <button class="round" id="btnHorn" title="المنبّه">📢</button>
       <button class="round" id="btnLight" title="الأضواء">💡</button>
       <button class="round" id="btnFlip" title="إعادة للطريق">🔄</button>
+      <button class="round" id="btnBack" title="النظر خلفاً">👁</button>
     </div>
     <div class="pedals">
       <button class="pedal nitro" id="btnBoost"><span>نيترو</span></button>
@@ -5251,7 +5256,7 @@ SC.world = (function () {
     building_residential5: { face: 'z', minS: 0.85, maxS: 1.20, w: { downtown: 24, mixed: 30, suburb: 16 } },
     building_office2:      { face: 'z', yawFix: Math.PI, minS: 0.90, maxS: 1.30, w: { downtown: 32, mixed: 30, suburb: 16 } },
     building_shop:         { face: 'z', minS: 1.00, maxS: 1.55, w: { downtown: 8, mixed: 18, suburb: 26 }, cap: 320 },
-    building_house:        { face: 'z', minS: 2.30, maxS: 3.20, w: { downtown: 0, mixed: 8, suburb: 30 }, cap: 70 }
+    building_house:        { face: 'z', minS: 3.40, maxS: 4.40, w: { downtown: 0, mixed: 8, suburb: 30 }, cap: 70 }
   };
   const SCHOOL = { key: 'building_school', scale: 0.86 };
 
@@ -5495,7 +5500,7 @@ SC.world = (function () {
       for (let s = 0; s < NB; s++) {
         const line = -HALF + i * P;
         const mid = -HALF + s * P + P / 2;
-        state.spawns.push({ x: line + 6, z: mid, yaw: 0 });
+        state.spawns.push({ x: line - 6, z: mid, yaw: 0 });          // يمين الشارع
         state.spawns.push({ x: mid, z: line + 6, yaw: Math.PI / 2 });
       }
     }
@@ -5752,6 +5757,368 @@ SC.wheels = (function () {
 })();
 
 </script>
+<!-- ===== src/28_character.js ===== -->
+<script>
+/* ============================================================================
+   SPEED CITY — شخصية السائق/الراكب
+   جسم مبني هندسياً بمفاصل حقيقية: كتفان ومرفقان ويدان تتبع المقود (IK)،
+   وركبتان وقدمان، ورأس يلتفت مع المنعطف، وخوذة لراكب الدراجة.
+   ========================================================================== */
+SC.character = (function () {
+  const U = SC.util;
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
+  const PALETTE = {
+    skin:   0xd9a17a, skinDark: 0xc08a63,
+    jacket: 0x24303f, jacket2: 0x1b2430,
+    jeans:  0x2f3d5c, boots: 0x1a1a1c,
+    glove:  0x2a2a2e, helmet: 0xe23b3b, visor: 0x101318,
+    hair:   0x2b2119, shirt: 0xd8dde5
+  };
+
+  /* ذاكرة الأشكال: تُبنى مرّة واحدة وتُشارك بين كل الشخصيات */
+  const GEO = {};
+  function geo(key, make) {
+    if (!GEO[key]) GEO[key] = make();
+    return GEO[key];
+  }
+
+  function mat(color, rough, metal) {
+    return new THREE.MeshStandardMaterial({
+      color, roughness: rough == null ? 0.72 : rough, metalness: metal == null ? 0.05 : metal
+    });
+  }
+
+  /* عظمة: كبسولة تتدلّى من المفصل نحو -Y */
+  function boneGeo(r1, len, r2) {
+    const g = new THREE.CapsuleGeometry(r1, len, 4, 10);
+    g.translate(0, -len / 2 - r1, 0);
+    if (r2 && r2 !== r1) {                      // تنعيم التدرّج (ساعد/ساق)
+      const pos = g.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const y = pos.getY(i);
+        const t = U.clamp(-y / (len + r1 * 2), 0, 1);
+        const k = U.lerp(1, r2 / r1, t);
+        pos.setX(i, pos.getX(i) * k);
+        pos.setZ(i, pos.getZ(i) * k);
+      }
+      g.computeVertexNormals();
+    }
+    return g;
+  }
+  function bone(r1, len, material, r2) {
+    const g = geo('bone' + r1 + '_' + len + '_' + (r2 || r1), () => boneGeo(r1, len, r2));
+    const m = new THREE.Mesh(g, material);
+    m.castShadow = true;
+    return m;
+  }
+
+  function joint(parent, x, y, z) {
+    const g = new THREE.Group();
+    g.position.set(x, y, z);
+    g.rotation.order = 'YXZ';
+    parent.add(g);
+    return g;
+  }
+
+  /* ---------------------------------------------------------------------- */
+  function create(opts) {
+    opts = opts || {};
+    const P = Object.assign({}, PALETTE, opts.colors || {});
+    const M = {
+      skin: mat(P.skin, 0.62), jacket: mat(P.jacket, 0.68), jacket2: mat(P.jacket2, 0.62),
+      jeans: mat(P.jeans, 0.85), boots: mat(P.boots, 0.55, 0.1), glove: mat(P.glove, 0.6),
+      helmet: mat(P.helmet, 0.28, 0.35), visor: new THREE.MeshStandardMaterial({
+        color: P.visor, roughness: 0.08, metalness: 0.9
+      }), hair: mat(P.hair, 0.8), shirt: mat(P.shirt, 0.75)
+    };
+
+    const root = new THREE.Group();
+    root.name = 'driver';
+
+    /* الحوض والجذع */
+    const pelvis = joint(root, 0, 0, 0);
+    const hips = bone(0.135, 0.10, M.jeans);
+    hips.position.y = 0.10;
+    hips.scale.set(1.25, 1, 0.95);
+    pelvis.add(hips);
+
+    const torso = joint(pelvis, 0, 0.06, 0);
+    const chest = bone(0.148, 0.30, M.jacket);
+    chest.position.y = 0.40;
+    chest.scale.set(1.32, 1, 0.86);
+    torso.add(chest);
+    const collar = new THREE.Mesh(geo('collar', () => new THREE.CylinderGeometry(0.085, 0.10, 0.06, 12)), M.jacket2);
+    collar.position.y = 0.415;
+    torso.add(collar);
+
+    /* الرأس */
+    const neck = joint(torso, 0, 0.44, 0);
+    const neckMesh = new THREE.Mesh(geo('neck', () => new THREE.CylinderGeometry(0.052, 0.058, 0.07, 10)), M.skin);
+    neckMesh.position.y = 0.03;
+    neck.add(neckMesh);
+    const headPivot = joint(neck, 0, 0.075, 0);
+    const head = new THREE.Group();
+    headPivot.add(head);
+
+    const skull = new THREE.Mesh(geo('skull', () => new THREE.SphereGeometry(0.098, 18, 14)), M.skin);
+    skull.scale.set(0.95, 1.08, 1.0);
+    skull.position.y = 0.075;
+    skull.castShadow = true;
+    head.add(skull);
+    const jaw = new THREE.Mesh(geo('jaw', () => new THREE.SphereGeometry(0.072, 12, 10)), M.skin);
+    jaw.scale.set(0.92, 0.8, 1.05);
+    jaw.position.set(0, 0.028, 0.022);
+    head.add(jaw);
+    const nose = new THREE.Mesh(geo('nose', () => new THREE.ConeGeometry(0.021, 0.05, 8)), M.skin);
+    nose.rotation.x = Math.PI / 2.1;
+    nose.position.set(0, 0.062, 0.088);
+    head.add(nose);
+    [-1, 1].forEach((sx) => {
+      const eye = new THREE.Mesh(geo('eye', () => new THREE.SphereGeometry(0.016, 10, 8)),
+        new THREE.MeshStandardMaterial({ color: 0x1a1a22, roughness: 0.25 }));
+      eye.position.set(sx * 0.035, 0.088, 0.079);
+      head.add(eye);
+      const brow = new THREE.Mesh(geo('brow', () => new THREE.BoxGeometry(0.034, 0.008, 0.012)), M.hair);
+      brow.position.set(sx * 0.036, 0.108, 0.082);
+      head.add(brow);
+      const ear = new THREE.Mesh(geo('ear', () => new THREE.SphereGeometry(0.022, 8, 6)), M.skin);
+      ear.scale.set(0.45, 1, 0.8);
+      ear.position.set(sx * 0.094, 0.072, 0.0);
+      head.add(ear);
+    });
+
+    const hair = new THREE.Mesh(geo('hair', () => new THREE.SphereGeometry(0.104, 16, 12,
+      0, Math.PI * 2, 0, Math.PI * 0.58)), M.hair);
+    hair.scale.set(0.98, 1.12, 1.02);
+    hair.position.y = 0.078;
+    head.add(hair);
+
+    /* الخوذة (لراكب الدراجة) */
+    const helmet = new THREE.Group();
+    const shell = new THREE.Mesh(geo('shell', () => new THREE.SphereGeometry(0.132, 20, 16)), M.helmet);
+    shell.scale.set(1, 1.04, 1.06);
+    shell.position.y = 0.072;
+    shell.castShadow = true;
+    helmet.add(shell);
+    const chin = new THREE.Mesh(geo('chin', () => new THREE.TorusGeometry(0.104, 0.036, 8, 18, Math.PI)), M.helmet);
+    chin.rotation.set(Math.PI / 2, 0, 0);
+    chin.position.set(0, 0.012, 0.012);
+    helmet.add(chin);
+    const visor = new THREE.Mesh(geo('visor', () => new THREE.SphereGeometry(0.134, 20, 14,
+      -Math.PI * 0.42, Math.PI * 0.84, Math.PI * 0.34, Math.PI * 0.30)), M.visor);
+    visor.scale.set(1, 1.04, 1.08);
+    visor.position.y = 0.072;
+    visor.rotation.y = Math.PI;
+    helmet.add(visor);
+    const stripe = new THREE.Mesh(geo('stripe', () => new THREE.TorusGeometry(0.126, 0.012, 6, 20, Math.PI * 0.9)),
+      mat(0xf2f2f2, 0.3, 0.2));
+    stripe.rotation.set(0, Math.PI / 2, Math.PI * 0.05);
+    stripe.position.y = 0.082;
+    helmet.add(stripe);
+    helmet.visible = false;
+    head.add(helmet);
+
+    /* الذراعان */
+    function arm(side) {
+      const shoulder = joint(torso, side * 0.175, 0.395, 0);
+      const pad = new THREE.Mesh(geo('jaw', () => new THREE.SphereGeometry(0.072, 12, 10)), M.jacket);
+      pad.scale.set(1, 0.9, 0.95);
+      shoulder.add(pad);
+      const upper = bone(0.055, 0.20, M.jacket, 0.048);
+      shoulder.add(upper);
+      const elbow = joint(shoulder, 0, -0.29, 0);
+      const fore = bone(0.048, 0.19, M.jacket2, 0.040);
+      elbow.add(fore);
+      const wrist = joint(elbow, 0, -0.27, 0);
+      const hand = new THREE.Mesh(geo('hand', () => new THREE.BoxGeometry(0.056, 0.105, 0.075)), M.glove);
+      hand.position.y = -0.045;
+      hand.castShadow = true;
+      wrist.add(hand);
+      const thumb = new THREE.Mesh(geo('thumb', () => new THREE.CapsuleGeometry(0.017, 0.04, 3, 6)), M.glove);
+      thumb.rotation.z = side * 0.9;
+      thumb.position.set(-side * 0.032, -0.032, 0.02);
+      wrist.add(thumb);
+      return { shoulder, elbow, wrist, hand, upperLen: 0.29, foreLen: 0.27, side };
+    }
+    const armL = arm(1), armR = arm(-1);
+
+    /* الساقان */
+    function leg(side) {
+      const hip = joint(pelvis, side * 0.085, 0.02, 0);
+      const thigh = bone(0.083, 0.28, M.jeans, 0.072);
+      hip.add(thigh);
+      const knee = joint(hip, 0, -0.40, 0);
+      const shin = bone(0.068, 0.28, M.jeans, 0.055);
+      knee.add(shin);
+      const ankle = joint(knee, 0, -0.38, 0);
+      const foot = new THREE.Mesh(geo('foot', () => new THREE.BoxGeometry(0.088, 0.062, 0.215)), M.boots);
+      foot.position.set(0, -0.03, 0.062);
+      foot.castShadow = true;
+      ankle.add(foot);
+      return { hip, knee, ankle, foot, thighLen: 0.40, shinLen: 0.38, side };
+    }
+    const legL = leg(1), legR = leg(-1);
+
+    root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; } });
+
+    /* ------------------------------ الوضعيات --------------------------- */
+    const POSES = {
+      car: () => {
+        torso.rotation.set(-0.12, 0, 0);
+        headPivot.rotation.set(0.06, 0, 0);
+        legL.hip.rotation.set(-1.32, 0.10, 0.10);
+        legR.hip.rotation.set(-1.36, -0.10, -0.10);
+        legL.knee.rotation.set(1.15, 0, 0);
+        legR.knee.rotation.set(1.22, 0, 0);
+        legL.ankle.rotation.set(0.28, 0, 0);
+        legR.ankle.rotation.set(0.22, 0, 0);
+        helmet.visible = false; hair.visible = true;
+      },
+      bike: () => {
+        torso.rotation.set(0.55, 0, 0);
+        headPivot.rotation.set(-0.42, 0, 0);
+        legL.hip.rotation.set(-1.05, 0.30, 0.24);
+        legR.hip.rotation.set(-1.05, -0.30, -0.24);
+        legL.knee.rotation.set(1.95, 0, 0);
+        legR.knee.rotation.set(1.95, 0, 0);
+        legL.ankle.rotation.set(0.40, 0, 0);
+        legR.ankle.rotation.set(0.40, 0, 0);
+        helmet.visible = true; hair.visible = false;
+      }
+    };
+
+    /* --------------------- حلّ حركي عكسي بسيط للذراع -------------------- */
+    /* الهدف يُعطى بإحداثيات العالم؛ نحوّله إلى فضاء الجذع ثم نحسب زاويتَي
+       الكتف والمرفق بقانون جيب التمام، ونوجّه المرفق نحو متجه القطب.        */
+    const _d = new THREE.Vector3(), _axis = new THREE.Vector3(), _q = new THREE.Quaternion();
+    const _t = new THREE.Vector3(), _local = new THREE.Vector3(), _qa = new THREE.Quaternion();
+    const DOWN = new THREE.Vector3(0, -1, 0);
+
+    function reachArm(a, targetWorld, pole) {
+      torso.updateWorldMatrix(true, false);
+      _t.copy(targetWorld);
+      torso.worldToLocal(_t);
+      _d.copy(_t).sub(a.shoulder.position);
+      const dist = U.clamp(_d.length(), 0.12, a.upperLen + a.foreLen - 0.03);
+      _d.normalize();
+
+      const L1 = a.upperLen, L2 = a.foreLen;
+      const angA = Math.acos(U.clamp((L1 * L1 + dist * dist - L2 * L2) / (2 * L1 * dist), -1, 1));
+      const beta = Math.acos(U.clamp((L1 * L1 + L2 * L2 - dist * dist) / (2 * L1 * L2), -1, 1));
+      const bend = Math.PI - beta;
+
+      _axis.copy(_d).cross(pole);
+      if (_axis.lengthSq() < 1e-6) _axis.set(1, 0, 0);
+      _axis.normalize();
+
+      _q.setFromUnitVectors(DOWN, _d);
+      _qa.setFromAxisAngle(_axis, angA);
+      a.shoulder.quaternion.copy(_qa).multiply(_q);
+
+      _local.copy(_axis).applyQuaternion(_qa.copy(a.shoulder.quaternion).invert()).normalize();
+      a.elbow.quaternion.setFromAxisAngle(_local, -bend);
+      a.wrist.rotation.set(0.35, 0, a.side * 0.25);
+    }
+
+    /* ------------------------------ الواجهة ---------------------------- */
+    const api = {
+      root, parts: { pelvis, torso, neck, headPivot, head, helmet, hair, armL, armR, legL, legR },
+      pose: 'car',
+      setPose(name) { api.pose = name; (POSES[name] || POSES.car)(); },
+      setFirstPerson(on) {
+        head.visible = !on;
+        neckMesh.visible = !on;
+        chest.visible = !on;
+        collar.visible = !on;
+      },
+      /* تحديث: يدان على المقود/المقود اليدوي + ميلان الجذع والرأس */
+      update(dt, st) {
+        st = st || {};
+        const hands = st.hands;
+        if (hands) {
+          const poleL = st.poleL || V(0.75, -0.55, -0.35);
+          const poleR = st.poleR || V(-0.75, -0.55, -0.35);
+          reachArm(armL, hands[0], poleL.clone().normalize());
+          reachArm(armR, hands[1], poleR.clone().normalize());
+        }
+        const lean = U.clamp(st.lat || 0, -1, 1);
+        const push = U.clamp(st.lon || 0, -1, 1);
+        torso.rotation.z = U.damp(torso.rotation.z, -lean * 0.10, 8, dt);
+        torso.rotation.x = U.damp(torso.rotation.x, (api.pose === 'bike' ? 0.55 : -0.12) - push * 0.10, 8, dt);
+        headPivot.rotation.y = U.damp(headPivot.rotation.y, -(st.look || 0) * 0.55, 7, dt);
+        headPivot.rotation.z = U.damp(headPivot.rotation.z, lean * 0.14, 7, dt);
+      },
+      setColors(c) {
+        if (c.helmet) M.helmet.color.setHex(c.helmet);
+        if (c.jacket) { M.jacket.color.setHex(c.jacket); }
+      },
+      dispose() {
+        root.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); } });
+      }
+    };
+    api.setPose(opts.pose || 'car');
+    return api;
+  }
+
+  /* ------------- شخصية مبسّطة لسيارات المرور (رسمتان فقط) -------------- */
+  const simpleMats = {};
+  function createSimple(opts) {
+    opts = opts || {};
+    const key = opts.pose === 'bike' ? 'bike' : 'car';
+    if (!simpleMats.body) {
+      simpleMats.body = mat(PALETTE.jacket, 0.75);
+      simpleMats.head = mat(PALETTE.skin, 0.65);
+      simpleMats.helmet = mat(PALETTE.helmet, 0.3, 0.3);
+    }
+    const root = new THREE.Group();
+    const torso = new THREE.Mesh(geo('sTorso', () => {
+      const g = new THREE.CapsuleGeometry(0.17, 0.34, 4, 10);
+      g.translate(0, 0.30, 0);
+      return g;
+    }), simpleMats.body);
+    torso.scale.set(1.25, 1, 0.88);
+    torso.castShadow = true;
+    root.add(torso);
+    const head = new THREE.Mesh(geo('sHead', () => {
+      const g = new THREE.SphereGeometry(key === 'bike' ? 0.135 : 0.105, 12, 10);
+      g.translate(0, 0.60, 0);
+      return g;
+    }), key === 'bike' ? simpleMats.helmet : simpleMats.head);
+    head.castShadow = true;
+    root.add(head);
+    return {
+      root, simple: true, pose: key,
+      setPose() {}, setFirstPerson(on) { root.visible = !on; },
+      update() {}, setColors() {}, dispose() {}
+    };
+  }
+
+  /* ------------------------ مقود قابل للدوران ------------------------- */
+  function steeringWheel(radius, color) {
+    const g = new THREE.Group();
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(radius, radius * 0.09, 10, 28),
+      new THREE.MeshStandardMaterial({ color: color || 0x3a2a18, roughness: 0.45, metalness: 0.15 }));
+    g.add(rim);
+    const hubMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.35, metalness: 0.75 });
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.20, radius * 0.20, radius * 0.10, 14), hubMat);
+    hub.rotation.x = Math.PI / 2;
+    g.add(hub);
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 + Math.PI / 2;
+      const spoke = new THREE.Mesh(new THREE.BoxGeometry(radius * 0.9, radius * 0.07, radius * 0.05), hubMat);
+      spoke.position.set(Math.cos(a) * radius * 0.45, Math.sin(a) * radius * 0.45, 0);
+      spoke.rotation.z = a;
+      g.add(spoke);
+    }
+    g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+    return g;
+  }
+
+  return { create, createSimple, steeringWheel, PALETTE };
+})();
+
+</script>
 <!-- ===== src/30_vehicle.js ===== -->
 <script>
 /* ============================================================================
@@ -5766,21 +6133,27 @@ SC.cars = {
       price: 0, cls: 'B', color: 0xf2f2f2,
       mass: 1050, power: 9800, brake: 15000, topSpeed: 51,       // م/ث ≈ 184 كم/س
       grip: 1.06, steerMax: 0.60, dragK: 0.42, nitro: 1.0,
-      stats: { speed: 62, accel: 58, grip: 70 }, seatH: 0.62, lean: 0.26
+      stats: { speed: 62, accel: 58, grip: 70 }, seatH: 0.62, lean: 0.26,
+      driver: { pose: 'car', scale: 0.92, seat: [0.32, 0.40, 0.08], wheel: [0.30, 0.83, 0.58],
+                wheelR: 0.19, eye: [0.32, 1.00, 0.14] }
     },
     bike: {
       key: 'bike_cyberpunk', name: 'دراجة سايبر X', tag: 'خارقة · تجريبية',
       price: 32000, cls: 'S', color: 0x22d3ee,
       mass: 260, power: 4200, brake: 7200, topSpeed: 68,          // ≈ 245 كم/س
       grip: 1.02, steerMax: 0.68, dragK: 0.18, nitro: 1.35,
-      stats: { speed: 92, accel: 95, grip: 66 }, seatH: 0.55, lean: 0.78
+      stats: { speed: 92, accel: 95, grip: 66 }, seatH: 0.55, lean: 0.78, leanIn: true,
+      driver: { pose: 'bike', scale: 0.90, seat: [0, 0.71, -0.20], wheel: [0, 0.86, 0.47],
+                wheelR: 0.235, eye: [0, 1.26, 0.06] }
     },
     van: {
       key: 'van_motorhome', name: 'بيت متنقّل GMC', tag: 'ثقيلة · رحلات',
       price: 58000, cls: 'D', color: 0xd08a2a,
       mass: 3400, power: 21000, brake: 30000, topSpeed: 39,       // ≈ 140 كم/س
       grip: 0.86, steerMax: 0.46, dragK: 1.05, nitro: 0.75,
-      stats: { speed: 40, accel: 30, grip: 42 }, seatH: 1.35, lean: 0.20
+      stats: { speed: 40, accel: 30, grip: 42 }, seatH: 1.35, lean: 0.20,
+      driver: { pose: 'car', scale: 1.0, seat: [0.70, 1.26, 2.98], wheel: [0.70, 1.84, 3.32],
+                wheelR: 0.22, eye: [0.70, 1.88, 3.06] }
     }
   }
 };
@@ -5822,9 +6195,61 @@ SC.Vehicle = (function () {
       this.input = { throttle: 0, brake: 0, steer: 0, handbrake: 0, boost: 0 };
       this.steerAngle = 0;
 
+      this.cabin = new THREE.Group();       // تتبع ميلان الهيكل ليجلس السائق بثبات
+      this.root.add(this.cabin);
+
       this._setupWheels();
       this._setupLights();
       this._setupShadow();
+      if (opts.driver !== false) this._setupDriver(opts);
+    }
+
+    /* --------------------------- السائق/الراكب -------------------------- */
+    _setupDriver(opts) {
+      const cfg = this.def.driver;
+      if (!cfg || !SC.character) return;
+      const colors = {};
+      if (cfg.pose === 'bike') colors.helmet = opts.helmet || 0xe23b3b;
+      this.driver = opts.simpleDriver
+        ? SC.character.createSimple({ pose: cfg.pose })
+        : SC.character.create({ pose: cfg.pose, colors });
+      this.driver.root.position.set(cfg.seat[0], cfg.seat[1], cfg.seat[2]);
+      this.driver.root.scale.setScalar(cfg.scale || 1);
+      this.cabin.add(this.driver.root);
+      this.wheelPos = new THREE.Vector3(cfg.wheel[0], cfg.wheel[1], cfg.wheel[2]);
+      this._handL = new THREE.Vector3();
+      this._handR = new THREE.Vector3();
+      /* مقود ظاهر للدراجة فقط (المقود موجود أصلاً داخل نماذج السيارات) */
+      if (cfg.bars) {
+        const bar = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.022, 0.022, cfg.wheelR * 2.2, 8),
+          new THREE.MeshStandardMaterial({ color: 0x24262b, roughness: 0.4, metalness: 0.6 })
+        );
+        bar.rotation.z = Math.PI / 2;
+        bar.position.copy(this.wheelPos);
+        this.cabin.add(bar);
+      }
+    }
+
+    _updateDriver(dt) {
+      if (!this.driver || this.driver.simple) return;
+      const cfg = this.def.driver;
+      const r = cfg.wheelR;
+      // اليدان تنزلقان على المقود مع زاوية التوجيه
+      const a = U.clamp(this.steerAngle * 2.4, -0.85, 0.85);
+      const base = cfg.pose === 'bike' ? 0 : 0.30;
+      const aL = base + a, aR = -base + a;
+      this._handL.set(this.wheelPos.x + Math.cos(aL) * r, this.wheelPos.y + Math.sin(aL) * r * 0.72, this.wheelPos.z - Math.sin(aL) * r * 0.30);
+      this._handR.set(this.wheelPos.x - Math.cos(aR) * r, this.wheelPos.y - Math.sin(aR) * r * 0.72, this.wheelPos.z + Math.sin(aR) * r * 0.30);
+      this.cabin.updateMatrixWorld(true);
+      const hL = this.cabin.localToWorld(this._handL.clone());
+      const hR = this.cabin.localToWorld(this._handR.clone());
+      this.driver.update(dt, {
+        hands: [hL, hR],
+        lat: U.clamp(this.vLat / 6, -1, 1),
+        lon: U.clamp(this.accLongSmooth / 9, -1, 1),
+        look: U.clamp(this.steerAngle * 1.6, -1, 1)
+      });
     }
 
     /* ------------------------------ التجهيز ---------------------------- */
@@ -5917,6 +6342,11 @@ SC.Vehicle = (function () {
       this.root.add(s);
     }
 
+    setFirstPerson(on) {
+      this.firstPerson = !!on;
+      if (this.driver) this.driver.setFirstPerson(!!on);
+    }
+
     setColor(hex) {
       this.body.traverse((o) => {
         if (!o.isMesh) return;
@@ -5958,7 +6388,9 @@ SC.Vehicle = (function () {
       const spd = Math.abs(this.vLong);
       const steerLimit = def.steerMax * (1 - 0.55 * U.clamp(spd / 42, 0, 1));
       const steerRate = (5.2 - 2.2 * U.clamp(spd / 40, 0, 1)) * dt;
-      this.steerAngle = U.moveToward(this.steerAngle, inp.steer * steerLimit, steerRate * def.steerMax * 4);
+      // ملاحظة: محور yaw في three يدور نحو +X، وهو يسار الشاشة عند النظر للأمام،
+      // لذا نعكس الإشارة حتى يكون "يمين" في الأزرار = يمين على الشاشة فعلاً.
+      this.steerAngle = U.moveToward(this.steerAngle, -inp.steer * steerLimit, steerRate * def.steerMax * 4);
       this.steerAngle = U.clamp(this.steerAngle, -steerLimit, steerLimit);
       if (Math.abs(inp.steer) < 0.02) this.steerAngle = U.damp(this.steerAngle, 0, 9, dt);
 
@@ -6112,7 +6544,8 @@ SC.Vehicle = (function () {
     _visuals(dt, accLong, accLat) {
       /* ميلان الهيكل: السيارات تميل قليلاً، والدراجة تميل كثيراً كالحقيقة */
       const leanK = (this.def.lean || 0.30) * U.clamp(this.kmh / 55, 0, 1);
-      const targetRoll = U.clamp(-accLat / 22, -1, 1) * leanK;
+      const leanDir = this.def.leanIn ? 1 : -1;     // الدراجة تميل داخل المنعطف
+      const targetRoll = U.clamp(-accLat / 22, -1, 1) * leanK * leanDir;
       const targetPitch = U.clamp(accLong / 40, -0.32, 0.32) * 0.55;
       this.roll = U.damp(this.roll, targetRoll, 7, dt);
       this.pitch = U.damp(this.pitch, targetPitch, 6.5, dt);
@@ -6121,6 +6554,10 @@ SC.Vehicle = (function () {
       this.root.rotation.set(0, this.yaw, 0);
       this.body.position.y = this.bodyY;
       this.body.rotation.set(-this.pitch, 0, this.roll);
+      this.cabin.position.y = this.bodyY;
+      this.cabin.rotation.set(-this.pitch, 0, this.roll);
+      this.accLongSmooth = U.damp(this.accLongSmooth || 0, accLong, 6, dt);
+      this._updateDriver(dt);
 
       if (this.contact) { this.contact.position.y = 0.03 - this.bodyY * 0.4; }
 
@@ -6460,7 +6897,8 @@ SC.AIDriver = (function () {
       const v = this.v;
       const desired = Math.atan2(tx - v.pos.x, tz - v.pos.z);
       const diff = U.angleDelta(v.yaw, desired);
-      return U.clamp(diff * (1.9 + this.skill * 0.8) - v.yawRate * 0.30, -1, 1);
+      // إشارة سالبة لتطابق اصطلاح المقود الجديد (موجب = يمين الشاشة)
+      return U.clamp(-(diff * (1.9 + this.skill * 0.8) - v.yawRate * 0.30), -1, 1);
     }
 
     update(dt, others) {
@@ -6492,7 +6930,7 @@ SC.AIDriver = (function () {
           const lateral = dx * Math.cos(v.yaw) - dz * Math.sin(v.yaw);
           if (Math.abs(lateral) > 3.6) continue;
           block = Math.max(block, U.clamp(1 - (dist - 6) / 20, 0, 1));
-          inp.steer += (lateral > 0 ? -0.5 : 0.5) * block * 0.7;
+          inp.steer += (lateral > 0 ? 0.5 : -0.5) * block * 0.7;
         }
       }
       inp.steer = U.clamp(inp.steer, -1, 1);
@@ -6570,7 +7008,7 @@ SC.traffic = (function () {
     const W = SC.world;
     const ids = ['cortina', 'van', 'bike'];
     const id = ids[Math.floor(Math.random() * (Math.random() < 0.65 ? 1 : ids.length))];
-    const v = new SC.Vehicle(id);
+    const v = new SC.Vehicle(id, { simpleDriver: true });
     const p = pickSpot(near);
     v.place(p.x, p.z, p.yaw);
     v.isTraffic = true;
@@ -6592,8 +7030,9 @@ SC.traffic = (function () {
       if (!W.inBounds(x, z)) continue;
       const s = W.snapToRoad(x, z);
       const off = 5.5;
-      const px = s.axis === 'z' ? s.x + off : s.x;
-      const pz = s.axis === 'z' ? s.z : s.z - off;
+      // الاتجاه +Z: اليمين هو -X ، والاتجاه +X: اليمين هو +Z
+      const px = s.axis === 'z' ? s.x - off : s.x;
+      const pz = s.axis === 'z' ? s.z : s.z + off;
       if (!W.inBounds(px, pz)) continue;
       return { x: px, z: pz, yaw: s.axis === 'z' ? 0 : Math.PI / 2 };
     }
@@ -6648,6 +7087,9 @@ SC.input = (function () {
     throttle: 0, brake: 0, steer: 0, handbrake: 0, boost: 0,
     steerRaw: 0, source: 'touch'
   };
+
+  /* حالة النظر الحر: تدوير الكاميرا حول المركبة أو الالتفات داخل المقصورة */
+  const look = { yaw: 0, pitch: 0, zoom: 1, active: false, idle: 99, touched: false };
   const keys = {};
   const held = { left: false, right: false, gas: false, brake: false, hand: false, boost: false };
   let wheelValue = 0, wheelActive = false, tilt = 0, tiltZero = null;
@@ -6730,7 +7172,54 @@ SC.input = (function () {
     }
   }
 
+  /* سحب الإصبع على الشاشة = تدوير الكاميرا، وإصبعان = تقريب/إبعاد */
+  function bindLook(canvas) {
+    if (!canvas) return;
+    const pts = new Map();
+    let pinch0 = 0, zoom0 = 1;
+    const dist = () => {
+      const a = Array.from(pts.values());
+      return Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+    };
+    canvas.addEventListener('pointerdown', (e) => {
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      look.active = true; look.idle = 0; look.touched = true;
+      if (pts.size === 2) { pinch0 = dist(); zoom0 = look.zoom; }
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      const p = pts.get(e.pointerId);
+      if (!p) return;
+      const dx = e.clientX - p.x, dy = e.clientY - p.y;
+      p.x = e.clientX; p.y = e.clientY;
+      look.idle = 0;
+      if (pts.size >= 2) {
+        const d = dist();
+        if (pinch0 > 10) look.zoom = U.clamp(zoom0 * (pinch0 / d), 0.55, 2.6);
+        return;
+      }
+      const k = 0.0042 * (SC.settings ? (SC.settings.lookSense || 1) : 1);
+      look.yaw = U.clamp(look.yaw - dx * k, -Math.PI * 0.98, Math.PI * 0.98);
+      look.pitch = U.clamp(look.pitch + dy * k * 0.75, -0.62, 1.05);
+    });
+    const end = (e) => {
+      pts.delete(e.pointerId);
+      if (pts.size === 0) look.active = false;
+    };
+    canvas.addEventListener('pointerup', end);
+    canvas.addEventListener('pointercancel', end);
+    canvas.addEventListener('pointerleave', end);
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      look.zoom = U.clamp(look.zoom * (e.deltaY > 0 ? 1.1 : 1 / 1.1), 0.55, 2.6);
+    }, { passive: false });
+    canvas.addEventListener('dblclick', () => { look.yaw = 0; look.pitch = 0; look.zoom = 1; });
+  }
+
+  const resetLook = () => { look.yaw = 0; look.pitch = 0; look.idle = 99; };
+
   function init(dom) {
+    bindLook(dom.canvas);
     /* --- أزرار اللمس --- */
     bindHold(dom.left, () => { held.left = true; }, () => { held.left = false; });
     bindHold(dom.right, () => { held.right = true; }, () => { held.right = false; });
@@ -6740,16 +7229,24 @@ SC.input = (function () {
     bindHold(dom.boost, () => { held.boost = true; }, () => { held.boost = false; });
     bindWheel(dom.wheel);
     ['cam', 'horn', 'flip', 'light'].forEach((k) => bindTap(dom[k], () => fire(k)));
+    /* النظر للخلف: يبقى ما دام الزر مضغوطاً */
+    bindHold(dom.back,
+      () => { look.hold = true; look.yaw = Math.PI * 0.92; look.idle = 0; },
+      () => { look.hold = false; look.idle = 0; });
 
     /* --- لوحة المفاتيح --- */
     window.addEventListener('keydown', (e) => {
       if (e.repeat) { keys[e.code] = true; return; }
       keys[e.code] = true;
-      const map = { KeyC: 'cam', KeyH: 'horn', KeyR: 'flip', KeyL: 'light', KeyM: 'map', Escape: 'pause', KeyP: 'pause', Enter: 'action' };
+      const map = { KeyC: 'cam', KeyH: 'horn', KeyR: 'flip', KeyL: 'light', KeyM: 'map', Escape: 'pause', KeyP: 'pause', Enter: 'action', KeyV: 'lookback' };
       if (map[e.code]) { fire(map[e.code]); e.preventDefault(); }
+      if (e.code === 'KeyV') { look.hold = true; look.yaw = Math.PI * 0.92; look.idle = 0; }
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
     });
-    window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+    window.addEventListener('keyup', (e) => {
+      keys[e.code] = false;
+      if (e.code === 'KeyV') { look.hold = false; look.idle = 0; }
+    });
     window.addEventListener('blur', () => {
       for (const k in keys) keys[k] = false;
       for (const k in held) held[k] = false;
@@ -6813,6 +7310,18 @@ SC.input = (function () {
     state.brake = U.damp(state.brake, brake, 14, dt);
     state.handbrake = hand;
     state.boost = boost;
+    /* النظر بالكيبورد: Q/E للالتفات، وV للنظر خلفاً */
+    if (kb.KeyQ) { look.yaw = U.clamp(look.yaw + 1.8 * dt, -Math.PI * 0.98, Math.PI * 0.98); look.idle = 0; }
+    if (kb.KeyE) { look.yaw = U.clamp(look.yaw - 1.8 * dt, -Math.PI * 0.98, Math.PI * 0.98); look.idle = 0; }
+
+    look.idle += dt;
+    if (!look.active && look.idle > 1.1 && !look.hold) {
+      look.yaw = U.damp(look.yaw, 0, 3.2, dt);
+      look.pitch = U.damp(look.pitch, 0, 3.2, dt);
+      if (Math.abs(look.yaw) < 0.004) look.yaw = 0;
+      if (Math.abs(look.pitch) < 0.004) look.pitch = 0;
+    }
+
     state.steerRaw = steerTarget;
     return state;
   }
@@ -6824,7 +7333,7 @@ SC.input = (function () {
     wheelValue = 0;
   };
 
-  return { state, init, update, on, fire, reset, bindTap, bindHold, requestTilt,
+  return { state, look, resetLook, init, update, on, fire, reset, bindTap, bindHold, requestTilt,
            get tilt() { return tilt; }, keys };
 })();
 
@@ -7143,7 +7652,8 @@ SC.hud = (function () {
     g.fillStyle = '#0b0f17'; g.fillRect(0, 0, S, S);
 
     g.translate(R, R);
-    const rot = game.mapRotate === false ? 0 : -car.yaw;
+    // زاوية التدوير: (yaw + π) تجعل مقدّمة السيارة للأعلى ويمينها على يمين الشاشة
+    const rot = game.mapRotate === false ? Math.PI : car.yaw + Math.PI;
     g.rotate(rot);
     const scale = zoom / cityScale;
     g.scale(scale, scale);
@@ -7152,10 +7662,10 @@ SC.hud = (function () {
     g.setTransform(1, 0, 0, 1, 0, 0);
 
     /* العلامات */
+    lastMini = { R, zoom, rot, car };
     const drawDot = (wx, wz, color, size, ring) => {
-      const dx = (wx - car.pos.x) * zoom, dz = (wz - car.pos.z) * zoom;
-      const cos = Math.cos(rot), sin = Math.sin(rot);
-      let px = dx * cos - dz * sin, py = dx * sin + dz * cos;
+      const p = projectMini(wx, wz);
+      let px = p.x - R, py = p.y - R;
       const d = Math.hypot(px, py);
       const edge = R - 10;
       const clamped = d > edge;
@@ -7173,7 +7683,7 @@ SC.hud = (function () {
     /* سهم اللاعب */
     g.save();
     g.translate(R, R);
-    if (game.mapRotate === false) g.rotate(car.yaw);
+    if (game.mapRotate === false) g.rotate(Math.PI - car.yaw);
     g.beginPath();
     g.moveTo(0, -9); g.lineTo(6.5, 8); g.lineTo(0, 4.5); g.lineTo(-6.5, 8);
     g.closePath();
@@ -7182,11 +7692,20 @@ SC.hud = (function () {
     g.restore();
     g.restore();
 
-    /* بوصلة */
+    /* بوصلة: تشير إلى الشمال (‑Z) */
     if (dom.compass) {
-      const ang = -car.yaw;
-      dom.compass.style.transform = 'rotate(' + (game.mapRotate === false ? 0 : ang) + 'rad)';
+      dom.compass.style.transform = 'rotate(' + (game.mapRotate === false ? 0 : car.yaw) + 'rad)';
     }
+  }
+
+  /* إسقاط نقطة عالمية على الخريطة المصغّرة (يُستخدم للرسم وللاختبار) */
+  let lastMini = null;
+  function projectMini(wx, wz) {
+    if (!lastMini) return { x: 0, y: 0 };
+    const { R, zoom, rot, car } = lastMini;
+    const dx = (wx - car.pos.x) * zoom, dz = (wz - car.pos.z) * zoom;
+    const cos = Math.cos(rot), sin = Math.sin(rot);
+    return { x: R + dx * cos - dz * sin, y: R + dx * sin + dz * cos };
   }
 
   /* -------------------------- الخريطة الكبيرة --------------------------- */
@@ -7226,7 +7745,7 @@ SC.hud = (function () {
     if (game && game.car) {
       const p = toScreen(game.car.pos.x, game.car.pos.z);
       g.save();
-      g.translate(p.x, p.y); g.rotate(game.car.yaw);
+      g.translate(p.x, p.y); g.rotate(Math.PI - game.car.yaw);
       g.beginPath(); g.moveTo(0, -12); g.lineTo(8, 10); g.lineTo(0, 5.5); g.lineTo(-8, 10);
       g.closePath();
       g.fillStyle = '#ffd23f'; g.strokeStyle = '#000'; g.lineWidth = 2;
@@ -7285,7 +7804,7 @@ SC.hud = (function () {
     if (accMini > 1 / 22) { drawMini(car, game); accMini = 0; }
   }
 
-  return { init, buildCityMap, update, toast, banner, setObjective, drawBigMap, screenToWorld,
+  return { init, buildCityMap, update, toast, banner, setObjective, drawBigMap, screenToWorld, projectMini,
            setMarkers, addMarker, clearMarkers, markers, get cityMap() { return cityMap; },
            mapX, mapZ, get cityScale() { return cityScale; } };
 })();
@@ -7735,11 +8254,8 @@ SC.ui = (function () {
   }
 
   function cycleCamera() {
-    const modes = ['chase', 'far', 'hood'];
-    const i = modes.indexOf(SC.settings.camera);
-    SC.settings.camera = modes[(i + 1) % modes.length];
-    SC.game.persist();
-    SC.hud.toast('الكاميرا: ' + ({ chase: 'خلفية', far: 'بعيدة', hood: 'من الداخل' })[SC.settings.camera], '', 1200);
+    const name = SC.game.cycleCamera();
+    SC.hud.toast('الكاميرا: ' + name + ' — اسحب بإصبعك للنظر حولك', '', 1800);
   }
   function toggleLights() {
     const car = SC.game.car;
@@ -7986,6 +8502,10 @@ SC.ui = (function () {
     dom.sens = sens;
     row('حساسية التوجيه', sens);
 
+    row('الكاميرا', seg('cam', [['chase', 'خلفية'], ['far', 'بعيدة'], ['hood', 'داخل المقصورة'], ['orbit', 'دوران حر']],
+      null, (v) => SC.hud.toast('الكاميرا: ' + SC.game.setCamera(v), '', 1400)),
+      'اسحب بإصبعك على الشاشة للنظر حولك، وبإصبعين للتقريب');
+
     row('وقت اليوم', seg('tod', [['day', 'نهار'], ['sunset', 'غروب'], ['night', 'ليل']],
       null, (v) => SC.game.setTimeOfDay(v)));
 
@@ -8028,6 +8548,7 @@ SC.ui = (function () {
     const s = SC.settings;
     const setGroup = (g, v) => U.$$('[data-group="' + g + '"]').forEach((x) => x.classList.toggle('on', x.dataset.val === String(v)));
     setGroup('steerMode', s.steerMode);
+    setGroup('cam', s.camera);
     setGroup('tod', s.timeOfDay);
     setGroup('quality', s.quality === 'auto' ? (SC.quality.name) : s.quality);
     setGroup('traffic', s.traffic ? '1' : '0');
@@ -8278,6 +8799,7 @@ SC.game = (function () {
     const sp = keepPos && pos ? { x: pos.x, z: pos.z, yaw } : SC.world.nearestSpawn(pos ? pos.x : 30, pos ? pos.z : 30);
     car.place(sp.x, sp.z, sp.yaw);
     car.lightsOn = SC.world.state.isNight;
+    car.setFirstPerson(settings.camera === 'hood');
     return car;
   }
 
@@ -8370,59 +8892,151 @@ SC.game = (function () {
   }
 
   /* ------------------------------ الكاميرا ------------------------------ */
+  /* أربعة أوضاع: خلفية · بعيدة · داخل المقصورة (منظور أول) · دوران حرّ.
+     في كل الأوضاع يمكن سحب الإصبع لتدوير الكاميرا والنظر خلفك،
+     وبإصبعين للتقريب والإبعاد.                                            */
   const camState = { pos: new THREE.Vector3(), look: new THREE.Vector3(), shake: 0, fov: 62 };
+  const _cv = new THREE.Vector3(), _cv2 = new THREE.Vector3();
   function shake(a) { camState.shake = Math.min(1.2, camState.shake + a); }
+
+  const CAM_MODES = ['chase', 'far', 'hood', 'orbit'];
+  const CAM_NAMES = { chase: 'خلفية', far: 'بعيدة', hood: 'من داخل المقصورة', orbit: 'دوران حول السيارة' };
 
   function updateCamera(dt, car) {
     const mode = settings.camera;
+    const look = SC.input.look;
     const spd = U.clamp(car.kmh / 180, 0, 1);
-    let desired = new THREE.Vector3(), look = new THREE.Vector3();
     const fwd = car.forward;
-    const back = 1 + spd * 0.35;
 
     if (mode === 'hood') {
-      const h = car.def.seatH + 0.25;
-      desired.copy(car.pos).addScaledVector(fwd, car.halfLen * 0.15).add(new THREE.Vector3(0, h, 0));
-      look.copy(car.pos).addScaledVector(fwd, 26).add(new THREE.Vector3(0, h * 0.9, 0));
-      camState.pos.lerp(desired, 1 - Math.exp(-26 * dt));
-      camState.look.lerp(look, 1 - Math.exp(-16 * dt));
+      /* منظور الشخص الأول: العين في مكان رأس السائق */
+      const d = car.def.driver;
+      const eye = d ? d.eye : [0, car.def.seatH + 0.35, 0];
+      _cv.set(eye[0], eye[1], eye[2]);
+      car.cabin.updateMatrixWorld(true);
+      car.cabin.localToWorld(_cv);
+      camState.pos.lerp(_cv, 1 - Math.exp(-30 * dt));
+
+      const yaw = car.yaw + look.yaw;
+      const pitch = look.pitch * 0.9;
+      _cv2.set(
+        camState.pos.x + Math.sin(yaw) * Math.cos(pitch) * 12,
+        camState.pos.y - Math.sin(pitch) * 12 + 0.2,
+        camState.pos.z + Math.cos(yaw) * Math.cos(pitch) * 12
+      );
+      camState.look.lerp(_cv2, 1 - Math.exp(-26 * dt));
     } else {
-      const dist = (mode === 'far' ? 11.5 : 6.6) * back + car.halfLen * 0.75;
-      const height = (mode === 'far' ? 5.2 : 2.85) + spd * 0.45;
-      desired.copy(car.pos)
-        .addScaledVector(fwd, -dist)
-        .add(new THREE.Vector3(0, height, 0));
-      // انزلاق جانبي بسيط أثناء الدريفت
-      const side = new THREE.Vector3(Math.cos(car.yaw), 0, -Math.sin(car.yaw));
-      desired.addScaledVector(side, U.clamp(car.vLat * 0.16, -2.4, 2.4));
-      look.copy(car.pos).addScaledVector(fwd, 9 + spd * 7).add(new THREE.Vector3(0, 1.4, 0));
-      const lag = mode === 'far' ? 7 : (9 + spd * 9);
-      camState.pos.lerp(desired, 1 - Math.exp(-lag * dt));
-      camState.look.lerp(look, 1 - Math.exp(-(11 + spd * 6) * dt));
+      const orbit = mode === 'orbit';
+      const baseDist = (mode === 'far' ? 11.5 : orbit ? 8.5 : 6.6);
+      const back = orbit ? 1 : 1 + spd * 0.35;
+      const dist = (baseDist * back + car.halfLen * 0.75) * look.zoom;
+      const height = (mode === 'far' ? 5.2 : orbit ? 2.6 : 2.85) + (orbit ? 0 : spd * 0.45);
+
+      const yaw = car.yaw + look.yaw;
+      const pitch = U.clamp((orbit ? 0.16 : 0.10) + look.pitch, -0.35, 1.15);
+      const cp = Math.cos(pitch);
+      _cv.set(
+        car.pos.x - Math.sin(yaw) * dist * cp,
+        car.pos.y + height + Math.sin(pitch) * dist,
+        car.pos.z - Math.cos(yaw) * dist * cp
+      );
+      if (!orbit) {
+        // انزلاق جانبي بسيط أثناء الدريفت
+        const side = new THREE.Vector3(Math.cos(car.yaw), 0, -Math.sin(car.yaw));
+        _cv.addScaledVector(side, U.clamp(car.vLat * 0.16, -2.4, 2.4));
+      }
+      clampCamera(car.pos, _cv);            // لا تخترق الكاميرا المباني
+      const lag = orbit ? 12 : (mode === 'far' ? 7 : (9 + spd * 9));
+      camState.pos.lerp(_cv, 1 - Math.exp(-lag * dt));
+
+      // ننظر إلى الأمام عند القيادة، وإلى السيارة نفسها عند تدوير الكاميرا
+      const ahead = (9 + spd * 7) * Math.max(0, Math.cos(look.yaw)) * (orbit ? 0 : 1);
+      _cv2.copy(car.pos).addScaledVector(fwd, ahead);
+      _cv2.y += orbit ? car.size.y * 0.55 : 1.4;
+      camState.look.lerp(_cv2, 1 - Math.exp(-(11 + spd * 6) * dt));
     }
 
     /* اهتزاز */
     if (camState.shake > 0.001) {
-      const s = camState.shake;
-      camState.pos.x += (Math.random() - 0.5) * s * 0.7;
-      camState.pos.y += (Math.random() - 0.5) * s * 0.5;
-      camState.pos.z += (Math.random() - 0.5) * s * 0.7;
+      const sh = camState.shake;
+      camState.pos.x += (Math.random() - 0.5) * sh * 0.7;
+      camState.pos.y += (Math.random() - 0.5) * sh * 0.5;
+      camState.pos.z += (Math.random() - 0.5) * sh * 0.7;
       camState.shake = U.damp(camState.shake, 0, 6, dt);
     }
     G.camera.position.copy(camState.pos);
     G.camera.lookAt(camState.look);
 
-    const targetFov = 62 + spd * 12 + (car.nitroActive ? 6 : 0);
+    const targetFov = (mode === 'hood' ? 68 : 62) + spd * 12 + (car.nitroActive ? 6 : 0);
     camState.fov = U.damp(camState.fov, targetFov, 5, dt);
     if (Math.abs(G.camera.fov - camState.fov) > 0.05) {
       G.camera.fov = camState.fov;
       G.camera.updateProjectionMatrix();
     }
   }
+
+  /* يمنع الكاميرا من الدخول داخل المباني: نقصّر المسافة عند أول اصطدام */
+  function clampCamera(from, want) {
+    const dx = want.x - from.x, dz = want.z - from.z;
+    const len = Math.hypot(dx, dz);
+    if (len < 0.35) return want;
+    const ux = dx / len, uz = dz / len;
+    let hit = len;
+    const list = SC.world.queryColliders(from.x + ux * len * 0.5, from.z + uz * len * 0.5, len * 0.5 + 4);
+    for (const c of list) {
+      if (c.h && c.h < 1.2) continue;
+      // تقاطع شعاع مع مستطيل (طريقة الشرائح) في المستوى الأفقي
+      let t0 = 0, t1 = len;
+      const pad = 0.55;
+      const slabs = [[from.x, ux, c.minX - pad, c.maxX + pad], [from.z, uz, c.minZ - pad, c.maxZ + pad]];
+      let ok = true;
+      for (const [p, d, lo, hi] of slabs) {
+        if (Math.abs(d) < 1e-6) { if (p < lo || p > hi) { ok = false; break; } continue; }
+        let ta = (lo - p) / d, tb = (hi - p) / d;
+        if (ta > tb) { const tmp = ta; ta = tb; tb = tmp; }
+        t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
+        if (t0 > t1) { ok = false; break; }
+      }
+      if (ok && t0 > 0.1 && t0 < hit) hit = t0;
+    }
+    if (hit < len) {
+      const d = Math.max(1.8, hit - 0.5);
+      want.x = from.x + ux * d;
+      want.z = from.z + uz * d;
+      want.y = Math.min(want.y, from.y + 2.6 + d * 0.25);
+    }
+    want.y = Math.max(want.y, SC.world.groundHeight(want.x, want.z) + 0.55);
+    return want;
+  }
+
+  function setCamera(mode) {
+    settings.camera = mode;
+    SC.input.resetLook();
+    SC.input.look.zoom = 1;
+    if (G.car) {
+      G.car.setFirstPerson(mode === 'hood');
+      snapCamera();
+    }
+    persist();
+    return CAM_NAMES[mode] || mode;
+  }
+  function cycleCamera() {
+    const i = CAM_MODES.indexOf(settings.camera);
+    return setCamera(CAM_MODES[(i + 1) % CAM_MODES.length]);
+  }
+
   function snapCamera() {
     const car = G.car;
-    camState.pos.copy(car.pos).addScaledVector(car.forward, -9).add(new THREE.Vector3(0, 3.4, 0));
-    camState.look.copy(car.pos);
+    if (settings.camera === 'hood') {
+      const d = car.def.driver;
+      const eye = d ? d.eye : [0, car.def.seatH + 0.35, 0];
+      car.cabin.updateMatrixWorld(true);
+      camState.pos.copy(car.cabin.localToWorld(new THREE.Vector3(eye[0], eye[1], eye[2])));
+      camState.look.copy(camState.pos).addScaledVector(car.forward, 12);
+    } else {
+      camState.pos.copy(car.pos).addScaledVector(car.forward, -9).add(new THREE.Vector3(0, 3.4, 0));
+      camState.look.copy(car.pos);
+    }
     G.camera.position.copy(camState.pos);
     G.camera.lookAt(camState.look);
   }
@@ -8575,7 +9189,7 @@ SC.game = (function () {
       updateArrow(car);
     }
 
-    updateCamera(dt, car);
+    if (!G.freezeCam) updateCamera(dt, car);
     SC.world.update(dt, car.pos);
     SC.audio.update(dt, car, G.paused);
     SC.hud.update(dt, {
@@ -8672,6 +9286,7 @@ SC.game = (function () {
 
   return {
     G, save, settings, init, frame, step, start, spawnPlayer, respawn, startMission,
+    setCamera, cycleCamera, CAM_MODES, CAM_NAMES,
     setTimeOfDay, setTraffic, setQuality, setWaypoint, togglePause, persist,
     addMoney, addXp, shake, snapCamera, refreshFreeMarkers, buildMissionMarkers,
     get car() { return G.car; }
@@ -8749,9 +9364,10 @@ window.SC_MODEL_DATA = {
   };
 
   const controls = {
+    canvas: $('c'),
     left: $('btnLeft'), right: $('btnRight'), gas: $('btnGas'), brake: $('btnBrake'),
     hand: $('btnHand'), boost: $('btnBoost'), wheel: $('wheel'),
-    cam: $('btnCam'), horn: $('btnHorn'), flip: $('btnFlip'), light: $('btnLight')
+    cam: $('btnCam'), horn: $('btnHorn'), flip: $('btnFlip'), light: $('btnLight'), back: $('btnBack')
   };
 
   function fail(e) {

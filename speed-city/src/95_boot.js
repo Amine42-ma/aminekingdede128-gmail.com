@@ -53,9 +53,10 @@
   };
 
   const controls = {
+    canvas: $('c'),
     left: $('btnLeft'), right: $('btnRight'), gas: $('btnGas'), brake: $('btnBrake'),
     hand: $('btnHand'), boost: $('btnBoost'), wheel: $('wheel'),
-    cam: $('btnCam'), horn: $('btnHorn'), flip: $('btnFlip'), light: $('btnLight')
+    cam: $('btnCam'), horn: $('btnHorn'), flip: $('btnFlip'), light: $('btnLight'), back: $('btnBack')
   };
 
   function fail(e) {

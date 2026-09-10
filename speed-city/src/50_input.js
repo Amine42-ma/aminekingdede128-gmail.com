@@ -8,6 +8,9 @@ SC.input = (function () {
     throttle: 0, brake: 0, steer: 0, handbrake: 0, boost: 0,
     steerRaw: 0, source: 'touch'
   };
+
+  /* حالة النظر الحر: تدوير الكاميرا حول المركبة أو الالتفات داخل المقصورة */
+  const look = { yaw: 0, pitch: 0, zoom: 1, active: false, idle: 99, touched: false };
   const keys = {};
   const held = { left: false, right: false, gas: false, brake: false, hand: false, boost: false };
   let wheelValue = 0, wheelActive = false, tilt = 0, tiltZero = null;
@@ -90,7 +93,54 @@ SC.input = (function () {
     }
   }
 
+  /* سحب الإصبع على الشاشة = تدوير الكاميرا، وإصبعان = تقريب/إبعاد */
+  function bindLook(canvas) {
+    if (!canvas) return;
+    const pts = new Map();
+    let pinch0 = 0, zoom0 = 1;
+    const dist = () => {
+      const a = Array.from(pts.values());
+      return Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+    };
+    canvas.addEventListener('pointerdown', (e) => {
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      look.active = true; look.idle = 0; look.touched = true;
+      if (pts.size === 2) { pinch0 = dist(); zoom0 = look.zoom; }
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      const p = pts.get(e.pointerId);
+      if (!p) return;
+      const dx = e.clientX - p.x, dy = e.clientY - p.y;
+      p.x = e.clientX; p.y = e.clientY;
+      look.idle = 0;
+      if (pts.size >= 2) {
+        const d = dist();
+        if (pinch0 > 10) look.zoom = U.clamp(zoom0 * (pinch0 / d), 0.55, 2.6);
+        return;
+      }
+      const k = 0.0042 * (SC.settings ? (SC.settings.lookSense || 1) : 1);
+      look.yaw = U.clamp(look.yaw - dx * k, -Math.PI * 0.98, Math.PI * 0.98);
+      look.pitch = U.clamp(look.pitch + dy * k * 0.75, -0.62, 1.05);
+    });
+    const end = (e) => {
+      pts.delete(e.pointerId);
+      if (pts.size === 0) look.active = false;
+    };
+    canvas.addEventListener('pointerup', end);
+    canvas.addEventListener('pointercancel', end);
+    canvas.addEventListener('pointerleave', end);
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      look.zoom = U.clamp(look.zoom * (e.deltaY > 0 ? 1.1 : 1 / 1.1), 0.55, 2.6);
+    }, { passive: false });
+    canvas.addEventListener('dblclick', () => { look.yaw = 0; look.pitch = 0; look.zoom = 1; });
+  }
+
+  const resetLook = () => { look.yaw = 0; look.pitch = 0; look.idle = 99; };
+
   function init(dom) {
+    bindLook(dom.canvas);
     /* --- أزرار اللمس --- */
     bindHold(dom.left, () => { held.left = true; }, () => { held.left = false; });
     bindHold(dom.right, () => { held.right = true; }, () => { held.right = false; });
@@ -100,16 +150,24 @@ SC.input = (function () {
     bindHold(dom.boost, () => { held.boost = true; }, () => { held.boost = false; });
     bindWheel(dom.wheel);
     ['cam', 'horn', 'flip', 'light'].forEach((k) => bindTap(dom[k], () => fire(k)));
+    /* النظر للخلف: يبقى ما دام الزر مضغوطاً */
+    bindHold(dom.back,
+      () => { look.hold = true; look.yaw = Math.PI * 0.92; look.idle = 0; },
+      () => { look.hold = false; look.idle = 0; });
 
     /* --- لوحة المفاتيح --- */
     window.addEventListener('keydown', (e) => {
       if (e.repeat) { keys[e.code] = true; return; }
       keys[e.code] = true;
-      const map = { KeyC: 'cam', KeyH: 'horn', KeyR: 'flip', KeyL: 'light', KeyM: 'map', Escape: 'pause', KeyP: 'pause', Enter: 'action' };
+      const map = { KeyC: 'cam', KeyH: 'horn', KeyR: 'flip', KeyL: 'light', KeyM: 'map', Escape: 'pause', KeyP: 'pause', Enter: 'action', KeyV: 'lookback' };
       if (map[e.code]) { fire(map[e.code]); e.preventDefault(); }
+      if (e.code === 'KeyV') { look.hold = true; look.yaw = Math.PI * 0.92; look.idle = 0; }
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
     });
-    window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+    window.addEventListener('keyup', (e) => {
+      keys[e.code] = false;
+      if (e.code === 'KeyV') { look.hold = false; look.idle = 0; }
+    });
     window.addEventListener('blur', () => {
       for (const k in keys) keys[k] = false;
       for (const k in held) held[k] = false;
@@ -173,6 +231,18 @@ SC.input = (function () {
     state.brake = U.damp(state.brake, brake, 14, dt);
     state.handbrake = hand;
     state.boost = boost;
+    /* النظر بالكيبورد: Q/E للالتفات، وV للنظر خلفاً */
+    if (kb.KeyQ) { look.yaw = U.clamp(look.yaw + 1.8 * dt, -Math.PI * 0.98, Math.PI * 0.98); look.idle = 0; }
+    if (kb.KeyE) { look.yaw = U.clamp(look.yaw - 1.8 * dt, -Math.PI * 0.98, Math.PI * 0.98); look.idle = 0; }
+
+    look.idle += dt;
+    if (!look.active && look.idle > 1.1 && !look.hold) {
+      look.yaw = U.damp(look.yaw, 0, 3.2, dt);
+      look.pitch = U.damp(look.pitch, 0, 3.2, dt);
+      if (Math.abs(look.yaw) < 0.004) look.yaw = 0;
+      if (Math.abs(look.pitch) < 0.004) look.pitch = 0;
+    }
+
     state.steerRaw = steerTarget;
     return state;
   }
@@ -184,6 +254,6 @@ SC.input = (function () {
     wheelValue = 0;
   };
 
-  return { state, init, update, on, fire, reset, bindTap, bindHold, requestTilt,
+  return { state, look, resetLook, init, update, on, fire, reset, bindTap, bindHold, requestTilt,
            get tilt() { return tilt; }, keys };
 })();

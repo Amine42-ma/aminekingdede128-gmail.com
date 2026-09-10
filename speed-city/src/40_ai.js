@@ -55,7 +55,8 @@ SC.AIDriver = (function () {
       const v = this.v;
       const desired = Math.atan2(tx - v.pos.x, tz - v.pos.z);
       const diff = U.angleDelta(v.yaw, desired);
-      return U.clamp(diff * (1.9 + this.skill * 0.8) - v.yawRate * 0.30, -1, 1);
+      // إشارة سالبة لتطابق اصطلاح المقود الجديد (موجب = يمين الشاشة)
+      return U.clamp(-(diff * (1.9 + this.skill * 0.8) - v.yawRate * 0.30), -1, 1);
     }
 
     update(dt, others) {
@@ -87,7 +88,7 @@ SC.AIDriver = (function () {
           const lateral = dx * Math.cos(v.yaw) - dz * Math.sin(v.yaw);
           if (Math.abs(lateral) > 3.6) continue;
           block = Math.max(block, U.clamp(1 - (dist - 6) / 20, 0, 1));
-          inp.steer += (lateral > 0 ? -0.5 : 0.5) * block * 0.7;
+          inp.steer += (lateral > 0 ? 0.5 : -0.5) * block * 0.7;
         }
       }
       inp.steer = U.clamp(inp.steer, -1, 1);
@@ -165,7 +166,7 @@ SC.traffic = (function () {
     const W = SC.world;
     const ids = ['cortina', 'van', 'bike'];
     const id = ids[Math.floor(Math.random() * (Math.random() < 0.65 ? 1 : ids.length))];
-    const v = new SC.Vehicle(id);
+    const v = new SC.Vehicle(id, { simpleDriver: true });
     const p = pickSpot(near);
     v.place(p.x, p.z, p.yaw);
     v.isTraffic = true;
@@ -187,8 +188,9 @@ SC.traffic = (function () {
       if (!W.inBounds(x, z)) continue;
       const s = W.snapToRoad(x, z);
       const off = 5.5;
-      const px = s.axis === 'z' ? s.x + off : s.x;
-      const pz = s.axis === 'z' ? s.z : s.z - off;
+      // الاتجاه +Z: اليمين هو -X ، والاتجاه +X: اليمين هو +Z
+      const px = s.axis === 'z' ? s.x - off : s.x;
+      const pz = s.axis === 'z' ? s.z : s.z + off;
       if (!W.inBounds(px, pz)) continue;
       return { x: px, z: pz, yaw: s.axis === 'z' ? 0 : Math.PI / 2 };
     }

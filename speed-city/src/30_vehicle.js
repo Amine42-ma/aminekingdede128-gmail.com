@@ -10,21 +10,27 @@ SC.cars = {
       price: 0, cls: 'B', color: 0xf2f2f2,
       mass: 1050, power: 9800, brake: 15000, topSpeed: 51,       // م/ث ≈ 184 كم/س
       grip: 1.06, steerMax: 0.60, dragK: 0.42, nitro: 1.0,
-      stats: { speed: 62, accel: 58, grip: 70 }, seatH: 0.62, lean: 0.26
+      stats: { speed: 62, accel: 58, grip: 70 }, seatH: 0.62, lean: 0.26,
+      driver: { pose: 'car', scale: 0.92, seat: [0.32, 0.40, 0.08], wheel: [0.30, 0.83, 0.58],
+                wheelR: 0.19, eye: [0.32, 1.00, 0.14] }
     },
     bike: {
       key: 'bike_cyberpunk', name: 'دراجة سايبر X', tag: 'خارقة · تجريبية',
       price: 32000, cls: 'S', color: 0x22d3ee,
       mass: 260, power: 4200, brake: 7200, topSpeed: 68,          // ≈ 245 كم/س
       grip: 1.02, steerMax: 0.68, dragK: 0.18, nitro: 1.35,
-      stats: { speed: 92, accel: 95, grip: 66 }, seatH: 0.55, lean: 0.78
+      stats: { speed: 92, accel: 95, grip: 66 }, seatH: 0.55, lean: 0.78, leanIn: true,
+      driver: { pose: 'bike', scale: 0.90, seat: [0, 0.71, -0.20], wheel: [0, 0.86, 0.47],
+                wheelR: 0.235, eye: [0, 1.26, 0.06] }
     },
     van: {
       key: 'van_motorhome', name: 'بيت متنقّل GMC', tag: 'ثقيلة · رحلات',
       price: 58000, cls: 'D', color: 0xd08a2a,
       mass: 3400, power: 21000, brake: 30000, topSpeed: 39,       // ≈ 140 كم/س
       grip: 0.86, steerMax: 0.46, dragK: 1.05, nitro: 0.75,
-      stats: { speed: 40, accel: 30, grip: 42 }, seatH: 1.35, lean: 0.20
+      stats: { speed: 40, accel: 30, grip: 42 }, seatH: 1.35, lean: 0.20,
+      driver: { pose: 'car', scale: 1.0, seat: [0.70, 1.26, 2.98], wheel: [0.70, 1.84, 3.32],
+                wheelR: 0.22, eye: [0.70, 1.88, 3.06] }
     }
   }
 };
@@ -66,9 +72,61 @@ SC.Vehicle = (function () {
       this.input = { throttle: 0, brake: 0, steer: 0, handbrake: 0, boost: 0 };
       this.steerAngle = 0;
 
+      this.cabin = new THREE.Group();       // تتبع ميلان الهيكل ليجلس السائق بثبات
+      this.root.add(this.cabin);
+
       this._setupWheels();
       this._setupLights();
       this._setupShadow();
+      if (opts.driver !== false) this._setupDriver(opts);
+    }
+
+    /* --------------------------- السائق/الراكب -------------------------- */
+    _setupDriver(opts) {
+      const cfg = this.def.driver;
+      if (!cfg || !SC.character) return;
+      const colors = {};
+      if (cfg.pose === 'bike') colors.helmet = opts.helmet || 0xe23b3b;
+      this.driver = opts.simpleDriver
+        ? SC.character.createSimple({ pose: cfg.pose })
+        : SC.character.create({ pose: cfg.pose, colors });
+      this.driver.root.position.set(cfg.seat[0], cfg.seat[1], cfg.seat[2]);
+      this.driver.root.scale.setScalar(cfg.scale || 1);
+      this.cabin.add(this.driver.root);
+      this.wheelPos = new THREE.Vector3(cfg.wheel[0], cfg.wheel[1], cfg.wheel[2]);
+      this._handL = new THREE.Vector3();
+      this._handR = new THREE.Vector3();
+      /* مقود ظاهر للدراجة فقط (المقود موجود أصلاً داخل نماذج السيارات) */
+      if (cfg.bars) {
+        const bar = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.022, 0.022, cfg.wheelR * 2.2, 8),
+          new THREE.MeshStandardMaterial({ color: 0x24262b, roughness: 0.4, metalness: 0.6 })
+        );
+        bar.rotation.z = Math.PI / 2;
+        bar.position.copy(this.wheelPos);
+        this.cabin.add(bar);
+      }
+    }
+
+    _updateDriver(dt) {
+      if (!this.driver || this.driver.simple) return;
+      const cfg = this.def.driver;
+      const r = cfg.wheelR;
+      // اليدان تنزلقان على المقود مع زاوية التوجيه
+      const a = U.clamp(this.steerAngle * 2.4, -0.85, 0.85);
+      const base = cfg.pose === 'bike' ? 0 : 0.30;
+      const aL = base + a, aR = -base + a;
+      this._handL.set(this.wheelPos.x + Math.cos(aL) * r, this.wheelPos.y + Math.sin(aL) * r * 0.72, this.wheelPos.z - Math.sin(aL) * r * 0.30);
+      this._handR.set(this.wheelPos.x - Math.cos(aR) * r, this.wheelPos.y - Math.sin(aR) * r * 0.72, this.wheelPos.z + Math.sin(aR) * r * 0.30);
+      this.cabin.updateMatrixWorld(true);
+      const hL = this.cabin.localToWorld(this._handL.clone());
+      const hR = this.cabin.localToWorld(this._handR.clone());
+      this.driver.update(dt, {
+        hands: [hL, hR],
+        lat: U.clamp(this.vLat / 6, -1, 1),
+        lon: U.clamp(this.accLongSmooth / 9, -1, 1),
+        look: U.clamp(this.steerAngle * 1.6, -1, 1)
+      });
     }
 
     /* ------------------------------ التجهيز ---------------------------- */
@@ -161,6 +219,11 @@ SC.Vehicle = (function () {
       this.root.add(s);
     }
 
+    setFirstPerson(on) {
+      this.firstPerson = !!on;
+      if (this.driver) this.driver.setFirstPerson(!!on);
+    }
+
     setColor(hex) {
       this.body.traverse((o) => {
         if (!o.isMesh) return;
@@ -202,7 +265,9 @@ SC.Vehicle = (function () {
       const spd = Math.abs(this.vLong);
       const steerLimit = def.steerMax * (1 - 0.55 * U.clamp(spd / 42, 0, 1));
       const steerRate = (5.2 - 2.2 * U.clamp(spd / 40, 0, 1)) * dt;
-      this.steerAngle = U.moveToward(this.steerAngle, inp.steer * steerLimit, steerRate * def.steerMax * 4);
+      // ملاحظة: محور yaw في three يدور نحو +X، وهو يسار الشاشة عند النظر للأمام،
+      // لذا نعكس الإشارة حتى يكون "يمين" في الأزرار = يمين على الشاشة فعلاً.
+      this.steerAngle = U.moveToward(this.steerAngle, -inp.steer * steerLimit, steerRate * def.steerMax * 4);
       this.steerAngle = U.clamp(this.steerAngle, -steerLimit, steerLimit);
       if (Math.abs(inp.steer) < 0.02) this.steerAngle = U.damp(this.steerAngle, 0, 9, dt);
 
@@ -356,7 +421,8 @@ SC.Vehicle = (function () {
     _visuals(dt, accLong, accLat) {
       /* ميلان الهيكل: السيارات تميل قليلاً، والدراجة تميل كثيراً كالحقيقة */
       const leanK = (this.def.lean || 0.30) * U.clamp(this.kmh / 55, 0, 1);
-      const targetRoll = U.clamp(-accLat / 22, -1, 1) * leanK;
+      const leanDir = this.def.leanIn ? 1 : -1;     // الدراجة تميل داخل المنعطف
+      const targetRoll = U.clamp(-accLat / 22, -1, 1) * leanK * leanDir;
       const targetPitch = U.clamp(accLong / 40, -0.32, 0.32) * 0.55;
       this.roll = U.damp(this.roll, targetRoll, 7, dt);
       this.pitch = U.damp(this.pitch, targetPitch, 6.5, dt);
@@ -365,6 +431,10 @@ SC.Vehicle = (function () {
       this.root.rotation.set(0, this.yaw, 0);
       this.body.position.y = this.bodyY;
       this.body.rotation.set(-this.pitch, 0, this.roll);
+      this.cabin.position.y = this.bodyY;
+      this.cabin.rotation.set(-this.pitch, 0, this.roll);
+      this.accLongSmooth = U.damp(this.accLongSmooth || 0, accLong, 6, dt);
+      this._updateDriver(dt);
 
       if (this.contact) { this.contact.position.y = 0.03 - this.bodyY * 0.4; }
 

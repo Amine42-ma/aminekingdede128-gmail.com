@@ -189,6 +189,7 @@ SC.game = (function () {
     const sp = keepPos && pos ? { x: pos.x, z: pos.z, yaw } : SC.world.nearestSpawn(pos ? pos.x : 30, pos ? pos.z : 30);
     car.place(sp.x, sp.z, sp.yaw);
     car.lightsOn = SC.world.state.isNight;
+    car.setFirstPerson(settings.camera === 'hood');
     return car;
   }
 
@@ -281,59 +282,151 @@ SC.game = (function () {
   }
 
   /* ------------------------------ الكاميرا ------------------------------ */
+  /* أربعة أوضاع: خلفية · بعيدة · داخل المقصورة (منظور أول) · دوران حرّ.
+     في كل الأوضاع يمكن سحب الإصبع لتدوير الكاميرا والنظر خلفك،
+     وبإصبعين للتقريب والإبعاد.                                            */
   const camState = { pos: new THREE.Vector3(), look: new THREE.Vector3(), shake: 0, fov: 62 };
+  const _cv = new THREE.Vector3(), _cv2 = new THREE.Vector3();
   function shake(a) { camState.shake = Math.min(1.2, camState.shake + a); }
+
+  const CAM_MODES = ['chase', 'far', 'hood', 'orbit'];
+  const CAM_NAMES = { chase: 'خلفية', far: 'بعيدة', hood: 'من داخل المقصورة', orbit: 'دوران حول السيارة' };
 
   function updateCamera(dt, car) {
     const mode = settings.camera;
+    const look = SC.input.look;
     const spd = U.clamp(car.kmh / 180, 0, 1);
-    let desired = new THREE.Vector3(), look = new THREE.Vector3();
     const fwd = car.forward;
-    const back = 1 + spd * 0.35;
 
     if (mode === 'hood') {
-      const h = car.def.seatH + 0.25;
-      desired.copy(car.pos).addScaledVector(fwd, car.halfLen * 0.15).add(new THREE.Vector3(0, h, 0));
-      look.copy(car.pos).addScaledVector(fwd, 26).add(new THREE.Vector3(0, h * 0.9, 0));
-      camState.pos.lerp(desired, 1 - Math.exp(-26 * dt));
-      camState.look.lerp(look, 1 - Math.exp(-16 * dt));
+      /* منظور الشخص الأول: العين في مكان رأس السائق */
+      const d = car.def.driver;
+      const eye = d ? d.eye : [0, car.def.seatH + 0.35, 0];
+      _cv.set(eye[0], eye[1], eye[2]);
+      car.cabin.updateMatrixWorld(true);
+      car.cabin.localToWorld(_cv);
+      camState.pos.lerp(_cv, 1 - Math.exp(-30 * dt));
+
+      const yaw = car.yaw + look.yaw;
+      const pitch = look.pitch * 0.9;
+      _cv2.set(
+        camState.pos.x + Math.sin(yaw) * Math.cos(pitch) * 12,
+        camState.pos.y - Math.sin(pitch) * 12 + 0.2,
+        camState.pos.z + Math.cos(yaw) * Math.cos(pitch) * 12
+      );
+      camState.look.lerp(_cv2, 1 - Math.exp(-26 * dt));
     } else {
-      const dist = (mode === 'far' ? 11.5 : 6.6) * back + car.halfLen * 0.75;
-      const height = (mode === 'far' ? 5.2 : 2.85) + spd * 0.45;
-      desired.copy(car.pos)
-        .addScaledVector(fwd, -dist)
-        .add(new THREE.Vector3(0, height, 0));
-      // انزلاق جانبي بسيط أثناء الدريفت
-      const side = new THREE.Vector3(Math.cos(car.yaw), 0, -Math.sin(car.yaw));
-      desired.addScaledVector(side, U.clamp(car.vLat * 0.16, -2.4, 2.4));
-      look.copy(car.pos).addScaledVector(fwd, 9 + spd * 7).add(new THREE.Vector3(0, 1.4, 0));
-      const lag = mode === 'far' ? 7 : (9 + spd * 9);
-      camState.pos.lerp(desired, 1 - Math.exp(-lag * dt));
-      camState.look.lerp(look, 1 - Math.exp(-(11 + spd * 6) * dt));
+      const orbit = mode === 'orbit';
+      const baseDist = (mode === 'far' ? 11.5 : orbit ? 8.5 : 6.6);
+      const back = orbit ? 1 : 1 + spd * 0.35;
+      const dist = (baseDist * back + car.halfLen * 0.75) * look.zoom;
+      const height = (mode === 'far' ? 5.2 : orbit ? 2.6 : 2.85) + (orbit ? 0 : spd * 0.45);
+
+      const yaw = car.yaw + look.yaw;
+      const pitch = U.clamp((orbit ? 0.16 : 0.10) + look.pitch, -0.35, 1.15);
+      const cp = Math.cos(pitch);
+      _cv.set(
+        car.pos.x - Math.sin(yaw) * dist * cp,
+        car.pos.y + height + Math.sin(pitch) * dist,
+        car.pos.z - Math.cos(yaw) * dist * cp
+      );
+      if (!orbit) {
+        // انزلاق جانبي بسيط أثناء الدريفت
+        const side = new THREE.Vector3(Math.cos(car.yaw), 0, -Math.sin(car.yaw));
+        _cv.addScaledVector(side, U.clamp(car.vLat * 0.16, -2.4, 2.4));
+      }
+      clampCamera(car.pos, _cv);            // لا تخترق الكاميرا المباني
+      const lag = orbit ? 12 : (mode === 'far' ? 7 : (9 + spd * 9));
+      camState.pos.lerp(_cv, 1 - Math.exp(-lag * dt));
+
+      // ننظر إلى الأمام عند القيادة، وإلى السيارة نفسها عند تدوير الكاميرا
+      const ahead = (9 + spd * 7) * Math.max(0, Math.cos(look.yaw)) * (orbit ? 0 : 1);
+      _cv2.copy(car.pos).addScaledVector(fwd, ahead);
+      _cv2.y += orbit ? car.size.y * 0.55 : 1.4;
+      camState.look.lerp(_cv2, 1 - Math.exp(-(11 + spd * 6) * dt));
     }
 
     /* اهتزاز */
     if (camState.shake > 0.001) {
-      const s = camState.shake;
-      camState.pos.x += (Math.random() - 0.5) * s * 0.7;
-      camState.pos.y += (Math.random() - 0.5) * s * 0.5;
-      camState.pos.z += (Math.random() - 0.5) * s * 0.7;
+      const sh = camState.shake;
+      camState.pos.x += (Math.random() - 0.5) * sh * 0.7;
+      camState.pos.y += (Math.random() - 0.5) * sh * 0.5;
+      camState.pos.z += (Math.random() - 0.5) * sh * 0.7;
       camState.shake = U.damp(camState.shake, 0, 6, dt);
     }
     G.camera.position.copy(camState.pos);
     G.camera.lookAt(camState.look);
 
-    const targetFov = 62 + spd * 12 + (car.nitroActive ? 6 : 0);
+    const targetFov = (mode === 'hood' ? 68 : 62) + spd * 12 + (car.nitroActive ? 6 : 0);
     camState.fov = U.damp(camState.fov, targetFov, 5, dt);
     if (Math.abs(G.camera.fov - camState.fov) > 0.05) {
       G.camera.fov = camState.fov;
       G.camera.updateProjectionMatrix();
     }
   }
+
+  /* يمنع الكاميرا من الدخول داخل المباني: نقصّر المسافة عند أول اصطدام */
+  function clampCamera(from, want) {
+    const dx = want.x - from.x, dz = want.z - from.z;
+    const len = Math.hypot(dx, dz);
+    if (len < 0.35) return want;
+    const ux = dx / len, uz = dz / len;
+    let hit = len;
+    const list = SC.world.queryColliders(from.x + ux * len * 0.5, from.z + uz * len * 0.5, len * 0.5 + 4);
+    for (const c of list) {
+      if (c.h && c.h < 1.2) continue;
+      // تقاطع شعاع مع مستطيل (طريقة الشرائح) في المستوى الأفقي
+      let t0 = 0, t1 = len;
+      const pad = 0.55;
+      const slabs = [[from.x, ux, c.minX - pad, c.maxX + pad], [from.z, uz, c.minZ - pad, c.maxZ + pad]];
+      let ok = true;
+      for (const [p, d, lo, hi] of slabs) {
+        if (Math.abs(d) < 1e-6) { if (p < lo || p > hi) { ok = false; break; } continue; }
+        let ta = (lo - p) / d, tb = (hi - p) / d;
+        if (ta > tb) { const tmp = ta; ta = tb; tb = tmp; }
+        t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
+        if (t0 > t1) { ok = false; break; }
+      }
+      if (ok && t0 > 0.1 && t0 < hit) hit = t0;
+    }
+    if (hit < len) {
+      const d = Math.max(1.8, hit - 0.5);
+      want.x = from.x + ux * d;
+      want.z = from.z + uz * d;
+      want.y = Math.min(want.y, from.y + 2.6 + d * 0.25);
+    }
+    want.y = Math.max(want.y, SC.world.groundHeight(want.x, want.z) + 0.55);
+    return want;
+  }
+
+  function setCamera(mode) {
+    settings.camera = mode;
+    SC.input.resetLook();
+    SC.input.look.zoom = 1;
+    if (G.car) {
+      G.car.setFirstPerson(mode === 'hood');
+      snapCamera();
+    }
+    persist();
+    return CAM_NAMES[mode] || mode;
+  }
+  function cycleCamera() {
+    const i = CAM_MODES.indexOf(settings.camera);
+    return setCamera(CAM_MODES[(i + 1) % CAM_MODES.length]);
+  }
+
   function snapCamera() {
     const car = G.car;
-    camState.pos.copy(car.pos).addScaledVector(car.forward, -9).add(new THREE.Vector3(0, 3.4, 0));
-    camState.look.copy(car.pos);
+    if (settings.camera === 'hood') {
+      const d = car.def.driver;
+      const eye = d ? d.eye : [0, car.def.seatH + 0.35, 0];
+      car.cabin.updateMatrixWorld(true);
+      camState.pos.copy(car.cabin.localToWorld(new THREE.Vector3(eye[0], eye[1], eye[2])));
+      camState.look.copy(camState.pos).addScaledVector(car.forward, 12);
+    } else {
+      camState.pos.copy(car.pos).addScaledVector(car.forward, -9).add(new THREE.Vector3(0, 3.4, 0));
+      camState.look.copy(car.pos);
+    }
     G.camera.position.copy(camState.pos);
     G.camera.lookAt(camState.look);
   }
@@ -486,7 +579,7 @@ SC.game = (function () {
       updateArrow(car);
     }
 
-    updateCamera(dt, car);
+    if (!G.freezeCam) updateCamera(dt, car);
     SC.world.update(dt, car.pos);
     SC.audio.update(dt, car, G.paused);
     SC.hud.update(dt, {
@@ -583,6 +676,7 @@ SC.game = (function () {
 
   return {
     G, save, settings, init, frame, step, start, spawnPlayer, respawn, startMission,
+    setCamera, cycleCamera, CAM_MODES, CAM_NAMES,
     setTimeOfDay, setTraffic, setQuality, setWaypoint, togglePause, persist,
     addMoney, addXp, shake, snapCamera, refreshFreeMarkers, buildMissionMarkers,
     get car() { return G.car; }

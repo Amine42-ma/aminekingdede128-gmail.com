@@ -529,7 +529,7 @@ SC.world = (function () {
     building_residential5: { face: 'z', minS: 0.85, maxS: 1.20, w: { downtown: 24, mixed: 30, suburb: 16 } },
     building_office2:      { face: 'z', yawFix: Math.PI, minS: 0.90, maxS: 1.30, w: { downtown: 32, mixed: 30, suburb: 16 } },
     building_shop:         { face: 'z', minS: 1.00, maxS: 1.55, w: { downtown: 8, mixed: 18, suburb: 26 }, cap: 320 },
-    building_house:        { face: 'z', minS: 2.30, maxS: 3.20, w: { downtown: 0, mixed: 8, suburb: 30 }, cap: 70 }
+    building_house:        { face: 'z', minS: 3.40, maxS: 4.40, w: { downtown: 0, mixed: 8, suburb: 30 }, cap: 70 }
   };
   const SCHOOL = { key: 'building_school', scale: 0.86 };
 
@@ -773,7 +773,7 @@ SC.world = (function () {
       for (let s = 0; s < NB; s++) {
         const line = -HALF + i * P;
         const mid = -HALF + s * P + P / 2;
-        state.spawns.push({ x: line + 6, z: mid, yaw: 0 });
+        state.spawns.push({ x: line - 6, z: mid, yaw: 0 });          // يمين الشارع
         state.spawns.push({ x: mid, z: line + 6, yaw: Math.PI / 2 });
       }
     }

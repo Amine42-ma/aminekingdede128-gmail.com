@@ -83,11 +83,8 @@ SC.ui = (function () {
   }
 
   function cycleCamera() {
-    const modes = ['chase', 'far', 'hood'];
-    const i = modes.indexOf(SC.settings.camera);
-    SC.settings.camera = modes[(i + 1) % modes.length];
-    SC.game.persist();
-    SC.hud.toast('الكاميرا: ' + ({ chase: 'خلفية', far: 'بعيدة', hood: 'من الداخل' })[SC.settings.camera], '', 1200);
+    const name = SC.game.cycleCamera();
+    SC.hud.toast('الكاميرا: ' + name + ' — اسحب بإصبعك للنظر حولك', '', 1800);
   }
   function toggleLights() {
     const car = SC.game.car;
@@ -334,6 +331,10 @@ SC.ui = (function () {
     dom.sens = sens;
     row('حساسية التوجيه', sens);
 
+    row('الكاميرا', seg('cam', [['chase', 'خلفية'], ['far', 'بعيدة'], ['hood', 'داخل المقصورة'], ['orbit', 'دوران حر']],
+      null, (v) => SC.hud.toast('الكاميرا: ' + SC.game.setCamera(v), '', 1400)),
+      'اسحب بإصبعك على الشاشة للنظر حولك، وبإصبعين للتقريب');
+
     row('وقت اليوم', seg('tod', [['day', 'نهار'], ['sunset', 'غروب'], ['night', 'ليل']],
       null, (v) => SC.game.setTimeOfDay(v)));
 
@@ -376,6 +377,7 @@ SC.ui = (function () {
     const s = SC.settings;
     const setGroup = (g, v) => U.$$('[data-group="' + g + '"]').forEach((x) => x.classList.toggle('on', x.dataset.val === String(v)));
     setGroup('steerMode', s.steerMode);
+    setGroup('cam', s.camera);
     setGroup('tod', s.timeOfDay);
     setGroup('quality', s.quality === 'auto' ? (SC.quality.name) : s.quality);
     setGroup('traffic', s.traffic ? '1' : '0');
