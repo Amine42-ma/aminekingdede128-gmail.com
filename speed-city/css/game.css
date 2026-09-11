@@ -353,6 +353,8 @@ body[data-steer="tilt"] .steer-buttons{opacity:.45}
   overflow:hidden;text-overflow:ellipsis}
 .radio .rname:active{background:rgba(255,210,63,.18)}
 .radio.off .rname span{color:var(--dim)}
+.radio.wait .rname span{color:var(--cyan)}
+.radio.fail .rname span{color:var(--red)}
 .radio.flash{animation:rflash .5s ease}
 @keyframes rflash{0%{border-color:rgba(255,210,63,.85);box-shadow:0 0 0 3px rgba(255,210,63,.20)}
   100%{border-color:var(--line);box-shadow:var(--sh)}}

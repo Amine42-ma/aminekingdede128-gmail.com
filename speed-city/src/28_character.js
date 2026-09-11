@@ -8,11 +8,12 @@ SC.character = (function () {
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
   const PALETTE = {
-    skin:   0xd9a17a, skinDark: 0xc08a63,
-    jacket: 0x24303f, jacket2: 0x1b2430,
-    jeans:  0x2f3d5c, boots: 0x1a1a1c,
-    glove:  0x2a2a2e, helmet: 0xe23b3b, visor: 0x101318,
-    hair:   0x2b2119, shirt: 0xd8dde5
+    skin:   0xe0aa83, skinDark: 0xc08a63,
+    jacket: 0x2f5f96, jacket2: 0x1d3f68,     // سترة سباق زرقاء
+    accent: 0xff8a2b,                         // خطوط برتقالية
+    jeans:  0x3a4a64, boots: 0x26262b,
+    glove:  0x33343a, helmet: 0xe23b3b, visor: 0x101318,
+    hair:   0x3a2a1e, shirt: 0xe8edf3
   };
 
   /* ذاكرة الأشكال: تُبنى مرّة واحدة وتُشارك بين كل الشخصيات */
@@ -69,7 +70,8 @@ SC.character = (function () {
       jeans: mat(P.jeans, 0.85), boots: mat(P.boots, 0.55, 0.1), glove: mat(P.glove, 0.6),
       helmet: mat(P.helmet, 0.28, 0.35), visor: new THREE.MeshStandardMaterial({
         color: P.visor, roughness: 0.08, metalness: 0.9
-      }), hair: mat(P.hair, 0.8), shirt: mat(P.shirt, 0.75)
+      }), hair: mat(P.hair, 0.8), shirt: mat(P.shirt, 0.75),
+      accent: mat(P.accent, 0.45, 0.12)
     };
 
     const root = new THREE.Group();
@@ -87,9 +89,31 @@ SC.character = (function () {
     chest.position.y = 0.40;
     chest.scale.set(1.32, 1, 0.86);
     torso.add(chest);
-    const collar = new THREE.Mesh(geo('collar', () => new THREE.CylinderGeometry(0.085, 0.10, 0.06, 12)), M.jacket2);
-    collar.position.y = 0.415;
+    const collar = new THREE.Mesh(geo('collar', () => new THREE.CylinderGeometry(0.085, 0.105, 0.075, 14)), M.jacket2);
+    collar.position.y = 0.412;
     torso.add(collar);
+    /* واقي رقبة ناعم فوق الياقة */
+    const neckWarm = new THREE.Mesh(geo('neckWarm', () => new THREE.TorusGeometry(0.078, 0.028, 8, 18)), M.jacket2);
+    neckWarm.rotation.x = Math.PI / 2;
+    neckWarm.position.y = 0.448;
+    torso.add(neckWarm);
+    /* خطّان برتقاليان على الصدر يعطيان الشخصية طابع سائق سباق */
+    [-1, 1].forEach((sx) => {
+      const stripe = new THREE.Mesh(geo('cstripe', () => new THREE.BoxGeometry(0.030, 0.30, 0.016)), M.accent);
+      stripe.position.set(sx * 0.052, 0.28, 0.122);
+      torso.add(stripe);
+    });
+    /* كتفان بارزان يعطيان الجسم عرضاً طبيعياً */
+    [-1, 1].forEach((sx) => {
+      const delt = new THREE.Mesh(geo('delt', () => new THREE.SphereGeometry(0.082, 14, 10)), M.jacket);
+      delt.scale.set(1, 0.82, 0.92);
+      delt.position.set(sx * 0.150, 0.392, 0);
+      torso.add(delt);
+      const epaul = new THREE.Mesh(geo('epaul', () => new THREE.BoxGeometry(0.090, 0.020, 0.110)), M.accent);
+      epaul.position.set(sx * 0.146, 0.438, 0);
+      epaul.rotation.z = sx * 0.16;
+      torso.add(epaul);
+    });
     /* سحّاب أمامي + حزام + شارة صدر */
     const zip = new THREE.Mesh(geo('zip', () => new THREE.BoxGeometry(0.022, 0.30, 0.015)), M.jacket2);
     zip.position.set(0, 0.28, 0.128);
@@ -188,11 +212,21 @@ SC.character = (function () {
     stubble.position.set(0, 0.030, 0.022);
     head.add(stubble);
 
-    const hair = new THREE.Mesh(geo('hair', () => new THREE.SphereGeometry(0.104, 16, 12,
-      0, Math.PI * 2, 0, Math.PI * 0.58)), M.hair);
-    hair.scale.set(0.98, 1.12, 1.02);
-    hair.position.y = 0.078;
+    const hair = new THREE.Mesh(geo('hair', () => new THREE.SphereGeometry(0.106, 18, 14,
+      0, Math.PI * 2, 0, Math.PI * 0.60)), M.hair);
+    hair.scale.set(0.99, 1.14, 1.04);
+    hair.position.y = 0.076;
     head.add(hair);
+    /* خصلة أمامية وقفا يكسران استدارة الكرة */
+    const fringe = new THREE.Mesh(geo('fringe', () => new THREE.SphereGeometry(0.072, 12, 9,
+      0, Math.PI, 0, Math.PI * 0.5)), M.hair);
+    fringe.scale.set(1.35, 0.55, 0.72);
+    fringe.position.set(0, 0.126, 0.052);
+    fringe.rotation.set(0.35, Math.PI / 2, 0);
+    hair.add(fringe);
+    const nape = new THREE.Mesh(geo('nape', () => new THREE.BoxGeometry(0.130, 0.055, 0.040)), M.hair);
+    nape.position.set(0, -0.030, -0.078);
+    hair.add(nape);
 
     /* الخوذة (لراكب الدراجة) */
     const helmet = new THREE.Group();
@@ -220,9 +254,9 @@ SC.character = (function () {
     vrim.position.set(0, 0.104, 0.008);
     helmet.add(vrim);
     /* خطّ أبيض على منتصف القبّة من الأمام إلى الخلف */
-    const stripe = new THREE.Mesh(geo('stripe', () => new THREE.TorusGeometry(0.1265, 0.0115, 6, 24, Math.PI * 0.62)),
+    const stripe = new THREE.Mesh(geo('stripe', () => new THREE.TorusGeometry(0.1275, 0.0105, 10, 30, Math.PI * 0.70)),
       mat(0xf4f4f4, 0.3, 0.2));
-    stripe.rotation.set(0, Math.PI / 2, Math.PI * 0.19);
+    stripe.rotation.set(0, Math.PI / 2, Math.PI * 0.30);
     stripe.position.y = 0.074;
     helmet.add(stripe);
     /* فتحتا تهوية على القمّة */
@@ -247,10 +281,14 @@ SC.character = (function () {
       shoulder.add(pad);
       const upper = bone(0.050, 0.20, M.jacket, 0.043);
       shoulder.add(upper);
-      const sleeve = new THREE.Mesh(geo('sleeve', () => new THREE.TorusGeometry(0.049, 0.008, 6, 16)), M.jacket2);
+      const sleeve = new THREE.Mesh(geo('sleeve', () => new THREE.TorusGeometry(0.049, 0.010, 6, 16)), M.accent);
       sleeve.rotation.x = Math.PI / 2;
       sleeve.position.y = -0.20;
       shoulder.add(sleeve);
+      const sleeve2 = new THREE.Mesh(geo('sleeve2', () => new THREE.TorusGeometry(0.0455, 0.009, 6, 16)), M.accent);
+      sleeve2.rotation.x = Math.PI / 2;
+      sleeve2.position.y = -0.245;
+      shoulder.add(sleeve2);
       const elbow = joint(shoulder, 0, -0.29, 0);
       const fore = bone(0.042, 0.19, M.jacket2, 0.036);
       elbow.add(fore);
@@ -327,10 +365,17 @@ SC.character = (function () {
         new THREE.MeshStandardMaterial({ color: 0x2c2c30, roughness: 0.95 }));
       sole.position.set(0, -0.062, 0.066);
       ankle.add(sole);
-      const kneePad = new THREE.Mesh(geo('kneepad', () => new THREE.SphereGeometry(0.068, 10, 8)), M.jacket2);
-      kneePad.scale.set(1, 0.85, 0.9);
-      kneePad.position.set(0, 0.01, 0.02);
+      const kneePad = new THREE.Mesh(geo('kneepad', () => new THREE.SphereGeometry(0.070, 12, 9)), M.jacket2);
+      kneePad.scale.set(1, 0.86, 0.92);
+      kneePad.position.set(0, 0.01, 0.022);
       knee.add(kneePad);
+      const kneeTrim = new THREE.Mesh(geo('kneeTrim', () => new THREE.TorusGeometry(0.056, 0.008, 6, 14)), M.accent);
+      kneeTrim.rotation.x = Math.PI / 2.1;
+      kneeTrim.position.set(0, -0.004, 0.030);
+      knee.add(kneeTrim);
+      const shinGuard = new THREE.Mesh(geo('shinGuard', () => new THREE.BoxGeometry(0.090, 0.150, 0.030)), M.jacket2);
+      shinGuard.position.set(0, -0.20, 0.056);
+      knee.add(shinGuard);
       const laces = new THREE.Mesh(geo('laces', () => new THREE.BoxGeometry(0.052, 0.010, 0.085)),
         new THREE.MeshStandardMaterial({ color: 0xe4e0d6, roughness: 0.85 }));
       laces.position.set(0, 0.006, 0.052);

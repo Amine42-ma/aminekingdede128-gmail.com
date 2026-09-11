@@ -9,7 +9,7 @@ SC.game = (function () {
     money: 2500, xp: 0, level: 1, rep: 70,
     owned: ['cortina'], current: 'cortina',
     upgrades: { cortina: { engine: 0, tires: 0, brakes: 0, nitro: 0 } },
-    colors: {}, done: {}, best: {}, radio: 'midnight_drift',
+    colors: {}, done: {}, best: {}, radio: 'zero_latency',
     stats: { distance: 0, missions: 0, races: 0, topSpeed: 0 }
   };
 
@@ -17,7 +17,8 @@ SC.game = (function () {
     quality: 'auto', shadows: true, steerMode: 'buttons', steerSense: 1.0,
     invertTilt: false, sound: true, volume: 0.85, music: 0.45, haptics: true, assist: true,
     lookSense: 1.0, peds: true, micOn: false, autoScale: true,
-    mapRotate: true, timeOfDay: 'day', season: 'summer', traffic: true, camera: 'chase'
+    mapRotate: true, timeOfDay: 'day', season: 'summer', traffic: true, camera: 'chase',
+    engineSound: false
   };
   SC.settings = settings;
 
@@ -350,14 +351,18 @@ SC.game = (function () {
     const fwd = car.forward;
 
     if (mode === 'hood') {
-      /* منظور الشخص الأول: العين في مكان رأس السائق */
+      /* منظور الشخص الأول: العين مثبّتة في مقعد السائق — لا تتأخّر ولا
+         تتراجع مع التسارع، تدور فقط مع السيارة أو مع إصبعك. */
       const d = car.def.driver;
       const eye = d ? d.eye : [0, car.def.seatH + 0.35, 0];
-      _cv.set(eye[0], eye[1], eye[2]);
-      car.cabin.updateMatrixWorld(true);
-      car.cabin.localToWorld(_cv);
+      /* نحسب العين من جذع السيارة (موضع + دوران فقط) لا من المقصورة:
+         المقصورة تميل مع التسارع وترتدّ مع التعليق، وهذا ما كان يجعل
+         المنظور يتراجع إلى الوراء عند الانطلاق. */
+      car.root.updateMatrixWorld(true);
+      _cv.set(eye[0], eye[1] + (car.bodyY || 0) * 0.3, eye[2]);
+      car.root.localToWorld(_cv);
       pushOutOfWalls(_cv, 0.25);
-      camState.pos.lerp(_cv, 1 - Math.exp(-30 * dt));
+      camState.pos.copy(_cv);                       // تثبيت تامّ بلا تنعيم
 
       const yaw = car.yaw + look.yaw;
       const pitch = look.pitch * 0.9;
@@ -399,9 +404,9 @@ SC.game = (function () {
       camState.look.lerp(_cv2, 1 - Math.exp(-(11 + spd * 6) * dt));
     }
 
-    /* اهتزاز */
+    /* اهتزاز — مخفَّف جداً داخل المقصورة حتى تبقى العين ثابتة */
     if (camState.shake > 0.001) {
-      const sh = camState.shake;
+      const sh = camState.shake * (mode === 'hood' ? 0.12 : 1);
       camState.pos.x += (Math.random() - 0.5) * sh * 0.7;
       camState.pos.y += (Math.random() - 0.5) * sh * 0.5;
       camState.pos.z += (Math.random() - 0.5) * sh * 0.7;
@@ -416,7 +421,9 @@ SC.game = (function () {
       G.camera.near = wantNear;
       G.camera.updateProjectionMatrix();
     }
-    const targetFov = (mode === 'hood' ? 68 : 62) + spd * 12 + (car.nitroActive ? 6 : 0);
+    /* زاوية الرؤية ثابتة في المنظور الأول: توسيعها مع السرعة كان يجعل
+       المشهد يبدو وكأنّه يتراجع إلى الوراء. */
+    const targetFov = mode === 'hood' ? 72 : (62 + spd * 12 + (car.nitroActive ? 6 : 0));
     camState.fov = U.damp(camState.fov, targetFov, 5, dt);
     if (Math.abs(G.camera.fov - camState.fov) > 0.05) {
       G.camera.fov = camState.fov;
@@ -533,8 +540,8 @@ SC.game = (function () {
     if (settings.camera === 'hood') {
       const d = car.def.driver;
       const eye = d ? d.eye : [0, car.def.seatH + 0.35, 0];
-      car.cabin.updateMatrixWorld(true);
-      camState.pos.copy(car.cabin.localToWorld(new THREE.Vector3(eye[0], eye[1], eye[2])));
+      car.root.updateMatrixWorld(true);
+      camState.pos.copy(car.root.localToWorld(new THREE.Vector3(eye[0], eye[1], eye[2])));
       camState.look.copy(camState.pos).addScaledVector(car.forward, 12);
     } else {
       camState.pos.copy(car.pos).addScaledVector(car.forward, -9).add(new THREE.Vector3(0, 3.4, 0));
@@ -871,12 +878,13 @@ SC.game = (function () {
     snapCamera();
     SC.audio.resume();
     SC.audio.setSfxVolume(settings.sound ? 1 : 0);
+    SC.audio.setEngineSound(settings.engineSound);
     SC.audio.setMusicVolume(settings.music == null ? 0.45 : settings.music);
     /* الراديو: يبدأ على آخر محطّة اخترتها ويعمل في أي مركبة تقودها */
     if ((settings.music == null ? 0.45 : settings.music) > 0) {
       if (!G.radioStarted) {
         G.radioStarted = true;
-        SC.audio.radioSet(save.radio || 'midnight_drift');
+        SC.audio.radioSet(save.radio || 'zero_latency');
       } else SC.audio.radioResume();
     } else SC.audio.stopMusic();
   }

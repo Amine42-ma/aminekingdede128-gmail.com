@@ -383,11 +383,19 @@ SC.ui = (function () {
     const canvas = document.getElementById('c');
     if (canvas) canvas.addEventListener('pointerdown', closeRadioList);
     SC.audio.radioOnChange((st, i, announce) => {
-      if (dom.radioTitle) dom.radioTitle.textContent = st.title;
+      const cur = SC.audio.radioCurrent();
+      if (dom.radioTitle) {
+        dom.radioTitle.textContent = cur.failed ? st.title + ' — لا يوجد اتصال'
+                                   : cur.loading ? st.title + ' …' : st.title;
+      }
       dom.radioBar.classList.toggle('off', st.kind === 'off');
-      dom.radioBar.classList.remove('flash');
-      void dom.radioBar.offsetWidth;                 // إعادة تشغيل الوميض
-      dom.radioBar.classList.add('flash');
+      dom.radioBar.classList.toggle('wait', !!cur.loading);
+      dom.radioBar.classList.toggle('fail', !!cur.failed);
+      if (announce) {
+        dom.radioBar.classList.remove('flash');
+        void dom.radioBar.offsetWidth;               // إعادة تشغيل الوميض
+        dom.radioBar.classList.add('flash');
+      }
       buildRadioList();
       if (announce && st.kind !== 'off') SC.hud.toast('📻 ' + st.title, '', 1600);
       SC.game.save.radio = st.id;
@@ -617,6 +625,12 @@ SC.ui = (function () {
     row('الفصل', seg('season', [['summer', 'صيف ☀️'], ['winter', 'شتاء ❄️']],
       null, (v) => SC.game.setSeason(v)), 'الشتاء يكسو المدينة بالثلج');
 
+    row('صوت المحرّك', seg('engine', [['0', 'مطفأ'], ['1', 'مُفعّل']], null, (v) => {
+      SC.settings.engineSound = v === '1';
+      SC.audio.setEngineSound(SC.settings.engineSound);
+      SC.game.persist();
+    }), 'مطفأ افتراضياً — تبقى أصوات الإطارات والرياح والاصطدام');
+
     row('جودة الرسوم', seg('quality', [['low', 'خفيفة'], ['medium', 'متوسطة'], ['high', 'عالية']],
       null, (v) => {
         SC.hud.toast('سيُعاد تحميل اللعبة لتطبيق الجودة…', '', 1800);
@@ -684,6 +698,7 @@ SC.ui = (function () {
     setGroup('cam', s.camera);
     setGroup('tod', s.timeOfDay);
     setGroup('season', s.season || 'summer');
+    setGroup('engine', s.engineSound ? '1' : '0');
     setGroup('quality', s.quality === 'auto' ? (SC.quality.name) : s.quality);
     setGroup('traffic', s.traffic ? '1' : '0');
     setGroup('rotate', s.mapRotate ? '1' : '0');
