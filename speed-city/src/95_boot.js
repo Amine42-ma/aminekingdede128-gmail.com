@@ -51,6 +51,8 @@
     screenMissions: $('screenMissions'), screenSettings: $('screenSettings'),
     screenResult: $('screenResult'), screenPause: $('screenPause'),
     shopList: $('shopList'), missionList: $('missionList'), settingsList: $('settingsList'),
+    radioBar: $('radioBar'), radioPrev: $('radioPrev'), radioNext: $('radioNext'),
+    radioName: $('radioName'), radioTitle: $('radioTitle'), radioList: $('radioList'),
     mapCanvas: $('mapCanvas'), mapInfo: $('mapInfo'), mapCenter: $('mapCenter'), mapWorld: $('mapWorld'),
     mapClear: $('mapClear'), mapIn: $('mapIn'), mapOut: $('mapOut'),
     resultTitle: $('resultTitle'), resultSub: $('resultSub'), resultRows: $('resultRows'),

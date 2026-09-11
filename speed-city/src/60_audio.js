@@ -272,6 +272,111 @@ SC.audio = (function () {
     }
   }
 
+
+  /* =========================== راديو السيارة ============================
+     محطّات تتبدّل بضغطة واحدة مثل ألعاب GTA. المقاطع تُشغَّل عبر عنصر
+     <audio> (بثّ) لا decodeAudioData، فلا نُحمّل دقائق صوت في الذاكرة،
+     ثم تُمرَّر إلى ناقل الموسيقى نفسه ليطيع مستوى الصوت في الإعدادات. */
+  const radio = {
+    stations: [], index: 0, el: null, node: null, ready: false,
+    on: true, urls: {}, onChange: null
+  };
+
+  function buildStations() {
+    if (radio.stations.length) return radio.stations;
+    radio.stations.push({ id: 'off',  title: 'الراديو مطفأ', kind: 'off',  icon: '🔇' });
+    radio.stations.push({ id: 'city', title: 'إذاعة المدينة', kind: 'proc', icon: '🎛' });
+    const data = (typeof window !== 'undefined' && window.SC_MUSIC_DATA) || [];
+    data.forEach((t) => radio.stations.push({ id: t.id, title: t.title, kind: 'file', icon: '🎵' }));
+    return radio.stations;
+  }
+
+  /* base64 → Blob مرّة واحدة فقط، ثم نُفرغ النصّ من الذاكرة */
+  function trackUrl(id) {
+    if (radio.urls[id]) return radio.urls[id];
+    const data = (window.SC_MUSIC_DATA || []).filter((t) => t.id === id)[0];
+    if (!data || !data.data) return null;
+    const bin = atob(data.data);
+    const buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    data.data = null;                       // النصّ لم يعد مطلوباً
+    const url = URL.createObjectURL(new Blob([buf], { type: 'audio/mpeg' }));
+    radio.urls[id] = url;
+    return url;
+  }
+
+  function ensureRadioEl() {
+    if (radio.el) return radio.el;
+    const el = new Audio();
+    el.preload = 'none';
+    el.loop = false;
+    el.crossOrigin = 'anonymous';
+    el.addEventListener('ended', () => { if (radio.on) radioNext(true); });
+    el.addEventListener('error', () => { /* تجاهُل: ننتقل للتالي عند الضغط */ });
+    radio.el = el;
+    return el;
+  }
+
+  function connectRadio() {
+    if (radio.node || !ctx) return;
+    try {
+      radio.node = ctx.createMediaElementSource(ensureRadioEl());
+      radio.node.connect(musicBus);
+    } catch (e) { radio.node = null; }      // متصفّح لا يدعم الربط: يعمل بصوته المباشر
+  }
+
+  function currentStation() {
+    buildStations();
+    return radio.stations[U.clamp(radio.index, 0, radio.stations.length - 1)];
+  }
+
+  function playStation(i, announce) {
+    init();
+    buildStations();
+    radio.index = ((i % radio.stations.length) + radio.stations.length) % radio.stations.length;
+    const st = radio.stations[radio.index];
+    const el = ensureRadioEl();
+
+    if (st.kind !== 'file') { el.pause(); el.removeAttribute('src'); }
+    if (st.kind === 'proc') { startMusic(); }
+    else { stopMusic(); if (musicBus) musicBus.gain.value = music.vol * 0.6; }
+
+    if (st.kind === 'file') {
+      connectRadio();
+      const url = trackUrl(st.id);
+      if (url) {
+        el.src = url;
+        el.volume = radio.node ? 1 : U.clamp(music.vol, 0, 1);
+        el.currentTime = 0;
+        const pr = el.play();
+        if (pr && pr.catch) pr.catch(() => {});
+      }
+    }
+    if (st.kind === 'off' && musicBus) musicBus.gain.value = 0;
+    radio.on = st.kind !== 'off';
+    if (radio.onChange) radio.onChange(st, radio.index, announce !== false);
+    return st;
+  }
+
+  function radioNext(auto) {
+    buildStations();
+    /* التقدّم التلقائي بعد نهاية مقطع يتخطّى «مطفأ» و«إذاعة المدينة» */
+    let i = radio.index + 1;
+    if (auto) {
+      while (radio.stations[i % radio.stations.length].kind !== 'file') i++;
+    }
+    return playStation(i, !auto);
+  }
+  function radioPrev() { return playStation(radio.index - 1); }
+  function radioSet(id) {
+    buildStations();
+    const i = radio.stations.findIndex((s) => s.id === id);
+    return playStation(i < 0 ? 1 : i);
+  }
+  function radioStations() { return buildStations(); }
+  function radioCurrent() { return { station: currentStation(), index: radio.index }; }
+  function radioOnChange(fn) { radio.onChange = fn; }
+
   function startMusic() {
     init();
     if (!ready || music.on) return;
@@ -289,12 +394,32 @@ SC.audio = (function () {
   }
   function setMusicVolume(v) {
     music.vol = v;
-    if (musicBus) musicBus.gain.value = music.on ? v * 0.6 : 0;
-    if (v <= 0) stopMusic();
+    const st = radio.stations.length ? currentStation() : null;
+    const playingFile = st && st.kind === 'file';
+    if (musicBus) musicBus.gain.value = (music.on || playingFile) ? v * 0.6 : 0;
+    if (radio.el && !radio.node) radio.el.volume = U.clamp(v, 0, 1);
+    /* صوت صفر = أوقف البثّ فعلياً حتى لا نستهلك البطارية بلا فائدة */
+    if (playingFile && radio.el) {
+      if (v <= 0) radio.el.pause();
+      else if (radio.el.paused && radio.on) {
+        const pr = radio.el.play(); if (pr && pr.catch) pr.catch(() => {});
+      }
+    }
+    if (v <= 0 && !playingFile) stopMusic();
   }
   function setSfxVolume(v) { if (sfxBus) sfxBus.gain.value = v; }
 
+  /* تمرير الصوت تحت الماء إلى الراديو أيضاً يجري عبر musicBus نفسه */
+  function radioPause() { if (radio.el) radio.el.pause(); }
+  function radioResume() {
+    if (radio.el && currentStation().kind === 'file' && radio.on) {
+      const pr = radio.el.play(); if (pr && pr.catch) pr.catch(() => {});
+    }
+  }
+
   return { init, resume, update, setEnabled, setVolume, setUnderwater, blip, crash, horn, hornBeep, pop,
            startMusic, stopMusic, setMusicVolume, setSfxVolume, music,
+           radioNext, radioPrev, radioSet, radioStations, radioCurrent, radioOnChange,
+           radioPause, radioResume, playStation, get radioEl() { return radio.el; },
            ui, good, bad, cash, check, count, get ctx() { return ctx; } };
 })();

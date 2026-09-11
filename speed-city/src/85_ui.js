@@ -26,6 +26,7 @@ SC.ui = (function () {
     SC.input.bindTap(dom.btnMissions, () => open('missions'));
     SC.input.bindTap(dom.btnShop, () => open('shop'));
     SC.input.bindTap(dom.btnMap, () => { mapView.mode = 'world'; open('map'); });
+    initRadio();
     /* الضغط على الخريطة المصغّرة يفتح نفسها بحجم كبير على موقع اللاعب */
     const mini = document.querySelector('.minimap');
     if (mini) SC.input.bindTap(mini, () => { mapView.mode = 'near'; open('map'); });
@@ -55,6 +56,7 @@ SC.ui = (function () {
   }
 
   function open(name) {
+    closeRadioList();
     hideAll(true);
     current = name;
     const el = dom['screen' + name.charAt(0).toUpperCase() + name.slice(1)];
@@ -358,6 +360,60 @@ SC.ui = (function () {
     { id: 'van',  label: '🚚 الكاميون', hint: 'حمولات ثقيلة بين الجزر — أرباح كبيرة، بلا سباقات' }
   ];
   let missionTab = null;
+
+  /* ------------------------------ الراديو ------------------------------- */
+  /* شريط الأزرار العلوي يلتفّ على الشاشات الضيّقة، فنقيس ارتفاعه الحقيقي
+     ونُنزل الراديو ولوحة المهمّة تحته بدل أرقام ثابتة. */
+  function layoutTopbar() {
+    const tb = document.querySelector('.topbar');
+    if (!tb) return;
+    const h = Math.round(tb.getBoundingClientRect().height);
+    if (h > 0) document.documentElement.style.setProperty('--topbar-h', h + 'px');
+  }
+
+  function initRadio() {
+    if (!dom.radioBar) return;
+    layoutTopbar();
+    window.addEventListener('resize', layoutTopbar);
+    [80, 400, 1200].forEach((ms) => setTimeout(layoutTopbar, ms));
+    SC.input.bindTap(dom.radioNext, () => { SC.audio.radioNext(); closeRadioList(); });
+    SC.input.bindTap(dom.radioPrev, () => { SC.audio.radioPrev(); closeRadioList(); });
+    SC.input.bindTap(dom.radioName, () => toggleRadioList());
+    /* أي لمسة على الشاشة تغلق قائمة المحطّات */
+    const canvas = document.getElementById('c');
+    if (canvas) canvas.addEventListener('pointerdown', closeRadioList);
+    SC.audio.radioOnChange((st, i, announce) => {
+      if (dom.radioTitle) dom.radioTitle.textContent = st.title;
+      dom.radioBar.classList.toggle('off', st.kind === 'off');
+      dom.radioBar.classList.remove('flash');
+      void dom.radioBar.offsetWidth;                 // إعادة تشغيل الوميض
+      dom.radioBar.classList.add('flash');
+      buildRadioList();
+      if (announce && st.kind !== 'off') SC.hud.toast('📻 ' + st.title, '', 1600);
+      SC.game.save.radio = st.id;
+    });
+    buildRadioList();
+  }
+
+  function buildRadioList() {
+    const wrap = dom.radioList;
+    if (!wrap) return;
+    const cur = SC.audio.radioCurrent();
+    wrap.innerHTML = '';
+    SC.audio.radioStations().forEach((st, i) => {
+      const b = U.el('button', i === cur.index ? 'on' : '');
+      b.innerHTML = '<i>' + st.icon + '</i><span>' + st.title + '</span>';
+      SC.input.bindTap(b, () => { SC.audio.playStation(i); closeRadioList(); });
+      wrap.appendChild(b);
+    });
+  }
+  function toggleRadioList() {
+    if (!dom.radioList) return;
+    const showing = dom.radioList.classList.contains('show');
+    if (showing) closeRadioList();
+    else { buildRadioList(); dom.radioList.classList.add('show'); SC.audio.ui(); }
+  }
+  function closeRadioList() { if (dom.radioList) dom.radioList.classList.remove('show'); }
 
   function buildMissions() {
     const wrap = dom.missionList;
@@ -686,6 +742,6 @@ SC.ui = (function () {
     }
   }
 
-  return { init, open, hideAll, refreshWallet, showResult, showPrompt, tick, buildShop, drawMap,
+  return { init, open, hideAll, refreshWallet, buildRadioList, closeRadioList, layoutTopbar, showResult, showPrompt, tick, buildShop, drawMap,
            get current() { return current; } };
 })();

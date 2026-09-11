@@ -45,9 +45,28 @@ for (const [key, file] of Object.entries(models)) {
 }
 payload += '};\n';
 
+/* 4) موسيقى الراديو مضمّنة */
+const tracks = [
+  ['midnight_drift',   '01_midnight_drift.mp3',   'Midnight Drift'],
+  ['midnight_drift_2', '02_midnight_drift_2.mp3', 'Midnight Drift II'],
+  ['drift_brutal',     '03_drift_brutal.mp3',     'Drift Brutal'],
+  ['drift_brutal_2',   '04_drift_brutal_2.mp3',   'Drift Brutal II'],
+  ['drift_rush',       '05_drift_rush.mp3',       'Drift Rush']
+];
+let music = 'window.SC_MUSIC_DATA = [\n';
+let mtotal = 0;
+for (const [key, file, title] of tracks) {
+  const buf = readFileSync(join(root, 'assets/music', file));
+  mtotal += buf.length;
+  music += '  { id: "' + key + '", title: "' + title + '", data: "' + buf.toString('base64') + '" },\n';
+  console.log('  ♪', file.padEnd(28), kb(buf.length));
+}
+music += '];\n';
+payload += music;
+
 html = html.replace('<script>\n' + read('src/95_boot.js'),
   '<script>\n' + payload + '</script>\n<script>\n' + read('src/95_boot.js'));
 
 writeFileSync(join(root, 'index.html'), html);
 console.log('\nتمّ إنشاء index.html —', kb(statSync(join(root, 'index.html')).size),
-  '(النماذج:', kb(total) + ')');
+  '(النماذج:', kb(total) + ' · الموسيقى:', kb(mtotal) + ')');

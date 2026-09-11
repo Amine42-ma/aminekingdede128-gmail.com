@@ -9,7 +9,7 @@ SC.game = (function () {
     money: 2500, xp: 0, level: 1, rep: 70,
     owned: ['cortina'], current: 'cortina',
     upgrades: { cortina: { engine: 0, tires: 0, brakes: 0, nitro: 0 } },
-    colors: {}, done: {}, best: {},
+    colors: {}, done: {}, best: {}, radio: 'midnight_drift',
     stats: { distance: 0, missions: 0, races: 0, topSpeed: 0 }
   };
 
@@ -859,18 +859,26 @@ SC.game = (function () {
   }
   function togglePause(v) {
     G.paused = v == null ? !G.paused : v;
-    if (G.paused) SC.input.reset();
+    if (G.paused) { SC.input.reset(); SC.audio.radioPause(); }
+    else SC.audio.radioResume();
     return G.paused;
   }
 
   function start() {
     G.paused = false;
     G.mode = 'free';
+    SC.ui.layoutTopbar && SC.ui.layoutTopbar();
     snapCamera();
     SC.audio.resume();
     SC.audio.setSfxVolume(settings.sound ? 1 : 0);
     SC.audio.setMusicVolume(settings.music == null ? 0.45 : settings.music);
-    if ((settings.music == null ? 0.45 : settings.music) > 0) SC.audio.startMusic();
+    /* الراديو: يبدأ على آخر محطّة اخترتها ويعمل في أي مركبة تقودها */
+    if ((settings.music == null ? 0.45 : settings.music) > 0) {
+      if (!G.radioStarted) {
+        G.radioStarted = true;
+        SC.audio.radioSet(save.radio || 'midnight_drift');
+      } else SC.audio.radioResume();
+    } else SC.audio.stopMusic();
   }
 
   /* تشغيل/إيقاف المارّة */
