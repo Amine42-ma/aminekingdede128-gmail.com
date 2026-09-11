@@ -16,11 +16,14 @@ SC.world = (function () {
     seaY: -1.0,       // مستوى سطح البحر
     bedY: -32,        // قاع البحر
     seed: 20250909,
-    /* ثلاث جزر متدرّجة الحجم يربطها جسران بحريّان طويلان */
+    /* ستّ جزر متفاوتة الحجم تربطها شبكة جسور بحريّة طويلة */
     islands: [
-      { id: 0, name: 'المدينة الأم', cx: 0, cz: 0, blocks: 16 },
-      { id: 1, name: 'جزيرة الميناء', cx: 6400, cz: 0, blocks: 20 },
-      { id: 2, name: 'العاصمة الكبرى', cx: 0, cz: 7600, blocks: 24 }
+      { id: 0, name: 'المدينة الأم',   cx: 0,     cz: 0,     blocks: 16 },
+      { id: 1, name: 'جزيرة الميناء',  cx: 6600,  cz: 0,     blocks: 20 },
+      { id: 2, name: 'العاصمة الكبرى', cx: 0,     cz: 7800,  blocks: 24 },
+      { id: 3, name: 'جزيرة الشمال',   cx: 0,     cz: -5400, blocks: 12 },
+      { id: 4, name: 'واحة الغرب',     cx: -6400, cz: 0,     blocks: 14 },
+      { id: 5, name: 'مدينة الخليج',   cx: 6600,  cz: 7800,  blocks: 16 }
     ]
   };
   CFG.islands.forEach((i) => {
@@ -34,8 +37,12 @@ SC.world = (function () {
 
   /* الجسور: مستطيلات تصل بين شواطئ الجزر */
   const BRIDGES = [
-    { a: 0, b: 1, axis: 'x', deckY: 11, width: 26, ramp: 190 },
-    { a: 0, b: 2, axis: 'z', deckY: 11, width: 26, ramp: 190 }
+    { a: 0, b: 1, axis: 'x', deckY: 12, width: 26, ramp: 210 },
+    { a: 0, b: 2, axis: 'z', deckY: 12, width: 26, ramp: 210 },
+    { a: 0, b: 3, axis: 'z', deckY: 10, width: 22, ramp: 190 },
+    { a: 0, b: 4, axis: 'x', deckY: 10, width: 22, ramp: 190 },
+    { a: 1, b: 5, axis: 'z', deckY: 13, width: 24, ramp: 210 },
+    { a: 2, b: 5, axis: 'x', deckY: 11, width: 24, ramp: 190 }
   ];
 
   const state = {
@@ -216,6 +223,19 @@ SC.world = (function () {
     night:  { cloud: 0x2a3855, cloudAmt: 0.55, top: 0x050c1c, mid: 0x0d1e3a, bottom: 0x1b2c4a, sun: 0xa8c0ee, sunI: 0.5, hemi: 0.42, fog: 0x0c1628, fogFar: 560, amb: 0x35486e, sunPos: [0.3, 0.62, -0.5], exposure: 1.2 }
   };
 
+  /* ألوان السماء في الشتاء: شاحبة وباردة والضباب أقرب */
+  const WINTER_SKY = {
+    day:    { cloud: 0xf2f7fb, cloudAmt: 1.0, top: 0x5b7fa8, mid: 0xa8c4dc, bottom: 0xe8f0f6, sun: 0xf2f6ff, sunI: 1.85, hemi: 1.5, fog: 0xdae6ef, fogFar: 620, amb: 0xd4e2ee, exposure: 1.02 },
+    sunset: { cloud: 0xe9cdbd, cloudAmt: 1.0, top: 0x2d3f60, mid: 0xc08f78, bottom: 0xe6c8ba, sun: 0xffd0a8, sunI: 1.6, hemi: 1.05, fog: 0xd2b6a8, fogFar: 560, amb: 0xc2a394, exposure: 1.0 },
+    night:  { cloud: 0x3a4a66, cloudAmt: 0.7, top: 0x0a1428, mid: 0x18304f, bottom: 0x2c4364, sun: 0xc4d6f4, sunI: 0.45, hemi: 0.55, fog: 0x162740, fogFar: 430, amb: 0x4a6086, exposure: 1.18 }
+  };
+
+  /* ألوان الأرض في الفصلين */
+  const SEASON_TINT = {
+    summer: { ground: 0xffffff, sand: 0xffffff, slab: 0xffffff, grass: 0xffffff, lot: 0xffffff, water: 0x1d6485 },
+    winter: { ground: 0xa9b6c0, sand: 0xe6eef5, slab: 0xeef4fa, grass: 0xe4eef6, lot: 0xcdd8e2, water: 0x16506d }
+  };
+
   function buildSky(scene) {
     const geo = new THREE.SphereGeometry(1, 32, 20);
     const mat = new THREE.ShaderMaterial({
@@ -238,7 +258,9 @@ SC.world = (function () {
 
   /* ضبط وقت اليوم: يعيد ضبط السماء، الشمس، الضباب والإضاءة */
   function setTimeOfDay(name) {
-    const p = PRESETS[name] || PRESETS.day;
+    const base = PRESETS[name] || PRESETS.day;
+    const w = state.season === 'winter' ? WINTER_SKY[name] : null;
+    const p = w ? Object.assign({}, base, w) : base;
     state.timeOfDay = name;
     const u = state.sky.material.uniforms;
     u.top.value.setHex(p.top); u.mid.value.setHex(p.mid); u.bottom.value.setHex(p.bottom);
@@ -427,9 +449,17 @@ SC.world = (function () {
     /* --- البحر وقاعه: عالم واحد يضمّ كل الجزر --- */
     buildSea(G);
     buildReef(G);
+    buildSnow(G);
 
     /* --- الجزر الثلاث --- */
-    CFG.islands.forEach((isl) => buildIsland(G, isl, U.rng(CFG.seed + isl.id * 9377), quality));
+    state.islandGroups = [];
+    CFG.islands.forEach((isl) => {
+      const ig = new THREE.Group();
+      ig.name = 'island' + isl.id;
+      G.add(ig);
+      buildIsland(ig, isl, U.rng(CFG.seed + isl.id * 9377), quality);
+      state.islandGroups.push({ group: ig, isl });
+    });
 
     /* --- الجسور البحرية الطويلة بين الجزر --- */
     buildBridges(G, quality);
@@ -442,6 +472,7 @@ SC.world = (function () {
     setTimeOfDay('day');
     refreshEnv(renderer, pmrem);
     state.pmrem = pmrem;
+    state.renderer = renderer;
 
     return state;
   }
@@ -896,16 +927,81 @@ SC.world = (function () {
   }
 
   /* ------------------------------ الجسور --------------------------------- */
+  /* الجسر قطعة واحدة متّصلة: بلاطة + حواجز جانبية + أعمدة تنزل إلى القاع.
+     البناء بقطع منفصلة كان يترك فجوات وشرائح طائرة على المنحدرات. */
+  function bridgeStrips(br) {
+    const HW = br.width / 2, TH = 1.5, PW = 1.0, RH = 1.35;
+    const a = br.axis === 'x' ? br.x0 : br.z0;
+    const b = br.axis === 'x' ? br.x1 : br.z1;
+    const n = Math.max(4, Math.ceil((b - a) / 10));
+    const road = { pos: [], uv: [], idx: [] };
+    const stru = { pos: [], uv: [], idx: [] };
+    const line = { pos: [], uv: [], idx: [] };
+
+    const put = (dst, s, y, t) => {
+      if (br.axis === 'x') dst.pos.push(t, y, br.z + s);
+      else                 dst.pos.push(br.x + s, y, t);
+    };
+    /* شريط رباعي ممتد على طول الجسر بين حافّتين */
+    const strip = (dst, s0, o0, s1, o1, uRep, vDiv) => {
+      const base = dst.pos.length / 3;
+      for (let i = 0; i <= n; i++) {
+        const t = a + (b - a) * i / n;
+        const y = deckHeight(br, t);
+        put(dst, s0, y + o0, t);
+        put(dst, s1, y + o1, t);
+        const v = (t - a) / (vDiv || 8);
+        dst.uv.push(0, v, uRep || 1, v);
+      }
+      for (let i = 0; i < n; i++) {
+        const k = base + i * 2;
+        dst.idx.push(k, k + 1, k + 3, k, k + 3, k + 2);
+      }
+    };
+
+    strip(road, -HW, 0, HW, 0, br.width / 8);              // سطح القيادة
+    strip(stru, HW, -TH, -HW, -TH, br.width / 8);          // البطن
+    strip(stru, -HW, -TH, -HW, RH, 1, 6);                  // الجدار الخارجي الأيسر
+    strip(stru, HW, RH, HW, -TH, 1, 6);                    // الجدار الخارجي الأيمن
+    strip(stru, -HW, RH, -HW + PW, RH, 1, 6);              // أعلى الحاجز الأيسر
+    strip(stru, -HW + PW, RH, -HW + PW, 0, 1, 6);          // داخل الحاجز الأيسر
+    strip(stru, HW - PW, RH, HW, RH, 1, 6);                // أعلى الحاجز الأيمن
+    strip(stru, HW - PW, 0, HW - PW, RH, 1, 6);            // داخل الحاجز الأيمن
+    strip(line, -0.22, 0.04, 0.22, 0.04, 1, 9);            // الخطّ المنقّط في المنتصف
+
+    const mk = (d) => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(d.pos, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(d.uv, 2));
+      g.setIndex(d.idx);
+      g.computeVertexNormals();
+      g.computeBoundingSphere();
+      return g;
+    };
+    return { road: mk(road), stru: mk(stru), line: mk(line), TH };
+  }
+
   function buildBridges(G, quality) {
     state.bridges = [];
-    const deckMat = new THREE.MeshStandardMaterial({ map: TEX.asphalt, roughness: 0.92, metalness: 0.03 });
-    const railMat = new THREE.MeshStandardMaterial({ color: 0xb9bfc7, roughness: 0.45, metalness: 0.65 });
-    const pylonMat = new THREE.MeshStandardMaterial({ color: 0x8d939b, roughness: 0.85, metalness: 0.05 });
-    const SEG = 24;
+    if (!state.bridgeMats) {
+      const asf = TEX.asphalt.clone(); asf.repeat.set(1, 1); asf.needsUpdate = true;
+      const dsh = TEX.dash.clone();    dsh.repeat.set(1, 1); dsh.needsUpdate = true;
+      state.bridgeMats = {
+        road: new THREE.MeshStandardMaterial({ map: asf, roughness: 0.92, metalness: 0.03,
+                                               side: THREE.DoubleSide }),
+        stru: new THREE.MeshStandardMaterial({ color: 0xb9c0c8, roughness: 0.78, metalness: 0.08,
+                                               side: THREE.DoubleSide }),
+        line: new THREE.MeshBasicMaterial({ map: dsh, transparent: true, opacity: 0.9,
+                                            depthWrite: false, side: THREE.DoubleSide }),
+        pylon: new THREE.MeshStandardMaterial({ color: 0x9aa3ac, roughness: 0.9, metalness: 0.05 })
+      };
+    }
+    const MAT = state.bridgeMats;
 
     BRIDGES.forEach((spec) => {
       const A = CFG.islands[spec.a], B2 = CFG.islands[spec.b];
-      const br = { axis: spec.axis, width: spec.width, deckY: spec.deckY, ramp: spec.ramp };
+      const br = { a: spec.a, b: spec.b, axis: spec.axis, width: spec.width,
+                   deckY: spec.deckY, ramp: spec.ramp };
       if (spec.axis === 'x') {
         br.z = A.cz;
         br.x0 = Math.min(A.cx, B2.cx) === A.cx ? A.cx + A.shore : B2.cx + B2.shore;
@@ -919,87 +1015,101 @@ SC.world = (function () {
       }
       state.bridges.push(br);
 
-      const count = Math.ceil(br.len / SEG);
-      const deckGeo = new THREE.BoxGeometry(SEG + 0.4, 1.1, br.width);
-      const railGeo = new THREE.BoxGeometry(SEG + 0.4, 1.15, 0.45);
-      const deck = new THREE.InstancedMesh(deckGeo, deckMat, count);
-      const rails = new THREE.InstancedMesh(railGeo, railMat, count * 2);
-      deck.receiveShadow = true; deck.castShadow = quality.shadows;
-      rails.castShadow = false;
-      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1);
-      const pylons = [];
+      const bg = new THREE.Group();
+      bg.name = 'bridgeG';
+      G.add(bg);
+      br.group = bg;
+      const S = bridgeStrips(br);
+      const roadMesh = new THREE.Mesh(S.road, MAT.road);
+      roadMesh.receiveShadow = true;
+      const struMesh = new THREE.Mesh(S.stru, MAT.stru);
+      struMesh.receiveShadow = true; struMesh.castShadow = quality.shadows;
+      const lineMesh = new THREE.Mesh(S.line, MAT.line);
+      lineMesh.renderOrder = 2;
+      [roadMesh, struMesh, lineMesh].forEach((m) => { m.name = 'bridge'; bg.add(m); });
 
-      for (let i = 0; i < count; i++) {
-        const t0 = (br.axis === 'x' ? br.x0 : br.z0) + i * SEG;
-        const t1 = t0 + SEG;
-        const y0 = deckHeight(br, t0), y1 = deckHeight(br, t1);
-        const yc = (y0 + y1) / 2;
-        const pitch = Math.atan2(y1 - y0, SEG);
-        const along = t0 + SEG / 2;
-        const px = br.axis === 'x' ? along : br.x;
-        const pz = br.axis === 'x' ? br.z : along;
-        const yaw = br.axis === 'x' ? 0 : Math.PI / 2;
-        q.setFromEuler(new THREE.Euler(0, yaw, -pitch, 'YXZ'));
-        m.compose(new THREE.Vector3(px, yc - 0.55, pz), q, one);
-        deck.setMatrixAt(i, m);
-        for (let sdx = 0; sdx < 2; sdx++) {
-          const off = (sdx ? 1 : -1) * (br.width / 2 - 0.2);
-          const rx = br.axis === 'x' ? px : px + off;
-          const rz = br.axis === 'x' ? pz + off : pz;
-          m.compose(new THREE.Vector3(rx, yc + 0.55, rz), q, one);
-          rails.setMatrixAt(i * 2 + sdx, m);
-        }
-        if (i % 6 === 0 && yc > 3) pylons.push([px, pz, yc]);
+      /* أعمدة تنزل من البلاطة إلى قاع البحر + عارضة أعلى كل عمود */
+      const a0 = br.axis === 'x' ? br.x0 : br.z0;
+      const b0 = br.axis === 'x' ? br.x1 : br.z1;
+      const SP = 130, towers = [];
+      for (let t = a0 + SP; t < b0 - SP * 0.5; t += SP) {
+        const y = deckHeight(br, t);
+        if (y > 4) towers.push([t, y]);
       }
-      deck.instanceMatrix.needsUpdate = true; deck.computeBoundingSphere();
-      rails.instanceMatrix.needsUpdate = true; rails.computeBoundingSphere();
-      G.add(deck); G.add(rails);
-
-      /* خطّ منقّط في منتصف الجسر */
-      const lineGeo = new THREE.PlaneGeometry(SEG * 0.55, 0.42);
-      const lineMat = state.bridgeLineMat || (state.bridgeLineMat = new THREE.MeshBasicMaterial({
-        color: 0xefe9d6, transparent: true, opacity: 0.75, depthWrite: false
-      }));
-      const lines = new THREE.InstancedMesh(lineGeo, lineMat, count);
-      lines.renderOrder = 2;
-      for (let i = 0; i < count; i++) {
-        const t0 = (br.axis === 'x' ? br.x0 : br.z0) + i * SEG;
-        const yc = deckHeight(br, t0 + SEG / 2);
-        const along = t0 + SEG / 2;
-        const px = br.axis === 'x' ? along : br.x;
-        const pz = br.axis === 'x' ? br.z : along;
-        q.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, br.axis === 'x' ? 0 : Math.PI / 2));
-        m.compose(new THREE.Vector3(px, yc + 0.02, pz), q, one);
-        lines.setMatrixAt(i, m);
-      }
-      lines.instanceMatrix.needsUpdate = true; lines.computeBoundingSphere();
-      G.add(lines);
-
-      if (pylons.length) {
-        const pg = new THREE.BoxGeometry(4.5, 1, 4.5);
-        const pm = new THREE.InstancedMesh(pg, pylonMat, pylons.length);
-        pm.castShadow = quality.shadows;
-        pylons.forEach(([px, pz, yc], i) => {
-          const h = yc - CFG.bedY;
-          m.compose(new THREE.Vector3(px, CFG.bedY + h / 2, pz), qid0, new THREE.Vector3(1, h, 1));
-          pm.setMatrixAt(i, m);
+      if (towers.length) {
+        const legGeo = new THREE.CylinderGeometry(2.0, 3.2, 1, 7);
+        legGeo.translate(0, 0.5, 0);
+        const legs = new THREE.InstancedMesh(legGeo, MAT.pylon, towers.length * 2);
+        const capGeo = new THREE.BoxGeometry(br.width + 3, 1.6, 5.2);
+        const caps = new THREE.InstancedMesh(capGeo, MAT.pylon, towers.length);
+        legs.castShadow = caps.castShadow = quality.shadows;
+        const m = new THREE.Matrix4(), q = new THREE.Quaternion(),
+              e = new THREE.Euler(), v = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
+        towers.forEach(([t, y], i) => {
+          const h = y - S.TH - 1.2 - CFG.bedY;
+          for (let sd = 0; sd < 2; sd++) {
+            const off = (sd ? 1 : -1) * (br.width / 2 - 4);
+            v.set(br.axis === 'x' ? t : br.x + off, CFG.bedY,
+                  br.axis === 'x' ? br.z + off : t);
+            m.compose(v, q, new THREE.Vector3(1, h, 1));
+            legs.setMatrixAt(i * 2 + sd, m);
+          }
+          e.set(0, br.axis === 'x' ? 0 : Math.PI / 2, 0);
+          q.setFromEuler(e);
+          v.set(br.axis === 'x' ? t : br.x, y - S.TH - 0.8, br.axis === 'x' ? br.z : t);
+          m.compose(v, q, one);
+          caps.setMatrixAt(i, m);
+          q.identity();
         });
-        pm.instanceMatrix.needsUpdate = true; pm.computeBoundingSphere();
-        G.add(pm);
+        legs.instanceMatrix.needsUpdate = true; legs.computeBoundingSphere();
+        caps.instanceMatrix.needsUpdate = true; caps.computeBoundingSphere();
+        bg.add(legs); bg.add(caps);
       }
 
-      /* حواجز جانبية للتصادم: صندوقان طويلان */
+      /* أعمدة إنارة على الجسر */
+      const lampPole = state.bridgeLampGeo || (state.bridgeLampGeo = (() => {
+        const g = new THREE.CylinderGeometry(0.13, 0.19, 1, 6); g.translate(0, 0.5, 0); return g;
+      })());
+      const lampSpots = [];
+      for (let t = a0 + 55, k = 0; t < b0 - 40; t += 55, k++) lampSpots.push([t, k % 2 ? 1 : -1]);
+      if (lampSpots.length) {
+        const poles = new THREE.InstancedMesh(lampPole, MAT.pylon, lampSpots.length);
+        const headGeo = new THREE.BoxGeometry(1.9, 0.34, 0.85);
+        const heads = new THREE.InstancedMesh(headGeo, state.lampMat || MAT.pylon, lampSpots.length);
+        const m = new THREE.Matrix4(), q = new THREE.Quaternion(),
+              e = new THREE.Euler(), v = new THREE.Vector3();
+        lampSpots.forEach(([t, sd], i) => {
+          const y = deckHeight(br, t) + 1.35;
+          const off = sd * (br.width / 2 - 0.55);
+          const px = br.axis === 'x' ? t : br.x + off;
+          const pz = br.axis === 'x' ? br.z + off : t;
+          v.set(px, y, pz);
+          m.compose(v, q, new THREE.Vector3(1, 6.2, 1));
+          poles.setMatrixAt(i, m);
+          e.set(0, br.axis === 'x' ? Math.PI / 2 : 0, 0);
+          q.setFromEuler(e);
+          v.set(px - (br.axis === 'x' ? 0 : sd * 0.85), y + 6.2, pz - (br.axis === 'x' ? sd * 0.85 : 0));
+          m.compose(v, q, new THREE.Vector3(1, 1, 1));
+          heads.setMatrixAt(i, m);
+          q.identity();
+        });
+        poles.instanceMatrix.needsUpdate = true; poles.computeBoundingSphere();
+        heads.instanceMatrix.needsUpdate = true; heads.computeBoundingSphere();
+        bg.add(poles); bg.add(heads);
+      }
+
+      /* حواجز التصادم على الجانبين */
       const halfW = br.width / 2;
       if (br.axis === 'x') {
         [-1, 1].forEach((sg) => state.colliders.push({
           minX: br.x0, maxX: br.x1,
-          minZ: br.z + sg * halfW - 0.4, maxZ: br.z + sg * halfW + 0.4,
-          h: 2.2, kind: 'rail'
+          minZ: br.z + sg * halfW - 0.6, maxZ: br.z + sg * halfW + 0.6,
+          h: 2.6, kind: 'rail'
         }));
       } else {
         [-1, 1].forEach((sg) => state.colliders.push({
-          minX: br.x + sg * halfW - 0.4, maxX: br.x + sg * halfW + 0.4,
-          minZ: br.z0, maxZ: br.z1, h: 2.2, kind: 'rail'
+          minX: br.x + sg * halfW - 0.6, maxX: br.x + sg * halfW + 0.6,
+          minZ: br.z0, maxZ: br.z1, h: 2.6, kind: 'rail'
         }));
       }
     });
@@ -1378,6 +1488,79 @@ SC.world = (function () {
     }
   }
 
+  /* ------------------------------ الفصول -------------------------------- */
+  /* الشتاء: ثلج على الأرصفة والحدائق، سماء شاحبة، وثلج متساقط حول اللاعب */
+  function buildSnow(G) {
+    const N = 1500, SPAN = 130, HIGH = 46;
+    const pos = new Float32Array(N * 3), vel = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      pos[i * 3]     = (Math.random() - 0.5) * SPAN;
+      pos[i * 3 + 1] = Math.random() * HIGH;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * SPAN;
+      vel[i] = 2.2 + Math.random() * 3.4;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    if (!TEX.flake) {
+      TEX.flake = canvasTex(64, 64, (c, w, h) => {
+        const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+        g.addColorStop(0, 'rgba(255,255,255,1)');
+        g.addColorStop(0.45, 'rgba(255,255,255,0.75)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        c.fillStyle = g; c.fillRect(0, 0, w, h);
+      }, 1, 1);
+    }
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({
+      color: 0xffffff, size: 0.38, sizeAttenuation: true, transparent: true,
+      opacity: 0.95, depthWrite: false, map: TEX.flake
+    }));
+    pts.frustumCulled = false;
+    pts.visible = false;
+    pts.renderOrder = 4;
+    G.add(pts);
+    state.snow = { points: pts, pos, vel, span: SPAN, high: HIGH, t: 0 };
+  }
+
+  function updateSnow(dt, focus) {
+    const S = state.snow;
+    if (!S || !S.points.visible) return;
+    S.t += dt;
+    const P = S.pos, V = S.vel, half = S.span / 2;
+    const wind = Math.sin(S.t * 0.35) * 1.6;
+    for (let i = 0, j = 0; j < V.length; i += 3, j++) {
+      P[i + 1] -= V[j] * dt;
+      P[i]     += (wind + Math.sin(S.t * 1.7 + j) * 0.5) * dt;
+      P[i + 2] += Math.cos(S.t * 1.3 + j) * 0.4 * dt;
+      /* لفّ حول اللاعب حتى تكفي ألف ندفة لتغطية المشهد كلّه */
+      let dx = P[i] - focus.x, dy = P[i + 1] - focus.y, dz = P[i + 2] - focus.z;
+      if (dy < -4) { dy += S.high; }
+      if (dy > S.high - 4) dy -= S.high;
+      if (dx >  half) dx -= S.span; else if (dx < -half) dx += S.span;
+      if (dz >  half) dz -= S.span; else if (dz < -half) dz += S.span;
+      P[i] = focus.x + dx; P[i + 1] = focus.y + dy; P[i + 2] = focus.z + dz;
+    }
+    S.points.geometry.attributes.position.needsUpdate = true;
+  }
+
+  function setSeason(name) {
+    const win = name === 'winter';
+    state.season = win ? 'winter' : 'summer';
+    const t = SEASON_TINT[state.season];
+    const set = (m, hex) => { if (m && m.color) m.color.setHex(hex); };
+    set(state.groundMat, t.ground);
+    set(state.sandMat, t.sand);
+    set(state.slabMat, t.slab);
+    if (state.lotMats) { set(state.lotMats.grass, t.grass); set(state.lotMats.lot, t.lot); }
+    if (state.water && state.water.material) state.water.material.color.setHex(t.water);
+    if (state.bridgeMats) {
+      state.bridgeMats.road.color.setHex(win ? 0xb4c0ca : 0xffffff);
+      state.bridgeMats.stru.color.setHex(win ? 0xdfe8f0 : 0xb9c0c8);
+    }
+    if (state.snow) state.snow.points.visible = win;
+    if (state.timeOfDay) setTimeOfDay(state.timeOfDay);
+    if (state.pmrem && state.renderer) refreshEnv(state.renderer, state.pmrem);
+  }
+
   function update(dt, focus) {
     // ظل الشمس يتبع اللاعب لتبقى دقة الظل عالية
     const sun = state.sun;
@@ -1391,10 +1574,35 @@ SC.world = (function () {
       state.sky.material.uniforms.uTime.value += dt;
     }
     if (state.underwater) updateReef(dt);
+    updateSnow(dt, focus);
     if (state.water && state.water.material) {
       const n = state.water.material.normalMap;
       n.offset.x += dt * 0.012;
       n.offset.y += dt * 0.007;
+    }
+
+    /* جزيرة بعيدة = لا تُرسم إطلاقاً. مع ستّ جزر هذا يوفّر مئات النداءات. */
+    const fogFar = state.scene.fog ? state.scene.fog.far : 900;
+    const islCull = Math.max(2600, fogFar * 2.6);
+    if (state.islandGroups) {
+      for (const e of state.islandGroups) {
+        const d = Math.max(Math.abs(focus.x - e.isl.cx), Math.abs(focus.z - e.isl.cz)) - e.isl.shore;
+        e.group.visible = d < islCull;
+      }
+    }
+    if (state.bridges) {
+      for (const br of state.bridges) {
+        if (!br.group) continue;
+        let d;
+        if (br.axis === 'x') {
+          const cx = U.clamp(focus.x, br.x0, br.x1);
+          d = Math.hypot(focus.x - cx, focus.z - br.z);
+        } else {
+          const cz = U.clamp(focus.z, br.z0, br.z1);
+          d = Math.hypot(focus.x - br.x, focus.z - cz);
+        }
+        br.group.visible = d < islCull;
+      }
     }
 
     // إخفاء أحياء المدينة البعيدة (خلف الضباب) لتوفير الأداء
@@ -1411,5 +1619,5 @@ SC.world = (function () {
   return { CFG, TEX, state, build, update, groundHeight, onRoad, inBounds, queryColliders,
            snapToRoad, nearestSpawn, randomRoadPoint, setTimeOfDay, refreshEnv, canvasTex, PRESETS,
            isWater, distToWater, onSand, islandAt, islandById, nearestIsland, bridgeAt, BRIDGES,
-           setUnderwater, placeReef };
+           setUnderwater, placeReef, setSeason };
 })();

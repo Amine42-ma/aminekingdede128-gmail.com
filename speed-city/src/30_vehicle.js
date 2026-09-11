@@ -222,6 +222,16 @@ SC.Vehicle = (function () {
     setFirstPerson(on) {
       this.firstPerson = !!on;
       if (this.driver) this.driver.setFirstPerson(!!on);
+      /* ضوء خافت داخل المقصورة: بدونه تبدو لوحة القيادة سوداء تماماً */
+      if (on && !this.cabinLight) {
+        const d = this.def.driver;
+        const eye = d ? d.eye : [0, this.def.seatH + 0.35, 0];
+        const L = new THREE.PointLight(0xdfe8f5, 2.6, 4.2, 2);
+        L.position.set(eye[0], eye[1] + 0.30, eye[2] + 0.30);
+        this.cabin.add(L);
+        this.cabinLight = L;
+      }
+      if (this.cabinLight) this.cabinLight.visible = !!on;
     }
 
     setColor(hex) {

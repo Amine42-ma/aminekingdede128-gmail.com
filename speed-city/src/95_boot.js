@@ -51,7 +51,7 @@
     screenMissions: $('screenMissions'), screenSettings: $('screenSettings'),
     screenResult: $('screenResult'), screenPause: $('screenPause'),
     shopList: $('shopList'), missionList: $('missionList'), settingsList: $('settingsList'),
-    mapCanvas: $('mapCanvas'), mapInfo: $('mapInfo'), mapCenter: $('mapCenter'),
+    mapCanvas: $('mapCanvas'), mapInfo: $('mapInfo'), mapCenter: $('mapCenter'), mapWorld: $('mapWorld'),
     mapClear: $('mapClear'), mapIn: $('mapIn'), mapOut: $('mapOut'),
     resultTitle: $('resultTitle'), resultSub: $('resultSub'), resultRows: $('resultRows'),
     loading: $('loading')

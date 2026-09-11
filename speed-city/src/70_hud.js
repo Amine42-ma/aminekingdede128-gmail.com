@@ -250,74 +250,179 @@ SC.hud = (function () {
   }
 
   /* -------------------------- الخريطة الكبيرة --------------------------- */
+  /* الخريطة الكبيرة: نفس رسم الخريطة المصغّرة تماماً — نفس الجزر ونفس
+     الألوان — لكن بمساحة أوسع وأسماء ومقياس وعلامات. */
   function drawBigMap(canvas, view, game) {
     const g = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
-    g.fillStyle = '#0a2434'; g.fillRect(0, 0, W, H);
-    if (!maps.length || !worldBox) return;
+    if (!maps.length || !worldBox) { g.fillStyle = '#0b2333'; g.fillRect(0, 0, W, H); return; }
+
+    /* بحر متدرّج بنفس زرقة الخريطة المصغّرة */
+    const sea = g.createLinearGradient(0, 0, 0, H);
+    sea.addColorStop(0, '#0d2c3e'); sea.addColorStop(0.55, '#123a4e'); sea.addColorStop(1, '#0b2739');
+    g.fillStyle = sea; g.fillRect(0, 0, W, H);
 
     const wSpanX = worldBox.maxX - worldBox.minX, wSpanZ = worldBox.maxZ - worldBox.minZ;
     const fit = Math.min(W / wSpanX, H / wSpanZ);
     const s = fit * view.zoom * 2.2;
-    const toScreen = (wx, wz) => ({
-      x: W / 2 + view.px + (wx - (worldBox.minX + wSpanX / 2)) * s,
-      y: H / 2 + view.py + (wz - (worldBox.minZ + wSpanZ / 2)) * s
-    });
-    canvas._toWorld = (sx, sy) => ({
-      x: (sx - W / 2 - view.px) / s + worldBox.minX + wSpanX / 2,
-      z: (sy - H / 2 - view.py) / s + worldBox.minZ + wSpanZ / 2
-    });
+    const cx0 = worldBox.minX + wSpanX / 2, cz0 = worldBox.minZ + wSpanZ / 2;
+    const toScreen = (wx, wz) => ({ x: W / 2 + view.px + (wx - cx0) * s,
+                                    y: H / 2 + view.py + (wz - cz0) * s });
+    canvas._toWorld = (sx, sy) => ({ x: (sx - W / 2 - view.px) / s + cx0,
+                                     z: (sy - H / 2 - view.py) / s + cz0 });
 
-    /* الجسور */
-    g.strokeStyle = '#6f7a89';
+    /* تموّج خفيف على الماء */
+    g.strokeStyle = 'rgba(255,255,255,0.035)'; g.lineWidth = 1;
+    for (let y = (view.py % 34 + 34) % 34; y < H; y += 34) {
+      g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke();
+    }
+
+    /* الجسور: طبقتان — ظلّ عريض ثم سطح فاتح */
     (SC.world.state.bridges || []).forEach((br) => {
       const a = br.axis === 'x' ? toScreen(br.x0, br.z) : toScreen(br.x, br.z0);
       const b2 = br.axis === 'x' ? toScreen(br.x1, br.z) : toScreen(br.x, br.z1);
-      g.lineWidth = Math.max(2, br.width * s);
+      g.lineCap = 'butt';
+      g.strokeStyle = 'rgba(0,0,0,0.45)'; g.lineWidth = Math.max(5, br.width * s + 4);
       g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b2.x, b2.y); g.stroke();
+      g.strokeStyle = '#39414f'; g.lineWidth = Math.max(3, br.width * s);
+      g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b2.x, b2.y); g.stroke();
+      g.strokeStyle = 'rgba(230,230,200,0.35)'; g.lineWidth = Math.max(0.7, 1.2 * s);
+      g.setLineDash([8, 9]);
+      g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b2.x, b2.y); g.stroke();
+      g.setLineDash([]);
     });
 
-    /* الجزر */
+    /* الجزر — نفس لوحات الخريطة المصغّرة */
     maps.forEach((m) => {
       const isl = m.isl;
       const p = toScreen(isl.cx - m.origin, isl.cz - m.origin);
       const size = (m.size / m.scale) * s;
+      g.save();
+      g.shadowColor = 'rgba(0,0,0,0.5)'; g.shadowBlur = 18;
       g.drawImage(m.canvas, p.x, p.y, size, size);
-      g.font = '800 14px system-ui, sans-serif';
-      g.textAlign = 'center';
-      const c = toScreen(isl.cx, isl.cz - isl.shore);
-      const ly = c.y - 12;                       // فوق حافة الجزيرة بمسافة ثابتة
-      g.lineWidth = 4; g.strokeStyle = 'rgba(0,0,0,0.75)';
-      g.strokeText(isl.name, c.x, ly);
-      g.fillStyle = 'rgba(255,255,255,0.95)';
-      g.fillText(isl.name, c.x, ly);
+      g.restore();
     });
 
+    /* أسماء الجزر: حجم الشارة يتبع حجم الجزيرة على الشاشة */
+    const K = Math.max(0.7, Math.min(W, H) / 520);          // معامل الدقّة
+    maps.forEach((m) => {
+      const isl = m.isl;
+      const wpx = isl.shore * 2 * s;
+      if (wpx < 46 * K) return;                              // صغيرة جداً — لا اسم
+      const fs = U.clamp(wpx * 0.085, 9 * K, 15 * K);
+      const c = toScreen(isl.cx, isl.cz - isl.shore);
+      g.font = '800 ' + fs.toFixed(1) + 'px system-ui, sans-serif';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      const pad = fs * 0.75, bh = fs * 1.65;
+      const tw = g.measureText(isl.name).width + pad * 2;
+      const bx = c.x - tw / 2, by = c.y - bh - fs * 0.5;
+      g.fillStyle = 'rgba(8,18,28,0.82)';
+      roundRect(g, bx, by, tw, bh, bh / 2); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,0.22)'; g.lineWidth = Math.max(1, K); g.stroke();
+      g.fillStyle = '#eaf0f8';
+      g.fillText(isl.name, c.x, by + bh / 2);
+    });
+
+    /* العلامات */
+    const MR = U.clamp(Math.min(W, H) * 0.013, 5, 11 * K);
     const icon = (wx, wz, color, label, r) => {
       const p = toScreen(wx, wz);
-      g.beginPath(); g.arc(p.x, p.y, r || 9, 0, 7);
+      const rr = r || MR;
+      g.beginPath(); g.arc(p.x, p.y, rr, 0, 7);
       g.fillStyle = color; g.fill();
-      g.lineWidth = 2; g.strokeStyle = 'rgba(0,0,0,0.55)'; g.stroke();
+      g.lineWidth = Math.max(1.2, rr * 0.2); g.strokeStyle = 'rgba(0,0,0,0.55)'; g.stroke();
       if (label) {
-        g.font = '700 12px system-ui, sans-serif';
+        g.font = '700 ' + (rr * 1.25).toFixed(1) + 'px system-ui, sans-serif';
         g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
         g.fillText(label, p.x, p.y + 0.5);
       }
     };
-    markers.forEach((m) => icon(m.x, m.z, m.color, m.icon || '', 9));
-    if (game && game.waypoint) icon(game.waypoint.x, game.waypoint.z, '#38bdf8', '⚑', 9);
+    /* افرد العلامات المتراكمة قليلاً حتى لا تختفي تحت بعضها */
+    const placed = [];
+    markers.forEach((m) => {
+      const p = toScreen(m.x, m.z);
+      let ox = 0, oy = 0;
+      for (let k = 0; k < 12; k++) {
+        let clash = false;
+        for (const q of placed) {
+          if (Math.hypot(p.x + ox - q.x, p.y + oy - q.y) < MR * 1.9) { clash = true; break; }
+        }
+        if (!clash) break;
+        const a = k * 1.05;
+        ox = Math.cos(a) * MR * 2.1 * (1 + k * 0.12);
+        oy = Math.sin(a) * MR * 2.1 * (1 + k * 0.12);
+      }
+      placed.push({ x: p.x + ox, y: p.y + oy });
+      const q = placed[placed.length - 1];
+      g.beginPath(); g.arc(q.x, q.y, MR, 0, 7);
+      g.fillStyle = m.color; g.fill();
+      g.lineWidth = Math.max(1.2, MR * 0.2); g.strokeStyle = 'rgba(0,0,0,0.55)'; g.stroke();
+      if (m.icon) {
+        g.font = '700 ' + (MR * 1.25).toFixed(1) + 'px system-ui, sans-serif';
+        g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText(m.icon, q.x, q.y + 0.5);
+      }
+    });
 
+    /* نقطة المسار: خطّ متقطّع من السيارة إليها */
+    if (game && game.waypoint && game.car) {
+      const a = toScreen(game.car.pos.x, game.car.pos.z);
+      const b2 = toScreen(game.waypoint.x, game.waypoint.z);
+      g.setLineDash([7, 6]); g.strokeStyle = 'rgba(56,189,248,0.85)'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b2.x, b2.y); g.stroke();
+      g.setLineDash([]);
+      icon(game.waypoint.x, game.waypoint.z, '#38bdf8', '⚑', 10);
+    }
+
+    /* سهم اللاعب */
     if (game && game.car) {
       const p = toScreen(game.car.pos.x, game.car.pos.z);
       g.save();
       g.translate(p.x, p.y); g.rotate(Math.PI - game.car.yaw);
-      g.beginPath(); g.moveTo(0, -12); g.lineTo(8, 10); g.lineTo(0, 5.5); g.lineTo(-8, 10);
+      const AK = K;
+      g.beginPath(); g.moveTo(0, -13 * AK); g.lineTo(8.5 * AK, 11 * AK);
+      g.lineTo(0, 6 * AK); g.lineTo(-8.5 * AK, 11 * AK);
       g.closePath();
-      g.fillStyle = '#ffd23f'; g.strokeStyle = '#000'; g.lineWidth = 2;
+      g.fillStyle = '#ffd23f'; g.strokeStyle = '#000'; g.lineWidth = 2 * AK;
       g.fill(); g.stroke();
       g.restore();
     }
+
+    /* بوصلة ومقياس مسافة */
+    g.save();
+    const CR = 20 * K, CC = 12 * K;
+    g.font = '800 ' + (12 * K).toFixed(1) + 'px system-ui, sans-serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = 'rgba(8,18,28,0.7)';
+    g.beginPath(); g.arc(CR + CC, CR + CC, CR, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.25)'; g.lineWidth = Math.max(1, K); g.stroke();
+    g.fillStyle = '#ff5c5c'; g.fillText('ش', CR + CC, CR + CC - CR * 0.5);
+    g.fillStyle = 'rgba(234,240,248,0.7)'; g.fillText('ج', CR + CC, CR + CC + CR * 0.5);
+
+    let unit = 1000;                                   // متر
+    while (unit * s > W * 0.34) unit /= 2;
+    while (unit * s < W * 0.12) unit *= 2;
+    const barW = unit * s, bx = 22 * K, by = H - 26 * K;
+    g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 4 * K;
+    g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + barW, by); g.stroke();
+    g.strokeStyle = '#eaf0f8'; g.lineWidth = 2 * K;
+    g.beginPath(); g.moveTo(bx, by - 4 * K); g.lineTo(bx, by + 4 * K);
+    g.moveTo(bx, by); g.lineTo(bx + barW, by);
+    g.moveTo(bx + barW, by - 4 * K); g.lineTo(bx + barW, by + 4 * K); g.stroke();
+    g.fillStyle = '#eaf0f8'; g.textAlign = 'center';
+    g.fillText(unit >= 1000 ? (unit / 1000) + ' كم' : unit + ' م', bx + barW / 2, by - 12 * K);
+    g.restore();
     return toScreen;
+  }
+
+  function roundRect(g, x, y, w, h, r) {
+    g.beginPath();
+    g.moveTo(x + r, y);
+    g.arcTo(x + w, y, x + w, y + h, r);
+    g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r);
+    g.arcTo(x, y, x + w, y, r);
+    g.closePath();
   }
   /* يجعل نقطة عالمية في مركز الخريطة الكبيرة */
   function focusBigMap(canvas, view, wx, wz) {

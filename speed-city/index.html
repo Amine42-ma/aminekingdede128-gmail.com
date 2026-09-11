@@ -223,7 +223,11 @@ input[type=range]{flex:1;min-width:140px;accent-color:var(--gold);height:28px}
 /* الخريطة المصغّرة */
 .minimap{position:absolute;top:calc(8px + var(--safe-t));right:calc(8px + var(--safe-r));
   width:170px;height:170px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,.18);
-  box-shadow:var(--sh);background:#0b0f17}
+  box-shadow:var(--sh);background:#0b0f17;pointer-events:auto;cursor:pointer;
+  transition:transform .12s,border-color .12s}
+.minimap:active{transform:scale(.96);border-color:rgba(255,210,63,.6)}
+.minimap::after{content:'اضغط للخريطة';position:absolute;left:0;right:0;bottom:16px;text-align:center;
+  font-size:8.5px;font-weight:700;color:rgba(255,255,255,.45);pointer-events:none}
 .minimap canvas{width:100%;height:100%;display:block}
 .mini-ring{position:absolute;inset:0;border-radius:50%;pointer-events:none;
   box-shadow:inset 0 0 22px rgba(0,0,0,.75)}
@@ -332,6 +336,16 @@ body[data-steer="tilt"] .steer-buttons{opacity:.45}
   .objective{top:calc(120px + var(--safe-t));width:min(260px,58vw)}
   .p-body{grid-template-columns:1fr}
 }
+
+/* تبويبات المهام حسب المركبة */
+.mtabs{display:flex;gap:7px;margin-bottom:9px;flex-wrap:wrap;direction:rtl}
+.mtab{flex:1 1 auto;min-width:96px;background:var(--glass);border:1px solid var(--line);
+  border-radius:12px;padding:9px 8px;font-size:12.5px;font-weight:800;color:var(--dim);
+  transition:transform .1s}
+.mtab.on{color:var(--txt);border-color:rgba(255,210,63,.55);background:rgba(255,210,63,.14)}
+.mtab.locked{opacity:.6}
+.mtab:active{transform:scale(.96)}
+.mnote{font-size:11.5px;color:var(--dim);margin:0 2px 10px;line-height:1.6}
 
 </style>
 </head>
@@ -535,6 +549,7 @@ body[data-steer="tilt"] .steer-buttons{opacity:.45}
       <button class="btn tiny" id="mapIn">+</button>
       <button class="btn tiny" id="mapOut">−</button>
       <button class="btn tiny" id="mapCenter">سيارتي</button>
+      <button class="btn tiny" id="mapWorld">كل الجزر</button>
       <button class="btn tiny" id="mapClear">حذف النقطة</button>
     </div>
     <button class="x" data-close>✕</button>
@@ -4823,11 +4838,14 @@ SC.world = (function () {
     seaY: -1.0,       // مستوى سطح البحر
     bedY: -32,        // قاع البحر
     seed: 20250909,
-    /* ثلاث جزر متدرّجة الحجم يربطها جسران بحريّان طويلان */
+    /* ستّ جزر متفاوتة الحجم تربطها شبكة جسور بحريّة طويلة */
     islands: [
-      { id: 0, name: 'المدينة الأم', cx: 0, cz: 0, blocks: 16 },
-      { id: 1, name: 'جزيرة الميناء', cx: 6400, cz: 0, blocks: 20 },
-      { id: 2, name: 'العاصمة الكبرى', cx: 0, cz: 7600, blocks: 24 }
+      { id: 0, name: 'المدينة الأم',   cx: 0,     cz: 0,     blocks: 16 },
+      { id: 1, name: 'جزيرة الميناء',  cx: 6600,  cz: 0,     blocks: 20 },
+      { id: 2, name: 'العاصمة الكبرى', cx: 0,     cz: 7800,  blocks: 24 },
+      { id: 3, name: 'جزيرة الشمال',   cx: 0,     cz: -5400, blocks: 12 },
+      { id: 4, name: 'واحة الغرب',     cx: -6400, cz: 0,     blocks: 14 },
+      { id: 5, name: 'مدينة الخليج',   cx: 6600,  cz: 7800,  blocks: 16 }
     ]
   };
   CFG.islands.forEach((i) => {
@@ -4841,8 +4859,12 @@ SC.world = (function () {
 
   /* الجسور: مستطيلات تصل بين شواطئ الجزر */
   const BRIDGES = [
-    { a: 0, b: 1, axis: 'x', deckY: 11, width: 26, ramp: 190 },
-    { a: 0, b: 2, axis: 'z', deckY: 11, width: 26, ramp: 190 }
+    { a: 0, b: 1, axis: 'x', deckY: 12, width: 26, ramp: 210 },
+    { a: 0, b: 2, axis: 'z', deckY: 12, width: 26, ramp: 210 },
+    { a: 0, b: 3, axis: 'z', deckY: 10, width: 22, ramp: 190 },
+    { a: 0, b: 4, axis: 'x', deckY: 10, width: 22, ramp: 190 },
+    { a: 1, b: 5, axis: 'z', deckY: 13, width: 24, ramp: 210 },
+    { a: 2, b: 5, axis: 'x', deckY: 11, width: 24, ramp: 190 }
   ];
 
   const state = {
@@ -5023,6 +5045,19 @@ SC.world = (function () {
     night:  { cloud: 0x2a3855, cloudAmt: 0.55, top: 0x050c1c, mid: 0x0d1e3a, bottom: 0x1b2c4a, sun: 0xa8c0ee, sunI: 0.5, hemi: 0.42, fog: 0x0c1628, fogFar: 560, amb: 0x35486e, sunPos: [0.3, 0.62, -0.5], exposure: 1.2 }
   };
 
+  /* ألوان السماء في الشتاء: شاحبة وباردة والضباب أقرب */
+  const WINTER_SKY = {
+    day:    { cloud: 0xf2f7fb, cloudAmt: 1.0, top: 0x5b7fa8, mid: 0xa8c4dc, bottom: 0xe8f0f6, sun: 0xf2f6ff, sunI: 1.85, hemi: 1.5, fog: 0xdae6ef, fogFar: 620, amb: 0xd4e2ee, exposure: 1.02 },
+    sunset: { cloud: 0xe9cdbd, cloudAmt: 1.0, top: 0x2d3f60, mid: 0xc08f78, bottom: 0xe6c8ba, sun: 0xffd0a8, sunI: 1.6, hemi: 1.05, fog: 0xd2b6a8, fogFar: 560, amb: 0xc2a394, exposure: 1.0 },
+    night:  { cloud: 0x3a4a66, cloudAmt: 0.7, top: 0x0a1428, mid: 0x18304f, bottom: 0x2c4364, sun: 0xc4d6f4, sunI: 0.45, hemi: 0.55, fog: 0x162740, fogFar: 430, amb: 0x4a6086, exposure: 1.18 }
+  };
+
+  /* ألوان الأرض في الفصلين */
+  const SEASON_TINT = {
+    summer: { ground: 0xffffff, sand: 0xffffff, slab: 0xffffff, grass: 0xffffff, lot: 0xffffff, water: 0x1d6485 },
+    winter: { ground: 0xa9b6c0, sand: 0xe6eef5, slab: 0xeef4fa, grass: 0xe4eef6, lot: 0xcdd8e2, water: 0x16506d }
+  };
+
   function buildSky(scene) {
     const geo = new THREE.SphereGeometry(1, 32, 20);
     const mat = new THREE.ShaderMaterial({
@@ -5045,7 +5080,9 @@ SC.world = (function () {
 
   /* ضبط وقت اليوم: يعيد ضبط السماء، الشمس، الضباب والإضاءة */
   function setTimeOfDay(name) {
-    const p = PRESETS[name] || PRESETS.day;
+    const base = PRESETS[name] || PRESETS.day;
+    const w = state.season === 'winter' ? WINTER_SKY[name] : null;
+    const p = w ? Object.assign({}, base, w) : base;
     state.timeOfDay = name;
     const u = state.sky.material.uniforms;
     u.top.value.setHex(p.top); u.mid.value.setHex(p.mid); u.bottom.value.setHex(p.bottom);
@@ -5234,9 +5271,17 @@ SC.world = (function () {
     /* --- البحر وقاعه: عالم واحد يضمّ كل الجزر --- */
     buildSea(G);
     buildReef(G);
+    buildSnow(G);
 
     /* --- الجزر الثلاث --- */
-    CFG.islands.forEach((isl) => buildIsland(G, isl, U.rng(CFG.seed + isl.id * 9377), quality));
+    state.islandGroups = [];
+    CFG.islands.forEach((isl) => {
+      const ig = new THREE.Group();
+      ig.name = 'island' + isl.id;
+      G.add(ig);
+      buildIsland(ig, isl, U.rng(CFG.seed + isl.id * 9377), quality);
+      state.islandGroups.push({ group: ig, isl });
+    });
 
     /* --- الجسور البحرية الطويلة بين الجزر --- */
     buildBridges(G, quality);
@@ -5249,6 +5294,7 @@ SC.world = (function () {
     setTimeOfDay('day');
     refreshEnv(renderer, pmrem);
     state.pmrem = pmrem;
+    state.renderer = renderer;
 
     return state;
   }
@@ -5703,16 +5749,81 @@ SC.world = (function () {
   }
 
   /* ------------------------------ الجسور --------------------------------- */
+  /* الجسر قطعة واحدة متّصلة: بلاطة + حواجز جانبية + أعمدة تنزل إلى القاع.
+     البناء بقطع منفصلة كان يترك فجوات وشرائح طائرة على المنحدرات. */
+  function bridgeStrips(br) {
+    const HW = br.width / 2, TH = 1.5, PW = 1.0, RH = 1.35;
+    const a = br.axis === 'x' ? br.x0 : br.z0;
+    const b = br.axis === 'x' ? br.x1 : br.z1;
+    const n = Math.max(4, Math.ceil((b - a) / 10));
+    const road = { pos: [], uv: [], idx: [] };
+    const stru = { pos: [], uv: [], idx: [] };
+    const line = { pos: [], uv: [], idx: [] };
+
+    const put = (dst, s, y, t) => {
+      if (br.axis === 'x') dst.pos.push(t, y, br.z + s);
+      else                 dst.pos.push(br.x + s, y, t);
+    };
+    /* شريط رباعي ممتد على طول الجسر بين حافّتين */
+    const strip = (dst, s0, o0, s1, o1, uRep, vDiv) => {
+      const base = dst.pos.length / 3;
+      for (let i = 0; i <= n; i++) {
+        const t = a + (b - a) * i / n;
+        const y = deckHeight(br, t);
+        put(dst, s0, y + o0, t);
+        put(dst, s1, y + o1, t);
+        const v = (t - a) / (vDiv || 8);
+        dst.uv.push(0, v, uRep || 1, v);
+      }
+      for (let i = 0; i < n; i++) {
+        const k = base + i * 2;
+        dst.idx.push(k, k + 1, k + 3, k, k + 3, k + 2);
+      }
+    };
+
+    strip(road, -HW, 0, HW, 0, br.width / 8);              // سطح القيادة
+    strip(stru, HW, -TH, -HW, -TH, br.width / 8);          // البطن
+    strip(stru, -HW, -TH, -HW, RH, 1, 6);                  // الجدار الخارجي الأيسر
+    strip(stru, HW, RH, HW, -TH, 1, 6);                    // الجدار الخارجي الأيمن
+    strip(stru, -HW, RH, -HW + PW, RH, 1, 6);              // أعلى الحاجز الأيسر
+    strip(stru, -HW + PW, RH, -HW + PW, 0, 1, 6);          // داخل الحاجز الأيسر
+    strip(stru, HW - PW, RH, HW, RH, 1, 6);                // أعلى الحاجز الأيمن
+    strip(stru, HW - PW, 0, HW - PW, RH, 1, 6);            // داخل الحاجز الأيمن
+    strip(line, -0.22, 0.04, 0.22, 0.04, 1, 9);            // الخطّ المنقّط في المنتصف
+
+    const mk = (d) => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(d.pos, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(d.uv, 2));
+      g.setIndex(d.idx);
+      g.computeVertexNormals();
+      g.computeBoundingSphere();
+      return g;
+    };
+    return { road: mk(road), stru: mk(stru), line: mk(line), TH };
+  }
+
   function buildBridges(G, quality) {
     state.bridges = [];
-    const deckMat = new THREE.MeshStandardMaterial({ map: TEX.asphalt, roughness: 0.92, metalness: 0.03 });
-    const railMat = new THREE.MeshStandardMaterial({ color: 0xb9bfc7, roughness: 0.45, metalness: 0.65 });
-    const pylonMat = new THREE.MeshStandardMaterial({ color: 0x8d939b, roughness: 0.85, metalness: 0.05 });
-    const SEG = 24;
+    if (!state.bridgeMats) {
+      const asf = TEX.asphalt.clone(); asf.repeat.set(1, 1); asf.needsUpdate = true;
+      const dsh = TEX.dash.clone();    dsh.repeat.set(1, 1); dsh.needsUpdate = true;
+      state.bridgeMats = {
+        road: new THREE.MeshStandardMaterial({ map: asf, roughness: 0.92, metalness: 0.03,
+                                               side: THREE.DoubleSide }),
+        stru: new THREE.MeshStandardMaterial({ color: 0xb9c0c8, roughness: 0.78, metalness: 0.08,
+                                               side: THREE.DoubleSide }),
+        line: new THREE.MeshBasicMaterial({ map: dsh, transparent: true, opacity: 0.9,
+                                            depthWrite: false, side: THREE.DoubleSide }),
+        pylon: new THREE.MeshStandardMaterial({ color: 0x9aa3ac, roughness: 0.9, metalness: 0.05 })
+      };
+    }
+    const MAT = state.bridgeMats;
 
     BRIDGES.forEach((spec) => {
       const A = CFG.islands[spec.a], B2 = CFG.islands[spec.b];
-      const br = { axis: spec.axis, width: spec.width, deckY: spec.deckY, ramp: spec.ramp };
+      const br = { a: spec.a, b: spec.b, axis: spec.axis, width: spec.width,
+                   deckY: spec.deckY, ramp: spec.ramp };
       if (spec.axis === 'x') {
         br.z = A.cz;
         br.x0 = Math.min(A.cx, B2.cx) === A.cx ? A.cx + A.shore : B2.cx + B2.shore;
@@ -5726,87 +5837,101 @@ SC.world = (function () {
       }
       state.bridges.push(br);
 
-      const count = Math.ceil(br.len / SEG);
-      const deckGeo = new THREE.BoxGeometry(SEG + 0.4, 1.1, br.width);
-      const railGeo = new THREE.BoxGeometry(SEG + 0.4, 1.15, 0.45);
-      const deck = new THREE.InstancedMesh(deckGeo, deckMat, count);
-      const rails = new THREE.InstancedMesh(railGeo, railMat, count * 2);
-      deck.receiveShadow = true; deck.castShadow = quality.shadows;
-      rails.castShadow = false;
-      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1);
-      const pylons = [];
+      const bg = new THREE.Group();
+      bg.name = 'bridgeG';
+      G.add(bg);
+      br.group = bg;
+      const S = bridgeStrips(br);
+      const roadMesh = new THREE.Mesh(S.road, MAT.road);
+      roadMesh.receiveShadow = true;
+      const struMesh = new THREE.Mesh(S.stru, MAT.stru);
+      struMesh.receiveShadow = true; struMesh.castShadow = quality.shadows;
+      const lineMesh = new THREE.Mesh(S.line, MAT.line);
+      lineMesh.renderOrder = 2;
+      [roadMesh, struMesh, lineMesh].forEach((m) => { m.name = 'bridge'; bg.add(m); });
 
-      for (let i = 0; i < count; i++) {
-        const t0 = (br.axis === 'x' ? br.x0 : br.z0) + i * SEG;
-        const t1 = t0 + SEG;
-        const y0 = deckHeight(br, t0), y1 = deckHeight(br, t1);
-        const yc = (y0 + y1) / 2;
-        const pitch = Math.atan2(y1 - y0, SEG);
-        const along = t0 + SEG / 2;
-        const px = br.axis === 'x' ? along : br.x;
-        const pz = br.axis === 'x' ? br.z : along;
-        const yaw = br.axis === 'x' ? 0 : Math.PI / 2;
-        q.setFromEuler(new THREE.Euler(0, yaw, -pitch, 'YXZ'));
-        m.compose(new THREE.Vector3(px, yc - 0.55, pz), q, one);
-        deck.setMatrixAt(i, m);
-        for (let sdx = 0; sdx < 2; sdx++) {
-          const off = (sdx ? 1 : -1) * (br.width / 2 - 0.2);
-          const rx = br.axis === 'x' ? px : px + off;
-          const rz = br.axis === 'x' ? pz + off : pz;
-          m.compose(new THREE.Vector3(rx, yc + 0.55, rz), q, one);
-          rails.setMatrixAt(i * 2 + sdx, m);
-        }
-        if (i % 6 === 0 && yc > 3) pylons.push([px, pz, yc]);
+      /* أعمدة تنزل من البلاطة إلى قاع البحر + عارضة أعلى كل عمود */
+      const a0 = br.axis === 'x' ? br.x0 : br.z0;
+      const b0 = br.axis === 'x' ? br.x1 : br.z1;
+      const SP = 130, towers = [];
+      for (let t = a0 + SP; t < b0 - SP * 0.5; t += SP) {
+        const y = deckHeight(br, t);
+        if (y > 4) towers.push([t, y]);
       }
-      deck.instanceMatrix.needsUpdate = true; deck.computeBoundingSphere();
-      rails.instanceMatrix.needsUpdate = true; rails.computeBoundingSphere();
-      G.add(deck); G.add(rails);
-
-      /* خطّ منقّط في منتصف الجسر */
-      const lineGeo = new THREE.PlaneGeometry(SEG * 0.55, 0.42);
-      const lineMat = state.bridgeLineMat || (state.bridgeLineMat = new THREE.MeshBasicMaterial({
-        color: 0xefe9d6, transparent: true, opacity: 0.75, depthWrite: false
-      }));
-      const lines = new THREE.InstancedMesh(lineGeo, lineMat, count);
-      lines.renderOrder = 2;
-      for (let i = 0; i < count; i++) {
-        const t0 = (br.axis === 'x' ? br.x0 : br.z0) + i * SEG;
-        const yc = deckHeight(br, t0 + SEG / 2);
-        const along = t0 + SEG / 2;
-        const px = br.axis === 'x' ? along : br.x;
-        const pz = br.axis === 'x' ? br.z : along;
-        q.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, br.axis === 'x' ? 0 : Math.PI / 2));
-        m.compose(new THREE.Vector3(px, yc + 0.02, pz), q, one);
-        lines.setMatrixAt(i, m);
-      }
-      lines.instanceMatrix.needsUpdate = true; lines.computeBoundingSphere();
-      G.add(lines);
-
-      if (pylons.length) {
-        const pg = new THREE.BoxGeometry(4.5, 1, 4.5);
-        const pm = new THREE.InstancedMesh(pg, pylonMat, pylons.length);
-        pm.castShadow = quality.shadows;
-        pylons.forEach(([px, pz, yc], i) => {
-          const h = yc - CFG.bedY;
-          m.compose(new THREE.Vector3(px, CFG.bedY + h / 2, pz), qid0, new THREE.Vector3(1, h, 1));
-          pm.setMatrixAt(i, m);
+      if (towers.length) {
+        const legGeo = new THREE.CylinderGeometry(2.0, 3.2, 1, 7);
+        legGeo.translate(0, 0.5, 0);
+        const legs = new THREE.InstancedMesh(legGeo, MAT.pylon, towers.length * 2);
+        const capGeo = new THREE.BoxGeometry(br.width + 3, 1.6, 5.2);
+        const caps = new THREE.InstancedMesh(capGeo, MAT.pylon, towers.length);
+        legs.castShadow = caps.castShadow = quality.shadows;
+        const m = new THREE.Matrix4(), q = new THREE.Quaternion(),
+              e = new THREE.Euler(), v = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
+        towers.forEach(([t, y], i) => {
+          const h = y - S.TH - 1.2 - CFG.bedY;
+          for (let sd = 0; sd < 2; sd++) {
+            const off = (sd ? 1 : -1) * (br.width / 2 - 4);
+            v.set(br.axis === 'x' ? t : br.x + off, CFG.bedY,
+                  br.axis === 'x' ? br.z + off : t);
+            m.compose(v, q, new THREE.Vector3(1, h, 1));
+            legs.setMatrixAt(i * 2 + sd, m);
+          }
+          e.set(0, br.axis === 'x' ? 0 : Math.PI / 2, 0);
+          q.setFromEuler(e);
+          v.set(br.axis === 'x' ? t : br.x, y - S.TH - 0.8, br.axis === 'x' ? br.z : t);
+          m.compose(v, q, one);
+          caps.setMatrixAt(i, m);
+          q.identity();
         });
-        pm.instanceMatrix.needsUpdate = true; pm.computeBoundingSphere();
-        G.add(pm);
+        legs.instanceMatrix.needsUpdate = true; legs.computeBoundingSphere();
+        caps.instanceMatrix.needsUpdate = true; caps.computeBoundingSphere();
+        bg.add(legs); bg.add(caps);
       }
 
-      /* حواجز جانبية للتصادم: صندوقان طويلان */
+      /* أعمدة إنارة على الجسر */
+      const lampPole = state.bridgeLampGeo || (state.bridgeLampGeo = (() => {
+        const g = new THREE.CylinderGeometry(0.13, 0.19, 1, 6); g.translate(0, 0.5, 0); return g;
+      })());
+      const lampSpots = [];
+      for (let t = a0 + 55, k = 0; t < b0 - 40; t += 55, k++) lampSpots.push([t, k % 2 ? 1 : -1]);
+      if (lampSpots.length) {
+        const poles = new THREE.InstancedMesh(lampPole, MAT.pylon, lampSpots.length);
+        const headGeo = new THREE.BoxGeometry(1.9, 0.34, 0.85);
+        const heads = new THREE.InstancedMesh(headGeo, state.lampMat || MAT.pylon, lampSpots.length);
+        const m = new THREE.Matrix4(), q = new THREE.Quaternion(),
+              e = new THREE.Euler(), v = new THREE.Vector3();
+        lampSpots.forEach(([t, sd], i) => {
+          const y = deckHeight(br, t) + 1.35;
+          const off = sd * (br.width / 2 - 0.55);
+          const px = br.axis === 'x' ? t : br.x + off;
+          const pz = br.axis === 'x' ? br.z + off : t;
+          v.set(px, y, pz);
+          m.compose(v, q, new THREE.Vector3(1, 6.2, 1));
+          poles.setMatrixAt(i, m);
+          e.set(0, br.axis === 'x' ? Math.PI / 2 : 0, 0);
+          q.setFromEuler(e);
+          v.set(px - (br.axis === 'x' ? 0 : sd * 0.85), y + 6.2, pz - (br.axis === 'x' ? sd * 0.85 : 0));
+          m.compose(v, q, new THREE.Vector3(1, 1, 1));
+          heads.setMatrixAt(i, m);
+          q.identity();
+        });
+        poles.instanceMatrix.needsUpdate = true; poles.computeBoundingSphere();
+        heads.instanceMatrix.needsUpdate = true; heads.computeBoundingSphere();
+        bg.add(poles); bg.add(heads);
+      }
+
+      /* حواجز التصادم على الجانبين */
       const halfW = br.width / 2;
       if (br.axis === 'x') {
         [-1, 1].forEach((sg) => state.colliders.push({
           minX: br.x0, maxX: br.x1,
-          minZ: br.z + sg * halfW - 0.4, maxZ: br.z + sg * halfW + 0.4,
-          h: 2.2, kind: 'rail'
+          minZ: br.z + sg * halfW - 0.6, maxZ: br.z + sg * halfW + 0.6,
+          h: 2.6, kind: 'rail'
         }));
       } else {
         [-1, 1].forEach((sg) => state.colliders.push({
-          minX: br.x + sg * halfW - 0.4, maxX: br.x + sg * halfW + 0.4,
-          minZ: br.z0, maxZ: br.z1, h: 2.2, kind: 'rail'
+          minX: br.x + sg * halfW - 0.6, maxX: br.x + sg * halfW + 0.6,
+          minZ: br.z0, maxZ: br.z1, h: 2.6, kind: 'rail'
         }));
       }
     });
@@ -6185,6 +6310,79 @@ SC.world = (function () {
     }
   }
 
+  /* ------------------------------ الفصول -------------------------------- */
+  /* الشتاء: ثلج على الأرصفة والحدائق، سماء شاحبة، وثلج متساقط حول اللاعب */
+  function buildSnow(G) {
+    const N = 1500, SPAN = 130, HIGH = 46;
+    const pos = new Float32Array(N * 3), vel = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      pos[i * 3]     = (Math.random() - 0.5) * SPAN;
+      pos[i * 3 + 1] = Math.random() * HIGH;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * SPAN;
+      vel[i] = 2.2 + Math.random() * 3.4;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    if (!TEX.flake) {
+      TEX.flake = canvasTex(64, 64, (c, w, h) => {
+        const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+        g.addColorStop(0, 'rgba(255,255,255,1)');
+        g.addColorStop(0.45, 'rgba(255,255,255,0.75)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        c.fillStyle = g; c.fillRect(0, 0, w, h);
+      }, 1, 1);
+    }
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({
+      color: 0xffffff, size: 0.38, sizeAttenuation: true, transparent: true,
+      opacity: 0.95, depthWrite: false, map: TEX.flake
+    }));
+    pts.frustumCulled = false;
+    pts.visible = false;
+    pts.renderOrder = 4;
+    G.add(pts);
+    state.snow = { points: pts, pos, vel, span: SPAN, high: HIGH, t: 0 };
+  }
+
+  function updateSnow(dt, focus) {
+    const S = state.snow;
+    if (!S || !S.points.visible) return;
+    S.t += dt;
+    const P = S.pos, V = S.vel, half = S.span / 2;
+    const wind = Math.sin(S.t * 0.35) * 1.6;
+    for (let i = 0, j = 0; j < V.length; i += 3, j++) {
+      P[i + 1] -= V[j] * dt;
+      P[i]     += (wind + Math.sin(S.t * 1.7 + j) * 0.5) * dt;
+      P[i + 2] += Math.cos(S.t * 1.3 + j) * 0.4 * dt;
+      /* لفّ حول اللاعب حتى تكفي ألف ندفة لتغطية المشهد كلّه */
+      let dx = P[i] - focus.x, dy = P[i + 1] - focus.y, dz = P[i + 2] - focus.z;
+      if (dy < -4) { dy += S.high; }
+      if (dy > S.high - 4) dy -= S.high;
+      if (dx >  half) dx -= S.span; else if (dx < -half) dx += S.span;
+      if (dz >  half) dz -= S.span; else if (dz < -half) dz += S.span;
+      P[i] = focus.x + dx; P[i + 1] = focus.y + dy; P[i + 2] = focus.z + dz;
+    }
+    S.points.geometry.attributes.position.needsUpdate = true;
+  }
+
+  function setSeason(name) {
+    const win = name === 'winter';
+    state.season = win ? 'winter' : 'summer';
+    const t = SEASON_TINT[state.season];
+    const set = (m, hex) => { if (m && m.color) m.color.setHex(hex); };
+    set(state.groundMat, t.ground);
+    set(state.sandMat, t.sand);
+    set(state.slabMat, t.slab);
+    if (state.lotMats) { set(state.lotMats.grass, t.grass); set(state.lotMats.lot, t.lot); }
+    if (state.water && state.water.material) state.water.material.color.setHex(t.water);
+    if (state.bridgeMats) {
+      state.bridgeMats.road.color.setHex(win ? 0xb4c0ca : 0xffffff);
+      state.bridgeMats.stru.color.setHex(win ? 0xdfe8f0 : 0xb9c0c8);
+    }
+    if (state.snow) state.snow.points.visible = win;
+    if (state.timeOfDay) setTimeOfDay(state.timeOfDay);
+    if (state.pmrem && state.renderer) refreshEnv(state.renderer, state.pmrem);
+  }
+
   function update(dt, focus) {
     // ظل الشمس يتبع اللاعب لتبقى دقة الظل عالية
     const sun = state.sun;
@@ -6198,10 +6396,35 @@ SC.world = (function () {
       state.sky.material.uniforms.uTime.value += dt;
     }
     if (state.underwater) updateReef(dt);
+    updateSnow(dt, focus);
     if (state.water && state.water.material) {
       const n = state.water.material.normalMap;
       n.offset.x += dt * 0.012;
       n.offset.y += dt * 0.007;
+    }
+
+    /* جزيرة بعيدة = لا تُرسم إطلاقاً. مع ستّ جزر هذا يوفّر مئات النداءات. */
+    const fogFar = state.scene.fog ? state.scene.fog.far : 900;
+    const islCull = Math.max(2600, fogFar * 2.6);
+    if (state.islandGroups) {
+      for (const e of state.islandGroups) {
+        const d = Math.max(Math.abs(focus.x - e.isl.cx), Math.abs(focus.z - e.isl.cz)) - e.isl.shore;
+        e.group.visible = d < islCull;
+      }
+    }
+    if (state.bridges) {
+      for (const br of state.bridges) {
+        if (!br.group) continue;
+        let d;
+        if (br.axis === 'x') {
+          const cx = U.clamp(focus.x, br.x0, br.x1);
+          d = Math.hypot(focus.x - cx, focus.z - br.z);
+        } else {
+          const cz = U.clamp(focus.z, br.z0, br.z1);
+          d = Math.hypot(focus.x - br.x, focus.z - cz);
+        }
+        br.group.visible = d < islCull;
+      }
     }
 
     // إخفاء أحياء المدينة البعيدة (خلف الضباب) لتوفير الأداء
@@ -6218,7 +6441,7 @@ SC.world = (function () {
   return { CFG, TEX, state, build, update, groundHeight, onRoad, inBounds, queryColliders,
            snapToRoad, nearestSpawn, randomRoadPoint, setTimeOfDay, refreshEnv, canvasTex, PRESETS,
            isWater, distToWater, onSand, islandAt, islandById, nearestIsland, bridgeAt, BRIDGES,
-           setUnderwater, placeReef };
+           setUnderwater, placeReef, setSeason };
 })();
 
 </script>
@@ -6526,6 +6749,19 @@ SC.character = (function () {
       new THREE.MeshStandardMaterial({ color: 0xffd23f, roughness: 0.35, metalness: 0.6 }));
     badge.position.set(0.075, 0.34, 0.126);
     torso.add(badge);
+    /* جيبان على الصدر ورقعة على الكتف */
+    [-1, 1].forEach((sx) => {
+      const pocket = new THREE.Mesh(geo('pocket', () => new THREE.BoxGeometry(0.072, 0.062, 0.014)), M.jacket2);
+      pocket.position.set(sx * 0.088, 0.205, 0.122);
+      torso.add(pocket);
+      const flap = new THREE.Mesh(geo('flap', () => new THREE.BoxGeometry(0.078, 0.018, 0.020)), M.jacket2);
+      flap.position.set(sx * 0.088, 0.240, 0.124);
+      torso.add(flap);
+    });
+    const buckle = new THREE.Mesh(geo('buckle', () => new THREE.BoxGeometry(0.052, 0.038, 0.016)),
+      new THREE.MeshStandardMaterial({ color: 0xc9ad5f, roughness: 0.3, metalness: 0.8 }));
+    buckle.position.set(0, 0.075, 0.098);
+    torso.add(buckle);
 
     /* الرأس */
     const neck = joint(torso, 0, 0.44, 0);
@@ -6549,19 +6785,56 @@ SC.character = (function () {
     nose.rotation.x = Math.PI / 2.1;
     nose.position.set(0, 0.062, 0.088);
     head.add(nose);
+    const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf4f4f2, roughness: 0.22 });
+    const irisMat = new THREE.MeshStandardMaterial({ color: 0x3d6b57, roughness: 0.18, metalness: 0.05 });
+    const pupilMat = new THREE.MeshStandardMaterial({ color: 0x0d0d12, roughness: 0.2 });
     [-1, 1].forEach((sx) => {
-      const eye = new THREE.Mesh(geo('eye', () => new THREE.SphereGeometry(0.016, 10, 8)),
-        new THREE.MeshStandardMaterial({ color: 0x1a1a22, roughness: 0.25 }));
-      eye.position.set(sx * 0.035, 0.088, 0.079);
-      head.add(eye);
-      const brow = new THREE.Mesh(geo('brow', () => new THREE.BoxGeometry(0.034, 0.008, 0.012)), M.hair);
-      brow.position.set(sx * 0.036, 0.108, 0.082);
+      /* بياض العين ثم القزحية ثم البؤبؤ — تعطي نظرة حيّة بدل نقطة سوداء */
+      const white = new THREE.Mesh(geo('eyeWhite', () => new THREE.SphereGeometry(0.018, 12, 10)), eyeWhiteMat);
+      white.scale.set(1, 0.78, 0.72);
+      white.position.set(sx * 0.036, 0.088, 0.076);
+      head.add(white);
+      const iris = new THREE.Mesh(geo('iris', () => new THREE.SphereGeometry(0.0095, 10, 8)), irisMat);
+      iris.position.set(sx * 0.036, 0.0875, 0.0885);
+      head.add(iris);
+      const pupil = new THREE.Mesh(geo('pupil', () => new THREE.SphereGeometry(0.0048, 8, 6)), pupilMat);
+      pupil.position.set(sx * 0.036, 0.0875, 0.0925);
+      head.add(pupil);
+      /* جفن علوي */
+      const lid = new THREE.Mesh(geo('lid', () => new THREE.SphereGeometry(0.0195, 12, 8,
+        0, Math.PI * 2, 0, Math.PI * 0.42)), M.skin);
+      lid.scale.set(1, 0.8, 0.75);
+      lid.position.set(sx * 0.036, 0.0895, 0.0755);
+      lid.rotation.x = -0.28;
+      head.add(lid);
+      const brow = new THREE.Mesh(geo('brow', () => new THREE.BoxGeometry(0.036, 0.009, 0.014)), M.hair);
+      brow.position.set(sx * 0.036, 0.109, 0.0815);
+      brow.rotation.z = sx * 0.10;
       head.add(brow);
       const ear = new THREE.Mesh(geo('ear', () => new THREE.SphereGeometry(0.022, 8, 6)), M.skin);
       ear.scale.set(0.45, 1, 0.8);
       ear.position.set(sx * 0.094, 0.072, 0.0);
       head.add(ear);
+      /* سالفة الشعر */
+      const burn = new THREE.Mesh(geo('burn', () => new THREE.BoxGeometry(0.016, 0.042, 0.030)), M.hair);
+      burn.position.set(sx * 0.086, 0.078, 0.006);
+      head.add(burn);
     });
+    /* الفم والذقن */
+    const mouth = new THREE.Mesh(geo('mouth', () => new THREE.BoxGeometry(0.040, 0.007, 0.010)),
+      new THREE.MeshStandardMaterial({ color: 0x7b4a44, roughness: 0.55 }));
+    mouth.position.set(0, 0.018, 0.086);
+    head.add(mouth);
+    const lipLo = new THREE.Mesh(geo('lipLo', () => new THREE.SphereGeometry(0.022, 10, 8)), M.skin);
+    lipLo.scale.set(1, 0.34, 0.45);
+    lipLo.position.set(0, 0.009, 0.083);
+    head.add(lipLo);
+    const stubble = new THREE.Mesh(geo('stubble', () => new THREE.SphereGeometry(0.070, 12, 10,
+      0, Math.PI * 2, Math.PI * 0.52, Math.PI * 0.48)),
+      new THREE.MeshStandardMaterial({ color: 0x3a2f2a, roughness: 0.95, transparent: true, opacity: 0.5 }));
+    stubble.scale.set(0.94, 0.82, 1.06);
+    stubble.position.set(0, 0.030, 0.022);
+    head.add(stubble);
 
     const hair = new THREE.Mesh(geo('hair', () => new THREE.SphereGeometry(0.104, 16, 12,
       0, Math.PI * 2, 0, Math.PI * 0.58)), M.hair);
@@ -6580,21 +6853,33 @@ SC.character = (function () {
     chin.rotation.set(Math.PI / 2, 0, 0);
     chin.position.set(0, 0.012, 0.012);
     helmet.add(chin);
-    const visor = new THREE.Mesh(geo('visor', () => new THREE.SphereGeometry(0.134, 20, 14,
-      -Math.PI * 0.42, Math.PI * 0.84, Math.PI * 0.34, Math.PI * 0.30)), M.visor);
-    visor.scale.set(1, 1.04, 1.08);
+    /* الزجاج الأمامي: شريحة كروية تغطّي واجهة الخوذة بالضبط.
+       phi = π/2 هو اتجاه +Z أي الأمام في three.js. */
+    const visor = new THREE.Mesh(geo('visor', () => new THREE.SphereGeometry(0.136, 24, 16,
+      Math.PI * 0.5 - Math.PI * 0.40, Math.PI * 0.80,
+      Math.PI * 0.30, Math.PI * 0.34)), M.visor);
+    visor.scale.set(1, 1.04, 1.06);
     visor.position.y = 0.072;
-    visor.rotation.y = Math.PI;
     helmet.add(visor);
-    const stripe = new THREE.Mesh(geo('stripe', () => new THREE.TorusGeometry(0.126, 0.012, 6, 20, Math.PI * 0.9)),
-      mat(0xf2f2f2, 0.3, 0.2));
-    stripe.rotation.set(0, Math.PI / 2, Math.PI * 0.05);
-    stripe.position.y = 0.082;
+    /* إطار الزجاج */
+    const vrim = new THREE.Mesh(geo('vrim', () => new THREE.TorusGeometry(0.118, 0.009, 6, 20, Math.PI * 0.86)),
+      M.jacket2);
+    vrim.rotation.set(Math.PI / 2, 0, Math.PI * 0.57);
+    vrim.position.set(0, 0.104, 0.008);
+    helmet.add(vrim);
+    /* خطّ أبيض على منتصف القبّة من الأمام إلى الخلف */
+    const stripe = new THREE.Mesh(geo('stripe', () => new THREE.TorusGeometry(0.1265, 0.0115, 6, 24, Math.PI * 0.62)),
+      mat(0xf4f4f4, 0.3, 0.2));
+    stripe.rotation.set(0, Math.PI / 2, Math.PI * 0.19);
+    stripe.position.y = 0.074;
     helmet.add(stripe);
-    const vent = new THREE.Mesh(geo('vent', () => new THREE.BoxGeometry(0.075, 0.022, 0.05)), M.visor);
-    vent.position.set(0, 0.155, 0.095);
-    vent.rotation.x = -0.35;
-    helmet.add(vent);
+    /* فتحتا تهوية على القمّة */
+    [-1, 1].forEach((sx) => {
+      const vent = new THREE.Mesh(geo('vent', () => new THREE.BoxGeometry(0.026, 0.016, 0.048)), M.jacket2);
+      vent.position.set(sx * 0.046, 0.176, 0.062);
+      vent.rotation.x = -0.42;
+      helmet.add(vent);
+    });
     const rim = new THREE.Mesh(geo('hrim', () => new THREE.TorusGeometry(0.128, 0.014, 8, 22)), M.jacket2);
     rim.rotation.x = Math.PI / 2;
     rim.position.y = -0.005;
@@ -6610,6 +6895,10 @@ SC.character = (function () {
       shoulder.add(pad);
       const upper = bone(0.050, 0.20, M.jacket, 0.043);
       shoulder.add(upper);
+      const sleeve = new THREE.Mesh(geo('sleeve', () => new THREE.TorusGeometry(0.049, 0.008, 6, 16)), M.jacket2);
+      sleeve.rotation.x = Math.PI / 2;
+      sleeve.position.y = -0.20;
+      shoulder.add(sleeve);
       const elbow = joint(shoulder, 0, -0.29, 0);
       const fore = bone(0.042, 0.19, M.jacket2, 0.036);
       elbow.add(fore);
@@ -6618,20 +6907,55 @@ SC.character = (function () {
       hand.position.y = -0.042;
       hand.castShadow = true;
       wrist.add(hand);
-      const thumb = new THREE.Mesh(geo('thumb', () => new THREE.CapsuleGeometry(0.017, 0.04, 3, 6)), M.glove);
-      thumb.rotation.z = side * 0.9;
-      thumb.position.set(-side * 0.032, -0.032, 0.02);
+      /* الإبهام بمفصلين */
+      const thumb = new THREE.Mesh(geo('thumb', () => new THREE.CapsuleGeometry(0.017, 0.038, 3, 7)), M.glove);
+      thumb.rotation.set(0.5, 0, side * 1.0);
+      thumb.position.set(-side * 0.034, -0.030, 0.028);
       wrist.add(thumb);
-      /* أصابع مبسّطة + سوار المعصم */
-      for (let f = 0; f < 3; f++) {
-        const fin = new THREE.Mesh(geo('finger', () => new THREE.CapsuleGeometry(0.013, 0.040, 3, 5)), M.glove);
-        fin.rotation.x = 1.25;                            // أصابع منحنية للقبض
-        fin.position.set((f - 1) * 0.019, -0.086, 0.034);
-        wrist.add(fin);
+      const thumbTip = new THREE.Mesh(geo('thumbTip', () => new THREE.CapsuleGeometry(0.0145, 0.026, 3, 6)), M.glove);
+      thumbTip.rotation.set(1.15, 0, side * 0.55);
+      thumbTip.position.set(-side * 0.046, -0.060, 0.050);
+      wrist.add(thumbTip);
+      /* أربعة أصابع بأطوال متدرّجة، كل واحد بمفصلين — قبضة واقعية */
+      const FL = [0.040, 0.046, 0.043, 0.034];
+      for (let f = 0; f < 4; f++) {
+        const x = (f - 1.5) * 0.0162 * (side >= 0 ? 1 : -1);
+        const len = FL[f];
+        const p1 = new THREE.Mesh(geo('fingerA' + f, () => new THREE.CapsuleGeometry(0.0118, len, 3, 6)), M.glove);
+        p1.rotation.x = 1.30;
+        p1.position.set(x, -0.083, 0.030);
+        wrist.add(p1);
+        const p2 = new THREE.Mesh(geo('fingerB' + f, () => new THREE.CapsuleGeometry(0.0108, len * 0.72, 3, 6)), M.glove);
+        p2.rotation.x = 2.45;
+        p2.position.set(x, -0.100, 0.058);
+        wrist.add(p2);
+        const knuck = new THREE.Mesh(geo('knuck', () => new THREE.SphereGeometry(0.0125, 8, 6)), M.glove);
+        knuck.position.set(x, -0.074, 0.020);
+        wrist.add(knuck);
       }
-      const cuff = new THREE.Mesh(geo('cuff', () => new THREE.CylinderGeometry(0.052, 0.046, 0.045, 10)), M.jacket);
+      /* راحة اليد ومفصل الكفّ */
+      const palm = new THREE.Mesh(geo('palm', () => new THREE.SphereGeometry(0.040, 12, 10)), M.glove);
+      palm.scale.set(0.92, 0.70, 0.78);
+      palm.position.set(0, -0.058, 0.020);
+      wrist.add(palm);
+      const cuff = new THREE.Mesh(geo('cuff', () => new THREE.CylinderGeometry(0.054, 0.047, 0.050, 12)), M.jacket);
       cuff.position.y = 0.012;
       wrist.add(cuff);
+      const cuffRim = new THREE.Mesh(geo('cuffRim', () => new THREE.TorusGeometry(0.052, 0.007, 6, 14)), M.jacket2);
+      cuffRim.rotation.x = Math.PI / 2;
+      cuffRim.position.y = -0.012;
+      wrist.add(cuffRim);
+      if (side > 0) {                                    // ساعة يد
+        const band = new THREE.Mesh(geo('band', () => new THREE.TorusGeometry(0.046, 0.009, 6, 14)), M.boots);
+        band.rotation.x = Math.PI / 2;
+        band.position.y = 0.036;
+        wrist.add(band);
+        const dial = new THREE.Mesh(geo('dial', () => new THREE.CylinderGeometry(0.019, 0.019, 0.011, 12)),
+          new THREE.MeshStandardMaterial({ color: 0xd9dde3, roughness: 0.25, metalness: 0.75 }));
+        dial.rotation.set(Math.PI / 2, 0, 0);
+        dial.position.set(0, 0.036, 0.044);
+        wrist.add(dial);
+      }
       return { shoulder, elbow, wrist, hand, upperLen: 0.29, foreLen: 0.27, side };
     }
     const armL = arm(1), armR = arm(-1);
@@ -6655,6 +6979,14 @@ SC.character = (function () {
       kneePad.scale.set(1, 0.85, 0.9);
       kneePad.position.set(0, 0.01, 0.02);
       knee.add(kneePad);
+      const laces = new THREE.Mesh(geo('laces', () => new THREE.BoxGeometry(0.052, 0.010, 0.085)),
+        new THREE.MeshStandardMaterial({ color: 0xe4e0d6, roughness: 0.85 }));
+      laces.position.set(0, 0.006, 0.052);
+      ankle.add(laces);
+      const toeCap = new THREE.Mesh(geo('toeCap', () => new THREE.SphereGeometry(0.046, 10, 8)), M.boots);
+      toeCap.scale.set(0.95, 0.66, 1.1);
+      toeCap.position.set(0, -0.032, 0.148);
+      ankle.add(toeCap);
       foot.castShadow = true;
       ankle.add(foot);
       return { hip, knee, ankle, foot, thighLen: 0.40, shinLen: 0.38, side };
@@ -7386,6 +7718,16 @@ SC.Vehicle = (function () {
     setFirstPerson(on) {
       this.firstPerson = !!on;
       if (this.driver) this.driver.setFirstPerson(!!on);
+      /* ضوء خافت داخل المقصورة: بدونه تبدو لوحة القيادة سوداء تماماً */
+      if (on && !this.cabinLight) {
+        const d = this.def.driver;
+        const eye = d ? d.eye : [0, this.def.seatH + 0.35, 0];
+        const L = new THREE.PointLight(0xdfe8f5, 2.6, 4.2, 2);
+        L.position.set(eye[0], eye[1] + 0.30, eye[2] + 0.30);
+        this.cabin.add(L);
+        this.cabinLight = L;
+      }
+      if (this.cabinLight) this.cabinLight.visible = !!on;
     }
 
     setColor(hex) {
@@ -8298,7 +8640,7 @@ SC.input = (function () {
     ['cam', 'horn', 'flip', 'light'].forEach((k) => bindTap(dom[k], () => fire(k)));
     /* النظر للخلف: يبقى ما دام الزر مضغوطاً */
     bindHold(dom.back,
-      () => { look.hold = true; look.yaw = Math.PI * 0.92; look.idle = 0; },
+      () => { look.hold = true; look.holdAt = 0; look.yaw = Math.PI * 0.92; look.idle = 0; },
       () => { look.hold = false; look.idle = 0; });
 
     /* --- لوحة المفاتيح --- */
@@ -8382,9 +8724,14 @@ SC.input = (function () {
     if (kb.KeyE) { look.yaw = U.clamp(look.yaw - 1.8 * dt, -Math.PI * 0.98, Math.PI * 0.98); look.idle = 0; }
 
     look.idle += dt;
-    if (!look.active && look.idle > 1.1 && !look.hold) {
-      look.yaw = U.damp(look.yaw, 0, 3.2, dt);
-      look.pitch = U.damp(look.pitch, 0, 3.2, dt);
+    /* حارس: إن بقي «النظر للخلف» مضغوطاً أكثر من ست ثوانٍ فقد ضاع رفع الإصبع */
+    if (look.hold) { look.holdAt = (look.holdAt || 0) + dt; if (look.holdAt > 6) look.hold = false; }
+    else look.holdAt = 0;
+    /* وإن بقيت لمسة عالقة على الشاشة بلا حركة، أفرج عنها حتى تعود الكاميرا */
+    if (look.active && look.idle > 2.5) look.active = false;
+    if (!look.active && look.idle > 0.55 && !look.hold) {
+      look.yaw = U.damp(look.yaw, 0, 5.5, dt);
+      look.pitch = U.damp(look.pitch, 0, 5.5, dt);
       if (Math.abs(look.yaw) < 0.004) look.yaw = 0;
       if (Math.abs(look.pitch) < 0.004) look.pitch = 0;
     }
@@ -8963,74 +9310,179 @@ SC.hud = (function () {
   }
 
   /* -------------------------- الخريطة الكبيرة --------------------------- */
+  /* الخريطة الكبيرة: نفس رسم الخريطة المصغّرة تماماً — نفس الجزر ونفس
+     الألوان — لكن بمساحة أوسع وأسماء ومقياس وعلامات. */
   function drawBigMap(canvas, view, game) {
     const g = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
-    g.fillStyle = '#0a2434'; g.fillRect(0, 0, W, H);
-    if (!maps.length || !worldBox) return;
+    if (!maps.length || !worldBox) { g.fillStyle = '#0b2333'; g.fillRect(0, 0, W, H); return; }
+
+    /* بحر متدرّج بنفس زرقة الخريطة المصغّرة */
+    const sea = g.createLinearGradient(0, 0, 0, H);
+    sea.addColorStop(0, '#0d2c3e'); sea.addColorStop(0.55, '#123a4e'); sea.addColorStop(1, '#0b2739');
+    g.fillStyle = sea; g.fillRect(0, 0, W, H);
 
     const wSpanX = worldBox.maxX - worldBox.minX, wSpanZ = worldBox.maxZ - worldBox.minZ;
     const fit = Math.min(W / wSpanX, H / wSpanZ);
     const s = fit * view.zoom * 2.2;
-    const toScreen = (wx, wz) => ({
-      x: W / 2 + view.px + (wx - (worldBox.minX + wSpanX / 2)) * s,
-      y: H / 2 + view.py + (wz - (worldBox.minZ + wSpanZ / 2)) * s
-    });
-    canvas._toWorld = (sx, sy) => ({
-      x: (sx - W / 2 - view.px) / s + worldBox.minX + wSpanX / 2,
-      z: (sy - H / 2 - view.py) / s + worldBox.minZ + wSpanZ / 2
-    });
+    const cx0 = worldBox.minX + wSpanX / 2, cz0 = worldBox.minZ + wSpanZ / 2;
+    const toScreen = (wx, wz) => ({ x: W / 2 + view.px + (wx - cx0) * s,
+                                    y: H / 2 + view.py + (wz - cz0) * s });
+    canvas._toWorld = (sx, sy) => ({ x: (sx - W / 2 - view.px) / s + cx0,
+                                     z: (sy - H / 2 - view.py) / s + cz0 });
 
-    /* الجسور */
-    g.strokeStyle = '#6f7a89';
+    /* تموّج خفيف على الماء */
+    g.strokeStyle = 'rgba(255,255,255,0.035)'; g.lineWidth = 1;
+    for (let y = (view.py % 34 + 34) % 34; y < H; y += 34) {
+      g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke();
+    }
+
+    /* الجسور: طبقتان — ظلّ عريض ثم سطح فاتح */
     (SC.world.state.bridges || []).forEach((br) => {
       const a = br.axis === 'x' ? toScreen(br.x0, br.z) : toScreen(br.x, br.z0);
       const b2 = br.axis === 'x' ? toScreen(br.x1, br.z) : toScreen(br.x, br.z1);
-      g.lineWidth = Math.max(2, br.width * s);
+      g.lineCap = 'butt';
+      g.strokeStyle = 'rgba(0,0,0,0.45)'; g.lineWidth = Math.max(5, br.width * s + 4);
       g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b2.x, b2.y); g.stroke();
+      g.strokeStyle = '#39414f'; g.lineWidth = Math.max(3, br.width * s);
+      g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b2.x, b2.y); g.stroke();
+      g.strokeStyle = 'rgba(230,230,200,0.35)'; g.lineWidth = Math.max(0.7, 1.2 * s);
+      g.setLineDash([8, 9]);
+      g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b2.x, b2.y); g.stroke();
+      g.setLineDash([]);
     });
 
-    /* الجزر */
+    /* الجزر — نفس لوحات الخريطة المصغّرة */
     maps.forEach((m) => {
       const isl = m.isl;
       const p = toScreen(isl.cx - m.origin, isl.cz - m.origin);
       const size = (m.size / m.scale) * s;
+      g.save();
+      g.shadowColor = 'rgba(0,0,0,0.5)'; g.shadowBlur = 18;
       g.drawImage(m.canvas, p.x, p.y, size, size);
-      g.font = '800 14px system-ui, sans-serif';
-      g.textAlign = 'center';
-      const c = toScreen(isl.cx, isl.cz - isl.shore);
-      const ly = c.y - 12;                       // فوق حافة الجزيرة بمسافة ثابتة
-      g.lineWidth = 4; g.strokeStyle = 'rgba(0,0,0,0.75)';
-      g.strokeText(isl.name, c.x, ly);
-      g.fillStyle = 'rgba(255,255,255,0.95)';
-      g.fillText(isl.name, c.x, ly);
+      g.restore();
     });
 
+    /* أسماء الجزر: حجم الشارة يتبع حجم الجزيرة على الشاشة */
+    const K = Math.max(0.7, Math.min(W, H) / 520);          // معامل الدقّة
+    maps.forEach((m) => {
+      const isl = m.isl;
+      const wpx = isl.shore * 2 * s;
+      if (wpx < 46 * K) return;                              // صغيرة جداً — لا اسم
+      const fs = U.clamp(wpx * 0.085, 9 * K, 15 * K);
+      const c = toScreen(isl.cx, isl.cz - isl.shore);
+      g.font = '800 ' + fs.toFixed(1) + 'px system-ui, sans-serif';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      const pad = fs * 0.75, bh = fs * 1.65;
+      const tw = g.measureText(isl.name).width + pad * 2;
+      const bx = c.x - tw / 2, by = c.y - bh - fs * 0.5;
+      g.fillStyle = 'rgba(8,18,28,0.82)';
+      roundRect(g, bx, by, tw, bh, bh / 2); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,0.22)'; g.lineWidth = Math.max(1, K); g.stroke();
+      g.fillStyle = '#eaf0f8';
+      g.fillText(isl.name, c.x, by + bh / 2);
+    });
+
+    /* العلامات */
+    const MR = U.clamp(Math.min(W, H) * 0.013, 5, 11 * K);
     const icon = (wx, wz, color, label, r) => {
       const p = toScreen(wx, wz);
-      g.beginPath(); g.arc(p.x, p.y, r || 9, 0, 7);
+      const rr = r || MR;
+      g.beginPath(); g.arc(p.x, p.y, rr, 0, 7);
       g.fillStyle = color; g.fill();
-      g.lineWidth = 2; g.strokeStyle = 'rgba(0,0,0,0.55)'; g.stroke();
+      g.lineWidth = Math.max(1.2, rr * 0.2); g.strokeStyle = 'rgba(0,0,0,0.55)'; g.stroke();
       if (label) {
-        g.font = '700 12px system-ui, sans-serif';
+        g.font = '700 ' + (rr * 1.25).toFixed(1) + 'px system-ui, sans-serif';
         g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
         g.fillText(label, p.x, p.y + 0.5);
       }
     };
-    markers.forEach((m) => icon(m.x, m.z, m.color, m.icon || '', 9));
-    if (game && game.waypoint) icon(game.waypoint.x, game.waypoint.z, '#38bdf8', '⚑', 9);
+    /* افرد العلامات المتراكمة قليلاً حتى لا تختفي تحت بعضها */
+    const placed = [];
+    markers.forEach((m) => {
+      const p = toScreen(m.x, m.z);
+      let ox = 0, oy = 0;
+      for (let k = 0; k < 12; k++) {
+        let clash = false;
+        for (const q of placed) {
+          if (Math.hypot(p.x + ox - q.x, p.y + oy - q.y) < MR * 1.9) { clash = true; break; }
+        }
+        if (!clash) break;
+        const a = k * 1.05;
+        ox = Math.cos(a) * MR * 2.1 * (1 + k * 0.12);
+        oy = Math.sin(a) * MR * 2.1 * (1 + k * 0.12);
+      }
+      placed.push({ x: p.x + ox, y: p.y + oy });
+      const q = placed[placed.length - 1];
+      g.beginPath(); g.arc(q.x, q.y, MR, 0, 7);
+      g.fillStyle = m.color; g.fill();
+      g.lineWidth = Math.max(1.2, MR * 0.2); g.strokeStyle = 'rgba(0,0,0,0.55)'; g.stroke();
+      if (m.icon) {
+        g.font = '700 ' + (MR * 1.25).toFixed(1) + 'px system-ui, sans-serif';
+        g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText(m.icon, q.x, q.y + 0.5);
+      }
+    });
 
+    /* نقطة المسار: خطّ متقطّع من السيارة إليها */
+    if (game && game.waypoint && game.car) {
+      const a = toScreen(game.car.pos.x, game.car.pos.z);
+      const b2 = toScreen(game.waypoint.x, game.waypoint.z);
+      g.setLineDash([7, 6]); g.strokeStyle = 'rgba(56,189,248,0.85)'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b2.x, b2.y); g.stroke();
+      g.setLineDash([]);
+      icon(game.waypoint.x, game.waypoint.z, '#38bdf8', '⚑', 10);
+    }
+
+    /* سهم اللاعب */
     if (game && game.car) {
       const p = toScreen(game.car.pos.x, game.car.pos.z);
       g.save();
       g.translate(p.x, p.y); g.rotate(Math.PI - game.car.yaw);
-      g.beginPath(); g.moveTo(0, -12); g.lineTo(8, 10); g.lineTo(0, 5.5); g.lineTo(-8, 10);
+      const AK = K;
+      g.beginPath(); g.moveTo(0, -13 * AK); g.lineTo(8.5 * AK, 11 * AK);
+      g.lineTo(0, 6 * AK); g.lineTo(-8.5 * AK, 11 * AK);
       g.closePath();
-      g.fillStyle = '#ffd23f'; g.strokeStyle = '#000'; g.lineWidth = 2;
+      g.fillStyle = '#ffd23f'; g.strokeStyle = '#000'; g.lineWidth = 2 * AK;
       g.fill(); g.stroke();
       g.restore();
     }
+
+    /* بوصلة ومقياس مسافة */
+    g.save();
+    const CR = 20 * K, CC = 12 * K;
+    g.font = '800 ' + (12 * K).toFixed(1) + 'px system-ui, sans-serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = 'rgba(8,18,28,0.7)';
+    g.beginPath(); g.arc(CR + CC, CR + CC, CR, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.25)'; g.lineWidth = Math.max(1, K); g.stroke();
+    g.fillStyle = '#ff5c5c'; g.fillText('ش', CR + CC, CR + CC - CR * 0.5);
+    g.fillStyle = 'rgba(234,240,248,0.7)'; g.fillText('ج', CR + CC, CR + CC + CR * 0.5);
+
+    let unit = 1000;                                   // متر
+    while (unit * s > W * 0.34) unit /= 2;
+    while (unit * s < W * 0.12) unit *= 2;
+    const barW = unit * s, bx = 22 * K, by = H - 26 * K;
+    g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 4 * K;
+    g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + barW, by); g.stroke();
+    g.strokeStyle = '#eaf0f8'; g.lineWidth = 2 * K;
+    g.beginPath(); g.moveTo(bx, by - 4 * K); g.lineTo(bx, by + 4 * K);
+    g.moveTo(bx, by); g.lineTo(bx + barW, by);
+    g.moveTo(bx + barW, by - 4 * K); g.lineTo(bx + barW, by + 4 * K); g.stroke();
+    g.fillStyle = '#eaf0f8'; g.textAlign = 'center';
+    g.fillText(unit >= 1000 ? (unit / 1000) + ' كم' : unit + ' م', bx + barW / 2, by - 12 * K);
+    g.restore();
     return toScreen;
+  }
+
+  function roundRect(g, x, y, w, h, r) {
+    g.beginPath();
+    g.moveTo(x + r, y);
+    g.arcTo(x + w, y, x + w, y + h, r);
+    g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r);
+    g.arcTo(x, y, x + w, y, r);
+    g.closePath();
   }
   /* يجعل نقطة عالمية في مركز الخريطة الكبيرة */
   function focusBigMap(canvas, view, wx, wz) {
@@ -9154,86 +9606,170 @@ SC.missions = (function () {
   }
 
   /* ------------------------- قائمة المهام المتاحة ----------------------- */
+  /* ------------------------- قائمة المهام المتاحة -----------------------
+     لكل مركبة مهامّها: الدرّاجة للتوصيل السريع والبيتزا، السيارة للسباقات،
+     والكاميون للحمولات الثقيلة بين الجزر (بلا سباقات لأنه بطيء). */
   function generate(seed) {
     const rnd = U.rng(seed || 7788);
     const W = SC.world, N = W.CFG.blocks, P = W.CFG.pitch, H = W.CFG.half;
+    const ISL = W.CFG.islands;
     const CFG_PITCH = P;
     const list = [];
 
-    const spot = () => {
-      const p = W.randomRoadPoint(rnd);
-      return roadNear(p.x, p.z);
+    const spot = (islandId) => {
+      const pt = W.randomRoadPoint(rnd, islandId);
+      const sn = W.snapToRoad(pt.x, pt.z);
+      return { x: sn.x, z: sn.z, island: pt.island };
     };
+    const islName = (id) => (ISL[id] ? ISL[id].name : '');
 
-    /* مهمّات التوصيل */
+    /* ===================== 🏍 الدرّاجة الناريّة ===================== */
+    /* توصيل البيتزا: استلام من المطعم ثم عدّة بيوت واحداً تلو الآخر */
+    const pizzaRuns = [
+      { n: 3, title: 'توصيل بيتزا', desc: 'استلم الطلبات وأوصلها ساخنة قبل أن تبرد', pay: 260 },
+      { n: 4, title: 'ساعة الذروة', desc: 'أربعة طلبات دفعة واحدة — أسرِع!', pay: 300 },
+      { n: 5, title: 'ليلة الجمعة', desc: 'خمسة طلبات في كل أنحاء الحي', pay: 340 },
+      { n: 4, title: 'طلبات المطاعم', desc: 'وجبات جاهزة لأربعة زبائن', pay: 290 }
+    ];
+    pizzaRuns.forEach((r, i) => {
+      const shop = spot(i % ISL.length);
+      const drops = [];
+      for (let k = 0; k < r.n; k++) drops.push(spot(shop.island));
+      let far = 0, prev = shop;
+      drops.forEach((d) => { far += Math.hypot(d.x - prev.x, d.z - prev.z); prev = d; });
+      list.push({
+        id: 'pizza' + i, veh: 'bike', type: 'pizza', title: r.title + ' 🍕',
+        desc: r.desc + ' — ' + islName(shop.island),
+        from: shop, drops, perDrop: r.pay,
+        time: Math.round(far / 17 + 45 + r.n * 12),
+        reward: r.pay * r.n, xp: 24 + r.n * 8, icon: '🍕', color: '#ff8a4c'
+      });
+    });
+    /* توصيل مستندات سريع للدرّاجة */
+    for (let i = 0; i < 2; i++) {
+      const a = spot(), b = spot(a.island);
+      const dist = Math.hypot(a.x - b.x, a.z - b.z);
+      list.push({
+        id: 'rush' + i, veh: 'bike', type: 'delivery',
+        title: i ? 'طرد مستعجل ⚡' : 'توصيل مستندات ⚡',
+        desc: 'الدرّاجة أسرع شيء في المدينة — لا تتأخّر',
+        from: a, to: b, time: Math.max(50, dist / 20 + 22),
+        reward: Math.round(400 + dist * 1.6), xp: 32, icon: '📨', color: '#f4b942'
+      });
+    }
+    /* سباقات الدرّاجات */
+    [{ bx: 2, bz: 2, w: 3, h: 3, name: 'سباق الدرّاجات', laps: 2, reward: 2100, rivals: 3, skill: 0.70 },
+     { bx: 1, bz: N - 5, w: 4, h: 4, name: 'جولة الشوارع الضيّقة', laps: 1, reward: 2800, rivals: 3, skill: 0.80 }
+    ].forEach((r, i) => {
+      const path = circuitPath(r.bx, r.bz, r.w, r.h);
+      list.push({
+        id: 'bikerace' + i, veh: 'bike', type: 'race', title: r.name + ' 🏍',
+        desc: 'تغلّب على المنافسين — ' + r.laps + ' لفّات',
+        path, laps: r.laps, rivals: r.rivals, skill: r.skill, cpEvery: 6,
+        from: path[0], reward: r.reward, xp: 95 + i * 25, icon: '🏁', color: '#22d3ee'
+      });
+    });
+
+    /* ======================== 🚗 السيّارة ========================== */
     const deliveryNames = [
       ['توصيل طرد', 'استلم الطرد ثم أوصله قبل انتهاء الوقت'],
       ['توصيل عاجل', 'شحنة مستعجلة — لا تتأخّر!'],
       ['نقل قطع غيار', 'الورشة تنتظر القطع']
     ];
     for (let i = 0; i < 3; i++) {
-      const a = spot(), b = spot();
+      const a = spot(), b = spot(a.island);
       const dist = Math.hypot(a.x - b.x, a.z - b.z);
       const nm = deliveryNames[i % deliveryNames.length];
       list.push({
-        id: 'deliver' + i, type: 'delivery', title: nm[0], desc: nm[1],
+        id: 'deliver' + i, veh: 'cortina', type: 'delivery', title: nm[0], desc: nm[1],
         from: a, to: b, time: Math.max(60, dist / 15 + 28),
         reward: Math.round(320 + dist * 1.5), xp: 30, icon: '📦', color: '#f4b942'
       });
     }
-
-    /* سباقات زمنية بنقاط تفتيش */
     for (let i = 0; i < 2; i++) {
       const bx = 1 + Math.floor(rnd() * (N - 3)), bz = 1 + Math.floor(rnd() * (N - 3));
       const path = circuitPath(bx - 1, bz - 1, 2, 2);
       const lapLen = 4 * 2 * CFG_PITCH;
       list.push({
-        id: 'trial' + i, type: 'timeTrial', title: 'تحدّي الزمن ' + (i + 1),
+        id: 'trial' + i, veh: 'cortina', type: 'timeTrial', title: 'تحدّي الزمن ' + (i + 1),
         desc: 'اجتَز كل نقاط التفتيش قبل نفاد الوقت',
         path, cpEvery: 4, time: Math.round(lapLen / 17 + 22), laps: 1,
         from: path[0], reward: 900 + i * 350, xp: 55, icon: '⏱', color: '#38bdf8'
       });
     }
-
-    /* سباقات ضد منافسين */
     const q = Math.max(2, Math.floor(N / 4));
-    const raceDefs = [
-      { bx: 1, bz: 1, w: 3, h: 3, name: 'سباق الحي الشمالي', laps: 2, reward: 1500, rivals: 3, skill: 0.62 },
-      { bx: N - 5, bz: N - 5, w: 4, h: 3, name: 'جولة وسط المدينة', laps: 2, reward: 2400, rivals: 3, skill: 0.74 },
-      { bx: q, bz: q, w: N - q * 2, h: N - q * 2, name: 'الحلبة الكبرى', laps: 1, reward: 4200, rivals: 4, skill: 0.85 }
-    ];
-    raceDefs.forEach((r, i) => {
+    [{ bx: 1, bz: 1, w: 3, h: 3, name: 'سباق الحي الشمالي', laps: 2, reward: 1500, rivals: 3, skill: 0.62 },
+     { bx: N - 5, bz: N - 5, w: 4, h: 3, name: 'جولة وسط المدينة', laps: 2, reward: 2400, rivals: 3, skill: 0.74 },
+     { bx: q, bz: q, w: N - q * 2, h: N - q * 2, name: 'الحلبة الكبرى', laps: 1, reward: 4200, rivals: 4, skill: 0.85 }
+    ].forEach((r, i) => {
       const path = circuitPath(r.bx, r.bz, r.w, r.h);
       list.push({
-        id: 'race' + i, type: 'race', title: r.name, desc: 'تغلّب على المنافسين — ' + r.laps + ' لفّات',
+        id: 'race' + i, veh: 'cortina', type: 'race', title: r.name, desc: 'تغلّب على المنافسين — ' + r.laps + ' لفّات',
         path, laps: r.laps, rivals: r.rivals, skill: r.skill, cpEvery: 6,
         from: path[0], reward: r.reward, xp: 90 + i * 30, icon: '🏁', color: '#ff5c5c'
       });
     });
-
-    /* سيارة أجرة: نقل الركّاب — تحتاج ثقة عالية */
     const taxiNames = [
       ['توصيل راكب', 'أوصِل الراكب بهدوء وبلا اصطدامات'],
       ['رحلة إلى المطار', 'راكب مستعجل — قِد بثبات']
     ];
     for (let i = 0; i < 2; i++) {
-      const a = spot(), bdst = spot();
+      const a = spot(), bdst = spot(a.island);
       const dist = Math.hypot(a.x - bdst.x, a.z - bdst.z);
       const nm = taxiNames[i];
       list.push({
-        id: 'taxi' + i, type: 'taxi', title: nm[0], desc: nm[1],
+        id: 'taxi' + i, veh: 'cortina', type: 'taxi', title: nm[0], desc: nm[1],
         from: a, to: bdst, time: Math.max(90, dist / 12 + 45), minRep: 45,
         reward: Math.round(420 + dist * 1.8), xp: 45, icon: '🚕', color: '#f2c14e'
       });
     }
-
-    /* جمع الطرود */
-    for (let i = 0; i < 1; i++) {
+    {
       const pts = [];
-      for (let k = 0; k < 8; k++) pts.push(spot());
+      for (let k = 0; k < 8; k++) pts.push(spot(0));
       list.push({
-        id: 'collect' + i, type: 'collect', title: 'جمع الصناديق', desc: 'اجمع 8 صناديق منتشرة في المدينة',
+        id: 'collect0', veh: 'cortina', type: 'collect', title: 'جمع الصناديق',
+        desc: 'اجمع 8 صناديق منتشرة في المدينة',
         points: pts, time: 150, from: pts[0], reward: 1400, xp: 70, icon: '🎯', color: '#a78bfa'
+      });
+    }
+
+    /* ====================== 🚚 الكاميون (البيت المتنقّل) ================
+       حمولات ثقيلة بين الجزر: مسافات طويلة وأرباح كبيرة، ولا سباقات. */
+    const loads = [
+      { name: 'نقل الزرابي', cargo: 'زرابي وسجّاد', icon: '🧶', rate: 2.1 },
+      { name: 'نقل أثاث', cargo: 'أثاث منزل كامل', icon: '🛋', rate: 1.9 },
+      { name: 'شحنة حاويات', cargo: 'حاويات من الميناء', icon: '🚢', rate: 2.4 },
+      { name: 'مواد بناء', cargo: 'إسمنت وحديد', icon: '🧱', rate: 2.0 },
+      { name: 'شحنة مبرّدة', cargo: 'بضائع مبرّدة', icon: '🧊', rate: 2.6 },
+      { name: 'نقل معدّات', cargo: 'معدّات ثقيلة', icon: '⚙️', rate: 2.2 }
+    ];
+    loads.forEach((L, i) => {
+      const fromIsl = i % ISL.length;
+      let toIsl = (fromIsl + 1 + Math.floor(rnd() * (ISL.length - 1))) % ISL.length;
+      if (toIsl === fromIsl) toIsl = (fromIsl + 1) % ISL.length;
+      const a = spot(fromIsl), b = spot(toIsl);
+      const dist = Math.hypot(a.x - b.x, a.z - b.z);
+      list.push({
+        id: 'cargo' + i, veh: 'van', type: 'cargo', title: L.name + ' ' + L.icon,
+        desc: L.cargo + ' — من ' + islName(fromIsl) + ' إلى ' + islName(toIsl) +
+              ' عبر الجسر البحري. قِد بثبات حتى لا تتلف الحمولة.',
+        from: a, to: b, cargoName: L.cargo,
+        time: Math.round(dist / 9 + 140),
+        reward: Math.round(1100 + dist * L.rate), xp: 80 + i * 12,
+        icon: L.icon, color: '#7fe8c0'
+      });
+    });
+    /* توصيل محلّي قصير للكاميون داخل الجزيرة نفسها */
+    for (let i = 0; i < 2; i++) {
+      const a = spot(i), b = spot(i);
+      const dist = Math.hypot(a.x - b.x, a.z - b.z);
+      list.push({
+        id: 'haul' + i, veh: 'van', type: 'cargo',
+        title: i ? 'نقل بضائع المتجر 📦' : 'تفريغ المستودع 🏭',
+        desc: 'حمولة داخل ' + islName(i) + ' — قِد بهدوء',
+        from: a, to: b, cargoName: 'صناديق بضائع',
+        time: Math.round(dist / 9 + 90),
+        reward: Math.round(700 + dist * 1.8), xp: 55, icon: '📦', color: '#7fe8c0'
       });
     }
     return list;
@@ -9267,6 +9803,15 @@ SC.missions = (function () {
     if (def.type === 'delivery') {
       state.phase = 'pickup';
       addCheckpoint(def.from.x, def.from.z, '#f4b942', 7);
+    } else if (def.type === 'pizza') {
+      state.phase = 'pickup';
+      state.dropIdx = 0;
+      state.earnedSoFar = 0;
+      addCheckpoint(def.from.x, def.from.z, '#ff8a4c', 7);
+    } else if (def.type === 'cargo') {
+      state.phase = 'pickup';
+      state.cargo = 1;                       // سلامة الحمولة
+      addCheckpoint(def.from.x, def.from.z, '#7fe8c0', 8);
     } else if (def.type === 'taxi') {
       state.phase = 'pickup';
       state.comfort = 1;
@@ -9313,7 +9858,9 @@ SC.missions = (function () {
     state.checkpoints.forEach((c, i) => {
       if (c.done) return;
       const def = state.active;
-      const isNext = def && (def.type === 'delivery' || def.type === 'collect' ? true : i === state.cpIndex % state.checkpoints.length);
+      const seq = def && (def.type === 'delivery' || def.type === 'collect' ||
+                          def.type === 'pizza' || def.type === 'cargo' || def.type === 'taxi');
+      const isNext = seq ? true : i === state.cpIndex % state.checkpoints.length;
       list.push({ x: c.x, z: c.z, color: isNext ? '#ffd23f' : c.color, size: isNext ? 5.5 : 3.4, icon: '' });
     });
     SC.hud.setMarkers(list);
@@ -9391,6 +9938,70 @@ SC.missions = (function () {
         text: state.phase === 'pickup' ? 'اذهب إلى نقطة الاستلام' : 'أوصل الشحنة إلى الوجهة',
         meta: '<span>' + U.distText(d) + '</span> · <b class="' + (state.timeLeft < 15 ? 'red' : '') + '">' + U.clock(state.timeLeft) + '</b>',
         warn: state.timeLeft < 15
+      });
+    } else if (def.type === 'pizza') {
+      const cp = state.checkpoints[0];
+      if (cp && near(cp)) {
+        ctx.scene.remove(cp.mesh);
+        state.checkpoints.length = 0;
+        if (state.phase === 'pickup') {
+          state.phase = 'drops';
+          SC.audio.good();
+          SC.hud.toast('استلمت ' + def.drops.length + ' طلبات — انطلق!', 'ok', 2200);
+        } else {
+          state.dropIdx++;
+          state.earnedSoFar += def.perDrop;
+          ctx.addMoney && ctx.addMoney(def.perDrop);
+          SC.audio.check();
+          SC.hud.toast('🍕 تسليم ' + state.dropIdx + '/' + def.drops.length +
+                       ' · +' + U.money(def.perDrop), 'ok', 1500);
+        }
+        if (state.dropIdx >= def.drops.length) return finish(true);
+        const d = def.drops[state.dropIdx];
+        addCheckpoint(d.x, d.z, '#7fe8c0', 6.5);
+        updateHudMarkers();
+      }
+      const target = state.checkpoints[0];
+      const dd = target ? Math.hypot(target.x - px, target.z - pz) : 0;
+      SC.hud.setObjective({
+        title: def.title,
+        text: state.phase === 'pickup' ? 'اذهب إلى المطعم واستلم الطلبات'
+                                       : 'أوصل الطلب رقم ' + (state.dropIdx + 1),
+        meta: '<span>' + U.distText(dd) + '</span> · <span>' + state.dropIdx + '/' +
+              def.drops.length + '</span> · <b class="' + (state.timeLeft < 20 ? 'red' : '') + '">' +
+              U.clock(state.timeLeft) + '</b>',
+        warn: state.timeLeft < 20
+      });
+    } else if (def.type === 'cargo') {
+      const cp = state.checkpoints[0];
+      const slow = car.kmh < 22;
+      if (cp && near(cp) && (state.phase === 'pickup' ? slow : car.kmh < 16)) {
+        if (state.phase === 'pickup') {
+          state.phase = 'haul';
+          ctx.scene.remove(cp.mesh);
+          state.checkpoints.length = 0;
+          addCheckpoint(def.to.x, def.to.z, '#7fe8c0', 8);
+          SC.audio.good();
+          SC.hud.toast('حُمّلت: ' + def.cargoName + ' — انطلق بثبات', 'ok', 2600);
+          updateHudMarkers();
+        } else {
+          return finish(true);
+        }
+      }
+      /* كل ارتطام يتلف جزءاً من الحمولة */
+      if (state.phase === 'haul' && car.impact > 0.22) {
+        state.cargo = Math.max(0, state.cargo - car.impact * dt * 2.4);
+      }
+      const target = state.checkpoints[0];
+      const dd = target ? Math.hypot(target.x - px, target.z - pz) : 0;
+      const pct = Math.round((state.cargo == null ? 1 : state.cargo) * 100);
+      SC.hud.setObjective({
+        title: def.title,
+        text: state.phase === 'pickup' ? 'توقّف عند المستودع لتحميل البضاعة'
+                                       : 'أوصل الحمولة وتوقّف عند الوجهة',
+        meta: '<span>' + U.distText(dd) + '</span> · <span>الحمولة ' + pct + '٪</span> · <b class="' +
+              (state.timeLeft < 30 ? 'red' : '') + '">' + U.clock(state.timeLeft) + '</b>',
+        warn: state.timeLeft < 30 || pct < 45
       });
     } else if (def.type === 'taxi') {
       const cp = state.checkpoints[0];
@@ -9497,7 +10108,18 @@ SC.missions = (function () {
         money = Math.round(money * (0.55 + cm * 0.65));
         result_comfort = Math.round(cm * 100);
       }
-      if (def.time && state.timeLeft > 0) money += Math.round(state.timeLeft * 6);
+      if (def.type === 'cargo') {
+        const cg = U.clamp(state.cargo == null ? 1 : state.cargo, 0, 1);
+        money = Math.round(money * (0.45 + cg * 0.75));
+        result_comfort = Math.round(cg * 100);
+      }
+      if (def.type === 'pizza') {
+        /* أُجرة كل طلب دُفعت فور تسليمه، فتبقى مكافأة الإتمام فقط */
+        money = Math.round(def.perDrop * 1.2);
+      }
+      if (def.time && state.timeLeft > 0) {
+        money += Math.min(Math.round(state.timeLeft * 6), Math.round(def.reward * 0.3));
+      }
     }
     const result = {
       def, success, reason, money, xp, pos, comfort: result_comfort,
@@ -9544,7 +10166,10 @@ SC.ui = (function () {
     /* أزرار الشريط العلوي */
     SC.input.bindTap(dom.btnMissions, () => open('missions'));
     SC.input.bindTap(dom.btnShop, () => open('shop'));
-    SC.input.bindTap(dom.btnMap, () => open('map'));
+    SC.input.bindTap(dom.btnMap, () => { mapView.mode = 'world'; open('map'); });
+    /* الضغط على الخريطة المصغّرة يفتح نفسها بحجم كبير على موقع اللاعب */
+    const mini = document.querySelector('.minimap');
+    if (mini) SC.input.bindTap(mini, () => { mapView.mode = 'near'; open('map'); });
     SC.input.bindTap(dom.btnSettings, () => open('settings'));
     SC.input.bindTap(dom.btnPause, () => open('pause'));
     SC.input.bindTap(dom.btnOnline, () => open('online'));
@@ -9578,7 +10203,11 @@ SC.ui = (function () {
     if (name === 'online') buildOnline();
     if (name === 'shop') buildShop();
     if (name === 'missions') buildMissions();
-    if (name === 'map') { if (!mapView.touched) fitMap(); drawMap(); }
+    if (name === 'map') {
+      if (mapView.mode === 'near') { mapView.zoom = 1.35; centerMap(); mapView.mode = null; mapView.touched = true; }
+      else if (mapView.mode === 'world' || !mapView.touched) { fitMap(); mapView.mode = null; }
+      drawMap();
+    }
     if (name === 'settings') syncSettings();
     el.classList.add('show');
     dom.hud.classList.add('dim');
@@ -9863,11 +10492,44 @@ SC.ui = (function () {
   }
 
   /* ------------------------------ المهام -------------------------------- */
+  /* شاشة المهام: مقسّمة حسب المركبة — لكل مركبة عملها الخاص */
+  const VEH_TABS = [
+    { id: 'cortina', label: '🚗 السيارة',  hint: 'سباقات وتحدّيات وتوصيل وتاكسي' },
+    { id: 'bike', label: '🏍 الدرّاجة', hint: 'توصيل بيتزا سريع وسباقات خفيفة' },
+    { id: 'van',  label: '🚚 الكاميون', hint: 'حمولات ثقيلة بين الجزر — أرباح كبيرة، بلا سباقات' }
+  ];
+  let missionTab = null;
+
   function buildMissions() {
     const wrap = dom.missionList;
     wrap.innerHTML = '';
     const s = SC.game.save;
-    SC.game.G.missions.forEach((def) => {
+    const cur = s.current;
+    if (!missionTab) missionTab = cur;
+
+    /* أزرار التبديل بين مركبات المهام */
+    const tabs = U.el('div', 'mtabs');
+    VEH_TABS.forEach((t) => {
+      const owned = s.owned.indexOf(t.id) >= 0;
+      const b = U.el('button', 'mtab' + (missionTab === t.id ? ' on' : '') + (owned ? '' : ' locked'),
+                     t.label + (owned ? '' : ' 🔒'));
+      SC.input.bindTap(b, () => { missionTab = t.id; buildMissions(); });
+      tabs.appendChild(b);
+    });
+    wrap.appendChild(tabs);
+
+    const tabDef = VEH_TABS.filter((t) => t.id === missionTab)[0] || VEH_TABS[0];
+    const owned = s.owned.indexOf(missionTab) >= 0;
+    const note = U.el('div', 'mnote',
+      tabDef.hint + (owned
+        ? (cur === missionTab ? '' : ' — بدّل إلى هذه المركبة من المتجر لتبدأ')
+        : ' — اشترِ هذه المركبة من المتجر أولاً'));
+    wrap.appendChild(note);
+
+    const list = SC.game.G.missions.filter((m) => (m.veh || 'cortina') === missionTab);
+    if (!list.length) { wrap.appendChild(U.el('div', 'mnote', 'لا توجد مهام لهذه المركبة بعد')); return; }
+
+    list.forEach((def) => {
       const card = U.el('div', 'mission-card');
       const best = s.best[def.id];
       const d = Math.hypot(def.from.x - SC.game.car.pos.x, def.from.z - SC.game.car.pos.z);
@@ -9881,11 +10543,26 @@ SC.ui = (function () {
         '</div>' +
         '<div class="m-actions"></div>';
       const act = card.querySelector('.m-actions');
-      const go = U.el('button', 'btn primary', 'ابدأ');
-      SC.input.bindTap(go, () => { hideAll(true); SC.game.startMission(def); });
+      if (cur === missionTab) {
+        const go = U.el('button', 'btn primary', 'ابدأ');
+        SC.input.bindTap(go, () => { hideAll(true); SC.game.startMission(def); });
+        act.appendChild(go);
+      } else if (owned) {
+        const sw = U.el('button', 'btn primary', 'بدّل وابدأ');
+        SC.input.bindTap(sw, () => {
+          SC.game.spawnPlayer(missionTab, true);
+          hideAll(true);
+          SC.game.startMission(def);
+        });
+        act.appendChild(sw);
+      } else {
+        const buy = U.el('button', 'btn ghost', 'إلى المتجر');
+        SC.input.bindTap(buy, () => open('shop'));
+        act.appendChild(buy);
+      }
       const mark = U.el('button', 'btn ghost tiny', 'على الخريطة');
       SC.input.bindTap(mark, () => { SC.game.setWaypoint({ x: def.from.x, z: def.from.z }); hideAll(); });
-      act.appendChild(go); act.appendChild(mark);
+      act.appendChild(mark);
       wrap.appendChild(card);
     });
   }
@@ -9897,8 +10574,9 @@ SC.ui = (function () {
 
     const resize = () => {
       const r = mapCanvas.getBoundingClientRect();
-      mapCanvas.width = Math.max(320, r.width);
-      mapCanvas.height = Math.max(240, r.height);
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      mapCanvas.width = Math.max(320, Math.round(r.width * dpr));
+      mapCanvas.height = Math.max(240, Math.round(r.height * dpr));
       if (current === 'map') drawMap();
     };
     window.addEventListener('resize', resize);
@@ -9924,11 +10602,17 @@ SC.ui = (function () {
         const p = SC.hud.screenToWorld(mapCanvas,
           mapView, (e.clientX - r.left) * mapCanvas.width / r.width,
           (e.clientY - r.top) * mapCanvas.height / r.height);
-        if (SC.world.inBounds(p.x, p.z)) {
-          SC.game.setWaypoint(p);
-          SC.audio.ui();
-          drawMap();
+        /* أي مكان على الخريطة صالح: لو ضغطتَ على البحر نأخذك إلى أقرب طريق */
+        let dest = p, snapped = false;
+        if (!SC.world.inBounds(p.x, p.z) && !SC.world.bridgeAt(p.x, p.z)) {
+          const sn = SC.world.snapToRoad(p.x, p.z);
+          dest = { x: sn.x, z: sn.z };
+          snapped = true;
         }
+        SC.game.setWaypoint(dest);
+        SC.audio.ui();
+        if (snapped) SC.hud.toast('البحر ليس طريقاً — اخترنا أقرب نقطة على اليابسة', '', 2200);
+        drawMap();
       }
     });
     mapCanvas.addEventListener('wheel', (e) => {
@@ -9938,7 +10622,8 @@ SC.ui = (function () {
       drawMap();
     }, { passive: false });
 
-    SC.input.bindTap(dom.mapCenter, () => { mapView.touched = true; mapView.zoom = 1.1; centerMap(); drawMap(); });
+    SC.input.bindTap(dom.mapCenter, () => { mapView.touched = true; mapView.zoom = 1.35; centerMap(); drawMap(); });
+    if (dom.mapWorld) SC.input.bindTap(dom.mapWorld, () => { mapView.touched = false; fitMap(); drawMap(); });
     SC.input.bindTap(dom.mapClear, () => { SC.game.setWaypoint(null); drawMap(); });
     SC.input.bindTap(dom.mapIn, () => { mapView.zoom = U.clamp(mapView.zoom * 1.25, 0.22, 2.6); drawMap(); });
     SC.input.bindTap(dom.mapOut, () => { mapView.zoom = U.clamp(mapView.zoom / 1.25, 0.22, 2.6); drawMap(); });
@@ -10014,6 +10699,9 @@ SC.ui = (function () {
     row('وقت اليوم', seg('tod', [['day', 'نهار'], ['sunset', 'غروب'], ['night', 'ليل']],
       null, (v) => SC.game.setTimeOfDay(v)));
 
+    row('الفصل', seg('season', [['summer', 'صيف ☀️'], ['winter', 'شتاء ❄️']],
+      null, (v) => SC.game.setSeason(v)), 'الشتاء يكسو المدينة بالثلج');
+
     row('جودة الرسوم', seg('quality', [['low', 'خفيفة'], ['medium', 'متوسطة'], ['high', 'عالية']],
       null, (v) => {
         SC.hud.toast('سيُعاد تحميل اللعبة لتطبيق الجودة…', '', 1800);
@@ -10080,6 +10768,7 @@ SC.ui = (function () {
     setGroup('steerMode', s.steerMode);
     setGroup('cam', s.camera);
     setGroup('tod', s.timeOfDay);
+    setGroup('season', s.season || 'summer');
     setGroup('quality', s.quality === 'auto' ? (SC.quality.name) : s.quality);
     setGroup('traffic', s.traffic ? '1' : '0');
     setGroup('rotate', s.mapRotate ? '1' : '0');
@@ -10164,7 +10853,7 @@ SC.game = (function () {
     quality: 'auto', shadows: true, steerMode: 'buttons', steerSense: 1.0,
     invertTilt: false, sound: true, volume: 0.85, music: 0.45, haptics: true, assist: true,
     lookSense: 1.0, peds: true, micOn: false, autoScale: true,
-    mapRotate: true, timeOfDay: 'day', traffic: true, camera: 'chase'
+    mapRotate: true, timeOfDay: 'day', season: 'summer', traffic: true, camera: 'chase'
   };
   SC.settings = settings;
 
@@ -10278,6 +10967,7 @@ SC.game = (function () {
     if (dom.loadText) dom.loadText.textContent = 'بناء المدينة…';
     await new Promise((r) => setTimeout(r, 30));
     SC.world.build(scene, renderer, q);
+    if (settings.season === 'winter') SC.world.setSeason('winter');
     SC.world.setTimeOfDay(settings.timeOfDay);
     renderer.toneMappingExposure = SC.world.state.exposure;
     scene.fog.far = Math.min(scene.fog.far, q.far);
@@ -10304,7 +10994,7 @@ SC.game = (function () {
     G.missions = SC.missions.generate(4242);
     SC.missions.init({
       scene, get car() { return G.car; },
-      addRival, clearRivals, setRivalsActive, racePosition, setPassenger,
+      addRival, clearRivals, setRivalsActive, racePosition, setPassenger, addMoney,
       onFinish: onMissionFinish, onStart: () => {}
     });
     buildMissionMarkers();
@@ -10575,12 +11265,15 @@ SC.game = (function () {
      نفحص الشعاع من المركبة إلى الكاميرا، ونقصّر المسافة عند أول جدار،
      ثم نُخرج الكاميرا من أي صندوق تكون بداخله (يحدث عند الاصطدام بالجدار). */
   const CAM_PAD = 0.95;              // هامش أكبر من مستوى القصّ الأمامي
+  /* الكاميرا تبقى دائماً على الخطّ الواصل بينها وبين المركبة.
+     الدفع الجانبي القديم كان يزحلقها حول المبنى فتصير أمام السيارة
+     وكأنّ المنظور انقلب إلى الوراء. */
   function clampCamera(from, want) {
     const dx = want.x - from.x, dz = want.z - from.z;
     const len = Math.hypot(dx, dz);
     if (len < 0.2) return want;
     const ux = dx / len, uz = dz / len;
-    let hit = len;
+    let hit = len, hitTop = 0;
     const list = SC.world.queryColliders(from.x + ux * len * 0.5, from.z + uz * len * 0.5, len * 0.5 + 6);
     for (const c of list) {
       if (c.h && c.h < 1.2) continue;
@@ -10589,9 +11282,9 @@ SC.game = (function () {
       const slabs = [[from.x, ux, c.minX - CAM_PAD, c.maxX + CAM_PAD],
                      [from.z, uz, c.minZ - CAM_PAD, c.maxZ + CAM_PAD]];
       let ok = true;
-      for (const [p, d, lo, hi] of slabs) {
-        if (Math.abs(d) < 1e-6) { if (p < lo || p > hi) { ok = false; break; } continue; }
-        let ta = (lo - p) / d, tb = (hi - p) / d;
+      for (const [pp, d, lo, hi] of slabs) {
+        if (Math.abs(d) < 1e-6) { if (pp < lo || pp > hi) { ok = false; break; } continue; }
+        let ta = (lo - pp) / d, tb = (hi - pp) / d;
         if (ta > tb) { const tmp = ta; ta = tb; tb = tmp; }
         t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
         if (t0 > t1) { ok = false; break; }
@@ -10599,20 +11292,40 @@ SC.game = (function () {
       if (!ok) continue;
       if (t1 <= 0.02) continue;                        // الصندوق خلف المركبة
       const t = Math.max(0, t0);
-      if (t < hit) hit = t;
+      if (t < hit) { hit = t; hitTop = c.h || 8; }
     }
+    let d = len;
     if (hit < len) {
-      const d = Math.max(1.4, hit - 0.35);
+      d = Math.max(1.5, hit - 0.45);
+      want.y = Math.max(want.y, from.y + 1.2 + (len - d) * 0.4);
+    }
+    /* إن بقيت داخل جدار، تراجَع على نفس الخطّ — ولا تنزلق إلى الجانب أبداً */
+    for (let k = 0; k < 8; k++) {
       want.x = from.x + ux * d;
       want.z = from.z + uz * d;
-      want.y = Math.max(want.y, from.y + 1.2 + (len - d) * 0.35);   // ارفعها فوق العائق
+      if (!insideWall(want)) break;
+      if (d <= 1.5) { want.y = Math.max(want.y, (hitTop || 8) + 1.6); break; }
+      d = Math.max(1.5, d - Math.max(0.9, d * 0.22));
     }
-    pushOutOfWalls(want);
+    want.x = from.x + ux * d;
+    want.z = from.z + uz * d;
     /* أثناء الغرق نسمح للكاميرا بالنزول تحت سطح البحر */
     const sinking = G.car && G.car.sink > 0.4;
     const floor = sinking ? SC.world.CFG.bedY + 1.5 : SC.world.groundHeight(want.x, want.z) + 0.6;
     want.y = Math.max(want.y, floor);
     return want;
+  }
+
+  /* هل النقطة داخل مبنى؟ */
+  function insideWall(p) {
+    const list = SC.world.queryColliders(p.x, p.z, 2.0);
+    for (const c of list) {
+      if (c.h && c.h < 1.2) continue;
+      if (p.y > (c.h || 8) + 0.8) continue;
+      if (p.x > c.minX - CAM_PAD && p.x < c.maxX + CAM_PAD &&
+          p.z > c.minZ - CAM_PAD && p.z < c.maxZ + CAM_PAD) return true;
+    }
+    return false;
   }
 
   /* إخراج نقطة من داخل أي مبنى إلى أقرب حافة */
@@ -10726,7 +11439,7 @@ SC.game = (function () {
             { life: 1.2, size: 1.1, grow: 1.6, alpha: 0.55, color: [0.72, 0.86, 0.95] });
         }
       }
-      if (G.drowning > 6.5) {
+      if (G.drowning > 5.5) {
         G.drowning = null; G.drownSplash = false; car.sink = 0;
         const fine = Math.min(save.money, 250);
         if (fine > 0) addMoney(-fine);
@@ -10948,6 +11661,13 @@ SC.game = (function () {
   }
 
   /* ---------------------------- أوامر عامة ------------------------------ */
+  function setSeason(v) {
+    settings.season = v;
+    SC.world.setSeason(v);
+    SC.audio && SC.audio.setSeason && SC.audio.setSeason(v);
+    persist();
+    SC.hud.toast(v === 'winter' ? '❄️ حلّ الشتاء' : '☀️ عاد الصيف', '', 1600);
+  }
   function setTimeOfDay(name) {
     settings.timeOfDay = name;
     SC.world.setTimeOfDay(name);
@@ -11011,7 +11731,7 @@ SC.game = (function () {
   }
 
   return {
-    G, save, settings, init, frame, step, start, spawnPlayer, respawn, startMission,
+    G, save, settings, init, frame, step, start, spawnPlayer, respawn, startMission, setSeason,
     setCamera, cycleCamera, CAM_MODES, CAM_NAMES,
     setTimeOfDay, setTraffic, setQuality, setWaypoint, togglePause, persist, setPeds, startOnlineRace,
     addMoney, addXp, addRep, repMult, setPassenger, shake, snapCamera,
@@ -11358,7 +12078,7 @@ window.SC_MODEL_DATA = {
     screenMissions: $('screenMissions'), screenSettings: $('screenSettings'),
     screenResult: $('screenResult'), screenPause: $('screenPause'),
     shopList: $('shopList'), missionList: $('missionList'), settingsList: $('settingsList'),
-    mapCanvas: $('mapCanvas'), mapInfo: $('mapInfo'), mapCenter: $('mapCenter'),
+    mapCanvas: $('mapCanvas'), mapInfo: $('mapInfo'), mapCenter: $('mapCenter'), mapWorld: $('mapWorld'),
     mapClear: $('mapClear'), mapIn: $('mapIn'), mapOut: $('mapOut'),
     resultTitle: $('resultTitle'), resultSub: $('resultSub'), resultRows: $('resultRows'),
     loading: $('loading')

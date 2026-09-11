@@ -25,7 +25,10 @@ SC.ui = (function () {
     /* أزرار الشريط العلوي */
     SC.input.bindTap(dom.btnMissions, () => open('missions'));
     SC.input.bindTap(dom.btnShop, () => open('shop'));
-    SC.input.bindTap(dom.btnMap, () => open('map'));
+    SC.input.bindTap(dom.btnMap, () => { mapView.mode = 'world'; open('map'); });
+    /* الضغط على الخريطة المصغّرة يفتح نفسها بحجم كبير على موقع اللاعب */
+    const mini = document.querySelector('.minimap');
+    if (mini) SC.input.bindTap(mini, () => { mapView.mode = 'near'; open('map'); });
     SC.input.bindTap(dom.btnSettings, () => open('settings'));
     SC.input.bindTap(dom.btnPause, () => open('pause'));
     SC.input.bindTap(dom.btnOnline, () => open('online'));
@@ -59,7 +62,11 @@ SC.ui = (function () {
     if (name === 'online') buildOnline();
     if (name === 'shop') buildShop();
     if (name === 'missions') buildMissions();
-    if (name === 'map') { if (!mapView.touched) fitMap(); drawMap(); }
+    if (name === 'map') {
+      if (mapView.mode === 'near') { mapView.zoom = 1.35; centerMap(); mapView.mode = null; mapView.touched = true; }
+      else if (mapView.mode === 'world' || !mapView.touched) { fitMap(); mapView.mode = null; }
+      drawMap();
+    }
     if (name === 'settings') syncSettings();
     el.classList.add('show');
     dom.hud.classList.add('dim');
@@ -344,11 +351,44 @@ SC.ui = (function () {
   }
 
   /* ------------------------------ المهام -------------------------------- */
+  /* شاشة المهام: مقسّمة حسب المركبة — لكل مركبة عملها الخاص */
+  const VEH_TABS = [
+    { id: 'cortina', label: '🚗 السيارة',  hint: 'سباقات وتحدّيات وتوصيل وتاكسي' },
+    { id: 'bike', label: '🏍 الدرّاجة', hint: 'توصيل بيتزا سريع وسباقات خفيفة' },
+    { id: 'van',  label: '🚚 الكاميون', hint: 'حمولات ثقيلة بين الجزر — أرباح كبيرة، بلا سباقات' }
+  ];
+  let missionTab = null;
+
   function buildMissions() {
     const wrap = dom.missionList;
     wrap.innerHTML = '';
     const s = SC.game.save;
-    SC.game.G.missions.forEach((def) => {
+    const cur = s.current;
+    if (!missionTab) missionTab = cur;
+
+    /* أزرار التبديل بين مركبات المهام */
+    const tabs = U.el('div', 'mtabs');
+    VEH_TABS.forEach((t) => {
+      const owned = s.owned.indexOf(t.id) >= 0;
+      const b = U.el('button', 'mtab' + (missionTab === t.id ? ' on' : '') + (owned ? '' : ' locked'),
+                     t.label + (owned ? '' : ' 🔒'));
+      SC.input.bindTap(b, () => { missionTab = t.id; buildMissions(); });
+      tabs.appendChild(b);
+    });
+    wrap.appendChild(tabs);
+
+    const tabDef = VEH_TABS.filter((t) => t.id === missionTab)[0] || VEH_TABS[0];
+    const owned = s.owned.indexOf(missionTab) >= 0;
+    const note = U.el('div', 'mnote',
+      tabDef.hint + (owned
+        ? (cur === missionTab ? '' : ' — بدّل إلى هذه المركبة من المتجر لتبدأ')
+        : ' — اشترِ هذه المركبة من المتجر أولاً'));
+    wrap.appendChild(note);
+
+    const list = SC.game.G.missions.filter((m) => (m.veh || 'cortina') === missionTab);
+    if (!list.length) { wrap.appendChild(U.el('div', 'mnote', 'لا توجد مهام لهذه المركبة بعد')); return; }
+
+    list.forEach((def) => {
       const card = U.el('div', 'mission-card');
       const best = s.best[def.id];
       const d = Math.hypot(def.from.x - SC.game.car.pos.x, def.from.z - SC.game.car.pos.z);
@@ -362,11 +402,26 @@ SC.ui = (function () {
         '</div>' +
         '<div class="m-actions"></div>';
       const act = card.querySelector('.m-actions');
-      const go = U.el('button', 'btn primary', 'ابدأ');
-      SC.input.bindTap(go, () => { hideAll(true); SC.game.startMission(def); });
+      if (cur === missionTab) {
+        const go = U.el('button', 'btn primary', 'ابدأ');
+        SC.input.bindTap(go, () => { hideAll(true); SC.game.startMission(def); });
+        act.appendChild(go);
+      } else if (owned) {
+        const sw = U.el('button', 'btn primary', 'بدّل وابدأ');
+        SC.input.bindTap(sw, () => {
+          SC.game.spawnPlayer(missionTab, true);
+          hideAll(true);
+          SC.game.startMission(def);
+        });
+        act.appendChild(sw);
+      } else {
+        const buy = U.el('button', 'btn ghost', 'إلى المتجر');
+        SC.input.bindTap(buy, () => open('shop'));
+        act.appendChild(buy);
+      }
       const mark = U.el('button', 'btn ghost tiny', 'على الخريطة');
       SC.input.bindTap(mark, () => { SC.game.setWaypoint({ x: def.from.x, z: def.from.z }); hideAll(); });
-      act.appendChild(go); act.appendChild(mark);
+      act.appendChild(mark);
       wrap.appendChild(card);
     });
   }
@@ -378,8 +433,9 @@ SC.ui = (function () {
 
     const resize = () => {
       const r = mapCanvas.getBoundingClientRect();
-      mapCanvas.width = Math.max(320, r.width);
-      mapCanvas.height = Math.max(240, r.height);
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      mapCanvas.width = Math.max(320, Math.round(r.width * dpr));
+      mapCanvas.height = Math.max(240, Math.round(r.height * dpr));
       if (current === 'map') drawMap();
     };
     window.addEventListener('resize', resize);
@@ -405,11 +461,17 @@ SC.ui = (function () {
         const p = SC.hud.screenToWorld(mapCanvas,
           mapView, (e.clientX - r.left) * mapCanvas.width / r.width,
           (e.clientY - r.top) * mapCanvas.height / r.height);
-        if (SC.world.inBounds(p.x, p.z)) {
-          SC.game.setWaypoint(p);
-          SC.audio.ui();
-          drawMap();
+        /* أي مكان على الخريطة صالح: لو ضغطتَ على البحر نأخذك إلى أقرب طريق */
+        let dest = p, snapped = false;
+        if (!SC.world.inBounds(p.x, p.z) && !SC.world.bridgeAt(p.x, p.z)) {
+          const sn = SC.world.snapToRoad(p.x, p.z);
+          dest = { x: sn.x, z: sn.z };
+          snapped = true;
         }
+        SC.game.setWaypoint(dest);
+        SC.audio.ui();
+        if (snapped) SC.hud.toast('البحر ليس طريقاً — اخترنا أقرب نقطة على اليابسة', '', 2200);
+        drawMap();
       }
     });
     mapCanvas.addEventListener('wheel', (e) => {
@@ -419,7 +481,8 @@ SC.ui = (function () {
       drawMap();
     }, { passive: false });
 
-    SC.input.bindTap(dom.mapCenter, () => { mapView.touched = true; mapView.zoom = 1.1; centerMap(); drawMap(); });
+    SC.input.bindTap(dom.mapCenter, () => { mapView.touched = true; mapView.zoom = 1.35; centerMap(); drawMap(); });
+    if (dom.mapWorld) SC.input.bindTap(dom.mapWorld, () => { mapView.touched = false; fitMap(); drawMap(); });
     SC.input.bindTap(dom.mapClear, () => { SC.game.setWaypoint(null); drawMap(); });
     SC.input.bindTap(dom.mapIn, () => { mapView.zoom = U.clamp(mapView.zoom * 1.25, 0.22, 2.6); drawMap(); });
     SC.input.bindTap(dom.mapOut, () => { mapView.zoom = U.clamp(mapView.zoom / 1.25, 0.22, 2.6); drawMap(); });
@@ -495,6 +558,9 @@ SC.ui = (function () {
     row('وقت اليوم', seg('tod', [['day', 'نهار'], ['sunset', 'غروب'], ['night', 'ليل']],
       null, (v) => SC.game.setTimeOfDay(v)));
 
+    row('الفصل', seg('season', [['summer', 'صيف ☀️'], ['winter', 'شتاء ❄️']],
+      null, (v) => SC.game.setSeason(v)), 'الشتاء يكسو المدينة بالثلج');
+
     row('جودة الرسوم', seg('quality', [['low', 'خفيفة'], ['medium', 'متوسطة'], ['high', 'عالية']],
       null, (v) => {
         SC.hud.toast('سيُعاد تحميل اللعبة لتطبيق الجودة…', '', 1800);
@@ -561,6 +627,7 @@ SC.ui = (function () {
     setGroup('steerMode', s.steerMode);
     setGroup('cam', s.camera);
     setGroup('tod', s.timeOfDay);
+    setGroup('season', s.season || 'summer');
     setGroup('quality', s.quality === 'auto' ? (SC.quality.name) : s.quality);
     setGroup('traffic', s.traffic ? '1' : '0');
     setGroup('rotate', s.mapRotate ? '1' : '0');

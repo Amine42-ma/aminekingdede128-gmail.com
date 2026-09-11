@@ -101,6 +101,19 @@ SC.character = (function () {
       new THREE.MeshStandardMaterial({ color: 0xffd23f, roughness: 0.35, metalness: 0.6 }));
     badge.position.set(0.075, 0.34, 0.126);
     torso.add(badge);
+    /* جيبان على الصدر ورقعة على الكتف */
+    [-1, 1].forEach((sx) => {
+      const pocket = new THREE.Mesh(geo('pocket', () => new THREE.BoxGeometry(0.072, 0.062, 0.014)), M.jacket2);
+      pocket.position.set(sx * 0.088, 0.205, 0.122);
+      torso.add(pocket);
+      const flap = new THREE.Mesh(geo('flap', () => new THREE.BoxGeometry(0.078, 0.018, 0.020)), M.jacket2);
+      flap.position.set(sx * 0.088, 0.240, 0.124);
+      torso.add(flap);
+    });
+    const buckle = new THREE.Mesh(geo('buckle', () => new THREE.BoxGeometry(0.052, 0.038, 0.016)),
+      new THREE.MeshStandardMaterial({ color: 0xc9ad5f, roughness: 0.3, metalness: 0.8 }));
+    buckle.position.set(0, 0.075, 0.098);
+    torso.add(buckle);
 
     /* الرأس */
     const neck = joint(torso, 0, 0.44, 0);
@@ -124,19 +137,56 @@ SC.character = (function () {
     nose.rotation.x = Math.PI / 2.1;
     nose.position.set(0, 0.062, 0.088);
     head.add(nose);
+    const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf4f4f2, roughness: 0.22 });
+    const irisMat = new THREE.MeshStandardMaterial({ color: 0x3d6b57, roughness: 0.18, metalness: 0.05 });
+    const pupilMat = new THREE.MeshStandardMaterial({ color: 0x0d0d12, roughness: 0.2 });
     [-1, 1].forEach((sx) => {
-      const eye = new THREE.Mesh(geo('eye', () => new THREE.SphereGeometry(0.016, 10, 8)),
-        new THREE.MeshStandardMaterial({ color: 0x1a1a22, roughness: 0.25 }));
-      eye.position.set(sx * 0.035, 0.088, 0.079);
-      head.add(eye);
-      const brow = new THREE.Mesh(geo('brow', () => new THREE.BoxGeometry(0.034, 0.008, 0.012)), M.hair);
-      brow.position.set(sx * 0.036, 0.108, 0.082);
+      /* بياض العين ثم القزحية ثم البؤبؤ — تعطي نظرة حيّة بدل نقطة سوداء */
+      const white = new THREE.Mesh(geo('eyeWhite', () => new THREE.SphereGeometry(0.018, 12, 10)), eyeWhiteMat);
+      white.scale.set(1, 0.78, 0.72);
+      white.position.set(sx * 0.036, 0.088, 0.076);
+      head.add(white);
+      const iris = new THREE.Mesh(geo('iris', () => new THREE.SphereGeometry(0.0095, 10, 8)), irisMat);
+      iris.position.set(sx * 0.036, 0.0875, 0.0885);
+      head.add(iris);
+      const pupil = new THREE.Mesh(geo('pupil', () => new THREE.SphereGeometry(0.0048, 8, 6)), pupilMat);
+      pupil.position.set(sx * 0.036, 0.0875, 0.0925);
+      head.add(pupil);
+      /* جفن علوي */
+      const lid = new THREE.Mesh(geo('lid', () => new THREE.SphereGeometry(0.0195, 12, 8,
+        0, Math.PI * 2, 0, Math.PI * 0.42)), M.skin);
+      lid.scale.set(1, 0.8, 0.75);
+      lid.position.set(sx * 0.036, 0.0895, 0.0755);
+      lid.rotation.x = -0.28;
+      head.add(lid);
+      const brow = new THREE.Mesh(geo('brow', () => new THREE.BoxGeometry(0.036, 0.009, 0.014)), M.hair);
+      brow.position.set(sx * 0.036, 0.109, 0.0815);
+      brow.rotation.z = sx * 0.10;
       head.add(brow);
       const ear = new THREE.Mesh(geo('ear', () => new THREE.SphereGeometry(0.022, 8, 6)), M.skin);
       ear.scale.set(0.45, 1, 0.8);
       ear.position.set(sx * 0.094, 0.072, 0.0);
       head.add(ear);
+      /* سالفة الشعر */
+      const burn = new THREE.Mesh(geo('burn', () => new THREE.BoxGeometry(0.016, 0.042, 0.030)), M.hair);
+      burn.position.set(sx * 0.086, 0.078, 0.006);
+      head.add(burn);
     });
+    /* الفم والذقن */
+    const mouth = new THREE.Mesh(geo('mouth', () => new THREE.BoxGeometry(0.040, 0.007, 0.010)),
+      new THREE.MeshStandardMaterial({ color: 0x7b4a44, roughness: 0.55 }));
+    mouth.position.set(0, 0.018, 0.086);
+    head.add(mouth);
+    const lipLo = new THREE.Mesh(geo('lipLo', () => new THREE.SphereGeometry(0.022, 10, 8)), M.skin);
+    lipLo.scale.set(1, 0.34, 0.45);
+    lipLo.position.set(0, 0.009, 0.083);
+    head.add(lipLo);
+    const stubble = new THREE.Mesh(geo('stubble', () => new THREE.SphereGeometry(0.070, 12, 10,
+      0, Math.PI * 2, Math.PI * 0.52, Math.PI * 0.48)),
+      new THREE.MeshStandardMaterial({ color: 0x3a2f2a, roughness: 0.95, transparent: true, opacity: 0.5 }));
+    stubble.scale.set(0.94, 0.82, 1.06);
+    stubble.position.set(0, 0.030, 0.022);
+    head.add(stubble);
 
     const hair = new THREE.Mesh(geo('hair', () => new THREE.SphereGeometry(0.104, 16, 12,
       0, Math.PI * 2, 0, Math.PI * 0.58)), M.hair);
@@ -155,21 +205,33 @@ SC.character = (function () {
     chin.rotation.set(Math.PI / 2, 0, 0);
     chin.position.set(0, 0.012, 0.012);
     helmet.add(chin);
-    const visor = new THREE.Mesh(geo('visor', () => new THREE.SphereGeometry(0.134, 20, 14,
-      -Math.PI * 0.42, Math.PI * 0.84, Math.PI * 0.34, Math.PI * 0.30)), M.visor);
-    visor.scale.set(1, 1.04, 1.08);
+    /* الزجاج الأمامي: شريحة كروية تغطّي واجهة الخوذة بالضبط.
+       phi = π/2 هو اتجاه +Z أي الأمام في three.js. */
+    const visor = new THREE.Mesh(geo('visor', () => new THREE.SphereGeometry(0.136, 24, 16,
+      Math.PI * 0.5 - Math.PI * 0.40, Math.PI * 0.80,
+      Math.PI * 0.30, Math.PI * 0.34)), M.visor);
+    visor.scale.set(1, 1.04, 1.06);
     visor.position.y = 0.072;
-    visor.rotation.y = Math.PI;
     helmet.add(visor);
-    const stripe = new THREE.Mesh(geo('stripe', () => new THREE.TorusGeometry(0.126, 0.012, 6, 20, Math.PI * 0.9)),
-      mat(0xf2f2f2, 0.3, 0.2));
-    stripe.rotation.set(0, Math.PI / 2, Math.PI * 0.05);
-    stripe.position.y = 0.082;
+    /* إطار الزجاج */
+    const vrim = new THREE.Mesh(geo('vrim', () => new THREE.TorusGeometry(0.118, 0.009, 6, 20, Math.PI * 0.86)),
+      M.jacket2);
+    vrim.rotation.set(Math.PI / 2, 0, Math.PI * 0.57);
+    vrim.position.set(0, 0.104, 0.008);
+    helmet.add(vrim);
+    /* خطّ أبيض على منتصف القبّة من الأمام إلى الخلف */
+    const stripe = new THREE.Mesh(geo('stripe', () => new THREE.TorusGeometry(0.1265, 0.0115, 6, 24, Math.PI * 0.62)),
+      mat(0xf4f4f4, 0.3, 0.2));
+    stripe.rotation.set(0, Math.PI / 2, Math.PI * 0.19);
+    stripe.position.y = 0.074;
     helmet.add(stripe);
-    const vent = new THREE.Mesh(geo('vent', () => new THREE.BoxGeometry(0.075, 0.022, 0.05)), M.visor);
-    vent.position.set(0, 0.155, 0.095);
-    vent.rotation.x = -0.35;
-    helmet.add(vent);
+    /* فتحتا تهوية على القمّة */
+    [-1, 1].forEach((sx) => {
+      const vent = new THREE.Mesh(geo('vent', () => new THREE.BoxGeometry(0.026, 0.016, 0.048)), M.jacket2);
+      vent.position.set(sx * 0.046, 0.176, 0.062);
+      vent.rotation.x = -0.42;
+      helmet.add(vent);
+    });
     const rim = new THREE.Mesh(geo('hrim', () => new THREE.TorusGeometry(0.128, 0.014, 8, 22)), M.jacket2);
     rim.rotation.x = Math.PI / 2;
     rim.position.y = -0.005;
@@ -185,6 +247,10 @@ SC.character = (function () {
       shoulder.add(pad);
       const upper = bone(0.050, 0.20, M.jacket, 0.043);
       shoulder.add(upper);
+      const sleeve = new THREE.Mesh(geo('sleeve', () => new THREE.TorusGeometry(0.049, 0.008, 6, 16)), M.jacket2);
+      sleeve.rotation.x = Math.PI / 2;
+      sleeve.position.y = -0.20;
+      shoulder.add(sleeve);
       const elbow = joint(shoulder, 0, -0.29, 0);
       const fore = bone(0.042, 0.19, M.jacket2, 0.036);
       elbow.add(fore);
@@ -193,20 +259,55 @@ SC.character = (function () {
       hand.position.y = -0.042;
       hand.castShadow = true;
       wrist.add(hand);
-      const thumb = new THREE.Mesh(geo('thumb', () => new THREE.CapsuleGeometry(0.017, 0.04, 3, 6)), M.glove);
-      thumb.rotation.z = side * 0.9;
-      thumb.position.set(-side * 0.032, -0.032, 0.02);
+      /* الإبهام بمفصلين */
+      const thumb = new THREE.Mesh(geo('thumb', () => new THREE.CapsuleGeometry(0.017, 0.038, 3, 7)), M.glove);
+      thumb.rotation.set(0.5, 0, side * 1.0);
+      thumb.position.set(-side * 0.034, -0.030, 0.028);
       wrist.add(thumb);
-      /* أصابع مبسّطة + سوار المعصم */
-      for (let f = 0; f < 3; f++) {
-        const fin = new THREE.Mesh(geo('finger', () => new THREE.CapsuleGeometry(0.013, 0.040, 3, 5)), M.glove);
-        fin.rotation.x = 1.25;                            // أصابع منحنية للقبض
-        fin.position.set((f - 1) * 0.019, -0.086, 0.034);
-        wrist.add(fin);
+      const thumbTip = new THREE.Mesh(geo('thumbTip', () => new THREE.CapsuleGeometry(0.0145, 0.026, 3, 6)), M.glove);
+      thumbTip.rotation.set(1.15, 0, side * 0.55);
+      thumbTip.position.set(-side * 0.046, -0.060, 0.050);
+      wrist.add(thumbTip);
+      /* أربعة أصابع بأطوال متدرّجة، كل واحد بمفصلين — قبضة واقعية */
+      const FL = [0.040, 0.046, 0.043, 0.034];
+      for (let f = 0; f < 4; f++) {
+        const x = (f - 1.5) * 0.0162 * (side >= 0 ? 1 : -1);
+        const len = FL[f];
+        const p1 = new THREE.Mesh(geo('fingerA' + f, () => new THREE.CapsuleGeometry(0.0118, len, 3, 6)), M.glove);
+        p1.rotation.x = 1.30;
+        p1.position.set(x, -0.083, 0.030);
+        wrist.add(p1);
+        const p2 = new THREE.Mesh(geo('fingerB' + f, () => new THREE.CapsuleGeometry(0.0108, len * 0.72, 3, 6)), M.glove);
+        p2.rotation.x = 2.45;
+        p2.position.set(x, -0.100, 0.058);
+        wrist.add(p2);
+        const knuck = new THREE.Mesh(geo('knuck', () => new THREE.SphereGeometry(0.0125, 8, 6)), M.glove);
+        knuck.position.set(x, -0.074, 0.020);
+        wrist.add(knuck);
       }
-      const cuff = new THREE.Mesh(geo('cuff', () => new THREE.CylinderGeometry(0.052, 0.046, 0.045, 10)), M.jacket);
+      /* راحة اليد ومفصل الكفّ */
+      const palm = new THREE.Mesh(geo('palm', () => new THREE.SphereGeometry(0.040, 12, 10)), M.glove);
+      palm.scale.set(0.92, 0.70, 0.78);
+      palm.position.set(0, -0.058, 0.020);
+      wrist.add(palm);
+      const cuff = new THREE.Mesh(geo('cuff', () => new THREE.CylinderGeometry(0.054, 0.047, 0.050, 12)), M.jacket);
       cuff.position.y = 0.012;
       wrist.add(cuff);
+      const cuffRim = new THREE.Mesh(geo('cuffRim', () => new THREE.TorusGeometry(0.052, 0.007, 6, 14)), M.jacket2);
+      cuffRim.rotation.x = Math.PI / 2;
+      cuffRim.position.y = -0.012;
+      wrist.add(cuffRim);
+      if (side > 0) {                                    // ساعة يد
+        const band = new THREE.Mesh(geo('band', () => new THREE.TorusGeometry(0.046, 0.009, 6, 14)), M.boots);
+        band.rotation.x = Math.PI / 2;
+        band.position.y = 0.036;
+        wrist.add(band);
+        const dial = new THREE.Mesh(geo('dial', () => new THREE.CylinderGeometry(0.019, 0.019, 0.011, 12)),
+          new THREE.MeshStandardMaterial({ color: 0xd9dde3, roughness: 0.25, metalness: 0.75 }));
+        dial.rotation.set(Math.PI / 2, 0, 0);
+        dial.position.set(0, 0.036, 0.044);
+        wrist.add(dial);
+      }
       return { shoulder, elbow, wrist, hand, upperLen: 0.29, foreLen: 0.27, side };
     }
     const armL = arm(1), armR = arm(-1);
@@ -230,6 +331,14 @@ SC.character = (function () {
       kneePad.scale.set(1, 0.85, 0.9);
       kneePad.position.set(0, 0.01, 0.02);
       knee.add(kneePad);
+      const laces = new THREE.Mesh(geo('laces', () => new THREE.BoxGeometry(0.052, 0.010, 0.085)),
+        new THREE.MeshStandardMaterial({ color: 0xe4e0d6, roughness: 0.85 }));
+      laces.position.set(0, 0.006, 0.052);
+      ankle.add(laces);
+      const toeCap = new THREE.Mesh(geo('toeCap', () => new THREE.SphereGeometry(0.046, 10, 8)), M.boots);
+      toeCap.scale.set(0.95, 0.66, 1.1);
+      toeCap.position.set(0, -0.032, 0.148);
+      ankle.add(toeCap);
       foot.castShadow = true;
       ankle.add(foot);
       return { hip, knee, ankle, foot, thighLen: 0.40, shinLen: 0.38, side };

@@ -213,7 +213,11 @@ input[type=range]{flex:1;min-width:140px;accent-color:var(--gold);height:28px}
 /* الخريطة المصغّرة */
 .minimap{position:absolute;top:calc(8px + var(--safe-t));right:calc(8px + var(--safe-r));
   width:170px;height:170px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,.18);
-  box-shadow:var(--sh);background:#0b0f17}
+  box-shadow:var(--sh);background:#0b0f17;pointer-events:auto;cursor:pointer;
+  transition:transform .12s,border-color .12s}
+.minimap:active{transform:scale(.96);border-color:rgba(255,210,63,.6)}
+.minimap::after{content:'اضغط للخريطة';position:absolute;left:0;right:0;bottom:16px;text-align:center;
+  font-size:8.5px;font-weight:700;color:rgba(255,255,255,.45);pointer-events:none}
 .minimap canvas{width:100%;height:100%;display:block}
 .mini-ring{position:absolute;inset:0;border-radius:50%;pointer-events:none;
   box-shadow:inset 0 0 22px rgba(0,0,0,.75)}
@@ -322,3 +326,13 @@ body[data-steer="tilt"] .steer-buttons{opacity:.45}
   .objective{top:calc(120px + var(--safe-t));width:min(260px,58vw)}
   .p-body{grid-template-columns:1fr}
 }
+
+/* تبويبات المهام حسب المركبة */
+.mtabs{display:flex;gap:7px;margin-bottom:9px;flex-wrap:wrap;direction:rtl}
+.mtab{flex:1 1 auto;min-width:96px;background:var(--glass);border:1px solid var(--line);
+  border-radius:12px;padding:9px 8px;font-size:12.5px;font-weight:800;color:var(--dim);
+  transition:transform .1s}
+.mtab.on{color:var(--txt);border-color:rgba(255,210,63,.55);background:rgba(255,210,63,.14)}
+.mtab.locked{opacity:.6}
+.mtab:active{transform:scale(.96)}
+.mnote{font-size:11.5px;color:var(--dim);margin:0 2px 10px;line-height:1.6}

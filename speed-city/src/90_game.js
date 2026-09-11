@@ -17,7 +17,7 @@ SC.game = (function () {
     quality: 'auto', shadows: true, steerMode: 'buttons', steerSense: 1.0,
     invertTilt: false, sound: true, volume: 0.85, music: 0.45, haptics: true, assist: true,
     lookSense: 1.0, peds: true, micOn: false, autoScale: true,
-    mapRotate: true, timeOfDay: 'day', traffic: true, camera: 'chase'
+    mapRotate: true, timeOfDay: 'day', season: 'summer', traffic: true, camera: 'chase'
   };
   SC.settings = settings;
 
@@ -131,6 +131,7 @@ SC.game = (function () {
     if (dom.loadText) dom.loadText.textContent = 'بناء المدينة…';
     await new Promise((r) => setTimeout(r, 30));
     SC.world.build(scene, renderer, q);
+    if (settings.season === 'winter') SC.world.setSeason('winter');
     SC.world.setTimeOfDay(settings.timeOfDay);
     renderer.toneMappingExposure = SC.world.state.exposure;
     scene.fog.far = Math.min(scene.fog.far, q.far);
@@ -157,7 +158,7 @@ SC.game = (function () {
     G.missions = SC.missions.generate(4242);
     SC.missions.init({
       scene, get car() { return G.car; },
-      addRival, clearRivals, setRivalsActive, racePosition, setPassenger,
+      addRival, clearRivals, setRivalsActive, racePosition, setPassenger, addMoney,
       onFinish: onMissionFinish, onStart: () => {}
     });
     buildMissionMarkers();
@@ -428,12 +429,15 @@ SC.game = (function () {
      نفحص الشعاع من المركبة إلى الكاميرا، ونقصّر المسافة عند أول جدار،
      ثم نُخرج الكاميرا من أي صندوق تكون بداخله (يحدث عند الاصطدام بالجدار). */
   const CAM_PAD = 0.95;              // هامش أكبر من مستوى القصّ الأمامي
+  /* الكاميرا تبقى دائماً على الخطّ الواصل بينها وبين المركبة.
+     الدفع الجانبي القديم كان يزحلقها حول المبنى فتصير أمام السيارة
+     وكأنّ المنظور انقلب إلى الوراء. */
   function clampCamera(from, want) {
     const dx = want.x - from.x, dz = want.z - from.z;
     const len = Math.hypot(dx, dz);
     if (len < 0.2) return want;
     const ux = dx / len, uz = dz / len;
-    let hit = len;
+    let hit = len, hitTop = 0;
     const list = SC.world.queryColliders(from.x + ux * len * 0.5, from.z + uz * len * 0.5, len * 0.5 + 6);
     for (const c of list) {
       if (c.h && c.h < 1.2) continue;
@@ -442,9 +446,9 @@ SC.game = (function () {
       const slabs = [[from.x, ux, c.minX - CAM_PAD, c.maxX + CAM_PAD],
                      [from.z, uz, c.minZ - CAM_PAD, c.maxZ + CAM_PAD]];
       let ok = true;
-      for (const [p, d, lo, hi] of slabs) {
-        if (Math.abs(d) < 1e-6) { if (p < lo || p > hi) { ok = false; break; } continue; }
-        let ta = (lo - p) / d, tb = (hi - p) / d;
+      for (const [pp, d, lo, hi] of slabs) {
+        if (Math.abs(d) < 1e-6) { if (pp < lo || pp > hi) { ok = false; break; } continue; }
+        let ta = (lo - pp) / d, tb = (hi - pp) / d;
         if (ta > tb) { const tmp = ta; ta = tb; tb = tmp; }
         t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
         if (t0 > t1) { ok = false; break; }
@@ -452,20 +456,40 @@ SC.game = (function () {
       if (!ok) continue;
       if (t1 <= 0.02) continue;                        // الصندوق خلف المركبة
       const t = Math.max(0, t0);
-      if (t < hit) hit = t;
+      if (t < hit) { hit = t; hitTop = c.h || 8; }
     }
+    let d = len;
     if (hit < len) {
-      const d = Math.max(1.4, hit - 0.35);
+      d = Math.max(1.5, hit - 0.45);
+      want.y = Math.max(want.y, from.y + 1.2 + (len - d) * 0.4);
+    }
+    /* إن بقيت داخل جدار، تراجَع على نفس الخطّ — ولا تنزلق إلى الجانب أبداً */
+    for (let k = 0; k < 8; k++) {
       want.x = from.x + ux * d;
       want.z = from.z + uz * d;
-      want.y = Math.max(want.y, from.y + 1.2 + (len - d) * 0.35);   // ارفعها فوق العائق
+      if (!insideWall(want)) break;
+      if (d <= 1.5) { want.y = Math.max(want.y, (hitTop || 8) + 1.6); break; }
+      d = Math.max(1.5, d - Math.max(0.9, d * 0.22));
     }
-    pushOutOfWalls(want);
+    want.x = from.x + ux * d;
+    want.z = from.z + uz * d;
     /* أثناء الغرق نسمح للكاميرا بالنزول تحت سطح البحر */
     const sinking = G.car && G.car.sink > 0.4;
     const floor = sinking ? SC.world.CFG.bedY + 1.5 : SC.world.groundHeight(want.x, want.z) + 0.6;
     want.y = Math.max(want.y, floor);
     return want;
+  }
+
+  /* هل النقطة داخل مبنى؟ */
+  function insideWall(p) {
+    const list = SC.world.queryColliders(p.x, p.z, 2.0);
+    for (const c of list) {
+      if (c.h && c.h < 1.2) continue;
+      if (p.y > (c.h || 8) + 0.8) continue;
+      if (p.x > c.minX - CAM_PAD && p.x < c.maxX + CAM_PAD &&
+          p.z > c.minZ - CAM_PAD && p.z < c.maxZ + CAM_PAD) return true;
+    }
+    return false;
   }
 
   /* إخراج نقطة من داخل أي مبنى إلى أقرب حافة */
@@ -579,7 +603,7 @@ SC.game = (function () {
             { life: 1.2, size: 1.1, grow: 1.6, alpha: 0.55, color: [0.72, 0.86, 0.95] });
         }
       }
-      if (G.drowning > 6.5) {
+      if (G.drowning > 5.5) {
         G.drowning = null; G.drownSplash = false; car.sink = 0;
         const fine = Math.min(save.money, 250);
         if (fine > 0) addMoney(-fine);
@@ -801,6 +825,13 @@ SC.game = (function () {
   }
 
   /* ---------------------------- أوامر عامة ------------------------------ */
+  function setSeason(v) {
+    settings.season = v;
+    SC.world.setSeason(v);
+    SC.audio && SC.audio.setSeason && SC.audio.setSeason(v);
+    persist();
+    SC.hud.toast(v === 'winter' ? '❄️ حلّ الشتاء' : '☀️ عاد الصيف', '', 1600);
+  }
   function setTimeOfDay(name) {
     settings.timeOfDay = name;
     SC.world.setTimeOfDay(name);
@@ -864,7 +895,7 @@ SC.game = (function () {
   }
 
   return {
-    G, save, settings, init, frame, step, start, spawnPlayer, respawn, startMission,
+    G, save, settings, init, frame, step, start, spawnPlayer, respawn, startMission, setSeason,
     setCamera, cycleCamera, CAM_MODES, CAM_NAMES,
     setTimeOfDay, setTraffic, setQuality, setWaypoint, togglePause, persist, setPeds, startOnlineRace,
     addMoney, addXp, addRep, repMult, setPassenger, shake, snapCamera,

@@ -54,86 +54,170 @@ SC.missions = (function () {
   }
 
   /* ------------------------- قائمة المهام المتاحة ----------------------- */
+  /* ------------------------- قائمة المهام المتاحة -----------------------
+     لكل مركبة مهامّها: الدرّاجة للتوصيل السريع والبيتزا، السيارة للسباقات،
+     والكاميون للحمولات الثقيلة بين الجزر (بلا سباقات لأنه بطيء). */
   function generate(seed) {
     const rnd = U.rng(seed || 7788);
     const W = SC.world, N = W.CFG.blocks, P = W.CFG.pitch, H = W.CFG.half;
+    const ISL = W.CFG.islands;
     const CFG_PITCH = P;
     const list = [];
 
-    const spot = () => {
-      const p = W.randomRoadPoint(rnd);
-      return roadNear(p.x, p.z);
+    const spot = (islandId) => {
+      const pt = W.randomRoadPoint(rnd, islandId);
+      const sn = W.snapToRoad(pt.x, pt.z);
+      return { x: sn.x, z: sn.z, island: pt.island };
     };
+    const islName = (id) => (ISL[id] ? ISL[id].name : '');
 
-    /* مهمّات التوصيل */
+    /* ===================== 🏍 الدرّاجة الناريّة ===================== */
+    /* توصيل البيتزا: استلام من المطعم ثم عدّة بيوت واحداً تلو الآخر */
+    const pizzaRuns = [
+      { n: 3, title: 'توصيل بيتزا', desc: 'استلم الطلبات وأوصلها ساخنة قبل أن تبرد', pay: 260 },
+      { n: 4, title: 'ساعة الذروة', desc: 'أربعة طلبات دفعة واحدة — أسرِع!', pay: 300 },
+      { n: 5, title: 'ليلة الجمعة', desc: 'خمسة طلبات في كل أنحاء الحي', pay: 340 },
+      { n: 4, title: 'طلبات المطاعم', desc: 'وجبات جاهزة لأربعة زبائن', pay: 290 }
+    ];
+    pizzaRuns.forEach((r, i) => {
+      const shop = spot(i % ISL.length);
+      const drops = [];
+      for (let k = 0; k < r.n; k++) drops.push(spot(shop.island));
+      let far = 0, prev = shop;
+      drops.forEach((d) => { far += Math.hypot(d.x - prev.x, d.z - prev.z); prev = d; });
+      list.push({
+        id: 'pizza' + i, veh: 'bike', type: 'pizza', title: r.title + ' 🍕',
+        desc: r.desc + ' — ' + islName(shop.island),
+        from: shop, drops, perDrop: r.pay,
+        time: Math.round(far / 17 + 45 + r.n * 12),
+        reward: r.pay * r.n, xp: 24 + r.n * 8, icon: '🍕', color: '#ff8a4c'
+      });
+    });
+    /* توصيل مستندات سريع للدرّاجة */
+    for (let i = 0; i < 2; i++) {
+      const a = spot(), b = spot(a.island);
+      const dist = Math.hypot(a.x - b.x, a.z - b.z);
+      list.push({
+        id: 'rush' + i, veh: 'bike', type: 'delivery',
+        title: i ? 'طرد مستعجل ⚡' : 'توصيل مستندات ⚡',
+        desc: 'الدرّاجة أسرع شيء في المدينة — لا تتأخّر',
+        from: a, to: b, time: Math.max(50, dist / 20 + 22),
+        reward: Math.round(400 + dist * 1.6), xp: 32, icon: '📨', color: '#f4b942'
+      });
+    }
+    /* سباقات الدرّاجات */
+    [{ bx: 2, bz: 2, w: 3, h: 3, name: 'سباق الدرّاجات', laps: 2, reward: 2100, rivals: 3, skill: 0.70 },
+     { bx: 1, bz: N - 5, w: 4, h: 4, name: 'جولة الشوارع الضيّقة', laps: 1, reward: 2800, rivals: 3, skill: 0.80 }
+    ].forEach((r, i) => {
+      const path = circuitPath(r.bx, r.bz, r.w, r.h);
+      list.push({
+        id: 'bikerace' + i, veh: 'bike', type: 'race', title: r.name + ' 🏍',
+        desc: 'تغلّب على المنافسين — ' + r.laps + ' لفّات',
+        path, laps: r.laps, rivals: r.rivals, skill: r.skill, cpEvery: 6,
+        from: path[0], reward: r.reward, xp: 95 + i * 25, icon: '🏁', color: '#22d3ee'
+      });
+    });
+
+    /* ======================== 🚗 السيّارة ========================== */
     const deliveryNames = [
       ['توصيل طرد', 'استلم الطرد ثم أوصله قبل انتهاء الوقت'],
       ['توصيل عاجل', 'شحنة مستعجلة — لا تتأخّر!'],
       ['نقل قطع غيار', 'الورشة تنتظر القطع']
     ];
     for (let i = 0; i < 3; i++) {
-      const a = spot(), b = spot();
+      const a = spot(), b = spot(a.island);
       const dist = Math.hypot(a.x - b.x, a.z - b.z);
       const nm = deliveryNames[i % deliveryNames.length];
       list.push({
-        id: 'deliver' + i, type: 'delivery', title: nm[0], desc: nm[1],
+        id: 'deliver' + i, veh: 'cortina', type: 'delivery', title: nm[0], desc: nm[1],
         from: a, to: b, time: Math.max(60, dist / 15 + 28),
         reward: Math.round(320 + dist * 1.5), xp: 30, icon: '📦', color: '#f4b942'
       });
     }
-
-    /* سباقات زمنية بنقاط تفتيش */
     for (let i = 0; i < 2; i++) {
       const bx = 1 + Math.floor(rnd() * (N - 3)), bz = 1 + Math.floor(rnd() * (N - 3));
       const path = circuitPath(bx - 1, bz - 1, 2, 2);
       const lapLen = 4 * 2 * CFG_PITCH;
       list.push({
-        id: 'trial' + i, type: 'timeTrial', title: 'تحدّي الزمن ' + (i + 1),
+        id: 'trial' + i, veh: 'cortina', type: 'timeTrial', title: 'تحدّي الزمن ' + (i + 1),
         desc: 'اجتَز كل نقاط التفتيش قبل نفاد الوقت',
         path, cpEvery: 4, time: Math.round(lapLen / 17 + 22), laps: 1,
         from: path[0], reward: 900 + i * 350, xp: 55, icon: '⏱', color: '#38bdf8'
       });
     }
-
-    /* سباقات ضد منافسين */
     const q = Math.max(2, Math.floor(N / 4));
-    const raceDefs = [
-      { bx: 1, bz: 1, w: 3, h: 3, name: 'سباق الحي الشمالي', laps: 2, reward: 1500, rivals: 3, skill: 0.62 },
-      { bx: N - 5, bz: N - 5, w: 4, h: 3, name: 'جولة وسط المدينة', laps: 2, reward: 2400, rivals: 3, skill: 0.74 },
-      { bx: q, bz: q, w: N - q * 2, h: N - q * 2, name: 'الحلبة الكبرى', laps: 1, reward: 4200, rivals: 4, skill: 0.85 }
-    ];
-    raceDefs.forEach((r, i) => {
+    [{ bx: 1, bz: 1, w: 3, h: 3, name: 'سباق الحي الشمالي', laps: 2, reward: 1500, rivals: 3, skill: 0.62 },
+     { bx: N - 5, bz: N - 5, w: 4, h: 3, name: 'جولة وسط المدينة', laps: 2, reward: 2400, rivals: 3, skill: 0.74 },
+     { bx: q, bz: q, w: N - q * 2, h: N - q * 2, name: 'الحلبة الكبرى', laps: 1, reward: 4200, rivals: 4, skill: 0.85 }
+    ].forEach((r, i) => {
       const path = circuitPath(r.bx, r.bz, r.w, r.h);
       list.push({
-        id: 'race' + i, type: 'race', title: r.name, desc: 'تغلّب على المنافسين — ' + r.laps + ' لفّات',
+        id: 'race' + i, veh: 'cortina', type: 'race', title: r.name, desc: 'تغلّب على المنافسين — ' + r.laps + ' لفّات',
         path, laps: r.laps, rivals: r.rivals, skill: r.skill, cpEvery: 6,
         from: path[0], reward: r.reward, xp: 90 + i * 30, icon: '🏁', color: '#ff5c5c'
       });
     });
-
-    /* سيارة أجرة: نقل الركّاب — تحتاج ثقة عالية */
     const taxiNames = [
       ['توصيل راكب', 'أوصِل الراكب بهدوء وبلا اصطدامات'],
       ['رحلة إلى المطار', 'راكب مستعجل — قِد بثبات']
     ];
     for (let i = 0; i < 2; i++) {
-      const a = spot(), bdst = spot();
+      const a = spot(), bdst = spot(a.island);
       const dist = Math.hypot(a.x - bdst.x, a.z - bdst.z);
       const nm = taxiNames[i];
       list.push({
-        id: 'taxi' + i, type: 'taxi', title: nm[0], desc: nm[1],
+        id: 'taxi' + i, veh: 'cortina', type: 'taxi', title: nm[0], desc: nm[1],
         from: a, to: bdst, time: Math.max(90, dist / 12 + 45), minRep: 45,
         reward: Math.round(420 + dist * 1.8), xp: 45, icon: '🚕', color: '#f2c14e'
       });
     }
-
-    /* جمع الطرود */
-    for (let i = 0; i < 1; i++) {
+    {
       const pts = [];
-      for (let k = 0; k < 8; k++) pts.push(spot());
+      for (let k = 0; k < 8; k++) pts.push(spot(0));
       list.push({
-        id: 'collect' + i, type: 'collect', title: 'جمع الصناديق', desc: 'اجمع 8 صناديق منتشرة في المدينة',
+        id: 'collect0', veh: 'cortina', type: 'collect', title: 'جمع الصناديق',
+        desc: 'اجمع 8 صناديق منتشرة في المدينة',
         points: pts, time: 150, from: pts[0], reward: 1400, xp: 70, icon: '🎯', color: '#a78bfa'
+      });
+    }
+
+    /* ====================== 🚚 الكاميون (البيت المتنقّل) ================
+       حمولات ثقيلة بين الجزر: مسافات طويلة وأرباح كبيرة، ولا سباقات. */
+    const loads = [
+      { name: 'نقل الزرابي', cargo: 'زرابي وسجّاد', icon: '🧶', rate: 2.1 },
+      { name: 'نقل أثاث', cargo: 'أثاث منزل كامل', icon: '🛋', rate: 1.9 },
+      { name: 'شحنة حاويات', cargo: 'حاويات من الميناء', icon: '🚢', rate: 2.4 },
+      { name: 'مواد بناء', cargo: 'إسمنت وحديد', icon: '🧱', rate: 2.0 },
+      { name: 'شحنة مبرّدة', cargo: 'بضائع مبرّدة', icon: '🧊', rate: 2.6 },
+      { name: 'نقل معدّات', cargo: 'معدّات ثقيلة', icon: '⚙️', rate: 2.2 }
+    ];
+    loads.forEach((L, i) => {
+      const fromIsl = i % ISL.length;
+      let toIsl = (fromIsl + 1 + Math.floor(rnd() * (ISL.length - 1))) % ISL.length;
+      if (toIsl === fromIsl) toIsl = (fromIsl + 1) % ISL.length;
+      const a = spot(fromIsl), b = spot(toIsl);
+      const dist = Math.hypot(a.x - b.x, a.z - b.z);
+      list.push({
+        id: 'cargo' + i, veh: 'van', type: 'cargo', title: L.name + ' ' + L.icon,
+        desc: L.cargo + ' — من ' + islName(fromIsl) + ' إلى ' + islName(toIsl) +
+              ' عبر الجسر البحري. قِد بثبات حتى لا تتلف الحمولة.',
+        from: a, to: b, cargoName: L.cargo,
+        time: Math.round(dist / 9 + 140),
+        reward: Math.round(1100 + dist * L.rate), xp: 80 + i * 12,
+        icon: L.icon, color: '#7fe8c0'
+      });
+    });
+    /* توصيل محلّي قصير للكاميون داخل الجزيرة نفسها */
+    for (let i = 0; i < 2; i++) {
+      const a = spot(i), b = spot(i);
+      const dist = Math.hypot(a.x - b.x, a.z - b.z);
+      list.push({
+        id: 'haul' + i, veh: 'van', type: 'cargo',
+        title: i ? 'نقل بضائع المتجر 📦' : 'تفريغ المستودع 🏭',
+        desc: 'حمولة داخل ' + islName(i) + ' — قِد بهدوء',
+        from: a, to: b, cargoName: 'صناديق بضائع',
+        time: Math.round(dist / 9 + 90),
+        reward: Math.round(700 + dist * 1.8), xp: 55, icon: '📦', color: '#7fe8c0'
       });
     }
     return list;
@@ -167,6 +251,15 @@ SC.missions = (function () {
     if (def.type === 'delivery') {
       state.phase = 'pickup';
       addCheckpoint(def.from.x, def.from.z, '#f4b942', 7);
+    } else if (def.type === 'pizza') {
+      state.phase = 'pickup';
+      state.dropIdx = 0;
+      state.earnedSoFar = 0;
+      addCheckpoint(def.from.x, def.from.z, '#ff8a4c', 7);
+    } else if (def.type === 'cargo') {
+      state.phase = 'pickup';
+      state.cargo = 1;                       // سلامة الحمولة
+      addCheckpoint(def.from.x, def.from.z, '#7fe8c0', 8);
     } else if (def.type === 'taxi') {
       state.phase = 'pickup';
       state.comfort = 1;
@@ -213,7 +306,9 @@ SC.missions = (function () {
     state.checkpoints.forEach((c, i) => {
       if (c.done) return;
       const def = state.active;
-      const isNext = def && (def.type === 'delivery' || def.type === 'collect' ? true : i === state.cpIndex % state.checkpoints.length);
+      const seq = def && (def.type === 'delivery' || def.type === 'collect' ||
+                          def.type === 'pizza' || def.type === 'cargo' || def.type === 'taxi');
+      const isNext = seq ? true : i === state.cpIndex % state.checkpoints.length;
       list.push({ x: c.x, z: c.z, color: isNext ? '#ffd23f' : c.color, size: isNext ? 5.5 : 3.4, icon: '' });
     });
     SC.hud.setMarkers(list);
@@ -291,6 +386,70 @@ SC.missions = (function () {
         text: state.phase === 'pickup' ? 'اذهب إلى نقطة الاستلام' : 'أوصل الشحنة إلى الوجهة',
         meta: '<span>' + U.distText(d) + '</span> · <b class="' + (state.timeLeft < 15 ? 'red' : '') + '">' + U.clock(state.timeLeft) + '</b>',
         warn: state.timeLeft < 15
+      });
+    } else if (def.type === 'pizza') {
+      const cp = state.checkpoints[0];
+      if (cp && near(cp)) {
+        ctx.scene.remove(cp.mesh);
+        state.checkpoints.length = 0;
+        if (state.phase === 'pickup') {
+          state.phase = 'drops';
+          SC.audio.good();
+          SC.hud.toast('استلمت ' + def.drops.length + ' طلبات — انطلق!', 'ok', 2200);
+        } else {
+          state.dropIdx++;
+          state.earnedSoFar += def.perDrop;
+          ctx.addMoney && ctx.addMoney(def.perDrop);
+          SC.audio.check();
+          SC.hud.toast('🍕 تسليم ' + state.dropIdx + '/' + def.drops.length +
+                       ' · +' + U.money(def.perDrop), 'ok', 1500);
+        }
+        if (state.dropIdx >= def.drops.length) return finish(true);
+        const d = def.drops[state.dropIdx];
+        addCheckpoint(d.x, d.z, '#7fe8c0', 6.5);
+        updateHudMarkers();
+      }
+      const target = state.checkpoints[0];
+      const dd = target ? Math.hypot(target.x - px, target.z - pz) : 0;
+      SC.hud.setObjective({
+        title: def.title,
+        text: state.phase === 'pickup' ? 'اذهب إلى المطعم واستلم الطلبات'
+                                       : 'أوصل الطلب رقم ' + (state.dropIdx + 1),
+        meta: '<span>' + U.distText(dd) + '</span> · <span>' + state.dropIdx + '/' +
+              def.drops.length + '</span> · <b class="' + (state.timeLeft < 20 ? 'red' : '') + '">' +
+              U.clock(state.timeLeft) + '</b>',
+        warn: state.timeLeft < 20
+      });
+    } else if (def.type === 'cargo') {
+      const cp = state.checkpoints[0];
+      const slow = car.kmh < 22;
+      if (cp && near(cp) && (state.phase === 'pickup' ? slow : car.kmh < 16)) {
+        if (state.phase === 'pickup') {
+          state.phase = 'haul';
+          ctx.scene.remove(cp.mesh);
+          state.checkpoints.length = 0;
+          addCheckpoint(def.to.x, def.to.z, '#7fe8c0', 8);
+          SC.audio.good();
+          SC.hud.toast('حُمّلت: ' + def.cargoName + ' — انطلق بثبات', 'ok', 2600);
+          updateHudMarkers();
+        } else {
+          return finish(true);
+        }
+      }
+      /* كل ارتطام يتلف جزءاً من الحمولة */
+      if (state.phase === 'haul' && car.impact > 0.22) {
+        state.cargo = Math.max(0, state.cargo - car.impact * dt * 2.4);
+      }
+      const target = state.checkpoints[0];
+      const dd = target ? Math.hypot(target.x - px, target.z - pz) : 0;
+      const pct = Math.round((state.cargo == null ? 1 : state.cargo) * 100);
+      SC.hud.setObjective({
+        title: def.title,
+        text: state.phase === 'pickup' ? 'توقّف عند المستودع لتحميل البضاعة'
+                                       : 'أوصل الحمولة وتوقّف عند الوجهة',
+        meta: '<span>' + U.distText(dd) + '</span> · <span>الحمولة ' + pct + '٪</span> · <b class="' +
+              (state.timeLeft < 30 ? 'red' : '') + '">' + U.clock(state.timeLeft) + '</b>',
+        warn: state.timeLeft < 30 || pct < 45
       });
     } else if (def.type === 'taxi') {
       const cp = state.checkpoints[0];
@@ -397,7 +556,18 @@ SC.missions = (function () {
         money = Math.round(money * (0.55 + cm * 0.65));
         result_comfort = Math.round(cm * 100);
       }
-      if (def.time && state.timeLeft > 0) money += Math.round(state.timeLeft * 6);
+      if (def.type === 'cargo') {
+        const cg = U.clamp(state.cargo == null ? 1 : state.cargo, 0, 1);
+        money = Math.round(money * (0.45 + cg * 0.75));
+        result_comfort = Math.round(cg * 100);
+      }
+      if (def.type === 'pizza') {
+        /* أُجرة كل طلب دُفعت فور تسليمه، فتبقى مكافأة الإتمام فقط */
+        money = Math.round(def.perDrop * 1.2);
+      }
+      if (def.time && state.timeLeft > 0) {
+        money += Math.min(Math.round(state.timeLeft * 6), Math.round(def.reward * 0.3));
+      }
     }
     const result = {
       def, success, reason, money, xp, pos, comfort: result_comfort,

@@ -152,7 +152,7 @@ SC.input = (function () {
     ['cam', 'horn', 'flip', 'light'].forEach((k) => bindTap(dom[k], () => fire(k)));
     /* النظر للخلف: يبقى ما دام الزر مضغوطاً */
     bindHold(dom.back,
-      () => { look.hold = true; look.yaw = Math.PI * 0.92; look.idle = 0; },
+      () => { look.hold = true; look.holdAt = 0; look.yaw = Math.PI * 0.92; look.idle = 0; },
       () => { look.hold = false; look.idle = 0; });
 
     /* --- لوحة المفاتيح --- */
@@ -236,9 +236,14 @@ SC.input = (function () {
     if (kb.KeyE) { look.yaw = U.clamp(look.yaw - 1.8 * dt, -Math.PI * 0.98, Math.PI * 0.98); look.idle = 0; }
 
     look.idle += dt;
-    if (!look.active && look.idle > 1.1 && !look.hold) {
-      look.yaw = U.damp(look.yaw, 0, 3.2, dt);
-      look.pitch = U.damp(look.pitch, 0, 3.2, dt);
+    /* حارس: إن بقي «النظر للخلف» مضغوطاً أكثر من ست ثوانٍ فقد ضاع رفع الإصبع */
+    if (look.hold) { look.holdAt = (look.holdAt || 0) + dt; if (look.holdAt > 6) look.hold = false; }
+    else look.holdAt = 0;
+    /* وإن بقيت لمسة عالقة على الشاشة بلا حركة، أفرج عنها حتى تعود الكاميرا */
+    if (look.active && look.idle > 2.5) look.active = false;
+    if (!look.active && look.idle > 0.55 && !look.hold) {
+      look.yaw = U.damp(look.yaw, 0, 5.5, dt);
+      look.pitch = U.damp(look.pitch, 0, 5.5, dt);
       if (Math.abs(look.yaw) < 0.004) look.yaw = 0;
       if (Math.abs(look.pitch) < 0.004) look.pitch = 0;
     }
