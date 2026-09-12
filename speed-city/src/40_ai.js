@@ -172,7 +172,7 @@ SC.traffic = (function () {
     const W = SC.world;
     const ids = ['cortina', 'van', 'bike'];
     const id = ids[Math.floor(Math.random() * (Math.random() < 0.65 ? 1 : ids.length))];
-    const v = new SC.Vehicle(id, { simpleDriver: true });
+    const v = new SC.Vehicle(id, { simpleDriver: true, variant: (Math.random() * 6) | 0 });
     const p = pickSpot(near);
     v.place(p.x, p.z, p.yaw);
     v.isTraffic = true;

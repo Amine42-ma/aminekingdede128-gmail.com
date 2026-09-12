@@ -493,30 +493,80 @@ SC.character = (function () {
 
   /* ------------- شخصية مبسّطة لسيارات المرور (رسمتان فقط) -------------- */
   const simpleMats = {};
+  const SIMPLE_LOOKS = [
+    { skin: 0xd9a17a, hair: 0x2b2119, top: 0x30435f, trim: 0xdfe6ef, glove: 0x2b2d33, helmet: 0xe23b3b },
+    { skin: 0xf0c9a0, hair: 0x6b4a2a, top: 0x7a3030, trim: 0xf0d8b0, glove: 0x33343a, helmet: 0x2f6fd0 },
+    { skin: 0xa9714b, hair: 0x141414, top: 0x2f6a52, trim: 0xd8e8dc, glove: 0x26272c, helmet: 0xf2c14e },
+    { skin: 0xe8b98d, hair: 0x6b4f22, top: 0x5a4e8c, trim: 0xe2dcf4, glove: 0x2f3036, helmet: 0x22d3ee },
+    { skin: 0x8d5a3b, hair: 0x1c1712, top: 0x8a6a2c, trim: 0xf2e6c6, glove: 0x2a2b30, helmet: 0xe8e8e8 },
+    { skin: 0xf2d3b3, hair: 0x55575c, top: 0x3c4450, trim: 0xc9d2de, glove: 0x303138, helmet: 0x7fe8c0 }
+  ];
+
+  /* سائقو السيارات المارّة: شبكة واحدة مدمجة بألوان رأسية — أرخص من
+     شبكتين منفصلتين ومع ذلك فيها كتفان وذراعان على المقود ووجه وشعر. */
+  const simpleCache = {};
   function createSimple(opts) {
     opts = opts || {};
     const key = opts.pose === 'bike' ? 'bike' : 'car';
-    if (!simpleMats.body) {
-      simpleMats.body = mat(PALETTE.jacket, 0.75);
-      simpleMats.head = mat(PALETTE.skin, 0.65);
-      simpleMats.helmet = mat(PALETTE.helmet, 0.3, 0.3);
+    const tone = (opts.variant == null ? 0 : opts.variant) % SIMPLE_LOOKS.length;
+    const cacheKey = key + tone;
+    if (!simpleMats.vcol) {
+      simpleMats.vcol = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.72, metalness: 0.02 });
+    }
+    if (!simpleCache[cacheKey]) {
+      const L = SIMPLE_LOOKS[tone];
+      const cap = (r, len, seg) => new THREE.CapsuleGeometry(r, len, 3, seg || 10);
+      const sph = (r, s) => new THREE.SphereGeometry(r, s || 12, 9);
+      const bx = (x, y, z) => new THREE.BoxGeometry(x, y, z);
+      const parts = [
+        /* الجذع والكتفان */
+        { geo: cap(0.165, 0.30, 12), matrix: M4(0, 0.30, 0, 0, 0, 0, 1.26, 1, 0.88), color: L.top },
+        { geo: sph(0.085, 10), matrix: M4(0.175, 0.455, 0, 0, 0, 0, 1, 0.85, 0.95), color: L.top },
+        { geo: sph(0.085, 10), matrix: M4(-0.175, 0.455, 0, 0, 0, 0, 1, 0.85, 0.95), color: L.top },
+        { geo: bx(0.022, 0.26, 0.014), matrix: M4(0, 0.31, 0.140), color: L.trim },
+        /* الياقة والرقبة */
+        { geo: new THREE.CylinderGeometry(0.100, 0.116, 0.046, 12), matrix: M4(0, 0.487, 0), color: L.trim },
+        { geo: new THREE.CylinderGeometry(0.050, 0.055, 0.070, 8), matrix: M4(0, 0.527, 0), color: L.skin }
+      ];
+      if (key === 'bike') {
+        /* خوذة كاملة بزجاج أمامي */
+        parts.push({ geo: sph(0.134, 14), matrix: M4(0, 0.640, 0, 0, 0, 0, 1, 1.04, 1.06), color: L.helmet });
+        parts.push({ geo: new THREE.SphereGeometry(0.136, 16, 10,
+            Math.PI * 0.5 - Math.PI * 0.38, Math.PI * 0.76, Math.PI * 0.32, Math.PI * 0.32),
+            matrix: M4(0, 0.640, 0, 0, 0, 0, 1, 1.04, 1.07), color: 0x101318 });
+        parts.push({ geo: new THREE.TorusGeometry(0.128, 0.014, 6, 16), matrix: M4(0, 0.566, 0, Math.PI / 2, 0, 0), color: L.trim });
+      } else {
+        /* رأس بوجه وشعر */
+        parts.push({ geo: sph(0.100, 14), matrix: M4(0, 0.640, 0, 0, 0, 0, 0.95, 1.07, 1), color: L.skin });
+        parts.push({ geo: sph(0.076, 10), matrix: M4(0, 0.598, 0.020, 0, 0, 0, 0.90, 0.80, 1.02), color: L.skin });
+        parts.push({ geo: sph(0.017, 8), matrix: M4(0.037, 0.660, 0.081, 0, 0, 0, 1, 0.8, 0.7), color: 0xf4f4f2 });
+        parts.push({ geo: sph(0.017, 8), matrix: M4(-0.037, 0.660, 0.081, 0, 0, 0, 1, 0.8, 0.7), color: 0xf4f4f2 });
+        parts.push({ geo: sph(0.0085, 6), matrix: M4(0.037, 0.659, 0.092), color: 0x141418 });
+        parts.push({ geo: sph(0.0085, 6), matrix: M4(-0.037, 0.659, 0.092), color: 0x141418 });
+        parts.push({ geo: bx(0.034, 0.008, 0.012), matrix: M4(0.037, 0.683, 0.087), color: L.hair });
+        parts.push({ geo: bx(0.034, 0.008, 0.012), matrix: M4(-0.037, 0.683, 0.087), color: L.hair });
+        parts.push({ geo: sph(0.020, 6), matrix: M4(0, 0.638, 0.091, 0, 0, 0, 0.8, 0.9, 1.1), color: L.skin });
+        parts.push({ geo: bx(0.036, 0.007, 0.010), matrix: M4(0, 0.604, 0.089), color: 0x8a5450 });
+        parts.push({ geo: new THREE.SphereGeometry(0.105, 14, 10, 0, 6.283, 0, 1.85),
+            matrix: M4(0, 0.644, -0.004, 0, 0, 0, 0.99, 1.05, 1.03), color: L.hair });
+        parts.push({ geo: sph(0.021, 6), matrix: M4(0.096, 0.640, 0, 0, 0, 0, 0.45, 1, 0.8), color: L.skin });
+        parts.push({ geo: sph(0.021, 6), matrix: M4(-0.096, 0.640, 0, 0, 0, 0, 0.45, 1, 0.8), color: L.skin });
+      }
+      /* ذراعان ممدودتان إلى الأمام كأنّهما على المقود */
+      [1, -1].forEach((sd) => {
+        parts.push({ geo: cap(0.052, 0.20, 8),
+                     matrix: M4(sd * 0.175, 0.365, 0.085, -0.95, 0, sd * 0.14), color: L.top });
+        parts.push({ geo: cap(0.045, 0.16, 8),
+                     matrix: M4(sd * 0.168, 0.300, 0.280, -1.32, 0, sd * 0.10), color: L.skin });
+        parts.push({ geo: sph(0.046, 8),
+                     matrix: M4(sd * 0.160, 0.272, 0.375, 0, 0, 0, 0.9, 0.85, 0.8), color: L.glove });
+      });
+      simpleCache[cacheKey] = mergeParts(parts);
     }
     const root = new THREE.Group();
-    const torso = new THREE.Mesh(geo('sTorso', () => {
-      const g = new THREE.CapsuleGeometry(0.17, 0.34, 4, 10);
-      g.translate(0, 0.30, 0);
-      return g;
-    }), simpleMats.body);
-    torso.scale.set(1.25, 1, 0.88);
-    torso.castShadow = true;
-    root.add(torso);
-    const head = new THREE.Mesh(geo('sHead', () => {
-      const g = new THREE.SphereGeometry(key === 'bike' ? 0.135 : 0.105, 12, 10);
-      g.translate(0, 0.60, 0);
-      return g;
-    }), key === 'bike' ? simpleMats.helmet : simpleMats.head);
-    head.castShadow = true;
-    root.add(head);
+    const mesh = new THREE.Mesh(simpleCache[cacheKey], simpleMats.vcol);
+    mesh.castShadow = true;
+    root.add(mesh);
     return {
       root, simple: true, pose: key,
       setPose() {}, setFirstPerson(on) { root.visible = !on; },
@@ -570,13 +620,25 @@ SC.character = (function () {
     new THREE.Quaternion().setFromEuler(new THREE.Euler(rx || 0, ry || 0, rz || 0)),
     new THREE.Vector3(sx == null ? 1 : sx, sy == null ? 1 : sy, sz == null ? 1 : sz));
 
+  /* تعتيم لون بنسبة — لتوليد ظلال الياقة والأكمام من لون الزيّ نفسه */
+  function shade(hex, k) {
+    const r = Math.max(0, Math.min(255, ((hex >> 16) & 255) * k)) | 0;
+    const g = Math.max(0, Math.min(255, ((hex >> 8) & 255) * k)) | 0;
+    const b = Math.max(0, Math.min(255, (hex & 255) * k)) | 0;
+    return (r << 16) | (g << 8) | b;
+  }
+
   const PED_OUTFITS = [
-    { skin: 0xd9a17a, hair: 0x2b2119, top: 0x2f4f7a, pants: 0x2a2f3a, shoe: 0x1a1a1c },
-    { skin: 0xf0c9a0, hair: 0x6b4a2a, top: 0x8c2f2f, pants: 0x3b4250, shoe: 0x222 },
-    { skin: 0xa9714b, hair: 0x141414, top: 0x2f7a52, pants: 0x54586a, shoe: 0x2a2a2a },
-    { skin: 0xe8b98d, hair: 0xa8823c, top: 0xd9b13a, pants: 0x27303f, shoe: 0x191919 },
-    { skin: 0x8d5a3b, hair: 0x1c1712, top: 0x6b4a9e, pants: 0x3a3f4a, shoe: 0x202020 },
-    { skin: 0xf2d3b3, hair: 0x8a8a8a, top: 0xdedede, pants: 0x2f3548, shoe: 0x151515 }
+    { skin: 0xd9a17a, hair: 0x2b2119, top: 0x2f4f7a, pants: 0x2a2f3a, shoe: 0x1a1a1c, trim: 0xe8eef5, hat: null },
+    { skin: 0xf0c9a0, hair: 0x6b4a2a, top: 0x8c2f2f, pants: 0x3b4250, shoe: 0x222222, trim: 0xf2d9a0, hat: null },
+    { skin: 0xa9714b, hair: 0x141414, top: 0x2f7a52, pants: 0x54586a, shoe: 0x2a2a2a, trim: 0xd8e8dc, hat: 0x20323f },
+    { skin: 0xe8b98d, hair: 0x6b4f22, top: 0xd9b13a, pants: 0x27303f, shoe: 0x191919, trim: 0x5a4418, hat: null },
+    { skin: 0x8d5a3b, hair: 0x1c1712, top: 0x6b4a9e, pants: 0x3a3f4a, shoe: 0x202020, trim: 0xe0d4f2, hat: null },
+    { skin: 0xf2d3b3, hair: 0x55575c, top: 0xdedede, pants: 0x2f3548, shoe: 0x151515, trim: 0x9aa4b2, hat: 0x8c2f2f },
+    { skin: 0xc98d63, hair: 0x33241a, top: 0x1f6f8c, pants: 0x232a36, shoe: 0x1d1d20, trim: 0xf0f6fa, hat: null },
+    { skin: 0xffd9b8, hair: 0x4a2f1e, top: 0xe07a3c, pants: 0x46506a, shoe: 0x262626, trim: 0x2a2118, hat: null },
+    { skin: 0x9c6842, hair: 0x0f0f0f, top: 0x3b4b66, pants: 0x6a6f7e, shoe: 0x232323, trim: 0xc7d2e0, hat: 0x2f4f7a },
+    { skin: 0xecc39b, hair: 0x7a6318, top: 0xb03a6a, pants: 0x2b3244, shoe: 0x1b1b1e, trim: 0xf6d9e6, hat: null }
   ];
 
   /* يبني أشكال المارّة مرّة واحدة: الجزء العلوي + ساقان */
@@ -588,25 +650,70 @@ SC.character = (function () {
     const box = (x, y, z) => new THREE.BoxGeometry(x, y, z);
 
     pedCache = PED_OUTFITS.map((o) => {
+      /* الذراع: كمّ ثم ساعد ثم كفّ بأصابع مبسّطة */
       const arm = (side) => mergeParts([
-        { geo: capsule(0.05, 0.17, 8), matrix: M4(0, -0.13, 0), color: o.top },
-        { geo: capsule(0.044, 0.15, 8), matrix: M4(0, -0.38, 0.01), color: o.skin },
-        { geo: sphere(0.038, 8), matrix: M4(0, -0.53, 0.02), color: o.skin }
+        { geo: sphere(0.058, 8), matrix: M4(0, -0.015, 0, 0, 0, 0, 1, 0.85, 1), color: o.top },
+        { geo: capsule(0.049, 0.17, 8), matrix: M4(0, -0.13, 0), color: o.top },
+        { geo: new THREE.TorusGeometry(0.046, 0.010, 5, 10), matrix: M4(0, -0.255, 0, Math.PI / 2, 0, 0), color: shade(o.top, 0.62) },
+        { geo: capsule(0.042, 0.15, 8), matrix: M4(0, -0.38, 0.01), color: o.skin },
+        { geo: sphere(0.040, 8), matrix: M4(0, -0.525, 0.02, 0, 0, 0, 0.92, 1, 0.78), color: o.skin },
+        { geo: box(0.048, 0.030, 0.028), matrix: M4(0, -0.565, 0.03), color: o.skin }
       ]);
-      const upper = mergeParts([
-        { geo: capsule(0.135, 0.30, 10), matrix: M4(0, 1.18, 0, 0, 0, 0, 1.28, 1, 0.82), color: o.top },
+
+      /* الجذع: صدر وحوض وياقة وسحّاب وحزام وكتفان ورأس بوجه */
+      const parts = [
+        { geo: capsule(0.132, 0.30, 12), matrix: M4(0, 1.18, 0, 0, 0, 0, 1.30, 1, 0.84), color: o.top },
         { geo: capsule(0.10, 0.12, 8), matrix: M4(0, 0.95, 0, 0, 0, 0, 1.25, 1, 0.9), color: o.pants },
-        { geo: new THREE.CylinderGeometry(0.05, 0.055, 0.07, 8), matrix: M4(0, 1.44, 0), color: o.skin },
-        { geo: sphere(0.093, 12), matrix: M4(0, 1.545, 0, 0, 0, 0, 0.95, 1.06, 1), color: o.skin },
-        { geo: new THREE.SphereGeometry(0.098, 12, 8, 0, 6.283, 0, 1.9), matrix: M4(0, 1.548, -0.004, 0, 0, 0, 0.99, 1.06, 1.02), color: o.hair },
-        { geo: sphere(0.021, 6), matrix: M4(0, 1.53, 0.085), color: o.skin },
-        { geo: new THREE.CylinderGeometry(0.115, 0.125, 0.05, 12), matrix: M4(0, 1.40, 0), color: o.pants }
-      ]);
-      // الساق: أصلها عند مفصل الورك (0,0,0) وتتدلّى للأسفل
+        /* كتفان بارزان */
+        { geo: sphere(0.066, 8), matrix: M4(0.140, 1.372, 0, 0, 0, 0, 1, 0.85, 0.95), color: o.top },
+        { geo: sphere(0.066, 8), matrix: M4(-0.140, 1.372, 0, 0, 0, 0, 1, 0.85, 0.95), color: o.top },
+        /* سحّاب أمامي رفيع وحزام */
+        { geo: box(0.013, 0.26, 0.010), matrix: M4(0, 1.19, 0.112), color: shade(o.top, 0.55) },
+        { geo: box(0.245, 0.032, 0.152), matrix: M4(0, 1.015, 0), color: o.shoe },
+        { geo: box(0.042, 0.028, 0.013), matrix: M4(0, 1.015, 0.080), color: o.trim },
+        /* ياقة صغيرة عند الرقبة ورقبة */
+        { geo: new THREE.CylinderGeometry(0.062, 0.082, 0.040, 12), matrix: M4(0, 1.404, 0), color: shade(o.top, 0.72) },
+        { geo: new THREE.CylinderGeometry(0.046, 0.051, 0.080, 8), matrix: M4(0, 1.440, 0), color: o.skin },
+        /* الرأس */
+        { geo: sphere(0.088, 14), matrix: M4(0, 1.548, 0, 0, 0, 0, 0.95, 1.07, 1), color: o.skin },
+        { geo: sphere(0.067, 10), matrix: M4(0, 1.507, 0.020, 0, 0, 0, 0.90, 0.80, 1.02), color: o.skin },
+        /* عينان بحدقة وحاجبان */
+        { geo: sphere(0.016, 8), matrix: M4(0.034, 1.566, 0.074, 0, 0, 0, 1, 0.8, 0.7), color: 0xf4f4f2 },
+        { geo: sphere(0.016, 8), matrix: M4(-0.034, 1.566, 0.074, 0, 0, 0, 1, 0.8, 0.7), color: 0xf4f4f2 },
+        { geo: sphere(0.0082, 6), matrix: M4(0.034, 1.565, 0.085), color: 0x141418 },
+        { geo: sphere(0.0082, 6), matrix: M4(-0.034, 1.565, 0.085), color: 0x141418 },
+        { geo: box(0.032, 0.008, 0.012), matrix: M4(0.034, 1.588, 0.080), color: o.hair },
+        { geo: box(0.032, 0.008, 0.012), matrix: M4(-0.034, 1.588, 0.080), color: o.hair },
+        /* أنف وفم وأذنان */
+        { geo: sphere(0.019, 6), matrix: M4(0, 1.545, 0.084, 0, 0, 0, 0.8, 0.9, 1.1), color: o.skin },
+        { geo: box(0.034, 0.007, 0.010), matrix: M4(0, 1.512, 0.082), color: 0x8a5450 },
+        { geo: sphere(0.020, 6), matrix: M4(0.088, 1.548, 0, 0, 0, 0, 0.45, 1, 0.8), color: o.skin },
+        { geo: sphere(0.020, 6), matrix: M4(-0.088, 1.548, 0, 0, 0, 0, 0.45, 1, 0.8), color: o.skin }
+      ];
+      /* شعر أو قبّعة */
+      if (o.hat) {
+        parts.push({ geo: new THREE.SphereGeometry(0.0955, 14, 9, 0, 6.283, 0, 1.6),
+                     matrix: M4(0, 1.556, -0.002, 0, 0, 0, 1.02, 0.88, 1.04), color: o.hat });
+        parts.push({ geo: box(0.170, 0.016, 0.090), matrix: M4(0, 1.586, 0.072), color: o.hat });
+        parts.push({ geo: box(0.150, 0.050, 0.035), matrix: M4(0, 1.498, -0.082), color: o.hair });
+      } else {
+        parts.push({ geo: new THREE.SphereGeometry(0.0945, 16, 11, 0, 6.283, 0, 1.98),
+                     matrix: M4(0, 1.552, -0.006, 0, 0, 0, 1.0, 1.08, 1.05), color: o.hair });
+        parts.push({ geo: box(0.130, 0.060, 0.044), matrix: M4(0, 1.492, -0.072), color: o.hair });
+        parts.push({ geo: new THREE.SphereGeometry(0.070, 12, 8, 0, Math.PI, 0, Math.PI * 0.5),
+                     matrix: M4(0, 1.598, 0.030, 0.30, Math.PI / 2, 0, 1.30, 0.50, 0.70), color: o.hair });
+      }
+      const upper = mergeParts(parts);
+
+      /* الساق: فخذ وركبة وساق وحذاء بنعل */
       const leg = (side) => mergeParts([
-        { geo: capsule(0.072, 0.30, 8), matrix: M4(0, -0.22, 0), color: o.pants },
-        { geo: capsule(0.06, 0.26, 8), matrix: M4(0, -0.62, 0), color: o.pants },
-        { geo: box(0.085, 0.06, 0.20), matrix: M4(0, -0.855, 0.045), color: o.shoe }
+        { geo: capsule(0.071, 0.30, 8), matrix: M4(0, -0.22, 0), color: o.pants },
+        { geo: sphere(0.062, 8), matrix: M4(0, -0.44, 0.004), color: o.pants },
+        { geo: capsule(0.058, 0.26, 8), matrix: M4(0, -0.62, 0), color: o.pants },
+        { geo: new THREE.TorusGeometry(0.056, 0.009, 5, 10), matrix: M4(0, -0.79, 0, Math.PI / 2, 0, 0), color: o.pants },
+        { geo: box(0.084, 0.055, 0.185), matrix: M4(0, -0.852, 0.042), color: o.shoe },
+        { geo: box(0.090, 0.020, 0.198), matrix: M4(0, -0.882, 0.045), color: 0x2a2a2e },
+        { geo: sphere(0.044, 8), matrix: M4(0, -0.850, 0.128, 0, 0, 0, 0.92, 0.62, 1.0), color: o.shoe }
       ]);
       return { upper, legL: leg(1), legR: leg(-1), armL: arm(1), armR: arm(-1), outfit: o };
     });
@@ -637,8 +744,8 @@ SC.character = (function () {
     root.add(legL); root.add(legR);
 
     const shY = 1.38;
-    const armL = new THREE.Group(); armL.position.set(0.185, shY, 0);
-    const armR = new THREE.Group(); armR.position.set(-0.185, shY, 0);
+    const armL = new THREE.Group(); armL.position.set(0.172, shY, 0);
+    const armR = new THREE.Group(); armR.position.set(-0.172, shY, 0);
     const aL = new THREE.Mesh(v.armL, mat), aR = new THREE.Mesh(v.armR, mat);
     aL.castShadow = aR.castShadow = true;
     armL.add(aL); armR.add(aR);
@@ -668,5 +775,8 @@ SC.character = (function () {
     return g;
   }
 
-  return { create, createSimple, createWalker, walkerVariants, mergeParts, steeringWheel, PALETTE, PED_OUTFITS };
+  function pedVariantCount() { return PED_OUTFITS.length; }
+
+  return { create, createSimple, createWalker, walkerVariants, mergeParts, steeringWheel,
+           pedVariantCount, PALETTE, PED_OUTFITS };
 })();

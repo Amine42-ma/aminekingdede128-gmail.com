@@ -88,7 +88,7 @@ SC.Vehicle = (function () {
       const colors = {};
       if (cfg.pose === 'bike') colors.helmet = opts.helmet || 0xe23b3b;
       this.driver = opts.simpleDriver
-        ? SC.character.createSimple({ pose: cfg.pose })
+        ? SC.character.createSimple({ pose: cfg.pose, variant: opts.variant })
         : SC.character.create({ pose: cfg.pose, colors });
       this.driver.root.position.set(cfg.seat[0], cfg.seat[1], cfg.seat[2]);
       this.driver.root.scale.setScalar(cfg.scale || 1);
@@ -254,6 +254,7 @@ SC.Vehicle = (function () {
       this.yaw = yaw || 0;
       this.vLong = this.vLat = this.yawRate = this.speed = 0;
       this.roll = this.pitch = this.bodyVY = 0;
+      this._gx = this._gz = null;
       this.root.position.copy(this.pos);
       this.root.rotation.set(0, this.yaw, 0);
       this.body.rotation.set(0, 0, 0);
@@ -433,7 +434,14 @@ SC.Vehicle = (function () {
     _followGround(dt, accLong) {
       const gy = SC.world.groundHeight(this.pos.x, this.pos.z);
       const diff = gy - this.groundY;
-      if (Math.abs(diff) > 0.02) {                 // صعود/نزول رصيف
+      /* الرصيف حافّة مفاجئة، أمّا منحدر الجسر فصعود ناعم. نميّز بينهما
+         بالميل لا بفرق الارتفاع: على 120 كم/س يرتفع الجسر ٥ سم كل إطار،
+         وكان ذلك يُحسب رصيفاً في كل إطار فيهتزّ المشهد ويرتجّ التعليق. */
+      const moved = Math.hypot(this.pos.x - (this._gx == null ? this.pos.x : this._gx),
+                               this.pos.z - (this._gz == null ? this.pos.z : this._gz));
+      const grade = Math.abs(diff) / Math.max(moved, 0.004);
+      this._gx = this.pos.x; this._gz = this.pos.z;
+      if (Math.abs(diff) > 0.02 && grade > 0.40) {  // صعود/نزول رصيف حقيقي
         this.bodyVY += diff > 0 ? 1.5 : -1.1;
         if (this.kmh > 25 && this.onCurb) this.onCurb(Math.min(1, this.kmh / 90));
         if (diff > 0) { this.vLong *= 0.985; }

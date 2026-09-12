@@ -47,7 +47,7 @@ SC.peds = (function () {
   function spawnOne(near) {
     const spot = sidewalkSpot(near, 25, 170);
     if (!spot) return null;
-    const w = SC.character.createWalker(Math.floor(Math.random() * 6));
+    const w = SC.character.createWalker(Math.floor(Math.random() * SC.character.pedVariantCount()));
     w.root.position.set(spot.x, SC.world.groundHeight(spot.x, spot.z), spot.z);
     scene.add(w.root);
     const p = {
@@ -192,7 +192,7 @@ SC.peds = (function () {
 
   /* راكب ينتظر سيارة أجرة عند نقطة محدّدة */
   function makeWaiting(x, z) {
-    const w = SC.character.createWalker(Math.floor(Math.random() * 6));
+    const w = SC.character.createWalker(Math.floor(Math.random() * SC.character.pedVariantCount()));
     w.root.position.set(x, SC.world.groundHeight(x, z), z);
     scene.add(w.root);
     const p = { w, x, z, state: STATE.WAIT, yaw: 0, timer: 0, waiting: true,

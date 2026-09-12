@@ -161,7 +161,7 @@ SC.net = (function () {
     state.players.forEach((p) => {
       if (!p.veh) {
         try {
-          p.veh = new SC.Vehicle(SC.cars.defs[p.car] ? p.car : 'cortina', { simpleDriver: true });
+          p.veh = new SC.Vehicle(SC.cars.defs[p.car] ? p.car : 'cortina', { simpleDriver: true, variant: (Math.random() * 6) | 0 });
           p.veh.setColor(0x3a6ea5);
           p.veh.place(p.tx, p.tz, p.tyaw);
           p.veh.lightsOn = SC.world.state.isNight;

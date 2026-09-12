@@ -398,22 +398,62 @@ SC.ui = (function () {
       }
       buildRadioList();
       if (announce && st.kind !== 'off') SC.hud.toast('📻 ' + st.title, '', 1600);
-      SC.game.save.radio = st.id;
+      /* لا نحفظ المحطّة إلا عن اختيار صريح أو عند تشغيل مقطع فعلي،
+         وإلا كتب فحصُ الملفات المحفوظة عند الإقلاع «مطفأ» فوق اختيارك. */
+      if (announce === true || st.kind === 'url') {
+        if (SC.game.save.radio !== st.id) {
+          SC.game.save.radio = st.id;
+          SC.game.persist();
+        }
+      }
     });
     buildRadioList();
+    SC.audio.refreshCached();
   }
 
   function buildRadioList() {
     const wrap = dom.radioList;
     if (!wrap) return;
     const cur = SC.audio.radioCurrent();
+    const cached = SC.audio.radioCachedMap();
+    const saving = SC.audio.radioSavingMap();
     wrap.innerHTML = '';
+    let urlCount = 0, savedCount = 0;
     SC.audio.radioStations().forEach((st, i) => {
       const b = U.el('button', i === cur.index ? 'on' : '');
-      b.innerHTML = '<i>' + st.icon + '</i><span>' + st.title + '</span>';
+      let tag = '';
+      if (st.kind === 'url') {
+        urlCount++;
+        if (cached[st.id]) { tag = '<b class="rok">✓</b>'; savedCount++; }
+        else if (saving[st.id]) tag = '<b class="rdl">⌛</b>';
+      }
+      b.innerHTML = '<i>' + st.icon + '</i><span>' + st.title + '</span>' + tag;
       SC.input.bindTap(b, () => { SC.audio.playStation(i); closeRadioList(); });
       wrap.appendChild(b);
     });
+    /* زرّ الحفظ للتشغيل دون إنترنت */
+    const save = U.el('button', 'rsave');
+    const done = savedCount >= urlCount && urlCount > 0;
+    save.innerHTML = done
+      ? '<i>✅</i><span>الموسيقى محفوظة — تعمل بلا إنترنت</span>'
+      : '<i>⬇️</i><span>حفظ الموسيقى للتشغيل بلا إنترنت (' + savedCount + '/' + urlCount + ')</span>';
+    if (!done) {
+      SC.input.bindTap(save, () => {
+        save.innerHTML = '<i>⌛</i><span>جارٍ الحفظ…</span>';
+        SC.audio.cacheAll((d, n, ok) => {
+          save.innerHTML = '<i>⌛</i><span>جارٍ الحفظ… ' + d + '/' + n + '</span>';
+          if (d >= n) {
+            save.innerHTML = ok >= n
+              ? '<i>✅</i><span>تمّ الحفظ — تعمل بلا إنترنت</span>'
+              : '<i>⚠️</i><span>حُفظ ' + ok + ' من ' + n + ' — تحقّق من الإنترنت</span>';
+            SC.hud.toast(ok >= n ? '✅ الموسيقى صارت تعمل بلا إنترنت'
+                                 : '⚠️ حُفظ ' + ok + ' من ' + n + ' مقاطع', '', 2600);
+            setTimeout(buildRadioList, 1400);
+          }
+        });
+      });
+    }
+    wrap.appendChild(save);
   }
   function toggleRadioList() {
     if (!dom.radioList) return;

@@ -298,9 +298,94 @@ SC.audio = (function () {
       url: 'https://qcucttfkpnpkpfdbnsoq.supabase.co/storage/v1/object/public/Game/Full+Speed+Ahead.mp3' }
   ];
 
+  /* ----------------------- تخزين الموسيقى للعمل دون إنترنت ---------------
+     نحفظ كل مقطع في IndexedDB أوّل مرّة يُشغَّل (أو عند الضغط على «حفظ
+     للتشغيل دون إنترنت»)، وبعدها يعمل الراديو كاملاً بلا اتصال. */
+  const DB_NAME = 'speedcity-radio', DB_STORE = 'tracks';
+  let dbPromise = null;
+
+  function openDB() {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise((res) => {
+      try {
+        const rq = indexedDB.open(DB_NAME, 1);
+        rq.onupgradeneeded = () => {
+          const db = rq.result;
+          if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE);
+        };
+        rq.onsuccess = () => res(rq.result);
+        rq.onerror = () => res(null);
+      } catch (e) { res(null); }
+    });
+    return dbPromise;
+  }
+
+  function dbGet(id) {
+    return openDB().then((db) => new Promise((res) => {
+      if (!db) return res(null);
+      try {
+        const rq = db.transaction(DB_STORE, 'readonly').objectStore(DB_STORE).get(id);
+        rq.onsuccess = () => res(rq.result || null);
+        rq.onerror = () => res(null);
+      } catch (e) { res(null); }
+    }));
+  }
+
+  function dbPut(id, blob) {
+    return openDB().then((db) => new Promise((res) => {
+      if (!db) return res(false);
+      try {
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        tx.objectStore(DB_STORE).put(blob, id);
+        tx.oncomplete = () => res(true);
+        tx.onerror = () => res(false);
+      } catch (e) { res(false); }
+    }));
+  }
+
+  /* نزّل مقطعاً واحفظه. يُرجع true إن نجح. */
+  function cacheTrack(st) {
+    if (!st || st.kind !== 'url' || radio.saving[st.id]) return Promise.resolve(false);
+    radio.saving[st.id] = true;
+    return fetch(st.url, { mode: 'cors', cache: 'force-cache' })
+      .then((r) => { if (!r.ok) throw new Error('http ' + r.status); return r.blob(); })
+      .then((blob) => {
+        if (!blob || blob.size < 1024) throw new Error('empty');
+        return dbPut(st.id, blob).then(() => {
+          radio.cached[st.id] = true;
+          radio.saving[st.id] = false;
+          if (radio.onChange) radio.onChange(currentStation(), radio.index, false);
+          return true;
+        });
+      })
+      .catch(() => { radio.saving[st.id] = false; return false; });
+  }
+
+  /* حفظ كل المقاطع دفعةً واحدة (زر «حفظ للتشغيل دون إنترنت») */
+  function cacheAll(onProgress) {
+    const list = buildStations().filter((s) => s.kind === 'url');
+    let done = 0, ok = 0;
+    const step = (i) => {
+      if (i >= list.length) { if (onProgress) onProgress(done, list.length, ok); return Promise.resolve(ok); }
+      return cacheTrack(list[i]).then((good) => {
+        done++; if (good) ok++;
+        if (onProgress) onProgress(done, list.length, ok);
+        return step(i + 1);
+      });
+    };
+    return step(0);
+  }
+
+  /* افحص ما هو محفوظ مسبقاً */
+  function refreshCached() {
+    const list = buildStations().filter((s) => s.kind === 'url');
+    return Promise.all(list.map((s) => dbGet(s.id).then((b) => { radio.cached[s.id] = !!b; })))
+      .then(() => { if (radio.onChange) radio.onChange(currentStation(), radio.index, false); });
+  }
+
   const radio = {
     stations: [], index: 0, el: null, on: true, onChange: null,
-    loading: false, failed: {}
+    loading: false, failed: {}, cached: {}, saving: {}, objUrl: null, token: 0
   };
 
   function buildStations() {
@@ -337,6 +422,7 @@ SC.audio = (function () {
   function onRadioError() {
     const st = currentStation();
     if (!st || st.kind !== 'url') return;
+    if (radio.objUrl) { URL.revokeObjectURL(radio.objUrl); radio.objUrl = null; }
     radio.failed[st.id] = true;
     radio.loading = false;
     if (radio.onChange) radio.onChange(st, radio.index, false);
@@ -362,22 +448,39 @@ SC.audio = (function () {
     const el = ensureRadioEl();
 
     if (st.kind !== 'url') {
+      radio.token++;
       el.pause();
       el.removeAttribute('src');
       el.load();
+      if (radio.objUrl) { URL.revokeObjectURL(radio.objUrl); radio.objUrl = null; }
       radio.loading = false;
     }
     if (st.kind === 'proc') startMusic(); else stopMusic();
     if (st.kind === 'off' && musicBus) musicBus.gain.value = 0;
 
     if (st.kind === 'url') {
-      el.src = st.url;
       el.volume = radioVolume();
       radio.loading = true;
-      if (radioVolume() > 0) {
-        const pr = el.play();
-        if (pr && pr.catch) pr.catch(() => { radio.loading = false; });
-      } else radio.loading = false;
+      const myToken = ++radio.token;
+      const startWith = (src, fromCache) => {
+        if (myToken !== radio.token) return;            // بدّل المستخدم المحطّة
+        if (radio.objUrl) { URL.revokeObjectURL(radio.objUrl); radio.objUrl = null; }
+        if (fromCache) radio.objUrl = src;
+        el.src = src;
+        if (radioVolume() > 0) {
+          const pr = el.play();
+          if (pr && pr.catch) pr.catch(() => { radio.loading = false; });
+        } else radio.loading = false;
+      };
+      /* النسخة المحفوظة أوّلاً — بها يعمل الراديو بلا إنترنت */
+      dbGet(st.id).then((blob) => {
+        if (myToken !== radio.token) return;
+        if (blob) { radio.cached[st.id] = true; startWith(URL.createObjectURL(blob), true); }
+        else {
+          startWith(st.url, false);
+          cacheTrack(st);                               // احفظه للمرّة القادمة
+        }
+      }).catch(() => startWith(st.url, false));
     }
     radio.on = st.kind !== 'off';
     if (radio.onChange) radio.onChange(st, radio.index, announce !== false);
@@ -404,9 +507,13 @@ SC.audio = (function () {
   }
   function radioStations() { return buildStations(); }
   function radioCurrent() {
-    return { station: currentStation(), index: radio.index,
-             loading: radio.loading, failed: !!radio.failed[currentStation().id] };
+    const st = currentStation();
+    return { station: st, index: radio.index, loading: radio.loading,
+             failed: !!radio.failed[st.id], cached: !!radio.cached[st.id],
+             saving: !!radio.saving[st.id] };
   }
+  function radioCachedMap() { return radio.cached; }
+  function radioSavingMap() { return radio.saving; }
   function radioOnChange(fn) { radio.onChange = fn; }
   function radioPause() { if (radio.el) radio.el.pause(); }
   function radioResume() {
@@ -466,6 +573,7 @@ SC.audio = (function () {
   return { init, resume, update, setEnabled, setVolume, setUnderwater, blip, crash, horn, hornBeep, pop,
            startMusic, stopMusic, setMusicVolume, setSfxVolume, setEngineSound, music,
            radioNext, radioPrev, radioSet, radioStations, radioCurrent, radioOnChange,
+           cacheAll, refreshCached, radioCachedMap, radioSavingMap,
            radioPause, radioResume, playStation, get radioEl() { return radio.el; },
            get engineGain() { return eng ? eng.g.gain.value : null; },
            ui, good, bad, cash, check, count, get ctx() { return ctx; } };
