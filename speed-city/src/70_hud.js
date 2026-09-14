@@ -217,6 +217,45 @@ SC.hud = (function () {
       if (ring || clamped) { g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 1.6; g.stroke(); }
     };
 
+    /* أماكن المدينة على الخريطة المصغّرة: أيقونة تكبر مع الاقتراب */
+    const drawPOI = (poi) => {
+      const p = projectMini(poi.x, poi.z);
+      let px = p.x - R, py = p.y - R;
+      const d = Math.hypot(px, py);
+      const edge = R - 12;
+      const off = d > edge;
+      const world = Math.hypot(poi.x - car.pos.x, poi.z - car.pos.z);
+      /* خارج دائرة الخريطة: نُبقي فقط المعرض والكراج القريبين كسهم اتجاه،
+         وإلا ازدحمت الحافّة بسبع عشرة نقطة. */
+      if (off) {
+        const keep = (poi.kind === 'dealer' || poi.kind === 'garage') && world < 700;
+        if (!keep) return;
+        px = px / d * edge; py = py / d * edge;
+      }
+      const near = world < 150;
+      const rr = off ? 5 : (near ? 8.5 : 6.4);
+      g.beginPath(); g.arc(R + px, R + py, rr, 0, 7);
+      g.fillStyle = poi.color; g.fill();
+      g.lineWidth = 1.5; g.strokeStyle = 'rgba(0,0,0,0.6)'; g.stroke();
+      if (!off) {
+        g.font = '700 ' + (rr * 1.2).toFixed(1) + 'px system-ui, sans-serif';
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillStyle = '#0b0f17';
+        g.fillText(poi.icon, R + px, R + py + 0.5);
+        if (near) {
+          g.font = '800 9.5px system-ui, sans-serif';
+          g.textBaseline = 'bottom';
+          g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,0.78)';
+          g.strokeText(poi.name, R + px, R + py - rr - 2);
+          g.fillStyle = '#eaf0f8';
+          g.fillText(poi.name, R + px, R + py - rr - 2);
+        }
+      }
+    };
+    (SC.world.pois ? SC.world.pois() : []).forEach((poi) => {
+      if (Math.hypot(poi.x - car.pos.x, poi.z - car.pos.z) < 2400) drawPOI(poi);
+    });
+
     (game.traffic || []).forEach((v) => drawDot(v.pos.x, v.pos.z, 'rgba(255,255,255,0.45)', 2.4));
     (game.rivals || []).forEach((v) => drawDot(v.pos.x, v.pos.z, '#ff5c5c', 3.6, true));
     markers.forEach((mk) => drawDot(mk.x, mk.z, mk.color, mk.size || 5, true));
@@ -321,6 +360,29 @@ SC.hud = (function () {
       g.strokeStyle = 'rgba(255,255,255,0.22)'; g.lineWidth = Math.max(1, K); g.stroke();
       g.fillStyle = '#eaf0f8';
       g.fillText(isl.name, c.x, by + bh / 2);
+    });
+
+    /* أماكن المدينة على الخريطة الكبيرة */
+    (SC.world.pois ? SC.world.pois() : []).forEach((poi) => {
+      const p = toScreen(poi.x, poi.z);
+      if (p.x < -40 || p.x > W + 40 || p.y < -40 || p.y > H + 40) return;
+      const rr = U.clamp(Math.min(W, H) * 0.019, 7, 15 * K);
+      g.beginPath(); g.arc(p.x, p.y, rr, 0, 7);
+      g.fillStyle = poi.color; g.fill();
+      g.lineWidth = Math.max(1.4, rr * 0.18); g.strokeStyle = 'rgba(0,0,0,0.6)'; g.stroke();
+      g.font = '700 ' + (rr * 1.15).toFixed(1) + 'px system-ui, sans-serif';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#0b0f17';
+      g.fillText(poi.icon, p.x, p.y + 0.5);
+      if (s > 0.045) {                    // الاسم عند التقريب الكافي
+        const fs = U.clamp(rr * 0.85, 8, 12 * K);
+        g.font = '800 ' + fs.toFixed(1) + 'px system-ui, sans-serif';
+        g.textBaseline = 'bottom';
+        g.lineWidth = 3.5; g.strokeStyle = 'rgba(0,0,0,0.8)';
+        g.strokeText(poi.name, p.x, p.y - rr - 3);
+        g.fillStyle = '#eaf0f8';
+        g.fillText(poi.name, p.x, p.y - rr - 3);
+      }
     });
 
     /* العلامات */

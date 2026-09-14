@@ -18,10 +18,10 @@
 <div id="loading" class="screen show boot">
   <div class="boot-inner">
     <div class="logo">مدينة <span>السرعة</span></div>
-    <div class="logo-sub">SPEED CITY · نموذج أوّلي</div>
+    <div class="logo-sub">SPEED CITY</div>
     <div class="bar"><b id="loadBar"></b></div>
     <div class="boot-text" id="loadText">جارٍ التحضير…</div>
-    <div class="boot-tip">💡 تُدار اللعبة كاملةً داخل المتصفح — لا حاجة لأي خادم</div>
+    <div class="boot-tip">💡 تعمل كاملةً داخل المتصفح — بلا إنترنت وبلا خادم</div>
   </div>
 </div>
 
@@ -40,7 +40,6 @@
       <button class="tbtn" id="btnShop"><i>🏬</i><span>المتجر</span></button>
       <button class="tbtn" id="btnMap"><i>🗺️</i><span>الخريطة</span></button>
       <button class="tbtn" id="btnSettings"><i>⚙️</i><span>الإعدادات</span></button>
-      <button class="tbtn" id="btnOnline"><i>🌐</i><span>أون لاين</span></button>
       <button class="tbtn" id="btnPause"><i>⏸</i><span>إيقاف</span></button>
     </div>
   </div>
@@ -115,6 +114,13 @@
   <div id="banner" class="banner"></div>
 
   <!-- دعوة بدء المهمّة -->
+  <!-- شارة الدخول إلى مكان قريب -->
+  <div class="poi-prompt" id="poiPrompt">
+    <i id="poiIcon">🏁</i>
+    <div class="pp-txt"><b id="poiName">معرض السيارات</b><span id="poiSub">CAR DEALERSHIP</span></div>
+    <button class="btn primary tiny" id="poiEnter">دخول</button>
+  </div>
+
   <div class="prompt" id="prompt">
     <button class="prompt-x" id="promptClose">✕</button>
     <div class="p-title" id="promptTitle"></div>
@@ -124,22 +130,85 @@
   </div>
 </div>
 
+<!-- ===================== معرض السيارات (داخل العالم) ===================== -->
+<div class="screen panel dealer" id="screenDealer">
+  <div class="p-head">
+    <h2 id="dealerTitle">معرض السيارات</h2>
+    <div class="d-wallet"><i>💰</i><span id="dealerMoney">$0</span></div>
+    <button class="x" data-close>✕</button>
+  </div>
+  <div class="d-wrap">
+  <div class="dealer-body">
+    <div class="d-stage">
+      <canvas id="dealerCanvas"></canvas>
+      <div class="d-badge" id="dealerBadge"></div>
+      <button class="d-nav prev" id="dealerPrev">‹</button>
+      <button class="d-nav next" id="dealerNext">›</button>
+    </div>
+    <div class="d-info">
+      <div class="d-name" id="dealerName">—</div>
+      <div class="d-tag" id="dealerTag"></div>
+      <div class="d-price" id="dealerPrice">$0</div>
+      <div class="d-stats" id="dealerStats"></div>
+      <div class="d-actions" id="dealerActions"></div>
+      <div class="d-note" id="dealerNote"></div>
+    </div>
+  </div>
+  <div class="d-strip" id="dealerStrip"></div>
+  </div>
+</div>
+
+<!-- ============================ الكراج ============================ -->
+<div class="screen panel dealer" id="screenGarage">
+  <div class="p-head">
+    <h2>الكراج</h2>
+    <div class="d-wallet"><i>🚗</i><span id="garageCount">0</span></div>
+    <button class="x" data-close>✕</button>
+  </div>
+  <div class="d-wrap">
+  <div class="dealer-body">
+    <div class="d-stage">
+      <canvas id="garageCanvas"></canvas>
+      <div class="d-badge" id="garageBadge"></div>
+      <button class="d-nav prev" id="garagePrev">‹</button>
+      <button class="d-nav next" id="garageNext">›</button>
+    </div>
+    <div class="d-info">
+      <div class="d-name" id="garageName">—</div>
+      <div class="d-tag" id="garageTag"></div>
+      <div class="d-stats" id="garageStats"></div>
+      <div class="d-actions" id="garageActions"></div>
+      <div class="d-note" id="garageNote">سياراتك المملوكة — اختر واحدة للقيادة</div>
+    </div>
+  </div>
+  <div class="d-strip" id="garageStrip"></div>
+  </div>
+</div>
+
 <!-- ====================== القائمة الرئيسية ====================== -->
 <div class="screen menu" id="screenMenu">
   <div class="menu-bg"></div>
   <div class="menu-inner">
     <div class="logo big">مدينة <span>السرعة</span></div>
-    <div class="logo-sub">SPEED CITY · نموذج أوّلي للعبة سيارات مفتوحة العالم</div>
+    <div class="logo-sub">SPEED CITY — عالم مفتوح · قيادة · مهام · جمع سيارات</div>
+
+    <div class="menu-save" id="menuSave">
+      <div class="ms-item"><i>💰</i><span id="msMoney">$0</span></div>
+      <div class="ms-item"><i>🚗</i><span id="msCar">—</span></div>
+      <div class="ms-item"><i>⭐</i><span id="msLevel">المستوى 1</span></div>
+    </div>
+
     <div class="menu-btns">
-      <button class="btn primary xl" id="btnPlay"><i>🎮</i> لعب أوف لاين</button>
-      <button class="btn xl net" id="btnPlayOnline"><i>🌐</i> لعب أون لاين</button>
-      <button class="btn xl" id="btnMenuMissions"><i>📋</i> المهام والسباقات</button>
-      <button class="btn xl" id="btnMenuShop"><i>🏬</i> المعرض والمتجر</button>
-      <button class="btn xl" id="btnMenuSettings"><i>⚙️</i> الإعدادات</button>
+      <button class="btn primary xl" id="btnPlay"><i>▶</i> <b id="btnPlayLabel">ابدأ اللعب</b></button>
+      <div class="menu-row">
+        <button class="btn" id="btnMenuMissions"><i>📋</i> المهام</button>
+        <button class="btn" id="btnMenuShop"><i>🏬</i> المعرض</button>
+        <button class="btn" id="btnMenuSettings"><i>⚙️</i> الإعدادات</button>
+      </div>
     </div>
     <div class="menu-hint">
-      لوحة المفاتيح: <b>W A S D</b> أو الأسهم · <b>مسافة</b> فرامل اليد · <b>Shift</b> نيترو ·
-      <b>C</b> الكاميرا · <b>R</b> إعادة للطريق · <b>M</b> الخريطة
+      <b>W A S D</b> أو الأسهم · <b>مسافة</b> فرامل اليد · <b>Shift</b> نيترو ·
+      <b>C</b> الكاميرا · <b>R</b> إعادة للطريق · <b>M</b> الخريطة · <b>E</b> دخول المباني
     </div>
   </div>
 </div>

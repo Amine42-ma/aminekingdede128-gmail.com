@@ -3,7 +3,15 @@
    إحساس أركيد: تسارع سريع، انزلاق عند اليد الفرامل، وثبات على السرعات العالية
    ========================================================================== */
 SC.cars = {
-  order: ['cortina', 'bike', 'van'],
+  /* إضافة سيارة جديدة = إدخال واحد هنا. الحقول المطلوبة:
+       key        مفتاح النموذج في SC.assets (من قائمة MODELS في 95_boot.js)
+       name/tag   الاسم والوصف
+       price      السعر (0 = مملوكة من البداية)
+       cls        الفئة D..S
+       mass/power/brake/topSpeed/grip/steerMax/dragK/nitro   إحساس القيادة
+       stats      أعمدة المتجر (speed/accel/grip من 0 إلى 100)
+       driver     مقعد السائق ومقوده وعينه
+     إن لم يُحمَّل النموذج، تعمل السيارة بنموذج بديل ولا تتعطّل اللعبة. */
   defs: {
     cortina: {
       key: 'car_cortina', name: 'فورد كورتينا لوتس', tag: 'كلاسيكية · 1965',
@@ -31,8 +39,54 @@ SC.cars = {
       stats: { speed: 40, accel: 30, grip: 42 }, seatH: 1.35, lean: 0.06,
       driver: { pose: 'car', scale: 1.0, seat: [0.70, 1.26, 2.98], wheel: [0.70, 1.84, 3.32],
                 wheelR: 0.22, eye: [0.70, 1.99, 2.94] }
+    },
+
+    /* ------- نسخ مضبوطة تُباع في المعرض: إحساس قيادة مختلف تماماً ------- */
+    cortina_gt: {
+      key: 'car_cortina', name: 'كورتينا GT سباق', tag: 'مضبوطة · حلبة',
+      price: 24000, cls: 'A', color: 0xd92b2b,
+      mass: 940, power: 14200, brake: 19000, topSpeed: 60,        // ≈ 216 كم/س
+      grip: 1.18, steerMax: 0.66, dragK: 0.36, nitro: 1.2,
+      stats: { speed: 76, accel: 78, grip: 84 }, seatH: 0.62, lean: 0.055,
+      driver: { pose: 'car', scale: 0.92, seat: [0.32, 0.40, 0.08], wheel: [0.30, 0.83, 0.58],
+                wheelR: 0.19, eye: [0.32, 1.12, 0.02] }
+    },
+    cortina_drift: {
+      key: 'car_cortina', name: 'كورتينا دريفت', tag: 'خلفية · انزلاق',
+      price: 41000, cls: 'A', color: 0x1f2937,
+      mass: 1000, power: 16500, brake: 16000, topSpeed: 57,       // ≈ 205 كم/س
+      grip: 0.92, steerMax: 0.74, dragK: 0.40, nitro: 1.25,
+      stats: { speed: 70, accel: 84, grip: 52 }, seatH: 0.62, lean: 0.09,
+      driver: { pose: 'car', scale: 0.92, seat: [0.32, 0.40, 0.08], wheel: [0.30, 0.83, 0.58],
+                wheelR: 0.19, eye: [0.32, 1.12, 0.02] }
+    },
+    bike_street: {
+      key: 'bike_cyberpunk', name: 'دراجة الشارع', tag: 'خفيفة · للمدينة',
+      price: 12500, cls: 'B', color: 0xf59e0b,
+      mass: 220, power: 2700, brake: 6200, topSpeed: 52,          // ≈ 187 كم/س
+      grip: 1.10, steerMax: 0.72, dragK: 0.20, nitro: 1.0,
+      stats: { speed: 62, accel: 72, grip: 74 }, seatH: 0.55, lean: 0.55, leanIn: true,
+      driver: { pose: 'bike', scale: 0.90, seat: [0, 0.71, -0.20], wheel: [0, 0.86, 0.47],
+                wheelR: 0.235, eye: [0, 1.34, -0.02] }
+    },
+    van_box: {
+      key: 'van_motorhome', name: 'شاحنة نقل', tag: 'حمولات · مُحسَّنة',
+      price: 96000, cls: 'C', color: 0x2563eb,
+      mass: 3000, power: 26000, brake: 33000, topSpeed: 45,       // ≈ 162 كم/س
+      grip: 0.95, steerMax: 0.50, dragK: 0.92, nitro: 0.9,
+      stats: { speed: 52, accel: 44, grip: 55 }, seatH: 1.35, lean: 0.05,
+      driver: { pose: 'car', scale: 1.0, seat: [0.70, 1.26, 2.98], wheel: [0.70, 1.84, 3.32],
+                wheelR: 0.22, eye: [0.70, 1.99, 2.94] }
     }
   }
+};
+/* ترتيب العرض في المعرض: الأرخص أولاً */
+SC.cars.order = Object.keys(SC.cars.defs)
+  .sort((a, b) => SC.cars.defs[a].price - SC.cars.defs[b].price);
+/* المركبات التي تصلح لمهام كل فئة */
+SC.cars.family = (id) => {
+  const k = (SC.cars.defs[id] || {}).key || '';
+  return k.indexOf('bike') >= 0 ? 'bike' : k.indexOf('van') >= 0 ? 'van' : 'cortina';
 };
 
 SC.Vehicle = (function () {
@@ -48,10 +102,17 @@ SC.Vehicle = (function () {
       this.isPlayer = !!opts.player;
       this.upgrades = opts.upgrades || { engine: 0, tires: 0, brakes: 0, nitro: 0 };
 
-      const model = SC.assets.get(this.def.key);
-      this.size = model.size.clone();
+      let model = SC.assets.get(this.def.key);
       this.root = new THREE.Group();
-      this.body = SC.assets.clone(this.def.key);
+      if (model) {
+        this.size = model.size.clone();
+        this.body = SC.assets.clone(this.def.key);
+      } else {
+        /* النموذج لم يُحمَّل: نبني هيكلاً بديلاً حتى تبقى اللعبة قابلة للّعب */
+        console.warn('نموذج مفقود: ' + this.def.key + ' — استُخدم هيكل بديل');
+        this.size = new THREE.Vector3(1.8, 1.4, 4.3);
+        this.body = SC.Vehicle.placeholder(this.def.color || 0x9aa4b2, this.size);
+      }
       this.root.add(this.body);
 
       this.halfLen = this.size.z * 0.5;
@@ -519,6 +580,20 @@ SC.Vehicle = (function () {
     }
     get forward() { return new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw)); }
   }
+
+  /* هيكل بديل بسيط يُستخدم إن تعذّر تحميل نموذج السيارة */
+  Vehicle.placeholder = function (color, size) {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.45, metalness: 0.35 });
+    const glass = new THREE.MeshStandardMaterial({ color: 0x1b2430, roughness: 0.15, metalness: 0.6 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y * 0.55, size.z), mat);
+    body.position.y = size.y * 0.34;
+    const top = new THREE.Mesh(new THREE.BoxGeometry(size.x * 0.82, size.y * 0.42, size.z * 0.48), glass);
+    top.position.set(0, size.y * 0.76, -size.z * 0.05);
+    [body, top].forEach((m) => { m.castShadow = true; m.receiveShadow = true; g.add(m); });
+    g.userData.size = size.clone();
+    return g;
+  };
 
   return Vehicle;
 })();

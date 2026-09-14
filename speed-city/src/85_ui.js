@@ -27,12 +27,21 @@ SC.ui = (function () {
     SC.input.bindTap(dom.btnShop, () => open('shop'));
     SC.input.bindTap(dom.btnMap, () => { mapView.mode = 'world'; open('map'); });
     initRadio();
+    if (dom.poiEnter) SC.input.bindTap(dom.poiEnter, () => enterPOI());
+    if (dom.dealerPrev) SC.input.bindTap(dom.dealerPrev, () => { dealerIdx--; buildDealer(); });
+    if (dom.dealerNext) SC.input.bindTap(dom.dealerNext, () => { dealerIdx++; buildDealer(); });
+    if (dom.garagePrev) SC.input.bindTap(dom.garagePrev, () => { garageIdx--; buildGarage(); });
+    if (dom.garageNext) SC.input.bindTap(dom.garageNext, () => { garageIdx++; buildGarage(); });
+    /* E على لوحة المفاتيح = دخول المكان القريب */
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyE' && !current && SC.game.G.nearPOI) enterPOI();
+    });
     /* الضغط على الخريطة المصغّرة يفتح نفسها بحجم كبير على موقع اللاعب */
     const mini = document.querySelector('.minimap');
     if (mini) SC.input.bindTap(mini, () => { mapView.mode = 'near'; open('map'); });
     SC.input.bindTap(dom.btnSettings, () => open('settings'));
     SC.input.bindTap(dom.btnPause, () => open('pause'));
-    SC.input.bindTap(dom.btnOnline, () => open('online'));
+    if (dom.btnOnline) SC.input.bindTap(dom.btnOnline, () => open('online'));
     initOnline();
 
     U.$$('[data-close]').forEach((b) => SC.input.bindTap(b, () => hideAll()));
@@ -64,6 +73,8 @@ SC.ui = (function () {
     if (name === 'online') buildOnline();
     if (name === 'shop') buildShop();
     if (name === 'missions') buildMissions();
+    if (name === 'dealer') buildDealer();
+    if (name === 'garage') buildGarage();
     if (name === 'map') {
       if (mapView.mode === 'near') { mapView.zoom = 1.35; centerMap(); mapView.mode = null; mapView.touched = true; }
       else if (mapView.mode === 'world' || !mapView.touched) { fitMap(); mapView.mode = null; }
@@ -76,6 +87,7 @@ SC.ui = (function () {
     SC.audio.ui();
   }
   function hideAll(silent) {
+    Object.keys(preview).forEach((k) => previewStop(preview[k]));
     ['screenMenu', 'screenShop', 'screenMap', 'screenMissions', 'screenSettings', 'screenResult',
      'screenPause', 'screenOnline']
       .forEach((k) => dom[k] && dom[k].classList.remove('show'));
@@ -361,6 +373,280 @@ SC.ui = (function () {
   ];
   let missionTab = null;
 
+  /* ====================== معرض السيارات والكراج ==========================
+     عرض ثلاثي الأبعاد حيّ للسيارة نفسها من نموذجها الأصلي، مع بطاقة
+     مواصفات وأزرار شراء/اختيار. يُستخدم مُصيّر صغير مستقل يعمل فقط
+     أثناء فتح الشاشة، فلا يكلّف شيئاً أثناء اللعب. */
+  const preview = {};        // key -> { renderer, scene, camera, holder, raf, canvas }
+
+  function makePreview(canvas) {
+    if (preview[canvas.id]) return preview[canvas.id];
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true,
+                                           powerPreference: 'low-power' });
+    } catch (e) { return null; }
+    renderer.setPixelRatio(Math.min(1.75, window.devicePixelRatio || 1));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(34, 1.6, 0.1, 100);
+    scene.add(new THREE.HemisphereLight(0xdce8f5, 0x2a3240, 2.2));
+    const key = new THREE.DirectionalLight(0xffffff, 2.6);
+    key.position.set(4, 6, 5); scene.add(key);
+    const rim = new THREE.DirectionalLight(0x8fd8ff, 1.5);
+    rim.position.set(-5, 3, -4); scene.add(rim);
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.05, 0.12, 36),
+      new THREE.MeshStandardMaterial({ color: 0x1a2330, roughness: 0.55, metalness: 0.25 }));
+    disc.position.y = -0.06; scene.add(disc);
+    const holder = new THREE.Group(); scene.add(holder);
+    const P = { renderer, scene, camera, holder, canvas, disc, raf: 0, spin: 0, live: false };
+    preview[canvas.id] = P;
+    return P;
+  }
+
+  function previewShow(P, carId) {
+    if (!P) return;
+    while (P.holder.children.length) P.holder.remove(P.holder.children[0]);
+    const def = SC.cars.defs[carId];
+    if (!def) return;
+    let obj = null;
+    if (SC.assets.get(def.key)) {
+      obj = SC.assets.clone(def.key);
+      /* لون خاص بالعرض دون المساس بسيارة اللاعب */
+      obj.traverse((o) => {
+        if (!o.isMesh || !o.material) return;
+        /* نسخة خاصة بالعرض مع الحفاظ على شكل الحقل: مصفوفة تبقى مصفوفة
+           وخامة مفردة تبقى مفردة — تحويل المفرد إلى مصفوفة لا يرسم شيئاً. */
+        o.material = Array.isArray(o.material)
+          ? o.material.map((m) => m.clone())
+          : o.material.clone();
+      });
+    } else {
+      obj = SC.Vehicle.placeholder(def.color || 0x9aa4b2, new THREE.Vector3(1.8, 1.4, 4.3));
+    }
+    const box = new THREE.Box3().setFromObject(obj);
+    const size = box.getSize(new THREE.Vector3());
+    const ctr = box.getCenter(new THREE.Vector3());
+    obj.position.sub(new THREE.Vector3(ctr.x, box.min.y, ctr.z));
+    P.holder.add(obj);
+    /* القاعدة تتبع حجم المركبة، والكاميرا تؤطّرها بإحكام */
+    const reach = Math.max(size.x, size.z, size.y * 1.7);
+    if (P.disc) P.disc.scale.set(Math.max(size.x, size.z) * 0.72, 1, Math.max(size.x, size.z) * 0.72);
+    P.camera.position.set(reach * 0.30, reach * 0.42, reach * 1.32);
+    P.camera.lookAt(0, size.y * 0.46, 0);
+    P.fit = reach;
+  }
+
+  function previewStart(P) {
+    if (!P || P.live) return;
+    P.live = true;
+    const loop = () => {
+      if (!P.live) return;
+      P.raf = requestAnimationFrame(loop);
+      const r = P.canvas.getBoundingClientRect();
+      if (r.width > 4 && (P.canvas.width !== Math.round(r.width) || P.canvas.height !== Math.round(r.height))) {
+        P.renderer.setSize(r.width, r.height, false);
+        P.camera.aspect = r.width / Math.max(1, r.height);
+        P.camera.updateProjectionMatrix();
+      }
+      P.spin += 0.006;
+      P.holder.rotation.y = P.spin;
+      P.renderer.render(P.scene, P.camera);
+    };
+    loop();
+  }
+  function previewStop(P) {
+    if (!P) return;
+    P.live = false;
+    if (P.raf) cancelAnimationFrame(P.raf);
+    P.raf = 0;
+  }
+
+  /* ------------------------------ المعرض -------------------------------- */
+  let dealerIdx = 0, dealerPOI = null;
+
+  function dealerList() {
+    return SC.cars.order.filter((id) => SC.cars.defs[id]);
+  }
+
+  function statRow(label, val, cls) {
+    return '<div class="d-stat ' + (cls || '') + '"><span>' + label + '</span>' +
+           '<div class="d-bar"><i style="width:' + Math.max(4, Math.min(100, val)) + '%"></i></div>' +
+           '<b>' + Math.round(val) + '</b></div>';
+  }
+
+  function buildDealer() {
+    const list = dealerList();
+    if (!list.length) return;
+    dealerIdx = ((dealerIdx % list.length) + list.length) % list.length;
+    const id = list[dealerIdx], def = SC.cars.defs[id], sv = SC.game.save;
+    const owned = sv.owned.indexOf(id) >= 0;
+    const current = sv.current === id;
+    const canAfford = sv.money >= def.price;
+
+    if (dom.dealerTitle) dom.dealerTitle.textContent = dealerPOI ? dealerPOI.name : 'معرض السيارات';
+    if (dom.dealerMoney) dom.dealerMoney.textContent = U.money(sv.money);
+    dom.dealerName.textContent = def.name;
+    dom.dealerTag.textContent = def.tag + ' · الفئة ' + def.cls;
+    dom.dealerBadge.textContent = 'CAR DEALERSHIP';
+    dom.dealerPrice.textContent = owned ? 'مملوكة' : U.money(def.price);
+    dom.dealerPrice.className = 'd-price' + (owned ? ' owned' : '');
+    dom.dealerStats.innerHTML =
+      statRow('السرعة', def.stats.speed, 'speed') +
+      statRow('التسارع', def.stats.accel, 'accel') +
+      statRow('التحكّم', def.stats.grip, 'grip') +
+      statRow('أقصى سرعة', Math.min(100, def.topSpeed * 3.6 / 2.6), 'speed');
+
+    /* الأزرار */
+    const act = dom.dealerActions;
+    act.innerHTML = '';
+    const note = dom.dealerNote;
+    note.className = 'd-note';
+    note.textContent = 'أقصى سرعة ' + Math.round(def.topSpeed * 3.6) + ' كم/س · الوزن ' + def.mass + ' كغ';
+
+    if (!owned) {
+      const buy = U.el('button', 'btn primary' + (canAfford ? '' : ' off'),
+                       canAfford ? '🛒 شراء' : '💸 المال غير كافٍ');
+      if (canAfford) {
+        SC.input.bindTap(buy, () => {
+          if (SC.game.buyCar(id)) {
+            SC.audio.cash();
+            note.className = 'd-note ok';
+            note.textContent = 'تمّ الشراء! اضغط «اختيار» للقيادة بها الآن.';
+            buildDealer();
+          }
+        });
+      } else {
+        SC.input.bindTap(buy, () => {
+          note.className = 'd-note bad';
+          note.textContent = 'ينقصك ' + U.money(def.price - sv.money) + ' — أنجز مهمّة لكسب المال.';
+          SC.audio.bad();
+        });
+      }
+      act.appendChild(buy);
+    } else if (!current) {
+      const use = U.el('button', 'btn primary', '✓ اختيار');
+      SC.input.bindTap(use, () => {
+        SC.game.selectCar(id);
+        note.className = 'd-note ok';
+        note.textContent = 'صارت سيارتك الحالية.';
+        buildDealer();
+      });
+      act.appendChild(use);
+    } else {
+      const cur = U.el('button', 'btn off', '★ سيارتك الحالية');
+      act.appendChild(cur);
+    }
+    const back = U.el('button', 'btn ghost', 'خروج');
+    SC.input.bindTap(back, () => hideAll());
+    act.appendChild(back);
+
+    /* شريط الاختيار السريع */
+    dom.dealerStrip.innerHTML = '';
+    list.forEach((cid, i) => {
+      const d = SC.cars.defs[cid];
+      const own = sv.owned.indexOf(cid) >= 0;
+      const card = U.el('button', 'd-card' + (i === dealerIdx ? ' on' : '') + (own ? ' owned' : ''));
+      card.innerHTML = '<b>' + d.name + '</b><span>' + (own ? 'مملوكة' : U.money(d.price)) + '</span>';
+      SC.input.bindTap(card, () => { dealerIdx = i; buildDealer(); });
+      dom.dealerStrip.appendChild(card);
+    });
+
+    const P = makePreview(dom.dealerCanvas);
+    previewShow(P, id);
+    previewStart(P);
+  }
+
+  function openDealer(poi) {
+    dealerPOI = poi || null;
+    const list = dealerList();
+    const cur = list.indexOf(SC.game.save.current);
+    dealerIdx = cur >= 0 ? cur : 0;
+    open('dealer');
+  }
+
+  /* ------------------------------ الكراج -------------------------------- */
+  let garageIdx = 0;
+  function garageList() {
+    return SC.game.save.owned.filter((id) => SC.cars.defs[id]);
+  }
+  function buildGarage() {
+    const list = garageList();
+    if (!list.length) return;
+    garageIdx = ((garageIdx % list.length) + list.length) % list.length;
+    const id = list[garageIdx], def = SC.cars.defs[id], sv = SC.game.save;
+    const current = sv.current === id;
+    if (dom.garageCount) dom.garageCount.textContent = list.length + ' سيارات';
+    dom.garageName.textContent = def.name;
+    dom.garageTag.textContent = def.tag + ' · الفئة ' + def.cls;
+    dom.garageBadge.textContent = 'GARAGE';
+    dom.garageStats.innerHTML =
+      statRow('السرعة', def.stats.speed, 'speed') +
+      statRow('التسارع', def.stats.accel, 'accel') +
+      statRow('التحكّم', def.stats.grip, 'grip');
+    const act = dom.garageActions;
+    act.innerHTML = '';
+    if (!current) {
+      const use = U.el('button', 'btn primary', '✓ اختر هذه السيارة');
+      SC.input.bindTap(use, () => {
+        SC.game.selectCar(id);
+        dom.garageNote.className = 'd-note ok';
+        dom.garageNote.textContent = 'تمّ — اخرج وقُد.';
+        buildGarage();
+      });
+      act.appendChild(use);
+    } else {
+      act.appendChild(U.el('button', 'btn off', '★ سيارتك الحالية'));
+    }
+    const back = U.el('button', 'btn ghost', 'خروج');
+    SC.input.bindTap(back, () => hideAll());
+    act.appendChild(back);
+
+    dom.garageStrip.innerHTML = '';
+    list.forEach((cid, i) => {
+      const d = SC.cars.defs[cid];
+      const card = U.el('button', 'd-card owned' + (i === garageIdx ? ' on' : ''));
+      card.innerHTML = '<b>' + d.name + '</b><span>' + (sv.current === cid ? 'الحالية' : 'مملوكة') + '</span>';
+      SC.input.bindTap(card, () => { garageIdx = i; buildGarage(); });
+      dom.garageStrip.appendChild(card);
+    });
+    const P = makePreview(dom.garageCanvas);
+    previewShow(P, id);
+    previewStart(P);
+  }
+  function openGarage() {
+    const list = garageList();
+    const cur = list.indexOf(SC.game.save.current);
+    garageIdx = cur >= 0 ? cur : 0;
+    open('garage');
+  }
+
+  /* ------------------ شارة الدخول إلى مكان في المدينة ------------------- */
+  function showPOI(poi) {
+    const el = dom.poiPrompt;
+    if (!el) return;
+    if (!poi) { el.classList.remove('show'); return; }
+    dom.poiIcon.textContent = poi.icon;
+    dom.poiName.textContent = poi.name;
+    dom.poiSub.textContent = poi.en;
+    const enter = dom.poiEnter;
+    const usable = poi.kind === 'dealer' || poi.kind === 'garage';
+    enter.textContent = usable ? 'دخول' : 'زيارة';
+    enter.classList.toggle('off', !usable);
+    el.classList.add('show');
+    SC.audio.ui();
+  }
+
+  function enterPOI() {
+    const poi = SC.game.G.nearPOI;
+    if (!poi) return;
+    if (poi.kind === 'dealer') openDealer(poi);
+    else if (poi.kind === 'garage') openGarage();
+    else SC.hud.toast(poi.icon + ' ' + poi.name + ' — ' + poi.en, '', 2200);
+  }
+
   /* ------------------------------ الراديو ------------------------------- */
   /* شريط الأزرار العلوي يلتفّ على الشاشات الضيّقة، فنقيس ارتفاعه الحقيقي
      ونُنزل الراديو ولوحة المهمّة تحته بدل أرقام ثابتة. */
@@ -467,13 +753,13 @@ SC.ui = (function () {
     const wrap = dom.missionList;
     wrap.innerHTML = '';
     const s = SC.game.save;
-    const cur = s.current;
+    const cur = SC.cars.family(s.current);      // عائلة المركبة الحالية
     if (!missionTab) missionTab = cur;
 
     /* أزرار التبديل بين مركبات المهام */
     const tabs = U.el('div', 'mtabs');
     VEH_TABS.forEach((t) => {
-      const owned = s.owned.indexOf(t.id) >= 0;
+      const owned = s.owned.some((id) => SC.cars.family(id) === t.id);
       const b = U.el('button', 'mtab' + (missionTab === t.id ? ' on' : '') + (owned ? '' : ' locked'),
                      t.label + (owned ? '' : ' 🔒'));
       SC.input.bindTap(b, () => { missionTab = t.id; buildMissions(); });
@@ -482,7 +768,7 @@ SC.ui = (function () {
     wrap.appendChild(tabs);
 
     const tabDef = VEH_TABS.filter((t) => t.id === missionTab)[0] || VEH_TABS[0];
-    const owned = s.owned.indexOf(missionTab) >= 0;
+    const owned = s.owned.some((id) => SC.cars.family(id) === missionTab);
     const note = U.el('div', 'mnote',
       tabDef.hint + (owned
         ? (cur === missionTab ? '' : ' — بدّل إلى هذه المركبة من المتجر لتبدأ')
@@ -513,7 +799,10 @@ SC.ui = (function () {
       } else if (owned) {
         const sw = U.el('button', 'btn primary', 'بدّل وابدأ');
         SC.input.bindTap(sw, () => {
-          SC.game.spawnPlayer(missionTab, true);
+          /* بدّل إلى أفضل مركبة مملوكة من هذه العائلة */
+          const pick = s.owned.filter((id) => SC.cars.family(id) === missionTab)
+                              .sort((a, b) => SC.cars.defs[b].price - SC.cars.defs[a].price)[0];
+          if (pick) SC.game.spawnPlayer(pick, true);
           hideAll(true);
           SC.game.startMission(def);
         });
@@ -665,6 +954,13 @@ SC.ui = (function () {
     row('الفصل', seg('season', [['summer', 'صيف ☀️'], ['winter', 'شتاء ❄️']],
       null, (v) => SC.game.setSeason(v)), 'الشتاء يكسو المدينة بالثلج');
 
+    /* اللعب الجماعي يحتاج خادماً محلياً، فلا يظهر في شاشة البداية ولا في الـHUD */
+    {
+      const b = U.el('button', 'btn ghost', '🌐 اللعب الجماعي (يحتاج خادماً)');
+      SC.input.bindTap(b, () => open('online'));
+      row('تجريبي', b, 'شغّل خادم اللعبة على جهازك ثم اتّصل — اللعبة تعمل كاملةً بدونه');
+    }
+
     row('صوت المحرّك', seg('engine', [['0', 'مطفأ'], ['1', 'مُفعّل']], null, (v) => {
       SC.settings.engineSound = v === '1';
       SC.audio.setEngineSound(SC.settings.engineSound);
@@ -797,6 +1093,7 @@ SC.ui = (function () {
     }
   }
 
-  return { init, open, hideAll, refreshWallet, buildRadioList, closeRadioList, layoutTopbar, showResult, showPrompt, tick, buildShop, drawMap,
+  return { init, open, hideAll, refreshWallet, buildRadioList, closeRadioList, layoutTopbar,
+           showPOI, openDealer, openGarage, enterPOI, showResult, showPrompt, tick, buildShop, drawMap,
            get current() { return current; } };
 })();

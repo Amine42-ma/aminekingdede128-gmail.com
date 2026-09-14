@@ -14,6 +14,7 @@
     building_shop:         { file: 'building_shop.glb',         label: 'المحل' },
     building_house:        { file: 'building_house.glb',        label: 'البيت' },
     building_school:       { file: 'building_school.glb',       label: 'المدرسة' },
+    building_garage:       { file: 'building_garage.glb',       label: 'الكراج', width: 7.4 },
     car_cortina:           { file: 'car_cortina.glb',           label: 'السيارة', length: 4.3 },
     bike_cyberpunk:        { file: 'bike_cyberpunk.glb',        label: 'الدراجة', length: 2.2 },
     van_motorhome:         { file: 'van_motorhome.glb',         label: 'البيت المتنقّل', length: 9.3 }
@@ -39,14 +40,26 @@
     objective: $('objective'), objTitle: $('objTitle'), objText: $('objText'), objMeta: $('objMeta'),
     mini: $('mini'), compass: $('compass'), speed: $('speed'),
     toasts: $('toasts'), banner: $('banner'),
+    poiPrompt: $('poiPrompt'), poiIcon: $('poiIcon'), poiName: $('poiName'),
+    poiSub: $('poiSub'), poiEnter: $('poiEnter'),
     prompt: $('prompt'), promptTitle: $('promptTitle'), promptDesc: $('promptDesc'),
     promptReward: $('promptReward'), promptStart: $('promptStart'), promptClose: $('promptClose'),
     btnMissions: $('btnMissions'), btnShop: $('btnShop'), btnMap: $('btnMap'),
-    btnSettings: $('btnSettings'), btnPause: $('btnPause'), btnOnline: $('btnOnline'),
+    btnSettings: $('btnSettings'), btnPause: $('btnPause'),
+    msMoney: $('msMoney'), msCar: $('msCar'), msLevel: $('msLevel'), btnPlayLabel: $('btnPlayLabel'),
     screenOnline: $('screenOnline'), netStatus: $('netStatus'), netName: $('netName'),
     netUrl: $('netUrl'), netConnect: $('netConnect'), netDisconnect: $('netDisconnect'),
     netMic: $('netMic'), netPlayers: $('netPlayers'), netCount: $('netCount'),
     netChat: $('netChat'), netMsg: $('netMsg'), netSend: $('netSend'),
+    screenDealer: $('screenDealer'), dealerTitle: $('dealerTitle'), dealerMoney: $('dealerMoney'),
+    dealerCanvas: $('dealerCanvas'), dealerBadge: $('dealerBadge'), dealerPrev: $('dealerPrev'),
+    dealerNext: $('dealerNext'), dealerName: $('dealerName'), dealerTag: $('dealerTag'),
+    dealerPrice: $('dealerPrice'), dealerStats: $('dealerStats'), dealerActions: $('dealerActions'),
+    dealerNote: $('dealerNote'), dealerStrip: $('dealerStrip'),
+    screenGarage: $('screenGarage'), garageCount: $('garageCount'), garageCanvas: $('garageCanvas'),
+    garageBadge: $('garageBadge'), garagePrev: $('garagePrev'), garageNext: $('garageNext'),
+    garageName: $('garageName'), garageTag: $('garageTag'), garageStats: $('garageStats'),
+    garageActions: $('garageActions'), garageNote: $('garageNote'), garageStrip: $('garageStrip'),
     screenMenu: $('screenMenu'), screenShop: $('screenShop'), screenMap: $('screenMap'),
     screenMissions: $('screenMissions'), screenSettings: $('screenSettings'),
     screenResult: $('screenResult'), screenPause: $('screenPause'),
@@ -89,7 +102,6 @@
         SC.hud.toast('استكشف المدينة أو ابدأ مهمّة من العلامات الذهبية', '', 3800);
       };
       SC.input.bindTap($('btnPlay'), play);
-      SC.input.bindTap($('btnPlayOnline'), () => { play(); SC.ui.open('online'); });
       SC.input.bindTap($('btnMenuMissions'), () => SC.ui.open('missions'));
       SC.input.bindTap($('btnMenuShop'), () => SC.ui.open('shop'));
       SC.input.bindTap($('btnMenuSettings'), () => SC.ui.open('settings'));
@@ -112,6 +124,13 @@
       document.addEventListener('visibilitychange', () => {
         if (document.hidden && !SC.ui.current) SC.ui.open('pause');
       });
+
+      /* ملخّص آخر حفظ على شاشة البداية */
+      const sv = SC.game.save, defs = SC.cars.defs;
+      if (dom.msMoney) dom.msMoney.textContent = SC.util.money(sv.money);
+      if (dom.msCar) dom.msCar.textContent = (defs[sv.current] || {}).name || '—';
+      if (dom.msLevel) dom.msLevel.textContent = 'المستوى ' + sv.level;
+      if (dom.btnPlayLabel) dom.btnPlayLabel.textContent = sv.xp > 0 ? 'متابعة اللعب' : 'ابدأ اللعب';
 
       dom.loading.classList.remove('show');
       dom.screenMenu.classList.add('show');

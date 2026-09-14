@@ -150,6 +150,9 @@ SC.audio = (function () {
   /* ------------------------------ أصوات لحظية -------------------------- */
   function blip(freq, dur, type, vol, slideTo) {
     if (!ready || !enabled) return;
+    freq = +freq; dur = +dur;
+    if (!isFinite(freq) || freq <= 0) freq = 660;
+    if (!isFinite(dur) || dur <= 0) dur = 0.08;
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.type = type || 'sine'; o.frequency.value = freq;
     if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, ctx.currentTime + dur);

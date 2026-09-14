@@ -45,7 +45,36 @@ SC.world = (function () {
     { a: 2, b: 5, axis: 'x', deckY: 11, width: 24, ramp: 190 }
   ];
 
+  /* نقاط الاهتمام: مواقع محجوزة داخل شبكة المربّعات لا تُبنى فيها مبانٍ
+     عامّة، بل يُبنى فيها المكان نفسه. (i,j) إزاحة من زاوية الجزيرة. */
+  const POI_PLAN = {
+    0: [
+      { i: 8,  j: 7,  kind: 'dealer',  name: 'معرض السيارات',   en: 'CAR DEALERSHIP', icon: '🏁', color: '#ffd23f' },
+      { i: 7,  j: 9,  kind: 'garage',  name: 'كراج اللاعب',     en: 'GARAGE',         icon: '🔧', color: '#7fe8c0' },
+      { i: 10, j: 9,  kind: 'gas',     name: 'محطّة وقود',      en: 'GAS STATION',    icon: '⛽', color: '#ff8a4c' },
+      { i: 5,  j: 6,  kind: 'police',  name: 'مركز الشرطة',     en: 'POLICE',         icon: '🚓', color: '#60a5fa' },
+      { i: 11, j: 5,  kind: 'park',    name: 'الحديقة',         en: 'PARK',           icon: '🌳', color: '#7fe8c0' },
+      { i: 4,  j: 11, kind: 'food',    name: 'مطعم المدينة',    en: 'RESTAURANT',     icon: '🍔', color: '#f472b6' },
+      { i: 12, j: 11, kind: 'parking', name: 'مواقف السيارات',  en: 'PARKING',        icon: '🅿️', color: '#a78bfa' }
+    ],
+    1: [
+      { i: 9,  j: 10, kind: 'dealer',  name: 'معرض الميناء',    en: 'CAR DEALERSHIP', icon: '🏁', color: '#ffd23f' },
+      { i: 12, j: 6,  kind: 'gas',     name: 'وقود الميناء',    en: 'GAS STATION',    icon: '⛽', color: '#ff8a4c' },
+      { i: 6,  j: 13, kind: 'shop',    name: 'سوق الميناء',     en: 'SHOP',           icon: '🛒', color: '#38bdf8' }
+    ],
+    2: [
+      { i: 12, j: 12, kind: 'dealer',  name: 'معرض العاصمة',    en: 'CAR DEALERSHIP', icon: '🏁', color: '#ffd23f' },
+      { i: 8,  j: 15, kind: 'garage',  name: 'كراج العاصمة',    en: 'GARAGE',         icon: '🔧', color: '#7fe8c0' },
+      { i: 15, j: 8,  kind: 'gas',     name: 'وقود العاصمة',    en: 'GAS STATION',    icon: '⛽', color: '#ff8a4c' },
+      { i: 5,  j: 5,  kind: 'workshop',name: 'ورشة الميكانيكي', en: 'WORKSHOP',       icon: '🛠', color: '#fbbf24' }
+    ],
+    3: [{ i: 6, j: 5, kind: 'gas',  name: 'وقود الشمال',  en: 'GAS STATION', icon: '⛽', color: '#ff8a4c' }],
+    4: [{ i: 7, j: 6, kind: 'shop', name: 'سوق الواحة',   en: 'SHOP',        icon: '🛒', color: '#38bdf8' }],
+    5: [{ i: 8, j: 7, kind: 'food', name: 'مقهى الخليج',  en: 'RESTAURANT',  icon: '🍔', color: '#f472b6' }]
+  };
+
   const state = {
+    pois: [], poiGroups: [],
     group: null, colliders: [], grid: null, cellSize: 60, chunks: [],
     blockRects: [], roadNodes: [], lamps: [], sky: null, sun: null, hemi: null,
     spawns: [], parkings: [], props: null, envRT: null
@@ -422,6 +451,7 @@ SC.world = (function () {
     state.group = G;
     scene.add(G);
     state.colliders.length = 0; state.blockRects.length = 0; state.spawns.length = 0;
+    state.pois.length = 0; state.poiGroups.length = 0;
     state.chunks.length = 0; state.lamps.length = 0; state.lampBase = 0;
     state.bridges = []; state.lampGlows = [];
 
@@ -899,8 +929,19 @@ SC.world = (function () {
         if (roll < 0.05) kind = 'school';
         else if (roll < 0.11) kind = 'park';
         else if (roll < 0.16) kind = 'lot';
-        blocks.push({ i, j, cx, cz, rect, kind });
-        if (kind !== 'school') (kind === 'park' ? lotsGrass : lotsPark).push([cx, cz]);
+        /* مربّع محجوز لنقطة اهتمام: لا مبانٍ عامّة فيه */
+        const plan = (POI_PLAN[isl.id] || []).filter((q) => q.i === i && q.j === j)[0];
+        if (plan) {
+          kind = 'poi';
+          state.pois.push(Object.assign({}, plan, {
+            x: cx, z: cz, island: isl.id,
+            id: plan.kind + '_' + isl.id + '_' + i + '_' + j,
+            radius: plan.kind === 'dealer' ? 26 : 20
+          }));
+        }
+        blocks.push({ i, j, cx, cz, rect, kind, poi: plan || null });
+        if (kind === 'poi') lotsPark.push([cx, cz]);
+        else if (kind !== 'school') (kind === 'park' ? lotsGrass : lotsPark).push([cx, cz]);
       }
     }
     slabs.instanceMatrix.needsUpdate = true;
@@ -922,8 +963,333 @@ SC.world = (function () {
 
     buildRoadMarkings(G, rnd, isl);
     placeBuildings(G, blocks, rnd, isl);
+    buildPOIs(G, blocks, rnd, isl);
     buildProps(G, rnd, quality, isl);
     buildSpawns(isl);
+  }
+
+  /* ====================== أماكن المدينة (نقاط الاهتمام) ==================
+     كل مكان يُبنى من عناصر رخيصة: نموذج الكراج المضغوط (168 مثلثاً)،
+     صناديق، لافتة بنسيج مرسوم، وأعمدة. الهدف مكان يُصدَّق لا زرّ في قائمة. */
+  function signTexture(topText, subText, bg, fg) {
+    return canvasTex(512, 160, (c, w, h) => {
+      c.fillStyle = bg; c.fillRect(0, 0, w, h);
+      c.fillStyle = 'rgba(0,0,0,0.20)'; c.fillRect(0, h - 16, w, 16);
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillStyle = fg;
+      c.font = '800 62px system-ui, sans-serif';
+      c.fillText(topText, w / 2, h * 0.38);
+      c.font = '700 34px system-ui, sans-serif';
+      c.globalAlpha = 0.78;
+      c.fillText(subText, w / 2, h * 0.74);
+      c.globalAlpha = 1;
+    }, 1, 1);
+  }
+
+  function poiMaterials() {
+    if (state.poiMats) return state.poiMats;
+    state.poiMats = {
+      wall:  new THREE.MeshStandardMaterial({ color: 0xe6e9ee, roughness: 0.82, metalness: 0.04 }),
+      dark:  new THREE.MeshStandardMaterial({ color: 0x2b3340, roughness: 0.72, metalness: 0.12 }),
+      glass: new THREE.MeshStandardMaterial({ color: 0x9fd8ef, roughness: 0.08, metalness: 0.55,
+                                              transparent: true, opacity: 0.42, depthWrite: false }),
+      metal: new THREE.MeshStandardMaterial({ color: 0x8d949c, roughness: 0.45, metalness: 0.7 }),
+      red:   new THREE.MeshStandardMaterial({ color: 0xd9412f, roughness: 0.6, metalness: 0.1 }),
+      green: new THREE.MeshStandardMaterial({ color: 0x2f8a5b, roughness: 0.85, metalness: 0 }),
+      trunk: new THREE.MeshStandardMaterial({ color: 0x5b4634, roughness: 0.95, metalness: 0 }),
+      tarmac: new THREE.MeshStandardMaterial({ map: TEX.asphalt, roughness: 0.94, metalness: 0 })
+    };
+    return state.poiMats;
+  }
+
+  /* لافتة مضاءة على عمودين */
+  function makeSign(G, x, z, yaw, top, sub, bg, fg, height) {
+    const M = poiMaterials();
+    const h = height == null ? 5.4 : height;
+    const tex = signTexture(top, sub, bg, fg);
+    const board = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 2.25),
+      new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5, metalness: 0.05,
+                                       emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.35,
+                                       side: THREE.DoubleSide }));
+    board.position.set(x, h, z);
+    board.rotation.y = yaw + Math.PI;   // الوجه نحو الشارع
+    board.castShadow = false;
+    G.add(board);
+    state.signMats = state.signMats || [];
+    state.signMats.push(board.material);
+    [-1, 1].forEach((sd) => {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.20, h, 6), M.metal);
+      post.position.set(x + Math.cos(yaw) * sd * 3.1, h / 2, z - Math.sin(yaw) * sd * 3.1);
+      post.castShadow = true;
+      G.add(post);
+    });
+    return board;
+  }
+
+  /* صفّ مواقف مرسومة على الأرض */
+  function parkingBays(G, x, z, yaw, cols, rows) {
+    const M = poiMaterials();
+    const pad = new THREE.Mesh(new THREE.PlaneGeometry(cols * 3.0 + 2, rows * 6.2 + 2), M.tarmac);
+    pad.rotation.x = -Math.PI / 2;
+    pad.position.set(x, CFG.curb + 0.015, z);
+    pad.rotation.z = yaw;
+    pad.receiveShadow = true;
+    G.add(pad);
+    const lineGeo = new THREE.PlaneGeometry(0.16, 5.4);
+    const lineMat = new THREE.MeshBasicMaterial({ color: 0xf0ecd8, transparent: true, opacity: 0.75,
+                                                  depthWrite: false });
+    const n = (cols + 1) * rows;
+    const im = new THREE.InstancedMesh(lineGeo, lineMat, n);
+    im.renderOrder = 2;
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(),
+          e = new THREE.Euler(-Math.PI / 2, 0, 0), one = new THREE.Vector3(1, 1, 1);
+    let k = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c <= cols; c++) {
+        const lx = (c - cols / 2) * 3.0, lz = (r - (rows - 1) / 2) * 6.2;
+        e.set(-Math.PI / 2, yaw, 0); q.setFromEuler(e);
+        const wx = x + lx * Math.cos(yaw) + lz * Math.sin(yaw);
+        const wz = z - lx * Math.sin(yaw) + lz * Math.cos(yaw);
+        m.compose(new THREE.Vector3(wx, CFG.curb + 0.03, wz), q, one);
+        im.setMatrixAt(k++, m);
+      }
+    }
+    im.instanceMatrix.needsUpdate = true; im.computeBoundingSphere();
+    G.add(im);
+  }
+
+  /* وحدات كراج من النموذج المضغوط */
+  function garageBays(G, x, z, yaw, count) {
+    const key = 'building_garage';
+    const model = SC.assets.get(key);
+    if (!model) return 0;
+    const step = model.size.x * 1.02;
+    for (let i = 0; i < count; i++) {
+      const off = (i - (count - 1) / 2) * step;
+      const wx = x + Math.cos(yaw) * off, wz = z - Math.sin(yaw) * off;
+      const g = SC.assets.clone(key);
+      g.position.set(wx, CFG.curb, wz);
+      g.rotation.y = yaw;
+      G.add(g);
+      state.colliders.push({
+        minX: wx - model.size.x * 0.42, maxX: wx + model.size.x * 0.42,
+        minZ: wz - model.size.z * 0.42, maxZ: wz + model.size.z * 0.42,
+        h: model.size.y, kind: 'building'
+      });
+    }
+    return count * step;
+  }
+
+  /* شجرة رخيصة */
+  function tree(G, x, z, scale) {
+    const M = poiMaterials();
+    const s = scale || 1;
+    const t = new THREE.Mesh(state.treeTrunk || (state.treeTrunk =
+      new THREE.CylinderGeometry(0.18, 0.26, 2.4, 6)), M.trunk);
+    t.position.set(x, CFG.curb + 1.2 * s, z); t.scale.setScalar(s); t.castShadow = true;
+    const c = new THREE.Mesh(state.treeCrown || (state.treeCrown =
+      new THREE.IcosahedronGeometry(1.5, 0)), M.green);
+    c.position.set(x, CFG.curb + (2.4 + 1.1) * s, z);
+    c.scale.set(s * 1.1, s * 1.25, s * 1.1); c.castShadow = true;
+    G.add(t); G.add(c);
+  }
+
+  function buildPOIs(G, blocks, rnd, isl) {
+    const ROOT = G;
+    const M = poiMaterials();
+    const P = CFG.pitch, R = CFG.road, W = CFG.walk;
+    const inner = P - R - W * 2;
+
+    for (const b of blocks) {
+      if (b.kind !== 'poi' || !b.poi) continue;
+      const k = b.poi.kind, x = b.cx, z = b.cz;
+      /* مجموعة مستقلّة لكل مكان تُخفى كلياً إذا ابتعدت — سبعة أماكن
+         مرسومة دائماً كانت تضيف مئتي نداء رسم بلا داعٍ. */
+      const PG = new THREE.Group();
+      PG.name = 'poi_' + b.poi.kind;
+      G.add(PG);
+      state.poiGroups.push({ group: PG, x: x, z: z });
+      G = PG;
+      /* الواجهة تنظر إلى الشارع الجنوبي (-Z) دائماً لتسهّل الدخول */
+      const yaw = 0;
+
+      if (k === 'dealer') {
+        /* ------- صالة عرض زجاجية عالية + ساحة عرض بسيارات حقيقية ------- */
+        const wsX = inner * 0.80, wsZ = 26, gh = 9.5;
+        const zBack = z + inner * 0.18;
+        const base = new THREE.Mesh(new THREE.BoxGeometry(wsX + 3, 0.5, wsZ + 3), M.wall);
+        base.position.set(x, CFG.curb + 0.25, zBack);
+        base.receiveShadow = true; G.add(base);
+        /* واجهة زجاجية بأعمدة معدنية */
+        const front = new THREE.Mesh(new THREE.BoxGeometry(wsX, gh, 0.3), M.glass);
+        front.position.set(x, CFG.curb + gh / 2 + 0.5, zBack - wsZ / 2);
+        front.renderOrder = 3; G.add(front);
+        for (let i = 0; i <= 6; i++) {
+          const mx = x - wsX / 2 + (wsX / 6) * i;
+          const mull = new THREE.Mesh(new THREE.BoxGeometry(0.34, gh, 0.5), M.metal);
+          mull.position.set(mx, CFG.curb + gh / 2 + 0.5, zBack - wsZ / 2);
+          G.add(mull);
+        }
+        [-1, 1].forEach((sd) => {
+          const side = new THREE.Mesh(new THREE.BoxGeometry(0.3, gh, wsZ), M.glass);
+          side.position.set(x + sd * wsX / 2, CFG.curb + gh / 2 + 0.5, zBack);
+          side.renderOrder = 3; G.add(side);
+        });
+        const back = new THREE.Mesh(new THREE.BoxGeometry(wsX, gh, 0.5), M.wall);
+        back.position.set(x, CFG.curb + gh / 2 + 0.5, zBack + wsZ / 2);
+        back.castShadow = true; G.add(back);
+        /* سقف بارز مع شريط ملوّن */
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(wsX + 4, 0.9, wsZ + 4), M.dark);
+        roof.position.set(x, CFG.curb + gh + 0.95, zBack);
+        roof.castShadow = true; G.add(roof);
+        const fascia = new THREE.Mesh(new THREE.BoxGeometry(wsX + 4.2, 1.5, 0.7),
+          new THREE.MeshStandardMaterial({ color: 0xffd23f, roughness: 0.45, metalness: 0.25,
+                                           emissive: 0xffd23f, emissiveIntensity: 0.22 }));
+        fascia.position.set(x, CFG.curb + gh + 0.4, zBack - wsZ / 2 - 2);
+        G.add(fascia);
+        /* مظلّة المدخل */
+        const canopy = new THREE.Mesh(new THREE.BoxGeometry(14, 0.5, 8), M.dark);
+        canopy.position.set(x, CFG.curb + 5.4, zBack - wsZ / 2 - 4.4);
+        canopy.castShadow = true; G.add(canopy);
+        [-1, 1].forEach((sd) => {
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 5.2, 6), M.metal);
+          post.position.set(x + sd * 6.2, CFG.curb + 2.6, zBack - wsZ / 2 - 8);
+          post.castShadow = true; G.add(post);
+        });
+        state.colliders.push({ minX: x - wsX / 2, maxX: x + wsX / 2,
+                               minZ: zBack - wsZ / 2, maxZ: zBack + wsZ / 2,
+                               h: gh + 1, kind: 'building' });
+
+        /* لافتة ضخمة على عمود عند الشارع */
+        makeSign(G, x, z - inner * 0.44, 0, 'CAR DEALERSHIP', 'معرض السيارات',
+                 '#101722', '#ffd23f', 9.5);
+
+        /* ساحة العرض: ثلاث منصّات بسيارات حقيقية من نماذج اللعبة */
+        const show = ['car_cortina', 'bike_cyberpunk', 'car_cortina'];
+        const tints = [0xd92b2b, 0x22d3ee, 0x1f2937];
+        show.forEach((mk, i) => {
+          const px = x + (i - 1) * 13.5, pz = z - inner * 0.18;
+          const plinth = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.6, 0.5, 16), M.wall);
+          plinth.position.set(px, CFG.curb + 0.25, pz);
+          plinth.receiveShadow = true; G.add(plinth);
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(4.3, 0.10, 6, 24),
+            new THREE.MeshStandardMaterial({ color: 0xffd23f, emissive: 0xffd23f,
+                                             emissiveIntensity: 0.5, roughness: 0.4 }));
+          ring.rotation.x = Math.PI / 2;
+          ring.position.set(px, CFG.curb + 0.52, pz); G.add(ring);
+          if (SC.assets.get(mk)) {
+            const car = SC.assets.clone(mk);
+            car.position.set(px, CFG.curb + 0.5, pz);
+            car.rotation.y = -0.5 + i * 0.5;
+            car.traverse((o) => {
+              if (!o.isMesh) return;
+              o.castShadow = true;
+              /* نسخة خاصة بالعرض حتى لا نغيّر لون سيارة اللاعب */
+              if (i !== 1 && o.material && o.material.color) {
+                o.material = o.material.clone();
+                o.material.color.setHex(tints[i]);
+              }
+            });
+            G.add(car);
+          }
+        });
+        garageBays(G, x - inner * 0.32, zBack - wsZ / 2 - 16, Math.PI, 2);
+        for (let i = 0; i < 4; i++) tree(G, x + inner * 0.42, z - inner * 0.30 + i * 8, 1.1);
+
+      } else if (k === 'garage') {
+        const n = garageBays(G, x, z + 6, 0, 3);
+        makeSign(G, x, z - 7, 0, 'GARAGE', 'كراجك', '#0d1b16', '#7fe8c0', 4.6);
+        parkingBays(G, x, z - 16, 0, 3, 1);
+        tree(G, x - inner * 0.36, z + 2, 1.0);
+        tree(G, x + inner * 0.36, z + 2, 1.0);
+
+      } else if (k === 'gas') {
+        /* مظلّة على أربعة أعمدة + مضخّتان + متجر صغير */
+        const cw = 18, cd = 11;
+        const canopy = new THREE.Mesh(new THREE.BoxGeometry(cw, 0.7, cd), M.wall);
+        canopy.position.set(x, CFG.curb + 5.4, z);
+        canopy.castShadow = true; G.add(canopy);
+        const band = new THREE.Mesh(new THREE.BoxGeometry(cw + 0.3, 0.9, cd + 0.3), M.red);
+        band.position.set(x, CFG.curb + 4.8, z); G.add(band);
+        [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx, sz]) => {
+          const post = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, 5.1, 6), M.metal);
+          post.position.set(x + sx * (cw / 2 - 1.2), CFG.curb + 2.55, z + sz * (cd / 2 - 1.2));
+          post.castShadow = true; G.add(post);
+        });
+        [-1, 1].forEach((sd) => {
+          const pump = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.9, 0.8), M.red);
+          pump.position.set(x + sd * 3.6, CFG.curb + 0.95, z);
+          pump.castShadow = true; G.add(pump);
+          const isl2 = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.24, 4.2), M.wall);
+          isl2.position.set(x + sd * 3.6, CFG.curb + 0.12, z); G.add(isl2);
+        });
+        const shop = new THREE.Mesh(new THREE.BoxGeometry(12, 4.2, 7), M.wall);
+        shop.position.set(x, CFG.curb + 2.1, z + 13);
+        shop.castShadow = true; G.add(shop);
+        state.colliders.push({ minX: x - 6, maxX: x + 6, minZ: z + 9.5, maxZ: z + 16.5,
+                               h: 4.2, kind: 'building' });
+        makeSign(G, x, z - 10, 0, 'GAS STATION', 'محطّة وقود', '#2a0f0c', '#ff8a4c', 5.2);
+
+      } else if (k === 'police') {
+        const bw = inner * 0.7, bd = 18;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(bw, 8, bd), M.wall);
+        body.position.set(x, CFG.curb + 4, z + 4); body.castShadow = true; G.add(body);
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.2, 1.2, bd + 0.2),
+          new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.55 }));
+        stripe.position.set(x, CFG.curb + 6.4, z + 4); G.add(stripe);
+        state.colliders.push({ minX: x - bw / 2, maxX: x + bw / 2,
+                               minZ: z + 4 - bd / 2, maxZ: z + 4 + bd / 2, h: 8, kind: 'building' });
+        makeSign(G, x, z - 8, 0, 'POLICE', 'مركز الشرطة', '#0a1430', '#60a5fa', 4.8);
+        parkingBays(G, x, z - 17, 0, 4, 1);
+
+      } else if (k === 'park') {
+        for (let i = 0; i < 16; i++) {
+          const a = (i / 16) * Math.PI * 2, r = inner * (0.18 + (i % 3) * 0.13);
+          tree(G, x + Math.cos(a) * r, z + Math.sin(a) * r, 0.9 + (i % 4) * 0.16);
+        }
+        const pond = new THREE.Mesh(new THREE.CircleGeometry(9, 22),
+          new THREE.MeshStandardMaterial({ color: 0x2c6f93, roughness: 0.12, metalness: 0.5 }));
+        pond.rotation.x = -Math.PI / 2; pond.position.set(x, CFG.curb + 0.02, z); G.add(pond);
+        for (let i = 0; i < 6; i++) {
+          const a = i / 6 * Math.PI * 2;
+          const bench = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.16, 0.6), M.trunk);
+          bench.position.set(x + Math.cos(a) * 13, CFG.curb + 0.5, z + Math.sin(a) * 13);
+          bench.rotation.y = -a; bench.castShadow = true; G.add(bench);
+        }
+        makeSign(G, x, z - inner * 0.42, 0, 'CITY PARK', 'حديقة المدينة', '#0c2318', '#7fe8c0', 4.2);
+
+      } else if (k === 'food' || k === 'shop') {
+        const bw = inner * 0.62, bd = 14;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(bw, 5.4, bd), M.wall);
+        body.position.set(x, CFG.curb + 2.7, z + 3); body.castShadow = true; G.add(body);
+        const awn = new THREE.Mesh(new THREE.BoxGeometry(bw + 2, 0.35, 3.2),
+          k === 'food' ? M.red : new THREE.MeshStandardMaterial({ color: 0x2f7ab0, roughness: 0.6 }));
+        awn.position.set(x, CFG.curb + 3.5, z + 3 - bd / 2 - 1.4); awn.rotation.x = -0.18; G.add(awn);
+        state.colliders.push({ minX: x - bw / 2, maxX: x + bw / 2,
+                               minZ: z + 3 - bd / 2, maxZ: z + 3 + bd / 2, h: 5.4, kind: 'building' });
+        makeSign(G, x, z - 9, 0, k === 'food' ? 'RESTAURANT' : 'CITY SHOP',
+                 k === 'food' ? 'مطعم' : 'سوق', '#1c1020', k === 'food' ? '#f472b6' : '#38bdf8', 4.4);
+        for (let i = 0; i < 4; i++) {
+          const tb = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.12, 10), M.wall);
+          tb.position.set(x - 6 + i * 4, CFG.curb + 0.75, z - 12); G.add(tb);
+        }
+
+      } else if (k === 'parking') {
+        parkingBays(G, x, z, 0, 6, 3);
+        makeSign(G, x, z - inner * 0.42, 0, 'PARKING', 'مواقف', '#160f26', '#a78bfa', 4.4);
+        for (let i = 0; i < 6; i++) tree(G, x - inner * 0.42, z - 16 + i * 7, 0.95);
+
+      } else if (k === 'workshop') {
+        garageBays(G, x, z + 4, 0, 4);
+        makeSign(G, x, z - 9, 0, 'WORKSHOP', 'ورشة', '#1f1608', '#fbbf24', 4.6);
+        for (let i = 0; i < 5; i++) {
+          const crate = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 1.4), M.trunk);
+          crate.position.set(x + 10 + (i % 2) * 1.6, CFG.curb + 0.7 + Math.floor(i / 2) * 1.42, z - 4);
+          crate.castShadow = true; G.add(crate);
+        }
+      }
+      G = ROOT;                                   // عُد إلى مجموعة الجزيرة
+    }
   }
 
   /* ------------------------------ الجسور --------------------------------- */
@@ -1239,6 +1605,7 @@ SC.world = (function () {
     };
 
     for (const b of blocks) {
+      if (b.kind === 'poi') continue;            // المربّع محجوز لمكان خاص
       /* مدرسة تشغل مربّعاً كاملاً */
       if (b.kind === 'school' && SC.assets.get(SCHOOL.key)) {
         const model = SC.assets.get(SCHOOL.key);
@@ -1542,6 +1909,16 @@ SC.world = (function () {
     S.points.geometry.attributes.position.needsUpdate = true;
   }
 
+  /* أقرب نقطة اهتمام إلى موضع، ضمن نطاقها */
+  function nearestPOI(x, z) {
+    let best = null, bd = Infinity;
+    for (const p of state.pois) {
+      const d = Math.hypot(p.x - x, p.z - z);
+      if (d < p.radius && d < bd) { bd = d; best = p; }
+    }
+    return best ? { poi: best, dist: bd } : null;
+  }
+
   function setSeason(name) {
     const win = name === 'winter';
     state.season = win ? 'winter' : 'summer';
@@ -1605,6 +1982,14 @@ SC.world = (function () {
       }
     }
 
+    /* الأماكن البعيدة لا تُرسم */
+    if (state.poiGroups.length) {
+      const pc = Math.max(320, fogFar * 0.75);
+      for (const e of state.poiGroups) {
+        e.group.visible = Math.hypot(focus.x - e.x, focus.z - e.z) < pc;
+      }
+    }
+
     // إخفاء أحياء المدينة البعيدة (خلف الضباب) لتوفير الأداء
     const fogCull = state.scene.fog ? state.scene.fog.far * 1.06 : 900;
     const qf = state.quality && state.quality.name === 'low' ? 0.62
@@ -1619,5 +2004,5 @@ SC.world = (function () {
   return { CFG, TEX, state, build, update, groundHeight, onRoad, inBounds, queryColliders,
            snapToRoad, nearestSpawn, randomRoadPoint, setTimeOfDay, refreshEnv, canvasTex, PRESETS,
            isWater, distToWater, onSand, islandAt, islandById, nearestIsland, bridgeAt, BRIDGES,
-           setUnderwater, placeReef, setSeason };
+           setUnderwater, placeReef, setSeason, pois: () => state.pois, nearestPOI };
 })();

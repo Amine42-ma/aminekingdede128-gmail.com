@@ -31,6 +31,7 @@ const models = {
   building_shop: 'building_shop.glb',
   building_house: 'building_house.glb',
   building_school: 'building_school.glb',
+  building_garage: 'building_garage.glb',
   car_cortina: 'car_cortina.glb',
   bike_cyberpunk: 'bike_cyberpunk.glb',
   van_motorhome: 'van_motorhome.glb'

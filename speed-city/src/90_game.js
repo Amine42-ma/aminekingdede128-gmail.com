@@ -25,7 +25,7 @@ SC.game = (function () {
   const G = {
     renderer: null, scene: null, camera: null, car: null, clock: null,
     paused: true, mode: 'menu', waypoint: null, rivals: [], rivalAI: [],
-    missions: [], missionMarkers: [], nearMission: null, playerPathIdx: 0,
+    missions: [], missionMarkers: [], nearMission: null, nearPOI: null, playerPathIdx: 0,
     time: 0, frames: 0, fps: 60, ready: false, miniZoom: 3.0
   };
 
@@ -653,6 +653,17 @@ SC.game = (function () {
     }
   }
 
+  /* أقرب مكان في المدينة: يظهر شريط «دخول» عند الاقتراب */
+  function checkNearPOI(car) {
+    const slow = car.kmh < 42;                    // لا يفتح وأنت مندفع
+    const hit = slow ? SC.world.nearestPOI(car.pos.x, car.pos.z) : null;
+    const poi = hit ? hit.poi : null;
+    if (poi !== G.nearPOI) {
+      G.nearPOI = poi;
+      SC.ui.showPOI(poi);
+    }
+  }
+
   /* ------------------------------ الحلقة -------------------------------- */
   function frame() {
     requestAnimationFrame(frame);
@@ -694,6 +705,7 @@ SC.game = (function () {
       if (SC.net && SC.net.connected) SC.net.update(dt, car);
       SC.missions.update(dt, car);
       checkNearMission(car);
+      checkNearPOI(car);
       updateArrow(car);
     }
 
@@ -831,6 +843,29 @@ SC.game = (function () {
     G.arrow.rotation.set(0, Math.atan2(target.x - car.pos.x, target.z - car.pos.z), 0);
   }
 
+  /* ------------------------- شراء واختيار السيارات ---------------------- */
+  function buyCar(id) {
+    const def = SC.cars.defs[id];
+    if (!def) return false;
+    if (save.owned.indexOf(id) >= 0) return true;
+    if (save.money < def.price) return false;
+    addMoney(-def.price);
+    save.owned.push(id);
+    persist();
+    SC.hud.toast('🎉 اشتريت ' + def.name, 'ok', 2600);
+    return true;
+  }
+
+  function selectCar(id) {
+    if (save.owned.indexOf(id) < 0) return false;
+    if (save.current === id) return true;
+    spawnPlayer(id, true);
+    persist();
+    SC.ui.refreshWallet();
+    SC.hud.toast('🚗 ' + SC.cars.defs[id].name, '', 2000);
+    return true;
+  }
+
   /* ---------------------------- أوامر عامة ------------------------------ */
   function setSeason(v) {
     settings.season = v;
@@ -912,6 +947,7 @@ SC.game = (function () {
 
   return {
     G, save, settings, init, frame, step, start, spawnPlayer, respawn, startMission, setSeason,
+    buyCar, selectCar,
     setCamera, cycleCamera, CAM_MODES, CAM_NAMES,
     setTimeOfDay, setTraffic, setQuality, setWaypoint, togglePause, persist, setPeds, startOnlineRace,
     addMoney, addXp, addRep, repMult, setPassenger, shake, snapCamera,
