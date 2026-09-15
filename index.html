@@ -1091,7 +1091,11 @@ const SEED_INTENT = {
   benchmark: ['قارن النماذج', 'شغل الاختبار', 'ايهما افضل', 'قيم النموذج الجديد', 'اعرض النتائج', 'run benchmark', 'قارن كاد 2 بكاد 1', 'ما دقة النموذج', 'اختبر النموذج', 'اعرض التقييم'],
   export_backup: ['صدر البيانات', 'احفظ نسخة احتياطية', 'نزل كل شي', 'اعمل باك اب', 'صدر المعرفة', 'export backup', 'احفظ المشاريع خارجيا', 'نزل الملف', 'استعد النسخة', 'استورد نسخة احتياطية'],
   fix_errors: ['اصلح الاخطاء', 'فيه خطا في الكود', 'اللعبة ما تشتغل', 'صلح المشكلة', 'الكود يعطي ايرور', 'fix the errors', 'debug this', 'ليش ما يشتغل', 'حل هذي المشكلة', 'اصلح الكراش'],
-  capabilities: ['ماذا تستطيع ان تفعل', 'وش تقدر تسوي', 'ما هي قدراتك', 'اشرح لي النظام', 'كيف تعمل', 'what can you do', 'من انت', 'عرف بنفسك', 'ما حدودك', 'هل تستخدم api خارجي'],
+  capabilities: ['ماذا تستطيع ان تفعل', 'وش تقدر تسوي', 'ما هي قدراتك', 'اشرح لي النظام', 'كيف تعمل', 'what can you do', 'ما حدودك', 'هل تستخدم api خارجي', 'ماذا يمكنك ان تصنع', 'ما الذي تجيده'],
+  identity: ['ما اسمك', 'اسمك ايه', 'شو اسمك', 'وش اسمك', 'من انت', 'عرف بنفسك', 'what is your name', 'who are you', 'من صنعك', 'ما اصدارك', 'كم عمرك', 'اين تحفظ بياناتي', 'هل تستخدم انترنت', 'هل تتصل بالانترنت', 'اي لغه تتكلم', 'كم تعلمت حتى الان'],
+  remember_fact: ['اسمي امين', 'انا اسمي محمد', 'تذكر ان مشروعي اسمه كذا', 'احب العاب السيارات', 'انا افضل الالعاب السريعه', 'remember that i like racing', 'my name is amine', 'تذكر هذا', 'احفظ هذه المعلومه', 'مشروعي اسمه مدينتي'],
+  recall_fact: ['ما اسمي', 'هل تتذكر اسمي', 'ماذا تعرف عني', 'وش تعرف عني', 'ماذا تتذكر', 'what is my name', 'do you remember me', 'اعرض ما تعرفه عني', 'هل تتذكرني', 'ما الذي حفظته عني'],
+  write_code: ['اكتب لي كود', 'اعطني كود للتحكم بالسياره', 'سو لي دالة للقفز', 'اكتب كلاس للكاميرا', 'اريد كود حركة الشخصيه', 'write me code for a camera', 'give me a function for jumping', 'اعطني كود الاصطدام', 'اكتب لي نظام النقاط', 'اريد كود حفظ التقدم', 'كود ربط الصوت بالسرعه', 'اعطني كود الادخال باللمس'],
   play_game: ['شغل اللعبة', 'افتح اللعبة', 'اريد ان العب', 'شغل اخر لعبة', 'اعرض اللعبة', 'run the game', 'جربها', 'شوف اذا تشتغل', 'اختبر اللعبة', 'نزل اللعبة'],
   explain_asset: ['ما هذا الملف', 'اشرح لي هذا المجسم', 'ما نوع هذا الصوت', 'حلل هذه الصورة', 'وش فيه هذا الاصل', 'what is this asset', 'اعطني تفاصيل الملف', 'كم مضلع في المجسم', 'ما مدة الصوت', 'اعرض بيانات الاصل'],
   compare: ['قارن بين المشروعين', 'ما الفرق بينهما', 'ايهما افضل مشروع', 'قارن اللعبة الجديدة بالقديمة', 'وش تغير', 'compare the projects', 'اوجه الشبه والاختلاف', 'قارن الميكانيكيات', 'ما المشترك بينهم', 'قارن الاداء'],
@@ -1150,7 +1154,11 @@ const INTENT_TRIGGERS = {
   benchmark: ['benchmark', 'قيم النموذج', 'دقه النموذج', 'اختبر النموذج', 'قارن النماذج', 'ايهما افضل'],
   export_backup: ['صدر', 'نسخه احتياطيه', 'باك اب', 'export', 'backup', 'استورد', 'استعد النسخه', 'نزل كل'],
   fix_errors: ['اصلح', 'صلح', 'خطا', 'ايرور', 'error', 'مشكله', 'fix', 'debug', 'ما يشتغل', 'كراش'],
-  capabilities: ['تستطيع', 'تقدر', 'قدرات', 'من انت', 'كيف تعمل', 'api', 'حدودك', 'what can you', 'عرف بنفسك'],
+  capabilities: ['تستطيع', 'تقدر', 'قدرات', 'كيف تعمل', 'حدودك', 'what can you', 'ماذا يمكنك'],
+  identity: ['ما اسمك', 'اسمك', 'من انت', 'من صنعك', 'عرف بنفسك', 'اصدارك', 'كم عمرك', 'your name', 'who are you', 'اين تحفظ', 'تستخدم انترنت', 'تتصل بالانترنت'],
+  remember_fact: ['اسمي ', 'تذكر ', 'احفظ هذه', 'my name is', 'remember that', 'انا احب', 'مشروعي اسمه'],
+  recall_fact: ['ما اسمي', 'تتذكر اسمي', 'تعرف عني', 'ماذا تتذكر', 'what is my name', 'تتذكرني', 'حفظته عني'],
+  write_code: ['اكتب لي كود', 'اكتب كود', 'اعطني كود', 'اريد كود', 'كود ', 'دالة', 'داله', 'كلاس', 'function for', 'write code', 'give me code', 'سكربت', 'snippet'],
   play_game: ['شغل', 'افتح اللعبه', 'العب', 'run the', 'جربها', 'اعرض اللعبه'],
   explain_asset: ['ما هذا', 'ما نوع', 'تفاصيل الملف', 'بيانات الاصل', 'كم مضلع', 'مده الصوت'],
   compare: ['قارن', 'الفرق بين', 'اوجه الشبه', 'compare', 'ما تغير', 'المشترك بين'],
@@ -3314,24 +3322,7 @@ const PROJ = {
 
     /* --- Mechanic / concept extraction --- */
     L('💡 استخراج المفاهيم والميكانيكيات…');
-    const mechs = new Map();
-    for (const r of code.concat(html)) {
-      const a = r.analysis.type === 'html' ? (r.analysis.code || null) : r.analysis;
-      if (!a) continue;
-      const found = CONCEPT.fromCode(a, r.name);
-      for (const f of found) {
-        const src = r.text || '';
-        const inferred = CONCEPT.inferParams(src, f.mech);
-        if (inferred) { f.params = Object.assign({}, f.params, inferred); f.inferred = Object.keys(inferred); }
-        const prev = mechs.get(f.mech);
-        if (!prev || f.confidence > prev.confidence) mechs.set(f.mech, f);
-      }
-    }
-    const mechList = Array.from(mechs.values()).sort((a, b) => b.confidence - a.confidence);
-    for (const m of mechList) {
-      const srcAsset = fileResults.find(r => r.name === m.source);
-      await CONCEPT.store(m, projectId, srcAsset ? srcAsset.assetId : null);
-    }
+    const mechList = await this.extractMechanics(fileResults, projectId);
     /* --- Asset↔code linking --- */
     L('🕸 ربط الأصول بالكود…');
     let links = 0;
@@ -3389,6 +3380,29 @@ const PROJ = {
     L('✔ اكتمل تحليل المشروع');
     return { project: p, summary, mechanics: mechList };
   },
+  /* استخراج الميكانيكيات وحفظها — يعمل لمشروع كامل أو لملف واحد مرفوع.
+     كان الاستخراج محصورًا بالمشاريع، فكان رفع ملف واحد لا يعطي أي معاملات. */
+  async extractMechanics(fileResults, projectId) {
+    const mechs = new Map();
+    const src = fileResults.filter(r => r.analysis && (r.analysis.type === 'code' || r.analysis.type === 'html'));
+    for (const r of src) {
+      const a = r.analysis.type === 'html' ? (r.analysis.code || null) : r.analysis;
+      if (!a) continue;
+      for (const f of CONCEPT.fromCode(a, r.name)) {
+        const text = r.text || '';
+        const inferred = CONCEPT.inferParams(text, f.mech);
+        if (inferred) { f.params = Object.assign({}, f.params, inferred); f.inferred = Object.keys(inferred); }
+        const prev = mechs.get(f.mech);
+        if (!prev || f.confidence > prev.confidence) mechs.set(f.mech, f);
+      }
+    }
+    const list = Array.from(mechs.values()).sort((a, b) => b.confidence - a.confidence);
+    for (const m of list) {
+      const srcAsset = fileResults.find(r => r.name === m.source);
+      await CONCEPT.store(m, projectId || null, srcAsset ? srcAsset.assetId : null);
+    }
+    return list;
+  },
   describe(name, s) {
     const L = [];
     L.push('مشروع «' + name + '»: ' + s.files + ' ملف (' + s.code + ' كود، ' + s.models + ' مجسم، ' + s.audio + ' صوت، ' + s.images + ' صورة).');
@@ -3399,6 +3413,747 @@ const PROJ = {
     if (s.hubs.length) L.push('ملفات محورية: ' + s.hubs.map(h => h.file + ' (' + h.dependents + ')').join('، ') + '.');
     if (s.links) L.push('روابط أصول↔كود مكتشفة: ' + s.links + '.');
     return L.join('\n');
+  }
+};
+
+/* ============================ 27b · SELF / FACTS ======================= */
+/* معرفة أساسية موجودة منذ أول تشغيل: يعرف اسمه وما هو وحدوده، ويجيب فورًا.
+   ثم تنمو بما تخبره به أنت، ويتذكّره عبر الجلسات. */
+const SELF = {
+  name: 'KAD-KAD',
+  nameAr: 'كاد-كاد',
+  full: 'KAD-KAD · AI GAME LAB',
+  tagline: 'مختبر ألعاب بذكاء اصطناعي محلي',
+};
+
+const FACTS = {
+  user: {},              // ما يعرفه عنك
+  async init() {
+    this.user = await DB.getKV('userFacts', {});
+    const first = await DB.getKV('firstRun', null);
+    if (!first) await DB.setKV('firstRun', U.now());
+  },
+  async set(slot, value, note) {
+    this.user[slot] = { value, note: note || '', at: U.now() };
+    await DB.setKV('userFacts', this.user);
+    await KB.add({
+      kind: 'fact', title: 'عنك · ' + slot, body: String(value),
+      tags: ['user', 'fact', slot], confidence: .95, source: 'user',
+    });
+    return this.user[slot];
+  },
+  get(slot) { return this.user[slot] ? this.user[slot].value : null; },
+  async age() {
+    const first = await DB.getKV('firstRun', U.now());
+    const d = Math.max(0, Math.floor((U.now() - first) / 86400000));
+    const h = Math.max(0, Math.floor((U.now() - first) / 3600000));
+    if (d >= 1) return d + ' يوم';
+    if (h >= 1) return h + ' ساعة';
+    return 'أقل من ساعة';
+  },
+
+  /* حقائق ذاتية ثابتة — كل واحدة تُجيب من الحالة الحقيقية للنظام */
+  card(key) {
+    const gen = REG.activeGen || 1;
+    const C = {
+      name: () => '<p>اسمي <b>' + SELF.name + '</b> (' + SELF.nameAr + ').</p>' +
+        '<p>أنا ' + SELF.tagline + ': نواة تعمل بالكامل داخل متصفحك، داخل ملف HTML واحد.</p>',
+      who: () => '<p>أنا <b>' + SELF.name + '</b> — ' + SELF.tagline + '.</p>' +
+        '<p>أحلّل مشاريع الألعاب وأصولها، أستخرج مفاهيمها، وأكتب لك كودًا وألعابًا. ' +
+        'لستُ واجهة فوق نموذج خارجي: لا OpenAI ولا Claude ولا Gemini ولا مفتاح API.</p>',
+      maker: () => '<p>بُنيتُ لك أنت. لا أتبع أي خدمة ولا أرسل شيئًا لأي جهة.</p>' +
+        '<p>كل ما أعرفه تعلّمته من الملفات التي أعطيتني إياها، وهو محفوظ في متصفحك وحدك.</p>',
+      version: () => '<p>إصداري النشط: <b>' + REG.genName(gen) + '</b>.</p>' +
+        '<p>' + REG.models.length + ' نموذجًا مسجّلًا، منها ' + REG.models.filter(m => m.status === 'active').length + ' نشط. ' +
+        'الإصدارات القديمة تُؤرشف ولا تُحذف، ويمكنك العودة إليها من تبويب النماذج.</p>',
+      age: null,  // غير متزامن — يُعالَج في ask()
+      storage: () => '<p>أحفظ كل شيء في <b>IndexedDB</b> داخل متصفحك، قاعدة <code>' + DB.name + '</code>.</p>' +
+        '<p>الملفات الثنائية كـ Blob، والباقي كسجلات. لا شيء يغادر جهازك، ويمكنك تصدير نسخة كاملة من الإعدادات.</p>',
+      internet: () => '<p><b>لا.</b> لا أتصل بالإنترنت ولا بأي خادم أو API.</p>' +
+        '<p>لا يوجد في شيفرتي أي <code>fetch</code> خارجي ولا رابط خارجي. يمكنك قطع الشبكة وسأعمل كما أنا.</p>',
+      lang: () => '<p>أفهم العربية والإنجليزية.</p>' +
+        '<p>عندي معجم مجالي ثنائي اللغة، فلو سألت «أين نظام السيارات؟» أجد <code>VehicleController.js</code> رغم اختلاف اللغة.</p>',
+      learned: () => {
+        const st = LIB.stats(), k = KB.stats();
+        const rows = Object.entries(k).map(([a, b]) => b + ' ' + a).join('، ');
+        return '<p>حتى الآن: <b>' + st.total + '</b> أصلًا، <b>' + KB.cache.length + '</b> سجل معرفة (' + (rows || '—') + ')، ' +
+          '<b>' + KG.edges.length + '</b> علاقة، و<b>' + DATA.counts().intent + '</b> عيّنة تدريب للنية.</p>';
+      },
+    };
+    return C[key] || null;
+  },
+
+  PATTERNS: [
+    /* ملاحظة: \b لا تُنشئ حدَّ كلمة قبل الحروف العربية في JS، فنستخدم (^|\s) */
+    { key: 'name', re: /(^|\s)ما\s*(?:هو\s*)?اسمك|(^|\s)اسمك|شو\s*اسمك|ايش\s*اسمك|وش\s*اسمك|your\s+name|what.*called/i },
+    { key: 'who', re: /(^|\s)من\s*(?:انت|أنت)(\s|$|؟|\?)|عرف\s*بنفسك|عرّف\s*بنفسك|who\s+are\s+you|من\s*تكون/i },
+    { key: 'maker', re: /من\s*(?:صنعك|برمجك|انشاك|أنشأك|طورك|عملك)|who\s*(?:made|built|created)/i },
+    { key: 'version', re: /ما\s*(?:هو\s*)?اصدارك|أي\s*اصدار|رقم\s*الاصدار|نسختك|your\s+version/i },
+    { key: 'age', re: /كم\s*عمرك|متى\s*بدات|منذ\s*متى|how\s+old/i },
+    { key: 'storage', re: /اين\s*(?:تحفظ|تخزن)|وين\s*تحفظ|مكان\s*(?:الحفظ|التخزين)|where.*(store|save)/i },
+    { key: 'internet', re: /هل\s*(?:تستخدم|تحتاج)\s*(?:انترنت|الانترنت|api|نت)|تتصل\s*بالانترنت|do\s+you\s+use\s+(internet|api)/i },
+    { key: 'lang', re: /هل\s*تفهم\s*العرب|اي\s*لغه\s*تتكلم|تتكلم\s*عرب|what\s+languages/i },
+    { key: 'learned', re: /كم\s*تعلمت|ماذا\s*تعرف\s*(?:حتى\s*الان|الان)|حجم\s*معرفتك|how\s+much.*learn/i },
+  ],
+
+  match(text) {
+    const t = TOK.normalize(text);
+    for (const p of this.PATTERNS) if (p.re.test(t) || p.re.test(text)) return p.key;
+    return null;
+  },
+  async ask(text) {
+    const key = this.match(text);
+    if (!key) return null;
+    if (key === 'age') {
+      const a = await this.age();
+      const first = await DB.getKV('firstRun', U.now());
+      return '<p>أعمل عندك منذ <b>' + a + '</b> (أول تشغيل: ' + U.date(first) + ').</p>' +
+        '<p>خلالها حلّلت ' + LIB.cache.length + ' أصلًا وبنيت ' + REG.models.length + ' نموذجًا.</p>';
+    }
+    const c = this.card(key);
+    return c ? c() : null;
+  },
+
+  /* استخراج معلومة عنك من كلامك وحفظها */
+  learnFrom(text) {
+    const t = text.trim();
+    let m;
+    if ((m = /(?:^|\s)(?:اسمي|انا اسمي|أنا اسمي|my name is|i am|i'm)\s+([^\n،.,]{2,32})/i.exec(t)))
+      return { slot: 'name', value: m[1].trim(), label: 'اسمك' };
+    if ((m = /(?:^|\s)(?:تذكر\s*(?:ان|أن|أنّ)?|remember that|احفظ\s*(?:ان|أن)?)\s+([^\n]{3,180})/i.exec(t)))
+      return { slot: 'note:' + U.hash32(m[1]).toString(36), value: m[1].trim(), label: 'ملاحظة' };
+    if ((m = /(?:^|\s)(?:انا احب|أنا أحب|احب|أحب|افضل|أفضّل|i like|i prefer)\s+([^\n،.,]{3,60})/i.exec(t)))
+      return { slot: 'likes', value: m[1].trim(), label: 'ما تحبّه' };
+    if ((m = /(?:^|\s)(?:مشروعي|اسم مشروعي|my project is)\s+([^\n،.,]{2,40})/i.exec(t)))
+      return { slot: 'project', value: m[1].trim(), label: 'مشروعك' };
+    return null;
+  },
+  recall() {
+    const rows = [];
+    for (const k in this.user) {
+      const v = this.user[k];
+      const label = k === 'name' ? 'اسمك' : k === 'likes' ? 'تحبّ' : k === 'project' ? 'مشروعك' : 'تذكّرتُ';
+      rows.push({ label, value: v.value, at: v.at });
+    }
+    return rows.sort((a, b) => b.at - a.at);
+  }
+};
+
+/* ============================ 27c · CODE STYLE ======================== */
+/* يستنتج أسلوبك من شيفرتك أنت، ثم يكتب لك بنفس الأسلوب.
+   هذا أحد أوجه «التحسّن مع الوقت»: كلما أعطيتني ملفات، اقترب أسلوبي من أسلوبك. */
+const STYLE = {
+  def: { semi: true, quote: "'", indent: '  ', useClass: true, decl: 'const', arrow: true, samples: 0 },
+  cur: null,
+  async infer(force) {
+    if (this.cur && !force) return this.cur;
+    const cached = await DB.getKV('codeStyle', null);
+    const rows = await DB.all('files');
+    const code = rows.filter(r => ['js', 'ts', 'jsx', 'mjs', 'cjs'].includes(r.ext) && r.text && r.text.length > 120);
+    if (!code.length) { this.cur = cached || Object.assign({}, this.def); return this.cur; }
+    let semi = 0, nosemi = 0, sq = 0, dq = 0, i2 = 0, i4 = 0, tab = 0;
+    let cls = 0, fn = 0, arrow = 0, cconst = 0, clet = 0, cvar = 0;
+    for (const r of code.slice(0, 40)) {
+      const src = CODE.strip(r.text);
+      src.split('\n').forEach(l => {
+        const tr = l.trim();
+        if (!tr) return;
+        if (/[;{}(,]$|^\}/.test(tr)) { if (tr.endsWith(';')) semi++; }
+        else if (/[a-zA-Z0-9_$\])]$/.test(tr)) nosemi++;
+        const ind = /^(\t+|[ ]+)/.exec(l);
+        if (ind) { if (ind[1][0] === '\t') tab++; else if (ind[1].length % 4 === 0) i4++; else if (ind[1].length % 2 === 0) i2++; }
+      });
+      sq += (r.text.match(/'/g) || []).length;
+      dq += (r.text.match(/"/g) || []).length;
+      cls += (src.match(/\bclass\s+[A-Za-z_$]/g) || []).length;
+      fn += (src.match(/\bfunction\s/g) || []).length;
+      arrow += (src.match(/=>/g) || []).length;
+      cconst += (src.match(/\bconst\s/g) || []).length;
+      clet += (src.match(/\blet\s/g) || []).length;
+      cvar += (src.match(/\bvar\s/g) || []).length;
+    }
+    const st = {
+      semi: semi >= nosemi,
+      quote: dq > sq * 1.3 ? '"' : "'",
+      indent: tab > Math.max(i2, i4) ? '\t' : (i4 > i2 ? '    ' : '  '),
+      useClass: cls >= 1 && cls * 3 >= fn,
+      decl: cvar > cconst && cvar > clet ? 'var' : (clet > cconst ? 'let' : 'const'),
+      arrow: arrow > fn,
+      samples: code.length,
+    };
+    this.cur = st;
+    await DB.setKV('codeStyle', st);
+    return st;
+  },
+  describe(st) {
+    return [
+      st.useClass ? 'أصناف (class)' : 'دوال مستقلة',
+      st.semi ? 'بفواصل منقوطة' : 'بلا فواصل منقوطة',
+      st.indent === '\t' ? 'مسافة جدولة' : st.indent.length + ' مسافات',
+      'اقتباس ' + (st.quote === '"' ? 'مزدوج' : 'مفرد'),
+      st.decl,
+    ].join(' · ');
+  },
+  /* يطبّق الأسلوب على شيفرة مكتوبة بالنمط القياسي (2 مسافات · ' · ; · const) */
+  apply(code, st) {
+    let out = code;
+    if (st.indent !== '  ') {
+      out = out.split('\n').map(l => {
+        const m = /^( +)/.exec(l);
+        if (!m) return l;
+        const lv = Math.floor(m[1].length / 2);
+        return st.indent.repeat(lv) + l.slice(m[1].length);
+      }).join('\n');
+    }
+    if (st.quote === '"') out = out.replace(/'([^'"\\\n]*)'/g, '"$1"');
+    if (st.decl !== 'const') out = out.replace(/(^|[\s(])const\s/g, '$1' + st.decl + ' ');
+    if (!st.semi) out = out.replace(/;\s*$/gm, '');
+    return out;
+  }
+};
+
+/* ============================ 27d · SNIPPET ENGINE ==================== */
+/* يكتب كودًا حقيقيًا للشيء الذي طلبته بالضبط — لا لعبة كاملة.
+   كل مولّد هنا ينتج وحدة قابلة للتشغيل، تُفحص صياغتها وتُشغَّل فعليًا في
+   صندوق معزول قبل أن تُعرض عليك. المعاملات تُؤخذ من مشاريعك إن حلّلتها. */
+const SNIPPET = {
+  gens: {
+    'vehicle.control': {
+      name: 'التحكم بمركبة', need: ['maxSpeed', 'accel', 'brake', 'steerRate', 'grip'],
+      build(P, st) {
+        const body = [
+          '/* ' + 'تحكّم مركبة: دفع + توجيه + احتكاك. الوحدات: وحدة/ثانية.',
+          '   حدّث كل إطار بـ update(dt, input). */',
+          'const VEHICLE = {',
+          '  maxSpeed: ' + P.maxSpeed + ',',
+          '  accel: ' + P.accel + ',',
+          '  brake: ' + P.brake + ',',
+          '  steerRate: ' + P.steerRate + ',',
+          '  grip: ' + P.grip + ',',
+          '  reverseFactor: ' + (P.reverseFactor || 0.45) + ',',
+          '};',
+          '',
+        ];
+        if (st.useClass) {
+          body.push(
+            'class VehicleController {',
+            '  constructor(cfg) {',
+            '    Object.assign(this, VEHICLE, cfg || {});',
+            '    this.x = 0; this.y = 0; this.heading = 0; this.speed = 0; this.steer = 0;',
+            '  }',
+            '  /* input: { throttle: 0..1, brake: 0..1, steer: -1..1 } */',
+            '  update(dt, input) {',
+            '    const thr = input.throttle || 0;',
+            '    const brk = input.brake || 0;',
+            '    this.speed += thr * this.accel * dt;',
+            '    this.speed -= brk * this.brake * dt;',
+            '    this.speed *= Math.pow(this.grip, dt * 60);',
+            '    const top = this.maxSpeed;',
+            '    if (this.speed > top) this.speed = top;',
+            '    if (this.speed < -top * this.reverseFactor) this.speed = -top * this.reverseFactor;',
+            '    /* التوجيه يضعف عند السرعات المنخفضة، وينعكس عند الرجوع للخلف */',
+            '    const grip = Math.min(Math.abs(this.speed) / top, 1);',
+            '    this.steer += ((input.steer || 0) - this.steer) * Math.min(dt * 8, 1);',
+            '    this.heading += this.steer * this.steerRate * dt * grip * (this.speed < 0 ? -1 : 1);',
+            '    this.x += Math.cos(this.heading) * this.speed * dt;',
+            '    this.y += Math.sin(this.heading) * this.speed * dt;',
+            '    return this;',
+            '  }',
+            '  get kmh() { return Math.abs(this.speed) * 3.6; }',
+            '}');
+        } else {
+          body.push(
+            'function createVehicle(cfg) {',
+            '  return Object.assign({ x: 0, y: 0, heading: 0, speed: 0, steer: 0 }, VEHICLE, cfg || {});',
+            '}',
+            '',
+            'function updateVehicle(v, dt, input) {',
+            '  v.speed += (input.throttle || 0) * v.accel * dt;',
+            '  v.speed -= (input.brake || 0) * v.brake * dt;',
+            '  v.speed *= Math.pow(v.grip, dt * 60);',
+            '  if (v.speed > v.maxSpeed) v.speed = v.maxSpeed;',
+            '  if (v.speed < -v.maxSpeed * v.reverseFactor) v.speed = -v.maxSpeed * v.reverseFactor;',
+            '  const grip = Math.min(Math.abs(v.speed) / v.maxSpeed, 1);',
+            '  v.steer += ((input.steer || 0) - v.steer) * Math.min(dt * 8, 1);',
+            '  v.heading += v.steer * v.steerRate * dt * grip * (v.speed < 0 ? -1 : 1);',
+            '  v.x += Math.cos(v.heading) * v.speed * dt;',
+            '  v.y += Math.sin(v.heading) * v.speed * dt;',
+            '  return v;',
+            '}');
+        }
+        return body.join('\n');
+      },
+      smoke(st) {
+        return st.useClass
+          ? 'var v = new VehicleController(); for (var i=0;i<120;i++) v.update(1/60,{throttle:1,steer:0.4});' +
+          'if (!(v.speed > 0) || !isFinite(v.x)) throw new Error("vehicle did not move");'
+          : 'var v = createVehicle(); for (var i=0;i<120;i++) updateVehicle(v,1/60,{throttle:1,steer:0.4});' +
+          'if (!(v.speed > 0) || !isFinite(v.x)) throw new Error("vehicle did not move");';
+      },
+      usage(st) {
+        return st.useClass
+          ? 'const car = new VehicleController({ maxSpeed: 30 });\n// كل إطار:\ncar.update(dt, { throttle: keys.up ? 1 : 0, brake: keys.down ? 1 : 0, steer: axisX });'
+          : 'const car = createVehicle({ maxSpeed: 30 });\n// كل إطار:\nupdateVehicle(car, dt, { throttle: 1, brake: 0, steer: axisX });';
+      }
+    },
+
+    'camera.follow': {
+      name: 'كاميرا متابعة', need: ['distance', 'height', 'smooth', 'lookAhead'],
+      build(P, st) {
+        return [
+          '/* كاميرا تتبع هدفًا بنعومة، مع نظرة أمامية تتناسب مع السرعة. */',
+          'function createChaseCamera(cfg) {',
+          '  return Object.assign({',
+          '    distance: ' + P.distance + ',',
+          '    height: ' + P.height + ',',
+          '    smooth: ' + P.smooth + ',',
+          '    lookAhead: ' + P.lookAhead + ',',
+          '    x: 0, y: 0, z: 0,',
+          '  }, cfg || {});',
+          '}',
+          '',
+          '/* target: { x, y, z, heading, speed }  ·  استدعها كل إطار */',
+          'function updateChaseCamera(cam, target, dt) {',
+          '  const lead = 1 + (target.speed || 0) * cam.lookAhead * 0.01;',
+          '  const wantX = target.x - Math.cos(target.heading || 0) * cam.distance * lead;',
+          '  const wantZ = (target.z || 0) - Math.sin(target.heading || 0) * cam.distance * lead;',
+          '  /* عامل تنعيم مستقل عن معدّل الإطارات */',
+          '  const k = 1 - Math.pow(1 - cam.smooth, dt * 60);',
+          '  cam.x += (wantX - cam.x) * k;',
+          '  cam.z += (wantZ - cam.z) * k;',
+          '  cam.y += ((target.y || 0) + cam.height - cam.y) * k;',
+          '  return cam;',
+          '}'
+        ].join('\n');
+      },
+      smoke() {
+        return 'var c = createChaseCamera(); var t = {x:0,y:0,z:0,heading:0,speed:10};' +
+          'for (var i=0;i<60;i++){ t.x += 0.5; updateChaseCamera(c,t,1/60); }' +
+          'if (!isFinite(c.x) || c.x === 0) throw new Error("camera did not follow");';
+      },
+      usage() { return 'const cam = createChaseCamera({ distance: 9 });\n// كل إطار:\nupdateChaseCamera(cam, player, dt);'; }
+    },
+
+    'movement.platform': {
+      name: 'قفز ومنصات', need: ['gravity', 'jumpVel', 'moveSpeed', 'coyoteMs'],
+      build(P, st) {
+        return [
+          '/* حركة منصات: جاذبية + قفز مع سماحية coyote وذاكرة ضغطة القفز. */',
+          'function createPlatformer(cfg) {',
+          '  return Object.assign({',
+          '    gravity: ' + P.gravity + ',',
+          '    jumpVel: ' + P.jumpVel + ',',
+          '    moveSpeed: ' + P.moveSpeed + ',',
+          '    coyote: ' + (P.coyoteMs / 1000) + ',',
+          '    bufferTime: 0.12,',
+          '    x: 0, y: 0, vx: 0, vy: 0, grounded: false, _coyote: 0, _buffer: 0,',
+          '  }, cfg || {});',
+          '}',
+          '',
+          '/* input: { axis: -1..1, jump: bool }  ·  solid(x, y) يعيد true إن كان صلبًا */',
+          'function updatePlatformer(p, dt, input, solid) {',
+          '  p.vx = (input.axis || 0) * p.moveSpeed;',
+          '  p.vy += p.gravity * dt;',
+          '  p._coyote = p.grounded ? p.coyote : p._coyote - dt;',
+          '  p._buffer = input.jump ? p.bufferTime : p._buffer - dt;',
+          '  if (p._buffer > 0 && p._coyote > 0) {',
+          '    p.vy = -p.jumpVel;',
+          '    p._coyote = 0; p._buffer = 0; p.grounded = false;',
+          '  }',
+          '  p.x += p.vx * dt;',
+          '  p.y += p.vy * dt;',
+          '  p.grounded = false;',
+          '  if (solid && solid(p.x, p.y)) {',
+          '    /* ارجع للأعلى حتى تخرج من الأرضية */',
+          '    while (solid(p.x, p.y)) p.y -= 1;',
+          '    p.vy = 0; p.grounded = true;',
+          '  }',
+          '  return p;',
+          '}'
+        ].join('\n');
+      },
+      smoke() {
+        return 'var p = createPlatformer(); var ground = function(x,y){ return y > 100; };' +
+          'for (var i=0;i<200;i++) updatePlatformer(p, 1/60, {axis:1, jump:i===5}, ground);' +
+          'if (!p.grounded) throw new Error("never landed"); if (!(p.x > 0)) throw new Error("did not move");';
+      },
+      usage() { return 'const hero = createPlatformer();\n// كل إطار:\nupdatePlatformer(hero, dt, { axis: ax, jump: jumpPressed }, isSolid);'; }
+    },
+
+    'movement.grid': {
+      name: 'حركة شبكية', need: ['cell', 'tickMs'],
+      build(P, st) {
+        return [
+          '/* حركة شبكية بخطوات زمنية ثابتة، مع منع الانعكاس 180 درجة. */',
+          'function createGridMover(cfg) {',
+          '  return Object.assign({',
+          '    cell: ' + P.cell + ',',
+          '    tick: ' + P.tickMs + ',',
+          '    cx: 0, cy: 0, dx: 1, dy: 0, ndx: 1, ndy: 0, acc: 0,',
+          '  }, cfg || {});',
+          '}',
+          '',
+          'function turnGridMover(g, dx, dy) {',
+          '  if (dx === -g.dx && dy === -g.dy) return false;  /* لا انعكاس فوري */',
+          '  g.ndx = dx; g.ndy = dy;',
+          '  return true;',
+          '}',
+          '',
+          '/* onStep(cx, cy) يُستدعى مرة واحدة لكل خطوة */',
+          'function updateGridMover(g, dtMs, onStep) {',
+          '  g.acc += dtMs;',
+          '  let steps = 0;',
+          '  while (g.acc >= g.tick && steps < 8) {',
+          '    g.acc -= g.tick; steps++;',
+          '    g.dx = g.ndx; g.dy = g.ndy;',
+          '    g.cx += g.dx; g.cy += g.dy;',
+          '    if (onStep) onStep(g.cx, g.cy);',
+          '  }',
+          '  return steps;',
+          '}'
+        ].join('\n');
+      },
+      smoke() {
+        return 'var g = createGridMover(); var n = 0;' +
+          'turnGridMover(g, 0, 1); updateGridMover(g, 1000, function(){ n++; });' +
+          'if (n < 1) throw new Error("no steps"); if (turnGridMover(g, 0, -1)) throw new Error("allowed reversal");';
+      },
+      usage() { return 'const snake = createGridMover({ cell: 20 });\nturnGridMover(snake, 1, 0);\nupdateGridMover(snake, dtMs, (x, y) => trail.push({ x, y }));'; }
+    },
+
+    'audio.engineLink': {
+      name: 'ربط الصوت بالسرعة', need: ['basePitch', 'pitchPerSpeed', 'minGain', 'maxGain'],
+      build(P, st) {
+        return [
+          '/* يربط مصدرًا صوتيًا متكررًا بسرعة المركبة: النغمة والمستوى يتبعان السرعة. */',
+          'async function createEngineSound(url, cfg) {',
+          '  const opts = Object.assign({',
+          '    basePitch: ' + P.basePitch + ',',
+          '    pitchPerSpeed: ' + P.pitchPerSpeed + ',',
+          '    minGain: ' + P.minGain + ',',
+          '    maxGain: ' + P.maxGain + ',',
+          '  }, cfg || {});',
+          '  const ctx = new (window.AudioContext || window.webkitAudioContext)();',
+          '  const res = await fetch(url);',
+          '  const buf = await ctx.decodeAudioData(await res.arrayBuffer());',
+          '  const src = ctx.createBufferSource();',
+          '  src.buffer = buf; src.loop = true;',
+          '  const gain = ctx.createGain();',
+          '  gain.gain.value = 0;',
+          '  src.connect(gain); gain.connect(ctx.destination);',
+          '  src.start();',
+          '  return {',
+          '    ctx: ctx, source: src, gain: gain, opts: opts,',
+          '    /* نادِها كل إطار بنسبة السرعة 0..1 */',
+          '    setSpeed: function (ratio) {',
+          '      const r = Math.max(0, Math.min(1, ratio));',
+          '      src.playbackRate.value = opts.basePitch + r * opts.pitchPerSpeed;',
+          '      gain.gain.value = opts.minGain + r * (opts.maxGain - opts.minGain);',
+          '    },',
+          '    stop: function () { try { src.stop(); ctx.close(); } catch (e) {} },',
+          '  };',
+          '}'
+        ].join('\n');
+      },
+      smoke() { return 'if (typeof createEngineSound !== "function") throw new Error("missing factory");'; },
+      note: 'يحتاج تفاعل المستخدم أولًا (نقرة) لأن المتصفح يمنع تشغيل الصوت تلقائيًا.',
+      usage() { return "const engine = await createEngineSound('engine.mp3');\n// كل إطار:\nengine.setSpeed(car.speed / car.maxSpeed);"; }
+    },
+
+    'collision.aabb': {
+      name: 'اصطدام صندوقي', need: [],
+      build(P, st) {
+        return [
+          '/* اصطدام مستطيلات محاذية للمحاور، مع عمق الاختراق واتجاه الدفع. */',
+          'function aabbOverlap(a, b) {',
+          '  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;',
+          '}',
+          '',
+          'function aabbResolve(a, b) {',
+          '  if (!aabbOverlap(a, b)) return null;',
+          '  const dx = (a.x + a.w / 2) - (b.x + b.w / 2);',
+          '  const dy = (a.y + a.h / 2) - (b.y + b.h / 2);',
+          '  const px = (a.w + b.w) / 2 - Math.abs(dx);',
+          '  const py = (a.h + b.h) / 2 - Math.abs(dy);',
+          '  /* ادفع على المحور الأقل اختراقًا */',
+          '  if (px < py) return { nx: dx < 0 ? -1 : 1, ny: 0, depth: px };',
+          '  return { nx: 0, ny: dy < 0 ? -1 : 1, depth: py };',
+          '}',
+          '',
+          'function aabbSeparate(a, b) {',
+          '  const hit = aabbResolve(a, b);',
+          '  if (!hit) return false;',
+          '  a.x += hit.nx * hit.depth;',
+          '  a.y += hit.ny * hit.depth;',
+          '  return true;',
+          '}'
+        ].join('\n');
+      },
+      smoke() {
+        return 'var a={x:0,y:0,w:10,h:10}, b={x:5,y:0,w:10,h:10};' +
+          'if (!aabbOverlap(a,b)) throw new Error("overlap missed");' +
+          'aabbSeparate(a,b); if (aabbOverlap(a,b)) throw new Error("not separated");';
+      },
+      usage() { return 'if (aabbOverlap(player, wall)) aabbSeparate(player, wall);'; }
+    },
+
+    'spawn.wave': {
+      name: 'توليد موجات', need: ['every', 'count', 'ramp'],
+      build(P, st) {
+        return [
+          '/* مولّد موجات يتصاعد مع الوقت، مع تجميع (pool) لتفادي إنشاء كائنات كل مرة. */',
+          'function createSpawner(cfg) {',
+          '  return Object.assign({',
+          '    every: ' + P.every + ',',
+          '    count: ' + P.count + ',',
+          '    ramp: ' + P.ramp + ',',
+          '    max: 40, t: 0, wave: 0, alive: [], pool: [],',
+          '  }, cfg || {});',
+          '}',
+          '',
+          '/* make() ينشئ كائنًا جديدًا · reset(obj, wave) يعيد تهيئته */',
+          'function updateSpawner(sp, dt, make, reset) {',
+          '  sp.t += dt;',
+          '  const interval = Math.max(0.25, sp.every - sp.wave * sp.ramp);',
+          '  if (sp.t < interval) return 0;',
+          '  sp.t = 0; sp.wave++;',
+          '  let made = 0;',
+          '  for (let i = 0; i < sp.count && sp.alive.length < sp.max; i++) {',
+          '    const obj = sp.pool.pop() || make();',
+          '    if (reset) reset(obj, sp.wave);',
+          '    sp.alive.push(obj); made++;',
+          '  }',
+          '  return made;',
+          '}',
+          '',
+          'function despawn(sp, obj) {',
+          '  const i = sp.alive.indexOf(obj);',
+          '  if (i < 0) return false;',
+          '  sp.alive.splice(i, 1);',
+          '  sp.pool.push(obj);',
+          '  return true;',
+          '}'
+        ].join('\n');
+      },
+      smoke() {
+        return 'var sp = createSpawner({every:0.1}); var n=0;' +
+          'for (var i=0;i<50;i++) n += updateSpawner(sp, 0.05, function(){return {};});' +
+          'if (n < 1) throw new Error("nothing spawned");' +
+          'if (!despawn(sp, sp.alive[0])) throw new Error("despawn failed");';
+      },
+      usage() { return 'const spawner = createSpawner();\nupdateSpawner(spawner, dt, () => new Enemy(), (e, wave) => e.reset(wave));'; }
+    },
+
+    'score.combo': {
+      name: 'نقاط وتسلسل', need: ['base', 'comboWindow', 'maxMult'],
+      build(P, st) {
+        return [
+          '/* نقاط مع مضاعف تسلسل يتلاشى إن توقفت. */',
+          'function createScore(cfg) {',
+          '  return Object.assign({',
+          '    base: ' + P.base + ',',
+          '    window: ' + P.comboWindow + ',',
+          '    maxMult: ' + P.maxMult + ',',
+          '    value: 0, combo: 0, best: 0, _t: 0,',
+          '  }, cfg || {});',
+          '}',
+          '',
+          'function scoreHit(s, weight) {',
+          '  s.combo = Math.min(s.combo + 1, s.maxMult);',
+          '  s._t = s.window;',
+          '  s.value += Math.round(s.base * (weight || 1) * s.combo);',
+          '  if (s.value > s.best) s.best = s.value;',
+          '  return s.value;',
+          '}',
+          '',
+          'function updateScore(s, dt) {',
+          '  if (s._t > 0) { s._t -= dt; if (s._t <= 0) s.combo = 0; }',
+          '  return s.combo;',
+          '}'
+        ].join('\n');
+      },
+      smoke() {
+        return 'var s = createScore(); scoreHit(s); scoreHit(s);' +
+          'if (s.combo !== 2) throw new Error("combo wrong");' +
+          'updateScore(s, 99); if (s.combo !== 0) throw new Error("combo did not decay");';
+      },
+      usage() { return 'const score = createScore();\nscoreHit(score);        // عند الإصابة\nupdateScore(score, dt);  // كل إطار'; }
+    },
+
+    'input.multi': {
+      name: 'إدخال موحّد (لمس + لوحة مفاتيح)', need: ['deadzone'],
+      build(P, st) {
+        return [
+          '/* إدخال موحّد: لوحة مفاتيح + عصا لمس على الشاشة. يعيد محاور -1..1. */',
+          'function createInput(opts) {',
+          '  const deadzone = (opts && opts.deadzone) || ' + P.deadzone + ';',
+          '  const state = { x: 0, y: 0, action: false, keys: {} };',
+          '  const stick = { id: null, cx: 0, cy: 0, x: 0, y: 0, max: 46 };',
+          '',
+          '  addEventListener(\'keydown\', function (e) { state.keys[e.key.toLowerCase()] = true; });',
+          '  addEventListener(\'keyup\', function (e) { state.keys[e.key.toLowerCase()] = false; });',
+          '',
+          '  function bindStick(el) {',
+          '    el.addEventListener(\'pointerdown\', function (e) {',
+          '      e.preventDefault();',
+          '      const r = el.getBoundingClientRect();',
+          '      stick.id = e.pointerId; stick.cx = r.left + r.width / 2; stick.cy = r.top + r.height / 2;',
+          '      try { el.setPointerCapture(e.pointerId); } catch (err) {}',
+          '      move(e);',
+          '    });',
+          '    el.addEventListener(\'pointermove\', function (e) { if (stick.id === e.pointerId) move(e); });',
+          '    const end = function () { stick.id = null; stick.x = 0; stick.y = 0; };',
+          '    el.addEventListener(\'pointerup\', end);',
+          '    el.addEventListener(\'pointercancel\', end);',
+          '  }',
+          '  function move(e) {',
+          '    let dx = e.clientX - stick.cx, dy = e.clientY - stick.cy;',
+          '    const len = Math.sqrt(dx * dx + dy * dy);',
+          '    if (len > stick.max) { dx *= stick.max / len; dy *= stick.max / len; }',
+          '    stick.x = dx / stick.max; stick.y = dy / stick.max;',
+          '  }',
+          '',
+          '  function read() {',
+          '    let x = 0, y = 0;',
+          '    if (state.keys.a || state.keys.arrowleft) x -= 1;',
+          '    if (state.keys.d || state.keys.arrowright) x += 1;',
+          '    if (state.keys.w || state.keys.arrowup) y -= 1;',
+          '    if (state.keys.s || state.keys.arrowdown) y += 1;',
+          '    if (Math.abs(stick.x) > deadzone) x = stick.x;',
+          '    if (Math.abs(stick.y) > deadzone) y = stick.y;',
+          '    state.x = Math.max(-1, Math.min(1, x));',
+          '    state.y = Math.max(-1, Math.min(1, y));',
+          '    state.action = !!state.keys[\' \'];',
+          '    return state;',
+          '  }',
+          '  return { read: read, bindStick: bindStick, state: state };',
+          '}'
+        ].join('\n');
+      },
+      smoke() { return 'var inp = createInput(); var s = inp.read(); if (typeof s.x !== "number") throw new Error("no axes");'; },
+      usage() { return "const input = createInput();\ninput.bindStick(document.getElementById('stick'));\n// كل إطار:\nconst { x, y, action } = input.read();"; }
+    },
+
+    'state.save': {
+      name: 'حفظ التقدّم', need: ['key', 'autoEvery'],
+      build(P, st) {
+        return [
+          '/* حفظ/استعادة تقدّم اللعب في localStorage، مع حفظ تلقائي وإصدار للمخطّط. */',
+          'function defaultStorage() {',
+          '  /* في بعض السياقات (إطار معزول، تصفّح خاص) يرمي localStorage استثناءً */',
+          '  try { localStorage.setItem(\'__t\', \'1\'); localStorage.removeItem(\'__t\'); return localStorage; }',
+          '  catch (e) {',
+          '    const mem = {};',
+          '    return { getItem: function (k) { return k in mem ? mem[k] : null; },',
+          '             setItem: function (k, v) { mem[k] = String(v); },',
+          '             removeItem: function (k) { delete mem[k]; } };',
+          '  }',
+          '}',
+          '',
+          'function createSave(cfg) {',
+          '  const o = Object.assign({ key: \'' + (P.key || 'save') + '\', autoEvery: ' + P.autoEvery + ', version: 1, storage: null }, cfg || {});',
+          '  if (!o.storage) o.storage = defaultStorage();',
+          '  o._t = 0;',
+          '  return o;',
+          '}',
+          '',
+          'function saveState(s, data) {',
+          '  try {',
+          '    s.storage.setItem(s.key, JSON.stringify({ v: s.version, at: Date.now(), data: data }));',
+          '    return true;',
+          '  } catch (e) { return false; }',
+          '}',
+          '',
+          'function loadState(s, fallback) {',
+          '  try {',
+          '    const raw = s.storage.getItem(s.key);',
+          '    if (!raw) return fallback;',
+          '    const box = JSON.parse(raw);',
+          '    /* تجاهل الحفظ القديم بدل أن ينهار عليه */',
+          '    if (box.v !== s.version) return fallback;',
+          '    return box.data;',
+          '  } catch (e) { return fallback; }',
+          '}',
+          '',
+          'function autoSave(s, dt, getData) {',
+          '  s._t += dt;',
+          '  if (s._t < s.autoEvery) return false;',
+          '  s._t = 0;',
+          '  return saveState(s, getData());',
+          '}'
+        ].join('\n');
+      },
+      smoke() {
+        return 'var s = createSave({key:"kad_smoke"});' +
+          'if (!saveState(s, {score: 7})) throw new Error("save refused");' +
+          'var back = loadState(s, null);' +
+          'if (!back || back.score !== 7) throw new Error("round trip failed");' +
+          's.version = 2; if (loadState(s, "fb") !== "fb") throw new Error("version guard failed");' +
+          'try { s.storage.removeItem("kad_smoke"); } catch(e) {}';
+      },
+      usage() { return 'const save = createSave();\nconst progress = loadState(save, { level: 1 });\nautoSave(save, dt, () => ({ level: current }));\n// للاختبار: createSave({ storage: fakeStorage })'; }
+    },
+  },
+
+  /* اختيار المولّد من كلام المستخدم — يستفيد من المعجم والجسر ثنائي اللغة */
+  pick(text) {
+    const t = TOK.normalize(text);
+    const exp = TOK.normalize(TOK.expand(text));
+    const scored = [];
+    for (const id in this.gens) {
+      const def = MECH_DEFS.find(d => d.id === id);
+      const g = this.gens[id];
+      let sc = 0;
+      const hits = [];
+      if (def) def.signals.forEach(w => {
+        const nw = TOK.normalize(w);
+        if (t.indexOf(nw) >= 0) { sc += 2; hits.push(w); }
+        else if (exp.indexOf(nw) >= 0) { sc += .5; }
+      });
+      TOK.tokens(g.name).forEach(tk => { if (t.indexOf(tk) >= 0) { sc += 2.5; hits.push(g.name); } });
+      if (def) { const dn = TOK.normalize(def.name); if (t.indexOf(dn) >= 0) sc += 3; }
+      if (sc > 0) scored.push({ id, score: sc, hits: Array.from(new Set(hits)).slice(0, 5) });
+    }
+    return scored.sort((a, b) => b.score - a.score);
+  },
+
+  /* معاملات حقيقية: من مشاريعك إن وُجدت، وإلا الافتراضية */
+  paramsFor(id) {
+    const def = MECH_DEFS.find(d => d.id === id);
+    const base = Object.assign({}, def ? def.params : {});
+    const learned = KB.cache.filter(k => k.kind === 'mechanic' && k.mech === id && k.params);
+    if (!learned.length) return { params: base, from: null };
+    /* خذ أعلى ثقة */
+    const best = learned.sort((a, b) => (b.confidence || 0) - (a.confidence || 0))[0];
+    const merged = Object.assign({}, base, best.params);
+    const changed = Object.keys(best.params).filter(k => base[k] !== best.params[k]);
+    return { params: merged, from: best, changed };
+  },
+
+  async write(id, opts) {
+    const g = this.gens[id];
+    if (!g) throw new Error('لا يوجد مولّد لـ ' + id);
+    const st = await STYLE.infer();
+    const { params, from, changed } = this.paramsFor(id);
+    let code = g.build(params, st);
+    const plain = code;
+    code = STYLE.apply(code, st);
+    /* لو كسر تطبيق الأسلوب الصياغة، ارجع للنسخة القياسية بدل تسليم شيفرة معطوبة */
+    let chk = await SBX.syntaxCheck(code);
+    let styled = true;
+    if (chk.ok === false) { code = plain; styled = false; chk = await SBX.syntaxCheck(code); }
+    /* تشغيل فعلي: ننفّذ الوحدة مع اختبار دخان داخل صندوق معزول */
+    const smoke = g.smoke(st);
+    const run = await SBX.run('<scr' + 'ipt>' + code + '\n' + smoke + '\nwindow.__kadReport&&window.__kadReport();</scr' + 'ipt>', { timeout: 1800 });
+    const ok = run.errors.length === 0 && chk.ok !== false;
+    /* إحصاء: كم مرة كتبتُ هذا النمط لك */
+    const stats = await DB.getKV('snippetStats', {});
+    stats[id] = (stats[id] || 0) + 1;
+    await DB.setKV('snippetStats', stats);
+    return {
+      id, name: g.name, code, style: st, styled, params, from, changed: changed || [],
+      usage: g.usage(st), note: g.note || null, syntax: chk, run, ok, times: stats[id],
+    };
   }
 };
 
@@ -3489,6 +4244,8 @@ const CREATIVE = {
     if (axes.locomotion === 'jump' && axes.topology === 'grid') return false;
     if (axes.locomotion === 'drive' && axes.topology === 'grid') return false;
     if (axes.growth === 'territory' && axes.topology !== 'grid') return false;
+    /* «السيطرة» تُقاس بالأرض المُطالَب بها — بلا نمو أرضي لا يوجد ما يُقاس */
+    if (axes.objective === 'dominate' && axes.growth !== 'territory') return false;
     if (axes.twist === 'split' && axes.growth === 'length') return false;
     return true;
   },
@@ -3578,6 +4335,7 @@ const CREATIVE = {
     if (say('مدينه', 'city') && !fixed.objective) fixed.objective = 'collect';
     if (say('بقاء', 'survive', 'نجاه', 'صمود')) fixed.objective = 'survive';
     if (say('سيطره', 'territory', 'dominate')) { fixed.objective = 'dominate'; fixed.growth = 'territory'; fixed.topology = 'grid'; fixed.locomotion = 'step'; }
+    if (fixed.objective === 'dominate' && fixed.growth && fixed.growth !== 'territory') fixed.objective = 'collect';
     if (say('ظلام', 'عتمه', 'dark')) { fixed.constraint = 'darkness'; fixed.resource = 'light'; }
     if (say('وقود', 'fuel', 'بنزين')) fixed.resource = 'fuel';
     if (say('اعداء', 'مطارد', 'enemy', 'chase')) fixed.threat = 'enemy';
@@ -4711,15 +5469,17 @@ const CHAT = {
   greet() {
     const st = LIB.stats(), ks = KB.stats();
     const known = Object.values(ks).reduce((a, b) => a + b, 0);
+    const you = FACTS.get('name');
     UI.addMessage({
       role: 'ai', html:
-        '<h4>أهلًا — أنا KAD-KAD</h4>' +
+        '<h4>' + (you ? 'أهلًا ' + U.esc(you) + ' — أنا KAD-KAD' : 'أهلًا — أنا KAD-KAD') + '</h4>' +
         '<p>نواة ذكاء اصطناعي تعمل بالكامل داخل متصفحك: لا OpenAI، لا Claude، لا Gemini، ولا أي مفتاح API. ' +
         'ما أعرفه تعلّمته من ملفاتك أنت، وهو محفوظ محليًا.</p>' +
         '<p><b>حالتي الآن:</b> ' + st.total + ' أصل · ' + known + ' سجل معرفة · النموذج النشط ' +
         U.esc((REG.activeModelFor('intent') || {}).name || 'غير مُدرَّب') + '.</p>' +
         '<p>أرسل لي مشروعًا أو ZIP أو GLB أو صوتًا أو كودًا — سأحلّله وأخزّن ما تعلّمته. ' +
-        'ثم قل لي «اصنع لي لعبة…» وسأصمّمها وأولّد شيفرتها وأختبرها.</p>'
+        'ثم قل لي «اصنع لي لعبة…» وسأصمّمها وأولّد شيفرتها وأختبرها.</p>' +
+        '<p>أو اطلب قطعة واحدة فقط: <code>اكتب لي كود التحكم بمركبة</code> — أكتبها بأسلوب شيفرتك أنت، وأشغّلها قبل أن أعطيك إياها.</p>'
     });
   },
 
@@ -4776,8 +5536,13 @@ const CHAT = {
       log: m => { logs.push(m); status.textContent = m; },
       onProgress: (p, nm) => { status.textContent = Math.round(p * 100) + '% · ' + (nm || ''); }
     });
-    let analysis = null;
+    let analysis = null, soloMechs = [];
     if (project) analysis = await PROJ.analyze(project.id, results, m => { logs.push(m); status.textContent = m; });
+    else {
+      status.textContent = 'استخراج المفاهيم…';
+      soloMechs = await PROJ.extractMechanics(results, null);
+    }
+    await STYLE.infer(true);
     await KG.discover(200);
     const ok = results.filter(r => !r.error);
     const dup = ok.filter(r => r.duplicate).length;
@@ -4802,6 +5567,15 @@ const CHAT = {
       if (a) L.push('<div class="card tight" style="margin-top:8px">' + NLG.assetReport(a) + '</div>');
     }
     if (analysis) L.push('<div style="margin-top:10px">' + NLG.projectReport(analysis.project, analysis.summary) + '</div>');
+    else if (soloMechs.length) {
+      L.push('<h4>ما تعلّمته من هذا الملف</h4><ul>' + soloMechs.slice(0, 6).map(m =>
+        '<li><b>' + U.esc(m.name) + '</b> ' + NLG.confidence(m.confidence) +
+        (m.inferred && m.inferred.length ? ' — قيمك: <code>' + U.esc(m.inferred.map(k => k + '=' + m.params[k]).join(', ')) + '</code>' : '') +
+        '</li>').join('') + '</ul>' +
+        '<p style="font-size:12.5px;color:var(--ink3)">سأستخدم هذه المعاملات حين تطلب مني كتابة كود لهذا النظام.</p>');
+    }
+    const stNow = await STYLE.infer();
+    if (stNow.samples) L.push('<p style="font-size:12.5px;color:var(--ink3)">أسلوب شيفرتك المستنتج: ' + U.esc(STYLE.describe(stNow)) + ' — سأكتب لك بهذا الأسلوب.</p>');
     const errs = results.filter(r => r.error);
     if (errs.length) L.push('<p style="color:var(--warn)">تعذّر تحليل ' + errs.length + ' ملف: ' + U.esc(errs.slice(0, 3).map(e => U.base(e.name) + ' (' + e.error + ')').join('، ')) + '</p>');
     L.push('<p style="font-size:12px;color:var(--ink3)">كل هذه الملفات محفوظة في متصفحك فقط (IndexedDB). لم يُرسل أي شيء إلى أي خادم.</p>');
@@ -4949,6 +5723,120 @@ const CHAT = {
   }
 };
 const TMP = new Map();
+
+/* ---------- معرفة أساسية · ذاكرة عنك · كتابة كود حقيقي ---------- */
+Object.assign(CHAT.handlers, {
+  /* ---------------- من أنا / ما اسمي ---------------- */
+  async identity(a) {
+    const ans = await FACTS.ask(a.text);
+    a.f.execution.push('إجابة من المعرفة الذاتية المدمجة');
+    if (ans) {
+      const who = FACTS.get('name');
+      return { noThink: true, html: ans + (who ? '<p style="color:var(--ink3);font-size:12.5px">وأنت ' + U.esc(who) + ' — أتذكّرك.</p>' : '') };
+    }
+    return {
+      noThink: true, html: FACTS.card('who')() + FACTS.card('version')() +
+        '<p style="font-size:12.5px;color:var(--ink3)">اسألني مباشرة: ما اسمك؟ · من صنعك؟ · ما إصدارك؟ · أين تحفظ بياناتي؟ · هل تستخدم إنترنت؟</p>'
+    };
+  },
+
+  /* ---------------- تذكّر هذا عني ---------------- */
+  async remember_fact(a) {
+    const got = FACTS.learnFrom(a.text);
+    /* «ما اسمي؟» تحتوي «اسمي» لكنها سؤال لا معلومة — حوّلها إلى الاسترجاع */
+    if (!got && /^(ما|ماذا|هل|وش|ايش|شو|what|do you)/.test(TOK.normalize(a.text).trim()))
+      return CHAT.handlers.recall_fact.call(this, a);
+    if (!got) {
+      a.f.unknown.push('لم أتبيّن ما أحفظه بالضبط');
+      return {
+        html: '<p>لم أتبيّن المعلومة بالضبط. قلها بصيغة واضحة مثل:</p>' +
+          '<ul><li><code>اسمي أمين</code></li><li><code>أحب ألعاب السباق</code></li>' +
+          '<li><code>تذكر أن مشروعي اسمه مدينتي</code></li></ul>'
+      };
+    }
+    await FACTS.set(got.slot, got.value);
+    a.f.execution.push('حفظ ' + got.label + ' في الذاكرة الدائمة');
+    a.f.verification.push('مكتوب في IndexedDB — سيبقى بعد إغلاق الصفحة');
+    UI.renderKnowledge();
+    return {
+      noThink: true,
+      html: '<p>حفظتُها: <b>' + U.esc(got.label) + '</b> = ' + U.esc(got.value) + '</p>' +
+        '<p style="font-size:12.5px;color:var(--ink3)">محفوظة في متصفحك وستبقى بعد إعادة التشغيل. جرّب أن تسألني عنها لاحقًا.</p>'
+    };
+  },
+
+  /* ---------------- ماذا تعرف عني ---------------- */
+  async recall_fact(a) {
+    const rows = FACTS.recall();
+    a.f.execution.push('استرجاع من الذاكرة الدائمة (' + rows.length + ' معلومة)');
+    if (!rows.length) {
+      return {
+        noThink: true,
+        html: '<p>لا أعرف عنك شيئًا بعد.</p><p>قل لي مثلًا <code>اسمي أمين</code> أو <code>أحب ألعاب السيارات</code> وسأتذكّرها دائمًا.</p>'
+      };
+    }
+    const t = TOK.normalize(a.text);
+    if (/ما اسمي|اسمي؟|my name/.test(t)) {
+      const n = FACTS.get('name');
+      return {
+        noThink: true, html: n
+          ? '<p>اسمك <b>' + U.esc(n) + '</b>.</p>'
+          : '<p>لم تخبرني باسمك بعد. قل <code>اسمي ...</code> وسأحفظه.</p>'
+      };
+    }
+    return {
+      noThink: true,
+      html: '<h4>ما أعرفه عنك</h4><ul>' +
+        rows.map(r => '<li><b>' + U.esc(r.label) + ':</b> ' + U.esc(r.value) +
+          ' <span style="color:var(--ink3);font-size:11.5px">— ' + U.ago(r.at) + '</span></li>').join('') + '</ul>' +
+        '<p style="font-size:12.5px;color:var(--ink3)">كلها محفوظة محليًا فقط، ويمكنك حذفها كلها من الإعدادات.</p>'
+    };
+  },
+
+  /* ---------------- اكتب لي كودًا ---------------- */
+  async write_code(a) {
+    const picks = SNIPPET.pick(a.text);
+    a.f.execution.push('مطابقة الطلب مع مكتبة المولّدات (' + Object.keys(SNIPPET.gens).length + ' نمطًا)');
+    if (!picks.length) {
+      a.f.unknown.push('لم أتعرّف على النمط المطلوب');
+      return {
+        html: '<h4>أي جزء تريده بالضبط؟</h4><p>أكتب لك وحدات جاهزة ومُختبَرة. المتاح الآن:</p><ul>' +
+          Object.keys(SNIPPET.gens).map(id => '<li><b>' + U.esc(SNIPPET.gens[id].name) + '</b> — <code>' + U.esc(id) + '</code></li>').join('') +
+          '</ul><p>قل مثلًا: «اكتب لي كود التحكم بمركبة» أو «أعطني كود الاصطدام».</p>'
+      };
+    }
+    const top = picks[0];
+    if (picks[1] && picks[1].score > top.score * .85) a.f.unknown.push('طلبك يحتمل أيضًا: ' + SNIPPET.gens[picks[1].id].name);
+    a.f.selected = { name: 'توليد وحدة «' + SNIPPET.gens[top.id].name + '»', pros: 'أقرب تطابق (' + top.hits.join('، ') + ')', cons: '', score: top.score };
+    const r = await SNIPPET.write(top.id, {});
+    a.f.verification.push(r.ok ? 'الوحدة نُفّذت فعليًا في صندوق معزول واجتازت اختبار الدخان' : 'الاختبار رصد مشكلة: ' + ((r.run.errors[0] || {}).msg || 'غير محدّد'));
+
+    const L = [];
+    L.push('<h4>' + U.esc(r.name) + '</h4>');
+    L.push('<pre><code>' + U.esc(r.code) + '</code></pre>');
+    L.push('<p><b>طريقة الاستخدام:</b></p><pre><code>' + U.esc(r.usage) + '</code></pre>');
+    if (r.note) L.push('<p style="color:var(--warn)">⚠ ' + U.esc(r.note) + '</p>');
+    const kv = [];
+    kv.push(['الفحص', r.ok ? '✔ صياغة سليمة · نُفّذ فعليًا بلا أخطاء' : '✖ ' + U.esc((r.run.errors[0] || {}).msg || r.syntax.error || 'فشل')]);
+    kv.push(['الأسلوب', STYLE.describe(r.style) + (r.style.samples ? ' (مستنتج من ' + r.style.samples + ' من ملفاتك)' : ' (افتراضي — أرسل لي كودك وسأقلّد أسلوبك)')]);
+    if (r.from) {
+      const srcAsset = LIB.cache.find(x => x.id === r.from.source);
+      const where = srcAsset ? 'من ملفك ' + srcAsset.name : (r.from.project ? 'من مشروعك' : 'من شيفرتك');
+      kv.push(['المعاملات', U.esc(where) + (r.changed.length ? ' — ' + U.esc(r.changed.map(k => k + '=' + r.params[k]).join('، ')) : ' (مطابقة للافتراضي)')]);
+    }
+    else kv.push(['المعاملات', 'افتراضية — حلّل مشروعًا فيه هذا النظام وسآخذ قيمك أنت']);
+    kv.push(['هذه المرة', 'كتبتُ لك هذا النمط ' + r.times + ' مرة']);
+    L.push('<div class="kv">' + kv.map(x => '<b>' + U.esc(x[0]) + '</b><span>' + x[1] + '</span>').join('') + '</div>');
+    if (picks.length > 1) {
+      L.push('<p style="font-size:12.5px;color:var(--ink3)">أنماط قريبة: ' +
+        picks.slice(1, 4).map(x => U.esc(SNIPPET.gens[x.id].name)).join('، ') + ' — اطلبها بالاسم.</p>');
+    }
+    const tid = U.uid('snip');
+    TMP.set(tid, { blob: new Blob([r.code + '\n'], { type: 'text/javascript' }), name: r.id.replace('.', '-') + '.js' });
+    return { html: L.join(''), actions: [{ label: '⬇ نزّل الملف', act: 'download', id: tid }] };
+  },
+});
+
 
 /* ---------- بقية معالجات النية ---------- */
 Object.assign(CHAT.handlers, {
@@ -5201,6 +6089,9 @@ Object.assign(CHAT.handlers, {
         '<li>أفهم نيتك بطبقتين: مصنّف مدرَّب + محفّزات لغوية عربية/إنجليزية. القياس بالتحقق المتقاطع: ' +
         '~85% للنية الأولى و~90% ضمن أفضل ثلاث، على ' + Object.keys(SEED_INTENT).length + ' نية.</li>' +
         '<li>أبحث في فضاء تصميم من ' + Object.keys(AXES).length + ' محاور، أقيس الأصالة، وأولّد شيفرة لعبة تعمل فعلًا ثم أختبرها في صندوق معزول.</li>' +
+        '<li>أكتب لك <b>قطعة كود واحدة</b> بدل لعبة كاملة (' + Object.keys(SNIPPET.gens).length + ' نمطًا: مركبة، كاميرا، قفز، شبكة، صوت، اصطدام، موجات، نقاط، إدخال، حفظ) — ' +
+        'بأسلوب شيفرتك أنت، وبمعاملات مأخوذة من مشاريعك، ومُشغَّلة فعليًا قبل التسليم.</li>' +
+        '<li>أعرف نفسي وأتذكّرك: اسمي، إصداري، أين أحفظ بياناتك — وما تخبرني به عنك يبقى محفوظًا.</li>' +
         '</ul>' +
         '<h4>ما لا أفعله — بصراحة</h4><ul>' +
         '<li>لا أفهم <b>معنى</b> الصورة أو المجسم بصريًا: لا يوجد نموذج رؤية هنا. أستنتج من البنية والأسماء والإحصاءات.</li>' +
@@ -5495,8 +6386,8 @@ const UI = {
   renderHints() {
     const box = U.$('#hintbar');
     const hs = LIB.cache.length
-      ? ['ما الذي فهمته من المشروع؟', 'اصنع لي لعبة مختلفة عن المعروف', 'أين نظام السيارات؟', 'اربط صوت المحرك بالسيارة', 'نظّم هذا الكود', 'درّب نموذجًا جديدًا']
-      : ['ماذا تستطيع أن تفعل؟', 'اصنع لي لعبة', 'اعرض الأصول', 'درّب نموذجًا جديدًا'];
+      ? ['ما الذي فهمته من المشروع؟', 'اكتب لي كود التحكم بمركبة', 'اصنع لي لعبة مختلفة عن المعروف', 'أين نظام السيارات؟', 'اربط صوت المحرك بالسيارة', 'نظّم هذا الكود', 'درّب نموذجًا جديدًا']
+      : ['ما اسمك؟', 'اكتب لي كود القفز والمنصات', 'اصنع لي لعبة', 'ماذا تستطيع أن تفعل؟'];
     box.innerHTML = '';
     hs.forEach(h => {
       const b = U.el('button', { class: 'hint' }, U.esc(h));
@@ -6109,6 +7000,23 @@ const SELFTEST = {
       } catch (e) { genFail.push('بناء: ' + e.message); }
     }
     ok('مولّد الشيفرة (2D) عبر ' + combos.length + ' تركيبة', genFail.length === 0, genFail.length ? genFail.slice(0, 3).join(' | ') : 'كلها صالحة الصياغة');
+
+    /* فحص الصياغة لا يكشف أخطاء وقت التشغيل (متغيّر غير معرَّف مثلًا)،
+       لذا نشغّل عيّنة من التركيبات فعليًا داخل الصندوق المعزول. */
+    const runSample = [];
+    const seenTw = new Set(), seenObj = new Set();
+    combos.forEach(c => {
+      if (!seenTw.has(c.twist) || !seenObj.has(c.objective)) { seenTw.add(c.twist); seenObj.add(c.objective); runSample.push(c); }
+    });
+    const runFail = [];
+    for (const c of runSample) {
+      const sp = { title: 't', axes: c, seed: 21, palette: BUILDER.palettes[0], params: BUILDER.paramsFor(c, 21), controls: '' };
+      const body = GEN2D.html(sp, GEN2D.build(sp)).replace(/^[\s\S]*?<body[^>]*>/i, '').replace(/<\/body>[\s\S]*$/i, '');
+      const rr = await SBX.run(body, { timeout: 1200 });
+      if (rr.errors.length) runFail.push(Object.keys(AXES).map(k => c[k]).join('/') + ': ' + rr.errors[0].msg.slice(0, 70));
+    }
+    ok('تشغيل فعلي لـ ' + runSample.length + ' تركيبة مولَّدة', runFail.length === 0,
+      runFail.length ? runFail.slice(0, 2).join(' | ') : 'كلها أقلعت بلا أخطاء وقت تشغيل');
     const js3 = GEN3D.runtime({ seed: 1, city: 3, block: 20, minH: 5, maxH: 20, viewDist: 100, pickups: 4, target: 3, timeLimit: 0, accel: 12, brake: 20, drag: .5, maxSpeed: 25, steerRate: 2, camDist: 12, camH: 6, camSmooth: 5, fov: 55, carTarget: 4, carYaw: 0, basePitch: .6, pitchPerSpeed: 1, minGain: .1, maxGain: .8, glb: null, engine: null });
     const chk3 = await SBX.syntaxCheck(js3);
     ok('مولّد الشيفرة (3D)', chk3.ok !== false, chk3.error || 'صالح');
@@ -6119,12 +7027,31 @@ const SELFTEST = {
     const t = await TESTER.run(html);
     ok('لعبة مولَّدة تعمل فعليًا', t.ok, TESTER.fmt(t));
 
-    /* 11. دقة فهم النية — تحقق متقاطع حقيقي (لا رقم متفائل) */
+    /* 11. مولّدات الكود: كل واحد يُفحص ويُشغَّل فعليًا */
+    const genIds = Object.keys(SNIPPET.gens);
+    const genBad = [];
+    for (const gid of genIds) {
+      try {
+        const r = await SNIPPET.write(gid, {});
+        if (!r.ok) genBad.push(gid + ': ' + ((r.run.errors[0] || {}).msg || r.syntax.error || 'فشل'));
+      } catch (e) { genBad.push(gid + ': ' + e.message); }
+    }
+    ok('مولّدات الكود (' + genIds.length + ' نمطًا) تُصرَّف وتعمل', genBad.length === 0,
+      genBad.length ? genBad.slice(0, 2).join(' | ') : 'كلها اجتازت الصياغة واختبار الدخان');
+
+    /* 12. المعرفة الذاتية */
+    const idQ = ['ما اسمك', 'من صنعك', 'ما اصدارك', 'اين تحفظ بياناتي', 'هل تستخدم انترنت'];
+    const idBad = idQ.filter(q => !FACTS.match(q));
+    ok('يجيب عن الأسئلة الأساسية عن نفسه', idBad.length === 0, idBad.length ? 'فشل: ' + idBad.join('، ') : idQ.length + '/' + idQ.length);
+    const lf = FACTS.learnFrom('اسمي أمين');
+    ok('يستخرج المعلومة من كلامك', lf && lf.slot === 'name' && lf.value.indexOf('أمين') >= 0, lf ? lf.slot + '=' + lf.value : 'لم يستخرج');
+
+    /* 13. دقة فهم النية — تحقق متقاطع حقيقي (لا رقم متفائل) */
     const cv = await this.crossValidateIntent(3);
     ok('فهم النية (تحقق متقاطع 3-fold)', cv.hybrid > .6,
       'الدمج ' + U.pct(cv.hybrid) + ' · المصنّف وحده ' + U.pct(cv.model) + ' · أفضل 3 ' + U.pct(cv.top3) + ' على ' + cv.n + ' عينة و' + cv.classes + ' نية');
 
-    /* 12. قدرات المتصفح */
+    /* 14. قدرات المتصفح */
     ok('WebGL', !!document.createElement('canvas').getContext('webgl'));
     ok('WebAudio', !!(window.AudioContext || window.webkitAudioContext));
     ok('التعرّف على الكلام', !!(window.SpeechRecognition || window.webkitSpeechRecognition), (window.SpeechRecognition || window.webkitSpeechRecognition) ? 'متاح' : 'غير متاح في هذا المتصفح — زر الميكروفون سيخبرك بذلك');
@@ -6428,7 +7355,7 @@ async function boot() {
   S.activeModel = await DB.getKV('activeModel', 'auto');
   applyLang();
 
-  await Promise.all([KB.init(), KG.init(), LIB.init(), DATA.init(), JOBS.init(), EVO.init()]);
+  await Promise.all([KB.init(), KG.init(), LIB.init(), DATA.init(), JOBS.init(), EVO.init(), FACTS.init()]);
   await REG.init();
 
   bindEvents();
@@ -6459,7 +7386,7 @@ async function boot() {
       toast('تراكمت بيانات جديدة — بدأت دورة تطور تلقائية', 'ok', 4200);
     }
   }
-  window.KAD = { U, DB, TOK, VEC, ML, REG, DATA, TRAIN, BENCH, EVO, KB, KG, LIB, INGEST, CODE, GLB, OBJ, ZIP, AUDIO, IMG, PROJ, CONCEPT, CREATIVE, REASON, GEN2D, GEN3D, BUILDER, TESTER, FIXER, JOBS, CHAT, UI, BACKUP, SELFTEST, S, SEED_INTENT, DOMAIN_LEX, MECH_DEFS, ARCHETYPES, AXES, CAPS, INTENT_TRIGGERS, triggerScores, INTENT_EMB };
+  window.KAD = { U, TOK, VEC, ML, REG, DATA, TRAIN, BENCH, EVO, KG, LIB, INGEST, CODE, GLB, OBJ, ZIP, AUDIO, IMG, PROJ, CONCEPT, CREATIVE, REASON, GEN2D, GEN3D, BUILDER, TESTER, FIXER, JOBS, CHAT, UI, BACKUP, SELFTEST, S, FACTS, STYLE, SNIPPET, SELF, SBX, GLV, KB, DB, SEED_INTENT, DOMAIN_LEX, MECH_DEFS, ARCHETYPES, AXES, CAPS, INTENT_TRIGGERS, triggerScores, INTENT_EMB };
   window.triggerScores = triggerScores;
   console.log('%cKAD-KAD AI GAME LAB', 'color:#7c5cff;font-weight:800;font-size:15px', '— نواة محلية جاهزة. window.KAD متاح للفحص.');
 }
