@@ -3751,15 +3751,40 @@ const PROJ = {
     await DATA.add('domain', { text: systems.map(s => s.system + ' ' + s.evidence.join(' ')).join(' ').slice(0, 1200), labels: systems.slice(0, 4).map(s => s.system) });
 
     p.updated = U.now(); p.version = (p.version || 1) + 1;
-    p.files = fileResults.length;
-    p.assets = models.length + audio.length + images.length;
-    p.concepts = mechList.length;
-    p.mechanics = mechList.length;
-    p.summary = summary;
+    /* الرفع اللاحق يضيف إلى المشروع ولا يمحو تحليله السابق */
+    p.summary = p.summary ? this.mergeSummary(p.summary, summary) : summary;
+    p.files = Math.max(p.files || 0, p.summary.files);
+    p.assets = p.summary.models + p.summary.audio + p.summary.images;
+    p.concepts = p.summary.mechanics.length;
+    p.mechanics = p.summary.mechanics.length;
     p.vec = VEC.pack(VEC.embed(p.name + ' ' + systems.map(s => s.system).join(' ') + ' ' + mechList.map(m => m.name).join(' ')));
     await DB.put('projects', p);
     L('✔ اكتمل تحليل المشروع');
-    return { project: p, summary, mechanics: mechList };
+    /* نعيد الملخّص المدموج (لا ملخّص هذه الدفعة وحدها) حتى يعرض التقرير الصورة كاملة */
+    return { project: p, summary: p.summary, mechanics: mechList, batch: summary };
+  },
+  /* دمج تحليلين للمشروع نفسه: الجديد يضيف ولا يستبدل */
+  mergeSummary(a, b) {
+    const uniqBy = (rows, key) => { const seen = new Set(), out = []; rows.forEach(r => { const k = key(r); if (!seen.has(k)) { seen.add(k); out.push(r); } }); return out; };
+    const m = {
+      files: (a.files || 0) + (b.files || 0),
+      code: (a.code || 0) + (b.code || 0), models: (a.models || 0) + (b.models || 0),
+      audio: (a.audio || 0) + (b.audio || 0), images: (a.images || 0) + (b.images || 0),
+      html: (a.html || 0) + (b.html || 0),
+      lines: (a.lines || 0) + (b.lines || 0), functions: (a.functions || 0) + (b.functions || 0),
+      classes: (a.classes || 0) + (b.classes || 0), triangles: (a.triangles || 0) + (b.triangles || 0),
+      audioSeconds: U.round((a.audioSeconds || 0) + (b.audioSeconds || 0), 1),
+      links: (a.links || 0) + (b.links || 0),
+      systems: uniqBy((b.systems || []).concat(a.systems || []), s => s.system).sort((x, y) => y.score - x.score),
+      mechanics: uniqBy((b.mechanics || []).concat(a.mechanics || []), x => x.id),
+      entryPoints: Array.from(new Set((a.entryPoints || []).concat(b.entryPoints || []))).slice(0, 8),
+      hubs: uniqBy((a.hubs || []).concat(b.hubs || []), h => h.file).slice(0, 6),
+      deps: (a.deps || []).concat(b.deps || []).slice(0, 200),
+      external: uniqBy((a.external || []).concat(b.external || []), e => e.mod).slice(0, 20),
+      assetRefs: (a.assetRefs || []).concat(b.assetRefs || []).slice(0, 60),
+      issues: uniqBy((a.issues || []).concat(b.issues || []), i => i.file + i.msg).slice(0, 60),
+    };
+    return m;
   },
   /* استخراج الميكانيكيات وحفظها — يعمل لمشروع كامل أو لملف واحد مرفوع.
      كان الاستخراج محصورًا بالمشاريع، فكان رفع ملف واحد لا يعطي أي معاملات. */
@@ -4538,6 +4563,191 @@ const SNIPPET = {
   }
 };
 
+/* ============================ 27e · TONE + SMALLTALK ================== */
+/* (١) حديث طبيعي: يردّ على السلام والتحية ويتفاعل، ولا يكرّر نفس الجملة.
+   (٢) يتعلّم أسلوبك من ملفاتك النصية ويقلّده في صياغته.
+   بصراحة: هذا تقليد لأسلوب السطح (الطول، الافتتاحيات، الإيموجي، المفردات)
+   وليس توليدًا لغويًا حرًّا — لا يوجد نموذج لغوي ضخم هنا. */
+const TONE = {
+  style: null,
+  DEF: { avgLen: 14, emoji: 0, exclaim: 0, question: 0, formal: .5, openers: [], closers: [], words: [], samples: 0 },
+
+  async init() { this.style = await DB.getKV('tone', null) || Object.assign({}, this.DEF); },
+
+  /* يتعلّم من نصوص أرسلها المستخدم (حوارات، أمثلة ردود، أي كتابة) */
+  async learn(texts) {
+    const st = Object.assign({}, this.style || this.DEF);
+    const lines = [];
+    texts.forEach(t => String(t || '').split(/\n+/).forEach(l => {
+      const c = l.replace(/^\s*[-*>•]\s*/, '').replace(/^\s*(?:المستخدم|انت|أنت|user|ai|assistant|bot|الذكاء[^:：]*)\s*[:：]\s*/i, '').trim();
+      if (c.length >= 12 && c.length <= 400) lines.push(c);
+    }));
+    if (lines.length < 4) return { learned: 0, style: st };
+    let words = 0, emoji = 0, ex = 0, q = 0, formal = 0;
+    const openers = {}, closers = {}, vocab = {};
+    const EMO = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu;
+    lines.forEach(l => {
+      const w = l.split(/\s+/);
+      words += w.length;
+      emoji += (l.match(EMO) || []).length;
+      if (/!/.test(l)) ex++;
+      if (/[?؟]/.test(l)) q++;
+      if (/\b(حضرتك|تفضّل|تفضل|يسعدني|بكل سرور|من دواعي)\b/.test(l)) formal++;
+      const first = w.slice(0, 3).join(' ').replace(EMO, '').trim();
+      if (first.length > 3 && w.length > 4) openers[first] = (openers[first] || 0) + 1;
+      const last = w.slice(-3).join(' ').replace(EMO, '').trim();
+      if (last.length > 3 && w.length > 4) closers[last] = (closers[last] || 0) + 1;
+      TOK.tokens(l).forEach(tk => { if (tk.length > 3 && tk.indexOf('#') < 0 && tk.indexOf('~') < 0) vocab[tk] = (vocab[tk] || 0) + 1; });
+    });
+    const top = (o, n) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n).map(x => x[0]);
+    const n = lines.length;
+    const prev = st.samples || 0, tot = prev + n;
+    /* مزج تدريجي: كل دفعة جديدة تحرّك الأسلوب بدل أن تمحوه */
+    const mix = (a, b) => (a * prev + b * n) / Math.max(tot, 1);
+    st.avgLen = Math.round(mix(st.avgLen || 14, words / n));
+    st.emoji = U.round(mix(st.emoji || 0, emoji / n), 3);
+    st.exclaim = U.round(mix(st.exclaim || 0, ex / n), 3);
+    st.question = U.round(mix(st.question || 0, q / n), 3);
+    st.formal = U.round(mix(st.formal || .5, formal / n), 3);
+    st.openers = Array.from(new Set(top(openers, 10).concat(st.openers || []))).slice(0, 14);
+    st.closers = Array.from(new Set(top(closers, 8).concat(st.closers || []))).slice(0, 10);
+    st.words = Array.from(new Set(top(vocab, 26).concat(st.words || []))).slice(0, 40);
+    st.samples = tot;
+    this.style = st;
+    await DB.setKV('tone', st);
+    return { learned: n, style: st };
+  },
+
+  describe(st) {
+    const s = st || this.style || this.DEF;
+    if (!s.samples) return 'أسلوب افتراضي — لم تعطني نصوصًا بعد';
+    return [
+      'جُمل ~' + s.avgLen + ' كلمة',
+      s.emoji > .25 ? 'يستخدم الإيموجي' : 'بلا إيموجي',
+      s.exclaim > .3 ? 'نبرة متحمّسة' : 'نبرة هادئة',
+      s.formal > .2 ? 'رسمي' : 'مباشر',
+      'من ' + s.samples + ' سطرًا',
+    ].join(' · ');
+  },
+
+  /* افتتاحية بأسلوبك إن تعلّمه، وإلا افتراضية — ولا تتكرر مرّتين متتاليتين */
+  opener(fallbacks) {
+    const s = this.style || this.DEF;
+    const pool = (s.openers && s.openers.length ? s.openers : []).concat(fallbacks || []);
+    return pool.length ? VARY.pick('opener', pool) : '';
+  },
+  emo(set) {
+    const s = this.style || this.DEF;
+    if (!s.samples || s.emoji < .25) return '';
+    return VARY.pick('emo', set || ['✨', '👌', '🔥', '🙂', '🚀']) + ' ';
+  },
+  /* يقصّر أو يطيل الجملة لتقترب من متوسط طولك */
+  fit(text) {
+    const s = this.style || this.DEF;
+    if (!s.samples) return text;
+    const w = text.split(/\s+/);
+    if (s.avgLen < 9 && w.length > s.avgLen + 6) return w.slice(0, Math.max(6, s.avgLen + 2)).join(' ') + '.';
+    return text;
+  }
+};
+
+/* لا تكرار: يتذكّر آخر خيار استُخدم لكل مفتاح ويتجنّبه */
+const VARY = {
+  last: {},
+  pick(key, options) {
+    if (!options || !options.length) return '';
+    if (options.length === 1) return options[0];
+    const prev = this.last[key];
+    let pool = options.filter(o => o !== prev);
+    if (!pool.length) pool = options;
+    const choice = pool[Math.floor(Math.random() * pool.length)];
+    this.last[key] = choice;
+    return choice;
+  },
+  /* تغليف: جملة مختلفة في كل مرة حول نفس المضمون */
+  wrap(key, variants, data) {
+    const v = this.pick(key, variants);
+    return typeof v === 'function' ? v(data) : v;
+  }
+};
+
+/* ردود المجاملة والتحية — متنوّعة، ومطابقة لصيغة تحيّتك */
+const SMALLTALK = {
+  RULES: [
+    {
+      id: 'salam', re: /السلام\s*علي?كم|سلام\s*عليكم|assalam/i,
+      reply: () => VARY.pick('salam', [
+        'وعليكم السلام ورحمة الله وبركاته.',
+        'وعليكم السلام ورحمة الله.',
+        'وعليكم السلام، أهلًا بك.',
+      ])
+    },
+    {
+      /* \b لا تُنشئ حدَّ كلمة بعد الحروف العربية في JS — نفصل العربية عن اللاتينية */
+      id: 'hi', re: /^\s*(?:مرحب|اهلا|أهلا|هلا|هاي|يا\s*هلا)|^\s*(?:hi|hello|hey)\b/i,
+      reply: () => VARY.pick('hi', ['أهلًا بك.', 'مرحبًا.', 'هلا والله.', 'أهلًا، تفضّل.'])
+    },
+    {
+      id: 'morning', re: /صباح\s*الخير|good\s*morning/i,
+      reply: () => VARY.pick('morning', ['صباح النور.', 'صباح الخير والنور.', 'صباحك خير.'])
+    },
+    {
+      id: 'evening', re: /مساء\s*الخير|good\s*evening/i,
+      reply: () => VARY.pick('evening', ['مساء النور.', 'مساء الخير عليك.', 'مساءك خير.'])
+    },
+    {
+      id: 'how', re: /كيف\s*(حالك|الحال)|شلونك|how\s*are\s*you|اخبارك|أخبارك/i,
+      reply: () => VARY.pick('how', ['بخير، أعمل عندك.', 'تمام. جاهز.', 'كل شيء يعمل. تحت أمرك.'])
+    },
+    {
+      id: 'thanks', re: /^\s*(?:شكر|مشكور|تسلم|يعطيك|ممتاز|رائع|احسنت|أحسنت|حلو|تمام|جميل)|^\s*(?:thanks|thank\s*you|perfect|great|nice)\b/i,
+      reply: () => VARY.pick('thx', ['على الرحب.', 'العفو.', 'تسلم.', 'في خدمتك.'])
+    },
+    {
+      id: 'bye', re: /مع\s*السلامه|مع\s*السلامة|الى\s*اللقاء|باي|bye|وداعا/i,
+      reply: () => VARY.pick('bye', ['إلى اللقاء.', 'مع السلامة.', 'بالتوفيق.'])
+    },
+    {
+      id: 'sorry', re: /اسف|آسف|معذره|معليش|sorry/i,
+      reply: () => VARY.pick('sorry', ['ولا يهمّك.', 'لا عليك.', 'عادي.'])
+    },
+    {
+      id: 'praise_fail', re: /غبي|ما\s*فهمت|لا\s*تفهم|فاشل|سيء|مو\s*زين|لا\s*يعمل/i,
+      reply: () => VARY.pick('fail', [
+        'معك حق. قل لي بالضبط أي طلب لم أفهمه وسأريك ما فهمته منه وأين أخطأت.',
+        'عادل. أرسل لي المثال الذي فشلت فيه — أصحّح النية وأتعلّم منها.',
+      ])
+    },
+  ],
+  match(text) {
+    const t = TOK.normalize(text).trim();
+    for (const r of this.RULES) if (r.re.test(t) || r.re.test(text)) return r;
+    return null;
+  },
+  /* هل الرسالة تحية فقط، أم تحية + طلب؟ */
+  isPure(text) {
+    const w = TOK.words(text).filter(x => x.length > 1);
+    return w.length <= 5;
+  },
+  /* سطر متابعة يختلف بحسب حالة النظام — حتى لا يكون الردّ نسخة ثابتة */
+  async followUp() {
+    const st = LIB.stats();
+    const games = (await DB.all('games')).length;
+    const mech = KB.byKind('mechanic').length;
+    const you = FACTS.get('name');
+    const opts = [];
+    if (!st.total) opts.push('لم تعطني أي ملف بعد — أرسل مجسمًا أو كودًا أو صورة وسأبدأ منها.');
+    else {
+      opts.push('عندي الآن ' + st.total + ' ملفًا منك و' + mech + ' ميكانيكية استخرجتها من شيفرتك.');
+      if (mech) opts.push('أستطيع أن أبني لك لعبة من ' + mech + ' ميكانيكية أخذتها من ملفاتك — قل «اصنع لعبة من ملفاتي».');
+      if (games) opts.push('آخر ما بنيته لك: ' + games + ' لعبة. تقدر تطلب تعديلًا على أي منها.');
+      opts.push('تحب أحلّل ملفًا جديدًا، أو أكتب لك قطعة كود؟');
+    }
+    if (you) opts.push('تحت أمرك يا ' + you + '.');
+    return VARY.pick('follow', opts);
+  }
+};
+
 /* ============================ 28 · DESIGN SPACE ======================== */
 /* فضاء تصميم حقيقي: 9 محاور × قيم متعددة = مساحة بحث قابلة للاستكشاف.
    الابتكار هنا ليس عبارة تسويقية: النظام يبحث فعليًا في هذه المساحة،
@@ -5214,12 +5424,36 @@ const GEN3D = {
       'var gl=cvs.getContext("webgl",{antialias:true,alpha:false});',
       'if(!gl){document.body.innerHTML="<p style=\'padding:20px\'>WebGL غير متاح</p>";return}',
       /* ---------- shaders ---------- */
-      'var VS="attribute vec3 p;attribute vec3 n;uniform mat4 mvp;uniform mat4 m;varying vec3 vn;varying vec3 wp;void main(){vn=mat3(m)*n;wp=(m*vec4(p,1.0)).xyz;gl_Position=mvp*vec4(p,1.0);}";',
-      'var FS="precision mediump float;varying vec3 vn;varying vec3 wp;uniform vec3 col;uniform vec3 eye;void main(){vec3 L=normalize(vec3(0.45,0.82,0.35));float d=max(dot(normalize(vn),L),0.0);float f=clamp(length(wp-eye)/260.0,0.0,1.0);vec3 c=col*(0.34+0.66*d)+vec3(0.06,0.08,0.16);c=mix(c,vec3(0.04,0.05,0.10),f);gl_FragColor=vec4(c,1.0);}";',
+      /* خامات من صورك + إضاءة بانعكاس وضباب — لا ألوان مسطّحة */
+      'var VS="attribute vec3 p;attribute vec3 n;attribute vec2 uv;uniform mat4 mvp;uniform mat4 m;varying vec3 vn;varying vec3 wp;varying vec2 vuv;void main(){vn=mat3(m)*n;wp=(m*vec4(p,1.0)).xyz;vuv=uv;gl_Position=mvp*vec4(p,1.0);}";',
+      'var FS="precision mediump float;varying vec3 vn;varying vec3 wp;varying vec2 vuv;uniform vec3 col;uniform vec3 eye;uniform sampler2D tex;uniform float useTex;uniform float texScale;uniform float shine;' +
+      'void main(){vec3 N=normalize(vn);vec3 L=normalize(vec3(0.45,0.82,0.35));vec3 V=normalize(eye-wp);' +
+      'vec3 base=col;if(useTex>0.5){vec3 t=texture2D(tex,vuv*texScale).rgb;base=col*(0.35+1.15*t);}' +
+      'float d=max(dot(N,L),0.0);float amb=0.62+0.26*max(N.y,0.0);' +
+      'vec3 H=normalize(L+V);float sp=pow(max(dot(N,H),0.0),28.0)*shine;' +
+      'float f=clamp(length(wp-eye)/420.0,0.0,1.0);' +
+      'vec3 sky=vec3(0.30,0.36,0.52)*(0.45+0.55*max(N.y,0.0));' +
+      'vec3 c=base*(amb+0.85*d)+sky*0.30+vec3(0.75,0.80,0.95)*sp;' +
+      'c=mix(c,vec3(0.17,0.20,0.31),f*0.85);' +
+      'c=pow(c,vec3(0.94));' +
+      'gl_FragColor=vec4(c,1.0);}";',
       'function mkSh(t,s){var o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(o));return o}',
       'var pr=gl.createProgram();gl.attachShader(pr,mkSh(gl.VERTEX_SHADER,VS));gl.attachShader(pr,mkSh(gl.FRAGMENT_SHADER,FS));gl.linkProgram(pr);gl.useProgram(pr);',
-      'var LP=gl.getAttribLocation(pr,"p"),LN=gl.getAttribLocation(pr,"n"),LMVP=gl.getUniformLocation(pr,"mvp"),LM=gl.getUniformLocation(pr,"m"),LC=gl.getUniformLocation(pr,"col"),LE=gl.getUniformLocation(pr,"eye");',
-      'gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);',
+      'var LP=gl.getAttribLocation(pr,"p"),LN=gl.getAttribLocation(pr,"n"),LUV=gl.getAttribLocation(pr,"uv");',
+      'var LMVP=gl.getUniformLocation(pr,"mvp"),LM=gl.getUniformLocation(pr,"m"),LC=gl.getUniformLocation(pr,"col"),LE=gl.getUniformLocation(pr,"eye");',
+      'var LT=gl.getUniformLocation(pr,"tex"),LUT=gl.getUniformLocation(pr,"useTex"),LTS=gl.getUniformLocation(pr,"texScale"),LSH=gl.getUniformLocation(pr,"shine");',
+      'gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);gl.uniform1i(LT,0);',
+      /* خامات من صورك أنت */
+      'var TEX=[],texReady=0;',
+      'function mkTex(src){var t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);',
+      ' gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([120,128,150,255]));',
+      ' var im=new Image();im.onload=function(){gl.bindTexture(gl.TEXTURE_2D,t);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);',
+      '  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,im);',
+      '  var p2=function(v){return (v&(v-1))===0};',
+      '  if(p2(im.width)&&p2(im.height)){gl.generateMipmap(gl.TEXTURE_2D);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR)}',
+      '  else{gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR)}',
+      '  texReady++};im.src=src;return t}',
+      '(CFG.tex||[]).forEach(function(t){TEX.push(mkTex("data:"+(t.mime||"image/png")+";base64,"+t.b64))});',
       /* ---------- math ---------- */
       'function mul(a,b){var o=new Float32Array(16);for(var r=0;r<4;r++)for(var c=0;c<4;c++){var s=0;for(var k=0;k<4;k++)s+=a[k*4+r]*b[c*4+k];o[c*4+r]=s}return o}',
       'function persp(f,a,n,fa){var t=1/Math.tan(f/2);return new Float32Array([t/a,0,0,0,0,t,0,0,0,0,(fa+n)/(n-fa),-1,0,0,2*fa*n/(n-fa),0])}',
@@ -5229,20 +5463,31 @@ const GEN3D = {
       'function nrm(v){var l=Math.hypot(v[0],v[1],v[2])||1;return[v[0]/l,v[1]/l,v[2]/l]}',
       'function trs(tx,ty,tz,ry,sx,sy,sz){var c=Math.cos(ry),s=Math.sin(ry);return new Float32Array([c*sx,0,-s*sx,0,0,sy,0,0,s*sz,0,c*sz,0,tx,ty,tz,1])}',
       /* ---------- mesh helper ---------- */
-      'function mesh(pos,nor,idx){var o={};o.vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,o.vb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(pos),gl.STATIC_DRAW);',
+      'function mesh(pos,nor,idx,uvs){var o={};o.vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,o.vb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(pos),gl.STATIC_DRAW);',
+      'o.ub=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,o.ub);',
+      'var uvArr=uvs&&uvs.length===(pos.length/3)*2?uvs:(function(){var a=[];for(var i=0;i<pos.length;i+=3){a.push(pos[i]*0.25+pos[i+2]*0.25,pos[i+1]*0.25+pos[i+2]*0.12)}return a})();',
+      'gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(uvArr),gl.STATIC_DRAW);',
       'o.nb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,o.nb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(nor),gl.STATIC_DRAW);',
       'o.ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,o.ib);',
       'var big=pos.length/3>65535;o.big=big&&!!gl.getExtension("OES_element_index_uint");',
       'gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,o.big?new Uint32Array(idx):new Uint16Array(idx.map(function(v){return v&65535})),gl.STATIC_DRAW);o.n=idx.length;return o}',
-      'function draw(o,M,V,Pm,col,eye){gl.bindBuffer(gl.ARRAY_BUFFER,o.vb);gl.enableVertexAttribArray(LP);gl.vertexAttribPointer(LP,3,gl.FLOAT,false,0,0);',
+      'function draw(o,M,V,Pm,col,eye,ti,ts,sh){gl.bindBuffer(gl.ARRAY_BUFFER,o.vb);gl.enableVertexAttribArray(LP);gl.vertexAttribPointer(LP,3,gl.FLOAT,false,0,0);',
       'gl.bindBuffer(gl.ARRAY_BUFFER,o.nb);gl.enableVertexAttribArray(LN);gl.vertexAttribPointer(LN,3,gl.FLOAT,false,0,0);',
+      'if(LUV>=0){gl.bindBuffer(gl.ARRAY_BUFFER,o.ub);gl.enableVertexAttribArray(LUV);gl.vertexAttribPointer(LUV,2,gl.FLOAT,false,0,0)}',
+      'var useT=(ti!=null&&TEX[ti])?1.0:0.0;',
+      'if(useT){gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,TEX[ti])}',
+      'gl.uniform1f(LUT,useT);gl.uniform1f(LTS,ts||1.0);gl.uniform1f(LSH,sh==null?0.35:sh);',
       'gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,o.ib);gl.uniformMatrix4fv(LMVP,false,mul(Pm,mul(V,M)));gl.uniformMatrix4fv(LM,false,M);',
       'gl.uniform3fv(LC,col);gl.uniform3fv(LE,eye);gl.drawElements(gl.TRIANGLES,o.n,o.big?gl.UNSIGNED_INT:gl.UNSIGNED_SHORT,0)}',
       /* ---------- primitives ---------- */
-      'function box(w,h,d){var x=w/2,y=h/2,z=d/2;var p=[],n=[],i=[];var F=[[[-x,-y,z],[x,-y,z],[x,y,z],[-x,y,z],[0,0,1]],[[x,-y,-z],[-x,-y,-z],[-x,y,-z],[x,y,-z],[0,0,-1]],',
+      /* إحداثيات خامة مستوية لكل وجه — لا خلط للمحاور، وإلا ظهرت الخامة خطوطًا مائلة */
+      'function box(w,h,d){var x=w/2,y=h/2,z=d/2;var p=[],n=[],i=[],u=[];var F=[[[-x,-y,z],[x,-y,z],[x,y,z],[-x,y,z],[0,0,1]],[[x,-y,-z],[-x,-y,-z],[-x,y,-z],[x,y,-z],[0,0,-1]],',
       '[[-x,-y,-z],[-x,-y,z],[-x,y,z],[-x,y,-z],[-1,0,0]],[[x,-y,z],[x,-y,-z],[x,y,-z],[x,y,z],[1,0,0]],',
       '[[-x,y,z],[x,y,z],[x,y,-z],[-x,y,-z],[0,1,0]],[[-x,-y,-z],[x,-y,-z],[x,-y,z],[-x,-y,z],[0,-1,0]]];',
-      'for(var f=0;f<6;f++){var b=p.length/3;for(var v=0;v<4;v++){p.push(F[f][v][0],F[f][v][1],F[f][v][2]);n.push(F[f][4][0],F[f][4][1],F[f][4][2])}i.push(b,b+1,b+2,b,b+2,b+3)}return{p:p,n:n,i:i}}',
+      'for(var f=0;f<6;f++){var b=p.length/3;var nm=F[f][4];',
+      ' for(var v=0;v<4;v++){var P=F[f][v];p.push(P[0],P[1],P[2]);n.push(nm[0],nm[1],nm[2]);',
+      '  if(Math.abs(nm[1])>0.5)u.push(P[0],P[2]); else if(Math.abs(nm[0])>0.5)u.push(P[2],P[1]); else u.push(P[0],P[1]);}',
+      ' i.push(b,b+1,b+2,b,b+2,b+3)}return{p:p,n:n,i:i,u:u}}',
       /* ---------- GLB loader (مصغّر) ---------- */
       'function b64(s){var bs=atob(s),u=new Uint8Array(bs.length);for(var i=0;i<bs.length;i++)u[i]=bs.charCodeAt(i);return u}',
       'var CT={5120:Int8Array,5121:Uint8Array,5122:Int16Array,5123:Uint16Array,5125:Uint32Array,5126:Float32Array};',
@@ -5278,19 +5523,26 @@ const GEN3D = {
       /* ---------- scene ---------- */
       'var S_=CFG.seed>>>0;function rnd(){S_=(S_*1664525+1013904223)>>>0;return S_/4294967296}',
       'var road=box(CFG.block,0.4,CFG.block*6),bld=box(1,1,1),cube=box(1.6,1.6,1.6);',
-      'var mRoad=mesh(road.p,road.n,road.i),mBld=mesh(bld.p,bld.n,bld.i),mCube=mesh(cube.p,cube.n,cube.i);',
-      'var ground=box(CFG.city*CFG.block*2.4,0.2,CFG.city*CFG.block*2.4);var mGround=mesh(ground.p,ground.n,ground.i);',
-      'var stripe=box(0.5,0.06,3.2);var mStripe=mesh(stripe.p,stripe.n,stripe.i);',
+      'var mRoad=mesh(road.p,road.n,road.i,road.u),mBld=mesh(bld.p,bld.n,bld.i,bld.u),mCube=mesh(cube.p,cube.n,cube.i,cube.u);',
+      'var ground=box(CFG.city*CFG.block*2.4,0.2,CFG.city*CFG.block*2.4);var mGround=mesh(ground.p,ground.n,ground.i,ground.u);',
+      'var stripe=box(0.34,0.05,2.6);var mStripe=mesh(stripe.p,stripe.n,stripe.i,stripe.u);',
       'var buildings=[];',
       'for(var bx=-CFG.city;bx<=CFG.city;bx++)for(var bz=-CFG.city;bz<=CFG.city;bz++){',
       'if(Math.abs(bx)%2===0||Math.abs(bz)%2===0)continue;',
-      'var h=CFG.minH+rnd()*CFG.maxH;buildings.push({x:bx*CFG.block,z:bz*CFG.block,h:h,w:CFG.block*(0.45+rnd()*0.3),d:CFG.block*(0.45+rnd()*0.3),c:[0.13+rnd()*0.1,0.15+rnd()*0.1,0.25+rnd()*0.14]})}',
+      'var h=CFG.minH+rnd()*CFG.maxH;buildings.push({x:bx*CFG.block,z:bz*CFG.block,h:h,w:CFG.block*(0.45+rnd()*0.3),d:CFG.block*(0.45+rnd()*0.3),c:[0.42+rnd()*0.18,0.46+rnd()*0.18,0.58+rnd()*0.18]})}',
       /* ---------- vehicle mesh: user asset or fallback ---------- */
       'var carMesh=null,carScale=1,carLift=0,carUsed=false;',
       'if(CFG.glb){try{var G=loadGLB(b64(CFG.glb));if(G){var sz=[G.max[0]-G.min[0],G.max[1]-G.min[1],G.max[2]-G.min[2]];',
       'var big=Math.max(sz[0],sz[1],sz[2])||1;carScale=CFG.carTarget/big;carLift=-G.min[1]*carScale;',
       'carMesh=mesh(G.p,G.n,G.i);carUsed=true}}catch(e){}}',
-      'if(!carMesh){var cb=box(1.9,1.0,4.2);carMesh=mesh(cb.p,cb.n,cb.i);carScale=1;carLift=0.55}',
+      'if(!carMesh){var cb=box(1.9,1.0,4.2);carMesh=mesh(cb.p,cb.n,cb.i,cb.u);carScale=1;carLift=0.55}',
+      /* مجسماتك الأخرى تُوزّع في العالم كعناصر حقيقية */
+      'var propMeshes=[],propInst=[];',
+      '(CFG.props||[]).forEach(function(pb){try{var G=loadGLB(b64(pb));if(!G)return;',
+      ' var sz=[G.max[0]-G.min[0],G.max[1]-G.min[1],G.max[2]-G.min[2]];var big=Math.max(sz[0],sz[1],sz[2])||1;',
+      ' propMeshes.push({m:mesh(G.p,G.n,G.i),s:CFG.propTarget/big,lift:-G.min[1]*(CFG.propTarget/big)})}catch(e){}});',
+      'for(var i=0;i<CFG.propCount&&propMeshes.length;i++){var a=rnd()*Math.PI*2,r=26+rnd()*CFG.city*CFG.block*0.7;',
+      ' propInst.push({x:Math.cos(a)*r,z:Math.sin(a)*r,ry:rnd()*Math.PI*2,k:i%propMeshes.length})}',
       /* ---------- pickups ---------- */
       'var picks=[];for(var i=0;i<CFG.pickups;i++){var a=rnd()*Math.PI*2,r=20+rnd()*CFG.city*CFG.block*0.8;',
       'picks.push({x:Math.cos(a)*r,z:Math.sin(a)*r,got:false,ph:rnd()*6})}',
@@ -5311,7 +5563,12 @@ const GEN3D = {
       'function updAudio(){if(!audioReady||!engSrc)return;var f=Math.abs(car.sp)/CFG.maxSpeed;',
       'engSrc.playbackRate.value=CFG.basePitch+f*CFG.pitchPerSpeed;engGain.gain.value=CFG.minGain+f*(CFG.maxGain-CFG.minGain)}',
       /* ---------- loop ---------- */
-      'function resize(){var d=Math.min(devicePixelRatio||1,2);cvs.width=innerWidth*d;cvs.height=innerHeight*d;gl.viewport(0,0,cvs.width,cvs.height)}',
+      /* دقة كاملة: نرسم بدقة الجهاز الفعلية (حتى 3x) لا بنصفها */
+      'function resize(){var d=Math.min(devicePixelRatio||1,CFG.hiRes?3:2);',
+      ' var w=Math.round(innerWidth*d),h=Math.round(innerHeight*d);',
+      ' var cap=CFG.hiRes?9000000:4000000;',
+      ' if(w*h>cap){var k=Math.sqrt(cap/(w*h));w=Math.round(w*k);h=Math.round(h*k)}',
+      ' cvs.width=w;cvs.height=h;gl.viewport(0,0,w,h)}',
       'addEventListener("resize",resize);resize();',
       'var hud=document.getElementById("hud");',
       'var last=performance.now();',
@@ -5344,25 +5601,28 @@ const GEN3D = {
       'var hf=CFG.fov*Math.PI/180*(1+Math.abs(car.sp)/CFG.maxSpeed*0.10);',
       'var vf=Math.min(2*Math.atan(Math.tan(hf/2)/Math.max(asp,0.0001)),1.75);',
       'var Pm=persp(vf,asp,0.5,460);',
-      'gl.clearColor(0.03,0.035,0.07,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);',
-      'draw(mGround,trs(0,-0.2,0,0,1,1,1),V,Pm,[0.07,0.08,0.13],camP);',
+      'gl.clearColor(0.17,0.20,0.31,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);',
+      'draw(mGround,trs(0,-0.2,0,0,1,1,1),V,Pm,[0.30,0.32,0.40],camP,TEX.length?0:null,0.14,0.05);',
       /* علامات الطريق: تعطي إحساسًا حقيقيًا بالسرعة بدل أرضية صمّاء */
       'var cbx=Math.round(car.x/CFG.block),cbz=Math.round(car.z/CFG.block);',
       'for(var bx2=cbx-3;bx2<=cbx+3;bx2++){var rx=bx2*CFG.block;',
       ' if(Math.abs(rx-car.x)>70)continue;',
       ' for(var sz=Math.round((car.z-70)/7)*7;sz<car.z+70;sz+=7){',
-      '  draw(mStripe,trs(rx,0.02,sz,0,1,1,1),V,Pm,[0.30,0.33,0.42],camP)}}',
+      '  draw(mStripe,trs(rx,0.02,sz,0,1,1,1),V,Pm,[0.78,0.80,0.86],camP,null,1.0,0.0)}}',
       'for(var bz2=cbz-3;bz2<=cbz+3;bz2++){var rz=bz2*CFG.block;',
       ' if(Math.abs(rz-car.z)>70)continue;',
       ' for(var sx=Math.round((car.x-70)/7)*7;sx<car.x+70;sx+=7){',
-      '  draw(mStripe,trs(sx,0.02,rz,Math.PI/2,1,1,1),V,Pm,[0.30,0.33,0.42],camP)}}',
+      '  draw(mStripe,trs(sx,0.02,rz,Math.PI/2,1,1,1),V,Pm,[0.78,0.80,0.86],camP,null,1.0,0.0)}}',
       'for(var i=0;i<buildings.length;i++){var b=buildings[i];',
       'if(Math.hypot(b.x-car.x,b.z-car.z)>CFG.viewDist)continue;',
-      'draw(mBld,trs(b.x,b.h/2,b.z,0,b.w,b.h,b.d),V,Pm,b.c,camP)}',
+      'draw(mBld,trs(b.x,b.h/2,b.z,0,b.w,b.h,b.d),V,Pm,b.c,camP,TEX.length>1?1:(TEX.length?0:null),3.0,0.18)}',
+      'for(var i=0;i<propInst.length;i++){var pi=propInst[i];',
+      ' if(Math.hypot(pi.x-car.x,pi.z-car.z)>CFG.viewDist)continue;var pm=propMeshes[pi.k];',
+      ' draw(pm.m,trs(pi.x,pm.lift,pi.z,pi.ry,pm.s,pm.s,pm.s),V,Pm,[0.62,0.66,0.78],camP,TEX.length>2?2:null,1.0,0.4)}',
       'for(var i=0;i<picks.length;i++){var pk=picks[i];if(pk.got)continue;',
       'if(Math.hypot(pk.x-car.x,pk.z-car.z)>CFG.viewDist)continue;',
-      'draw(mCube,trs(pk.x,1.4+Math.sin(pk.ph*2)*0.4,pk.z,pk.ph,1,1,1),V,Pm,[0.95,0.78,0.25],camP)}',
-      'draw(carMesh,trs(car.x,carLift,car.z,car.ang+CFG.carYaw,carScale,carScale,carScale),V,Pm,[0.55,0.62,0.82],camP);',
+      'draw(mCube,trs(pk.x,1.4+Math.sin(pk.ph*2)*0.4,pk.z,pk.ph,1,1,1),V,Pm,[1.0,0.82,0.26],camP,null,1.0,0.6)}',
+      'draw(carMesh,trs(car.x,carLift,car.z,car.ang+CFG.carYaw,carScale,carScale,carScale),V,Pm,[0.72,0.30,0.26],camP,null,1.0,0.55);',
       'hud.innerHTML="<b>"+score+"/"+CFG.target+"</b> جمع &nbsp;·&nbsp; "+Math.round(Math.abs(car.sp)*3.6)+" كم/س"+(CFG.timeLimit?"&nbsp;·&nbsp;"+Math.max(0,Math.ceil(CFG.timeLimit-(now-t0)/1000))+"ث":"")+(over?"<br><span style=\'color:#34d399\'>"+msg+"</span>":"");',
       'requestAnimationFrame(step)}',
       'requestAnimationFrame(step);',
@@ -5471,7 +5731,10 @@ const BUILDER = {
     L('② اختيار الأصول من المكتبة');
     const themeHints = Object.assign(CREATIVE.themeHints(req.theme), brief.hints || {});
     let chosen = [];
-    if (brief.assetIds && brief.assetIds.length) {
+    if (brief.fromUser && brief.understanding) {
+      const u = brief.understanding;
+      chosen = u.models.slice(0, 3).concat(u.sounds.slice(0, 1)).concat(u.images.slice(0, 3));
+    } else if (brief.assetIds && brief.assetIds.length) {
       chosen = brief.assetIds.map(id => LIB.cache.find(a => a.id === id)).filter(Boolean);
     } else if (req.wantAssets !== false) {
       const q = (req.theme + ' ' + (brief.assetHint || '')).trim();
@@ -5489,14 +5752,38 @@ const BUILDER = {
     if (chosen.length) L('   أصول مرشّحة: ' + chosen.map(a => a.name).join('، '));
     else L('   لا أصول مناسبة — سيُستخدم تمثيل هندسي مولَّد');
 
-    /* 3. Design — بحث في فضاء التصميم */
-    L('③ تصميم: بحث في فضاء المحاور');
-    const design = await CREATIVE.design({ theme: req.theme, wantDifferent: req.wantDifferent, assets: chosen, seed, hints: themeHints });
-    L('   تركيبة مختارة من ' + design.considered + ' مرشّحًا · أصالة ' + U.pct(design.novelty) + ' · تماسك ' + U.pct(design.coherence));
+    /* 3. Design */
+    let design, userBuild = null;
+    if (brief.fromUser) {
+      L('③ تصميم من موادّك أنت (لا من قوالب جاهزة)');
+      const u = brief.understanding;
+      const axes = FROMYOU.axesFrom(u, req.theme);
+      design = {
+        axes, score: { total: 1, nov: 0, coh: 1, fit: 1 }, alternatives: [],
+        novelty: CREATIVE.novelty(axes, ARCHETYPES.map(a => a.axes)),
+        coherence: CREATIVE.coherence(axes, REG.patternModel()),
+        assetFit: 1, fixed: {}, considered: 0,
+        closest: (function () {
+          const c = ARCHETYPES.map(x => ({ n: x.name, d: CREATIVE.distance(axes, x.axes) })).sort((x, y) => x.d - y.d)[0];
+          return c ? c.n : null;
+        })(),
+        closestDistance: (function () {
+          const c = ARCHETYPES.map(x => CREATIVE.distance(axes, x.axes)).sort((x, y) => x - y)[0];
+          return c == null ? null : U.round(c, 2);
+        })(),
+      };
+      userBuild = u;
+      L('   ميكانيكياتك المستخدمة: ' + (u.matched.length ? u.matched.map(m => m.k.title).join('، ') : 'لا شيء مطابق'));
+      L('   أصولك: ' + u.models.length + ' مجسم · ' + u.images.length + ' صورة · ' + u.sounds.length + ' صوت');
+    } else {
+      L('③ تصميم: بحث في فضاء المحاور');
+      design = await CREATIVE.design({ theme: req.theme, wantDifferent: req.wantDifferent, assets: chosen, seed, hints: themeHints });
+      L('   تركيبة مختارة من ' + design.considered + ' مرشّحًا · أصالة ' + U.pct(design.novelty) + ' · تماسك ' + U.pct(design.coherence));
+    }
 
     /* 4. Backend selection */
     const has3D = chosen.some(a => a.kind === 'model' && (a.analysis && a.analysis.format !== 'obj'));
-    const want3D = design.axes.locomotion === 'drive' && has3D;
+    const want3D = has3D && (design.axes.locomotion === 'drive' || brief.fromUser);
     const backend = brief.force2D ? '2d' : (want3D ? '3d' : '2d');
     L('④ المعمارية: محرّك ' + (backend === '3d' ? 'ثلاثي الأبعاد (WebGL + GLB)' : 'ثنائي الأبعاد (Canvas)'));
 
@@ -5504,34 +5791,63 @@ const BUILDER = {
     L('⑤ توليد الشيفرة');
     const palette = this.palettes[Math.floor(rnd() * this.palettes.length)];
     const title = this.titleFor(design.axes, req.theme, rnd);
+    let params = this.paramsFor(design.axes, U.hash32(String(seed)));
+    let yourParams = [];
+    if (userBuild) {
+      const r = FROMYOU.paramsFrom(userBuild, params);
+      params = r.params; yourParams = r.used;
+      if (yourParams.length) L('   معاملاتك: ' + yourParams.map(x => x.key + '=' + x.v + ' (' + x.from + ')').join('، '));
+    }
     const spec = {
-      title, axes: design.axes, seed, palette,
-      params: this.paramsFor(design.axes, U.hash32(String(seed))),
+      title, axes: design.axes, seed, palette, params,
       controls: this.controlsText(design.axes),
     };
     let html, js, cfg = null, used = [];
     if (backend === '3d') {
-      const modelAsset = chosen.find(a => a.kind === 'model');
+      const modelAssets = chosen.filter(a => a.kind === 'model').slice(0, 3);
+      const modelAsset = modelAssets[0];
       const audioAsset = chosen.find(a => a.kind === 'audio');
+      const imgAssets = chosen.filter(a => a.kind === 'image').slice(0, 3);
       const mb = modelAsset ? await LIB.blob(modelAsset.id) : null;
       const ab = audioAsset ? await LIB.blob(audioAsset.id) : null;
       const glb = mb ? await GEN3D.b64(mb, 9 * 1024 * 1024) : null;
       const eng = ab ? await GEN3D.b64(ab, 4 * 1024 * 1024) : null;
       if (modelAsset && !glb) L('   ⚠ المجسم أكبر من حد التضمين (9MB) — سيُستخدم بديل هندسي');
       if (audioAsset && !eng) L('   ⚠ الملف الصوتي أكبر من حد التضمين (4MB)');
+      /* مجسماتك الأخرى تصير عناصر في العالم، وصورك تصير خامات حقيقية */
+      const props = [];
+      for (const m of modelAssets.slice(1)) {
+        const b = await LIB.blob(m.id);
+        const d = b ? await GEN3D.b64(b, 6 * 1024 * 1024) : null;
+        if (d) { props.push(d); L('   + مجسم إضافي في العالم: ' + m.name); }
+      }
+      const tex = [];
+      for (const im of imgAssets) {
+        const b = await LIB.blob(im.id);
+        const d = b ? await GEN3D.b64(b, 3 * 1024 * 1024) : null;
+        if (d) { tex.push({ b64: d, mime: im.mime || 'image/png', name: im.name }); L('   + خامة من صورتك: ' + im.name); }
+      }
       cfg = {
-        seed, city: 7, block: 22, minH: 6, maxH: 34, viewDist: 190,
+        seed, city: 7, block: 22, minH: 6, maxH: 34, viewDist: 220,
+        propTarget: 3.2, propCount: 26,
         pickups: Math.round(8 + rnd() * 8), target: Math.round(6 + rnd() * 6),
         timeLimit: design.axes.threat === 'timer' ? 90 : 0,
         accel: 11 + rnd() * 5, brake: 20, drag: .45, maxSpeed: 26 + rnd() * 10, steerRate: 1.9 + rnd() * .6,
         camDist: 14, camH: 7, camSmooth: 5, fov: 62, carTarget: 4.2, carYaw: Math.PI,
         basePitch: .62, pitchPerSpeed: 1.05, minGain: .08, maxGain: .8,
-        glb, engine: eng,
+        glb, engine: eng, props, tex, hiRes: true,
       };
+      if (params.camDist) cfg.camDist = params.camDist;
+      if (params.camH) cfg.camH = params.camH;
+      if (params.maxSpeed && userBuild) cfg.maxSpeed = Math.max(8, params.maxSpeed / 3.6 > 60 ? params.maxSpeed / 3.6 : params.maxSpeed);
+      if (params.accel && userBuild) cfg.accel = Math.max(4, Math.min(40, params.accel));
+      if (params.steerRate && userBuild) cfg.steerRate = Math.max(.8, Math.min(4, params.steerRate));
       js = GEN3D.runtime(cfg);
       html = GEN3D.html(spec, js, cfg);
       if (modelAsset && glb) used.push(modelAsset);
       if (audioAsset && eng) used.push(audioAsset);
+      modelAssets.slice(1, 1 + props.length).forEach(m => used.push(m));
+      imgAssets.slice(0, tex.length).forEach(im => used.push(im));
     } else {
       js = GEN2D.build(spec);
       html = GEN2D.html(spec, js);
@@ -5558,6 +5874,9 @@ const BUILDER = {
       html, spec: { axes: design.axes, params: spec.params, palette, controls: spec.controls },
       design: { novelty: U.round(design.novelty, 3), coherence: U.round(design.coherence, 3), assetFit: U.round(design.assetFit, 3), closest: design.closest, closestDistance: design.closestDistance, alternatives: design.alternatives.map(a => a.axes) },
       assets: used.map(a => ({ id: a.id, name: a.name, kind: a.kind, category: a.category })),
+      fromUser: !!userBuild,
+      yourMechanics: userBuild ? userBuild.matched.map(m => ({ title: m.k.title, mech: m.k.mech, source: (LIB.cache.find(x => x.id === m.k.source) || {}).name || null })) : [],
+      yourParams: yourParams,
       test: { ok: test.ok, errors: test.errors, frames: test.frames, warns: test.warns },
       fixes, project: S.activeProject, size: html.length,
     };
@@ -5578,6 +5897,181 @@ const BUILDER = {
     ML.patternObserve(REG.patternModel(), Object.keys(AXES).map(k => k + ':' + design.axes[k]));
     L('⑧ تم — اللعبة محفوظة');
     return { game, design, test };
+  }
+};
+
+/* ============================ 33b · BUILD FROM YOUR FILES ============= */
+/* اللعبة تُركَّب من موادّك أنت: ميكانيكيات استُخرجت من شيفرتك بمعاملاتك،
+   ومجسماتك وصورك وأصواتك. لا يخترع لك نمط لعب من عنده.
+   وإن لم يجد ما يكفي، يقولها صراحة ويطلب الملف الناقص بالاسم. */
+const FROMYOU = {
+  /* ماذا يملك من موادّك الآن */
+  inventory() {
+    const mech = KB.byKind('mechanic').filter(k => k.mech && k.source);
+    const models = LIB.cache.filter(a => a.kind === 'model');
+    const images = LIB.cache.filter(a => a.kind === 'image');
+    const sounds = LIB.cache.filter(a => a.kind === 'audio');
+    const code = LIB.cache.filter(a => a.kind === 'code' || a.kind === 'web');
+    const apps = LIB.cache.filter(a => a.kind === 'app');
+    return { mech, models, images, sounds, code, apps };
+  },
+
+  /* يفهم أي لعبة تطلبها بمطابقتها مع موادّك — لا مع قوالب جاهزة */
+  understand(request) {
+    const inv = this.inventory();
+    const q = TOK.normalize(request);
+    const qx = TOK.expand(request);
+    const wanted = [];
+    /* أي ميكانيكية من ميكانيكياتك تخدم الطلب؟ */
+    inv.mech.forEach(k => {
+      const def = MECH_DEFS.find(d => d.id === k.mech);
+      let score = 0;
+      const why = [];
+      if (def) def.signals.forEach(w => {
+        const nw = TOK.normalize(w);
+        if (q.indexOf(nw) >= 0) { score += 2; why.push(w); }
+        else if (TOK.normalize(qx).indexOf(nw) >= 0) score += .4;
+      });
+      TOK.tokens(k.title).forEach(tk => { if (tk.length > 2 && q.indexOf(tk) >= 0) { score += 2.5; why.push(k.title); } });
+      if (score > 0) wanted.push({ k, score, why: Array.from(new Set(why)).slice(0, 4) });
+    });
+    wanted.sort((a, b) => b.score - a.score);
+    /* أي أصول تخدم الطلب؟ */
+    const pickAssets = (rows, n) => LIB.search(request, { limit: n, min: .12 })
+      .map(h => h.asset).filter(a => rows.indexOf(a) >= 0);
+    const models = pickAssets(inv.models, 6).concat(inv.models).filter((v, i, arr) => arr.indexOf(v) === i).slice(0, 4);
+    const sounds = pickAssets(inv.sounds, 4).concat(inv.sounds).filter((v, i, arr) => arr.indexOf(v) === i).slice(0, 2);
+    const images = pickAssets(inv.images, 6).concat(inv.images).filter((v, i, arr) => arr.indexOf(v) === i).slice(0, 4);
+
+    const matched = wanted.filter(w => w.score >= 2);
+    const asked = this.askedFor(q);
+    const coveredIds = new Set(matched.map(w => w.k.mech));
+    const missing = asked.filter(a => !a.ids.some(id => coveredIds.has(id)));
+
+    /* تغطية الطلب: هل الكلمات التي كتبتها لها مقابل في موادّك أصلًا؟
+       بدون هذا كان يبني لعبة سيارات لطلب «قتال بالسيوف» لمجرد أن عنده سيارة. */
+    const cov = this.coverage(request, inv, matched);
+
+    return {
+      inv, matched, models, sounds, images, asked, missing,
+      covered: cov.covered, uncovered: cov.uncovered, topics: cov.topics,
+      /* لا يكفي أن يملك موادّ — يجب أن تخصّ طلبك */
+      enough: cov.topics === 0 ? (matched.length > 0 || models.length > 0) : cov.covered.length > 0,
+      strong: matched.length > 0 && cov.uncovered.length === 0,
+    };
+  },
+
+  GENERIC: new Set(('اصنع اعمل ابن ابنِ انشئ سو سوي صمم ولد ولّد اريد ابغى ابغي بدي لعبه لعبة العاب لي جديد جديده جديدة من في على مع الى عن ثم هذه هذا التي الذي مشروع ملف ملفات ' +
+    'make build create want game games new me my a an the from with for and please').split(/\s+/)),
+  /* يقيس: كم من كلمات طلبك لها مقابل حقيقي في موادّك */
+  coverage(request, inv, matched) {
+    const toks = Array.from(new Set(TOK.tokens(request, { bigrams: false, charGrams: false })))
+      .filter(t => t.length > 2 && t.indexOf('#') < 0 && t.indexOf('~') < 0 && !this.GENERIC.has(t));
+    if (!toks.length) return { topics: 0, covered: [], uncovered: [] };
+    /* كل ما يملكه من موادّ، كنص واحد للبحث */
+    const hay = [
+      inv.mech.map(k => k.title + ' ' + (k.tags || []).join(' ') + ' ' + (MECH_DEFS.find(d => d.id === k.mech) || { signals: [] }).signals.join(' ')).join(' '),
+      inv.models.concat(inv.images, inv.sounds, inv.code, inv.apps)
+        .map(a => a.name + ' ' + a.category + ' ' + (a.tags || []).join(' ')).join(' '),
+      matched.map(m => m.why.join(' ')).join(' '),
+    ].join(' ');
+    const hayN = TOK.normalize(hay);
+    const hayTok = new Set(TOK.tokens(hay, { bigrams: false, charGrams: false }));
+    /* توسيع ثنائي اللغة: «سيارة» تُطابق vehicle/car في أسماء ملفاتك */
+    const doms = TOK.domainsOf(request).map(d => d.domain);
+    const domWords = TOK.normalize(doms.map(d => DOMAIN_LEX[d].join(' ')).join(' '));
+    const covered = [], uncovered = [];
+    toks.forEach(t => {
+      const hit = hayTok.has(t) || hayN.indexOf(t) >= 0 ||
+        (domWords.indexOf(t) >= 0 && doms.some(d => hayN.indexOf(d) >= 0 || hayTok.has(d)));
+      (hit ? covered : uncovered).push(t);
+    });
+    return { topics: toks.length, covered, uncovered };
+  },
+  /* يستنتج مما طلبته: ما الأنظمة التي تحتاجها هذه اللعبة */
+  NEEDS: [
+    { key: 'قيادة/مركبة', re: /سياره|مركبه|قياده|سباق|عربه|car|race|driv/, ids: ['vehicle.control', 'vehicle.enterExit'] },
+    { key: 'كاميرا متابعة', re: /كاميرا|منظور|camera|تتبع/, ids: ['camera.follow'] },
+    { key: 'قفز ومنصات', re: /قفز|منصات|jump|platform/, ids: ['movement.platform'] },
+    { key: 'حركة شبكية', re: /دوده|ثعبان|شبكه|snake|grid/, ids: ['movement.grid', 'growth.length'] },
+    { key: 'أعداء ومطاردة', re: /عدو|اعداء|مطارد|enemy|chase/, ids: ['spawn.wave'] },
+    { key: 'نقاط', re: /نقاط|سكور|score|هدف/, ids: ['score.combo'] },
+    { key: 'صوت مرتبط بالحركة', re: /صوت|محرك|sound|audio/, ids: ['audio.engineLink'] },
+    { key: 'مهام', re: /مهمه|مهام|هدف|quest|mission/, ids: ['mission.objective'] },
+    { key: 'عالم/مدينة', re: /مدينه|عالم|خريطه|city|world|map/, ids: ['world.chunk'] },
+    { key: 'حفظ التقدّم', re: /حفظ|تقدم|save/, ids: ['state.save'] },
+  ],
+  askedFor(q) { return this.NEEDS.filter(n => n.re.test(q)); },
+
+  /* رسالة صادقة حين لا يكفي ما عنده */
+  cannot(u, request) {
+    const L = [];
+    L.push('<h4>لم أفهم هذه اللعبة بعد</h4>');
+    L.push('<p>طلبت: «' + U.esc(request) + '». لا أملك من ملفاتك ما يكفي لبنائها، ولن أعطيك لعبة من عندي بدلًا منها.</p>');
+    if (u.uncovered && u.uncovered.length) {
+      L.push('<p><b>لم أجد في ملفاتك أي شيء يخصّ:</b> ' +
+        u.uncovered.slice(0, 6).map(t => '<code>' + U.esc(t) + '</code>').join('، ') + '</p>');
+    }
+    if (u.asked.length) {
+      L.push('<p><b>ما تحتاجه هذه اللعبة:</b></p><ul>' + u.asked.map(a => {
+        const have = u.matched.some(m => a.ids.indexOf(m.k.mech) >= 0);
+        return '<li>' + (have ? '✅ ' : '❌ ') + U.esc(a.key) + (have ? ' — عندي من ملفاتك' : ' — ناقص') + '</li>';
+      }).join('') + '</ul>');
+    }
+    L.push('<p><b>ما عندي منك الآن:</b> ' +
+      u.inv.mech.length + ' ميكانيكية · ' + u.inv.models.length + ' مجسم · ' +
+      u.inv.images.length + ' صورة · ' + u.inv.sounds.length + ' صوت · ' + u.inv.code.length + ' ملف شيفرة.</p>');
+    L.push('<p><b>علّمني:</b> أرسل لي مشروع لعبة فيه هذا النظام (كود <code>.js</code> أو <code>.html</code> أو ZIP أو حتى APK هجين)، ' +
+      'وسأستخرج منه الميكانيكية بمعاملاتها وأبنيها لك في المرة القادمة. كل مشروع تعطيني إياه يضيف لما أفهمه.</p>');
+    if (u.inv.mech.length) {
+      L.push('<p style="font-size:12.5px;color:var(--ink3)">ما أستطيع بناءه الآن من ملفاتك: ' +
+        U.esc(u.inv.mech.slice(0, 8).map(k => k.title).join('، ')) + '.</p>');
+    }
+    return L.join('');
+  },
+
+  /* يحوّل ميكانيكياتك إلى محاور تصميم — التصميم يتبع موادّك لا العكس */
+  axesFrom(u, request) {
+    const has = id => u.matched.some(m => m.k.mech === id) || u.inv.mech.some(k => k.mech === id);
+    const q = TOK.normalize(request);
+    const ax = {
+      topology: 'continuous', locomotion: 'step', growth: 'none', resource: 'none',
+      threat: 'enemy', objective: 'collect', constraint: 'none', twist: 'none',
+    };
+    if (has('vehicle.control') || /سياره|مركبه|قياده|سباق|car|driv/.test(q)) { ax.locomotion = 'drive'; ax.topology = 'continuous'; }
+    else if (has('movement.platform') || /قفز|منصات|jump|platform/.test(q)) { ax.locomotion = 'jump'; ax.topology = 'continuous'; }
+    else if (has('movement.grid') || /دوده|ثعبان|snake/.test(q)) { ax.topology = 'grid'; ax.locomotion = 'step'; }
+    if (has('growth.length') || /دوده|ثعبان|snake|نمو/.test(q)) { ax.growth = 'length'; ax.threat = 'self'; }
+    if (has('spawn.wave') || /عدو|اعداء|مطارد|enemy/.test(q)) ax.threat = 'enemy';
+    if (has('mission.objective') || /مهمه|مهام|توصيل|mission/.test(q)) ax.objective = 'collect';
+    if (/بقاء|صمود|survive/.test(q)) ax.objective = 'survive';
+    if (/وصول|بوابه|reach|نهايه/.test(q)) ax.objective = 'reach';
+    if (/وقود|fuel|بنزين/.test(q)) ax.resource = 'fuel';
+    if (/ظلام|عتمه|dark/.test(q)) { ax.constraint = 'darkness'; ax.resource = 'light'; }
+    if (ax.topology === 'grid' && ax.locomotion !== 'step') ax.locomotion = 'step';
+    if (ax.objective === 'dominate' && ax.growth !== 'territory') ax.objective = 'collect';
+    return ax;
+  },
+
+  /* معاملاتك أنت تُحقن في اللعبة */
+  paramsFrom(u, base) {
+    const p = Object.assign({}, base);
+    const used = [];
+    u.matched.concat(u.inv.mech.map(k => ({ k, score: 0 }))).forEach(m => {
+      const pr = m.k.params || {};
+      const src = LIB.cache.find(x => x.id === m.k.source);
+      const from = src ? src.name : (m.k.title || 'ملفاتك');
+      if (pr.maxSpeed != null && !used.some(x => x.key === 'maxSpeed')) { p.maxSpeed = pr.maxSpeed; used.push({ key: 'maxSpeed', v: pr.maxSpeed, from }); }
+      if (pr.accel != null && !used.some(x => x.key === 'accel')) { p.accel = pr.accel; used.push({ key: 'accel', v: pr.accel, from }); }
+      if (pr.brake != null && !used.some(x => x.key === 'brake')) { p.brake = pr.brake; used.push({ key: 'brake', v: pr.brake, from }); }
+      if (pr.steerRate != null && !used.some(x => x.key === 'steerRate')) { p.steerRate = pr.steerRate; used.push({ key: 'steerRate', v: pr.steerRate, from }); }
+      if (pr.gravity != null && !used.some(x => x.key === 'gravity')) { p.gravity = pr.gravity; used.push({ key: 'gravity', v: pr.gravity, from }); }
+      if (pr.jumpVel != null && !used.some(x => x.key === 'jumpVel')) { p.jumpVel = pr.jumpVel; used.push({ key: 'jumpVel', v: pr.jumpVel, from }); }
+      if (pr.cell != null && !used.some(x => x.key === 'cell')) { p.cell = pr.cell; used.push({ key: 'cell', v: pr.cell, from }); }
+      if (pr.distance != null && !used.some(x => x.key === 'camDist')) { p.camDist = pr.distance; used.push({ key: 'camDist', v: pr.distance, from }); }
+      if (pr.height != null && !used.some(x => x.key === 'camH')) { p.camH = pr.height; used.push({ key: 'camH', v: pr.height, from }); }
+    });
+    return { params: p, used };
   }
 };
 
@@ -5880,18 +6374,32 @@ const CHAT = {
       let ingestOut = null;
       if (files.length) ingestOut = await this.handleFiles(files, typing);
 
-      /* 2. فهم النية */
+      /* 2. تحية أو مجاملة؟ تُجاب فورًا وبصياغة مختلفة كل مرة */
+      const st = text.trim() ? SMALLTALK.match(text) : null;
+      if (st && SMALLTALK.isPure(text) && !files.length) {
+        typing.remove();
+        const line = st.reply();
+        const follow = (st.id === 'bye' || st.id === 'sorry') ? '' : await SMALLTALK.followUp();
+        const html = '<p>' + TONE.emo() + U.esc(line) + '</p>' + (follow ? '<p>' + U.esc(TONE.fit(follow)) + '</p>' : '');
+        UI.addMessage({ role: 'ai', html });
+        await this.save({ role: 'ai', html, intent: 'smalltalk:' + st.id, conf: 1 });
+        return;
+      }
+
+      /* 3. فهم النية */
       const intent = REG.predictIntent(text || (files.length ? 'حلل الملفات المرفقة' : ''));
       const f = REASON.frame(text || 'تحليل المرفقات');
       const ctx = await REASON.gather(f, text, intent);
 
-      /* 3. التنفيذ */
+      /* 4. التنفيذ */
       let out;
+      if (st && !files.length) f.context.push('بدأ بتحية — رددتُ عليها ثم نفّذت الطلب');
       if (!text.trim() && ingestOut) out = ingestOut;
       else out = await this.route(intent, text, f, ctx, ingestOut);
 
       typing.remove();
-      const html = (out.html || '') + (out.noThink ? '' : REASON.render(f));
+      const hello = (st && !files.length) ? '<p>' + U.esc(st.reply()) + '</p>' : '';
+      const html = hello + (out.html || '') + (out.noThink ? '' : REASON.render(f));
       UI.addMessage({ role: 'ai', html, actions: out.actions });
       await this.save({ role: 'ai', html, intent: intent.label, conf: intent.conf, actions: out.actions || null });
     } catch (e) {
@@ -5924,6 +6432,10 @@ const CHAT = {
       soloMechs = await PROJ.extractMechanics(results, null);
     }
     await STYLE.infer(true);
+    /* نصوصك تُعلّمني نبرتك: حوارات، أمثلة ردود، أي كتابة */
+    const proseTexts = results.filter(r => r.text && ['txt', 'md', 'markdown', 'csv', 'log'].indexOf(r.ext) >= 0).map(r => r.text);
+    let toneLearned = null;
+    if (proseTexts.length) toneLearned = await TONE.learn(proseTexts);
     await KG.discover(200);
     const ok = results.filter(r => !r.error);
     const dup = ok.filter(r => r.duplicate).length;
@@ -5996,6 +6508,11 @@ const CHAT = {
     }
     const stNow = await STYLE.infer();
     if (stNow.samples) L.push('<p style="font-size:12.5px;color:var(--ink3)">أسلوب شيفرتك المستنتج: ' + U.esc(STYLE.describe(stNow)) + ' — سأكتب لك بهذا الأسلوب.</p>');
+    if (toneLearned && toneLearned.learned) {
+      L.push('<h4>تعلّمت نبرتك</h4><p>قرأت ' + toneLearned.learned + ' سطرًا من كتابتك: <b>' + U.esc(TONE.describe(toneLearned.style)) + '</b>.</p>' +
+        '<p style="font-size:12.5px;color:var(--ink3)">سأقلّد هذا الأسلوب في صياغتي: طول الجملة، الافتتاحيات، الإيموجي، النبرة. ' +
+        'بصراحة هذا تقليد لأسلوب السطح — لست نموذجًا لغويًا يؤلّف كلامًا حرًّا.</p>');
+    }
     const errs = results.filter(r => r.error);
     if (errs.length) L.push('<p style="color:var(--warn)">تعذّر تحليل ' + errs.length + ' ملف: ' + U.esc(errs.slice(0, 3).map(e => U.base(e.name) + ' (' + e.error + ')').join('، ')) + '</p>');
     L.push('<p style="font-size:12px;color:var(--ink3)">كل هذه الملفات محفوظة في متصفحك فقط (IndexedDB). لم يُرسل أي شيء إلى أي خادم.</p>');
@@ -6038,13 +6555,10 @@ const CHAT = {
   handlers: {
     /* ---------------- ترحيب ---------------- */
     async greet(a) {
-      a.f.execution.push('رد ترحيبي مع حالة النظام الحقيقية');
-      const st = LIB.stats(), ks = KB.stats(), ps = (await PROJ.all()).length;
-      return {
-        noThink: true, html: '<p>أهلًا بك 👋</p><p>أنا جاهز. حاليًا أملك <b>' + st.total + '</b> أصلًا، <b>' +
-          Object.values(ks).reduce((x, y) => x + y, 0) + '</b> سجل معرفة، و<b>' + ps + '</b> مشروعًا محلَّلًا.</p>' +
-          '<p>أرسل ملفًا أو اطلب مني شيئًا — مثلًا: «اصنع لي لعبة مختلفة عن المعروف».</p>'
-      };
+      a.f.execution.push('رد تحية متنوّع حسب حالة النظام');
+      const hi = SMALLTALK.match(a.text);
+      const line = hi ? hi.reply() : VARY.pick('hi', ['أهلًا بك.', 'مرحبًا.', 'هلا والله.']);
+      return { noThink: true, html: '<p>' + TONE.emo() + U.esc(line) + '</p><p>' + U.esc(TONE.fit(await SMALLTALK.followUp())) + '</p>' };
     },
     /* ---------------- تحليل مشروع ---------------- */
     async analyze_project(a) {
@@ -6362,16 +6876,39 @@ Object.assign(CHAT.handlers, {
         a.f.known.push('أصول مطلوبة صراحةً: ' + picked.slice(0, 3).map(h => h.asset.name).join('، '));
       } else a.f.unknown.push('طُلب استخدام أصل لكن لم أجد مطابقًا بثقة كافية — سأولّد تمثيلًا هندسيًا');
     }
+    /* الأصل: اللعبة تُبنى من موادّك أنت. الاختراع من عندي يحتاج طلبًا صريحًا. */
+    const invent = /اخترع|ابتكر|من عندك|مختلف|غير تقليدي|جديده تماما|invent|original/.test(txt);
+    const u = FROMYOU.understand(a.text);
+    a.f.known.push('موادّك: ' + u.inv.mech.length + ' ميكانيكية · ' + u.inv.models.length + ' مجسم · ' + u.inv.images.length + ' صورة · ' + u.inv.sounds.length + ' صوت');
+    if (!invent && !u.enough) {
+      a.f.execution.push('لم أبنِ شيئًا — لا توجد مادّة كافية من ملفاتك');
+      a.f.constraints.push('لا أستبدل طلبك بلعبة من عندي');
+      return { html: FROMYOU.cannot(u, a.text) };
+    }
     const logs = [];
-    const out = await BUILDER.build({ theme: a.text, wantDifferent, useAssets: true, assetIds, seed: Date.now() }, m => logs.push(m));
+    const out = await BUILDER.build({
+      theme: a.text, wantDifferent, useAssets: true, assetIds,
+      fromUser: !invent && u.enough, understanding: u, seed: Date.now()
+    }, m => logs.push(m));
     a.f.verification.push(out.test.ok ? 'اللعبة عملت في الصندوق المعزول (' + out.test.frames + ' إطار، بلا أخطاء)' : 'الاختبار رصد مشكلة: ' + out.test.reason);
-    return { html: this.gameReport(out, logs), actions: this.gameActions(out.game) };
+    let head = '';
+    if (out.game.fromUser) {
+      const parts = [];
+      if (out.game.yourMechanics.length) parts.push(out.game.yourMechanics.length + ' ميكانيكية من شيفرتك');
+      if (out.game.assets.length) parts.push(out.game.assets.length + ' أصلًا من ملفاتك');
+      head = '<p>بنيتُها من موادّك: ' + U.esc(parts.join(' و')) + '.</p>';
+      if (u.missing.length) head += '<p style="color:var(--warn);font-size:12.5px">لم أجد عندك: ' +
+        U.esc(u.missing.map(m => m.key).join('، ')) + ' — أرسل مشروعًا فيه هذه الأنظمة وسأضيفها في المرة القادمة.</p>';
+    }
+    return { html: head + this.gameReport(out, logs), actions: this.gameActions(out.game) };
   },
   async make_different(a) {
     a.f.execution.push('بحث موجّه نحو أقصى أصالة في فضاء التصميم');
     const logs = [];
     const out = await BUILDER.build({ theme: a.text, wantDifferent: true, useAssets: true, seed: Date.now() }, m => logs.push(m));
     const L = ['<h4>ابتعدت عن المألوف عمدًا</h4>',
+      '<p style="font-size:12.5px;color:var(--ink3)">هذه المرة اخترعتُ التركيبة لأنك طلبت شيئًا مختلفًا. ' +
+      'لو أردت لعبة من ملفاتك أنت، قل «اصنع لعبة من ملفاتي».</p>',
       '<p>وزنت الأصالة بـ 48% من دالة الاختيار بدل 30%، وقارنت كل مرشّح بـ ' + (ARCHETYPES.length) + ' نمطًا معروفًا وبكل لعبة سبق أن ولّدتها.</p>'];
     return { html: L.join('') + this.gameReport(out, logs), actions: this.gameActions(out.game) };
   },
@@ -6573,7 +7110,9 @@ Object.assign(CHAT.handlers, {
         '<p style="font-size:12.5px;color:var(--ink3)">المعرفة المشتركة بينهما هي ما أعيد استخدامه عند بناء لعبة جديدة.</p>'
     };
   },
-  async thanks(a) { return { noThink: true, html: '<p>على الرحب. جاهز للمهمة التالية.</p>' }; },
+  async thanks(a) {
+    return { noThink: true, html: '<p>' + U.esc(VARY.pick('thx', ['على الرحب.', 'العفو.', 'تسلم.', 'في خدمتك.'])) + '</p>' };
+  },
 
   /* ---------------- الحالة العامة / الغموض ---------------- */
   async question_general(a) {
@@ -6690,6 +7229,13 @@ CHAT.gameReport = function (out, logs) {
     '<b>حجم الشيفرة</b><span>' + U.bytes(g.size) + '</span>' +
     '<b>الاختبار</b><span>' + (g.test.ok ? '✔ نجح · ' + g.test.frames + ' إطار · بلا أخطاء' : '✖ ' + U.esc((g.test.errors[0] || {}).msg || 'فشل')) + '</span>' +
     '</div>');
+  if (g.yourMechanics && g.yourMechanics.length) {
+    L.push('<h4>من ملفاتك أنت</h4><ul>' + g.yourMechanics.map(m =>
+      '<li><b>' + U.esc(m.title) + '</b>' + (m.source ? ' — من <code>' + U.esc(m.source) + '</code>' : '') + '</li>').join('') + '</ul>');
+  }
+  if (g.yourParams && g.yourParams.length) {
+    L.push('<p><b>معاملاتك:</b> ' + U.esc(g.yourParams.map(x => x.key + '=' + x.v + ' (' + x.from + ')').join('، ')) + '</p>');
+  }
   if (g.assets.length) L.push('<p><b>أصولك المستخدمة فعليًا:</b> ' + U.esc(g.assets.map(a => a.name + ' (' + a.category + ')').join('، ')) + '</p>');
   else if (g.backend === '2d') L.push('<p style="font-size:12.5px;color:var(--ink3)">لم تُستخدم أصول خارجية — الرسم هندسي مولَّد. أرفق GLB لسيارة وصوت محرك وستدخل اللعبة تلقائيًا في المرة القادمة.</p>');
   if (g.fixes && g.fixes.length) L.push('<p><b>إصلاحات تلقائية:</b> ' + U.esc(g.fixes.map(f => f.why).join('، ')) + '</p>');
@@ -7925,6 +8471,36 @@ const SELFTEST = {
       ok('بيان المشروع بلا إذن إنترنت', mfTxt.indexOf('android.permission.INTERNET') < 0 && mfTxt.indexOf('android.intent.category.LAUNCHER') > 0, 'مُشغِّل موجود · بلا أذونات شبكة');
     } catch (e) { ok('بناء تطبيق HTML مستقل', false, e.message); }
 
+    /* 10d. حديث طبيعي: يردّ على التحية ولا يكرّر نفسه */
+    const salam = SMALLTALK.match('السلام عليكم');
+    ok('يردّ على السلام', !!salam && /وعليكم\s*السلام/.test(salam.reply()), salam ? salam.reply() : 'لم يتعرّف');
+    const kinds = ['مرحبا', 'صباح الخير', 'كيف حالك', 'شكرا', 'مع السلامة', 'اسف'];
+    const unmatched = kinds.filter(k => !SMALLTALK.match(k));
+    ok('يتعرّف على صيغ التحية والمجاملة', unmatched.length === 0, unmatched.length ? 'فشل: ' + unmatched.join('، ') : kinds.length + '/' + kinds.length);
+    const seen = {};
+    for (let i = 0; i < 24; i++) { const r = salam.reply(); seen[r] = 1; }
+    const distinct = Object.keys(seen).length;
+    let repeat = 0, prev = null;
+    for (let i = 0; i < 30; i++) { const r = salam.reply(); if (r === prev) repeat++; prev = r; }
+    ok('لا يكرّر نفس الرد مرّتين متتاليتين', distinct > 1 && repeat === 0, distinct + ' صيغ مختلفة · تكرار متتالٍ: ' + repeat);
+
+    /* 10e. تعلّم النبرة من نصوصك */
+    const before = TONE.style ? TONE.style.samples : 0;
+    const tl = await TONE.learn([
+      'الذكاء: يا هلا! 🔥 جاهز اشتغل معك.\nالذكاء: تمام! 👌 عطني الملف.\nالذكاء: أبشر! 🚀 خلها علي.\n' +
+      'الذكاء: حياك الله! 😊 قل وش تبي.\nالذكاء: تم! ✅ جربها الحين.\nالذكاء: ممتاز! ✨ نكمل خطوة خطوة.'
+    ]);
+    ok('يتعلّم نبرتك من نصوصك', tl.learned >= 5 && tl.style.emoji > .3 && tl.style.samples > before,
+      tl.learned + ' سطرًا · ' + TONE.describe(tl.style));
+
+    /* 10f. لا يبني لعبة لا يملك موادّها */
+    const inv0 = FROMYOU.inventory();
+    const far = FROMYOU.understand('اصنع لعبة قتال بالسيوف والتنانين والسحر');
+    ok('يرفض بصراحة ما لا يملك موادّه', far.enough === false && far.uncovered.length > 0,
+      'غير مغطّى: ' + far.uncovered.slice(0, 4).join('، ') + ' · عنده ' + inv0.mech.length + ' ميكانيكية');
+    const vague = FROMYOU.understand('اصنع لي لعبة');
+    ok('الطلب العام لا يُرفض بلا سبب', vague.topics === 0, 'مواضيع محدّدة في الطلب: ' + vague.topics);
+
     /* 11. مولّدات الكود: كل واحد يُفحص ويُشغَّل فعليًا */
     const genIds = Object.keys(SNIPPET.gens);
     const genBad = [];
@@ -8440,7 +9016,7 @@ async function boot() {
   S.activeModel = await DB.getKV('activeModel', 'auto');
   applyLang();
 
-  await Promise.all([KB.init(), KG.init(), LIB.init(), DATA.init(), JOBS.init(), EVO.init(), FACTS.init(), WEB.init()]);
+  await Promise.all([KB.init(), KG.init(), LIB.init(), DATA.init(), JOBS.init(), EVO.init(), FACTS.init(), WEB.init(), TONE.init()]);
   await REG.init();
 
   bindEvents();
@@ -8471,7 +9047,7 @@ async function boot() {
       toast('تراكمت بيانات جديدة — بدأت دورة تطور تلقائية', 'ok', 4200);
     }
   }
-  window.KAD = { U, TOK, VEC, ML, REG, DATA, TRAIN, BENCH, EVO, KG, LIB, INGEST, CODE, GLB, OBJ, ZIP, AUDIO, IMG, PROJ, CONCEPT, CREATIVE, REASON, GEN2D, GEN3D, BUILDER, TESTER, FIXER, JOBS, CHAT, UI, BACKUP, SELFTEST, S, FACTS, STYLE, SNIPPET, SELF, SBX, GLV, KB, DB, ZIPW, AXML, DEX, APK, APPX, WEB, SEED_INTENT, DOMAIN_LEX, MECH_DEFS, ARCHETYPES, AXES, CAPS, INTENT_TRIGGERS, triggerScores, INTENT_EMB };
+  window.KAD = { U, TOK, VEC, ML, REG, DATA, TRAIN, BENCH, EVO, KG, LIB, INGEST, CODE, GLB, OBJ, ZIP, AUDIO, IMG, PROJ, CONCEPT, CREATIVE, REASON, GEN2D, GEN3D, BUILDER, TESTER, FIXER, JOBS, CHAT, UI, BACKUP, SELFTEST, S, FACTS, STYLE, SNIPPET, SELF, SBX, GLV, KB, DB, ZIPW, AXML, DEX, APK, APPX, WEB, TONE, VARY, SMALLTALK, FROMYOU, SEED_INTENT, DOMAIN_LEX, MECH_DEFS, ARCHETYPES, AXES, CAPS, INTENT_TRIGGERS, triggerScores, INTENT_EMB };
   window.triggerScores = triggerScores;
   console.log('%cKAD-KAD AI GAME LAB', 'color:#7c5cff;font-weight:800;font-size:15px', '— نواة محلية جاهزة. window.KAD متاح للفحص.');
 }
