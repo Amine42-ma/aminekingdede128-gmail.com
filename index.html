@@ -32,8 +32,8 @@ body{
   font-size:15px;line-height:1.65;overflow:hidden;
   overscroll-behavior:none;
 }
-body::before{
-  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+#phone::before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
   background:
     radial-gradient(900px 500px at 85% -10%,rgba(124,92,255,.16),transparent 60%),
     radial-gradient(700px 400px at 5% 105%,rgba(34,211,238,.10),transparent 60%);
@@ -50,6 +50,9 @@ a{color:var(--acc2);text-decoration:none}
 .mono{font-family:var(--fm);font-size:.86em;letter-spacing:-.2px}
 
 /* ---------- layout ---------- */
+/* الإطار: التطبيق دائمًا بمقاس هاتف — على الحاسوب أيضًا.
+   كل الطبقات العائمة داخل هذا الإطار (absolute) لا داخل النافذة (fixed). */
+#phone{position:relative;width:100%;height:100%;overflow:hidden;margin:0 auto;background:var(--bg)}
 #app{position:relative;z-index:1;display:grid;height:100%;
   grid-template-columns:1fr;grid-template-rows:auto 1fr auto;
   padding-top:var(--top);
@@ -206,7 +209,7 @@ a{color:var(--acc2);text-decoration:none}
 canvas.plot{width:100%;height:130px;display:block;background:#05060c;border:1px solid var(--line);border-radius:12px}
 
 /* ---------- modal / drawer ---------- */
-.ovl{position:fixed;inset:0;background:rgba(3,4,8,.72);backdrop-filter:blur(6px);z-index:60;display:none;
+.ovl{position:absolute;inset:0;background:rgba(3,4,8,.72);backdrop-filter:blur(6px);z-index:60;display:none;
   align-items:flex-end;justify-content:center}
 .ovl.on{display:flex}
 .sheet{background:var(--bg1);border:1px solid var(--line2);border-radius:var(--r3) var(--r3) 0 0;width:min(760px,100%);
@@ -216,44 +219,38 @@ canvas.plot{width:100%;height:130px;display:block;background:#05060c;border:1px 
 .sheet header b{flex:1;font-size:14.5px}
 .sheet .body{overflow:auto;padding:14px 15px 20px;flex:1;min-height:0}
 .grab{width:38px;height:4px;border-radius:4px;background:var(--line2);margin:8px auto 0}
-#drawer{position:fixed;inset-block:0;inset-inline-start:0;width:min(88vw,330px);background:var(--bg1);
+#drawer{position:absolute;inset-block:0;inset-inline-start:0;width:min(88vw,330px);background:var(--bg1);
   border-inline-end:1px solid var(--line2);z-index:70;transform:translateX(100%);transition:transform .22s ease;
   display:flex;flex-direction:column;padding-top:var(--top);padding-bottom:var(--bot)}
 html[dir=ltr] #drawer{transform:translateX(-100%)}
 #drawer.on{transform:none}
-#drawerOvl{position:fixed;inset:0;background:rgba(3,4,8,.6);z-index:69;display:none}
+#drawerOvl{position:absolute;inset:0;background:rgba(3,4,8,.6);z-index:69;display:none}
 #drawerOvl.on{display:block}
-#toast{position:fixed;inset-inline:0;top:calc(var(--top) + 64px);z-index:90;display:flex;
+#toast{position:absolute;inset-inline:0;top:calc(var(--top) + 64px);z-index:90;display:flex;
   flex-direction:column;align-items:center;gap:7px;pointer-events:none;padding:0 14px}
 .toast{background:var(--bg3);border:1px solid var(--line2);border-radius:12px;padding:9px 15px;font-size:12.5px;
   box-shadow:var(--sh);animation:drop .2s ease;max-width:440px;text-align:center}
 .toast.ok{border-color:rgba(52,211,153,.5)}.toast.er{border-color:rgba(251,113,133,.55)}
-#dropZone{position:fixed;inset:0;z-index:80;display:none;place-items:center;background:rgba(7,7,13,.9);
+#dropZone{position:absolute;inset:0;z-index:80;display:none;place-items:center;background:rgba(7,7,13,.9);
   border:3px dashed var(--acc);margin:12px;border-radius:var(--r3);font-size:17px;font-weight:800}
 #dropZone.on{display:grid}
 iframe.play{width:100%;border:1px solid var(--line2);border-radius:14px;background:#000;display:block;aspect-ratio:16/10}
 canvas.prev3d{width:100%;aspect-ratio:4/3;border-radius:12px;background:#05060c;border:1px solid var(--line);display:block;touch-action:none}
 
 /* ---------- desktop ---------- */
-@media(min-width:900px){
-  body{font-size:15px}
-  #app{grid-template-columns:288px 1fr;grid-template-rows:auto 1fr;grid-template-areas:"top top" "side main"}
-  #topbar{grid-area:top}#main{grid-area:main;border-inline-start:1px solid var(--line)}
-  #nav{grid-area:side;flex-direction:column;border-top:0;padding:12px 9px;overflow-y:auto;background:transparent}
-  .navb{flex:none;flex-direction:row;justify-content:flex-start;gap:11px;font-size:13px;padding:10px 13px;
-    border-radius:11px;border-top:0;width:100%}
-  .navb.on{background:rgba(124,92,255,.15);color:#cbc0ff;border-top:0}
-  .navb .dot{position:static;margin:0 auto 0 0}
-  #menuBtn{display:none}
-  .pad{padding:18px 22px 30px}
-  #chatScroll{padding:20px 22px 10px}
-  #composer{padding:10px 22px 14px}
-  .grid{grid-template-columns:repeat(auto-fill,minmax(178px,1fr))}
-  .ovl{align-items:center}
-  .sheet{border-radius:var(--r3);max-height:84vh}
-  #toast{top:calc(var(--top) + 72px)}
+/* على أي شاشة أعرض من هاتف: نضع الإطار في المنتصف بمقاس هاتف حقيقي
+   بدل تمديد الواجهة على عرض الحاسوب. التجربة واحدة في كل مكان. */
+@media(min-width:520px) and (min-height:560px){
+  body{display:grid;place-items:center;padding:16px 0;
+    background:radial-gradient(1100px 700px at 50% -10%,#10121f,#05060a 70%)}
+  #phone{width:412px;height:min(880px,calc(100vh - 32px));
+    border:1px solid var(--line2);border-radius:38px;
+    box-shadow:0 34px 90px rgba(0,0,0,.65),0 0 0 9px #0a0b12,0 0 0 10px #1b1f33}
 }
-@media(max-width:899px){ #sideOnly{display:none} }
+@media(min-width:520px) and (max-height:559px){
+  #phone{max-width:560px}
+}
+#sideOnly{display:none}
 /* هواتف ضيقة جدًا (≤380px): الشريط العلوي كان يتجاوز عرض الشاشة */
 @media(max-width:380px){
   #topbar{gap:7px;padding:8px 10px}
@@ -270,6 +267,7 @@ canvas.prev3d{width:100%;aspect-ratio:4/3;border-radius:12px;background:#05060c;
 </style>
 </head>
 <body>
+<div id="phone">
 <div id="app">
 
   <!-- ======================= TOP BAR ======================= -->
@@ -490,6 +488,7 @@ canvas.prev3d{width:100%;aspect-ratio:4/3;border-radius:12px;background:#05060c;
 
 <div id="toast"></div>
 <div id="dropZone">📥 أفلت الملفات هنا للتحليل</div>
+</div><!-- /#phone -->
 
 <script>
 "use strict";
@@ -3651,6 +3650,11 @@ const REASON = {
   }
 };
 
+/* لوحة التحكّم باللمس — تُحقن في كل لعبة مولَّدة (2D و 3D).
+   الألعاب هنا تُلعب بالإبهام على الهاتف، لا بلوحة المفاتيح. */
+const PAD_CSS = '#pad{position:fixed;inset-inline:0;bottom:0;height:200px;pointer-events:none;z-index:9}'+'#stick{position:absolute;left:18px;bottom:26px;width:132px;height:132px;border-radius:50%;background:rgba(255,255,255,.055);border:1.5px solid rgba(255,255,255,.16);pointer-events:auto;touch-action:none}'+'#knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:rgba(255,255,255,.22);border:1.5px solid rgba(255,255,255,.3);transition:transform .05s linear}'+'#act{position:absolute;right:20px;bottom:44px;width:86px;height:86px;border-radius:50%;background:rgba(124,92,255,.3);border:1.5px solid rgba(160,140,255,.55);color:#fff;font:700 13px system-ui,sans-serif;pointer-events:auto;touch-action:none;display:grid;place-items:center;text-align:center;padding:4px}'+'#act:active{background:rgba(124,92,255,.55)}'+'@media(pointer:fine) and (min-width:760px){#pad{opacity:.55}}';
+const PAD_JS = '\n/* لوحة لمس مرئية: عصا تحكّم يسارًا وزر فعل يمينًا — التحكّم الأساسي على الهاتف. */\nvar stickX=0,stickY=0,actDown=false;\n(function(){\n  var sEl=document.getElementById("stick"),kEl=document.getElementById("knob"),aEl=document.getElementById("act");\n  if(!sEl)return;\n  var sid=null,cx=0,cy=0,MAX=46;\n  function place(e){var dx=e.clientX-cx,dy=e.clientY-cy,l=Math.sqrt(dx*dx+dy*dy);\n    if(l>MAX){dx=dx*MAX/l;dy=dy*MAX/l}\n    stickX=dx/MAX;stickY=dy/MAX;kEl.style.transform="translate("+dx+"px,"+dy+"px)"}\n  function reset(){sid=null;stickX=0;stickY=0;kEl.style.transform="translate(0,0)"}\n  sEl.addEventListener("pointerdown",function(e){e.preventDefault();sid=e.pointerId;\n    var r=sEl.getBoundingClientRect();cx=r.left+r.width/2;cy=r.top+r.height/2;\n    try{sEl.setPointerCapture(e.pointerId)}catch(err){} place(e)});\n  sEl.addEventListener("pointermove",function(e){if(sid===e.pointerId){e.preventDefault();place(e)}});\n  sEl.addEventListener("pointerup",reset);\n  sEl.addEventListener("pointercancel",reset);\n  sEl.addEventListener("lostpointercapture",reset);\n  if(aEl){\n    aEl.addEventListener("pointerdown",function(e){e.preventDefault();actDown=true;onKey(ACTKEY,1)});\n    var up=function(e){if(e)e.preventDefault();actDown=false;onKey(ACTKEY,0)};\n    aEl.addEventListener("pointerup",up);aEl.addEventListener("pointercancel",up);\n    aEl.addEventListener("pointerleave",up);\n  }\n})();\n';
+
 /* ============================ 31 · CODE GENERATOR (2D) ================= */
 /* مولّد شيفرة حقيقي: لا يُخرج ملفًا واحدًا ثابتًا مع متغيرات مختلفة، بل
    يركّب الملف من وحدات — كل محور تصميم يضيف/يحذف دوالًا فعلية.
@@ -3686,19 +3690,19 @@ const GEN2D = {
     );
 
     /* ---------------- الإدخال ---------------- */
+    const actKey = A.twist === 'rewind' ? 'r' : A.twist === 'split' ? 'tab' : ' ';
     H.push(
-      'var keys={},ax=0,ay=0,act=false,tp=null;',
+      'var keys={},ax=0,ay=0,act=false;',
+      'var ACTKEY=' + JSON.stringify(actKey) + ';',
       'addEventListener("keydown",function(e){keys[e.key.toLowerCase()]=1;if([" ","arrowup","arrowdown","arrowleft","arrowright"].indexOf(e.key.toLowerCase())>=0)e.preventDefault();onKey(e.key.toLowerCase(),1)});',
       'addEventListener("keyup",function(e){keys[e.key.toLowerCase()]=0;onKey(e.key.toLowerCase(),0)});',
+      PAD_JS,
       'function readAxes(){var x=0,y=0;' +
       'if(keys["arrowleft"]||keys["a"])x-=1;if(keys["arrowright"]||keys["d"])x+=1;' +
       'if(keys["arrowup"]||keys["w"])y-=1;if(keys["arrowdown"]||keys["s"])y+=1;' +
-      'if(tp){var dx=tp.x-tp.ox,dy=tp.y-tp.oy,l=len(dx,dy);if(l>10){x=clamp(dx/60,-1,1);y=clamp(dy/60,-1,1)}}' +
-      'ax=x;ay=y;act=!!keys[" "]||!!(tp&&tp.act)}',
-      'var cv=document.getElementById("c");',
-      'cv.addEventListener("pointerdown",function(e){if(e.clientX>innerWidth*0.72&&e.clientY>innerHeight*0.62){tp={x:0,y:0,ox:0,oy:0,act:true};return}tp={ox:e.clientX,oy:e.clientY,x:e.clientX,y:e.clientY};cv.setPointerCapture(e.pointerId)});',
-      'cv.addEventListener("pointermove",function(e){if(tp&&!tp.act){tp.x=e.clientX;tp.y=e.clientY}});',
-      'addEventListener("pointerup",function(){tp=null});'
+      'if(stickX||stickY){if(Math.abs(stickX)>0.22)x=stickX;if(Math.abs(stickY)>0.22)y=stickY}' +
+      'ax=clamp(x,-1,1);ay=clamp(y,-1,1);act=!!keys[" "]||actDown}',
+      'var cv=document.getElementById("c");'
     );
 
     /* ---------------- الحركة ---------------- */
@@ -3745,7 +3749,7 @@ const GEN2D = {
         'P.vx = ax*' + P.moveSpeed + ';',
         'P.vy += ' + P.gravity + '*dt;',
         'if(grounded)coyote=0.12; else coyote-=dt;',
-        'if((keys["w"]||keys[" "]||keys["arrowup"]||(tp&&tp.act))&&coyote>0){P.vy=-' + P.jumpVel + ';coyote=0;grounded=false}',
+        'if((keys["w"]||keys[" "]||keys["arrowup"]||actDown||stickY<-0.5)&&coyote>0){P.vy=-' + P.jumpVel + ';coyote=0;grounded=false}',
         'P.x+=P.vx*dt;P.y+=P.vy*dt;',
         'grounded=false;',
         'for(var i=0;i<platforms.length;i++){var pl=platforms[i];',
@@ -3819,7 +3823,14 @@ const GEN2D = {
     if (A.growth === 'energy') { I.push('var energy=0.3;'); UPD.push('energy=clamp(energy-' + P.energyDrain + '*dt,0,1);'); HUD.push('"الطاقة: "+Math.round(energy*100)+"%"'); }
 
     /* ---------------- العناصر والأهداف ---------------- */
-    I.push('function spawnItem(){items.push({x:' + (grid ? '(rint(GW-2)+1)*CELL+CELL/2' : '40+rnd()*(WORLD.w-80)') + ',y:' + (grid ? '(rint(GH-2)+1)*CELL+CELL/2' : '40+rnd()*(WORLD.h-80)') + ',t:0})}',
+    /* على الهاتف الشاشة ضيّقة: في الفضاء المستمر نولّد العناصر في حلقة حول
+       اللاعب بدل نثرها في عالم كامل، وإلا بقيت خارج المشهد ولا تُرى. */
+    I.push('function spawnItem(){' +
+      (grid
+        ? 'items.push({x:(rint(GW-2)+1)*CELL+CELL/2,y:(rint(GH-2)+1)*CELL+CELL/2,t:0})'
+        : 'var a=rnd()*6.283,d=' + P.spawnNear + '+rnd()*' + P.spawnSpread + ';' +
+          'items.push({x:clamp(P.x+Math.cos(a)*d,40,WORLD.w-40),y:clamp(P.y+Math.sin(a)*d,40,WORLD.h-40),t:0})') +
+      '}',
       'for(var i=0;i<' + P.itemCount + ';i++)spawnItem();');
     RND.push('for(var i=0;i<items.length;i++){var it=items[i];g.save();g.translate(it.x,it.y);g.rotate(it.t*2);' +
       'g.fillStyle="' + spec.palette.item + '";g.shadowColor="' + spec.palette.item + '";g.shadowBlur=14;' +
@@ -3902,7 +3913,7 @@ const GEN2D = {
     if (A.twist === 'rewind') {
       I.push('var hist=[],rewinding=false;');
       UPD.push('if(!rewinding){hist.push({x:P.x,y:P.y,a:P.ang});if(hist.length>' + P.histLen + ')hist.shift()}',
-        'rewinding=(keys["r"]||(tp&&tp.act))&&hist.length>2' + (A.resource !== 'none' ? '&&res>0.05' : '') + ';',
+        'rewinding=(keys["r"]||actDown)&&hist.length>2' + (A.resource !== 'none' ? '&&res>0.05' : '') + ';',
         'if(rewinding){var hp=hist.pop();P.x=hp.x;P.y=hp.y;P.ang=hp.a;P.vx=P.vy=0;' + (A.locomotion === 'drive' ? 'P.sp*=0.6;' : '') +
         (A.resource !== 'none' ? 'res=clamp(res-' + P.rewindCost + '*dt,0,1);' : '') + '}');
       OVR.push('if(rewinding){g.fillStyle="rgba(124,92,255,.12)";g.fillRect(0,0,cv.width,cv.height)}');
@@ -3992,7 +4003,10 @@ const GEN2D = {
       'time+=dt;readAxes();',
       UPD.join('\n'),
       'cam.x+=(P.x-cam.x)*clamp(dt*4,0,1);cam.y+=(P.y-cam.y)*clamp(dt*4,0,1);',
-      grid ? 'cam.z=Math.min(cvs.width/WORLD.w,cvs.height/WORLD.h);cam.x=WORLD.w/2;cam.y=WORLD.h/2;' : 'cam.z=' + P.zoom + '*Math.min(cvs.width/900,1.6);',
+      /* نُظهر قدرًا ثابتًا من العالم عبر البُعد الأصغر للشاشة، فيظل حجم اللاعب
+         معقولًا على الهاتف بدل أن يتقلّص مع ضيق الشاشة. */
+      grid ? 'cam.z=Math.min(cvs.width/WORLD.w,cvs.height/WORLD.h);cam.x=WORLD.w/2;cam.y=WORLD.h/2;'
+        : 'cam.z=Math.min(cvs.width,cvs.height)/' + Math.round(560 / P.zoom) + ';',
       '}',
       'function render(){',
       'g.setTransform(1,0,0,1,0,0);g.fillStyle="' + spec.palette.bg + '";g.fillRect(0,0,cvs.width,cvs.height);',
@@ -4024,14 +4038,24 @@ const GEN2D = {
     ].join('\n');
     return src;
   },
+  actLabel(A) {
+    return ({ detach: 'افصل', rewind: 'إرجاع', phase: 'عبور', split: 'تبديل', magnet: 'جذب' })[A.twist] ||
+      (A.locomotion === 'jump' ? 'قفز' : null);
+  },
   html(spec, js) {
+    const lab = this.actLabel(spec.axes);
     return '<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">' +
       '<title>' + U.esc(spec.title) + '</title><style>' +
-      'html,body{margin:0;height:100%;background:' + spec.palette.bg + ';overflow:hidden;font-family:system-ui,-apple-system,"Noto Sans Arabic",sans-serif;color:#e9ecff}' +
+      'html,body{margin:0;height:100%;background:' + spec.palette.bg + ';overflow:hidden;font-family:system-ui,-apple-system,"Noto Sans Arabic",sans-serif;color:#e9ecff;' +
+      '-webkit-user-select:none;user-select:none;overscroll-behavior:none}' +
       'canvas{display:block;width:100vw;height:100vh;touch-action:none}' +
-      '#tip{position:fixed;inset-inline:0;bottom:10px;text-align:center;font-size:12px;color:#8d96c6;pointer-events:none}' +
-      '</style></head><body><canvas id="c"></canvas><div id="tip">' + U.esc(spec.controls) + '</div>' +
+      '#tip{position:fixed;inset-inline:0;bottom:6px;text-align:center;font-size:11px;color:#8d96c6;pointer-events:none;padding:0 120px}' +
+      PAD_CSS +
+      '</style></head><body><canvas id="c"></canvas>' +
+      '<div id="pad"><div id="stick"><div id="knob"></div></div>' +
+      (lab ? '<button id="act">' + U.esc(lab) + '</button>' : '') + '</div>' +
+      '<div id="tip">' + U.esc(spec.controls) + '</div>' +
       '<' + 'script>' + js + '<' + '/script></body></html>';
   }
 };
@@ -4133,12 +4157,12 @@ const GEN3D = {
       'picks.push({x:Math.cos(a)*r,z:Math.sin(a)*r,got:false,ph:rnd()*6})}',
       /* ---------- car state ---------- */
       'var car={x:0,z:0,ang:0,sp:0,steer:0};var camP=[0,6,14],score=0,t0=performance.now(),over=false,msg="";',
-      'var keys={},tp=null,ax=0,thr=0,brk=0;',
+      'var keys={},ax=0,thr=0,brk=0,ACTKEY=" ";',
+      'function onKey(k,v){if(v)startAudio()}',
       'addEventListener("keydown",function(e){keys[e.key.toLowerCase()]=1;if(e.key.indexOf("Arrow")===0)e.preventDefault();startAudio()});',
       'addEventListener("keyup",function(e){keys[e.key.toLowerCase()]=0});',
-      'cvs.addEventListener("pointerdown",function(e){startAudio();tp={ox:e.clientX,oy:e.clientY,x:e.clientX,y:e.clientY};cvs.setPointerCapture(e.pointerId)});',
-      'cvs.addEventListener("pointermove",function(e){if(tp){tp.x=e.clientX;tp.y=e.clientY}});',
-      'addEventListener("pointerup",function(){tp=null});',
+      'cvs.addEventListener("pointerdown",startAudio);',
+      PAD_JS,
       /* ---------- audio: ربط حقيقي بين السرعة والصوت ---------- */
       'var AC=null,engSrc=null,engGain=null,audioReady=false;',
       'function startAudio(){if(AC||!CFG.engine)return;try{AC=new (window.AudioContext||window.webkitAudioContext)();',
@@ -4156,7 +4180,9 @@ const GEN3D = {
       'ax=0;thr=0;brk=0;',
       'if(keys["arrowleft"]||keys["a"])ax=-1;if(keys["arrowright"]||keys["d"])ax=1;',
       'if(keys["arrowup"]||keys["w"])thr=1;if(keys["arrowdown"]||keys["s"])brk=1;',
-      'if(tp){var dx=tp.x-tp.ox,dy=tp.y-tp.oy;if(Math.abs(dx)>12)ax=Math.max(-1,Math.min(1,dx/70));if(dy<-14)thr=1;if(dy>18)brk=1}',
+      'if(Math.abs(stickX)>0.2)ax=stickX;',
+      'if(stickY<-0.25)thr=Math.min(1,-stickY*1.4); else if(stickY>0.3)brk=1;',
+      'if(actDown)thr=1;',
       'if(!over){',
       'car.sp+=thr*CFG.accel*dt-brk*CFG.brake*dt-car.sp*CFG.drag*dt;',
       'if(car.sp>CFG.maxSpeed)car.sp=CFG.maxSpeed;if(car.sp<-CFG.maxSpeed*0.35)car.sp=-CFG.maxSpeed*0.35;',
@@ -4173,7 +4199,12 @@ const GEN3D = {
       'var tx=car.x-Math.sin(car.ang)*CFG.camDist,tz=car.z-Math.cos(car.ang)*CFG.camDist;',
       'camP[0]+=(tx-camP[0])*Math.min(dt*CFG.camSmooth,1);camP[2]+=(tz-camP[2])*Math.min(dt*CFG.camSmooth,1);camP[1]+=(CFG.camH-camP[1])*Math.min(dt*3,1);',
       'var V=look(camP,[car.x,1.2,car.z],[0,1,0]);',
-      'var Pm=persp(CFG.fov*Math.PI/180*(1+Math.abs(car.sp)/CFG.maxSpeed*0.12),cvs.width/cvs.height,0.5,420);',
+      /* على شاشة رأسية يصبح المجال الأفقي ضيقًا جدًا إن ثبّتنا المجال الرأسي.
+         نثبّت الأفقي ونشتق الرأسي منه، فيبقى المشهد مقروءًا على الهاتف. */
+      'var asp=cvs.width/Math.max(cvs.height,1);',
+      'var hf=CFG.fov*Math.PI/180*(1+Math.abs(car.sp)/CFG.maxSpeed*0.10);',
+      'var vf=Math.min(2*Math.atan(Math.tan(hf/2)/Math.max(asp,0.0001)),1.75);',
+      'var Pm=persp(vf,asp,0.5,460);',
       'gl.clearColor(0.03,0.035,0.07,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);',
       'draw(mGround,trs(0,-0.2,0,0,1,1,1),V,Pm,[0.07,0.08,0.13],camP);',
       /* علامات الطريق: تعطي إحساسًا حقيقيًا بالسرعة بدل أرضية صمّاء */
@@ -4206,9 +4237,12 @@ const GEN3D = {
       '<title>' + U.esc(spec.title) + '</title><style>' +
       'html,body{margin:0;height:100%;background:#06070d;overflow:hidden;font-family:system-ui,"Noto Sans Arabic",sans-serif;color:#e9ecff}' +
       'canvas{display:block;width:100vw;height:100vh;touch-action:none}' +
-      '#hud{position:fixed;top:12px;inset-inline-start:14px;font-size:14px;background:rgba(8,9,17,.6);padding:8px 12px;border-radius:12px;backdrop-filter:blur(8px)}' +
-      '#tip{position:fixed;inset-inline:0;bottom:12px;text-align:center;font-size:12px;color:#8d96c6}' +
-      '</style></head><body><canvas id="c"></canvas><div id="hud"></div><div id="tip">' + U.esc(spec.controls) + '</div>' +
+      '#hud{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));inset-inline-start:14px;font-size:14px;background:rgba(8,9,17,.6);padding:8px 12px;border-radius:12px;backdrop-filter:blur(8px)}' +
+      '#tip{position:fixed;inset-inline:0;bottom:6px;text-align:center;font-size:11px;color:#8d96c6;pointer-events:none;padding:0 120px}' +
+      PAD_CSS +
+      '</style></head><body><canvas id="c"></canvas><div id="hud"></div>' +
+      '<div id="pad"><div id="stick"><div id="knob"></div></div><button id="act">تسارع</button></div>' +
+      '<div id="tip">' + U.esc(spec.controls) + '</div>' +
       '<' + 'script>' + js + '<' + '/script></body></html>';
   },
   /* تحويل Blob إلى base64 (للتضمين داخل الإطار المعزول) */
@@ -4235,15 +4269,16 @@ const BUILDER = {
     const rnd = U.rng(seed);
     const grid = axes.topology === 'grid';
     const P = {
-      worldW: grid ? 640 : 1800, worldH: grid ? 640 : 1400,
+      worldW: grid ? 640 : 1350, worldH: grid ? 640 : 1350,
       cell: 24, tick: Math.round(95 + rnd() * 60),
-      radius: axes.locomotion === 'drive' ? 14 : 11,
+      radius: axes.locomotion === 'drive' ? 17 : 14,
       moveSpeed: Math.round(240 + rnd() * 140),
       accel: Math.round(150 + rnd() * 90), brake: Math.round(220 + rnd() * 90),
       maxSpeed: Math.round(320 + rnd() * 160), steerRate: U.round(2.1 + rnd() * 1.1, 2), drag: U.round(.5 + rnd() * .5, 2),
       gravity: Math.round(1700 + rnd() * 700), jumpVel: Math.round(620 + rnd() * 220), platformCount: Math.round(10 + rnd() * 10),
       zoom: U.round(.85 + rnd() * .35, 2),
-      itemCount: Math.round(3 + rnd() * 5), pointsPerItem: Math.round(1 + rnd() * 3),
+      itemCount: Math.round(4 + rnd() * 4), pointsPerItem: Math.round(1 + rnd() * 3),
+      spawnNear: Math.round(140 + rnd() * 70), spawnSpread: Math.round(180 + rnd() * 140),
       startLength: Math.round(5 + rnd() * 4), growPerPickup: Math.round(2 + rnd() * 3),
       massPerPoint: U.round(.5 + rnd() * 1.2, 2),
       targetScore: Math.round(18 + rnd() * 26), timeLimit: Math.round(45 + rnd() * 55),
@@ -4266,14 +4301,12 @@ const BUILDER = {
   },
   controlsText(axes) {
     const p = [];
-    if (axes.locomotion === 'drive') p.push('W/↑ تسارع · S/↓ فرملة · A/D توجيه');
-    else if (axes.locomotion === 'jump') p.push('A/D حركة · W أو مسافة للقفز');
-    else p.push('WASD أو الأسهم للحركة');
-    if (axes.twist === 'detach') p.push('مسافة: افصل جزءًا من جسمك');
-    if (axes.twist === 'rewind') p.push('R: إرجاع الزمن');
-    if (axes.twist === 'phase') p.push('مسافة: عبور');
-    if (axes.twist === 'split') p.push('Tab: تبديل الجسد');
-    p.push('اللمس: اسحب للتحكم، والمس الزاوية السفلية للفعل');
+    if (axes.locomotion === 'drive') p.push('العصا: توجيه يمين/يسار، للأعلى تسارع، للأسفل فرملة');
+    else if (axes.locomotion === 'jump') p.push('العصا: حركة · الزر أو العصا للأعلى: قفز');
+    else p.push('العصا للحركة في كل الاتجاهات');
+    const act = { detach: 'الزر: افصل جزءًا من جسمك', rewind: 'الزر: أرجِع الزمن', phase: 'الزر: عبور', split: 'الزر: بدّل الجسد', magnet: 'الجذب تلقائي' }[axes.twist];
+    if (act) p.push(act);
+    p.push('لوحة المفاتيح تعمل أيضًا: WASD / الأسهم / مسافة');
     return p.join(' · ');
   },
   titleFor(axes, theme, rnd) {
@@ -4352,7 +4385,7 @@ const BUILDER = {
         pickups: Math.round(8 + rnd() * 8), target: Math.round(6 + rnd() * 6),
         timeLimit: design.axes.threat === 'timer' ? 90 : 0,
         accel: 11 + rnd() * 5, brake: 20, drag: .45, maxSpeed: 26 + rnd() * 10, steerRate: 1.9 + rnd() * .6,
-        camDist: 13, camH: 6.2, camSmooth: 5, fov: 55, carTarget: 4.2, carYaw: Math.PI,
+        camDist: 14, camH: 7, camSmooth: 5, fov: 62, carTarget: 4.2, carYaw: Math.PI,
         basePitch: .62, pitchPerSpeed: 1.05, minGain: .08, maxGain: .8,
         glb, engine: eng,
       };
