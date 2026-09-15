@@ -159,6 +159,8 @@ async function api(req, res, url, lab) {
       case 'research': return json(res, 200, { history: await lab.research.history(), online: await lab.research.online(), offline: await lab.research.offlineCapabilities(), allowlist: lab.research.allowlist });
       case 'training': return json(res, 200, { datasets: await lab.store.datasets.all(), engine: lab.trainingEngine.available(), models: await lab.trainingEngine.versions() });
       case 'autopilot': return json(res, 200, lab.autopilot.status());
+      case 'ai': return json(res, 200, lab.ai.status());
+      case 'backups': return json(res, 200, { stats: await lab.backups.stats(), list: await lab.backups.list() });
       case 'assets': return json(res, 200, await lab.store.assets.all());
       case 'events': return json(res, 200, lab.bus.tail(Number(q.n) || 200, Number(q.since) || 0));
       default: break;
@@ -234,6 +236,16 @@ async function api(req, res, url, lab) {
         };
         if (!map[body.what]) return json(res, 400, { error: `unknown export target "${body.what}"` });
         return json(res, 200, await map[body.what]());
+      }
+      case 'backup':
+        return json(res, 200, await lab.backups.create({ note: body.note, full: !!body.full, tag: body.tag }));
+      case 'restore': {
+        if (!body.id) return json(res, 400, { error: 'id is required (backup id or index)' });
+        return json(res, 200, await lab.backups.restore(body.id, { safetyBackup: body.safetyBackup !== false }));
+      }
+      case 'backup/delete': {
+        if (!body.id) return json(res, 400, { error: 'id is required' });
+        return json(res, 200, await lab.backups.remove(body.id));
       }
       case 'permissions': {
         lab.config.permissions = { ...lab.config.permissions, ...body, modifyImports: false };

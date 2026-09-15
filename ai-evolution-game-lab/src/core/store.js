@@ -104,6 +104,19 @@ export class Store {
   get datasets() { return this.collection('datasets'); }
   get models() { return this.collection('models'); }
 
+  /**
+   * Drops every in-memory cache so the next read comes from disk again.
+   * Needed after a restore replaces the database underneath a running process;
+   * without it the process would keep serving the pre-restore documents.
+   */
+  reload() {
+    for (const col of this.collections.values()) {
+      col.cache.clear();
+      col.loaded = false;
+    }
+    return this;
+  }
+
   /** Single-document key/value slots (graph, settings, counters). */
   async getState(key, fallback = null) {
     const file = path.join(this.root, 'db', 'state', `${key}.json`);

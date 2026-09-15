@@ -150,7 +150,11 @@
       card(lang === 'ar' ? 'دروس مسجّلة' : 'Lessons', fmt(s.lessons.total), `${pct(s.lessons.successRate)} ${lang === 'ar' ? 'نجاح' : 'success'}`),
       card(lang === 'ar' ? 'تجارب' : 'Experiments', fmt(s.experiments.total), `${s.experiments.supported} ${lang === 'ar' ? 'مؤيَّدة' : 'supported'} / ${s.experiments.contradicted} ${lang === 'ar' ? 'مرفوضة' : 'rejected'}`),
       card(lang === 'ar' ? 'فضاء التصاميم' : 'Design space', fmt(s.traitSpace), lang === 'ar' ? 'تركيبة ممكنة' : 'possible combinations'),
+      card('AI Core', `v${s.ai.version}`, `${lang === 'ar' ? 'المرحلة' : 'phase'} ${s.ai.phase} · ${s.ai.moduleCount} ${lang === 'ar' ? 'وحدة' : 'modules'}`),
+      card(lang === 'ar' ? 'نسخ احتياطية' : 'Backups', fmt(s.backups.count), s.backups.latest || (lang === 'ar' ? 'لا توجد' : 'none yet')),
     ));
+
+    wrap.append(el('div', { class: 'notice info' }, s.ai.honest));
 
     wrap.append(el('div', { class: 'notice info' }, s.disclaimer));
 
@@ -653,8 +657,51 @@
       el('div', { class: 'card' },
         el('h3', {}, lang === 'ar' ? 'تصدير' : 'Export'),
         el('div', { class: 'row' }, ...['knowledge', 'evaluation', 'datasets', 'logs'].map((w) =>
-          el('button', { class: 'btn small', onclick: () => run('export', { what: w }, true) }, w)))));
+          el('button', { class: 'btn small', onclick: () => run('export', { what: w }, true) }, w)))),
+      await backupCard());
   };
+
+  /**
+   * Backup card (Phase 1). Every button calls the real API: a backup is a real
+   * directory of copied files, and a restore takes a safety copy first.
+   */
+  async function backupCard() {
+    const { stats, list } = await api.get('backups');
+    const note = el('input', { placeholder: lang === 'ar' ? 'ملاحظة (اختياري)' : 'note (optional)' });
+    const full = el('input', { type: 'checkbox', style: 'width:auto' });
+    const rows = list.slice().reverse().slice(0, 8).map((b) => el('tr', {},
+      el('td', {}, el('b', {}, b.id), b.note ? el('div', { class: 'muted' }, b.note) : null),
+      el('td', { class: 'muted mono' }, b.bytesHuman || '-'),
+      el('td', { class: 'muted mono' }, b.createdAt ? ago(b.createdAt) : '-'),
+      el('td', {}, b.incomplete
+        ? el('span', { class: 'tag bad' }, lang === 'ar' ? 'غير مكتمل' : 'incomplete')
+        : el('button', {
+            class: 'btn small danger',
+            onclick: () => {
+              openModal(lang === 'ar' ? 'استعادة نسخة' : 'Restore backup',
+                el('p', {}, lang === 'ar'
+                  ? `سيستبدل هذا بيانات المختبر الحالية بمحتوى ${b.id}. تُؤخذ نسخة أمان تلقائياً قبل الاستعادة.`
+                  : `This replaces the lab's current data with ${b.id}. A safety copy is taken automatically first.`),
+                async () => { await run('restore', { id: b.id }, true); setTimeout(() => render('settings'), 900); });
+            },
+          }, lang === 'ar' ? 'استعادة' : 'Restore'))));
+
+    return el('div', { class: 'card stack' },
+      el('h3', {}, lang === 'ar' ? 'نسخ احتياطي واستعادة' : 'Backup & restore'),
+      el('p', { class: 'muted' }, lang === 'ar'
+        ? `نسخ حقيقية على القرص في ${stats.root}. لا تُنسخ: ${stats.excluded.join('، ')} — لأن مشاريعك الأصلية لديك ولا يعدّلها المختبر.`
+        : `Real copies on disk in ${stats.root}. Never copied: ${stats.excluded.join(', ')} - your originals are yours and the lab never modifies them.`),
+      el('div', { class: 'row' },
+        note,
+        el('label', { class: 'row' }, full, lang === 'ar' ? 'شامل (مع الألعاب المولّدة والبيانات)' : 'full (with generated games + datasets)'),
+        el('button', {
+          class: 'btn primary',
+          onclick: async () => { await run('backup', { note: note.value, full: full.checked }, true); setTimeout(() => render('settings'), 700); },
+        }, lang === 'ar' ? 'أنشئ نسخة احتياطية' : 'Create backup')),
+      list.length
+        ? el('table', {}, el('tbody', {}, ...rows))
+        : el('p', { class: 'muted' }, lang === 'ar' ? 'لا توجد نسخ بعد.' : 'No backups yet.'));
+  }
 
   function permDesc(key) {
     const ar = {

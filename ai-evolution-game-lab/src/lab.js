@@ -10,6 +10,8 @@
 import { Config } from './core/config.js';
 import { Store } from './core/store.js';
 import { Bus } from './core/events.js';
+import { BackupManager } from './core/backup.js';
+import { AICore } from './ai_core/index.js';
 import { Importer } from './importer/importer.js';
 import { analyzeProject } from './analysis/analyzer.js';
 import { KnowledgeEngine } from './knowledge/engine.js';
@@ -61,6 +63,11 @@ export class Lab {
     this.trainingEngine = new TrainingEngine({ store, bus, backend: null });
     this.exporter = new Exporter({ config, store, bus });
     this.queue = new TaskQueue({ store, bus });
+    // Phase 1: this project's own AI Core (local, offline, no external model)
+    // and real versioned backups. Both are injected exactly like every other
+    // subsystem, so nothing above them had to change.
+    this.ai = new AICore({ config, store, bus });
+    this.backups = new BackupManager({ config, store, bus });
 
     this.#registerTasks();
   }
@@ -72,6 +79,7 @@ export class Lab {
     const lab = new Lab({ config, store, bus });
     await lab.graph.load();
     await lab.versions.seed();
+    await lab.ai.init();
     return lab;
   }
 
@@ -213,6 +221,8 @@ export class Lab {
         decision: active.decision || null,
       } : null,
       models: this.models.capabilities(),
+      ai: this.ai.status(),
+      backups: await this.backups.stats(),
       learning: LEARNING_KINDS,
       traitSpace: spaceSize(),
       queue: this.queue.status(),
@@ -263,6 +273,11 @@ export class Lab {
         const { dataset } = await this.training.buildAndSave(payload || {});
         return { name: dataset.name, split: dataset.split, stats: dataset.stats };
       })
+      .handle('backup', async (payload) => {
+        const m = await this.backups.create(payload || {});
+        return { id: m.id, files: m.files, bytes: m.bytesHuman, parts: m.parts };
+      })
+      .handle('restore', async (payload) => this.backups.restore(payload.id, payload))
       .handle('export', async (payload) => {
         switch (payload.what) {
           case 'project': return this.exporter.exportGeneratedProject(payload.id);

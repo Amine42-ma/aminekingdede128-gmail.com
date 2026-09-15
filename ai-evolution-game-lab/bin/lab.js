@@ -218,6 +218,46 @@ const COMMANDS = {
     console.log(`\nwrote ${C.cyan(r.file)} (${r.entries} entries)`);
   },
 
+  async backup() {
+    const lab = await open();
+    const m = await lab.backups.create({ note: flags.note || '', full: !!flags.full, tag: flags.tag });
+    console.log(`\ncreated ${C.bold(m.id)}  ${m.files} files, ${m.bytesHuman}`);
+    console.log(`  parts:    ${m.parts.join(', ')}`);
+    console.log(`  excluded: ${C.dim(m.excluded.join(', '))}`);
+    console.log(`  path:     ${C.cyan(m.dir)}`);
+  },
+
+  async backups() {
+    const lab = await open();
+    const all = await lab.backups.list();
+    if (!all.length) return console.log('\nno backups yet - run "lab backup"');
+    for (const b of all) {
+      const mark = b.incomplete ? C.red('!') : C.green('*');
+      console.log(`${mark} ${String(b.id).padEnd(26)} ${String(b.bytesHuman || '-').padEnd(9)} ${C.dim(b.createdAt || '')} ${b.note || ''}`);
+    }
+  },
+
+  async restore() {
+    const lab = await open();
+    const id = flags._[0] || flags.id;
+    if (!id) return fail('usage: lab restore <backup-id|index>  (a safety copy is taken first)');
+    const r = await lab.backups.restore(id, { safetyBackup: flags.safety !== false });
+    console.log(`\nrestored ${C.bold(r.restored)}  parts: ${r.parts.join(', ')}`);
+    console.log(`  safety copy of the previous state: ${C.cyan(r.safetyBackup || 'skipped')}`);
+    console.log(`  counts now: ${JSON.stringify(r.counts)}`);
+  },
+
+  async ai() {
+    const lab = await open();
+    const s = lab.ai.status();
+    console.log(`\n  ${C.bold('AI Core')} v${s.version}  phase ${s.phase}`);
+    console.log(`  initialized: ${s.initialized}  ·  runs: ${s.initCount}  ·  local-only: ${s.local}  ·  external model used: ${s.externalModelUsed}`);
+    console.log(`  modules:     ${s.moduleCount ? s.modules.map((m) => m.name).join(', ') : C.dim('none yet')}`);
+    console.log(`  capabilities:`);
+    for (const [k, v] of Object.entries(s.capabilities)) console.log(`    ${v ? C.green('on ') : C.dim('off')} ${k}`);
+    console.log(C.dim(`\n  ${s.honest}\n`));
+  },
+
   async knowledge() {
     const lab = await open();
     const byCat = await lab.knowledge.byCategory();
@@ -255,6 +295,10 @@ const COMMANDS = {
   ${C.bold('lab research')} "<question>"                    consult official documentation
   ${C.bold('lab dataset')} [--name X]                       build a training dataset
   ${C.bold('lab export')} <target> [--id X]                 project|knowledge|memory|evaluation|datasets|logs
+  ${C.bold('lab ai')}                                       AI Core status (local, no external model)
+  ${C.bold('lab backup')} [--note x] [--full] [--tag t]      create a versioned backup
+  ${C.bold('lab backups')}                                  list backups
+  ${C.bold('lab restore')} <id|index>                        restore (takes a safety copy first)
   ${C.bold('lab status')}                                   overall state
 
   common flags: --workspace <dir> --seed <string> --verbose
