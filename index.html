@@ -1116,6 +1116,8 @@ const SEED_INTENT = {
   identity: ['ما اسمك', 'اسمك ايه', 'شو اسمك', 'وش اسمك', 'من انت', 'عرف بنفسك', 'what is your name', 'who are you', 'من صنعك', 'ما اصدارك', 'كم عمرك', 'اين تحفظ بياناتي', 'هل تستخدم انترنت', 'هل تتصل بالانترنت', 'اي لغه تتكلم', 'كم تعلمت حتى الان'],
   remember_fact: ['اسمي امين', 'انا اسمي محمد', 'تذكر ان مشروعي اسمه كذا', 'احب العاب السيارات', 'انا افضل الالعاب السريعه', 'remember that i like racing', 'my name is amine', 'تذكر هذا', 'احفظ هذه المعلومه', 'مشروعي اسمه مدينتي'],
   recall_fact: ['ما اسمي', 'هل تتذكر اسمي', 'ماذا تعرف عني', 'وش تعرف عني', 'ماذا تتذكر', 'what is my name', 'do you remember me', 'اعرض ما تعرفه عني', 'هل تتذكرني', 'ما الذي حفظته عني'],
+  teach_asset: ['هذا سياره', 'هذه شجره', 'هذا الملف مبنى', 'هذا المجسم شخصيه', 'اسم هذا سلاح', 'هذا الصوت محرك', 'هذه الصوره خامه', 'this is a car', 'هذا عباره عن طريق', 'المجسم الذي ارسلته هو حيوان', 'اعتبر هذا مبنى'],
+  report_mistake: ['اخطات', 'هذا خطا', 'غلط', 'ليس هذا ما اردت', 'لا هذا ليس صحيح', 'انا اردت شيء اخر', 'لا تستخدم هذا المجسم', 'لا تجعل اللعبه سريعه', 'دائما استخدم السياره الحمراء', 'you made a mistake', 'i meant something else', 'صحح نفسك'],
   build_app: ['ابن لي تطبيق', 'اريد تطبيق اندرويد', 'سو لي apk', 'حول هذا الى تطبيق', 'اعطني ملف apk', 'اريد تثبيته على هاتفي', 'صدر التطبيق', 'حزم كل شي في تطبيق', 'make an apk', 'build an android app', 'اريد تطبيق اثبته على جوالي'],
   web_search: ['ابحث في الانترنت عن', 'ابحث لي عن معلومات', 'ابحث في ويكيبيديا', 'اعطني معلومات من الانترنت', 'search the web for', 'ابحث خارجيا عن', 'ابحث عن معلومات خارجيه', 'هات لي معلومات من الانترنت', 'ابحث في النت', 'ابحث عن تعريف'],
   write_code: ['اكتب لي كود', 'اعطني كود للتحكم بالسياره', 'سو لي دالة للقفز', 'اكتب كلاس للكاميرا', 'اريد كود حركة الشخصيه', 'write me code for a camera', 'give me a function for jumping', 'اعطني كود الاصطدام', 'اكتب لي نظام النقاط', 'اريد كود حفظ التقدم', 'كود ربط الصوت بالسرعه', 'اعطني كود الادخال باللمس'],
@@ -1181,6 +1183,8 @@ const INTENT_TRIGGERS = {
   identity: ['ما اسمك', 'اسمك', 'من انت', 'من صنعك', 'عرف بنفسك', 'اصدارك', 'كم عمرك', 'your name', 'who are you', 'اين تحفظ', 'تستخدم انترنت', 'تتصل بالانترنت'],
   remember_fact: ['اسمي ', 'تذكر ', 'احفظ هذه', 'my name is', 'remember that', 'انا احب', 'مشروعي اسمه'],
   recall_fact: ['ما اسمي', 'تتذكر اسمي', 'تعرف عني', 'ماذا تتذكر', 'what is my name', 'تتذكرني', 'حفظته عني'],
+  teach_asset: ['هذا سياره', 'هذه شجره', 'هذا الملف', 'هذا المجسم', 'هذا الصوت', 'هذه الصوره', 'اعتبر هذا', 'this is a'],
+  report_mistake: ['اخطات', 'هذا خطا', 'غلط', 'ليس هذا ما اردت', 'لا تستخدم', 'لا تجعل', 'دائما استخدم', 'صحح نفسك', 'i meant', 'mistake'],
   build_app: ['تطبيق', 'apk', 'اندرويد', 'android', 'اثبته', 'تثبيت', 'جوالي', 'هاتفي'],
   web_search: ['ابحث في الانترنت', 'ابحث في ويكيبيديا', 'من الانترنت', 'search the web', 'ابحث خارجيا', 'ابحث في النت'],
   write_code: ['اكتب لي كود', 'اكتب كود', 'اعطني كود', 'اريد كود', 'كود ', 'دالة', 'داله', 'كلاس', 'function for', 'write code', 'give me code', 'سكربت', 'snippet'],
@@ -4748,6 +4752,181 @@ const SMALLTALK = {
   }
 };
 
+/* ============================ 27f · LESSONS (يتعلّم من أخطائه) ======== */
+/* حين تقول له «أخطأت» أو «ليس هذا ما أردت»، يسجّل الدرس ويطبّقه لاحقًا —
+   في هذه المحادثة وفي كل محادثة جديدة، لأنه محفوظ في IndexedDB لا في الجلسة. */
+const LESSONS = {
+  list: [],
+  async init() { this.list = await DB.getKV('lessons', []); },
+
+  /* يصنّف تصحيحك: نية خاطئة؟ شيء يتجنّبه؟ شيء يفضّله؟ */
+  classify(correction) {
+    const t = TOK.normalize(correction);
+    if (/(?:^|\s)(?:لا\s*تستخدم|لا\s*تضع|لا\s*تجعل|بدون|بلا|لا\s*اريد|تجنب|don.?t use|avoid)/.test(t))
+      return { kind: 'avoid', target: this.subject(correction) };
+    if (/(?:^|\s)(?:استخدم|استعمل|دائما|دايما|خليها|اجعلها|اجعل|يجب\s*ان|use|always|prefer)/.test(t))
+      return { kind: 'prefer', target: this.subject(correction) };
+    if (/(?:^|\s)(?:اردت|أردت|قصدت|اقصد|اعني|المفروض|كان\s*المفروض|i\s*meant|i\s*wanted)/.test(t))
+      return { kind: 'intent', target: this.subject(correction) };
+    return { kind: 'note', target: this.subject(correction) };
+  },
+  subject(text) {
+    const stop = LESSONS.stopStems();
+    return TOK.tokens(text, { bigrams: false, charGrams: false })
+      .filter(w => w.length > 2 && !stop.has(w)).slice(0, 8);
+  },
+  _stops: null,
+  stopStems() {
+    if (this._stops) return this._stops;
+    this._stops = new Set();
+    this.STOP.forEach(w => { this._stops.add(w); this._stops.add(TOK.stem(TOK.normalize(w))); });
+    return this._stops;
+  },
+  STOP: new Set(('لا تستخدم تستعمل تضع تجعل بدون بلا اريد تجنب استخدم استعمل دائما دايما خليها اجعلها اجعل يجب ان اردت قصدت اقصد اعني المفروض كان خطا غلط اخطات اخطأت هذا هذه ذلك ليس ما الذي التي هو هي ' +
+    'لعبه لعبة العاب اللعبه اللعبة لعب صحح نفسك ' +
+    'you dont use avoid always prefer meant wanted wrong mistake this that not game games the a an in').split(/\s+/)),
+
+  async add(o) {
+    const cls = this.classify(o.correction);
+    const lesson = {
+      id: U.uid('L'), at: U.now(), kind: cls.kind, target: cls.target,
+      request: (o.request || '').slice(0, 220),
+      correction: (o.correction || '').slice(0, 220),
+      prevIntent: o.prevIntent || null, rightIntent: o.rightIntent || null,
+      applied: 0,
+    };
+    lesson.vec = VEC.pack(VEC.embed(TOK.expand(lesson.request + ' ' + lesson.correction)));
+    this.list.unshift(lesson);
+    this.list = this.list.slice(0, 300);
+    await DB.setKV('lessons', this.list);
+    /* يظهر أيضًا في قاعدة المعرفة حتى تراه وتحذفه إن أردت */
+    await KB.add({
+      kind: 'lesson', title: 'درس: ' + (o.correction || '').slice(0, 60),
+      body: 'الطلب: ' + lesson.request + '\nالتصحيح: ' + lesson.correction + '\nالنوع: ' + cls.kind,
+      tags: ['lesson', cls.kind].concat(cls.target.slice(0, 4)),
+      confidence: .9, source: 'user-correction',
+    });
+    /* تصحيح النية يدخل بيانات التدريب فعليًا */
+    if (o.rightIntent && o.request) await DATA.add('intent', { text: o.request, label: o.rightIntent });
+    return lesson;
+  },
+
+  /* أي دروس تنطبق على هذا الطلب؟ */
+  match(text, limit) {
+    if (!this.list.length || !text) return [];
+    const v = VEC.embed(TOK.expand(text));
+    const toks = new Set(TOK.tokens(text, { bigrams: false, charGrams: false }));
+    const out = [];
+    this.list.forEach(l => {
+      let sc = VEC.cos(v, VEC.unpack(l.vec));
+      let overlap = 0;
+      (l.target || []).forEach(t => { if (toks.has(t)) overlap++; });
+      const reqToks = TOK.tokens(l.request, { bigrams: false, charGrams: false });
+      let reqHit = 0;
+      reqToks.forEach(t => { if (t.length > 2 && toks.has(t)) reqHit++; });
+      sc += overlap * .22 + (reqToks.length ? reqHit / reqToks.length : 0) * .35;
+      if (sc > .34) out.push({ lesson: l, score: U.round(sc, 3) });
+    });
+    return out.sort((a, b) => b.score - a.score).slice(0, limit || 4);
+  },
+
+  async markApplied(ids) {
+    let changed = false;
+    this.list.forEach(l => { if (ids.indexOf(l.id) >= 0) { l.applied = (l.applied || 0) + 1; changed = true; } });
+    if (changed) await DB.setKV('lessons', this.list);
+  },
+
+  /* قيود جاهزة لتمريرها إلى البنّاء */
+  constraints(matches) {
+    const avoid = [], prefer = [], notes = [];
+    matches.forEach(m => {
+      if (m.lesson.kind === 'avoid') avoid.push.apply(avoid, m.lesson.target);
+      else if (m.lesson.kind === 'prefer') prefer.push.apply(prefer, m.lesson.target);
+      else notes.push(m.lesson.correction);
+    });
+    return { avoid: Array.from(new Set(avoid)), prefer: Array.from(new Set(prefer)), notes };
+  },
+  stats() {
+    const by = {};
+    this.list.forEach(l => by[l.kind] = (by[l.kind] || 0) + 1);
+    return { total: this.list.length, by, applied: this.list.reduce((a, l) => a + (l.applied || 0), 0) };
+  }
+};
+
+/* ============================ 27g · TEACH (عرّفه بالملف) ============== */
+/* ترفع مجسمًا وتقول «هذا سيارة» فيسجّلها ويستخدمها على هذا الأساس. */
+const TEACH = {
+  WORDS: {
+    Vehicles: ['سياره', 'مركبه', 'عربه', 'شاحنه', 'دباب', 'موتور', 'طياره', 'قارب', 'car', 'vehicle', 'truck', 'bike', 'plane', 'boat'],
+    Characters: ['شخصيه', 'لاعب', 'بطل', 'رجل', 'امراه', 'انسان', 'عدو', 'character', 'player', 'hero', 'enemy', 'npc'],
+    Buildings: ['مبنى', 'بيت', 'منزل', 'برج', 'عماره', 'محل', 'building', 'house', 'tower'],
+    Nature: ['شجره', 'شجر', 'نبات', 'صخره', 'جبل', 'عشب', 'tree', 'rock', 'plant', 'grass', 'mountain'],
+    Animals: ['حيوان', 'كلب', 'قطه', 'حصان', 'طير', 'سمكه', 'animal', 'dog', 'cat', 'horse', 'bird'],
+    Weapons: ['سلاح', 'بندقيه', 'سيف', 'مسدس', 'قنبله', 'weapon', 'gun', 'sword', 'rifle'],
+    Environment: ['طريق', 'شارع', 'مدينه', 'بيئه', 'خلفيه', 'سماء', 'road', 'street', 'city', 'sky', 'environment'],
+    Props: ['غرض', 'اداه', 'صندوق', 'كرسي', 'طاوله', 'عنصر', 'prop', 'box', 'chair', 'table', 'item'],
+    Textures: ['خامه', 'تكستشر', 'نسيج', 'ماده', 'texture', 'material'],
+    UI: ['واجهه', 'زر', 'ايقونه', 'قائمه', 'ui', 'button', 'icon', 'menu'],
+    Sounds: ['صوت', 'مؤثر', 'محرك', 'خطوات', 'sound', 'sfx', 'engine'],
+    Music: ['موسيقى', 'اغنيه', 'لحن', 'music', 'song'],
+    Effects: ['تاثير', 'انفجار', 'دخان', 'نار', 'effect', 'explosion', 'smoke', 'fire'],
+  },
+  /* يستخرج: أي ملف، وما هو */
+  parse(text) {
+    const t = TOK.normalize(text);
+    let cat = null, best = 0;
+    for (const c in this.WORDS) {
+      let sc = 0;
+      this.WORDS[c].forEach(w => { if (t.indexOf(TOK.normalize(w)) >= 0) sc += w.length > 4 ? 2 : 1.3; });
+      if (sc > best) { best = sc; cat = c; }
+    }
+    const label = (/(?:هذا|هذه|هاذا|ذلك|تلك|الملف|المجسم|الصوره|الصورة|this|that)\s+(?:هو|هي|is|عباره عن)?\s*([^\n،.,]{2,40})/i.exec(text) || [, ''])[1].trim();
+    return { category: cat, score: best, label };
+  },
+  /* نوع الملف المقصود من صيغة كلامك */
+  KIND_HINT: [
+    { re: /الصوره|الصورة|الصور|صورتي|image|picture|خامه|تكستشر|texture/, kind: 'image' },
+    { re: /المجسم|الموديل|المودل|model|mesh|glb|ثري دي|3d/, kind: 'model' },
+    { re: /الصوت|المقطع|audio|sound|wav|mp3/, kind: 'audio' },
+    { re: /الكود|الملف البرمجي|السكربت|code|script|js/, kind: 'code' },
+  ],
+  kindOf(text) {
+    const t = TOK.normalize(text);
+    for (const h of this.KIND_HINT) if (h.re.test(t)) return h.kind;
+    return null;
+  },
+  /* أي أصل يقصد؟ حسب النوع الذي ذكرته، ثم الاسم، ثم آخر ما رفعته */
+  target(text) {
+    const kind = this.kindOf(text);
+    const pool = kind ? LIB.cache.filter(a => a.kind === kind) : LIB.cache;
+    if (!pool.length) return null;
+    /* اسم مذكور صراحةً داخل هذا النوع */
+    const named = LIB.search(text, { limit: 3, min: .45 }).map(h => h.asset).filter(a => pool.indexOf(a) >= 0)[0];
+    if (named) return named;
+    return pool.slice().sort((a, b) => (b.created || 0) - (a.created || 0))[0] || null;
+  },
+  async apply(asset, parsed, rawText) {
+    const before = asset.category;
+    if (parsed.category) asset.category = parsed.category;
+    const extra = TOK.tokens(rawText, { bigrams: false, charGrams: false })
+      .filter(w => w.length > 2 && !/^(هذا|هذه|الملف|المجسم|this|that|is)$/.test(w)).slice(0, 5);
+    asset.tags = Array.from(new Set((asset.tags || []).concat(extra, parsed.category ? [parsed.category.toLowerCase()] : [])));
+    asset.taught = { by: 'user', what: parsed.label || parsed.category, at: U.now() };
+    /* إعادة التمثيل المتجهي حتى يظهر في البحث بما علّمته إياه */
+    const txt = asset.name + ' ' + asset.category + ' ' + asset.tags.join(' ') + ' ' + (parsed.label || '');
+    asset.vec = VEC.pack(VEC.embed(txt));
+    await LIB.update(asset);
+    await KB.add({
+      kind: 'concept', title: 'تعريف: ' + asset.name + ' = ' + (parsed.label || parsed.category),
+      body: 'علّمني المستخدم أن هذا الملف هو: ' + (parsed.label || parsed.category) +
+        '\nالتصنيف: ' + before + ' → ' + asset.category,
+      tags: ['taught', asset.category.toLowerCase()].concat(extra.slice(0, 3)),
+      confidence: .98, source: asset.id,
+    });
+    return { before, after: asset.category };
+  }
+};
+
 /* ============================ 28 · DESIGN SPACE ======================== */
 /* فضاء تصميم حقيقي: 9 محاور × قيم متعددة = مساحة بحث قابلة للاستكشاف.
    الابتكار هنا ليس عبارة تسويقية: النظام يبحث فعليًا في هذه المساحة،
@@ -5734,6 +5913,37 @@ const BUILDER = {
     if (brief.fromUser && brief.understanding) {
       const u = brief.understanding;
       chosen = u.models.slice(0, 3).concat(u.sounds.slice(0, 1)).concat(u.images.slice(0, 3));
+      /* دروسك السابقة تُبعد ما طلبت تجنّبه وتقدّم ما فضّلته */
+      const les = brief.lessons;
+      if (les && (les.avoid.length || les.prefer.length)) {
+        /* «لا تستخدم صوت المحرك» عربية، وبيانات الملف إنجليزية —
+           نوسّع كل كلمة عبر معجم المجال قبل المطابقة. */
+        const expand = (words) => {
+          const out = new Set();
+          words.forEach(w => {
+            out.add(w);
+            /* domainsOf يعيد {domain,score} لا نصًا — الفهرسة بالكائن كانت ترمي استثناءً */
+            TOK.domainsOf(w).slice(0, 2).forEach(d => {
+              const lex = DOMAIN_LEX[d.domain];
+              if (lex) lex.forEach(x => out.add(TOK.normalize(x)));
+            });
+          });
+          return Array.from(out).filter(x => x.length > 2);
+        };
+        const avoidW = expand(les.avoid), preferW = expand(les.prefer);
+        const hit = (a, words) => {
+          const hay = TOK.normalize(a.name + ' ' + a.category + ' ' + (a.subCategory || '') + ' ' + (a.tags || []).join(' '));
+          return words.some(w => hay.indexOf(w) >= 0);
+        };
+        const before = chosen.length;
+        if (avoidW.length) chosen = chosen.filter(a => !hit(a, avoidW));
+        if (preferW.length) {
+          const extra = LIB.cache.filter(a => hit(a, preferW) && chosen.indexOf(a) < 0 && ['model', 'image', 'audio'].indexOf(a.kind) >= 0);
+          chosen = extra.slice(0, 2).concat(chosen);
+        }
+        if (chosen.length !== before) L('   طُبّقت دروسك: استُبعد ' + Math.max(0, before - chosen.length) + ' · قُدّم ' + Math.max(0, chosen.length - before));
+        brief.lessonEffect = { removed: Math.max(0, before - chosen.length), added: Math.max(0, chosen.length - before) };
+      }
     } else if (brief.assetIds && brief.assetIds.length) {
       chosen = brief.assetIds.map(id => LIB.cache.find(a => a.id === id)).filter(Boolean);
     } else if (req.wantAssets !== false) {
@@ -5943,7 +6153,18 @@ const FROMYOU = {
     const sounds = pickAssets(inv.sounds, 4).concat(inv.sounds).filter((v, i, arr) => arr.indexOf(v) === i).slice(0, 2);
     const images = pickAssets(inv.images, 6).concat(inv.images).filter((v, i, arr) => arr.indexOf(v) === i).slice(0, 4);
 
-    const matched = wanted.filter(w => w.score >= 2);
+    let matched = wanted.filter(w => w.score >= 2);
+    /* امزج من مصادر مختلفة: ميكانيكية من كل مشروع بدل أربع من مشروع واحد */
+    if (matched.length > 1) {
+      const byProject = new Map();
+      matched.forEach(m => {
+        const key = m.k.project || (m.k.source || 'x');
+        if (!byProject.has(key) || byProject.get(key).score < m.score) byProject.set(key, m);
+      });
+      const spread = Array.from(byProject.values()).sort((a, b) => b.score - a.score);
+      const rest = matched.filter(m => spread.indexOf(m) < 0);
+      matched = spread.concat(rest).slice(0, 5);
+    }
     const asked = this.askedFor(q);
     const coveredIds = new Set(matched.map(w => w.k.mech));
     const missing = asked.filter(a => !a.ids.some(id => coveredIds.has(id)));
@@ -5952,8 +6173,17 @@ const FROMYOU = {
        بدون هذا كان يبني لعبة سيارات لطلب «قتال بالسيوف» لمجرد أن عنده سيارة. */
     const cov = this.coverage(request, inv, matched);
 
+    /* من كم مصدر مختلف مزجنا؟ */
+    const srcNames = new Set();
+    matched.forEach(m => { const a = LIB.cache.find(x => x.id === m.k.source); if (a) srcNames.add(a.name); });
+    models.concat(sounds, images).forEach(a => { if (a) srcNames.add(a.name); });
+    const projects = new Set();
+    matched.forEach(m => { if (m.k.project) projects.add(m.k.project); });
+    models.concat(sounds, images).forEach(a => { if (a && a.project) projects.add(a.project); });
+
     return {
       inv, matched, models, sounds, images, asked, missing,
+      sources: Array.from(srcNames), projectCount: projects.size,
       covered: cov.covered, uncovered: cov.uncovered, topics: cov.topics,
       /* لا يكفي أن يملك موادّ — يجب أن تخصّ طلبك */
       enough: cov.topics === 0 ? (matched.length > 0 || models.length > 0) : cov.covered.length > 0,
@@ -6399,7 +6629,13 @@ const CHAT = {
 
       typing.remove();
       const hello = (st && !files.length) ? '<p>' + U.esc(st.reply()) + '</p>' : '';
-      const html = hello + (out.html || '') + (out.noThink ? '' : REASON.render(f));
+      let applied = '';
+      if (S.lessons && S.lessons.matches && S.lessons.matches.length) {
+        applied = '<div class="meta" style="margin-bottom:8px">📘 طبّقت ' + S.lessons.matches.length +
+          ' درسًا من تصحيحاتك السابقة: ' +
+          U.esc(S.lessons.matches.map(m => m.lesson.correction.slice(0, 40)).join(' · ')) + '</div>';
+      }
+      const html = hello + applied + (out.html || '') + (out.noThink ? '' : REASON.render(f));
       UI.addMessage({ role: 'ai', html, actions: out.actions });
       await this.save({ role: 'ai', html, intent: intent.label, conf: intent.conf, actions: out.actions || null });
     } catch (e) {
@@ -6516,8 +6752,47 @@ const CHAT = {
     const errs = results.filter(r => r.error);
     if (errs.length) L.push('<p style="color:var(--warn)">تعذّر تحليل ' + errs.length + ' ملف: ' + U.esc(errs.slice(0, 3).map(e => U.base(e.name) + ' (' + e.error + ')').join('، ')) + '</p>');
     L.push('<p style="font-size:12px;color:var(--ink3)">كل هذه الملفات محفوظة في متصفحك فقط (IndexedDB). لم يُرسل أي شيء إلى أي خادم.</p>');
+
+    /* كم كبر تطبيقك بعد هذه الدفعة؟ */
+    const prev = await DB.getKV('appSizeMark', null);
+    const now = {
+      assets: LIB.cache.filter(x => ['image', 'audio', 'model'].indexOf(x.kind) >= 0).length,
+      bytes: LIB.cache.filter(x => ['image', 'audio', 'model'].indexOf(x.kind) >= 0).reduce((a, x) => a + (x.size || 0), 0),
+      mech: KB.byKind('mechanic').length,
+      games: (await DB.all('games')).length,
+    };
+    await DB.setKV('appSizeMark', now);
+    const delta = prev ? {
+      assets: now.assets - prev.assets, bytes: now.bytes - prev.bytes, mech: now.mech - prev.mech
+    } : null;
+    L.push('<div class="card tight" style="margin-top:10px"><h3 style="font-size:13.5px">📦 نموذجك كبر</h3>' +
+      '<div class="kv">' +
+      '<b>أصول قابلة للتضمين</b><span>' + now.assets + (delta && delta.assets > 0 ? ' <span style="color:var(--ok)">(+' + delta.assets + ')</span>' : '') + '</span>' +
+      '<b>حجمها</b><span>' + U.bytes(now.bytes) + (delta && delta.bytes > 0 ? ' <span style="color:var(--ok)">(+' + U.bytes(delta.bytes) + ')</span>' : '') + '</span>' +
+      '<b>ميكانيكيات</b><span>' + now.mech + (delta && delta.mech > 0 ? ' <span style="color:var(--ok)">(+' + delta.mech + ')</span>' : '') + '</span>' +
+      '<b>ألعاب بداخله</b><span>' + now.games + '</span></div>' +
+      '<p class="sub" style="margin:6px 0 0">نزّله الآن وسيحوي كل ما أعطيتَه حتى هذه اللحظة.</p></div>');
+
+    /* هل هناك ملفات لم يتعرّف عليها بثقة؟ اطلب من المستخدم تعريفها */
+    const unsure = ok.filter(r => {
+      const an = r.analysis || {};
+      const cls = an.classification || an.category;
+      return Array.isArray(cls) && cls[0] && cls[0].confidence < .55;
+    }).slice(0, 3);
+    if (unsure.length) {
+      L.push('<div class="card tight"><h3 style="font-size:13.5px">❔ لست متأكدًا من هذه</h3><ul>' +
+        unsure.map(r => '<li><b>' + U.esc(U.base(r.name)) + '</b> — خمّنت أنه <code>' + U.esc(r.category) + '</code> بثقة ' +
+          U.pct((r.analysis.classification || r.analysis.category)[0].confidence) + '</li>').join('') + '</ul>' +
+        '<p class="sub" style="margin:0">عرّفني به: اكتب <code>هذا سيارة</code> أو <code>هذه شجرة</code> وسأصحّحه وأستخدمه على أساسه.</p></div>');
+    }
     UI.renderAssets(); UI.renderProjects(); UI.renderKnowledge();
-    return { html: L.join(''), actions: project ? [{ label: 'افتح المشروع', act: 'openProject', id: project.id }] : null };
+    const acts = [];
+    const appId = U.uid('appnow');
+    TMP.set(appId, { buildApp: true });
+    acts.push({ label: '⬇ نزّل النموذج المحدَّث', act: 'buildAppNow', id: appId });
+    if (project) acts.push({ label: 'افتح المشروع', act: 'openProject', id: project.id });
+    if (now.mech || now.assets) acts.push({ label: '🎮 اصنع لعبة من ملفاتي', act: 'quickAsk', id: 'اصنع لي لعبة من ملفاتي' });
+    return { html: L.join(''), actions: acts };
   },
   projectName(files) {
     const zip = files.find(f => U.ext(f.name) === 'zip');
@@ -6539,16 +6814,36 @@ const CHAT = {
   },
   /* ---------- التوجيه حسب النية ---------- */
   async route(intent0, text, f, ctx, ingestOut) {
-    const intent = this.resolveIntent(intent0, text);
+    let intent = this.resolveIntent(intent0, text);
     if (intent.redirected) f.context.push('طلب مركّب: فُهم كـ «بناء لعبة» مع قيد «' + intent.redirected + '»');
+    /* دروس سابقة — محفوظة لا مؤقّتة، فتُطبَّق في أي محادثة */
+    const les = LESSONS.match(text, 4);
+    if (les.length) {
+      const top = les[0];
+      if (top.lesson.kind === 'intent' && top.lesson.rightIntent && top.score > .45 && top.lesson.rightIntent !== intent.label) {
+        f.context.push('درس سابق: كنت أفهم هذا خطأً كـ «' + intent.label + '» — صحّحته إلى «' + top.lesson.rightIntent + '»');
+        intent = { label: top.lesson.rightIntent, conf: Math.max(intent.conf, .8), top: intent.top };
+      }
+      const c = LESSONS.constraints(les);
+      if (c.avoid.length) f.constraints.push('أتجنّب (درس سابق): ' + c.avoid.join('، '));
+      if (c.prefer.length) f.constraints.push('أفضّل (درس سابق): ' + c.prefer.join('، '));
+      if (c.notes.length) f.constraints.push('ملاحظتك السابقة: ' + c.notes[0]);
+      S.lessons = { matches: les, avoid: c.avoid, prefer: c.prefer, notes: c.notes };
+      await LESSONS.markApplied(les.map(x => x.lesson.id));
+    } else S.lessons = null;
     const H = this.handlers[intent.label] || this.handlers.question_general;
     REASON.addApproach(f, 'المعالج المباشر للنية «' + intent.label + '»', 'مطابق لما طلبته', 'قد يخطئ إن كانت النية ملتبسة', intent.conf);
     if (intent.top && intent.top[1] && intent.top[1].p > .15)
       REASON.addApproach(f, 'معالجة كـ «' + intent.top[1].label + '»', 'احتمال بديل', 'أقل ترجيحًا', intent.top[1].p);
     REASON.select(f);
-    const out = await H.call(this, { text, f, ctx, intent, ingestOut });
+    const out = await H.call(this, { text, f, ctx, intent, ingestOut, lessons: S.lessons });
     if (ingestOut && out.html) out.html = ingestOut.html + '<hr style="border:0;border-top:1px solid var(--line);margin:12px 0">' + out.html;
     else if (ingestOut) out.html = ingestOut.html;
+    /* أزرار الرفع (تنزيل النموذج المحدَّث…) كانت تُفقد حين يرافق الرفعَ أمرٌ نصي */
+    if (ingestOut && ingestOut.actions) {
+      const seen = new Set((out.actions || []).map(x => x.label));
+      out.actions = (out.actions || []).concat(ingestOut.actions.filter(x => !seen.has(x.label)));
+    }
     return out;
   },
 
@@ -6888,7 +7183,7 @@ Object.assign(CHAT.handlers, {
     const logs = [];
     const out = await BUILDER.build({
       theme: a.text, wantDifferent, useAssets: true, assetIds,
-      fromUser: !invent && u.enough, understanding: u, seed: Date.now()
+      fromUser: !invent && u.enough, understanding: u, lessons: a.lessons, seed: Date.now()
     }, m => logs.push(m));
     a.f.verification.push(out.test.ok ? 'اللعبة عملت في الصندوق المعزول (' + out.test.frames + ' إطار، بلا أخطاء)' : 'الاختبار رصد مشكلة: ' + out.test.reason);
     let head = '';
@@ -6896,7 +7191,8 @@ Object.assign(CHAT.handlers, {
       const parts = [];
       if (out.game.yourMechanics.length) parts.push(out.game.yourMechanics.length + ' ميكانيكية من شيفرتك');
       if (out.game.assets.length) parts.push(out.game.assets.length + ' أصلًا من ملفاتك');
-      head = '<p>بنيتُها من موادّك: ' + U.esc(parts.join(' و')) + '.</p>';
+      head = '<p>بنيتُها من موادّك: ' + U.esc(parts.join(' و')) +
+        (u.projectCount > 1 ? '، ممزوجة من <b>' + u.projectCount + '</b> مصادر مختلفة' : '') + '.</p>';
       if (u.missing.length) head += '<p style="color:var(--warn);font-size:12.5px">لم أجد عندك: ' +
         U.esc(u.missing.map(m => m.key).join('، ')) + ' — أرسل مشروعًا فيه هذه الأنظمة وسأضيفها في المرة القادمة.</p>';
     }
@@ -7211,6 +7507,71 @@ Object.assign(CHAT.handlers, {
         actions: [{ label: 'اختبر الاتصال', act: 'goto', id: 'set' }]
       };
     }
+  },
+});
+
+
+/* ---------- عرّفه بالملف · صحّح خطأه ---------- */
+Object.assign(CHAT.handlers, {
+  /* «هذا سيارة» → يسجّلها ويستخدمها على هذا الأساس */
+  async teach_asset(a) {
+    const asset = TEACH.target(a.text);
+    if (!asset) return { html: '<p>لم ترفع أي ملف بعد. أرفق المجسم أو الصورة أو الصوت أولًا، ثم قل لي ما هو.</p>' };
+    const parsed = TEACH.parse(a.text);
+    if (!parsed.category && !parsed.label) {
+      return {
+        html: '<p>لم أتبيّن ما هو. قلها بوضوح مثل:</p><ul>' +
+          '<li><code>هذا سيارة</code></li><li><code>هذه شجرة</code></li><li><code>هذا الصوت محرك</code></li></ul>' +
+          '<p>الملف الذي أقصده الآن: <b>' + U.esc(asset.name) + '</b>.</p>'
+      };
+    }
+    a.f.execution.push('تسجيل تعريفك للملف ' + asset.name);
+    const r = await TEACH.apply(asset, parsed, a.text);
+    a.f.verification.push('أُعيد تمثيله في البحث — سيظهر بما علّمتني إياه');
+    UI.renderAssets(); UI.renderKnowledge();
+    const sameKind = LIB.cache.filter(x => x.category === asset.category && x.id !== asset.id);
+    return {
+      noThink: true,
+      html: '<p>فهمت: <b>' + U.esc(asset.name) + '</b> = <b>' + U.esc(parsed.label || parsed.category) + '</b>.</p>' +
+        (r.before !== r.after ? '<p>غيّرت تصنيفه من <code>' + U.esc(r.before) + '</code> إلى <code>' + U.esc(r.after) + '</code>.</p>' : '') +
+        '<p>سأستخدمه على هذا الأساس عند بناء الألعاب' +
+        (sameKind.length ? '، ومعه ' + sameKind.length + ' ملفًا آخر من نفس النوع' : '') + '.</p>' +
+        '<p style="font-size:12.5px;color:var(--ink3)">كل ملف تعرّفني به يزيد ما أفهمه. جرّب: «اصنع لعبة من ملفاتي».</p>',
+      actions: [{ label: 'اعرض الملف', act: 'openAsset', id: asset.id }]
+    };
+  },
+
+  /* «أخطأت» → يسجّل الدرس ويطبّقه في كل محادثة قادمة */
+  async report_mistake(a) {
+    const msgs = S.messages;
+    let lastReq = '', lastIntent = null;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === 'ai' && msgs[i].intent && !lastIntent) lastIntent = msgs[i].intent;
+      if (msgs[i].role === 'user' && msgs[i].text && msgs[i].text !== a.text) { lastReq = msgs[i].text; break; }
+    }
+    /* هل يذكر تصحيحك نيّة معروفة؟ */
+    const guess = REG.predictIntent(a.text.replace(/اخطات|أخطأت|هذا خطا|غلط|ليس هذا ما اردت|صحح نفسك/g, ' ').trim());
+    const rightIntent = (guess.conf > .5 && guess.label !== 'report_mistake' && guess.label !== 'question_general') ? guess.label : null;
+    const lesson = await LESSONS.add({ request: lastReq || a.text, correction: a.text, prevIntent: lastIntent, rightIntent });
+    a.f.execution.push('حفظ الدرس (' + lesson.kind + ') في التخزين الدائم');
+    a.f.verification.push('سيُطبَّق في هذه المحادثة وفي أي محادثة جديدة');
+    UI.renderKnowledge();
+    const st = LESSONS.stats();
+    const kindAr = { avoid: 'شيء أتجنّبه', prefer: 'شيء أفضّله', intent: 'تصحيح فهم', note: 'ملاحظة' }[lesson.kind];
+    const L = [];
+    L.push('<h4>سجّلت الدرس</h4>');
+    L.push('<div class="kv">' +
+      (lastReq ? '<b>طلبك كان</b><span>' + U.esc(lastReq.slice(0, 90)) + '</span>' : '') +
+      (lastIntent ? '<b>فهمته كـ</b><span><code>' + U.esc(lastIntent) + '</code></span>' : '') +
+      '<b>تصحيحك</b><span>' + U.esc(lesson.correction) + '</span>' +
+      '<b>النوع</b><span>' + U.esc(kindAr) + '</span>' +
+      (rightIntent ? '<b>الفهم الصحيح</b><span><code>' + U.esc(rightIntent) + '</code> — أُضيف إلى بيانات التدريب</span>' : '') +
+      '</div>');
+    if (lesson.target.length) L.push('<p><b>ما سأنتبه له:</b> ' + U.esc(lesson.target.join('، ')) + '</p>');
+    L.push('<p>عندي الآن <b>' + st.total + '</b> درسًا من تصحيحاتك، طُبِّقت <b>' + st.applied + '</b> مرة.</p>');
+    L.push('<p style="font-size:12.5px;color:var(--ink3)">محفوظة في IndexedDB لا في هذه الجلسة — ' +
+      'افتح محادثة جديدة أو أغلق الصفحة وسأظل أتذكّرها. تجدها في تبويب «المعرفة» بوسم <code>lesson</code> ويمكنك حذف أي درس.</p>');
+    return { html: L.join(''), actions: [{ label: 'اعرض الدروس', act: 'goto', id: 'know' }] };
   },
 });
 
@@ -7786,6 +8147,22 @@ const UI = {
       } catch (e) { typing.remove(); toast('فشل البناء: ' + e.message, 'er', 4000); }
       finally { S.busy = false; this.setBusy(false); }
       return;
+    }
+    if (ac.act === 'buildAppNow') {
+      toast('جارٍ بناء تطبيقك…');
+      try {
+        const bundle = await APPX.collect();
+        const html = APPX.buildHTML(bundle);
+        BACKUP.saveBlob(new Blob([html], { type: 'text/html' }), 'kadkad-app.html');
+        toast('نُزّل (' + U.bytes(html.length) + ') · ' + bundle.assets.length + ' أصلًا · ' + bundle.games.length + ' لعبة', 'ok', 4200);
+      } catch (e) { toast('فشل: ' + e.message, 'er', 4000); }
+      return;
+    }
+    if (ac.act === 'quickAsk') {
+      this.go('chat');
+      U.$('#msgInput').value = ac.id;
+      U.$('#msgInput').dispatchEvent(new Event('input'));
+      return CHAT.send(ac.id);
     }
     if (ac.act === 'export') {
       toast('جارٍ التصدير…');
@@ -8501,6 +8878,34 @@ const SELFTEST = {
     const vague = FROMYOU.understand('اصنع لي لعبة');
     ok('الطلب العام لا يُرفض بلا سبب', vague.topics === 0, 'مواضيع محدّدة في الطلب: ' + vague.topics);
 
+    /* 10g. يتعلّم من أخطائه — ويتذكّرها بعد إغلاق الصفحة */
+    try {
+      const n0 = LESSONS.list.length;
+      const les = await LESSONS.add({ request: 'اصنع لي لعبة سيارات', correction: 'اخطأت، لا تستخدم صوت المحرك', prevIntent: 'build_game' });
+      ok('يسجّل تصحيحك كدرس', les.kind === 'avoid' && les.target.indexOf('صوت') >= 0 && LESSONS.list.length === n0 + 1,
+        'النوع ' + les.kind + ' · يستهدف: ' + les.target.join('، '));
+      const stored = await DB.getKV('lessons', []);
+      ok('الدرس محفوظ في IndexedDB لا في الجلسة', stored.length === LESSONS.list.length && stored.some(x => x.id === les.id),
+        stored.length + ' درسًا في التخزين الدائم');
+      const m = LESSONS.match('اصنع لي لعبة سيارات', 4);
+      ok('يطبّق الدرس على طلب مشابه لاحقًا', m.length > 0 && m[0].score > .4, m.length ? 'تطابق ' + m[0].score : 'لم يتطابق');
+      /* الدرس عربي وبيانات الملفات إنجليزية — لا بدّ من جسر المجال */
+      const c = LESSONS.constraints(m);
+      const out = new Set();
+      c.avoid.forEach(w => { out.add(w); TOK.domainsOf(w).slice(0, 2).forEach(d => { const lex = DOMAIN_LEX[d.domain]; if (lex) lex.forEach(x => out.add(TOK.normalize(x))); }); });
+      ok('الدرس يعبر حاجز اللغة', out.has('audio') || out.has('sound'),
+        'صوت → ' + Array.from(out).filter(x => /^[a-z]/.test(x)).slice(0, 5).join('، '));
+      await LESSONS.markApplied([les.id]);
+      LESSONS.list = LESSONS.list.filter(x => x.id !== les.id);
+      await DB.setKV('lessons', LESSONS.list);
+    } catch (e) { ok('يسجّل تصحيحك كدرس', false, e.message); }
+
+    /* 10h. تعرّفه بالملف */
+    const tp = TEACH.parse('هذا المجسم سيارة');
+    ok('يفهم «هذا سيارة»', tp.category === 'Vehicles', 'صنّفه ' + tp.category + ' · وصفك: ' + (tp.label || '—'));
+    ok('يميّز نوع الملف من كلامك', TEACH.kindOf('هذه الصورة خامة') === 'image' && TEACH.kindOf('هذا الصوت محرك') === 'audio' && TEACH.kindOf('هذا المجسم سيارة') === 'model',
+      'صورة/صوت/مجسم');
+
     /* 11. مولّدات الكود: كل واحد يُفحص ويُشغَّل فعليًا */
     const genIds = Object.keys(SNIPPET.gens);
     const genBad = [];
@@ -9016,7 +9421,7 @@ async function boot() {
   S.activeModel = await DB.getKV('activeModel', 'auto');
   applyLang();
 
-  await Promise.all([KB.init(), KG.init(), LIB.init(), DATA.init(), JOBS.init(), EVO.init(), FACTS.init(), WEB.init(), TONE.init()]);
+  await Promise.all([KB.init(), KG.init(), LIB.init(), DATA.init(), JOBS.init(), EVO.init(), FACTS.init(), WEB.init(), TONE.init(), LESSONS.init()]);
   await REG.init();
 
   bindEvents();
@@ -9047,7 +9452,7 @@ async function boot() {
       toast('تراكمت بيانات جديدة — بدأت دورة تطور تلقائية', 'ok', 4200);
     }
   }
-  window.KAD = { U, TOK, VEC, ML, REG, DATA, TRAIN, BENCH, EVO, KG, LIB, INGEST, CODE, GLB, OBJ, ZIP, AUDIO, IMG, PROJ, CONCEPT, CREATIVE, REASON, GEN2D, GEN3D, BUILDER, TESTER, FIXER, JOBS, CHAT, UI, BACKUP, SELFTEST, S, FACTS, STYLE, SNIPPET, SELF, SBX, GLV, KB, DB, ZIPW, AXML, DEX, APK, APPX, WEB, TONE, VARY, SMALLTALK, FROMYOU, SEED_INTENT, DOMAIN_LEX, MECH_DEFS, ARCHETYPES, AXES, CAPS, INTENT_TRIGGERS, triggerScores, INTENT_EMB };
+  window.KAD = { U, TOK, VEC, ML, REG, DATA, TRAIN, BENCH, EVO, KG, LIB, INGEST, CODE, GLB, OBJ, ZIP, AUDIO, IMG, PROJ, CONCEPT, CREATIVE, REASON, GEN2D, GEN3D, BUILDER, TESTER, FIXER, JOBS, CHAT, UI, BACKUP, SELFTEST, S, FACTS, STYLE, SNIPPET, SELF, SBX, GLV, KB, DB, ZIPW, AXML, DEX, APK, APPX, WEB, TONE, VARY, SMALLTALK, FROMYOU, LESSONS, TEACH, SEED_INTENT, DOMAIN_LEX, MECH_DEFS, ARCHETYPES, AXES, CAPS, INTENT_TRIGGERS, triggerScores, INTENT_EMB };
   window.triggerScores = triggerScores;
   console.log('%cKAD-KAD AI GAME LAB', 'color:#7c5cff;font-weight:800;font-size:15px', '— نواة محلية جاهزة. window.KAD متاح للفحص.');
 }
