@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>AI Evolution Game Lab</title>
+<meta name="description" content="مختبر يتعلم من مشاريعك ثم يصمم ويبني ويختبر ألعاباً جديدة.">
+<link rel="stylesheet" href="app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>">
+</head>
+<body>
+<div id="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">◧</span>
+      <div>
+        <strong>AI Evolution</strong>
+        <small>Game Lab</small>
+      </div>
+    </div>
+
+    <nav id="nav">
+      <button data-view="dashboard" class="active"><span class="ico">▣</span><span data-i18n="nav.dashboard">اللوحة</span></button>
+      <button data-view="projects"><span class="ico">▤</span><span data-i18n="nav.projects">المشاريع</span></button>
+      <button data-view="knowledge"><span class="ico">◈</span><span data-i18n="nav.knowledge">المعرفة</span></button>
+      <button data-view="graph"><span class="ico">⬡</span><span data-i18n="nav.graph">الرسم المعرفي</span></button>
+      <button data-view="games"><span class="ico">▶</span><span data-i18n="nav.games">الألعاب المولّدة</span></button>
+      <button data-view="versions"><span class="ico">⇪</span><span data-i18n="nav.versions">الإصدارات</span></button>
+      <button data-view="experiments"><span class="ico">⚗</span><span data-i18n="nav.experiments">التجارب</span></button>
+      <button data-view="lessons"><span class="ico">✎</span><span data-i18n="nav.lessons">الدروس</span></button>
+      <button data-view="queue"><span class="ico">≡</span><span data-i18n="nav.queue">المهام</span></button>
+      <button data-view="models"><span class="ico">⌬</span><span data-i18n="nav.models">النماذج</span></button>
+      <button data-view="research"><span class="ico">🔎</span><span data-i18n="nav.research">البحث</span></button>
+      <button data-view="training"><span class="ico">⛭</span><span data-i18n="nav.training">التدريب</span></button>
+      <button data-view="settings"><span class="ico">⚙</span><span data-i18n="nav.settings">الأذونات</span></button>
+    </nav>
+
+    <div class="sidebar-foot">
+      <button id="lang-toggle" class="btn ghost small">EN</button>
+      <span id="conn" class="pill offline" title="event stream">●</span>
+    </div>
+  </aside>
+
+  <main>
+    <header class="topbar">
+      <div>
+        <h1 id="view-title" data-i18n="nav.dashboard">اللوحة</h1>
+        <p id="view-sub" class="muted"></p>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn primary" id="btn-generate" data-i18n="action.generate">أنشئ لعبة جديدة</button>
+        <button class="btn" id="btn-learn" data-i18n="action.learn">ابدأ التعلّم</button>
+        <button class="btn ghost" id="btn-refresh" title="refresh">↻</button>
+      </div>
+    </header>
+
+    <section id="view" class="view"></section>
+
+    <footer class="logbar">
+      <div class="logbar-head">
+        <strong data-i18n="log.title">سجل الأحداث</strong>
+        <button class="btn ghost small" id="btn-log-toggle">▾</button>
+      </div>
+      <ul id="log"></ul>
+    </footer>
+  </main>
+</div>
+
+<dialog id="modal">
+  <form method="dialog">
+    <h2 id="modal-title"></h2>
+    <div id="modal-body"></div>
+    <menu>
+      <button class="btn ghost" value="cancel" data-i18n="action.close">إغلاق</button>
+      <button class="btn primary" id="modal-ok" value="ok" data-i18n="action.confirm">تأكيد</button>
+    </menu>
+  </form>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>

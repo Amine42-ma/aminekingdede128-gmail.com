@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Runner</title>
+<style>
+  :root{ --ink:#e8f0ff; --bg:#0b0e18; --accent:#57e389; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,sans-serif;display:flex;flex-direction:column;align-items:center}
+  #hud{display:flex;gap:16px;padding:8px}
+  canvas{border:1px solid #223;touch-action:none}
+  @media (max-width:520px){ canvas{width:100%} #hud{font-size:12px} }
+  @keyframes pop{from{transform:scale(.8)}to{transform:scale(1)}}
+  .badge{animation:pop .2s ease}
+</style>
+</head>
+<body>
+<div id="hud"><span class="badge" id="score">0</span><span id="best">best 0</span></div>
+<canvas id="c" width="480" height="270"></canvas>
+<script>
+const GRAVITY = 0.68, JUMP_FORCE = -11.5, GROUND_Y = 230, SPEED = 4.2;
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const keys = {};
+let player = { x: 60, y: GROUND_Y, vy: 0, w: 22, h: 30, onGround: true };
+let obstacles = [], score = 0, last = 0, running = true;
+
+addEventListener('keydown', e => { keys[e.code] = true; });
+addEventListener('keyup', e => { keys[e.code] = false; });
+canvas.addEventListener('touchstart', () => { keys.Space = true; });
+
+function spawnObstacle() {
+  obstacles.push({ x: canvas.width + 20, y: GROUND_Y, w: 16, h: 14 + Math.random() * 26 });
+}
+function collide(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y - a.h < b.y && a.y > b.y - b.h;
+}
+function updatePlayer(dt) {
+  if ((keys.Space || keys.ArrowUp) && player.onGround) { player.vy = JUMP_FORCE; player.onGround = false; }
+  player.vy += GRAVITY * dt;
+  player.y += player.vy * dt;
+  if (player.y >= GROUND_Y) { player.y = GROUND_Y; player.vy = 0; player.onGround = true; }
+}
+function updateWorld(dt) {
+  for (const o of obstacles) o.x -= SPEED * dt;
+  obstacles = obstacles.filter(o => o.x > -40);
+  if (Math.random() < 0.02 * dt) spawnObstacle();
+  for (const o of obstacles) if (collide(player, o)) gameOver();
+  score += dt * 0.1;
+}
+function gameOver() {
+  running = false;
+  localStorage.setItem('runner.best', JSON.stringify(Math.max(score, JSON.parse(localStorage.getItem('runner.best') || '0'))));
+}
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#57e389';
+  ctx.fillRect(player.x, player.y - player.h, player.w, player.h);
+  ctx.fillStyle = '#ff6b6b';
+  for (const o of obstacles) ctx.fillRect(o.x, o.y - o.h, o.w, o.h);
+  document.getElementById('score').textContent = Math.floor(score);
+}
+function loop(now) {
+  const dt = Math.min(3, (now - last) / 16.67); last = now;
+  if (running) { updatePlayer(dt); updateWorld(dt); render(); }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

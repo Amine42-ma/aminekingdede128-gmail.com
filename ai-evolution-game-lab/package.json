@@ -1,0 +1,27 @@
+{
+  "name": "ai-evolution-game-lab",
+  "version": "1.0.0",
+  "description": "Autonomous learning + code analysis + game generation lab. Imports your own projects, extracts abstract knowledge, and generates new, playable, measurably-tested games.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.17"
+  },
+  "bin": {
+    "lab": "bin/lab.js"
+  },
+  "scripts": {
+    "start": "node bin/lab.js serve",
+    "test": "node --test \"test/**/*.test.js\"",
+    "lab": "node bin/lab.js"
+  },
+  "dependencies": {},
+  "optionalDependencies": {},
+  "keywords": [
+    "agent",
+    "knowledge-extraction",
+    "game-generation",
+    "static-analysis",
+    "self-improvement"
+  ]
+}

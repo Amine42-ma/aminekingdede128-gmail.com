@@ -1,0 +1,8 @@
+:root{--hud:#0ff;--bg:#05070f;--danger:#f55}
+body{margin:0;background:var(--bg);overflow:hidden}
+#ui{position:absolute;inset:auto 0 16px 0;display:flex;justify-content:center;gap:12px}
+button{padding:10px 18px;border-radius:999px;border:0;background:var(--hud);cursor:pointer;transition:transform .15s}
+button:hover{transform:translateY(-2px)}
+@media(max-width:600px){#ui{inset:auto 0 8px 0}button{padding:14px 22px}}
+@keyframes pulse{0%{opacity:.4}100%{opacity:1}}
+.warn{animation:pulse .6s infinite alternate;color:var(--danger)}

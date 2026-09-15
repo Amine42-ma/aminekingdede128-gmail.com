@@ -1,0 +1,14 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Notes</title>
+<style>body{font-family:system-ui;display:grid;grid-template-columns:240px 1fr;gap:12px;margin:0}
+aside{background:#f4f4f7;padding:12px}main{padding:16px}
+.note{padding:8px;border-radius:8px;cursor:pointer}.note:hover{background:#e6e6ef}</style></head>
+<body><aside id="list"></aside><main><textarea id="editor" rows="20" cols="60"></textarea></main>
+<script>
+const KEY='notes.v1';
+let notes = JSON.parse(localStorage.getItem(KEY) || '[]');
+function saveNotes(){ localStorage.setItem(KEY, JSON.stringify(notes)); }
+function renderList(){ const el=document.getElementById('list'); el.innerHTML=''; notes.forEach((n,i)=>{ const d=document.createElement('div'); d.className='note'; d.textContent=n.title||'untitled'; d.addEventListener('click',()=>openNote(i)); el.appendChild(d); }); }
+function openNote(i){ document.getElementById('editor').value = notes[i].body; }
+document.getElementById('editor').addEventListener('input', e => { if(notes[0]) { notes[0].body = e.target.value; saveNotes(); } });
+renderList();
+</script></body></html>
