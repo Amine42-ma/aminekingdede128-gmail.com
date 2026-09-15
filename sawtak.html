@@ -1,0 +1,2024 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>صوتك · دبلجة الأفلام بالذكاء الاصطناعي</title>
+<meta name="description" content="حوّل صوت أي فيلم من الفرنسية أو الإنجليزية إلى أي لغة تريدها — دبلجة صوتية حقيقية وليست ترجمة نصية.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   صوتك — Sawtak · Neural Film Dubbing Studio
+   لوحة الألوان والأساسيات
+   ============================================================ */
+:root{
+  --bg:#05060c;
+  --bg-2:#0a0c16;
+  --ink:#eef1ff;
+  --ink-soft:#a6adcc;
+  --ink-dim:#6b7396;
+  --line:rgba(255,255,255,.09);
+  --line-strong:rgba(255,255,255,.16);
+  --glass:rgba(255,255,255,.045);
+  --glass-2:rgba(255,255,255,.07);
+  --violet:#8b5cf6;
+  --indigo:#6366f1;
+  --cyan:#22d3ee;
+  --teal:#2dd4bf;
+  --amber:#fbbf24;
+  --rose:#fb7185;
+  --green:#34d399;
+  --grad:linear-gradient(120deg,var(--violet),var(--indigo) 35%,var(--cyan) 70%,var(--teal));
+  --grad-warm:linear-gradient(120deg,var(--amber),var(--rose));
+  --r-lg:22px; --r-md:14px; --r-sm:10px;
+  --shadow:0 24px 70px -20px rgba(0,0,0,.85);
+  --glow:0 0 0 1px rgba(139,92,246,.25), 0 18px 60px -18px rgba(99,102,241,.55);
+  --font-ar:'Tajawal',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-lat:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --dur:.42s;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:var(--font-ar);font-size:15px;line-height:1.65;
+  overflow-x:hidden;text-rendering:optimizeLegibility;
+  -webkit-font-smoothing:antialiased;
+}
+html[dir=ltr] body{font-family:var(--font-lat)}
+h1,h2,h3,h4{margin:0;font-weight:700;letter-spacing:-.01em;line-height:1.25}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--cyan);text-decoration:none}
+::selection{background:rgba(139,92,246,.4)}
+
+/* ===== الخلفية الحية ===== */
+.scene{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.orb{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;mix-blend-mode:screen;will-change:transform}
+.orb.a{width:56vw;height:56vw;background:radial-gradient(circle at 30% 30%,#7c3aed,transparent 62%);top:-18vw;inset-inline-start:-12vw;animation:drift1 26s var(--ease) infinite alternate}
+.orb.b{width:46vw;height:46vw;background:radial-gradient(circle at 60% 40%,#06b6d4,transparent 62%);bottom:-16vw;inset-inline-end:-10vw;animation:drift2 32s var(--ease) infinite alternate}
+.orb.c{width:34vw;height:34vw;background:radial-gradient(circle at 50% 50%,#f59e0b,transparent 60%);top:38%;inset-inline-start:44%;opacity:.28;animation:drift3 38s var(--ease) infinite alternate}
+@keyframes drift1{to{transform:translate3d(9vw,7vh,0) scale(1.16)}}
+@keyframes drift2{to{transform:translate3d(-8vw,-9vh,0) scale(1.12)}}
+@keyframes drift3{to{transform:translate3d(-11vw,10vh,0) scale(.86)}}
+.grid-veil{position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.028) 1px,transparent 1px);
+  background-size:64px 64px;
+  -webkit-mask-image:radial-gradient(ellipse 85% 70% at 50% 20%,#000,transparent 78%);
+          mask-image:radial-gradient(ellipse 85% 70% at 50% 20%,#000,transparent 78%);
+}
+.grain{position:absolute;inset:-50%;opacity:.045;animation:grain 7s steps(8) infinite;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+@keyframes grain{0%{transform:translate(0,0)}20%{transform:translate(-6%,4%)}40%{transform:translate(4%,-6%)}60%{transform:translate(-4%,-4%)}80%{transform:translate(6%,5%)}100%{transform:translate(0,0)}}
+.vignette{position:absolute;inset:0;background:radial-gradient(ellipse 120% 90% at 50% 40%,transparent 45%,rgba(0,0,0,.72))}
+
+/* ===== الهيكل ===== */
+.wrap{position:relative;z-index:1;max-width:1420px;margin:0 auto;padding:22px 20px 90px}
+header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:26px}
+.brand{display:flex;align-items:center;gap:13px;min-width:0}
+.mark{width:46px;height:46px;border-radius:15px;background:var(--grad);display:grid;place-items:center;box-shadow:var(--glow);position:relative;overflow:hidden;flex:none}
+.mark::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.55),transparent 70%);transform:translateX(-120%);animation:sheen 4.5s var(--ease) infinite}
+@keyframes sheen{0%,72%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
+.mark svg{width:25px;height:25px;position:relative;z-index:1}
+.brand h1{font-size:20px}
+.brand .sub{font-size:12.5px;color:var(--ink-dim);letter-spacing:.02em}
+.spacer{flex:1 1 auto}
+.top-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:var(--glass);font-size:12.5px;color:var(--ink-soft);cursor:pointer;transition:all var(--dur) var(--ease)}
+.pill:hover{border-color:var(--line-strong);background:var(--glass-2);color:var(--ink);transform:translateY(-1px)}
+.pill.on{border-color:rgba(139,92,246,.5);color:#fff;background:rgba(139,92,246,.16)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ink-dim);flex:none}
+.dot.live{background:var(--green);box-shadow:0 0 0 0 rgba(52,211,153,.7);animation:ping 1.9s infinite}
+@keyframes ping{70%{box-shadow:0 0 0 9px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+
+.layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(340px,.95fr);gap:20px;align-items:start}
+@media (max-width:1080px){.layout{grid-template-columns:1fr}}
+
+.card{background:var(--glass);border:1px solid var(--line);border-radius:var(--r-lg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:var(--shadow);overflow:hidden}
+.card + .card{margin-top:18px}
+.card-h{display:flex;align-items:center;gap:11px;padding:15px 18px;border-bottom:1px solid var(--line)}
+.card-h h2{font-size:15px}
+.card-h .ico{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:rgba(255,255,255,.06);border:1px solid var(--line);flex:none}
+.card-h .ico svg{width:16px;height:16px;stroke:var(--cyan)}
+.card-b{padding:18px}
+.hint{font-size:12.5px;color:var(--ink-dim);line-height:1.7}
+
+/* ===== منطقة الفيديو ===== */
+.stage{position:relative;background:#000;border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow)}
+.stage-inner{position:relative;aspect-ratio:16/9;background:radial-gradient(ellipse at 50% 50%,#12142a,#04050b)}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;display:block}
+.drop{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:26px;gap:14px;transition:all var(--dur) var(--ease);z-index:3}
+.drop.hide{opacity:0;pointer-events:none;transform:scale(.97)}
+.drop-in{display:flex;flex-direction:column;align-items:center;gap:13px;max-width:460px}
+.drop .ring{width:86px;height:86px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.045);border:1px dashed rgba(255,255,255,.25);position:relative}
+.drop .ring::before{content:"";position:absolute;inset:-9px;border-radius:50%;border:1px solid rgba(139,92,246,.28);animation:pulse 3.4s var(--ease) infinite}
+@keyframes pulse{0%{transform:scale(.9);opacity:.9}70%{transform:scale(1.22);opacity:0}100%{opacity:0}}
+.drop .ring svg{width:33px;height:33px;stroke:var(--cyan)}
+.drop h3{font-size:19px}
+.drop p{font-size:13px;color:var(--ink-dim)}
+.stage.dragover .drop .ring{border-color:var(--cyan);background:rgba(34,211,238,.12);transform:scale(1.06)}
+.stage.dragover{border-color:rgba(34,211,238,.6)}
+
+/* ترجمة/دبلجة على الشاشة */
+.sub-layer{position:absolute;inset-inline:0;bottom:0;padding:0 5% 5.5%;display:flex;flex-direction:column;align-items:center;gap:7px;z-index:2;pointer-events:none}
+.sub-line{max-width:min(94%,900px);text-align:center;padding:9px 18px;border-radius:12px;
+  background:rgba(4,5,12,.62);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1);
+  font-size:clamp(15px,2.05vw,25px);font-weight:500;line-height:1.5;
+  text-shadow:0 2px 14px rgba(0,0,0,.9);
+  opacity:0;transform:translateY(12px) scale(.985);transition:all .3s var(--ease)}
+.sub-line.show{opacity:1;transform:none}
+.sub-line.src{font-size:clamp(11px,1.35vw,15px);font-weight:400;color:var(--ink-dim);background:rgba(4,5,12,.42);padding:5px 13px}
+.sub-line .word{opacity:.45;transition:opacity .22s linear}
+.sub-line .word.lit{opacity:1;color:#fff;text-shadow:0 0 18px rgba(139,92,246,.7)}
+
+/* شريط الطيف */
+.viz{position:absolute;inset-inline:0;bottom:0;height:74px;z-index:1;opacity:.85;pointer-events:none;
+  -webkit-mask-image:linear-gradient(to top,#000,transparent);mask-image:linear-gradient(to top,#000,transparent)}
+.speak-halo{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:0;transition:opacity .45s var(--ease);
+  background:radial-gradient(ellipse 78% 46% at 50% 100%,rgba(139,92,246,.34),transparent 68%)}
+.speak-halo.on{opacity:1}
+
+/* ===== أدوات التحكم بالمشغل ===== */
+.transport{display:flex;align-items:center;gap:11px;padding:13px 15px;border-top:1px solid var(--line);background:rgba(4,5,12,.55);flex-wrap:wrap}
+.tbtn{width:42px;height:42px;border-radius:13px;border:1px solid var(--line);background:var(--glass);display:grid;place-items:center;cursor:pointer;transition:all var(--dur) var(--ease);flex:none}
+.tbtn:hover:not(:disabled){background:var(--glass-2);border-color:var(--line-strong);transform:translateY(-2px)}
+.tbtn:disabled{opacity:.35;cursor:not-allowed}
+.tbtn svg{width:18px;height:18px;stroke:var(--ink);fill:none}
+.tbtn.primary{background:var(--grad);border-color:transparent;box-shadow:var(--glow);width:50px;height:50px}
+.tbtn.primary svg{stroke:#fff;width:21px;height:21px}
+.seek{flex:1 1 200px;min-width:130px;display:flex;align-items:center;gap:10px}
+.time{font-size:12px;color:var(--ink-dim);font-variant-numeric:tabular-nums;font-family:var(--font-lat);flex:none}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:99px;background:rgba(255,255,255,.13);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(139,92,246,.35);cursor:pointer;transition:transform .2s}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.18)}
+input[type=range]::-moz-range-thumb{width:15px;height:15px;border:0;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(139,92,246,.35)}
+
+/* ===== النموذج والحقول ===== */
+.field{display:flex;flex-direction:column;gap:7px;margin-bottom:15px}
+.field:last-child{margin-bottom:0}
+label.lbl{font-size:12.5px;color:var(--ink-soft);font-weight:500;display:flex;align-items:center;gap:7px}
+label.lbl .tag{font-size:10.5px;padding:1.5px 7px;border-radius:99px;background:rgba(139,92,246,.18);color:#c4b5fd;border:1px solid rgba(139,92,246,.3);font-weight:500}
+select,input[type=text],input[type=url],input[type=password],textarea{
+  width:100%;padding:11px 13px;border-radius:var(--r-md);border:1px solid var(--line);
+  background:rgba(255,255,255,.04);color:var(--ink);transition:all var(--dur) var(--ease);font-size:14px}
+select:focus,input:focus,textarea:focus{outline:none;border-color:rgba(139,92,246,.65);background:rgba(139,92,246,.08);box-shadow:0 0 0 4px rgba(139,92,246,.13)}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a6adcc' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:left 12px center;background-size:15px;padding-left:36px}
+html[dir=ltr] select{background-position:right 12px center;padding-left:13px;padding-right:36px}
+select option{background:#0d1020;color:var(--ink)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:460px){.row2{grid-template-columns:1fr}}
+
+.swap-row{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end}
+.swap-btn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--glass);display:grid;place-items:center;cursor:pointer;margin-bottom:1px;transition:all var(--dur) var(--ease)}
+.swap-btn:hover{background:var(--glass-2);transform:rotate(180deg)}
+.swap-btn svg{width:16px;height:16px;stroke:var(--cyan)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:12px 18px;border-radius:var(--r-md);
+  border:1px solid var(--line);background:var(--glass);cursor:pointer;font-weight:500;font-size:14px;
+  transition:all var(--dur) var(--ease);position:relative;overflow:hidden}
+.btn:hover:not(:disabled){background:var(--glass-2);border-color:var(--line-strong);transform:translateY(-2px)}
+.btn:active:not(:disabled){transform:translateY(0)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn svg{width:17px;height:17px;stroke:currentColor;fill:none;flex:none}
+.btn.cta{background:var(--grad);border-color:transparent;color:#fff;font-weight:700;box-shadow:var(--glow);width:100%;padding:15px 18px;font-size:15px}
+.btn.cta::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.35),transparent 65%);transform:translateX(-130%)}
+.btn.cta:hover:not(:disabled)::after{transform:translateX(130%);transition:transform .85s var(--ease)}
+.btn.ghost{background:transparent}
+.btn.sm{padding:8px 13px;font-size:12.5px;border-radius:var(--r-sm)}
+.btn-row{display:flex;gap:9px;flex-wrap:wrap}
+
+/* مفتاح تبديل */
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;border-radius:var(--r-md);border:1px solid var(--line);background:rgba(255,255,255,.03);cursor:pointer;transition:all var(--dur) var(--ease);margin-bottom:9px}
+.toggle:hover{border-color:var(--line-strong);background:rgba(255,255,255,.055)}
+.toggle .txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.toggle .txt b{font-size:13.5px;font-weight:500}
+.toggle .txt span{font-size:11.5px;color:var(--ink-dim);line-height:1.5}
+.sw{width:42px;height:24px;border-radius:99px;background:rgba(255,255,255,.14);position:relative;flex:none;transition:background var(--dur) var(--ease)}
+.sw::after{content:"";position:absolute;top:3px;inset-inline-start:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform var(--dur) var(--ease)}
+.toggle.on .sw{background:var(--grad)}
+html[dir=rtl] .toggle.on .sw::after{transform:translateX(-18px)}
+html[dir=ltr] .toggle.on .sw::after{transform:translateX(18px)}
+
+/* منزلقات */
+.slider-row{display:flex;flex-direction:column;gap:6px;margin-bottom:13px}
+.slider-row .top{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-soft)}
+.slider-row .top b{color:var(--cyan);font-family:var(--font-lat);font-weight:500}
+
+/* ===== خطوات المعالجة ===== */
+.steps{display:flex;flex-direction:column;gap:2px}
+.step{display:flex;align-items:flex-start;gap:12px;padding:11px 5px;position:relative}
+.step .bullet{width:29px;height:29px;border-radius:50%;flex:none;display:grid;place-items:center;border:1px solid var(--line);background:rgba(255,255,255,.04);font-size:12px;color:var(--ink-dim);font-family:var(--font-lat);transition:all var(--dur) var(--ease);position:relative;z-index:1}
+.step::before{content:"";position:absolute;top:40px;inset-inline-start:14px;width:1px;height:calc(100% - 29px);background:var(--line)}
+.step:last-child::before{display:none}
+html[dir=rtl] .step::before{inset-inline-start:auto;inset-inline-end:14px}
+.step .body{flex:1;min-width:0}
+.step .body b{display:block;font-size:13.5px;font-weight:500;transition:color var(--dur) var(--ease)}
+.step .body span{font-size:11.5px;color:var(--ink-dim);display:block;line-height:1.55;word-break:break-word}
+.step.active .bullet{border-color:var(--violet);background:rgba(139,92,246,.2);color:#fff;box-shadow:0 0 0 5px rgba(139,92,246,.12)}
+.step.active .bullet::after{content:"";position:absolute;inset:-1px;border-radius:50%;border:1.5px solid transparent;border-top-color:var(--cyan);animation:spin .85s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.step.done .bullet{border-color:rgba(52,211,153,.55);background:rgba(52,211,153,.18);color:var(--green)}
+.step.err .bullet{border-color:rgba(251,113,133,.6);background:rgba(251,113,133,.18);color:var(--rose)}
+.step.active .body b{color:#fff}
+.step.done .body b{color:var(--green)}
+.bar{height:4px;border-radius:99px;background:rgba(255,255,255,.09);overflow:hidden;margin-top:7px}
+.bar i{display:block;height:100%;width:0;border-radius:99px;background:var(--grad);transition:width .3s var(--ease)}
+.bar.idle i{width:35%;background:linear-gradient(90deg,transparent,var(--cyan),transparent);animation:slide 1.25s linear infinite}
+@keyframes slide{from{transform:translateX(-100%)}to{transform:translateX(300%)}}
+
+/* ===== النص/السطور ===== */
+.lines{max-height:430px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:4px 2px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}
+.lines::-webkit-scrollbar{width:7px}
+.lines::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16);border-radius:99px}
+.line{padding:10px 12px;border-radius:var(--r-md);border:1px solid var(--line);background:rgba(255,255,255,.028);cursor:pointer;transition:all .28s var(--ease);position:relative}
+.line:hover{background:rgba(255,255,255,.06);border-color:var(--line-strong)}
+.line.cur{border-color:rgba(139,92,246,.6);background:rgba(139,92,246,.12);box-shadow:0 0 0 4px rgba(139,92,246,.08)}
+.line .meta{display:flex;align-items:center;gap:8px;font-size:10.5px;color:var(--ink-dim);font-family:var(--font-lat);margin-bottom:5px}
+.line .spk{padding:1px 7px;border-radius:99px;font-size:10px;border:1px solid var(--line)}
+.line .spk.s0{background:rgba(139,92,246,.18);color:#c4b5fd;border-color:rgba(139,92,246,.3)}
+.line .spk.s1{background:rgba(34,211,238,.16);color:#67e8f9;border-color:rgba(34,211,238,.3)}
+.line .spk.s2{background:rgba(251,191,36,.16);color:#fcd34d;border-color:rgba(251,191,36,.3)}
+.line .spk.s3{background:rgba(52,211,153,.16);color:#6ee7b7;border-color:rgba(52,211,153,.3)}
+.line .dst{font-size:14px;font-weight:500;line-height:1.6}
+.line .src{font-size:11.5px;color:var(--ink-dim);margin-top:4px;line-height:1.55}
+.line[contenteditable]:focus{outline:none}
+.empty{text-align:center;padding:34px 18px;color:var(--ink-dim);font-size:13px}
+.empty svg{width:36px;height:36px;stroke:var(--ink-dim);opacity:.5;margin-bottom:10px}
+
+/* ===== تبويبات ===== */
+.tabs{display:flex;gap:5px;padding:5px;background:rgba(255,255,255,.035);border-radius:var(--r-md);border:1px solid var(--line);margin-bottom:16px}
+.tab{flex:1;padding:9px 8px;border-radius:var(--r-sm);border:0;background:transparent;color:var(--ink-dim);cursor:pointer;font-size:12.5px;font-weight:500;transition:all var(--dur) var(--ease);text-align:center}
+.tab:hover{color:var(--ink)}
+.tab.on{background:rgba(255,255,255,.09);color:#fff;box-shadow:0 3px 14px rgba(0,0,0,.35)}
+.pane{display:none;animation:fade .35s var(--ease)}
+.pane.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+
+/* ===== إشعارات ===== */
+.toasts{position:fixed;bottom:20px;inset-inline-start:20px;z-index:90;display:flex;flex-direction:column;gap:9px;max-width:min(390px,calc(100vw - 40px))}
+.toast{display:flex;align-items:flex-start;gap:11px;padding:12px 15px;border-radius:var(--r-md);background:rgba(12,14,26,.94);border:1px solid var(--line-strong);backdrop-filter:blur(16px);box-shadow:var(--shadow);animation:pop .42s var(--ease);font-size:13px;line-height:1.6}
+@keyframes pop{from{opacity:0;transform:translateY(16px) scale(.95)}to{opacity:1;transform:none}}
+.toast.out{animation:popout .3s var(--ease) forwards}
+@keyframes popout{to{opacity:0;transform:translateY(10px) scale(.96)}}
+.toast .ic{width:19px;height:19px;flex:none;margin-top:1px}
+.toast.ok .ic{stroke:var(--green)} .toast.err .ic{stroke:var(--rose)} .toast.info .ic{stroke:var(--cyan)}
+
+/* ===== شارة/إحصاء ===== */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:9px;margin-top:14px}
+.stat{padding:11px;border-radius:var(--r-md);border:1px solid var(--line);background:rgba(255,255,255,.03);text-align:center}
+.stat b{display:block;font-size:19px;font-family:var(--font-lat);font-weight:600;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.3}
+.stat span{font-size:10.5px;color:var(--ink-dim)}
+
+.notice{display:flex;gap:10px;padding:12px 14px;border-radius:var(--r-md);font-size:12.5px;line-height:1.65;border:1px solid;margin-bottom:14px}
+.notice svg{width:17px;height:17px;flex:none;margin-top:2px}
+.notice.warn{background:rgba(251,191,36,.09);border-color:rgba(251,191,36,.28);color:#fde68a}
+.notice.warn svg{stroke:var(--amber)}
+.notice.info{background:rgba(34,211,238,.08);border-color:rgba(34,211,238,.25);color:#a5f3fc}
+.notice.info svg{stroke:var(--cyan)}
+
+footer{margin-top:34px;text-align:center;font-size:12px;color:var(--ink-dim);line-height:1.9}
+kbd{font-family:var(--font-lat);font-size:11px;padding:2px 6px;border-radius:6px;border:1px solid var(--line-strong);background:rgba(255,255,255,.06)}
+[hidden]{display:none!important}
+.hidden{display:none!important}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="scene" aria-hidden="true">
+  <div class="orb a"></div><div class="orb b"></div><div class="orb c"></div>
+  <div class="grid-veil"></div><div class="grain"></div><div class="vignette"></div>
+</div>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/>
+        </svg>
+      </div>
+      <div>
+        <h1 data-i18n="appName">صوتك — استوديو الدبلجة الذكي</h1>
+        <div class="sub" data-i18n="appTag">دبلجة صوتية حقيقية للأفلام · ليست ترجمة نصية</div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="top-actions">
+      <button class="pill" id="engineBadge"><span class="dot" id="engineDot"></span><span id="engineTxt">—</span></button>
+      <button class="pill" id="langUi">EN</button>
+      <button class="pill" id="helpBtn" data-i18n="help">دليل الاستخدام</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- ================= العمود الأيسر: المسرح ================= -->
+    <div>
+      <div class="stage" id="stage">
+        <div class="stage-inner">
+          <video id="video" playsinline preload="metadata"></video>
+          <canvas class="viz" id="viz"></canvas>
+          <div class="speak-halo" id="halo"></div>
+          <div class="sub-layer">
+            <div class="sub-line src" id="subSrc"></div>
+            <div class="sub-line" id="subDst"></div>
+          </div>
+          <div class="drop" id="drop">
+            <div class="drop-in">
+              <div class="ring">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M3 15v3a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-3"/>
+                </svg>
+              </div>
+              <h3 data-i18n="dropTitle">اسحب الفيلم إلى هنا</h3>
+              <p data-i18n="dropSub">أو اختر ملفاً من جهازك · MP4 · MKV · MOV · WEBM · MP3 · WAV — كل شيء يعمل داخل متصفحك</p>
+              <div class="btn-row" style="justify-content:center">
+                <button class="btn" id="pickBtn">
+                  <svg viewBox="0 0 24 24"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7L11 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span data-i18n="pickFile">اختيار ملف</span>
+                </button>
+                <button class="btn ghost" id="urlBtn">
+                  <svg viewBox="0 0 24 24" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+                  <span data-i18n="fromUrl">من رابط مباشر</span>
+                </button>
+              </div>
+              <input type="file" id="fileInput" accept="video/*,audio/*,.mkv,.mp4,.mov,.webm,.m4v,.avi,.mp3,.wav,.m4a,.aac,.ogg,.flac" hidden>
+            </div>
+          </div>
+        </div>
+
+        <div class="transport">
+          <button class="tbtn primary" id="playBtn" disabled title="Space">
+            <svg id="playIco" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 4.5v15l13-7.5z"/></svg>
+          </button>
+          <button class="tbtn" id="backBtn" disabled title="←10s">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M11 17l-5-5 5-5"/><path d="M18 17l-5-5 5-5"/></svg>
+          </button>
+          <button class="tbtn" id="fwdBtn" disabled title="10s→">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M13 7l5 5-5 5"/><path d="M6 7l5 5-5 5"/></svg>
+          </button>
+          <div class="seek">
+            <span class="time" id="tCur">0:00</span>
+            <input type="range" id="seek" min="0" max="1000" value="0" step="1" disabled>
+            <span class="time" id="tDur">0:00</span>
+          </div>
+          <button class="tbtn" id="dubBtn" disabled title="Dub on/off">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+          </button>
+          <button class="tbtn" id="fsBtn" disabled title="Fullscreen">
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3m13 5h3a2 2 0 0 0 2-2v-3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- سطور الحوار -->
+      <div class="card">
+        <div class="card-h">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h13"/></svg></div>
+          <h2 data-i18n="scriptTitle">سيناريو الدبلجة</h2>
+          <div class="spacer"></div>
+          <button class="btn sm ghost" id="srtBtn" disabled>
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            SRT
+          </button>
+          <button class="btn sm ghost" id="wavBtn" disabled>
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            WAV
+          </button>
+        </div>
+        <div class="card-b">
+          <div class="lines" id="lines">
+            <div class="empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <div data-i18n="emptyScript">لا يوجد حوار بعد. حمّل الفيلم ثم اضغط «ابدأ الدبلجة».</div>
+            </div>
+          </div>
+          <div class="stats" id="stats" hidden>
+            <div class="stat"><b id="stSeg">0</b><span data-i18n="stSeg">جملة</span></div>
+            <div class="stat"><b id="stWords">0</b><span data-i18n="stWords">كلمة</span></div>
+            <div class="stat"><b id="stSpk">0</b><span data-i18n="stSpk">صوت</span></div>
+            <div class="stat"><b id="stDur">0:00</b><span data-i18n="stDur">المدة</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= العمود الأيمن: اللوحة ================= -->
+    <div>
+      <div class="card">
+        <div class="card-h">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14M5 8l3-3M5 8l3 3"/><path d="M19 16H5m14 0-3-3m3 3-3 3"/></svg></div>
+          <h2 data-i18n="langTitle">اللغات</h2>
+        </div>
+        <div class="card-b">
+          <div class="swap-row">
+            <div class="field" style="margin:0">
+              <label class="lbl" for="srcLang" data-i18n="srcLang">لغة الفيلم</label>
+              <select id="srcLang"></select>
+            </div>
+            <button class="swap-btn" id="swapBtn" title="تبديل">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3l4 4-4 4"/><path d="M20 7H4"/><path d="M8 21l-4-4 4-4"/><path d="M4 17h16"/></svg>
+            </button>
+            <div class="field" style="margin:0">
+              <label class="lbl" for="dstLang" data-i18n="dstLang">اللغة المطلوبة</label>
+              <select id="dstLang"></select>
+            </div>
+          </div>
+          <div class="hint" style="margin-top:12px" data-i18n="langHint">اختر «كشف تلقائي» ليتعرّف النظام على لغة الفيلم بنفسه (فرنسي، إنجليزي، إسباني…) ثم يدبلجها إلى اللغة التي تختارها.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></div>
+          <h2 data-i18n="voiceTitle">الصوت والأداء</h2>
+        </div>
+        <div class="card-b">
+          <div class="tabs">
+            <button class="tab on" data-pane="pVoice" data-i18n="tabVoice">الأصوات</button>
+            <button class="tab" data-pane="pMix" data-i18n="tabMix">المزج</button>
+            <button class="tab" data-pane="pEngine" data-i18n="tabEngine">المحرّك</button>
+          </div>
+
+          <!-- الأصوات -->
+          <div class="pane on" id="pVoice">
+            <div class="field">
+              <label class="lbl" for="ttsEngine" data-i18n="ttsEngine">محرّك النطق</label>
+              <select id="ttsEngine">
+                <option value="browser" data-i18n="ttsBrowser">أصوات المتصفح — مجاني وبدون إنترنت</option>
+                <option value="eleven">ElevenLabs — أصوات بشرية واقعية (مفتاح API)</option>
+                <option value="openai" data-i18n="ttsOpenai">OpenAI متوافق — أصوات عصبية (مفتاح API)</option>
+              </select>
+            </div>
+
+            <div id="browserVoiceBox">
+              <div class="field">
+                <label class="lbl" for="voiceA"><span data-i18n="voiceA">صوت المتحدث الأول</span><span class="tag">1</span></label>
+                <select id="voiceA"></select>
+              </div>
+              <div class="field">
+                <label class="lbl" for="voiceB"><span data-i18n="voiceB">صوت المتحدث الثاني</span><span class="tag">2</span></label>
+                <select id="voiceB"></select>
+              </div>
+            </div>
+
+            <div id="apiVoiceBox" class="hidden">
+              <div class="field">
+                <label class="lbl" for="apiKey" data-i18n="apiKey">مفتاح API</label>
+                <input type="password" id="apiKey" placeholder="sk-... / xi-..." autocomplete="off">
+              </div>
+              <div class="row2">
+                <div class="field">
+                  <label class="lbl" for="apiVoiceA" data-i18n="voiceA">صوت المتحدث الأول</label>
+                  <input type="text" id="apiVoiceA" placeholder="Rachel / alloy">
+                </div>
+                <div class="field">
+                  <label class="lbl" for="apiVoiceB" data-i18n="voiceB">صوت المتحدث الثاني</label>
+                  <input type="text" id="apiVoiceB" placeholder="Adam / onyx">
+                </div>
+              </div>
+              <div class="field" id="apiBaseBox">
+                <label class="lbl" for="apiBase" data-i18n="apiBase">عنوان الخدمة</label>
+                <input type="url" id="apiBase" placeholder="https://api.openai.com/v1">
+              </div>
+              <div class="notice info">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+                <span data-i18n="apiNote">المفتاح يُحفظ في متصفحك فقط ولا يُرسل إلى أي جهة غير الخدمة التي اخترتها. هذا الوضع يمنح أصواتاً بشرية بالكامل ويسمح بتصدير الفيلم المدبلج كملف صوتي.</span>
+              </div>
+            </div>
+
+            <div class="toggle on" id="tgMulti">
+              <div class="txt"><b data-i18n="tgMultiT">تعدّد الأصوات تلقائياً</b><span data-i18n="tgMultiS">يبدّل الصوت عند تغيّر المتحدث ليبدو الحوار حقيقياً</span></div>
+              <div class="sw"></div>
+            </div>
+            <div class="toggle on" id="tgHuman">
+              <div class="txt"><b data-i18n="tgHumanT">أداء بشري</b><span data-i18n="tgHumanS">تنويع في النبرة والسرعة ووقفات عند علامات الترقيم بدل النبرة الآلية</span></div>
+              <div class="sw"></div>
+            </div>
+            <div class="toggle on" id="tgFit">
+              <div class="txt"><b data-i18n="tgFitT">مطابقة زمن المشهد</b><span data-i18n="tgFitS">يضبط سرعة الجملة لتنتهي مع حركة شفاه الممثل</span></div>
+              <div class="sw"></div>
+            </div>
+
+            <div class="slider-row">
+              <div class="top"><span data-i18n="rate">سرعة الكلام</span><b id="rateV">1.00×</b></div>
+              <input type="range" id="rate" min="0.6" max="1.6" step="0.02" value="1">
+            </div>
+            <div class="slider-row">
+              <div class="top"><span data-i18n="pitch">طبقة الصوت</span><b id="pitchV">1.00</b></div>
+              <input type="range" id="pitch" min="0.5" max="1.6" step="0.02" value="1">
+            </div>
+            <button class="btn sm" id="testVoice" style="width:100%">
+              <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a9 9 0 0 1 0 14"/></svg>
+              <span data-i18n="testVoice">تجربة الصوت</span>
+            </button>
+          </div>
+
+          <!-- المزج -->
+          <div class="pane" id="pMix">
+            <div class="slider-row">
+              <div class="top"><span data-i18n="duck">صوت الفيلم الأصلي أثناء الحوار</span><b id="duckV">12%</b></div>
+              <input type="range" id="duck" min="0" max="60" step="1" value="12">
+            </div>
+            <div class="slider-row">
+              <div class="top"><span data-i18n="bg">صوت الفيلم في الصمت (موسيقى ومؤثرات)</span><b id="bgV">100%</b></div>
+              <input type="range" id="bg" min="0" max="100" step="1" value="100">
+            </div>
+            <div class="slider-row">
+              <div class="top"><span data-i18n="dubVol">صوت الدبلجة</span><b id="dubVolV">100%</b></div>
+              <input type="range" id="dubVol" min="0" max="150" step="1" value="100">
+            </div>
+            <div class="slider-row">
+              <div class="top"><span data-i18n="offset">مزامنة الدبلجة</span><b id="offsetV">0.00s</b></div>
+              <input type="range" id="offset" min="-1.5" max="1.5" step="0.05" value="0">
+            </div>
+            <div class="toggle on" id="tgSubs">
+              <div class="txt"><b data-i18n="tgSubsT">إظهار الحوار على الشاشة</b><span data-i18n="tgSubsS">النص المدبلج أسفل الصورة</span></div>
+              <div class="sw"></div>
+            </div>
+            <div class="toggle" id="tgSubsSrc">
+              <div class="txt"><b data-i18n="tgSubsSrcT">إظهار النص الأصلي أيضاً</b><span data-i18n="tgSubsSrcS">سطر صغير باللغة الأصلية فوق الترجمة</span></div>
+              <div class="sw"></div>
+            </div>
+            <div class="toggle on" id="tgViz">
+              <div class="txt"><b data-i18n="tgVizT">المؤثرات البصرية</b><span data-i18n="tgVizS">موجات صوتية وهالة متوهّجة أثناء الكلام</span></div>
+              <div class="sw"></div>
+            </div>
+          </div>
+
+          <!-- المحرّك -->
+          <div class="pane" id="pEngine">
+            <div class="field">
+              <label class="lbl" for="asrModel" data-i18n="asrModel">دقة التعرّف على الكلام</label>
+              <select id="asrModel">
+                <option value="Xenova/whisper-tiny" data-i18n="asrTiny">سريع جداً — دقة أقل (~40 ميغا)</option>
+                <option value="Xenova/whisper-base" selected data-i18n="asrBase">متوازن — موصى به (~80 ميغا)</option>
+                <option value="Xenova/whisper-small" data-i18n="asrSmall">دقيق — أبطأ (~250 ميغا)</option>
+                <option value="onnx-community/whisper-large-v3-turbo" data-i18n="asrTurbo">احترافي — يحتاج WebGPU (~800 ميغا)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="lbl" for="mtEngine" data-i18n="mtEngine">محرّك الترجمة</label>
+              <select id="mtEngine">
+                <option value="local" data-i18n="mtLocal">محلي داخل المتصفح — NLLB-200 (بدون إنترنت بعد التحميل)</option>
+                <option value="api" data-i18n="mtApi">نموذج لغوي عبر API — أدق في التعابير العامية</option>
+              </select>
+            </div>
+            <div class="field hidden" id="mtApiBox">
+              <label class="lbl" for="mtModel" data-i18n="mtModel">اسم النموذج</label>
+              <input type="text" id="mtModel" placeholder="gpt-4o-mini">
+              <div class="hint" data-i18n="mtApiHint">يستخدم نفس المفتاح والعنوان المذكورين في تبويب «الأصوات» (وضع OpenAI المتوافق).</div>
+            </div>
+            <div class="toggle on" id="tgGpu">
+              <div class="txt"><b data-i18n="tgGpuT">تسريع WebGPU</b><span data-i18n="tgGpuS">أسرع بعدة أضعاف على المتصفحات الحديثة</span></div>
+              <div class="sw"></div>
+            </div>
+            <div class="notice warn">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+              <span data-i18n="modelNote">في أول تشغيل يُنزَّل نموذج الذكاء الاصطناعي مرة واحدة ثم يُحفظ في المتصفح. المعالجة كلها تتم على جهازك.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8z"/></svg></div>
+          <h2 data-i18n="runTitle">التشغيل</h2>
+        </div>
+        <div class="card-b">
+          <button class="btn cta" id="runBtn" disabled>
+            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8z"/></svg>
+            <span data-i18n="run">ابدأ الدبلجة</span>
+          </button>
+          <div class="btn-row" style="margin-top:10px">
+            <button class="btn sm ghost" id="cancelBtn" disabled style="flex:1">
+              <svg viewBox="0 0 24 24" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              <span data-i18n="cancel">إيقاف</span>
+            </button>
+            <button class="btn sm ghost" id="resetBtn" style="flex:1">
+              <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+              <span data-i18n="reset">مسح الكل</span>
+            </button>
+          </div>
+          <div class="steps" id="steps" style="margin-top:16px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div data-i18n="footer1">كل المعالجة تجري داخل متصفحك — لا يُرفع الفيلم إلى أي خادم.</div>
+    <div style="margin-top:6px"><kbd>Space</kbd> تشغيل/إيقاف · <kbd>←</kbd> <kbd>→</kbd> تنقّل · <kbd>D</kbd> الدبلجة</div>
+  </footer>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<script type="module">
+/* ============================================================================
+   صوتك · Sawtak — Neural Film Dubbing Studio
+   كل شيء يعمل داخل المتصفح: استخراج الصوت → تفريغ الكلام → ترجمة → نطق بصوت بشري
+   ============================================================================ */
+
+/* ------------------------------ 1) اللغات ------------------------------ */
+const LANGS = [
+  {c:'auto', ar:'كشف تلقائي',  en:'Auto detect',  w:null,  f:null,        b:null,      srcOnly:true},
+  {c:'ar',   ar:'العربية',      en:'Arabic',       w:'ar',  f:'arb_Arab',  b:'ar-SA',   rtl:true},
+  {c:'en',   ar:'الإنجليزية',   en:'English',      w:'en',  f:'eng_Latn',  b:'en-US'},
+  {c:'fr',   ar:'الفرنسية',     en:'French',       w:'fr',  f:'fra_Latn',  b:'fr-FR'},
+  {c:'es',   ar:'الإسبانية',    en:'Spanish',      w:'es',  f:'spa_Latn',  b:'es-ES'},
+  {c:'de',   ar:'الألمانية',    en:'German',       w:'de',  f:'deu_Latn',  b:'de-DE'},
+  {c:'it',   ar:'الإيطالية',    en:'Italian',      w:'it',  f:'ita_Latn',  b:'it-IT'},
+  {c:'pt',   ar:'البرتغالية',   en:'Portuguese',   w:'pt',  f:'por_Latn',  b:'pt-PT'},
+  {c:'ru',   ar:'الروسية',      en:'Russian',      w:'ru',  f:'rus_Cyrl',  b:'ru-RU'},
+  {c:'tr',   ar:'التركية',      en:'Turkish',      w:'tr',  f:'tur_Latn',  b:'tr-TR'},
+  {c:'nl',   ar:'الهولندية',    en:'Dutch',        w:'nl',  f:'nld_Latn',  b:'nl-NL'},
+  {c:'pl',   ar:'البولندية',    en:'Polish',       w:'pl',  f:'pol_Latn',  b:'pl-PL'},
+  {c:'sv',   ar:'السويدية',     en:'Swedish',      w:'sv',  f:'swe_Latn',  b:'sv-SE'},
+  {c:'id',   ar:'الإندونيسية',  en:'Indonesian',   w:'id',  f:'ind_Latn',  b:'id-ID'},
+  {c:'hi',   ar:'الهندية',      en:'Hindi',        w:'hi',  f:'hin_Deva',  b:'hi-IN'},
+  {c:'ur',   ar:'الأردية',      en:'Urdu',         w:'ur',  f:'urd_Arab',  b:'ur-PK',   rtl:true},
+  {c:'fa',   ar:'الفارسية',     en:'Persian',      w:'fa',  f:'pes_Arab',  b:'fa-IR',   rtl:true},
+  {c:'he',   ar:'العبرية',      en:'Hebrew',       w:'he',  f:'heb_Hebr',  b:'he-IL',   rtl:true},
+  {c:'ja',   ar:'اليابانية',    en:'Japanese',     w:'ja',  f:'jpn_Jpan',  b:'ja-JP',   cjk:true},
+  {c:'ko',   ar:'الكورية',      en:'Korean',       w:'ko',  f:'kor_Hang',  b:'ko-KR',   cjk:true},
+  {c:'zh',   ar:'الصينية',      en:'Chinese',      w:'zh',  f:'zho_Hans',  b:'zh-CN',   cjk:true},
+  {c:'el',   ar:'اليونانية',    en:'Greek',        w:'el',  f:'ell_Grek',  b:'el-GR'},
+  {c:'ro',   ar:'الرومانية',    en:'Romanian',     w:'ro',  f:'ron_Latn',  b:'ro-RO'},
+  {c:'uk',   ar:'الأوكرانية',   en:'Ukrainian',    w:'uk',  f:'ukr_Cyrl',  b:'uk-UA'},
+  {c:'cs',   ar:'التشيكية',     en:'Czech',        w:'cs',  f:'ces_Latn',  b:'cs-CZ'},
+  {c:'da',   ar:'الدنماركية',   en:'Danish',       w:'da',  f:'dan_Latn',  b:'da-DK'},
+  {c:'fi',   ar:'الفنلندية',    en:'Finnish',      w:'fi',  f:'fin_Latn',  b:'fi-FI'},
+  {c:'no',   ar:'النرويجية',    en:'Norwegian',    w:'no',  f:'nob_Latn',  b:'nb-NO'},
+  {c:'hu',   ar:'المجرية',      en:'Hungarian',    w:'hu',  f:'hun_Latn',  b:'hu-HU'},
+  {c:'th',   ar:'التايلاندية',  en:'Thai',         w:'th',  f:'tha_Thai',  b:'th-TH',   cjk:true},
+  {c:'vi',   ar:'الفيتنامية',   en:'Vietnamese',   w:'vi',  f:'vie_Latn',  b:'vi-VN'},
+  {c:'ms',   ar:'الماليزية',    en:'Malay',        w:'ms',  f:'zsm_Latn',  b:'ms-MY'},
+];
+const byCode = Object.fromEntries(LANGS.map(l => [l.c, l]));
+
+/* ------------------------------ 2) الترجمة الداخلية للواجهة ------------------------------ */
+const I18N = {
+  ar:{},
+  en:{
+    appName:'Sawtak — Neural Dubbing Studio', appTag:'Real voice dubbing for films · not subtitles',
+    help:'How it works', dropTitle:'Drop your film here',
+    dropSub:'Or pick a file from your device · MP4 · MKV · MOV · WEBM · MP3 · WAV — everything runs inside your browser',
+    pickFile:'Choose a file', fromUrl:'From a direct link',
+    scriptTitle:'Dubbing script', emptyScript:'No dialogue yet. Load a film, then press “Start dubbing”.',
+    stSeg:'lines', stWords:'words', stSpk:'voices', stDur:'duration',
+    langTitle:'Languages', srcLang:'Film language', dstLang:'Target language',
+    langHint:'Pick “Auto detect” and the system will recognise the film language itself (French, English, Spanish…) then dub it into the language you choose.',
+    voiceTitle:'Voice & performance', tabVoice:'Voices', tabMix:'Mix', tabEngine:'Engine',
+    ttsEngine:'Speech engine', ttsBrowser:'Browser voices — free and offline',
+    ttsOpenai:'OpenAI compatible — neural voices (API key)',
+    voiceA:'Voice of speaker 1', voiceB:'Voice of speaker 2', apiKey:'API key', apiBase:'Service endpoint',
+    apiNote:'The key stays in your browser and is only sent to the service you picked. This mode gives fully human voices and lets you export the dubbed audio as a file.',
+    tgMultiT:'Automatic multi-voice', tgMultiS:'Switches voice when the speaker changes so the dialogue feels real',
+    tgHumanT:'Human performance', tgHumanS:'Varied pitch, pace and punctuation pauses instead of a robotic tone',
+    tgFitT:'Match scene timing', tgFitS:'Adjusts each line so it ends with the actor’s lips',
+    rate:'Speaking rate', pitch:'Pitch', testVoice:'Test the voice',
+    duck:'Original film audio during dialogue', bg:'Film audio in silence (music & effects)',
+    dubVol:'Dubbing volume', offset:'Dub sync offset',
+    tgSubsT:'Show dialogue on screen', tgSubsS:'The dubbed text under the picture',
+    tgSubsSrcT:'Show the original text too', tgSubsSrcS:'A small line in the original language above',
+    tgVizT:'Visual effects', tgVizS:'Sound waves and a glowing halo while speaking',
+    asrModel:'Speech recognition accuracy', asrTiny:'Very fast — lower accuracy (~40 MB)',
+    asrBase:'Balanced — recommended (~80 MB)', asrSmall:'Accurate — slower (~250 MB)',
+    asrTurbo:'Professional — needs WebGPU (~800 MB)',
+    mtEngine:'Translation engine', mtLocal:'Local in-browser — NLLB-200 (offline after download)',
+    mtApi:'LLM over API — better with slang', mtModel:'Model name',
+    mtApiHint:'Uses the same key and endpoint from the “Voices” tab (OpenAI compatible mode).',
+    tgGpuT:'WebGPU acceleration', tgGpuS:'Several times faster on modern browsers',
+    modelNote:'On first run the AI model is downloaded once and cached in your browser. All processing happens on your device.',
+    runTitle:'Run', run:'Start dubbing', cancel:'Stop', reset:'Clear all',
+    footer1:'Everything runs inside your browser — your film is never uploaded to a server.',
+  }
+};
+document.querySelectorAll('[data-i18n]').forEach(el => { I18N.ar[el.dataset.i18n] = el.textContent; });
+document.querySelectorAll('#ttsEngine option[data-i18n], #asrModel option[data-i18n], #mtEngine option[data-i18n]')
+  .forEach(el => { I18N.ar[el.dataset.i18n] = el.textContent; });
+
+const STEP_TEXT = {
+  ar:['تحميل الفيلم','استخراج المسار الصوتي','تفريغ الحوار (Whisper)','ترجمة الحوار','تجهيز الأصوات'],
+  en:['Loading the film','Extracting the audio track','Transcribing dialogue (Whisper)','Translating dialogue','Preparing the voices'],
+};
+const MSG = {
+  ar:{
+    ready:'جاهز', loaded:'تم تحميل الفيلم', noFile:'حمّل الفيلم أولاً', sameLang:'اختر لغة هدف مختلفة عن لغة الفيلم',
+    done:'اكتملت الدبلجة — اضغط تشغيل', canceled:'أُلغيت العملية', decodeFail:'تعذّر فك الصوت مباشرة، سيتم الالتقاط أثناء التشغيل…',
+    decodeFail2:'تعذّر استخراج الصوت من هذا الملف. جرّب تحويله إلى MP4 أو MP3.',
+    urlAsk:'الصق رابط ملف الفيديو أو الصوت المباشر (لا تدعم مواقع البث مثل يوتيوب):',
+    urlFail:'تعذّر جلب الرابط — غالباً بسبب حماية CORS. نزّل الملف ثم ارفعه من جهازك.',
+    noVoice:'لا يوجد صوت مثبّت لهذه اللغة في نظامك — ثبّت حزمة أصوات أو استخدم محرّكاً عبر API.',
+    keyNeeded:'أدخل مفتاح API أولاً', ttsFail:'فشل توليد الصوت: ', segments:'جملة', downloading:'تنزيل النموذج',
+    speaking:'يتحدث', dubOn:'الدبلجة مُفعّلة', dubOff:'الدبلجة متوقفة — الصوت الأصلي',
+    fileTooShort:'الملف لا يحتوي على صوت مسموع', wavDone:'تم تصدير المسار الصوتي المدبلج',
+    wavNeedApi:'تصدير الصوت متاح مع محرّك ElevenLabs أو OpenAI فقط (أصوات المتصفح لا يمكن تسجيلها).',
+    fileProto:'شغّل الملف عبر خادم محلي (مثل: python3 -m http.server) — فتحه مباشرة بـ file:// يمنع تحميل النماذج.',
+    detected:'اللغة المكتشفة: ',
+  },
+  en:{
+    ready:'Ready', loaded:'Film loaded', noFile:'Load a film first', sameLang:'Pick a target language different from the film language',
+    done:'Dubbing ready — press play', canceled:'Cancelled', decodeFail:'Direct decoding failed, capturing during playback…',
+    decodeFail2:'Could not extract audio from this file. Try converting it to MP4 or MP3.',
+    urlAsk:'Paste a direct video/audio URL (streaming sites like YouTube are not supported):',
+    urlFail:'Could not fetch the URL — most likely CORS. Download the file and upload it instead.',
+    noVoice:'No installed voice for this language on your system — install a voice pack or use an API engine.',
+    keyNeeded:'Enter an API key first', ttsFail:'Speech generation failed: ', segments:'lines', downloading:'Downloading model',
+    speaking:'speaking', dubOn:'Dubbing on', dubOff:'Dubbing off — original audio',
+    fileTooShort:'This file has no audible sound', wavDone:'Dubbed audio track exported',
+    wavNeedApi:'Audio export works with the ElevenLabs or OpenAI engines only (browser voices cannot be recorded).',
+    fileProto:'Serve this file from a local server (e.g. python3 -m http.server) — opening it with file:// blocks model loading.',
+    detected:'Detected language: ',
+  }
+};
+
+/* ------------------------------ 3) اختصارات وأدوات ------------------------------ */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const clamp = (n,a,b) => Math.min(b, Math.max(a, n));
+const fmt = s => { s = Math.max(0, s|0); const h=(s/3600)|0, m=((s%3600)/60)|0, x=s%60;
+  return (h? h+':'+String(m).padStart(2,'0') : m) + ':' + String(x).padStart(2,'0'); };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const escapeHtml = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const el = {
+  video:$('#video'), stage:$('#stage'), drop:$('#drop'), file:$('#fileInput'), viz:$('#viz'), halo:$('#halo'),
+  subSrc:$('#subSrc'), subDst:$('#subDst'), lines:$('#lines'), steps:$('#steps'), stats:$('#stats'),
+  play:$('#playBtn'), playIco:$('#playIco'), back:$('#backBtn'), fwd:$('#fwdBtn'), seek:$('#seek'),
+  tCur:$('#tCur'), tDur:$('#tDur'), dubBtn:$('#dubBtn'), fsBtn:$('#fsBtn'),
+  run:$('#runBtn'), cancel:$('#cancelBtn'), reset:$('#resetBtn'),
+  srcLang:$('#srcLang'), dstLang:$('#dstLang'), swap:$('#swapBtn'),
+  ttsEngine:$('#ttsEngine'), voiceA:$('#voiceA'), voiceB:$('#voiceB'),
+  browserVoiceBox:$('#browserVoiceBox'), apiVoiceBox:$('#apiVoiceBox'), apiBaseBox:$('#apiBaseBox'),
+  apiKey:$('#apiKey'), apiVoiceA:$('#apiVoiceA'), apiVoiceB:$('#apiVoiceB'), apiBase:$('#apiBase'),
+  asrModel:$('#asrModel'), mtEngine:$('#mtEngine'), mtApiBox:$('#mtApiBox'), mtModel:$('#mtModel'),
+  toasts:$('#toasts'), engineTxt:$('#engineTxt'), engineDot:$('#engineDot'), langUi:$('#langUi'),
+  srt:$('#srtBtn'), wav:$('#wavBtn'), test:$('#testVoice'), help:$('#helpBtn'),
+};
+
+/* ------------------------------ 4) الحالة ------------------------------ */
+const S = {
+  ui:'ar',
+  mediaBlob:null, mediaName:'', duration:0,
+  pcm:null, origBuffer:null,
+  segments:[], detectedLang:null,
+  running:false, cancel:false, ready:false,
+  dubOn:true, nextIdx:0, curIdx:-1,
+  speakingUntil:0, activeUtt:null, activeSrcNode:null,
+  worker:null, reqId:0, pending:new Map(),
+  ac:null, mediaNode:null, origGain:null, dubGain:null, master:null, analyser:null, freq:null,
+  voices:[], vizRaf:0,
+  opts:{ multi:true, human:true, fit:true, subs:true, subsSrc:false, viz:true, gpu:true,
+         rate:1, pitch:1, duck:12, bg:100, dubVol:100, offset:0 },
+};
+const T = k => (MSG[S.ui][k] || MSG.ar[k] || k);
+
+/* ------------------------------ 5) إشعارات ------------------------------ */
+const ICONS = {
+  ok:'<path d="M20 6 9 17l-5-5"/>',
+  err:'<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>',
+};
+function toast(msg, kind='info', ms=4200){
+  const d = document.createElement('div');
+  d.className = 'toast ' + kind;
+  d.innerHTML = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    + (ICONS[kind]||ICONS.info) + '</svg><div>' + escapeHtml(msg) + '</div>';
+  el.toasts.appendChild(d);
+  setTimeout(() => { d.classList.add('out'); setTimeout(() => d.remove(), 320); }, ms);
+  return d;
+}
+
+/* ------------------------------ 6) خطوات المعالجة ------------------------------ */
+let stepEls = [];
+function buildSteps(){
+  el.steps.innerHTML = '';
+  stepEls = STEP_TEXT[S.ui].map((label, i) => {
+    const d = document.createElement('div');
+    d.className = 'step';
+    d.innerHTML = '<div class="bullet">' + (i+1) + '</div><div class="body"><b></b><span></span><div class="bar hidden"><i></i></div></div>';
+    d.querySelector('b').textContent = label;
+    el.steps.appendChild(d);
+    return d;
+  });
+}
+function step(i, state, note, pct){
+  const d = stepEls[i]; if(!d) return;
+  d.classList.remove('active','done','err');
+  if(state) d.classList.add(state);
+  if(state === 'done') d.querySelector('.bullet').innerHTML =
+    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+  else d.querySelector('.bullet').textContent = String(i+1);
+  d.querySelector('span').textContent = note || '';
+  const bar = d.querySelector('.bar');
+  if(pct === undefined || pct === null){ bar.classList.add('hidden'); bar.classList.remove('idle'); }
+  else {
+    bar.classList.remove('hidden');
+    if(pct < 0){ bar.classList.add('idle'); bar.querySelector('i').style.width=''; }
+    else { bar.classList.remove('idle'); bar.querySelector('i').style.width = clamp(pct,0,100) + '%'; }
+  }
+}
+function resetSteps(){ stepEls.forEach((_,i) => step(i, null, '', null)); }
+
+/* ------------------------------ 7) عامل الذكاء الاصطناعي (Web Worker) ------------------------------ */
+const CDN = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3';
+const WORKER_SRC = `
+import { pipeline, env } from '${CDN}';
+env.allowLocalModels = false;
+try { env.backends.onnx.wasm.numThreads = Math.min(4, navigator.hardwareConcurrency || 2); } catch (e) {}
+
+let asr = null, asrKey = '', mt = null;
+const post = o => self.postMessage(o);
+
+function pcb(stage){
+  return p => {
+    if (!p) return;
+    if (p.status === 'progress' && p.total) post({ t:'dl', stage, file:p.file, pct:(p.loaded / p.total) * 100 });
+    else if (p.status === 'ready' || p.status === 'done') post({ t:'dl', stage, file:p.file, pct:100 });
+  };
+}
+
+async function getAsr(model, gpu){
+  const key = model + '|' + (gpu ? 'g' : 'c');
+  if (asr && asrKey === key) return asr;
+  if (asr) { try { await asr.dispose(); } catch (e) {} asr = null; }
+  if (gpu && navigator.gpu) {
+    try {
+      asr = await pipeline('automatic-speech-recognition', model, {
+        progress_callback: pcb('asr'), device:'webgpu',
+        dtype:{ encoder_model:'fp32', decoder_model_merged:'q4' }
+      });
+    } catch (e) { post({ t:'note', msg:'WebGPU -> WASM: ' + (e && e.message || e) }); asr = null; }
+  }
+  if (!asr) asr = await pipeline('automatic-speech-recognition', model, { progress_callback: pcb('asr'), dtype:'q8' });
+  asrKey = key;
+  return asr;
+}
+
+async function getMt(){
+  if (mt) return mt;
+  mt = await pipeline('translation', 'Xenova/nllb-200-distilled-600M', { progress_callback: pcb('mt'), dtype:'q8' });
+  return mt;
+}
+
+self.onmessage = async e => {
+  const m = e.data || {};
+  try {
+    if (m.cmd === 'asr') {
+      const p = await getAsr(m.model, m.gpu);
+      const opt = { chunk_length_s:30, stride_length_s:5, return_timestamps:true, task:'transcribe' };
+      if (m.lang) opt.language = m.lang;
+      const out = await p(m.audio, opt);
+      post({ t:'res', id:m.id, data:{ chunks: out.chunks || [], text: out.text || '' } });
+    } else if (m.cmd === 'mt') {
+      const p = await getMt();
+      const res = [];
+      for (let i = 0; i < m.texts.length; i++) {
+        const o = await p(m.texts[i], { src_lang:m.src, tgt_lang:m.tgt, max_new_tokens:400 });
+        const r = Array.isArray(o) ? o[0] : o;
+        res.push((r && r.translation_text) || '');
+        post({ t:'mtprog', done:i + 1, total:m.texts.length });
+      }
+      post({ t:'res', id:m.id, data:res });
+    } else if (m.cmd === 'ping') {
+      post({ t:'res', id:m.id, data:1 });
+    }
+  } catch (err) {
+    post({ t:'err', id:m.id, msg:String(err && err.message || err) });
+  }
+};
+post({ t:'boot', gpu: !!navigator.gpu });
+`;
+
+function getWorker(){
+  if(S.worker) return S.worker;
+  const url = URL.createObjectURL(new Blob([WORKER_SRC], {type:'text/javascript'}));
+  const w = new Worker(url, {type:'module'});
+  w.onmessage = ev => {
+    const m = ev.data || {};
+    if(m.t === 'res'){ const p = S.pending.get(m.id); if(p){ S.pending.delete(m.id); p.resolve(m.data); } }
+    else if(m.t === 'err'){ const p = S.pending.get(m.id); if(p){ S.pending.delete(m.id); p.reject(new Error(m.msg)); } else toast(m.msg,'err'); }
+    else if(m.t === 'dl'){ if(S.onDl) S.onDl(m); }
+    else if(m.t === 'mtprog'){ if(S.onMt) S.onMt(m); }
+    else if(m.t === 'note'){ console.info('[worker]', m.msg); }
+    else if(m.t === 'boot'){ setEngineBadge(m.gpu ? 'WebGPU' : 'WASM', true); }
+  };
+  w.onerror = e => toast('Worker: ' + (e.message || 'error'), 'err', 9000);
+  S.worker = w;
+  return w;
+}
+function ask(cmd, payload, transfer){
+  const w = getWorker();
+  const id = ++S.reqId;
+  return new Promise((resolve, reject) => {
+    S.pending.set(id, {resolve, reject});
+    w.postMessage(Object.assign({cmd, id}, payload), transfer || []);
+  });
+}
+function setEngineBadge(txt, live){
+  el.engineTxt.textContent = txt;
+  el.engineDot.classList.toggle('live', !!live);
+}
+
+/* ------------------------------ 8) الرسم الصوتي ------------------------------ */
+function ensureAudio(){
+  if(S.ac) return S.ac;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const ac = new AC();
+  S.ac = ac;
+  S.master = ac.createGain();
+  S.origGain = ac.createGain();
+  S.dubGain = ac.createGain();
+  S.analyser = ac.createAnalyser();
+  S.analyser.fftSize = 512; S.analyser.smoothingTimeConstant = .8;
+  S.freq = new Uint8Array(S.analyser.frequencyBinCount);
+  S.origGain.connect(S.master);
+  S.dubGain.connect(S.master);
+  S.master.connect(ac.destination);
+  S.master.connect(S.analyser);
+  return ac;
+}
+function attachMedia(){
+  ensureAudio();
+  if(S.mediaNode) return;
+  try{
+    S.mediaNode = S.ac.createMediaElementSource(el.video);
+    S.mediaNode.connect(S.origGain);
+  }catch(err){ console.warn('media source', err); }
+}
+function resumeAudio(){ if(S.ac && S.ac.state === 'suspended') S.ac.resume(); }
+function setOrigGain(v, fast){
+  if(!S.origGain) return;
+  const t = S.ac.currentTime;
+  S.origGain.gain.cancelScheduledValues(t);
+  S.origGain.gain.setTargetAtTime(v, t, fast ? .05 : .18);
+}
+
+/* ------------------------------ 9) تحميل الوسائط ------------------------------ */
+let objUrl = null;
+async function loadMedia(blob, name){
+  if(objUrl) URL.revokeObjectURL(objUrl);
+  clearResults();
+  S.mediaBlob = blob; S.mediaName = name || 'film';
+  S.pcm = null; S.origBuffer = null;
+  objUrl = URL.createObjectURL(blob);
+  el.video.src = objUrl;
+  await new Promise((res, rej) => {
+    const ok = () => { cleanup(); res(); };
+    const bad = () => { cleanup(); rej(new Error('media')); };
+    const cleanup = () => { el.video.removeEventListener('loadedmetadata', ok); el.video.removeEventListener('error', bad); };
+    el.video.addEventListener('loadedmetadata', ok, {once:true});
+    el.video.addEventListener('error', bad, {once:true});
+  });
+  S.duration = isFinite(el.video.duration) ? el.video.duration : 0;
+  el.drop.classList.add('hide');
+  el.tDur.textContent = fmt(S.duration);
+  ['play','back','fwd','seek','fsBtn','dubBtn'].forEach(k => el[k].disabled = false);
+  el.run.disabled = false;
+  attachMedia();
+  step(0, 'done', S.mediaName + ' · ' + fmt(S.duration));
+  toast(T('loaded') + ' · ' + fmt(S.duration), 'ok');
+}
+async function loadFromUrl(url){
+  const t = toast('…', 'info', 60000);
+  try{
+    const r = await fetch(url, {mode:'cors'});
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const blob = await r.blob();
+    t.remove();
+    await loadMedia(blob, url.split('/').pop().split('?')[0] || 'stream');
+  }catch(err){
+    t.remove();
+    toast(T('urlFail'), 'err', 8000);
+  }
+}
+
+/* ------------------------------ 10) استخراج الصوت ------------------------------ */
+const SR = 16000;
+
+async function decodeAudio(blob){
+  const ab = await blob.arrayBuffer();
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const tmp = new AC();
+  try{
+    const buf = await tmp.decodeAudioData(ab);
+    return buf;
+  } finally { tmp.close().catch(() => {}); }
+}
+async function toMono16k(buf){
+  const len = Math.max(1, Math.ceil(buf.duration * SR));
+  const off = new OfflineAudioContext(1, len, SR);
+  const src = off.createBufferSource();
+  src.buffer = buf; src.connect(off.destination); src.start();
+  const out = await off.startRendering();
+  return out.getChannelData(0);
+}
+/* بديل: التقاط الصوت أثناء تشغيل سريع للملف (للحاويات التي لا يفكّها المتصفح مباشرة) */
+async function captureRealtime(onProgress){
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const ac = new AC();
+  const v = document.createElement('video');
+  v.src = objUrl; v.muted = false; v.playsInline = true;
+  await new Promise(r => v.addEventListener('loadedmetadata', r, {once:true}));
+  const node = ac.createMediaElementSource(v);
+  const dest = ac.createMediaStreamDestination();
+  node.connect(dest);
+  const rec = new MediaRecorder(dest.stream, {mimeType:'audio/webm'});
+  const parts = [];
+  rec.ondataavailable = e => { if(e.data.size) parts.push(e.data); };
+  const done = new Promise(r => rec.onstop = r);
+  rec.start(1000);
+  v.playbackRate = 4;
+  await v.play();
+  const timer = setInterval(() => { if(onProgress && v.duration) onProgress((v.currentTime / v.duration) * 100); }, 400);
+  await new Promise(r => {
+    v.addEventListener('ended', r, {once:true});
+    const guard = setInterval(() => { if(S.cancel){ clearInterval(guard); r(); } }, 500);
+  });
+  clearInterval(timer);
+  rec.stop(); await done;
+  v.pause(); ac.close().catch(() => {});
+  return new Blob(parts, {type:'audio/webm'});
+}
+
+async function extractAudio(){
+  step(1, 'active', '', -1);
+  try{
+    const buf = await decodeAudio(S.mediaBlob);
+    S.origBuffer = buf;
+    S.pcm = await toMono16k(buf);
+  }catch(err){
+    toast(T('decodeFail'), 'info', 6000);
+    step(1, 'active', T('decodeFail'), 0);
+    try{
+      const wblob = await captureRealtime(p => step(1, 'active', Math.round(p) + '%', p));
+      const buf = await decodeAudio(wblob);
+      S.origBuffer = buf;
+      S.pcm = await toMono16k(buf);
+    }catch(e2){
+      step(1, 'err', T('decodeFail2'));
+      throw new Error(T('decodeFail2'));
+    }
+  }
+  if(!S.pcm || S.pcm.length < SR){ step(1,'err',T('fileTooShort')); throw new Error(T('fileTooShort')); }
+  step(1, 'done', fmt(S.pcm.length / SR));
+}
+
+/* تقسيم الصوت إلى كتل عند أهدأ نقطة قرب الحد */
+function planBlocks(pcm, targetSec = 110, searchSec = 4){
+  const total = pcm.length;
+  const target = targetSec * SR, search = searchSec * SR;
+  if(total <= target * 1.25) return [[0, total]];
+  const frame = (SR * 0.02) | 0;
+  const blocks = [];
+  let start = 0;
+  while(start < total){
+    let end = start + target;
+    if(end >= total - target * 0.35){ blocks.push([start, total]); break; }
+    let best = end, bestE = Infinity;
+    for(let p = Math.max(start + frame, end - search); p < Math.min(total - frame, end + search); p += frame){
+      let e = 0;
+      for(let i = p; i < p + frame; i++) e += pcm[i] * pcm[i];
+      if(e < bestE){ bestE = e; best = p; }
+    }
+    blocks.push([start, best]);
+    start = best;
+  }
+  return blocks;
+}
+
+/* ------------------------------ 11) كشف اللغة من النص ------------------------------ */
+const STOP = {
+  en:['the','and','you','that','with','have','this','what','from','they','not','are','was','for','but','all','your','just','know','like','can','will','one','about'],
+  fr:['le','la','les','de','des','du','et','est','pas','que','qui','vous','nous','pour','dans','une','un','tu','je','il','elle','ce','mais','sur','avec','plus','bien','oui','moi','toi','être','faire'],
+  es:['el','la','los','las','de','que','no','en','un','una','por','con','para','como','pero','este','esta','está','yo','tú','muy','bien','sí','qué','hay','ser'],
+  de:['der','die','das','und','ist','nicht','ich','du','sie','wir','mit','für','auf','aber','ein','eine','was','wie','hier','doch','noch','auch','sein'],
+  it:['il','lo','la','che','non','di','per','con','una','un','sono','sei','questo','questa','come','più','molto','bene','sì','cosa'],
+  pt:['o','a','os','as','de','que','não','em','um','uma','por','com','para','como','mas','este','esta','você','muito','bem','sim'],
+  nl:['de','het','een','en','is','niet','ik','je','we','met','voor','maar','wat','hoe','ook','dat','naar'],
+  tr:['bir','bu','ve','için','ama','ben','sen','ne','çok','var','yok','değil','gibi','daha','şey'],
+  id:['yang','dan','tidak','ini','itu','saya','kamu','dengan','untuk','ada','bisa','sudah','kalau'],
+  ms:['yang','dan','tidak','ini','itu','saya','awak','dengan','untuk','ada','boleh','sudah','kalau'],
+  ro:['și','este','nu','de','la','un','o','pentru','dar','ce','cu','să','mai','bine'],
+  pl:['nie','się','jest','to','na','że','ale','jak','tak','co','tylko','bardzo','dobrze'],
+  sv:['och','att','det','som','inte','för','med','har','jag','du','vi','men','vad'],
+  da:['og','at','det','som','ikke','for','med','har','jeg','du','vi','men','hvad'],
+  no:['og','at','det','som','ikke','for','med','har','jeg','du','vi','men','hva'],
+  fi:['ja','on','ei','se','että','mutta','minä','sinä','me','niin','kuin'],
+  cs:['a','je','ne','to','se','na','že','ale','jak','co','jsem','tak'],
+  hu:['és','az','egy','nem','hogy','de','mi','te','én','ez','csak','nagyon'],
+  vi:['của','và','không','là','có','được','một','những','tôi','bạn','này','đã'],
+};
+function guessLang(text){
+  const t = (text || '').slice(0, 6000);
+  if(!t.trim()) return 'en';
+  if(/[؀-ۿ]/.test(t)){
+    if(/[ٹڈڑںھہے]/.test(t)) return 'ur';
+    if(/[پچژگیک]/.test(t)) return 'fa';
+    return 'ar';
+  }
+  if(/[֐-׿]/.test(t)) return 'he';
+  if(/[Ѐ-ӿ]/.test(t)) return /[іїєґ]/i.test(t) ? 'uk' : 'ru';
+  if(/[Ͱ-Ͽ]/.test(t)) return 'el';
+  if(/[ऀ-ॿ]/.test(t)) return 'hi';
+  if(/[฀-๿]/.test(t)) return 'th';
+  if(/[가-힯]/.test(t)) return 'ko';
+  if(/[぀-ヿ]/.test(t)) return 'ja';
+  if(/[一-鿿]/.test(t)) return 'zh';
+  const words = t.toLowerCase().replace(/[^\p{L}\s']/gu, ' ').split(/\s+/).filter(Boolean);
+  if(!words.length) return 'en';
+  const set = new Map();
+  words.forEach(w => set.set(w, (set.get(w) || 0) + 1));
+  let best = 'en', bestScore = -1;
+  for(const [code, list] of Object.entries(STOP)){
+    let s = 0;
+    for(const w of list) s += (set.get(w) || 0);
+    s /= Math.sqrt(list.length);
+    if(/[àâçéèêëîïôûùüœ]/i.test(t) && code === 'fr') s *= 1.25;
+    if(/[ñ¿¡]/i.test(t) && code === 'es') s *= 1.3;
+    if(/[äöüß]/i.test(t) && code === 'de') s *= 1.25;
+    if(/[ãõç]/i.test(t) && code === 'pt') s *= 1.2;
+    if(/[ışğşçö]/i.test(t) && code === 'tr') s *= 1.2;
+    if(s > bestScore){ bestScore = s; best = code; }
+  }
+  return best;
+}
+
+/* ------------------------------ 12) تنظيف/تهيئة السطور ------------------------------ */
+const NOISE = /^\s*[\[\(（【]?\s*(music|musique|música|musik|applause|laughter|silence|sous-titres|subtitles|foreign|inaudible|موسيقى|تصفيق|ضحك)\b[^\]\)）】]*[\]\)）】]?\s*$/i;
+function cleanText(t){
+  return String(t || '')
+    .replace(/[♪♫♩♬]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function refineSegments(raw, total){
+  const out = [];
+  for(const c of raw){
+    const txt = cleanText(c.text);
+    if(!txt || NOISE.test(txt) || txt.length < 2) continue;
+    let s = c.start, e = c.end;
+    if(!isFinite(s)) continue;
+    if(!isFinite(e) || e <= s) e = s + Math.min(6, Math.max(1.2, txt.length / 15));
+    e = Math.min(e, total || e);
+    const prev = out[out.length - 1];
+    if(prev && s - prev.end < 0.32 && (prev.end - prev.start) < 1.15 && prev.src.length < 40){
+      prev.src = (prev.src + ' ' + txt).trim();
+      prev.end = e;
+      continue;
+    }
+    if(prev && s < prev.end) s = prev.end;
+    out.push({src:txt, dst:'', start:s, end:Math.max(e, s + 0.35), spk:0, buf:null, spoken:false});
+  }
+  out.forEach((s, i) => s.i = i);
+  return out;
+}
+function assignSpeakers(segs){
+  const n = S.opts.multi ? 2 : 1;
+  let spk = 0;
+  segs.forEach((s, i) => {
+    if(i > 0){
+      const gap = s.start - segs[i-1].end;
+      const ended = /[.!?…؟।。]\s*$/.test(segs[i-1].src);
+      if(n > 1 && (gap > 1.25 || (gap > 0.55 && ended))) spk = (spk + 1) % n;
+    }
+    s.spk = n > 1 ? spk : 0;
+  });
+}
+
+/* ------------------------------ 13) الترجمة ------------------------------ */
+async function translateLocal(texts, srcF, tgtF, onProg){
+  S.onMt = m => onProg(m.done, m.total);
+  try{ return await ask('mt', {texts, src:srcF, tgt:tgtF}); }
+  finally{ S.onMt = null; }
+}
+async function translateApi(texts, srcName, tgtName, onProg){
+  const key = el.apiKey.value.trim();
+  if(!key) throw new Error(T('keyNeeded'));
+  const base = (el.apiBase.value.trim() || 'https://api.openai.com/v1').replace(/\/+$/, '');
+  const model = el.mtModel.value.trim() || 'gpt-4o-mini';
+  const out = [];
+  const SIZE = 25;
+  for(let i = 0; i < texts.length; i += SIZE){
+    if(S.cancel) throw new Error('cancel');
+    const batch = texts.slice(i, i + SIZE);
+    const sys = 'You are a professional film dubbing translator. Translate each numbered line from '
+      + srcName + ' into natural, spoken ' + tgtName + ' as a voice actor would say it. Keep the meaning, tone, '
+      + 'register and emotion. Keep each line roughly the same spoken length as the original so it fits the scene. '
+      + 'Never add commentary. Reply ONLY with a JSON array of strings, one per input line, in the same order.';
+    const usr = JSON.stringify(batch);
+    const r = await fetch(base + '/chat/completions', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', 'Authorization':'Bearer ' + key},
+      body: JSON.stringify({model, temperature:0.3, messages:[{role:'system',content:sys},{role:'user',content:usr}]})
+    });
+    if(!r.ok) throw new Error('API ' + r.status + ': ' + (await r.text().catch(() => '')).slice(0, 180));
+    const j = await r.json();
+    let content = (((j.choices || [])[0] || {}).message || {}).content || '[]';
+    content = content.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+    let arr;
+    try{ arr = JSON.parse(content); }
+    catch(e){ const m = content.match(/\[[\s\S]*\]/); arr = m ? JSON.parse(m[0]) : batch; }
+    if(!Array.isArray(arr)) arr = batch;
+    for(let k = 0; k < batch.length; k++) out.push(String(arr[k] != null ? arr[k] : batch[k]));
+    onProg(out.length, texts.length);
+  }
+  return out;
+}
+
+/* ------------------------------ 14) محرّكات النطق ------------------------------ */
+const ELEVEN = {
+  rachel:'21m00Tcm4TlvDq8ikWAM', domi:'AZnzlk1XvdvUeBnXmlld', bella:'EXAVITQu4vr4xnSDxMaL',
+  antoni:'ErXwobaYiN019PkySvjV', elli:'MF3mGyEYCl7XYWbV9V6O', josh:'TxGEqnHWrfWFTfGW9XjX',
+  arnold:'VR6AewLTigWG4xSOukaG', adam:'pNInz6obpgDQGcFmaJgB', sam:'yoZ06aMxZJJ28mfd3POQ',
+  charlie:'IKne3meq5aSn9XLyUdCD', george:'JBFqnCBsd6RMkjVDRZzb', lily:'pFZP5JQG7iQjIQuC4Bku',
+};
+function resolveEleven(v){
+  const s = String(v || '').trim();
+  if(!s) return ELEVEN.rachel;
+  const known = ELEVEN[s.toLowerCase()];
+  if(known) return known;
+  if(/^[A-Za-z0-9]{15,30}$/.test(s)) return s;
+  return ELEVEN.rachel;
+}
+function apiVoiceFor(spk){
+  const a = el.apiVoiceA.value.trim(), b = el.apiVoiceB.value.trim();
+  const eng = el.ttsEngine.value;
+  const defA = eng === 'eleven' ? 'Rachel' : 'nova';
+  const defB = eng === 'eleven' ? 'Adam' : 'onyx';
+  return spk === 1 ? (b || defB) : (a || defA);
+}
+async function synthNeural(text, voice, tries){
+  const eng = el.ttsEngine.value;
+  const key = el.apiKey.value.trim();
+  if(!key) throw new Error(T('keyNeeded'));
+  let r;
+  if(eng === 'eleven'){
+    r = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + resolveEleven(voice) + '?output_format=mp3_44100_128', {
+      method:'POST',
+      headers:{'xi-api-key':key, 'Content-Type':'application/json'},
+      body: JSON.stringify({ text, model_id:'eleven_multilingual_v2',
+        voice_settings:{ stability:0.42, similarity_boost:0.8, style:0.32, use_speaker_boost:true } })
+    });
+  } else {
+    const base = (el.apiBase.value.trim() || 'https://api.openai.com/v1').replace(/\/+$/, '');
+    r = await fetch(base + '/audio/speech', {
+      method:'POST',
+      headers:{'Content-Type':'application/json', 'Authorization':'Bearer ' + key},
+      body: JSON.stringify({ model:'gpt-4o-mini-tts', voice: voice || 'nova', input:text, response_format:'mp3',
+        instructions:'Speak like a film dubbing actor: natural, emotional, never robotic.' })
+    });
+  }
+  if(r.status === 429 && (tries || 0) < 2){ await sleep(1800 * ((tries || 0) + 1)); return synthNeural(text, voice, (tries || 0) + 1); }
+  if(!r.ok) throw new Error(r.status + ' ' + (await r.text().catch(() => '')).slice(0, 160));
+  const ab = await r.arrayBuffer();
+  ensureAudio();
+  return await S.ac.decodeAudioData(ab);
+}
+async function prepareVoices(){
+  const eng = el.ttsEngine.value;
+  if(eng === 'browser'){
+    const v = pickVoice(0);
+    step(4, v ? 'done' : 'err', v ? v.name : T('noVoice'));
+    if(!v) toast(T('noVoice'), 'err', 8000);
+    return;
+  }
+  const segs = S.segments.filter(s => s.dst);
+  let done = 0, failed = 0;
+  step(4, 'active', '0/' + segs.length, 0);
+  const queue = segs.slice();
+  const lanes = Array.from({length:3}, async () => {
+    while(queue.length){
+      if(S.cancel) return;
+      const s = queue.shift();
+      try{ s.buf = await synthNeural(s.dst, apiVoiceFor(s.spk)); }
+      catch(err){
+        failed++;
+        if(failed === 1) toast(T('ttsFail') + err.message, 'err', 9000);
+        if(failed > 4) { queue.length = 0; throw err; }
+      }
+      done++;
+      step(4, 'active', done + '/' + segs.length, (done / Math.max(1, segs.length)) * 100);
+    }
+  });
+  await Promise.all(lanes);
+  step(4, 'done', (segs.length - failed) + '/' + segs.length);
+  el.wav.disabled = !S.segments.some(s => s.buf);
+}
+
+/* ------------------------------ 15) خط الإنتاج ------------------------------ */
+function clearResults(){
+  stopSpeaking();
+  S.segments = []; S.nextIdx = 0; S.curIdx = -1; S.ready = false;
+  el.srt.disabled = true; el.wav.disabled = true;
+  el.stats.hidden = true;
+  renderLines();
+}
+async function runPipeline(){
+  if(!S.mediaBlob){ toast(T('noFile'), 'err'); return; }
+  const dstCode = el.dstLang.value;
+  const srcSel = el.srcLang.value;
+  if(srcSel !== 'auto' && srcSel === dstCode){ toast(T('sameLang'), 'err'); return; }
+
+  S.running = true; S.cancel = false; S.ttsErr = false;
+  el.run.disabled = true; el.cancel.disabled = false;
+  resetSteps();
+  step(0, 'done', S.mediaName + ' · ' + fmt(S.duration));
+  clearResults();
+
+  try{
+    /* (1) الصوت */
+    if(!S.pcm) await extractAudio();
+    else step(1, 'done', fmt(S.pcm.length / SR));
+    if(S.cancel) throw new Error('cancel');
+
+    /* (2) التفريغ */
+    const blocks = planBlocks(S.pcm);
+    const wLang = srcSel === 'auto' ? null : byCode[srcSel].w;
+    S.onDl = m => step(2, 'active', T('downloading') + ' · ' + Math.round(m.pct) + '%', m.pct);
+    step(2, 'active', '', -1);
+    const raw = [];
+    let fullText = '';
+    for(let i = 0; i < blocks.length; i++){
+      if(S.cancel) throw new Error('cancel');
+      const [a, b] = blocks[i];
+      const slice = S.pcm.slice(a, b);
+      const off = a / SR;
+      const res = await ask('asr', {audio:slice, model:el.asrModel.value, gpu:S.opts.gpu, lang:wLang}, [slice.buffer]);
+      S.onDl = null;
+      fullText += ' ' + (res.text || '');
+      for(const c of (res.chunks || [])){
+        const ts = c.timestamp || [];
+        raw.push({ text:c.text, start:(ts[0] == null ? 0 : ts[0]) + off, end:(ts[1] == null ? null : ts[1] + off) });
+      }
+      step(2, 'active', (i + 1) + ' / ' + blocks.length, ((i + 1) / blocks.length) * 100);
+    }
+    S.segments = refineSegments(raw, S.pcm.length / SR);
+    assignSpeakers(S.segments);
+    if(!S.segments.length) throw new Error(T('fileTooShort'));
+    step(2, 'done', S.segments.length + ' ' + T('segments'));
+    renderLines();
+
+    /* (3) الترجمة */
+    const srcCode = srcSel === 'auto' ? guessLang(fullText) : srcSel;
+    S.detectedLang = srcCode;
+    if(srcSel === 'auto'){
+      const nm = byCode[srcCode] ? byCode[srcCode][S.ui] : srcCode;
+      toast(T('detected') + nm, 'info');
+    }
+    if(srcCode === dstCode){
+      S.segments.forEach(s => s.dst = s.src);
+      step(3, 'done', '—');
+    } else {
+      step(3, 'active', '', -1);
+      S.onDl = m => step(3, 'active', T('downloading') + ' · ' + Math.round(m.pct) + '%', m.pct);
+      const texts = S.segments.map(s => s.src);
+      const prog = (d, t) => step(3, 'active', d + ' / ' + t, (d / t) * 100);
+      let res;
+      if(el.mtEngine.value === 'api'){
+        res = await translateApi(texts, byCode[srcCode] ? byCode[srcCode].en : srcCode, byCode[dstCode].en, prog);
+      } else {
+        const sf = byCode[srcCode] && byCode[srcCode].f ? byCode[srcCode].f : 'eng_Latn';
+        res = await translateLocal(texts, sf, byCode[dstCode].f, prog);
+      }
+      S.onDl = null;
+      S.segments.forEach((s, i) => s.dst = cleanText(res[i]) || s.src);
+      step(3, 'done', byCode[dstCode][S.ui]);
+    }
+    renderLines();
+    if(S.cancel) throw new Error('cancel');
+
+    /* (4) الأصوات */
+    await prepareVoices();
+
+    S.ready = true;
+    S.nextIdx = 0;
+    el.srt.disabled = false;
+    updateStats();
+    toast(T('done'), 'ok', 6000);
+  }catch(err){
+    if(S.cancel || /cancel/i.test(err.message)) toast(T('canceled'), 'info');
+    else { console.error(err); toast(err.message || String(err), 'err', 9000); }
+  }finally{
+    S.running = false; S.onDl = null; S.onMt = null;
+    el.run.disabled = false; el.cancel.disabled = true;
+  }
+}
+
+/* ------------------------------ 16) أصوات المتصفح ------------------------------ */
+function loadVoices(){
+  S.voices = (window.speechSynthesis ? speechSynthesis.getVoices() : []) || [];
+  fillVoiceSelects();
+}
+function voicesForLang(code){
+  const l = byCode[code];
+  if(!l) return S.voices;
+  const pref = (l.b || code).toLowerCase().split('-')[0];
+  const hit = S.voices.filter(v => (v.lang || '').toLowerCase().replace('_', '-').split('-')[0] === pref);
+  return hit.length ? hit : S.voices;
+}
+function fillVoiceSelects(){
+  const list = voicesForLang(el.dstLang.value);
+  [el.voiceA, el.voiceB].forEach((sel, idx) => {
+    const keep = sel.value;
+    sel.innerHTML = '';
+    if(!list.length){
+      const o = document.createElement('option');
+      o.value = ''; o.textContent = T('noVoice');
+      sel.appendChild(o);
+      return;
+    }
+    list.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v.name;
+      o.textContent = v.name + ' · ' + v.lang + (v.localService ? '' : ' ☁');
+      sel.appendChild(o);
+    });
+    if(keep && list.some(v => v.name === keep)) sel.value = keep;
+    else sel.selectedIndex = Math.min(idx, list.length - 1);
+  });
+}
+function pickVoice(spk){
+  const want = (spk === 1 ? el.voiceB.value : el.voiceA.value);
+  const list = voicesForLang(el.dstLang.value);
+  return S.voices.find(v => v.name === want) || list[0] || null;
+}
+
+/* ------------------------------ 17) النطق والمزامنة ------------------------------ */
+function splitClauses(text){
+  const parts = String(text).split(/(?<=[.!?…؟،,;:—])\s+/).filter(Boolean);
+  const out = [];
+  for(const p of parts){
+    if(out.length && (out[out.length - 1].length < 22 || p.length < 14)) out[out.length - 1] += ' ' + p;
+    else out.push(p);
+    if(out.length >= 4) break;
+  }
+  return out.length ? out : [text];
+}
+function estSpeech(text, rate){
+  const l = byCode[el.dstLang.value];
+  const cps = (l && l.cjk) ? 5.4 : 14.2;
+  return text.length / (cps * Math.max(.4, rate));
+}
+function duckFor(sec){
+  setOrigGain(S.opts.duck / 100, true);
+  el.halo.classList.toggle('on', S.opts.viz);
+  clearTimeout(S.duckTimer);
+  S.duckTimer = setTimeout(() => { setOrigGain(S.opts.bg / 100); el.halo.classList.remove('on'); }, sec * 1000 + 200);
+}
+function stopSpeaking(){
+  try{ if(window.speechSynthesis) speechSynthesis.cancel(); }catch(e){}
+  if(S.activeSrcNode){ try{ S.activeSrcNode.stop(); }catch(e){} S.activeSrcNode = null; }
+  clearTimeout(S.duckTimer);
+  S.speakingUntil = 0;
+  el.halo.classList.remove('on');
+  setOrigGain(S.opts.bg / 100);
+}
+function playBuffer(seg, dur){
+  ensureAudio(); resumeAudio();
+  const src = S.ac.createBufferSource();
+  src.buffer = seg.buf;
+  let r = 1;
+  if(S.opts.fit && seg.buf.duration > dur * 1.03) r = clamp(seg.buf.duration / dur, 1, 1.45);
+  src.playbackRate.value = r * S.opts.rate;
+  S.dubGain.gain.value = S.opts.dubVol / 100;
+  src.connect(S.dubGain);
+  if(S.activeSrcNode){ try{ S.activeSrcNode.stop(); }catch(e){} }
+  S.activeSrcNode = src;
+  src.onended = () => { if(S.activeSrcNode === src) S.activeSrcNode = null; };
+  src.start();
+  const real = seg.buf.duration / (r * S.opts.rate);
+  S.speakingUntil = performance.now() + real * 1000;
+  duckFor(real);
+}
+function speakBrowser(seg, dur){
+  const synth = window.speechSynthesis;
+  if(!synth) return;
+  synth.cancel();
+  const lang = byCode[el.dstLang.value];
+  const voice = pickVoice(seg.spk);
+  const base = S.opts.rate;
+  let fit = 1;
+  if(S.opts.fit) fit = clamp(estSpeech(seg.dst, base) / dur, 0.85, 1.7);
+  const parts = S.opts.human ? splitClauses(seg.dst) : [seg.dst];
+  let total = 0;
+  parts.forEach((p, i) => {
+    const u = new SpeechSynthesisUtterance(p);
+    if(voice){ u.voice = voice; u.lang = voice.lang; }
+    else if(lang && lang.b) u.lang = lang.b;
+    const jr = S.opts.human ? ((((seg.i * 7 + i * 13) % 9) - 4) / 110) : 0;
+    const jp = S.opts.human ? ((((seg.i * 5 + i * 11) % 9) - 4) / 60) : 0;
+    const spkShift = seg.spk === 1 ? -0.09 : 0.04;
+    u.rate = clamp(base * fit * (1 + jr), 0.5, 2);
+    u.pitch = clamp(S.opts.pitch + jp + spkShift, 0, 2);
+    u.volume = clamp(S.opts.dubVol / 100, 0, 1);
+    synth.speak(u);
+    total += estSpeech(p, u.rate) + (S.opts.human ? 0.09 : 0);
+  });
+  S.speakingUntil = performance.now() + Math.max(dur, total) * 1000;
+  duckFor(Math.max(dur, total));
+}
+function speakSegment(seg){
+  if(!seg.dst) return;
+  const dur = Math.max(0.4, seg.end - seg.start);
+  if(seg.buf) playBuffer(seg, dur);
+  else speakBrowser(seg, dur);
+}
+function resyncFrom(t){
+  stopSpeaking();
+  const segs = S.segments;
+  let i = 0;
+  while(i < segs.length && segs[i].end < t) i++;
+  segs.forEach((s, k) => { s.spoken = k < i; });
+  S.nextIdx = i;
+}
+
+/* ------------------------------ 18) الترجمة على الشاشة + الحلقة ------------------------------ */
+function setSub(node, text, on){
+  if(!on || !text){ node.classList.remove('show'); return; }
+  if(node.dataset.txt !== text){ node.dataset.txt = text; node.textContent = text; }
+  node.classList.add('show');
+}
+function currentSegment(t){
+  const segs = S.segments;
+  for(let k = Math.max(0, S.nextIdx - 2); k < Math.min(segs.length, S.nextIdx + 2); k++){
+    const s = segs[k];
+    if(s && t >= s.start - 0.08 && t <= s.end + 0.45) return k;
+  }
+  return -1;
+}
+function frame(){
+  const v = el.video;
+  if(S.segments.length){
+    const t = v.currentTime + S.opts.offset;
+    const segs = S.segments;
+    while(S.nextIdx < segs.length && segs[S.nextIdx].end < t - 0.25) S.nextIdx++;
+    const s = segs[S.nextIdx];
+    if(s && !v.paused && S.dubOn && !s.spoken && t >= s.start && t < s.end + 0.6){
+      s.spoken = true;
+      speakSegment(s);
+    }
+    const ci = currentSegment(t);
+    if(ci !== S.curIdx){
+      S.curIdx = ci;
+      const seg = segs[ci];
+      const dstL = byCode[el.dstLang.value];
+      el.subDst.style.direction = dstL && dstL.rtl ? 'rtl' : 'ltr';
+      setSub(el.subDst, seg ? seg.dst : '', S.opts.subs);
+      setSub(el.subSrc, seg ? seg.src : '', S.opts.subs && S.opts.subsSrc);
+      highlightLine(ci);
+    }
+  }
+  drawViz();
+  requestAnimationFrame(frame);
+}
+
+/* ------------------------------ 19) المؤثرات البصرية ------------------------------ */
+const vctx = el.viz.getContext('2d');
+function drawViz(){
+  const c = el.viz;
+  const w = c.clientWidth, h = c.clientHeight;
+  if(!w || !h) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const cw = Math.round(w * dpr), chh = Math.round(h * dpr);
+  if(c.width !== cw || c.height !== chh){ c.width = cw; c.height = chh; }
+  vctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  vctx.clearRect(0, 0, w, h);
+  if(!S.opts.viz || !S.analyser) return;
+  S.analyser.getByteFrequencyData(S.freq);
+  const N = 56;
+  const bin = Math.max(1, Math.floor(S.freq.length * 0.62 / N));
+  const bw = w / N;
+  const speaking = performance.now() < S.speakingUntil;
+  const now = performance.now() / 1000;
+  const g = vctx.createLinearGradient(0, h, 0, 0);
+  g.addColorStop(0, 'rgba(139,92,246,.85)');
+  g.addColorStop(.55, 'rgba(99,102,241,.75)');
+  g.addColorStop(1, 'rgba(34,211,238,.9)');
+  vctx.fillStyle = g;
+  for(let i = 0; i < N; i++){
+    let v = S.freq[i * bin] / 255;
+    if(speaking){
+      const wob = 0.32 + 0.3 * Math.abs(Math.sin(now * 6.1 + i * 0.45)) + 0.18 * Math.abs(Math.sin(now * 11.3 + i));
+      v = Math.max(v, wob * (1 - i / (N * 1.5)));
+    }
+    const bh = Math.max(2, v * h * 0.92);
+    const x = i * bw + bw * 0.18, bwid = bw * 0.64;
+    const r = Math.min(bwid / 2, 3);
+    vctx.beginPath();
+    if(vctx.roundRect) vctx.roundRect(x, h - bh, bwid, bh, [r, r, 0, 0]);
+    else vctx.rect(x, h - bh, bwid, bh);
+    vctx.fill();
+  }
+}
+
+/* ------------------------------ 20) عرض السطور ------------------------------ */
+function renderLines(){
+  if(!S.segments.length){
+    el.lines.innerHTML = '<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><div>'
+      + escapeHtml(I18N[S.ui].emptyScript || I18N.ar.emptyScript) + '</div></div>';
+    return;
+  }
+  const dstL = byCode[el.dstLang.value];
+  const dir = dstL && dstL.rtl ? 'rtl' : 'ltr';
+  const frag = document.createDocumentFragment();
+  S.segments.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.className = 'line';
+    d.dataset.i = i;
+    d.innerHTML =
+      '<div class="meta"><span class="spk s' + (s.spk % 4) + '">#' + (s.spk + 1) + '</span>'
+      + '<span>' + fmt(s.start) + ' → ' + fmt(s.end) + '</span></div>'
+      + '<div class="dst" dir="' + dir + '" contenteditable="true" spellcheck="false">' + escapeHtml(s.dst || '…') + '</div>'
+      + '<div class="src">' + escapeHtml(s.src) + '</div>';
+    frag.appendChild(d);
+  });
+  el.lines.innerHTML = '';
+  el.lines.appendChild(frag);
+}
+function highlightLine(i){
+  const prev = el.lines.querySelector('.line.cur');
+  if(prev) prev.classList.remove('cur');
+  if(i < 0) return;
+  const node = el.lines.querySelector('.line[data-i="' + i + '"]');
+  if(node){
+    node.classList.add('cur');
+    const box = el.lines.getBoundingClientRect(), r = node.getBoundingClientRect();
+    if(r.top < box.top + 8 || r.bottom > box.bottom - 8)
+      el.lines.scrollTop += (r.top - box.top) - box.height / 2 + r.height / 2;
+  }
+}
+function updateStats(){
+  const segs = S.segments;
+  $('#stSeg').textContent = segs.length;
+  $('#stWords').textContent = segs.reduce((n, s) => n + (s.dst || '').split(/\s+/).filter(Boolean).length, 0);
+  $('#stSpk').textContent = new Set(segs.map(s => s.spk)).size;
+  $('#stDur').textContent = fmt(S.duration);
+  el.stats.hidden = false;
+}
+
+/* ------------------------------ 21) التصدير ------------------------------ */
+function srtTime(t){
+  const ms = Math.round((t % 1) * 1000);
+  const s = Math.floor(t), h = (s / 3600) | 0, m = ((s % 3600) / 60) | 0, x = s % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(x).padStart(2,'0') + ',' + String(ms).padStart(3,'0');
+}
+function download(blob, name){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+function exportSrt(){
+  const lines = S.segments.map((s, i) =>
+    (i + 1) + '\n' + srtTime(s.start) + ' --> ' + srtTime(s.end) + '\n' + (s.dst || s.src) + '\n');
+  download(new Blob(['\uFEFF' + lines.join('\n')], {type:'text/plain;charset=utf-8'}),
+    S.mediaName.replace(/\.[^.]+$/, '') + '.' + el.dstLang.value + '.srt');
+}
+function encodeWav(buf){
+  const ch = Math.min(2, buf.numberOfChannels), len = buf.length, sr = buf.sampleRate;
+  const data = new DataView(new ArrayBuffer(44 + len * ch * 2));
+  const wr = (o, s) => { for(let i = 0; i < s.length; i++) data.setUint8(o + i, s.charCodeAt(i)); };
+  wr(0, 'RIFF'); data.setUint32(4, 36 + len * ch * 2, true); wr(8, 'WAVEfmt ');
+  data.setUint32(16, 16, true); data.setUint16(20, 1, true); data.setUint16(22, ch, true);
+  data.setUint32(24, sr, true); data.setUint32(28, sr * ch * 2, true);
+  data.setUint16(32, ch * 2, true); data.setUint16(34, 16, true);
+  wr(36, 'data'); data.setUint32(40, len * ch * 2, true);
+  const chans = [];
+  for(let c = 0; c < ch; c++) chans.push(buf.getChannelData(c));
+  let off = 44;
+  for(let i = 0; i < len; i++)
+    for(let c = 0; c < ch; c++){
+      const v = clamp(chans[c][i], -1, 1);
+      data.setInt16(off, v < 0 ? v * 0x8000 : v * 0x7fff, true);
+      off += 2;
+    }
+  return new Blob([data.buffer], {type:'audio/wav'});
+}
+async function exportWav(){
+  if(!S.origBuffer) return;
+  if(!S.segments.some(s => s.buf)){ toast(T('wavNeedApi'), 'err', 8000); return; }
+  const t = toast('WAV …', 'info', 120000);
+  try{
+    const sr = 44100, dur = S.origBuffer.duration + 2;
+    const off = new OfflineAudioContext(2, Math.ceil(dur * sr), sr);
+    const o = off.createBufferSource(); o.buffer = S.origBuffer;
+    const g = off.createGain(); o.connect(g); g.connect(off.destination);
+    g.gain.setValueAtTime(S.opts.bg / 100, 0);
+    const dg = off.createGain(); dg.gain.value = S.opts.dubVol / 100; dg.connect(off.destination);
+    for(const s of S.segments){
+      if(!s.buf) continue;
+      const st = Math.max(0, s.start + S.opts.offset);
+      const d = Math.max(0.4, s.end - s.start);
+      let r = 1;
+      if(S.opts.fit && s.buf.duration > d * 1.03) r = clamp(s.buf.duration / d, 1, 1.45);
+      r *= S.opts.rate;
+      const bs = off.createBufferSource();
+      bs.buffer = s.buf; bs.playbackRate.value = r; bs.connect(dg); bs.start(st);
+      const real = s.buf.duration / r;
+      g.gain.setTargetAtTime(S.opts.duck / 100, Math.max(0, st - 0.14), 0.05);
+      g.gain.setTargetAtTime(S.opts.bg / 100, st + real + 0.06, 0.12);
+    }
+    o.start(0);
+    const rendered = await off.startRendering();
+    download(encodeWav(rendered), S.mediaName.replace(/\.[^.]+$/, '') + '.' + el.dstLang.value + '.wav');
+    toast(T('wavDone'), 'ok');
+  }catch(err){ toast(String(err.message || err), 'err', 8000); }
+  finally{ t.remove(); }
+}
+
+/* ------------------------------ 22) الإعدادات والتخزين ------------------------------ */
+const STORE = 'sawtak.v1';
+function saveSettings(){
+  const d = {
+    ui:S.ui, src:el.srcLang.value, dst:el.dstLang.value, tts:el.ttsEngine.value,
+    vA:el.voiceA.value, vB:el.voiceB.value, aA:el.apiVoiceA.value, aB:el.apiVoiceB.value,
+    base:el.apiBase.value, asr:el.asrModel.value, mt:el.mtEngine.value, mtm:el.mtModel.value,
+    opts:S.opts,
+  };
+  try{ localStorage.setItem(STORE, JSON.stringify(d)); }catch(e){}
+  try{ sessionStorage.setItem(STORE + '.key', el.apiKey.value); }catch(e){}
+}
+function loadSettings(){
+  let d = null;
+  try{ d = JSON.parse(localStorage.getItem(STORE) || 'null'); }catch(e){}
+  try{ el.apiKey.value = sessionStorage.getItem(STORE + '.key') || ''; }catch(e){}
+  if(!d) return;
+  if(d.ui) S.ui = d.ui;
+  if(d.src) el.srcLang.value = d.src;
+  if(d.dst) el.dstLang.value = d.dst;
+  if(d.tts) el.ttsEngine.value = d.tts;
+  if(d.aA) el.apiVoiceA.value = d.aA;
+  if(d.aB) el.apiVoiceB.value = d.aB;
+  if(d.base) el.apiBase.value = d.base;
+  if(d.asr) el.asrModel.value = d.asr;
+  if(d.mt) el.mtEngine.value = d.mt;
+  if(d.mtm) el.mtModel.value = d.mtm;
+  if(d.opts) Object.assign(S.opts, d.opts);
+  S.pendingVoices = {a:d.vA, b:d.vB};
+}
+
+/* ------------------------------ 23) تركيب الواجهة ------------------------------ */
+function fillLangSelects(){
+  const build = (sel, includeAuto) => {
+    sel.innerHTML = '';
+    LANGS.forEach(l => {
+      if(l.srcOnly && !includeAuto) return;
+      const o = document.createElement('option');
+      o.value = l.c;
+      o.textContent = l[S.ui] + (l.c === 'auto' ? '' : ' · ' + (S.ui === 'ar' ? l.en : l.ar));
+      sel.appendChild(o);
+    });
+  };
+  const a = el.srcLang.value, b = el.dstLang.value;
+  build(el.srcLang, true);
+  build(el.dstLang, false);
+  el.srcLang.value = a || 'auto';
+  el.dstLang.value = b || 'ar';
+}
+const TOGGLES = {tgMulti:'multi', tgHuman:'human', tgFit:'fit', tgSubs:'subs', tgSubsSrc:'subsSrc', tgViz:'viz', tgGpu:'gpu'};
+const SLIDERS = {rate:['rate', v => v.toFixed(2) + '×'], pitch:['pitch', v => v.toFixed(2)],
+  duck:['duck', v => Math.round(v) + '%'], bg:['bg', v => Math.round(v) + '%'],
+  dubVol:['dubVol', v => Math.round(v) + '%'], offset:['offset', v => v.toFixed(2) + 's']};
+
+function syncControls(){
+  for(const [id, key] of Object.entries(TOGGLES)) $('#' + id).classList.toggle('on', !!S.opts[key]);
+  for(const [id, [key, f]] of Object.entries(SLIDERS)){
+    const inp = $('#' + id);
+    inp.value = S.opts[key];
+    $('#' + id + 'V').textContent = f(Number(S.opts[key]));
+  }
+  const eng = el.ttsEngine.value;
+  el.browserVoiceBox.classList.toggle('hidden', eng !== 'browser');
+  el.apiVoiceBox.classList.toggle('hidden', eng === 'browser');
+  el.apiBaseBox.classList.toggle('hidden', eng !== 'openai');
+  el.mtApiBox.classList.toggle('hidden', el.mtEngine.value !== 'api');
+  if(S.origGain) setOrigGain(S.opts.bg / 100);
+  if(S.dubGain) S.dubGain.gain.value = S.opts.dubVol / 100;
+}
+function applyUiLang(){
+  const dict = I18N[S.ui];
+  document.documentElement.lang = S.ui;
+  document.documentElement.dir = S.ui === 'ar' ? 'rtl' : 'ltr';
+  $$('[data-i18n]').forEach(n => { const v = dict[n.dataset.i18n]; if(v) n.textContent = v; });
+  el.langUi.textContent = S.ui === 'ar' ? 'EN' : 'ع';
+  const st = savedStepState.slice();
+  buildSteps();
+  st.forEach((s, i) => s && step(i, s[0], s[1], s[2]));
+  fillLangSelects();
+  renderLines();
+}
+let savedStepState = [];
+const rawStep = step;
+step = function(i, state, note, pct){ savedStepState[i] = [state, note, pct]; rawStep(i, state, note, pct); };
+
+/* أحداث الواجهة */
+el.langUi.onclick = () => { S.ui = S.ui === 'ar' ? 'en' : 'ar'; applyUiLang(); saveSettings(); };
+$$('.tab').forEach(t => t.onclick = () => {
+  $$('.tab').forEach(x => x.classList.remove('on'));
+  $$('.pane').forEach(x => x.classList.remove('on'));
+  t.classList.add('on');
+  $('#' + t.dataset.pane).classList.add('on');
+});
+for(const [id, key] of Object.entries(TOGGLES)){
+  $('#' + id).onclick = () => {
+    S.opts[key] = !S.opts[key];
+    syncControls();
+    saveSettings();
+    if(key === 'subs' || key === 'subsSrc'){ S.curIdx = -2; }
+    if(key === 'viz' && !S.opts.viz){ el.halo.classList.remove('on'); drawViz(); }
+    if(key === 'multi' && S.segments.length){ assignSpeakers(S.segments); S.segments.forEach(x => x.buf = null); el.wav.disabled = true; renderLines(); }
+  };
+}
+for(const [id, [key, f]] of Object.entries(SLIDERS)){
+  const inp = $('#' + id);
+  inp.oninput = () => {
+    S.opts[key] = Number(inp.value);
+    $('#' + id + 'V').textContent = f(S.opts[key]);
+    if(key === 'bg' && performance.now() > S.speakingUntil) setOrigGain(S.opts.bg / 100);
+    if(key === 'dubVol' && S.dubGain) S.dubGain.gain.value = S.opts.dubVol / 100;
+  };
+  inp.onchange = saveSettings;
+}
+el.ttsEngine.onchange = () => {
+  syncControls(); saveSettings();
+  S.segments.forEach(s => s.buf = null);
+  el.wav.disabled = true;
+};
+el.mtEngine.onchange = () => { syncControls(); saveSettings(); };
+el.dstLang.onchange = () => { fillVoiceSelects(); saveSettings(); S.curIdx = -2; renderLines(); };
+el.srcLang.onchange = saveSettings;
+[el.voiceA, el.voiceB, el.apiVoiceA, el.apiVoiceB, el.apiBase, el.mtModel, el.asrModel]
+  .forEach(n => n.onchange = saveSettings);
+el.apiKey.onchange = saveSettings;
+el.swap.onclick = () => {
+  const a = el.srcLang.value, b = el.dstLang.value;
+  if(a === 'auto'){ toast(S.ui === 'ar' ? 'اختر لغة محددة للفيلم أولاً' : 'Pick a concrete film language first', 'info'); return; }
+  el.srcLang.value = b; el.dstLang.value = a;
+  fillVoiceSelects(); saveSettings(); renderLines();
+};
+
+/* ملفات */
+el.file.onchange = e => { const f = e.target.files[0]; if(f) loadMedia(f, f.name).catch(() => toast('media error', 'err')); };
+$('#pickBtn').onclick = () => el.file.click();
+$('#urlBtn').onclick = () => { const u = prompt(T('urlAsk')); if(u) loadFromUrl(u.trim()); };
+['dragenter','dragover'].forEach(ev => el.stage.addEventListener(ev, e => { e.preventDefault(); el.stage.classList.add('dragover'); }));
+['dragleave','drop'].forEach(ev => el.stage.addEventListener(ev, e => { e.preventDefault(); if(ev === 'drop' || e.target === el.stage) el.stage.classList.remove('dragover'); }));
+el.stage.addEventListener('drop', e => {
+  const f = e.dataTransfer.files[0];
+  if(f) loadMedia(f, f.name).catch(() => toast('media error', 'err'));
+});
+
+/* المشغل */
+const PLAY = '<path d="M7 4.5v15l13-7.5z"/>', PAUSE = '<path d="M7 4h4v16H7zM13 4h4v16h-4z"/>';
+el.play.onclick = () => { resumeAudio(); el.video.paused ? el.video.play() : el.video.pause(); };
+el.back.onclick = () => { el.video.currentTime = Math.max(0, el.video.currentTime - 10); };
+el.fwd.onclick = () => { el.video.currentTime = Math.min(S.duration, el.video.currentTime + 10); };
+el.fsBtn.onclick = () => { const s = el.stage; document.fullscreenElement ? document.exitFullscreen() : (s.requestFullscreen && s.requestFullscreen()); };
+el.dubBtn.onclick = () => {
+  S.dubOn = !S.dubOn;
+  el.dubBtn.classList.toggle('act', S.dubOn);
+  if(!S.dubOn) stopSpeaking();
+  toast(S.dubOn ? T('dubOn') : T('dubOff'), 'info', 2200);
+};
+el.video.addEventListener('play', () => { el.playIco.innerHTML = PAUSE; resumeAudio(); });
+el.video.addEventListener('pause', () => { el.playIco.innerHTML = PLAY; stopSpeaking(); });
+el.video.addEventListener('ended', () => { stopSpeaking(); });
+el.video.addEventListener('seeking', () => { resyncFrom(el.video.currentTime + S.opts.offset); S.curIdx = -2; });
+let seeking = false;
+el.video.addEventListener('timeupdate', () => {
+  el.tCur.textContent = fmt(el.video.currentTime);
+  if(!seeking && S.duration) el.seek.value = (el.video.currentTime / S.duration) * 1000;
+});
+el.seek.addEventListener('input', () => { seeking = true; el.tCur.textContent = fmt(el.seek.value / 1000 * S.duration); });
+el.seek.addEventListener('change', () => { el.video.currentTime = el.seek.value / 1000 * S.duration; seeking = false; });
+el.lines.addEventListener('click', e => {
+  if(e.target.isContentEditable) return;
+  const line = e.target.closest('.line');
+  if(!line) return;
+  const s = S.segments[+line.dataset.i];
+  if(s){ el.video.currentTime = Math.max(0, s.start - 0.15); }
+});
+el.lines.addEventListener('input', e => {
+  if(!e.target.classList.contains('dst')) return;
+  const line = e.target.closest('.line');
+  const s = S.segments[+line.dataset.i];
+  if(s){ s.dst = e.target.textContent.trim(); s.buf = null; }
+});
+document.addEventListener('keydown', e => {
+  if(/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName) || e.target.isContentEditable) return;
+  if(e.code === 'Space'){ e.preventDefault(); el.play.click(); }
+  else if(e.code === 'ArrowLeft'){ e.preventDefault(); (document.dir === 'rtl' ? el.fwd : el.back).click(); }
+  else if(e.code === 'ArrowRight'){ e.preventDefault(); (document.dir === 'rtl' ? el.back : el.fwd).click(); }
+  else if(e.key.toLowerCase() === 'd'){ el.dubBtn.click(); }
+});
+
+/* التشغيل */
+el.run.onclick = () => { resumeAudio(); runPipeline(); };
+el.cancel.onclick = () => { S.cancel = true; el.cancel.disabled = true; };
+el.reset.onclick = () => {
+  S.cancel = true;
+  stopSpeaking();
+  el.video.pause(); el.video.removeAttribute('src'); el.video.load();
+  if(objUrl){ URL.revokeObjectURL(objUrl); objUrl = null; }
+  S.mediaBlob = null; S.pcm = null; S.origBuffer = null; S.duration = 0;
+  clearResults(); resetSteps(); savedStepState = [];
+  el.drop.classList.remove('hide');
+  ['play','back','fwd','seek','fsBtn','dubBtn'].forEach(k => el[k].disabled = true);
+  el.run.disabled = true;
+  el.tCur.textContent = el.tDur.textContent = '0:00'; el.seek.value = 0;
+  setSub(el.subDst, '', false); setSub(el.subSrc, '', false);
+};
+el.srt.onclick = exportSrt;
+el.wav.onclick = exportWav;
+el.test.onclick = async () => {
+  resumeAudio();
+  const l = byCode[el.dstLang.value];
+  const demo = {ar:'مرحباً، هذا اختبار لصوت الدبلجة. هل يبدو طبيعياً؟', en:'Hello, this is a dubbing voice test. Does it sound natural?',
+    fr:'Bonjour, ceci est un test de doublage. Est-ce que ça sonne naturel ?', es:'Hola, esta es una prueba de doblaje.',
+    de:'Hallo, das ist ein Synchron-Test.', it:'Ciao, questo è un test di doppiaggio.', tr:'Merhaba, bu bir dublaj testidir.'};
+  const text = demo[el.dstLang.value] || demo.en;
+  const seg = {i:0, spk:0, dst:text, src:text, start:0, end:Math.max(2.4, text.length / 13)};
+  if(el.ttsEngine.value === 'browser'){ speakBrowser(seg, seg.end); }
+  else {
+    const t = toast('…', 'info', 30000);
+    try{ seg.buf = await synthNeural(text, apiVoiceFor(0)); playBuffer(seg, seg.end); }
+    catch(err){ toast(T('ttsFail') + err.message, 'err', 8000); }
+    finally{ t.remove(); }
+  }
+};
+
+/* دليل الاستخدام */
+const HELP = {
+  ar:['كيف يعمل التطبيق؟',
+    '<b>1 · حمّل الفيلم</b> — اسحب ملف الفيديو أو اختره من جهازك. لا يُرفع الملف إلى أي خادم؛ كل شيء داخل متصفحك.',
+    '<b>2 · اختر اللغات</b> — «كشف تلقائي» يتعرّف على لغة الفيلم (فرنسية، إنجليزية…) واختر اللغة التي تريد سماع الفيلم بها.',
+    '<b>3 · اضغط «ابدأ الدبلجة»</b> — يستخرج التطبيق الصوت، ثم يفرّغ الحوار بنموذج Whisper، ثم يترجمه، ثم ينطقه بصوت بشري.',
+    '<b>4 · شغّل الفيلم</b> — يُخفَض صوت الممثلين تلقائياً وقت الحوار وتسمع الصوت الجديد مكانه، مع بقاء الموسيقى والمؤثرات.',
+    '<b>أفضل جودة صوت:</b> اختر محرّك <i>ElevenLabs</i> في تبويب «الأصوات» وأدخل مفتاح API — الأصوات بشرية تماماً بأكثر من ٣٠ لغة، ويصبح تصدير المسار الصوتي المدبلج (WAV) متاحاً.',
+    '<b>بدون مفتاح؟</b> أصوات المتصفح مجانية وتعمل بلا إنترنت. جودتها تعتمد على نظامك — على ويندوز/أندرويد ثبّت حزمة الصوت العربي لتحسّن كبير.',
+    '<b>تنبيه:</b> شغّل الملف عبر خادم محلي (<code>python3 -m http.server</code>) لأن المتصفح يمنع تحميل النماذج من <code>file://</code>. روابط يوتيوب غير مدعومة — استخدم ملفاً أو رابطاً مباشراً.'],
+  en:['How it works',
+    '<b>1 · Load the film</b> — drag a video file or pick it from your device. Nothing is uploaded; everything runs in your browser.',
+    '<b>2 · Choose languages</b> — “Auto detect” recognises the film language (French, English…). Then pick the language you want to hear.',
+    '<b>3 · Press “Start dubbing”</b> — the app extracts the audio, transcribes it with Whisper, translates it, then speaks it with a human voice.',
+    '<b>4 · Play</b> — the actors’ voices duck automatically during dialogue and the new voice takes their place, while music and effects stay.',
+    '<b>Best quality:</b> pick the <i>ElevenLabs</i> engine in the “Voices” tab and enter an API key — fully human voices in 30+ languages, and WAV export of the dubbed track becomes available.',
+    '<b>No key?</b> Browser voices are free and offline. Quality depends on your system — installing a voice pack helps a lot.',
+    '<b>Note:</b> serve this file from a local server (<code>python3 -m http.server</code>); browsers block model loading from <code>file://</code>. YouTube links are not supported — use a file or a direct link.']
+};
+el.help.onclick = () => {
+  const old = $('#helpModal'); if(old){ old.remove(); return; }
+  const h = HELP[S.ui];
+  const d = document.createElement('div');
+  d.id = 'helpModal';
+  d.style.cssText = 'position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:rgba(3,4,10,.72);backdrop-filter:blur(8px);animation:fade .3s';
+  d.innerHTML = '<div class="card" style="max-width:640px;max-height:85vh;overflow:auto">'
+    + '<div class="card-h"><h2>' + h[0] + '</h2><div class="spacer"></div>'
+    + '<button class="btn sm ghost" id="helpX">✕</button></div>'
+    + '<div class="card-b" style="display:flex;flex-direction:column;gap:12px;font-size:13.5px;line-height:1.85">'
+    + h.slice(1).map(x => '<div>' + x + '</div>').join('') + '</div></div>';
+  d.onclick = e => { if(e.target === d || e.target.id === 'helpX') d.remove(); };
+  document.body.appendChild(d);
+};
+
+/* ------------------------------ 24) الإقلاع ------------------------------ */
+document.head.insertAdjacentHTML('beforeend',
+  '<style>.tbtn.act{background:var(--grad);border-color:transparent}.tbtn.act svg{stroke:#fff}</style>');
+
+function boot(){
+  fillLangSelects();
+  loadSettings();
+  fillLangSelects();
+  buildSteps();
+  applyUiLang();
+  syncControls();
+  loadVoices();
+  if(window.speechSynthesis) speechSynthesis.onvoiceschanged = () => {
+    loadVoices();
+    if(S.pendingVoices){
+      if(S.pendingVoices.a) el.voiceA.value = S.pendingVoices.a;
+      if(S.pendingVoices.b) el.voiceB.value = S.pendingVoices.b;
+      S.pendingVoices = null;
+    }
+  };
+  el.dubBtn.classList.add('act');
+  setEngineBadge(navigator.gpu ? 'WebGPU' : 'WASM', false);
+  el.engineBadge = $('#engineBadge');
+  el.engineBadge.onclick = () => toast(navigator.gpu
+    ? (S.ui === 'ar' ? 'المتصفح يدعم WebGPU — التسريع مُفعّل' : 'WebGPU is supported — acceleration on')
+    : (S.ui === 'ar' ? 'لا يوجد WebGPU — سيُستخدم WASM (أبطأ)' : 'No WebGPU — falling back to WASM (slower)'), 'info');
+  if(location.protocol === 'file:') toast(T('fileProto'), 'err', 12000);
+  requestAnimationFrame(frame);
+}
+boot();
+</script>
+</body>
+</html>
