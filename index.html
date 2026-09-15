@@ -436,6 +436,27 @@ canvas.prev3d{width:100%;aspect-ratio:4/3;border-radius:12px;background:#05060c;
         <div class="sub" id="privacyText"></div>
       </div>
       <div class="card">
+        <h3>📱 <span>ابنِ تطبيقك</span></h3>
+        <p class="sub">يحزم أصولك ومعرفتك وألعابك في تطبيق واحد. كلما أضفت ملفات، كبر ما بداخله.</p>
+        <div id="appxInfo" class="sub"></div>
+        <div class="row">
+          <button class="btn pri sm" id="appxHtml">⬇ تطبيق HTML (قابل للتثبيت)</button>
+          <button class="btn sm" id="appxApk">⬇ مشروع أندرويد (→ APK)</button>
+        </div>
+        <div class="log hide" id="appxLog" style="margin-top:9px"></div>
+      </div>
+      <div class="card">
+        <h3>🌐 <span>البحث في الإنترنت</span></h3>
+        <p class="sub" id="webNote"></p>
+        <label class="row" style="gap:7px;font-size:13px">
+          <input type="checkbox" id="webOn" style="width:auto"> تفعيل البحث في ويكيبيديا
+        </label>
+        <div class="row" style="margin-top:8px">
+          <button class="btn sm" id="webTest">اختبر الاتصال فعليًا</button>
+          <span class="mono" id="webStatus" style="font-size:11px;color:var(--ink3)"></span>
+        </div>
+      </div>
+      <div class="card">
         <h3>🧪 <span>الفحص الذاتي</span></h3>
         <p class="sub">يشغّل اختبارات حقيقية على المحلّلات والنماذج والتخزين ومولّد الألعاب.</p>
         <button class="btn sm" id="selftestBtn">تشغيل الفحص</button>
@@ -1095,6 +1116,8 @@ const SEED_INTENT = {
   identity: ['ما اسمك', 'اسمك ايه', 'شو اسمك', 'وش اسمك', 'من انت', 'عرف بنفسك', 'what is your name', 'who are you', 'من صنعك', 'ما اصدارك', 'كم عمرك', 'اين تحفظ بياناتي', 'هل تستخدم انترنت', 'هل تتصل بالانترنت', 'اي لغه تتكلم', 'كم تعلمت حتى الان'],
   remember_fact: ['اسمي امين', 'انا اسمي محمد', 'تذكر ان مشروعي اسمه كذا', 'احب العاب السيارات', 'انا افضل الالعاب السريعه', 'remember that i like racing', 'my name is amine', 'تذكر هذا', 'احفظ هذه المعلومه', 'مشروعي اسمه مدينتي'],
   recall_fact: ['ما اسمي', 'هل تتذكر اسمي', 'ماذا تعرف عني', 'وش تعرف عني', 'ماذا تتذكر', 'what is my name', 'do you remember me', 'اعرض ما تعرفه عني', 'هل تتذكرني', 'ما الذي حفظته عني'],
+  build_app: ['ابن لي تطبيق', 'اريد تطبيق اندرويد', 'سو لي apk', 'حول هذا الى تطبيق', 'اعطني ملف apk', 'اريد تثبيته على هاتفي', 'صدر التطبيق', 'حزم كل شي في تطبيق', 'make an apk', 'build an android app', 'اريد تطبيق اثبته على جوالي'],
+  web_search: ['ابحث في الانترنت عن', 'ابحث لي عن معلومات', 'ابحث في ويكيبيديا', 'اعطني معلومات من الانترنت', 'search the web for', 'ابحث خارجيا عن', 'ابحث عن معلومات خارجيه', 'هات لي معلومات من الانترنت', 'ابحث في النت', 'ابحث عن تعريف'],
   write_code: ['اكتب لي كود', 'اعطني كود للتحكم بالسياره', 'سو لي دالة للقفز', 'اكتب كلاس للكاميرا', 'اريد كود حركة الشخصيه', 'write me code for a camera', 'give me a function for jumping', 'اعطني كود الاصطدام', 'اكتب لي نظام النقاط', 'اريد كود حفظ التقدم', 'كود ربط الصوت بالسرعه', 'اعطني كود الادخال باللمس'],
   play_game: ['شغل اللعبة', 'افتح اللعبة', 'اريد ان العب', 'شغل اخر لعبة', 'اعرض اللعبة', 'run the game', 'جربها', 'شوف اذا تشتغل', 'اختبر اللعبة', 'نزل اللعبة'],
   explain_asset: ['ما هذا الملف', 'اشرح لي هذا المجسم', 'ما نوع هذا الصوت', 'حلل هذه الصورة', 'وش فيه هذا الاصل', 'what is this asset', 'اعطني تفاصيل الملف', 'كم مضلع في المجسم', 'ما مدة الصوت', 'اعرض بيانات الاصل'],
@@ -1158,6 +1181,8 @@ const INTENT_TRIGGERS = {
   identity: ['ما اسمك', 'اسمك', 'من انت', 'من صنعك', 'عرف بنفسك', 'اصدارك', 'كم عمرك', 'your name', 'who are you', 'اين تحفظ', 'تستخدم انترنت', 'تتصل بالانترنت'],
   remember_fact: ['اسمي ', 'تذكر ', 'احفظ هذه', 'my name is', 'remember that', 'انا احب', 'مشروعي اسمه'],
   recall_fact: ['ما اسمي', 'تتذكر اسمي', 'تعرف عني', 'ماذا تتذكر', 'what is my name', 'تتذكرني', 'حفظته عني'],
+  build_app: ['تطبيق', 'apk', 'اندرويد', 'android', 'اثبته', 'تثبيت', 'جوالي', 'هاتفي'],
+  web_search: ['ابحث في الانترنت', 'ابحث في ويكيبيديا', 'من الانترنت', 'search the web', 'ابحث خارجيا', 'ابحث في النت'],
   write_code: ['اكتب لي كود', 'اكتب كود', 'اعطني كود', 'اريد كود', 'كود ', 'دالة', 'داله', 'كلاس', 'function for', 'write code', 'give me code', 'سكربت', 'snippet'],
   play_game: ['شغل', 'افتح اللعبه', 'العب', 'run the', 'جربها', 'اعرض اللعبه'],
   explain_asset: ['ما هذا', 'ما نوع', 'تفاصيل الملف', 'بيانات الاصل', 'كم مضلع', 'مده الصوت'],
@@ -2190,6 +2215,349 @@ const OBJ = {
   }
 };
 
+/* ============================ 16b · ZIP WRITER ======================== */
+/* كاتب ZIP كامل (CRC32 + Local headers + Central directory + EOCD).
+   يُستخدم لإخراج مشروع أندرويد قابل للبناء ولحزم نسخة التطبيق. */
+const ZIPW = {
+  table: (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })(),
+  crc32(buf) {
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < buf.length; i++) c = this.table[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  },
+  async deflate(u8) {
+    if (typeof CompressionStream === 'undefined') return null;
+    try {
+      const cs = new CompressionStream('deflate-raw');
+      const buf = await new Response(new Blob([u8]).stream().pipeThrough(cs)).arrayBuffer();
+      return new Uint8Array(buf);
+    } catch (e) { return null; }
+  },
+  /* files: [{ name, data:Uint8Array|string }] */
+  async build(files) {
+    const enc = new TextEncoder();
+    const parts = [], central = [];
+    let offset = 0;
+    for (const f of files) {
+      const nameB = enc.encode(f.name);
+      const raw = typeof f.data === 'string' ? enc.encode(f.data) : f.data;
+      const crc = this.crc32(raw);
+      let method = 0, body = raw;
+      if (raw.length > 180) {
+        const d = await this.deflate(raw);
+        if (d && d.length < raw.length) { method = 8; body = d; }
+      }
+      const lh = new Uint8Array(30 + nameB.length);
+      const dv = new DataView(lh.buffer);
+      dv.setUint32(0, 0x04034b50, true);
+      dv.setUint16(4, 20, true); dv.setUint16(6, 0, true); dv.setUint16(8, method, true);
+      dv.setUint16(10, 0, true); dv.setUint16(12, 0x2821, true);   /* وقت/تاريخ ثابتان لإخراج قابل للتكرار */
+      dv.setUint32(14, crc, true); dv.setUint32(18, body.length, true); dv.setUint32(22, raw.length, true);
+      dv.setUint16(26, nameB.length, true); dv.setUint16(28, 0, true);
+      lh.set(nameB, 30);
+      parts.push(lh, body);
+
+      const ch = new Uint8Array(46 + nameB.length);
+      const cv = new DataView(ch.buffer);
+      cv.setUint32(0, 0x02014b50, true);
+      cv.setUint16(4, 20, true); cv.setUint16(6, 20, true); cv.setUint16(8, 0, true);
+      cv.setUint16(10, method, true); cv.setUint16(12, 0, true); cv.setUint16(14, 0x2821, true);
+      cv.setUint32(16, crc, true); cv.setUint32(20, body.length, true); cv.setUint32(24, raw.length, true);
+      cv.setUint16(28, nameB.length, true);
+      cv.setUint32(42, offset, true);
+      ch.set(nameB, 46);
+      central.push(ch);
+      offset += lh.length + body.length;
+    }
+    let cdSize = 0;
+    central.forEach(c => cdSize += c.length);
+    const eocd = new Uint8Array(22);
+    const ev = new DataView(eocd.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(8, central.length, true); ev.setUint16(10, central.length, true);
+    ev.setUint32(12, cdSize, true); ev.setUint32(16, offset, true);
+    return new Blob(parts.concat(central, [eocd]), { type: 'application/zip' });
+  }
+};
+
+/* ============================ 16c · ANDROID BINARY XML ================ */
+/* محلّل AndroidManifest.xml الثنائي (AXML) — مكتوب من الصفر وفق بنية
+   ResChunk: مجمع نصوص + عناصر + سمات. بلا هذا لا يمكن قراءة اسم الحزمة
+   ولا الأذونات من داخل APK. */
+const AXML = {
+  parse(u8) {
+    const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    if (dv.getUint16(0, true) !== 0x0003) throw new Error('ليس AndroidManifest ثنائيًا');
+    const total = dv.getUint32(4, true);
+    let off = dv.getUint16(2, true);
+    let pool = null;
+    const events = [];
+    while (off + 8 <= Math.min(total, u8.length)) {
+      const type = dv.getUint16(off, true);
+      const hdr = dv.getUint16(off + 2, true);
+      const size = dv.getUint32(off + 4, true);
+      if (size <= 0) break;
+      if (type === 0x0001) pool = this.strings(u8, dv, off, size);
+      else if (type === 0x0102) events.push(this.startEl(dv, off, hdr, pool));
+      /* endElementExt = { ns@+0, name@+4 } بعد ترويسة العقدة مباشرة */
+      else if (type === 0x0103) events.push({ kind: 'end', name: pool ? pool[dv.getUint32(off + hdr + 4, true)] : null });
+      off += size;
+    }
+    return { events, pool };
+  },
+  strings(u8, dv, off, size) {
+    const count = dv.getUint32(off + 8, true);
+    const flags = dv.getUint32(off + 16, true);
+    const start = dv.getUint32(off + 20, true);
+    const utf8 = (flags & 0x100) !== 0;
+    const out = new Array(count);
+    const base = off + start;
+    for (let i = 0; i < count; i++) {
+      const so = dv.getUint32(off + 28 + i * 4, true);
+      let p = base + so;
+      if (p >= u8.length) { out[i] = ''; continue; }
+      if (utf8) {
+        let n = u8[p++]; if (n & 0x80) n = ((n & 0x7f) << 8) | u8[p++];
+        let n8 = u8[p++]; if (n8 & 0x80) n8 = ((n8 & 0x7f) << 8) | u8[p++];
+        out[i] = new TextDecoder('utf-8').decode(u8.subarray(p, p + n8));
+      } else {
+        let n = dv.getUint16(p, true); p += 2;
+        if (n & 0x8000) { n = ((n & 0x7fff) << 16) | dv.getUint16(p, true); p += 2; }
+        let sres = '';
+        for (let k = 0; k < n; k++) sres += String.fromCharCode(dv.getUint16(p + k * 2, true));
+        out[i] = sres;
+      }
+    }
+    return out;
+  },
+  /* ResXMLTree_attrExt يبدأ مباشرة بعد ترويسة العقدة (headerSize = 16):
+     ns@+0 · name@+4 · attributeStart@+8 · attributeSize@+10 · attributeCount@+12 */
+  startEl(dv, off, hdr, pool) {
+    const str = i => (i === 0xFFFFFFFF || !pool) ? null : (pool[i] != null ? pool[i] : null);
+    const base = off + hdr;
+    const name = str(dv.getUint32(base + 4, true));
+    const attrStart = dv.getUint16(base + 8, true) || 20;
+    const attrSize = dv.getUint16(base + 10, true) || 20;
+    const attrCount = dv.getUint16(base + 12, true);
+    const attrs = {};
+    for (let i = 0; i < attrCount; i++) {
+      const a = base + attrStart + i * attrSize;
+      const an = str(dv.getUint32(a + 4, true));
+      const rawV = dv.getUint32(a + 8, true);
+      const dType = dv.getUint8(a + 15);
+      const data = dv.getUint32(a + 16, true);
+      let val;
+      if (dType === 0x03) val = str(rawV !== 0xFFFFFFFF ? rawV : data);
+      else if (dType === 0x12) val = data !== 0;
+      else val = data | 0;
+      if (an) attrs[an] = val;
+    }
+    return { kind: 'start', name, attrs };
+  },
+  /* يستخرج ما يهم من بيان التطبيق */
+  manifest(u8) {
+    const { events } = this.parse(u8);
+    const out = { package: null, versionCode: null, versionName: null, minSdk: null, targetSdk: null, permissions: [], activities: [], features: [], label: null, mainActivity: null };
+    let inActivity = null, hasMain = false, hasLauncher = false;
+    for (const e of events) {
+      if (e.kind === 'end') {
+        if (e.name === 'activity' && inActivity) {
+          out.activities.push(inActivity);
+          if (hasMain && hasLauncher && !out.mainActivity) out.mainActivity = inActivity;
+          inActivity = null; hasMain = false; hasLauncher = false;
+        }
+        continue;
+      }
+      const a = e.attrs || {};
+      if (e.name === 'manifest') {
+        out.package = a['package'] || out.package;
+        if (a.versionCode != null) out.versionCode = a.versionCode;
+        if (a.versionName != null) out.versionName = String(a.versionName);
+      } else if (e.name === 'uses-sdk') {
+        if (a.minSdkVersion != null) out.minSdk = a.minSdkVersion;
+        if (a.targetSdkVersion != null) out.targetSdk = a.targetSdkVersion;
+      } else if (e.name === 'uses-permission') {
+        if (a.name) out.permissions.push(String(a.name).replace('android.permission.', ''));
+      } else if (e.name === 'uses-feature') {
+        if (a.name) out.features.push(String(a.name));
+      } else if (e.name === 'application') {
+        if (a.label != null && typeof a.label === 'string') out.label = a.label;
+      } else if (e.name === 'activity') {
+        inActivity = a.name ? String(a.name) : '(بلا اسم)';
+      } else if (e.name === 'action') {
+        if (String(a.name) === 'android.intent.action.MAIN') hasMain = true;
+      } else if (e.name === 'category') {
+        if (String(a.name) === 'android.intent.category.LAUNCHER') hasLauncher = true;
+      }
+    }
+    return out;
+  }
+};
+
+/* ============================ 16d · DEX READER ======================== */
+/* قارئ classes.dex: الترويسة + جدول النصوص + أوصاف الأنواع.
+   منه نعرف الأصناف والحزم المستخدمة، ومنها نستنتج المحرّك والمكتبات. */
+const DEX = {
+  uleb128(u8, p) {
+    let result = 0, shift = 0, b;
+    do { b = u8[p++]; result |= (b & 0x7f) << shift; shift += 7; } while (b & 0x80 && shift < 35);
+    return [result >>> 0, p];
+  },
+  parse(u8, limitTypes) {
+    if (u8.length < 112) throw new Error('ملف DEX صغير جدًا');
+    const magic = String.fromCharCode(u8[0], u8[1], u8[2]);
+    if (magic !== 'dex') throw new Error('ليس ملف DEX');
+    const version = String.fromCharCode(u8[4], u8[5], u8[6]);
+    const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    const h = {
+      version, fileSize: dv.getUint32(32, true),
+      stringIds: dv.getUint32(56, true), stringOff: dv.getUint32(60, true),
+      typeIds: dv.getUint32(64, true), typeOff: dv.getUint32(68, true),
+      protoIds: dv.getUint32(72, true), fieldIds: dv.getUint32(80, true),
+      methodIds: dv.getUint32(88, true), classDefs: dv.getUint32(96, true),
+    };
+    const readStr = (idx) => {
+      if (idx >= h.stringIds) return null;
+      const so = dv.getUint32(h.stringOff + idx * 4, true);
+      if (so >= u8.length) return null;
+      const [, p] = this.uleb128(u8, so);
+      let end = p; while (end < u8.length && u8[end] !== 0) end++;
+      return new TextDecoder('utf-8').decode(u8.subarray(p, end));
+    };
+    const cap = Math.min(h.typeIds, limitTypes || 30000);
+    const types = [];
+    for (let i = 0; i < cap; i++) {
+      const si = dv.getUint32(h.typeOff + i * 4, true);
+      const t = readStr(si);
+      if (t) types.push(t);
+    }
+    return { header: h, types, readStr };
+  },
+  /* يحوّل أوصاف الأنواع إلى حزم: Lcom/unity3d/player/X;  →  com.unity3d.player */
+  packages(types, top) {
+    const counts = {};
+    types.forEach(t => {
+      if (t[0] !== 'L') return;
+      const parts = t.slice(1, -1).split('/');
+      if (parts.length < 2) return;
+      const pk = parts.slice(0, Math.min(3, parts.length - 1)).join('.');
+      counts[pk] = (counts[pk] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, top || 25)
+      .map(([name, n]) => ({ name, classes: n }));
+  }
+};
+
+/* ============================ 16e · APK ANALYZER ====================== */
+/* ملف APK هو أرشيف ZIP: نفكّه، نقرأ بيانه الثنائي و DEX ومكتباته وأصوله،
+   ونستنتج المحرّك. وإن كان تطبيقًا هجينًا (Cordova/Capacitor) نستخرج
+   شيفرته الحقيقية ونمرّرها على محلّل الشيفرة نفسه. */
+const APK = {
+  ENGINES: [
+    { id: 'Unity', test: z => z.some(n => /lib\/[^/]+\/libunity\.so$/.test(n) || n.startsWith('assets/bin/Data')), pkg: 'com.unity3d' },
+    { id: 'Godot', test: z => z.some(n => /lib\/[^/]+\/libgodot.*\.so$/.test(n) || /\.pck$/.test(n)), pkg: 'org.godotengine' },
+    { id: 'Flutter', test: z => z.some(n => /lib\/[^/]+\/libflutter\.so$/.test(n) || n.startsWith('assets/flutter_assets')), pkg: 'io.flutter' },
+    { id: 'React Native', test: z => z.some(n => n === 'assets/index.android.bundle'), pkg: 'com.facebook.react' },
+    { id: 'Cordova / Capacitor', test: z => z.some(n => n.startsWith('assets/www/')), pkg: 'org.apache.cordova' },
+    { id: 'libGDX', test: z => false, pkg: 'com.badlogic.gdx' },
+    { id: 'Unreal', test: z => z.some(n => /lib\/[^/]+\/libUE4\.so$/.test(n) || /\.pak$/.test(n)), pkg: 'com.epicgames' },
+  ],
+  async analyze(buf, name, log) {
+    const L = log || (() => { });
+    const z = await ZIP.read(buf);
+    const names = z.entries.map(e => e.name);
+    const out = {
+      type: 'apk', file: name, entries: z.entries.length,
+      totalUncompressed: z.entries.reduce((a, e) => a + (e.usize || 0), 0),
+      manifest: null, dex: null, engine: null, engineWhy: [], libs: [], abis: [],
+      assets: [], webFiles: [], signed: names.some(n => /^META-INF\/.*\.(RSA|DSA|EC|SF)$/i.test(n)),
+      images: 0, sounds: 0, models: 0, errors: [],
+    };
+    /* --- البيان --- */
+    const mf = z.entries.find(e => e.name === 'AndroidManifest.xml');
+    if (mf) {
+      try { out.manifest = AXML.manifest(await ZIP.extract(z, mf)); }
+      catch (e) { out.errors.push('AndroidManifest: ' + e.message); }
+    } else out.errors.push('لا يوجد AndroidManifest.xml — قد لا يكون APK');
+    /* --- DEX --- */
+    const dexes = z.entries.filter(e => /^classes\d*\.dex$/.test(e.name));
+    if (dexes.length) {
+      try {
+        const d = DEX.parse(await ZIP.extract(z, dexes[0]));
+        out.dex = {
+          files: dexes.length, version: d.header.version,
+          strings: d.header.stringIds, types: d.header.typeIds,
+          methods: d.header.methodIds, classes: d.header.classDefs,
+          packages: DEX.packages(d.types, 22),
+        };
+      } catch (e) { out.errors.push('DEX: ' + e.message); }
+    }
+    /* --- المكتبات الأصلية والمعماريات --- */
+    names.forEach(n => {
+      const m = /^lib\/([^/]+)\/(.+\.so)$/.exec(n);
+      if (m) { if (out.abis.indexOf(m[1]) < 0) out.abis.push(m[1]); if (out.libs.indexOf(m[2]) < 0) out.libs.push(m[2]); }
+      const e = U.ext(n);
+      if (['png', 'jpg', 'jpeg', 'webp'].includes(e)) out.images++;
+      else if (['ogg', 'mp3', 'wav', 'm4a'].includes(e)) out.sounds++;
+      else if (['glb', 'gltf', 'obj', 'fbx'].includes(e)) out.models++;
+      if (n.startsWith('assets/') && !n.endsWith('/')) out.assets.push(n);
+    });
+    /* --- المحرّك --- */
+    const pkgNames = (out.dex && out.dex.packages ? out.dex.packages.map(p => p.name) : []);
+    for (const eng of this.ENGINES) {
+      const byFile = eng.test(names);
+      const byPkg = pkgNames.some(p => p.indexOf(eng.pkg) === 0);
+      if (byFile || byPkg) {
+        out.engine = eng.id;
+        if (byFile) out.engineWhy.push('ملفات مميّزة داخل الحزمة');
+        if (byPkg) out.engineWhy.push('حزم أصناف ' + eng.pkg);
+        break;
+      }
+    }
+    if (!out.engine) out.engine = 'أندرويد أصلي (Java/Kotlin) أو محرّك غير معروف';
+    /* --- شيفرة الويب داخل التطبيقات الهجينة --- */
+    const web = z.entries.filter(e => /^assets\/(www|public)\/.+\.(js|html|css|json)$/i.test(e.name) && e.usize < 900000);
+    for (const w of web.slice(0, 14)) {
+      try {
+        const data = await ZIP.extract(z, w);
+        const txt = new TextDecoder('utf-8', { fatal: false }).decode(data);
+        const ext = U.ext(w.name);
+        const an = ext === 'js' ? CODE.analyze(txt, U.base(w.name))
+          : ext === 'html' ? INGEST.analyzeHTML(txt, U.base(w.name))
+            : ext === 'css' ? INGEST.analyzeCSS(txt) : INGEST.analyzeJSON(txt, U.base(w.name));
+        out.webFiles.push({ name: w.name, ext, bytes: w.usize, analysis: an, text: txt.length < 160000 ? txt : null });
+        L('📄 قرأت شيفرة داخل APK: ' + U.base(w.name));
+      } catch (e) { out.errors.push(U.base(w.name) + ': ' + e.message); }
+    }
+    return out;
+  },
+  /* ما الذي يمكن تعلّمه فعلًا من هذا التطبيق */
+  lessons(a) {
+    const out = [];
+    if (a.manifest) {
+      if (a.manifest.permissions.length) out.push({ k: 'أذونات', v: a.manifest.permissions.slice(0, 8).join('، ') });
+      if (a.manifest.minSdk) out.push({ k: 'أدنى SDK', v: String(a.manifest.minSdk) });
+    }
+    if (a.engine) out.push({ k: 'المحرّك', v: a.engine + (a.engineWhy.length ? ' (' + a.engineWhy.join('، ') + ')' : '') });
+    if (a.abis.length) out.push({ k: 'المعماريات', v: a.abis.join('، ') });
+    if (a.dex) out.push({ k: 'حجم الشيفرة', v: a.dex.classes + ' صنف · ' + a.dex.methods + ' دالة' });
+    if (a.webFiles.length) {
+      const systems = new Set();
+      a.webFiles.forEach(w => (w.analysis.systems || []).forEach(x => systems.add(x.system)));
+      if (systems.size) out.push({ k: 'أنظمة مقروءة من شيفرته', v: Array.from(systems).join('، ') });
+    }
+    return out;
+  }
+};
+
 /* ============================ 17 · AUDIO ANALYZER ====================== */
 /* تحليل إشارة حقيقي: فك الترميز عبر WebAudio، ثم RMS/Peak/ZCR،
    وطيف عبر FFT مكتوب يدويًا (radix-2)، ومنه: المركز الطيفي، الانحدار،
@@ -2816,7 +3184,7 @@ const KG = {
 
 /* ============================ 23 · ASSET LIBRARY ======================= */
 const ASSET_CATS = ['Vehicles', 'Characters', 'Buildings', 'Environment', 'Nature', 'Animals', 'Weapons', 'Props',
-  'Animations', 'Textures', 'Sounds', 'Music', 'UI', 'Effects', 'Maps', 'Code', 'Data', 'Other'];
+  'Animations', 'Textures', 'Sounds', 'Music', 'UI', 'Effects', 'Maps', 'Code', 'Apps', 'Data', 'Other'];
 
 const LIB = {
   cache: [],
@@ -2829,6 +3197,7 @@ const LIB = {
     if (['js', 'ts', 'jsx', 'tsx', 'mjs', 'cjs'].includes(e)) return 'code';
     if (['html', 'htm', 'css', 'scss'].includes(e)) return 'web';
     if (['json', 'txt', 'md', 'xml', 'csv', 'yml', 'yaml', 'ini', 'cfg'].includes(e)) return 'data';
+    if (['apk', 'aab', 'xapk'].includes(e)) return 'app';
     if (['zip', 'rar', '7z', 'tar', 'gz'].includes(e)) return 'archive';
     if (['mp4', 'webm', 'mov'].includes(e)) return 'video';
     if ((mime || '').startsWith('image/')) return 'image';
@@ -3014,6 +3383,18 @@ const INGEST = {
       } else {
         rec.analysis = { type: 'text', lines: txt.split('\n').length, words: txt.split(/\s+/).length, lang: TOK.lang(txt) };
         rec.category = 'Data'; rec.tags = ['text', ext];
+      }
+    } else if (kind === 'app') {
+      try {
+        const ap = await APK.analyze(buf, name, o.log);
+        rec.analysis = ap;
+        rec.category = 'Apps';
+        rec.tags = ['apk', 'android', (ap.engine || '').split(' ')[0].toLowerCase()]
+          .concat(ap.abis.slice(0, 2)).concat(ap.webFiles.length ? ['hybrid'] : []);
+        if (ap.manifest && ap.manifest.package) rec.tags.push(ap.manifest.package.split('.').slice(0, 2).join('.'));
+      } catch (e) {
+        rec.analysis = { type: 'apk', error: e.message };
+        rec.category = 'Apps'; rec.tags = ['apk', 'unreadable'];
       }
     } else if (kind === 'archive') {
       rec.analysis = { type: 'archive', entries: f.entries || 0 };
@@ -5567,8 +5948,47 @@ const CHAT = {
       if (a) L.push('<div class="card tight" style="margin-top:8px">' + NLG.assetReport(a) + '</div>');
     }
     if (analysis) L.push('<div style="margin-top:10px">' + NLG.projectReport(analysis.project, analysis.summary) + '</div>');
-    else if (soloMechs.length) {
-      L.push('<h4>ما تعلّمته من هذا الملف</h4><ul>' + soloMechs.slice(0, 6).map(m =>
+    const apks = ok.filter(r => r.analysis && r.analysis.type === 'apk' && !r.analysis.error);
+    for (const r of apks) {
+      const ap = r.analysis;
+      await KB.add({
+        kind: 'app', title: (ap.manifest && ap.manifest.package) || U.base(r.name),
+        project: project ? project.id : null,
+        body: 'تطبيق أندرويد: ' + (ap.engine || '؟') +
+          (ap.manifest ? '\nالحزمة: ' + ap.manifest.package + ' · إصدار ' + (ap.manifest.versionName || '?') : '') +
+          (ap.dex ? '\nالشيفرة: ' + ap.dex.classes + ' صنف، ' + ap.dex.methods + ' دالة' : '') +
+          (ap.abis.length ? '\nمعماريات: ' + ap.abis.join('، ') : '') +
+          (ap.manifest && ap.manifest.permissions.length ? '\nأذونات: ' + ap.manifest.permissions.slice(0, 10).join('، ') : '') +
+          '\nمصدر للتحليل والتعلّم فقط — لا يُعاد نشر محتواه.',
+        tags: ['app', 'android'].concat(ap.engine ? [ap.engine.split(' ')[0].toLowerCase()] : [])
+          .concat((ap.dex ? ap.dex.packages.slice(0, 5).map(x => x.name) : [])),
+        confidence: .9, source: r.assetId, rights: 'analysis-only', license: 'unknown',
+      });
+      /* التطبيقات الهجينة تحمل شيفرة حقيقية — نستخرج منها ميكانيكيات فعلية */
+      if (ap.webFiles.length) {
+        const pseudo = ap.webFiles.filter(w => w.ext === 'js' || w.ext === 'html')
+          .map(w => ({ name: w.name, text: w.text, assetId: r.assetId, analysis: w.ext === 'html' ? Object.assign({ type: 'html' }, w.analysis) : Object.assign({ type: 'code' }, w.analysis) }));
+        const got = await PROJ.extractMechanics(pseudo, project ? project.id : null);
+        if (got.length) soloMechs = soloMechs.concat(got);
+      }
+    }
+    if (apks.length) {
+      L.push('<h4>تحليل ' + apks.length + ' تطبيق أندرويد</h4>');
+      apks.forEach(r => {
+        const ap = r.analysis;
+        L.push('<div class="card tight"><h3 style="font-size:13.5px">' + U.esc(U.base(r.name)) + '</h3>' +
+          '<div class="kv">' + APK.lessons(ap).map(x => '<b>' + U.esc(x.k) + '</b><span>' + U.esc(x.v) + '</span>').join('') +
+          '<b>محتويات</b><span>' + ap.entries + ' ملفًا · ' + ap.images + ' صورة · ' + ap.sounds + ' صوت' + (ap.models ? ' · ' + ap.models + ' مجسم' : '') + '</span>' +
+          '<b>موقَّع</b><span>' + (ap.signed ? 'نعم' : 'لا') + '</span></div>' +
+          (ap.dex && ap.dex.packages.length ? '<p style="font-size:12px;color:var(--ink3)">أبرز الحزم: ' +
+            U.esc(ap.dex.packages.slice(0, 6).map(x => x.name).join('، ')) + '</p>' : '') +
+          (ap.webFiles.length ? '<p style="font-size:12px;color:var(--acc2)">قرأتُ ' + ap.webFiles.length + ' ملف شيفرة من داخله وحلّلتها فعليًا.</p>' : '') +
+          (ap.errors.length ? '<p style="color:var(--warn);font-size:12px">' + U.esc(ap.errors.slice(0, 2).join(' · ')) + '</p>' : '') +
+          '</div>');
+      });
+    }
+    if (soloMechs.length) {
+      L.push('<h4>ما تعلّمته من الشيفرة</h4><ul>' + soloMechs.slice(0, 6).map(m =>
         '<li><b>' + U.esc(m.name) + '</b> ' + NLG.confidence(m.confidence) +
         (m.inferred && m.inferred.length ? ' — قيمك: <code>' + U.esc(m.inferred.map(k => k + '=' + m.params[k]).join(', ')) + '</code>' : '') +
         '</li>').join('') + '</ul>' +
@@ -6183,6 +6603,78 @@ Object.assign(CHAT.handlers, {
 });
 
 /* ---------- عرض نتيجة البناء ---------- */
+
+/* ---------- بناء التطبيق · البحث الخارجي ---------- */
+Object.assign(CHAT.handlers, {
+  async build_app(a) {
+    a.f.execution.push('حزم الأصول والمعرفة والألعاب في تطبيق واحد');
+    a.f.constraints.push('لا يمكن توليد APK موقَّع داخل المتصفح — يُسلَّم مشروع أندرويد قابل للبناء');
+    const bundle = await APPX.collect();
+    const html = APPX.buildHTML(bundle);
+    const zip = await APPX.androidZip(html, { pkg: 'com.kadkad.lab', label: bundle.name, versionCode: bundle.generation, versionName: bundle.generation + '.0' });
+    const hid = U.uid('apphtml'), zid = U.uid('appzip');
+    TMP.set(hid, { blob: new Blob([html], { type: 'text/html' }), name: 'kadkad-app.html' });
+    TMP.set(zid, { blob: zip, name: 'kadkad-android-project.zip' });
+    a.f.verification.push('التطبيق مبني فعليًا: ' + U.bytes(html.length) + ' · المشروع ' + U.bytes(zip.size));
+    const L = [];
+    L.push('<h4>تطبيقك جاهز</h4>');
+    L.push('<div class="kv">' +
+      '<b>ألعاب</b><span>' + bundle.games.length + '</span>' +
+      '<b>أصول مضمَّنة</b><span>' + bundle.assets.length + ' (' + U.bytes(bundle.bytes) + ')' + (bundle.skipped ? ' · تُخطّي ' + bundle.skipped + ' لتجاوز الحد' : '') + '</span>' +
+      '<b>معرفة</b><span>' + bundle.knowledge.length + ' سجلًا · ' + bundle.facts.length + ' معلومة عنك</span>' +
+      '<b>الإصدار</b><span>' + U.esc(REG.genName(bundle.generation)) + '</span>' +
+      '<b>حجم التطبيق</b><span>' + U.bytes(html.length) + '</span></div>');
+    L.push('<h4>كيف تثبّته على هاتفك</h4>');
+    L.push('<p><b>الأسرع (بلا أدوات):</b> نزّل ملف <code>kadkad-app.html</code>، افتحه في متصفح هاتفك، ثم من قائمة المتصفح اختر <b>«إضافة إلى الشاشة الرئيسية»</b>. سيظهر كتطبيق ويفتح بملء الشاشة ويعمل بلا إنترنت.</p>');
+    L.push('<p><b>APK حقيقي:</b> نزّل مشروع أندرويد، افتحه في Android Studio، ثم Build ← Build APK. الملف الناتج <code>app-debug.apk</code> تثبّته مباشرة.</p>');
+    L.push('<p style="font-size:12.5px;color:var(--ink3)"><b>بصراحة:</b> لا أستطيع إخراج APK جاهزًا من داخل المتصفح. ' +
+      'بناء APK يحتاج <code>d8</code> لتحويل الشيفرة و<code>aapt2</code> للموارد ثم التوقيع بمفتاح خاص عبر <code>apksigner</code> — ' +
+      'وأندرويد يرفض تثبيت أي APK غير موقَّع. لذلك أسلّمك المشروع كاملًا بدل أن أَعِدك بملف لا أستطيع إنتاجه.</p>');
+    L.push('<p style="font-size:12.5px;color:var(--ink3)">كلما أرسلت لي ملفات أكثر وعلّمتني أكثر، كبر ما بداخل هذا التطبيق. أعد البناء في أي وقت.</p>');
+    return {
+      html: L.join(''),
+      actions: [{ label: '⬇ تطبيق HTML', act: 'download', id: hid }, { label: '⬇ مشروع أندرويد', act: 'download', id: zid }, { label: 'الإعدادات', act: 'goto', id: 'set' }]
+    };
+  },
+
+  async web_search(a) {
+    const q = a.text.replace(/^.*?(ابحث(?:\s*لي)?(?:\s*في\s*(?:الانترنت|الإنترنت|ويكيبيديا|النت))?\s*(?:عن)?|search(?:\s*the\s*web)?(?:\s*for)?)\s*/i, '').trim() || a.text.trim();
+    if (!WEB.on) {
+      a.f.constraints.push('البحث الخارجي مطفأ افتراضيًا — قرار المستخدم');
+      return {
+        html: '<h4>البحث في الإنترنت مُطفأ</h4>' +
+          '<p>هذا مقصود: بُنيتُ لأعمل بالكامل داخل جهازك، وتشغيل البحث هو أول شيء يجعلني أرسل شيئًا للخارج.</p>' +
+          '<p><b>إن شغّلته:</b> يُرسَل <b>نص بحثك فقط</b> إلى ويكيبيديا. ملفاتك وأصولك ومعرفتك لا تغادر جهازك أبدًا.</p>' +
+          '<p><b>وحدوده:</b> ليس بحثًا عامًا في الإنترنت. معظم المواقع تمنع المتصفح من قراءتها مباشرة (CORS)، وويكيبيديا من القلائل التي تسمح. ' +
+          'بحث شامل يحتاج خادمًا، وهذا يخرج عن فكرة «ملف واحد بلا خادم».</p>',
+        actions: [{ label: 'افتح الإعدادات لتفعيله', act: 'goto', id: 'set' }]
+      };
+    }
+    a.f.execution.push('استعلام ويكيبيديا عن: ' + q);
+    try {
+      const r = await WEB.search(q);
+      if (!r.hits.length) return { html: '<p>لم أجد نتيجة لـ «' + U.esc(q) + '».</p>' };
+      const rec = await WEB.remember(r);
+      a.f.verification.push('حُفظت النتيجة موسومة external — منفصلة عمّا تعلّمته من ملفاتك');
+      return {
+        html: '<h4>' + U.esc(r.title) + '</h4>' +
+          (r.extract ? '<p>' + U.esc(r.extract).replace(/\n/g, '<br>') + '</p>' : '') +
+          '<p style="font-size:12.5px;color:var(--ink3)">المصدر: ويكيبيديا (' + r.lang + ') · رخصة CC BY-SA' +
+          (r.url ? ' · <a href="' + U.esc(r.url) + '" target="_blank" rel="noopener">الصفحة</a>' : '') + '</p>' +
+          (r.hits.length > 1 ? '<p style="font-size:12.5px">نتائج أخرى: ' + U.esc(r.hits.slice(1).map(h => h.title).join('، ')) + '</p>' : '') +
+          (rec ? '<p style="font-size:12px;color:var(--ink3)">حفظتُها في قاعدة المعرفة بوسم <code>external</code>.</p>' : '')
+      };
+    } catch (e) {
+      return {
+        html: '<h4>تعذّر البحث</h4><p><code>' + U.esc(e.message) + '</code></p>' +
+          '<p style="font-size:12.5px;color:var(--ink3)">أسباب محتملة: لا اتصال، أو المتصفح منع الطلب (CORS)، أو الشبكة تحجب ويكيبيديا. ' +
+          'جرّب «اختبر الاتصال فعليًا» في الإعدادات لتعرف السبب بالضبط.</p>',
+        actions: [{ label: 'اختبر الاتصال', act: 'goto', id: 'set' }]
+      };
+    }
+  },
+});
+
 CHAT.gameReport = function (out, logs) {
   const g = out.game, d = out.design, A = g.axes;
   const L = [];
@@ -6264,6 +6756,319 @@ const BACKUP = {
       }
     }
     return n;
+  }
+};
+
+/* ============================ 39b · APP EXPORT ======================== */
+/* يحزم كل ما أعطيتَه وكل ما تعلّمه في تطبيق واحد:
+   (أ) ملف HTML مستقل قابل للتثبيت على الشاشة الرئيسية،
+   (ب) مشروع أندرويد كامل قابل للبناء إلى APK بأدوات أندرويد الرسمية.
+   ملاحظة صريحة: لا يمكن توليد APK مُوقَّع داخل المتصفح — التوقيع والبناء
+   يحتاجان أدوات أندرويد (d8/aapt2/apksigner). المشروع يُنتج APK عند بنائه. */
+const APPX = {
+  BUDGET: 42 * 1024 * 1024,
+
+  async collect(opts) {
+    const o = Object.assign({ budget: this.BUDGET, games: true, assets: true }, opts || {});
+    const games = o.games ? (await DB.all('games')).sort((a, b) => b.created - a.created) : [];
+    const projects = await PROJ.all();
+    const bundle = {
+      name: (FACTS.get('name') ? 'مختبر ' + FACTS.get('name') : 'مختبر KAD-KAD'),
+      made: U.now(), generation: REG.activeGen,
+      owner: FACTS.get('name') || null,
+      facts: FACTS.recall(),
+      knowledge: KB.cache.map(k => ({ kind: k.kind, title: k.title, body: (k.body || '').slice(0, 700), tags: (k.tags || []).slice(0, 8), confidence: k.confidence })),
+      projects: projects.map(p => ({ name: p.name, files: p.files, systems: p.summary ? p.summary.systems.slice(0, 8).map(x => x.system) : [], mechanics: p.summary ? p.summary.mechanics.map(m => m.name) : [] })),
+      models: REG.models.map(m => ({ name: m.name, version: m.version, status: m.status, metrics: m.metrics, dataset: m.dataset })),
+      games: games.map(g => ({ id: g.id, title: g.title, backend: g.backend, controls: g.spec.controls, html: g.html, axes: g.axes, novelty: g.design.novelty })),
+      assets: [], skipped: 0, bytes: 0,
+    };
+    if (o.assets) {
+      /* الأولوية للأصول التي تراها وتسمعها: صور، أصوات، ثم مجسمات */
+      const order = { image: 0, audio: 1, model: 2 };
+      const rows = LIB.cache.slice().sort((a, b) => (order[a.kind] == null ? 9 : order[a.kind]) - (order[b.kind] == null ? 9 : order[b.kind]));
+      for (const a of rows) {
+        if (['image', 'audio', 'model'].indexOf(a.kind) < 0) continue;
+        if (bundle.bytes + (a.size || 0) > o.budget) { bundle.skipped++; continue; }
+        const blob = await LIB.blob(a.id);
+        if (!blob) { bundle.skipped++; continue; }
+        const b64 = await GEN3D.b64(blob, o.budget);
+        if (!b64) { bundle.skipped++; continue; }
+        bundle.assets.push({ id: a.id, name: a.name, kind: a.kind, category: a.category, mime: a.mime || '', size: a.size, tags: (a.tags || []).slice(0, 6), b64 });
+        bundle.bytes += a.size || 0;
+        await U.yield();
+      }
+    }
+    return bundle;
+  },
+
+  /* التطبيق الشخصي: ملف HTML واحد مستقل تمامًا */
+  buildHTML(b) {
+    const data = JSON.stringify({
+      name: b.name, made: b.made, generation: b.generation, owner: b.owner,
+      facts: b.facts, knowledge: b.knowledge.slice(0, 400), projects: b.projects,
+      models: b.models, games: b.games, assets: b.assets,
+    }).replace(/<\/script/gi, '<\\/script');
+    const T = [];
+    T.push('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">');
+    T.push('<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">');
+    T.push('<meta name="theme-color" content="#07070d"><meta name="mobile-web-app-capable" content="yes">');
+    T.push('<meta name="apple-mobile-web-app-capable" content="yes">');
+    T.push('<title>' + U.esc(b.name) + '</title>');
+    T.push('<link rel="manifest" href=\'data:application/json,' +
+      encodeURIComponent(JSON.stringify({
+        name: b.name, short_name: 'KAD-KAD', start_url: '.', display: 'standalone',
+        background_color: '#07070d', theme_color: '#07070d',
+        icons: [{ src: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="42" fill="#7c5cff"/><text x="96" y="124" font-size="72" font-family="sans-serif" font-weight="bold" fill="#08080f" text-anchor="middle">KK</text></svg>'), sizes: '192x192', type: 'image/svg+xml' }]
+      })) + '\'>');
+    T.push('<style>');
+    T.push('*{box-sizing:border-box}html,body{margin:0;height:100%;background:#07070d;color:#e9ecff;font-family:system-ui,-apple-system,"Noto Sans Arabic",sans-serif;overflow:hidden}');
+    T.push('#w{position:relative;height:100%;max-width:440px;margin:0 auto;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}');
+    T.push('header{padding:12px 14px;border-bottom:1px solid #222741;display:flex;align-items:center;gap:9px}');
+    T.push('.lg{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#7c5cff,#22d3ee);display:grid;place-items:center;color:#08080f;font-weight:900;font-size:12px}');
+    T.push('header b{font-size:15px}header small{display:block;color:#6f77a0;font-size:10.5px}');
+    T.push('main{flex:1;overflow:auto;padding:12px 12px 20px}');
+    T.push('nav{display:flex;border-top:1px solid #222741;padding-bottom:env(safe-area-inset-bottom,0px)}');
+    T.push('nav button{flex:1;padding:11px 4px;background:none;border:0;color:#6f77a0;font:600 12px system-ui;border-top:2px solid transparent}');
+    T.push('nav button.on{color:#22d3ee;border-top-color:#22d3ee}');
+    T.push('.c{background:#0b0c16;border:1px solid #222741;border-radius:16px;padding:12px;margin-bottom:10px}');
+    T.push('.c h3{margin:0 0 4px;font-size:14px}.c p{margin:0;color:#a6adcf;font-size:12.5px}');
+    T.push('.b{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10.5px;background:#161a2b;border:1px solid #2e3453;color:#a6adcf;margin:3px 3px 0 0}');
+    T.push('button.go{margin-top:9px;padding:9px 14px;border-radius:11px;border:0;background:linear-gradient(135deg,#7c5cff,#5b46d6);color:#fff;font:700 13px system-ui}');
+    T.push('.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}');
+    T.push('.g figure{margin:0;background:#0b0c16;border:1px solid #222741;border-radius:12px;padding:6px}');
+    T.push('.g img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;display:block}');
+    T.push('.g figcaption{font-size:10.5px;color:#a6adcf;margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}');
+    T.push('audio{width:100%;margin-top:6px}');
+    T.push('#play{position:fixed;inset:0;background:#000;display:none;z-index:9}');
+    T.push('#play iframe{width:100%;height:100%;border:0}');
+    T.push('#play .x{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));inset-inline-end:10px;z-index:2;width:40px;height:40px;border-radius:50%;background:rgba(8,9,17,.75);color:#fff;border:1px solid #2e3453;font-size:17px}');
+    T.push('.empty{text-align:center;color:#6f77a0;padding:40px 16px;font-size:13px}');
+    T.push('</style></head><body><div id="w">');
+    T.push('<header><div class="lg">KK</div><div><b>' + U.esc(b.name) + '</b><small>' + (b.owner ? U.esc(b.owner) + ' · ' : '') + REG.genName(b.generation) + ' · ' + new Date(b.made).toLocaleDateString('ar') + '</small></div></header>');
+    T.push('<main id="m"></main>');
+    T.push('<nav><button class="on" data-t="games">ألعابي</button><button data-t="assets">أصولي</button><button data-t="know">معرفتي</button></nav>');
+    T.push('</div><div id="play"><button class="x">✕</button><iframe id="fr" sandbox="allow-scripts"></iframe></div>');
+    T.push('<scr' + 'ipt id="kad-data" type="application/json">' + data + '</scr' + 'ipt>');
+    T.push('<scr' + 'ipt>');
+    T.push('var D = JSON.parse(document.getElementById("kad-data").textContent);');
+    T.push('var m = document.getElementById("m"), play = document.getElementById("play"), fr = document.getElementById("fr");');
+    T.push('function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;"}[c]})}');
+    T.push('/* لا معالجات inline: داخلها يسبق document نطاق window، فاسم مثل open');
+    T.push('   يُحلّ إلى document.open() ويمسح الصفحة. نستخدم التفويض بدلًا منه. */');
+    T.push('function playGame(i){ fr.srcdoc = D.games[i].html; play.style.display="block"; }');
+    T.push('m.addEventListener("click", function(e){ var t = e.target.closest("[data-g]"); if(t) playGame(+t.getAttribute("data-g")); });');
+    T.push('document.querySelector("#play .x").onclick=function(){ play.style.display="none"; fr.srcdoc=""; };');
+    T.push('var views = {');
+    T.push(' games: function(){');
+    T.push('  if(!D.games.length) return \'<div class="empty">لا ألعاب في هذه النسخة.</div>\';');
+    T.push('  return D.games.map(function(g,i){ return \'<div class="c"><h3>\'+esc(g.title)+\'</h3><p>\'+esc(g.controls)+\'</p>\'+');
+    T.push('   \'<div><span class="b">\'+(g.backend==="3d"?"ثلاثي الأبعاد":"ثنائي الأبعاد")+\'</span><span class="b">أصالة \'+Math.round(g.novelty*100)+\'%</span></div>\'+');
+    T.push('   \'<button class="go" data-g="\'+i+\'">▶ العب</button></div>\'; }).join("");');
+    T.push(' },');
+    T.push(' assets: function(){');
+    T.push('  if(!D.assets.length) return \'<div class="empty">لا أصول مضمَّنة.</div>\';');
+    T.push('  var imgs = D.assets.filter(function(a){return a.kind==="image"});');
+    T.push('  var auds = D.assets.filter(function(a){return a.kind==="audio"});');
+    T.push('  var mods = D.assets.filter(function(a){return a.kind==="model"});');
+    T.push('  var h = "";');
+    T.push('  if(imgs.length) h += \'<div class="g">\'+imgs.map(function(a){return \'<figure><img src="data:\'+(a.mime||"image/png")+\';base64,\'+a.b64+\'" alt=""><figcaption>\'+esc(a.name)+\'</figcaption></figure>\'}).join("")+\'</div>\';');
+    T.push('  auds.forEach(function(a){ h += \'<div class="c"><h3>\'+esc(a.name)+\'</h3><p>\'+esc(a.category)+\'</p><audio controls src="data:\'+(a.mime||"audio/mpeg")+\';base64,\'+a.b64+\'"></audio></div>\'; });');
+    T.push('  mods.forEach(function(a){ h += \'<div class="c"><h3>\'+esc(a.name)+\'</h3><p>مجسّم \'+esc(a.category)+\' — مضمَّن داخل التطبيق ويُستخدم في الألعاب.</p></div>\'; });');
+    T.push('  return h;');
+    T.push(' },');
+    T.push(' know: function(){');
+    T.push('  var h = "";');
+    T.push('  if(D.facts.length) h += \'<div class="c"><h3>ما يعرفه عنك</h3>\'+D.facts.map(function(f){return \'<p><b>\'+esc(f.label)+\':</b> \'+esc(f.value)+\'</p>\'}).join("")+\'</div>\';');
+    T.push('  if(D.projects.length) h += D.projects.map(function(p){return \'<div class="c"><h3>\'+esc(p.name)+\'</h3><p>\'+p.files+\' ملف</p><div>\'+p.systems.map(function(s){return \'<span class="b">\'+esc(s)+\'</span>\'}).join("")+\'</div></div>\'}).join("");');
+    T.push('  var mech = D.knowledge.filter(function(k){return k.kind==="mechanic"});');
+    T.push('  if(mech.length) h += \'<div class="c"><h3>الميكانيكيات المستخلصة (\'+mech.length+\')</h3>\'+mech.slice(0,40).map(function(k){return \'<p>• \'+esc(k.title)+\'</p>\'}).join("")+\'</div>\';');
+    T.push('  var apps = D.knowledge.filter(function(k){return k.kind==="app"});');
+    T.push('  if(apps.length) h += \'<div class="c"><h3>تطبيقات حُلِّلت (\'+apps.length+\')</h3>\'+apps.map(function(k){return \'<p>• \'+esc(k.title)+\'</p>\'}).join("")+\'</div>\';');
+    T.push('  h += \'<div class="c"><h3>النماذج</h3>\'+D.models.filter(function(x){return x.status==="active"}).map(function(x){return \'<p>• \'+esc(x.name)+\' v\'+esc(x.version)+\'</p>\'}).join("")+\'</div>\';');
+    T.push('  return h || \'<div class="empty">لا معرفة بعد.</div>\';');
+    T.push(' }};');
+    T.push('function show(t){ m.innerHTML = views[t](); m.scrollTop=0; }');
+    T.push('document.querySelectorAll("nav button").forEach(function(btn){ btn.onclick=function(){');
+    T.push(' document.querySelectorAll("nav button").forEach(function(x){x.classList.remove("on")}); btn.classList.add("on"); show(btn.dataset.t); }; });');
+    T.push('show("games");');
+    T.push('</scr' + 'ipt></body></html>');
+    return T.join('\n');
+  },
+
+  /* مشروع أندرويد كامل: WebView يحمّل التطبيق من assets — يُبنى بـ Gradle */
+  androidFiles(html, meta) {
+    const pkg = meta.pkg || 'com.kadkad.lab';
+    const path = pkg.replace(/\./g, '/');
+    const label = meta.label || 'KAD-KAD';
+    return [
+      { name: 'settings.gradle', data: 'pluginManagement {\n  repositories { google(); mavenCentral(); gradlePluginPortal() }\n}\ndependencyResolutionManagement {\n  repositories { google(); mavenCentral() }\n}\nrootProject.name = "KadKadApp"\ninclude ":app"\n' },
+      {
+        name: 'build.gradle', data: 'plugins {\n  id "com.android.application" version "8.5.2" apply false\n}\n'
+      },
+      {
+        name: 'gradle.properties', data: 'org.gradle.jvmargs=-Xmx2048m\nandroid.useAndroidX=true\nandroid.nonTransitiveRClass=true\n'
+      },
+      {
+        name: 'app/build.gradle', data:
+          'plugins { id "com.android.application" }\n\n' +
+          'android {\n' +
+          '  namespace "' + pkg + '"\n' +
+          '  compileSdk 34\n\n' +
+          '  defaultConfig {\n' +
+          '    applicationId "' + pkg + '"\n' +
+          '    minSdk 23\n    targetSdk 34\n' +
+          '    versionCode ' + (meta.versionCode || 1) + '\n' +
+          '    versionName "' + (meta.versionName || '1.0') + '"\n' +
+          '  }\n\n' +
+          '  buildTypes {\n' +
+          '    release {\n      minifyEnabled false\n' +
+          '      proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"\n    }\n  }\n' +
+          '  compileOptions {\n    sourceCompatibility JavaVersion.VERSION_17\n    targetCompatibility JavaVersion.VERSION_17\n  }\n' +
+          '}\n\ndependencies {\n  implementation "androidx.appcompat:appcompat:1.7.0"\n}\n'
+      },
+      { name: 'app/proguard-rules.pro', data: '# لا شيء مطلوب — التطبيق كله داخل WebView\n' },
+      {
+        name: 'app/src/main/AndroidManifest.xml', data:
+          '<?xml version="1.0" encoding="utf-8"?>\n' +
+          '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n' +
+          '  <!-- لا إذن إنترنت: التطبيق يعمل بالكامل من ملفاته المحلية -->\n' +
+          '  <application\n' +
+          '      android:allowBackup="true"\n' +
+          '      android:label="@string/app_name"\n' +
+          '      android:icon="@mipmap/ic_launcher"\n' +
+          '      android:theme="@style/Theme.AppCompat.NoActionBar"\n' +
+          '      android:hardwareAccelerated="true">\n' +
+          '    <activity android:name=".MainActivity"\n' +
+          '        android:exported="true"\n' +
+          '        android:screenOrientation="portrait"\n' +
+          '        android:configChanges="orientation|screenSize|keyboardHidden">\n' +
+          '      <intent-filter>\n' +
+          '        <action android:name="android.intent.action.MAIN" />\n' +
+          '        <category android:name="android.intent.category.LAUNCHER" />\n' +
+          '      </intent-filter>\n' +
+          '    </activity>\n' +
+          '  </application>\n' +
+          '</manifest>\n'
+      },
+      {
+        name: 'app/src/main/java/' + path + '/MainActivity.java', data:
+          'package ' + pkg + ';\n\n' +
+          'import android.annotation.SuppressLint;\n' +
+          'import android.os.Bundle;\n' +
+          'import android.view.View;\n' +
+          'import android.webkit.WebSettings;\n' +
+          'import android.webkit.WebView;\n' +
+          'import androidx.appcompat.app.AppCompatActivity;\n\n' +
+          'public class MainActivity extends AppCompatActivity {\n' +
+          '  private WebView web;\n\n' +
+          '  @SuppressLint("SetJavaScriptEnabled")\n' +
+          '  @Override\n' +
+          '  protected void onCreate(Bundle savedInstanceState) {\n' +
+          '    super.onCreate(savedInstanceState);\n' +
+          '    web = new WebView(this);\n' +
+          '    WebSettings s = web.getSettings();\n' +
+          '    s.setJavaScriptEnabled(true);\n' +
+          '    s.setDomStorageEnabled(true);          // لازم لحفظ التقدّم\n' +
+          '    s.setDatabaseEnabled(true);\n' +
+          '    s.setMediaPlaybackRequiresUserGesture(false);\n' +
+          '    s.setAllowFileAccess(true);\n' +
+          '    web.setBackgroundColor(0xFF07070D);\n' +
+          '    setContentView(web);\n' +
+          '    web.loadUrl("file:///android_asset/index.html");\n' +
+          '  }\n\n' +
+          '  @Override\n' +
+          '  public void onBackPressed() {\n' +
+          '    if (web != null && web.canGoBack()) web.goBack();\n' +
+          '    else super.onBackPressed();\n' +
+          '  }\n' +
+          '}\n'
+      },
+      { name: 'app/src/main/res/values/strings.xml', data: '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n  <string name="app_name">' + label.replace(/[<>&]/g, '') + '</string>\n</resources>\n' },
+      { name: 'app/src/main/assets/index.html', data: html },
+      {
+        name: 'BUILD.md', data:
+          '# بناء التطبيق إلى APK\n\n' +
+          'هذا مشروع أندرويد كامل. لتحويله إلى ملف APK قابل للتثبيت:\n\n' +
+          '## الطريقة الأسهل — Android Studio\n' +
+          '1. افتح Android Studio ← Open ← اختر هذا المجلد.\n' +
+          '2. انتظر مزامنة Gradle.\n' +
+          '3. Build ← Build Bundle(s) / APK(s) ← Build APK(s).\n' +
+          '4. ستجد الملف في `app/build/outputs/apk/debug/app-debug.apk`.\n\n' +
+          '## من سطر الأوامر\n' +
+          '```bash\n./gradlew assembleDebug\n```\n\n' +
+          '## لماذا لم يُنتَج APK مباشرةً؟\n' +
+          'بناء APK يتطلب تحويل الشيفرة إلى DEX (d8) وتجميع الموارد (aapt2)\n' +
+          'ثم التوقيع بمفتاح خاص (apksigner). هذه أدوات سطر أوامر لا تعمل داخل\n' +
+          'المتصفح، وأندرويد يرفض تثبيت أي APK غير موقَّع. لذلك يُسلَّم المشروع\n' +
+          'جاهزًا للبناء بدل ادّعاء إنتاج APK.\n\n' +
+          '## ملاحظات\n' +
+          '- التطبيق لا يطلب إذن الإنترنت: كل شيء داخل `app/src/main/assets/index.html`.\n' +
+          '- نسخة التصحيح (debug) تُوقَّع تلقائيًا بمفتاح التطوير وتُثبَّت مباشرة.\n' +
+          '- للنشر استخدم `assembleRelease` مع مفتاحك الخاص.\n'
+      },
+    ];
+  },
+
+  async androidZip(html, meta) {
+    return ZIPW.build(this.androidFiles(html, meta));
+  }
+};
+
+/* ============================ 39c · WEB LOOKUP (اختياري) ============== */
+/* مطفأ افتراضيًا. حين تشغّله: يُرسَل نص بحثك فقط إلى ويكيبيديا — لا ملفاتك
+   ولا أصولك ولا معرفتك. وهو ليس بحثًا عامًا في الإنترنت: واجهة ويكيبيديا
+   هي إحدى القلائل التي تسمح للمتصفح بالوصول إليها مباشرة (CORS).
+   التفعيل يشغّل فحص اتصال حقيقي ويخبرك بالنتيجة بدل الوعد. */
+const WEB = {
+  on: false, lastCheck: null,
+  async init() { this.on = await DB.getKV('webOn', false); this.lastCheck = await DB.getKV('webCheck', null); },
+  async setEnabled(v) { this.on = !!v; await DB.setKV('webOn', this.on); },
+  endpoint(lang) { return 'https://' + (lang === 'en' ? 'en' : 'ar') + '.wikipedia.org/w/api.php'; },
+  async probe() {
+    const t0 = performance.now();
+    try {
+      const url = this.endpoint('ar') + '?action=query&meta=siteinfo&format=json&origin=*';
+      const res = await fetch(url, { method: 'GET', mode: 'cors', cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      await res.json();
+      const r = { ok: true, ms: Math.round(performance.now() - t0), at: U.now() };
+      this.lastCheck = r; await DB.setKV('webCheck', r);
+      return r;
+    } catch (e) {
+      const r = { ok: false, error: String(e.message || e).slice(0, 160), at: U.now() };
+      this.lastCheck = r; await DB.setKV('webCheck', r);
+      return r;
+    }
+  },
+  async search(q, lang) {
+    if (!this.on) throw new Error('البحث في الإنترنت مُطفأ — فعّله من الإعدادات أولًا');
+    const L = lang || (TOK.lang(q) === 'en' ? 'en' : 'ar');
+    const base = this.endpoint(L);
+    const sres = await fetch(base + '?action=query&list=search&srlimit=4&srsearch=' + encodeURIComponent(q) + '&format=json&origin=*', { mode: 'cors' });
+    if (!sres.ok) throw new Error('تعذّر البحث (HTTP ' + sres.status + ')');
+    const sj = await sres.json();
+    const hits = ((sj.query && sj.query.search) || []).map(h => ({ title: h.title, snippet: String(h.snippet || '').replace(/<[^>]*>/g, '') }));
+    if (!hits.length) return { query: q, lang: L, hits: [], extract: null };
+    const ex = await fetch(base + '?action=query&prop=extracts&exintro=1&explaintext=1&redirects=1&format=json&origin=*&titles=' + encodeURIComponent(hits[0].title), { mode: 'cors' });
+    let extract = null, pageUrl = null;
+    if (ex.ok) {
+      const ej = await ex.json();
+      const pages = (ej.query && ej.query.pages) || {};
+      const first = Object.keys(pages)[0];
+      if (first && pages[first].extract) extract = String(pages[first].extract).slice(0, 1600);
+      pageUrl = 'https://' + L + '.wikipedia.org/wiki/' + encodeURIComponent(hits[0].title.replace(/ /g, '_'));
+    }
+    return { query: q, lang: L, hits, extract, title: hits[0].title, url: pageUrl, source: 'wikipedia' };
+  },
+  /* يُخزَّن كمعرفة خارجية موسومة بمصدرها — لا يختلط بما تعلّمه من ملفاتك */
+  async remember(r) {
+    if (!r || !r.extract) return null;
+    return KB.add({
+      kind: 'external', title: r.title, body: r.extract,
+      tags: ['wikipedia', 'external', r.lang], confidence: .5,
+      source: r.url, license: 'CC BY-SA (ويكيبيديا)', rights: 'external-reference',
+    });
   }
 };
 
@@ -6880,6 +7685,22 @@ Object.assign(UI, {
   async renderSettings() {
     const u = await DB.usage();
     const st = LIB.stats();
+    const games = await DB.all('games');
+    const el = U.$('#appxInfo');
+    if (el) el.innerHTML = 'سيتضمّن: <b>' + games.length + '</b> لعبة · <b>' +
+      LIB.cache.filter(a => ['image', 'audio', 'model'].indexOf(a.kind) >= 0).length + '</b> أصلًا · <b>' +
+      KB.cache.length + '</b> سجل معرفة · <b>' + FACTS.recall().length + '</b> معلومة عنك.';
+    const wOn = U.$('#webOn'); if (wOn) wOn.checked = WEB.on;
+    const wn = U.$('#webNote');
+    if (wn) wn.innerHTML = '<b>مطفأ افتراضيًا.</b> عند التفعيل يُرسَل <b>نص بحثك فقط</b> إلى ويكيبيديا — ' +
+      'لا ملفاتك ولا أصولك ولا معرفتك تغادر جهازك أبدًا.<br>' +
+      'وهو ليس بحثًا عامًا في الإنترنت: معظم المواقع تمنع المتصفح من قراءتها مباشرة (CORS)، ' +
+      'وويكيبيديا من القلائل التي تسمح. النتائج تُحفظ موسومة <code>external</code> منفصلةً عمّا تعلّمه من ملفاتك.';
+    const ws = U.$('#webStatus');
+    if (ws) ws.textContent = WEB.lastCheck
+      ? (WEB.lastCheck.ok ? '✔ آخر اختبار: نجح (' + WEB.lastCheck.ms + 'ms) · ' + U.ago(WEB.lastCheck.at)
+        : '✖ آخر اختبار: فشل — ' + WEB.lastCheck.error)
+      : 'لم يُختبر بعد';
     U.$('#storeInfo').innerHTML = 'البيانات كلها في <b>IndexedDB</b> داخل هذا المتصفح، قاعدة <code>' + DB.name + '</code>.<br>' +
       'المستخدم: ' + (u.used != null ? U.bytes(u.used) + (u.quota ? ' من ' + U.bytes(u.quota) + ' متاحة' : '') : 'غير معروف') +
       ' · ' + st.total + ' أصل · ' + KB.cache.length + ' سجل معرفة · ' + KG.edges.length + ' علاقة · ' + REG.models.length + ' نموذج.';
@@ -7027,6 +7848,83 @@ const SELFTEST = {
     const t = await TESTER.run(html);
     ok('لعبة مولَّدة تعمل فعليًا', t.ok, TESTER.fmt(t));
 
+    /* 10b. APK: البيان الثنائي و DEX و ZIP الكاتب */
+    try {
+      const mfBytes = this.makeAXML();
+      const mf = AXML.manifest(mfBytes);
+      ok('قراءة AndroidManifest الثنائي', mf.package === 'com.kad.test' && mf.versionName === '1.4.2' && mf.minSdk === 24,
+        mf.package + ' v' + mf.versionName + ' · minSdk ' + mf.minSdk + ' · ' + mf.permissions.length + ' إذن');
+      ok('استخراج الأذونات والنشاط الرئيسي', mf.permissions.indexOf('INTERNET') >= 0 && mf.mainActivity === 'com.kad.test.MainActivity',
+        mf.permissions.join('،') + ' → ' + mf.mainActivity);
+    } catch (e) { ok('قراءة AndroidManifest الثنائي', false, e.message); }
+    try {
+      const d = DEX.parse(this.makeDEX());
+      const pk = DEX.packages(d.types, 5);
+      ok('قراءة classes.dex', d.types.length === 3 && pk.some(x => x.name === 'com.unity3d.player'),
+        'إصدار ' + d.header.version + ' · ' + d.types.length + ' نوع · ' + pk.map(x => x.name).join('، '));
+    } catch (e) { ok('قراءة classes.dex', false, e.message); }
+    try {
+      const apkBlob = await this.makeAPK();
+      const apk = await APK.analyze(await apkBlob.arrayBuffer(), 'test.apk');
+      ok('تحليل APK كامل', apk.engine === 'Unity' && apk.manifest.package === 'com.kad.test' && apk.webFiles.length === 2 && apk.signed,
+        apk.engine + ' · ' + apk.entries + ' ملفًا · ' + apk.abis.join('،') + ' · شيفرة ويب: ' + apk.webFiles.length);
+      const inner = apk.webFiles.find(w => w.ext === 'js');
+      ok('قراءة الشيفرة من داخل APK', !!inner && (inner.analysis.systems || []).some(x => x.system === 'vehicle'),
+        inner ? (inner.analysis.systems || []).map(x => x.system).join('، ') || 'بلا أنظمة' : 'لم يُقرأ');
+    } catch (e) { ok('تحليل APK كامل', false, e.message); }
+
+    /* 10c. حزم التطبيق: كاتب ZIP ثم قراءة ما كُتب */
+    try {
+      const zb = await ZIPW.build([
+        { name: 'a/small.txt', data: 'مرحبا' },
+        { name: 'b/large.js', data: 'function x(){return 1}\n'.repeat(60) },
+        { name: 'bin.dat', data: new Uint8Array([1, 2, 3, 4, 5]) },
+      ]);
+      const z = await ZIP.read(await zb.arrayBuffer());
+      const back = {};
+      for (const e of z.entries) back[e.name] = new TextDecoder().decode(await ZIP.extract(z, e));
+      ok('كاتب ZIP (ثم قراءته)', z.entries.length === 3 && back['a/small.txt'] === 'مرحبا' && back['b/large.js'].length > 1000,
+        z.entries.length + ' مدخلًا · مضغوط ومخزَّن معًا');
+    } catch (e) { ok('كاتب ZIP (ثم قراءته)', false, e.message); }
+    try {
+      const bundle = await APPX.collect({ budget: 3 * 1024 * 1024 });
+      const html = APPX.buildHTML(bundle);
+      ok('بناء تطبيق HTML مستقل', html.indexOf('<!DOCTYPE html>') === 0 && html.indexOf('kad-data') > 0 && html.length > 3000,
+        U.bytes(html.length) + ' · ' + bundle.games.length + ' لعبة · ' + bundle.assets.length + ' أصلًا');
+      const body = html.replace(/^[\s\S]*?<body[^>]*>/i, '').replace(/<\/body>[\s\S]*$/i, '');
+      const run = await SBX.run(body, { timeout: 1400 });
+      ok('التطبيق المُصدَّر يعمل', run.errors.length === 0, run.errors.length ? run.errors[0].msg.slice(0, 90) : 'بلا أخطاء تنفيذ');
+      /* حارس انحدار (ثابت): معالج inline مثل onclick="open(0)" يُحلّ اسمه عبر
+         سلسلة نطاق يسبق فيها document نافذةَ window، فيُستدعى document.open()
+         ويمسح الصفحة عند الضغط على «العب». رصدناه فعليًا عند فتح الملف من
+         file://، ولا يظهر داخل إطار معزول — لذا نفحص السبب لا العَرَض. */
+      ok('التطبيق المُصدَّر بلا معالجات inline', !/\son[a-z]+\s*=/i.test(html),
+        (html.match(/\son[a-z]+\s*=/gi) || []).slice(0, 3).join('، ') || 'يستخدم addEventListener فقط');
+      if (bundle.games.length) {
+        const probe = body +
+          '<scr' + 'ipt>setTimeout(function(){try{' +
+          'var b=document.querySelector("button.go"); if(b) b.click();' +
+          'var alive = !!document.getElementById("play") && !!document.getElementById("m");' +
+          'var shown = alive && document.getElementById("play").style.display === "block";' +
+          'if(!alive) throw new Error("الصفحة مُسحت بعد الضغط على العب");' +
+          'if(!shown) throw new Error("لم تُفتح طبقة اللعب");' +
+          '}catch(e){ throw e } },220);</scr' + 'ipt>';
+        const clicked = await SBX.run(probe, { timeout: 1600 });
+        ok('زر «العب» داخل التطبيق المُصدَّر', clicked.errors.length === 0,
+          clicked.errors.length ? clicked.errors[0].msg.slice(0, 100) : 'الصفحة سليمة وطبقة اللعب فُتحت');
+      }
+      const zip = await APPX.androidZip(html, { pkg: 'com.kadkad.lab', label: 'اختبار' });
+      const az = await ZIP.read(await zip.arrayBuffer());
+      const names = az.entries.map(x => x.name);
+      const need = ['settings.gradle', 'app/build.gradle', 'app/src/main/AndroidManifest.xml',
+        'app/src/main/java/com/kadkad/lab/MainActivity.java', 'app/src/main/assets/index.html', 'BUILD.md'];
+      const missing = need.filter(n => names.indexOf(n) < 0);
+      ok('مشروع أندرويد مكتمل', missing.length === 0, missing.length ? 'ناقص: ' + missing.join('، ') : names.length + ' ملفًا · ' + U.bytes(zip.size));
+      const mfEntry = az.entries.find(x => x.name === 'app/src/main/AndroidManifest.xml');
+      const mfTxt = new TextDecoder().decode(await ZIP.extract(az, mfEntry));
+      ok('بيان المشروع بلا إذن إنترنت', mfTxt.indexOf('android.permission.INTERNET') < 0 && mfTxt.indexOf('android.intent.category.LAUNCHER') > 0, 'مُشغِّل موجود · بلا أذونات شبكة');
+    } catch (e) { ok('بناء تطبيق HTML مستقل', false, e.message); }
+
     /* 11. مولّدات الكود: كل واحد يُفحص ويُشغَّل فعليًا */
     const genIds = Object.keys(SNIPPET.gens);
     const genBad = [];
@@ -7095,6 +7993,140 @@ const SELFTEST = {
     }
     return { model: accM / Math.max(n, 1), hybrid: accH / Math.max(n, 1), top3: accT / Math.max(n, 1), n, classes: classes.length };
   },
+  /* يبني AndroidManifest.xml ثنائيًا صالحًا لاختبار المحلّل (نفس بنية AAPT) */
+  makeAXML() {
+    const strs = ['package', 'versionCode', 'versionName', 'minSdkVersion', 'targetSdkVersion', 'name',
+      'manifest', 'uses-sdk', 'uses-permission', 'application', 'activity', 'action', 'category',
+      'com.kad.test', '1.4.2', 'android.permission.INTERNET', 'android.permission.VIBRATE',
+      'com.kad.test.MainActivity', 'android.intent.action.MAIN', 'android.intent.category.LAUNCHER'];
+    const IDX = {}; strs.forEach((v, i) => IDX[v] = i);
+    const enc = new TextEncoder();
+    /* --- مجمع النصوص (UTF-8) --- */
+    const data = [];
+    const offs = [];
+    strs.forEach(v => {
+      offs.push(data.length);
+      const b = enc.encode(v);
+      data.push(b.length, b.length);
+      for (const x of b) data.push(x);
+      data.push(0);
+    });
+    while (data.length % 4) data.push(0);
+    const poolSize = 28 + strs.length * 4 + data.length;
+    const pool = new Uint8Array(poolSize);
+    const pv = new DataView(pool.buffer);
+    pv.setUint16(0, 0x0001, true); pv.setUint16(2, 28, true); pv.setUint32(4, poolSize, true);
+    pv.setUint32(8, strs.length, true); pv.setUint32(12, 0, true); pv.setUint32(16, 0x100, true);
+    pv.setUint32(20, 28 + strs.length * 4, true); pv.setUint32(24, 0, true);
+    offs.forEach((o, i) => pv.setUint32(28 + i * 4, o, true));
+    pool.set(Uint8Array.from(data), 28 + strs.length * 4);
+
+    /* --- العناصر --- */
+    const chunks = [];
+    const STR = 0x03, INT = 0x10;
+    const start = (nm, attrs) => {
+      const size = 16 + 20 + attrs.length * 20 - 20 + 20;  /* header16 + attrExt20 + attrs */
+      const total = 16 + 20 + attrs.length * 20;
+      const b = new Uint8Array(total);
+      const d = new DataView(b.buffer);
+      d.setUint16(0, 0x0102, true); d.setUint16(2, 16, true); d.setUint32(4, total, true);
+      d.setUint32(8, 1, true); d.setUint32(12, 0xFFFFFFFF, true);
+      d.setUint32(16, 0xFFFFFFFF, true);              /* ns */
+      d.setUint32(20, IDX[nm], true);                  /* name */
+      d.setUint16(24, 20, true); d.setUint16(26, 20, true); d.setUint16(28, attrs.length, true);
+      d.setUint16(30, 0, true); d.setUint16(32, 0, true); d.setUint16(34, 0, true);
+      attrs.forEach((at, i) => {
+        const a = 36 + i * 20;
+        d.setUint32(a, 0xFFFFFFFF, true);
+        d.setUint32(a + 4, IDX[at.n], true);
+        d.setUint32(a + 8, at.t === STR ? IDX[at.v] : 0xFFFFFFFF, true);
+        d.setUint16(a + 12, 8, true); d.setUint8(a + 14, 0); d.setUint8(a + 15, at.t);
+        d.setUint32(a + 16, at.t === STR ? IDX[at.v] : at.v, true);
+      });
+      chunks.push(b);
+    };
+    const end = (nm) => {
+      const b = new Uint8Array(24);
+      const d = new DataView(b.buffer);
+      d.setUint16(0, 0x0103, true); d.setUint16(2, 16, true); d.setUint32(4, 24, true);
+      d.setUint32(8, 1, true); d.setUint32(12, 0xFFFFFFFF, true);
+      d.setUint32(16, 0xFFFFFFFF, true); d.setUint32(20, IDX[nm], true);
+      chunks.push(b);
+    };
+    start('manifest', [{ n: 'package', t: STR, v: 'com.kad.test' }, { n: 'versionCode', t: INT, v: 142 }, { n: 'versionName', t: STR, v: '1.4.2' }]);
+    start('uses-sdk', [{ n: 'minSdkVersion', t: INT, v: 24 }, { n: 'targetSdkVersion', t: INT, v: 34 }]); end('uses-sdk');
+    start('uses-permission', [{ n: 'name', t: STR, v: 'android.permission.INTERNET' }]); end('uses-permission');
+    start('uses-permission', [{ n: 'name', t: STR, v: 'android.permission.VIBRATE' }]); end('uses-permission');
+    start('application', []);
+    start('activity', [{ n: 'name', t: STR, v: 'com.kad.test.MainActivity' }]);
+    start('action', [{ n: 'name', t: STR, v: 'android.intent.action.MAIN' }]); end('action');
+    start('category', [{ n: 'name', t: STR, v: 'android.intent.category.LAUNCHER' }]); end('category');
+    end('activity'); end('application'); end('manifest');
+
+    let body = 0; chunks.forEach(c => body += c.length);
+    const total = 8 + pool.length + body;
+    const out = new Uint8Array(total);
+    const ov = new DataView(out.buffer);
+    ov.setUint16(0, 0x0003, true); ov.setUint16(2, 8, true); ov.setUint32(4, total, true);
+    out.set(pool, 8);
+    let p = 8 + pool.length;
+    chunks.forEach(c => { out.set(c, p); p += c.length; });
+    return out;
+  },
+
+  /* يبني classes.dex بسيطًا لكنه صالح البنية لاختبار القارئ */
+  makeDEX(typeNames) {
+    const enc = new TextEncoder();
+    const names = typeNames || ['Lcom/unity3d/player/UnityPlayer;', 'Lcom/kad/test/MainActivity;', 'Ljava/lang/Object;'];
+    const strBytes = names.map(n => {
+      const b = enc.encode(n);
+      const out = new Uint8Array(b.length + 2);
+      out[0] = b.length; out.set(b, 1); out[b.length + 1] = 0;
+      return out;
+    });
+    const headerSize = 112;
+    const strIdsOff = headerSize;
+    const typeIdsOff = strIdsOff + names.length * 4;
+    const dataOff = typeIdsOff + names.length * 4;
+    let dataLen = 0; strBytes.forEach(b => dataLen += b.length);
+    const total = dataOff + dataLen;
+    const u8 = new Uint8Array(total);
+    const dv = new DataView(u8.buffer);
+    u8.set(enc.encode('dex\n035\0'.replace('\\0', '')), 0);
+    u8[0] = 100; u8[1] = 101; u8[2] = 120; u8[3] = 10;      /* d e x \n */
+    u8[4] = 48; u8[5] = 51; u8[6] = 53; u8[7] = 0;          /* 0 3 5 \0 */
+    dv.setUint32(32, total, true);
+    dv.setUint32(36, headerSize, true);
+    dv.setUint32(40, 0x12345678, true);
+    dv.setUint32(56, names.length, true); dv.setUint32(60, strIdsOff, true);
+    dv.setUint32(64, names.length, true); dv.setUint32(68, typeIdsOff, true);
+    dv.setUint32(88, 17, true);   /* methodIds (رقم تمثيلي) */
+    dv.setUint32(96, names.length, true);  /* classDefs */
+    let p = dataOff;
+    strBytes.forEach((b, i) => {
+      dv.setUint32(strIdsOff + i * 4, p, true);
+      dv.setUint32(typeIdsOff + i * 4, i, true);
+      u8.set(b, p); p += b.length;
+    });
+    return u8;
+  },
+
+  /* يبني APK كاملًا (ZIP حقيقي) من القطع أعلاه */
+  async makeAPK() {
+    const enc = new TextEncoder();
+    return ZIPW.build([
+      { name: 'AndroidManifest.xml', data: this.makeAXML() },
+      { name: 'classes.dex', data: this.makeDEX() },
+      { name: 'lib/arm64-v8a/libunity.so', data: new Uint8Array(64) },
+      { name: 'lib/armeabi-v7a/libmain.so', data: new Uint8Array(32) },
+      { name: 'assets/www/game.js', data: 'function update(dt){ car.steer(); car.throttle(); camera.lookAt(car); } var maxSpeed = 41;' },
+      { name: 'assets/www/index.html', data: '<html><body><canvas id="c"></canvas></body></html>' },
+      { name: 'res/drawable/icon.png', data: new Uint8Array(20) },
+      { name: 'META-INF/CERT.RSA', data: new Uint8Array(12) },
+      { name: 'resources.arsc', data: new Uint8Array(16) },
+    ]);
+  },
+
   /* يبني ملف GLB صالحًا (مثلث واحد) لاختبار المحلّل */
   makeGLB() {
     const pos = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]);
@@ -7318,6 +8350,59 @@ function bindEvents() {
     toast('حُذف كل شيء — يُعاد التحميل', 'ok');
     setTimeout(() => location.reload(), 1000);
   });
+  /* بناء التطبيق */
+  const appxLog = (m, c) => { const el = U.$('#appxLog'); el.classList.remove('hide'); el.innerHTML += '<div class="' + (c || '') + '">' + U.esc(m) + '</div>'; el.scrollTop = el.scrollHeight; };
+  U.$('#appxHtml').addEventListener('click', async () => {
+    const b = U.$('#appxHtml'); b.disabled = true;
+    U.$('#appxLog').innerHTML = '';
+    try {
+      appxLog('جمع الأصول والمعرفة…');
+      const bundle = await APPX.collect();
+      appxLog('ضُمّن ' + bundle.assets.length + ' أصلًا (' + U.bytes(bundle.bytes) + ')' + (bundle.skipped ? ' · تُخطّي ' + bundle.skipped + ' لتجاوز الحد' : ''), 'di');
+      appxLog(bundle.games.length + ' لعبة · ' + bundle.knowledge.length + ' سجل معرفة', 'di');
+      const html = APPX.buildHTML(bundle);
+      appxLog('حجم التطبيق: ' + U.bytes(html.length), 'di');
+      BACKUP.saveBlob(new Blob([html], { type: 'text/html' }), 'kadkad-app.html');
+      appxLog('✔ نُزّل. افتحه على هاتفك ثم «إضافة إلى الشاشة الرئيسية».', 'ok');
+      toast('نُزّل تطبيقك', 'ok');
+    } catch (e) { appxLog('✖ ' + e.message, 'er'); toast('فشل: ' + e.message, 'er', 4000); }
+    finally { b.disabled = false; }
+  });
+  U.$('#appxApk').addEventListener('click', async () => {
+    const b = U.$('#appxApk'); b.disabled = true;
+    U.$('#appxLog').innerHTML = '';
+    try {
+      appxLog('جمع المحتوى…');
+      const bundle = await APPX.collect();
+      const html = APPX.buildHTML(bundle);
+      appxLog('توليد مشروع أندرويد…');
+      const zip = await APPX.androidZip(html, { pkg: 'com.kadkad.lab', label: bundle.name, versionCode: bundle.generation, versionName: bundle.generation + '.0' });
+      BACKUP.saveBlob(zip, 'kadkad-android-project.zip');
+      appxLog('✔ نُزّل المشروع (' + U.bytes(zip.size) + '). افتحه في Android Studio ثم Build APK — اقرأ BUILD.md.', 'ok');
+      appxLog('لا يمكن توليد APK داخل المتصفح: البناء يحتاج d8/aapt2 والتوقيع بمفتاح خاص.', 'wa');
+      toast('نُزّل مشروع أندرويد', 'ok', 3800);
+    } catch (e) { appxLog('✖ ' + e.message, 'er'); toast('فشل: ' + e.message, 'er', 4000); }
+    finally { b.disabled = false; }
+  });
+  /* البحث في الإنترنت */
+  U.$('#webOn').addEventListener('change', async e => {
+    await WEB.setEnabled(e.target.checked);
+    UI.renderSettings();
+    if (e.target.checked) {
+      toast('جارٍ اختبار الاتصال…');
+      const r = await WEB.probe();
+      UI.renderSettings();
+      toast(r.ok ? 'الاتصال يعمل (' + r.ms + 'ms)' : 'تعذّر الاتصال: ' + r.error, r.ok ? 'ok' : 'er', 5000);
+    }
+  });
+  U.$('#webTest').addEventListener('click', async () => {
+    const btn = U.$('#webTest'); btn.disabled = true;
+    U.$('#webStatus').textContent = 'جارٍ الاختبار…';
+    const r = await WEB.probe();
+    btn.disabled = false;
+    UI.renderSettings();
+    toast(r.ok ? 'يعمل' : 'لا يعمل هنا', r.ok ? 'ok' : 'er');
+  });
   U.$('#selftestBtn').addEventListener('click', async () => {
     const el = U.$('#selftestLog'); el.classList.remove('hide'); el.innerHTML = '';
     const btn = U.$('#selftestBtn'); btn.disabled = true;
@@ -7355,7 +8440,7 @@ async function boot() {
   S.activeModel = await DB.getKV('activeModel', 'auto');
   applyLang();
 
-  await Promise.all([KB.init(), KG.init(), LIB.init(), DATA.init(), JOBS.init(), EVO.init(), FACTS.init()]);
+  await Promise.all([KB.init(), KG.init(), LIB.init(), DATA.init(), JOBS.init(), EVO.init(), FACTS.init(), WEB.init()]);
   await REG.init();
 
   bindEvents();
@@ -7386,7 +8471,7 @@ async function boot() {
       toast('تراكمت بيانات جديدة — بدأت دورة تطور تلقائية', 'ok', 4200);
     }
   }
-  window.KAD = { U, TOK, VEC, ML, REG, DATA, TRAIN, BENCH, EVO, KG, LIB, INGEST, CODE, GLB, OBJ, ZIP, AUDIO, IMG, PROJ, CONCEPT, CREATIVE, REASON, GEN2D, GEN3D, BUILDER, TESTER, FIXER, JOBS, CHAT, UI, BACKUP, SELFTEST, S, FACTS, STYLE, SNIPPET, SELF, SBX, GLV, KB, DB, SEED_INTENT, DOMAIN_LEX, MECH_DEFS, ARCHETYPES, AXES, CAPS, INTENT_TRIGGERS, triggerScores, INTENT_EMB };
+  window.KAD = { U, TOK, VEC, ML, REG, DATA, TRAIN, BENCH, EVO, KG, LIB, INGEST, CODE, GLB, OBJ, ZIP, AUDIO, IMG, PROJ, CONCEPT, CREATIVE, REASON, GEN2D, GEN3D, BUILDER, TESTER, FIXER, JOBS, CHAT, UI, BACKUP, SELFTEST, S, FACTS, STYLE, SNIPPET, SELF, SBX, GLV, KB, DB, ZIPW, AXML, DEX, APK, APPX, WEB, SEED_INTENT, DOMAIN_LEX, MECH_DEFS, ARCHETYPES, AXES, CAPS, INTENT_TRIGGERS, triggerScores, INTENT_EMB };
   window.triggerScores = triggerScores;
   console.log('%cKAD-KAD AI GAME LAB', 'color:#7c5cff;font-weight:800;font-size:15px', '— نواة محلية جاهزة. window.KAD متاح للفحص.');
 }
