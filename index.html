@@ -436,12 +436,11 @@ canvas.prev3d{width:100%;aspect-ratio:4/3;border-radius:12px;background:#05060c;
         <div class="sub" id="privacyText"></div>
       </div>
       <div class="card">
-        <h3>📱 <span>ابنِ تطبيقك</span></h3>
-        <p class="sub">يحزم أصولك ومعرفتك وألعابك في تطبيق واحد. كلما أضفت ملفات، كبر ما بداخله.</p>
+        <h3>✨ <span>أنشئ نموذجك</span></h3>
+        <p class="sub">يحزم أصولك ومعرفتك وألعابك في ملف واحد، وتسمّيه وتكتب نبذة تعليمه — ثم يُسجَّل في سجل النماذج.</p>
         <div id="appxInfo" class="sub"></div>
         <div class="row">
-          <button class="btn pri sm" id="appxHtml">⬇ تطبيق HTML (قابل للتثبيت)</button>
-          <button class="btn sm" id="appxApk">⬇ مشروع أندرويد (→ APK)</button>
+          <button class="btn pri sm" id="appxHtml">✨ أنشئ نموذجًا وسمِّه</button>
         </div>
         <div class="log hide" id="appxLog" style="margin-top:9px"></div>
       </div>
@@ -1118,6 +1117,7 @@ const SEED_INTENT = {
   recall_fact: ['ما اسمي', 'هل تتذكر اسمي', 'ماذا تعرف عني', 'وش تعرف عني', 'ماذا تتذكر', 'what is my name', 'do you remember me', 'اعرض ما تعرفه عني', 'هل تتذكرني', 'ما الذي حفظته عني'],
   teach_asset: ['هذا سياره', 'هذه شجره', 'هذا الملف مبنى', 'هذا المجسم شخصيه', 'اسم هذا سلاح', 'هذا الصوت محرك', 'هذه الصوره خامه', 'this is a car', 'هذا عباره عن طريق', 'المجسم الذي ارسلته هو حيوان', 'اعتبر هذا مبنى'],
   report_mistake: ['اخطات', 'هذا خطا', 'غلط', 'ليس هذا ما اردت', 'لا هذا ليس صحيح', 'انا اردت شيء اخر', 'لا تستخدم هذا المجسم', 'لا تجعل اللعبه سريعه', 'دائما استخدم السياره الحمراء', 'you made a mistake', 'i meant something else', 'صحح نفسك'],
+  whats_in_mind: ['ماذا في عقلك', 'وش في عقلك', 'ماذا تعرف عن مجسماتي', 'اعرض ما تعلمته من الملفات', 'ما الذي يوجد في ذاكرتك', 'اعرض مجسماتي', 'ماذا تستطيع ان تفعل بمجسماتي', 'what is in your memory', 'show me what you learned', 'ما الذي دخل عقلك'],
   build_app: ['ابن لي تطبيق', 'اريد تطبيق اندرويد', 'سو لي apk', 'حول هذا الى تطبيق', 'اعطني ملف apk', 'اريد تثبيته على هاتفي', 'صدر التطبيق', 'حزم كل شي في تطبيق', 'make an apk', 'build an android app', 'اريد تطبيق اثبته على جوالي'],
   web_search: ['ابحث في الانترنت عن', 'ابحث لي عن معلومات', 'ابحث في ويكيبيديا', 'اعطني معلومات من الانترنت', 'search the web for', 'ابحث خارجيا عن', 'ابحث عن معلومات خارجيه', 'هات لي معلومات من الانترنت', 'ابحث في النت', 'ابحث عن تعريف'],
   write_code: ['اكتب لي كود', 'اعطني كود للتحكم بالسياره', 'سو لي دالة للقفز', 'اكتب كلاس للكاميرا', 'اريد كود حركة الشخصيه', 'write me code for a camera', 'give me a function for jumping', 'اعطني كود الاصطدام', 'اكتب لي نظام النقاط', 'اريد كود حفظ التقدم', 'كود ربط الصوت بالسرعه', 'اعطني كود الادخال باللمس'],
@@ -1185,6 +1185,7 @@ const INTENT_TRIGGERS = {
   recall_fact: ['ما اسمي', 'تتذكر اسمي', 'تعرف عني', 'ماذا تتذكر', 'what is my name', 'تتذكرني', 'حفظته عني'],
   teach_asset: ['هذا سياره', 'هذه شجره', 'هذا الملف', 'هذا المجسم', 'هذا الصوت', 'هذه الصوره', 'اعتبر هذا', 'this is a'],
   report_mistake: ['اخطات', 'هذا خطا', 'غلط', 'ليس هذا ما اردت', 'لا تستخدم', 'لا تجعل', 'دائما استخدم', 'صحح نفسك', 'i meant', 'mistake'],
+  whats_in_mind: ['في عقلك', 'عن مجسماتي', 'مجسماتي', 'في ذاكرتك', 'ما تعلمته من الملفات', 'دخل عقلك'],
   build_app: ['تطبيق', 'apk', 'اندرويد', 'android', 'اثبته', 'تثبيت', 'جوالي', 'هاتفي'],
   web_search: ['ابحث في الانترنت', 'ابحث في ويكيبيديا', 'من الانترنت', 'search the web', 'ابحث خارجيا', 'ابحث في النت'],
   write_code: ['اكتب لي كود', 'اكتب كود', 'اعطني كود', 'اريد كود', 'كود ', 'دالة', 'داله', 'كلاس', 'function for', 'write code', 'give me code', 'سكربت', 'snippet'],
@@ -1286,6 +1287,24 @@ const REG = {
     await DB.put('models', meta);
     this.models = await DB.all('models');
     if (meta.status === 'active') { this.loaded[o.cap] = o.model; }
+    return meta;
+  },
+  /* نموذج مُسمّى أنشأه المستخدم — يُحفظ بنبذته وما تدرّب عليه */
+  async saveNamed(o) {
+    const gen = this.activeGen || 1;
+    const sameGen = this.models.filter(m => m.cap === 'export' && m.gen === gen).length;
+    const meta = {
+      id: U.uid('m'), cap: 'export', gen,
+      name: o.name || ('نموذج ' + this.genName(gen)),
+      version: gen + '.' + sameGen,
+      status: 'created', metrics: {}, dataset: { n: o.trained.assets, source: 'ملفاتك' },
+      weightsId: null, created: U.now(), trained: U.now(),
+      note: o.bio || '', size: o.size || 0,
+      capabilities: ['يحمل أصولك', 'يشغّل ألعابك', 'يعرض معرفتك'],
+      trainedOn: o.trained, history: [],
+    };
+    await DB.put('models', meta);
+    this.models = await DB.all('models');
     return meta;
   },
   capsOf(cap) {
@@ -2221,7 +2240,7 @@ const OBJ = {
 
 /* ============================ 16b · ZIP WRITER ======================== */
 /* كاتب ZIP كامل (CRC32 + Local headers + Central directory + EOCD).
-   يُستخدم لإخراج مشروع أندرويد قابل للبناء ولحزم نسخة التطبيق. */
+   يُستخدم لحزم نسخة التطبيق. */
 const ZIPW = {
   table: (() => {
     const t = new Uint32Array(256);
@@ -4576,7 +4595,47 @@ const TONE = {
   style: null,
   DEF: { avgLen: 14, emoji: 0, exclaim: 0, question: 0, formal: .5, openers: [], closers: [], words: [], samples: 0 },
 
-  async init() { this.style = await DB.getKV('tone', null) || Object.assign({}, this.DEF); },
+  async init() {
+    this.style = await DB.getKV('tone', null) || Object.assign({}, this.DEF);
+    this.replies = await DB.getKV('learnedReplies', {});
+  },
+
+  /* يستخرج أزواج (سؤالك → ردّه) من ملفات الحوار ويستخدمها ردودًا فعلية */
+  PAIR_RE: /^\s*(?:المستخدم|انت|أنت|user|me|q|س)\s*[:：]\s*(.+)$/i,
+  REPLY_RE: /^\s*(?:الذكاء|المساعد|الرد|الجواب|ai|assistant|bot|kad|a|ج)\s*[^:：]{0,12}[:：]\s*(.+)$/i,
+  learnPairs(texts) {
+    const pairs = [];
+    texts.forEach(t => {
+      const lines = String(t || '').split(/\n/);
+      let pending = null;
+      lines.forEach(l => {
+        const q = this.PAIR_RE.exec(l);
+        if (q) { pending = q[1].trim(); return; }
+        const a = this.REPLY_RE.exec(l);
+        if (a && pending) { pairs.push({ q: pending, a: a[1].trim() }); pending = null; }
+      });
+    });
+    return pairs.filter(p => p.q.length > 1 && p.a.length > 1 && p.a.length < 260);
+  },
+  /* يربط كل زوج بموقف معروف (سلام، شكر، كيف حالك…) ليردّ به لاحقًا */
+  async learnReplies(texts) {
+    const pairs = this.learnPairs(texts);
+    if (!pairs.length) return { added: 0, bySituation: {} };
+    const store = await DB.getKV('learnedReplies', {});
+    const by = {};
+    pairs.forEach(p => {
+      const rule = SMALLTALK.match(p.q);
+      const key = rule ? rule.id : 'other';
+      if (key === 'other') return;
+      store[key] = store[key] || [];
+      if (store[key].indexOf(p.a) < 0 && store[key].length < 12) { store[key].push(p.a); by[key] = (by[key] || 0) + 1; }
+    });
+    await DB.setKV('learnedReplies', store);
+    this.replies = store;
+    return { added: Object.values(by).reduce((a, b) => a + b, 0), bySituation: by, pairs: pairs.length };
+  },
+  replies: null,
+  learnedFor(id) { return (this.replies && this.replies[id]) ? this.replies[id] : null; },
 
   /* يتعلّم من نصوص أرسلها المستخدم (حوارات، أمثلة ردود، أي كتابة) */
   async learn(texts) {
@@ -4728,6 +4787,12 @@ const SMALLTALK = {
     for (const r of this.RULES) if (r.re.test(t) || r.re.test(text)) return r;
     return null;
   },
+  /* ردّك أنت أولًا إن علّمته إياه، وإلا الردّ المدمج */
+  replyFor(rule) {
+    const learned = TONE.learnedFor(rule.id);
+    if (learned && learned.length) return { text: VARY.pick('L_' + rule.id, learned), taught: true };
+    return { text: rule.reply(), taught: false };
+  },
   /* هل الرسالة تحية فقط، أم تحية + طلب؟ */
   isPure(text) {
     const w = TOK.words(text).filter(x => x.length > 1);
@@ -4742,8 +4807,10 @@ const SMALLTALK = {
     const opts = [];
     if (!st.total) opts.push('لم تعطني أي ملف بعد — أرسل مجسمًا أو كودًا أو صورة وسأبدأ منها.');
     else {
-      opts.push('عندي الآن ' + st.total + ' ملفًا منك و' + mech + ' ميكانيكية استخرجتها من شيفرتك.');
+      const models = LIB.cache.filter(a => a.kind === 'model').length;
+      opts.push('عندي الآن ' + st.total + ' ملفًا منك' + (mech ? ' و' + mech + ' ميكانيكية استخرجتها من شيفرتك.' : '.'));
       if (mech) opts.push('أستطيع أن أبني لك لعبة من ' + mech + ' ميكانيكية أخذتها من ملفاتك — قل «اصنع لعبة من ملفاتي».');
+      if (models && !mech) opts.push('عندي ' + models + ' مجسمًا منك. أرسل لي شيفرة فيها نظام حركة وسأعرف كيف أحرّكها.');
       if (games) opts.push('آخر ما بنيته لك: ' + games + ' لعبة. تقدر تطلب تعديلًا على أي منها.');
       opts.push('تحب أحلّل ملفًا جديدًا، أو أكتب لك قطعة كود؟');
     }
@@ -4924,6 +4991,112 @@ const TEACH = {
       confidence: .98, source: asset.id,
     });
     return { before, after: asset.category };
+  }
+};
+
+/* ============================ 27h · MIND (ما دخل عقله) ================ */
+/* شكوى محقّة: ترفع مجسمات ولا ترى أثرًا. هذا يعرض ما دخل عقله فعلًا عن كل مجسم:
+   ما فهمه منه، وما يستطيع أن يفعله به، وأين استُخدم. */
+const MIND = {
+  /* ماذا يستطيع أن يفعل بهذا الأصل تحديدًا */
+  uses(a) {
+    const out = [];
+    const cat = a.category, an = a.analysis || {}, st = an.stats || {};
+    const has = id => KB.byKind('mechanic').some(k => k.mech === id);
+    if (a.kind === 'model') {
+      if (cat === 'Vehicles') {
+        out.push({ can: 'بطل اللعبة يقودها', need: 'vehicle.control', ready: has('vehicle.control') });
+        out.push({ can: 'كاميرا تتبعها', need: 'camera.follow', ready: has('camera.follow') });
+        out.push({ can: 'ربط صوت محرك بسرعتها', need: 'audio.engineLink', ready: LIB.cache.some(x => x.kind === 'audio') });
+      } else if (cat === 'Characters') {
+        out.push({ can: 'شخصية يتحكّم بها اللاعب', need: 'movement.platform', ready: has('movement.platform') });
+      } else if (cat === 'Buildings' || cat === 'Environment' || cat === 'Nature' || cat === 'Props') {
+        out.push({ can: 'عنصر يُوزَّع في العالم', need: null, ready: true });
+      } else {
+        out.push({ can: 'مجسم في المشهد', need: null, ready: true });
+      }
+      if (st.animations) out.push({ can: 'يحمل ' + st.animations + ' حركة (تُقرأ أسماؤها، ولا تُشغَّل بعد)', need: null, ready: false });
+    } else if (a.kind === 'image') {
+      out.push({ can: 'خامة على الأرض أو المباني أو العناصر', need: null, ready: true });
+    } else if (a.kind === 'audio') {
+      const sub = a.subCategory || '';
+      out.push({ can: sub === 'Engine' ? 'صوت محرك مرتبط بالسرعة' : 'صوت داخل اللعبة', need: null, ready: true });
+    }
+    return out;
+  },
+  /* أين استُخدم فعلًا */
+  async usedIn(a) {
+    const games = await DB.all('games');
+    return games.filter(g => (g.assets || []).some(x => x.id === a.id)).map(g => g.title);
+  },
+  /* بطاقة «دخل عقلي» لدفعة مرفوعة */
+  async card(assets) {
+    if (!assets.length) return '';
+    const L = ['<div class="card tight"><h3 style="font-size:13.5px">🧠 ما دخل عقلي الآن</h3>'];
+    for (const a of assets) {
+      const an = a.analysis || {}, st = an.stats || {};
+      const bits = [];
+      if (a.kind === 'model') {
+        bits.push(U.esc(a.category));
+        if (st.triangles) bits.push(st.triangles.toLocaleString('en') + ' مثلث');
+        if (an.bbox) bits.push('أبعاد ' + an.bbox.size.map(v => U.round(v, 1)).join('×'));
+        if (st.bones) bits.push(st.bones + ' عظمة');
+        if (st.animations) bits.push(st.animations + ' حركة');
+      } else if (a.kind === 'image') {
+        bits.push(U.esc(a.category));
+        if (an.width) bits.push(an.width + '×' + an.height);
+        if (an.tileableH > .7 && an.tileableV > .7) bits.push('قابلة للتبليط');
+      } else if (a.kind === 'audio') {
+        bits.push(U.esc(a.subCategory || a.category));
+        if (an.duration) bits.push(U.round(an.duration, 1) + 'ث');
+      }
+      const uses = this.uses(a);
+      const used = await this.usedIn(a);
+      L.push('<div style="border-top:1px solid var(--line);padding-top:8px;margin-top:8px">' +
+        '<b style="font-size:12.8px">' + U.esc(a.name) + '</b> ' +
+        '<span style="color:var(--ink3);font-size:11.5px">' + bits.join(' · ') + '</span>' +
+        (uses.length ? '<ul style="margin:5px 0 0;padding-inline-start:18px;font-size:12.2px">' +
+          uses.map(u => '<li>' + (u.ready ? '✅ ' : '⏳ ') + U.esc(u.can) +
+            (u.need && !u.ready ? ' <span style="color:var(--ink3)">— ينقصني <code>' + U.esc(u.need) + '</code> من شيفرتك</span>' : '') + '</li>').join('') + '</ul>' : '') +
+        (used.length ? '<div class="meta">مستخدَم في: ' + U.esc(used.slice(0, 3).join('، ')) + '</div>' : '') +
+        '</div>');
+    }
+    const links = KG.edges.length;
+    L.push('<p class="sub" style="margin:8px 0 0">مربوطة بـ ' + links + ' علاقة في الرسم المعرفي. ' +
+      'اطلب «اصنع لعبة من ملفاتي» وسترى أيّها دخل فعلًا.</p></div>');
+    return L.join('');
+  },
+  /* جرد كامل لما في عقله */
+  async inventoryCard() {
+    const models = LIB.cache.filter(a => a.kind === 'model');
+    const images = LIB.cache.filter(a => a.kind === 'image');
+    const sounds = LIB.cache.filter(a => a.kind === 'audio');
+    const mech = KB.byKind('mechanic');
+    const games = await DB.all('games');
+    const L = [];
+    L.push('<h4>ما في عقلي الآن</h4>');
+    L.push('<div class="kv">' +
+      '<b>مجسمات</b><span>' + models.length + (models.length ? ' — ' + U.esc(models.slice(0, 5).map(m => m.name + ' (' + m.category + ')').join('، ')) : '') + '</span>' +
+      '<b>صور</b><span>' + images.length + (images.length ? ' — ' + U.esc(images.slice(0, 4).map(m => m.name).join('، ')) : '') + '</span>' +
+      '<b>أصوات</b><span>' + sounds.length + (sounds.length ? ' — ' + U.esc(sounds.slice(0, 4).map(m => m.name).join('، ')) : '') + '</span>' +
+      '<b>ميكانيكيات</b><span>' + mech.length + (mech.length ? ' — ' + U.esc(mech.slice(0, 5).map(m => m.title).join('، ')) : '') + '</span>' +
+      '<b>ألعاب بنيتُها</b><span>' + games.length + '</span>' +
+      '<b>دروس منك</b><span>' + LESSONS.list.length + '</span>' +
+      '</div>');
+    if (models.length) {
+      L.push('<h4>ماذا أستطيع بكل مجسم</h4>');
+      for (const m of models.slice(0, 6)) {
+        const uses = this.uses(m);
+        const used = await this.usedIn(m);
+        L.push('<p style="margin:6px 0 0"><b>' + U.esc(m.name) + '</b> <span class="tag">' + U.esc(m.category) + '</span>' +
+          (used.length ? ' <span class="tag g">استُخدم</span>' : '') + '</p>' +
+          '<ul style="margin:3px 0 0;padding-inline-start:18px;font-size:12.2px">' +
+          uses.map(u => '<li>' + (u.ready ? '✅ ' : '⏳ ') + U.esc(u.can) + '</li>').join('') + '</ul>');
+      }
+    } else {
+      L.push('<p>لم ترفع أي مجسم بعد. أرسل ملف <code>.glb</code> وسأخبرك بما فهمته منه وما أستطيع فعله به.</p>');
+    }
+    return L.join('');
   }
 };
 
@@ -6608,9 +6781,12 @@ const CHAT = {
       const st = text.trim() ? SMALLTALK.match(text) : null;
       if (st && SMALLTALK.isPure(text) && !files.length) {
         typing.remove();
-        const line = st.reply();
-        const follow = (st.id === 'bye' || st.id === 'sorry') ? '' : await SMALLTALK.followUp();
-        const html = '<p>' + TONE.emo() + U.esc(line) + '</p>' + (follow ? '<p>' + U.esc(TONE.fit(follow)) + '</p>' : '');
+        const rep2 = SMALLTALK.replyFor(st);
+        const line = rep2.text;
+        /* إن كان ردّك المُعلَّم يعرض المساعدة أصلًا، فلا نُتبعه بسطر يكرّر العرض */
+        const selfSufficient = rep2.taught && /[?؟]\s*$|تحت أمرك|في خدمتك|جاهز|تفضل|اطلب|ننجز/.test(line);
+        const follow = (st.id === 'bye' || st.id === 'sorry' || selfSufficient) ? '' : await SMALLTALK.followUp();
+        const html = '<p>' + (rep2.taught ? '' : TONE.emo()) + U.esc(line) + '</p>' + (follow ? '<p>' + U.esc(TONE.fit(follow)) + '</p>' : '');
         UI.addMessage({ role: 'ai', html });
         await this.save({ role: 'ai', html, intent: 'smalltalk:' + st.id, conf: 1 });
         return;
@@ -6628,7 +6804,7 @@ const CHAT = {
       else out = await this.route(intent, text, f, ctx, ingestOut);
 
       typing.remove();
-      const hello = (st && !files.length) ? '<p>' + U.esc(st.reply()) + '</p>' : '';
+      const hello = (st && !files.length) ? '<p>' + U.esc(SMALLTALK.replyFor(st).text) + '</p>' : '';
       let applied = '';
       if (S.lessons && S.lessons.matches && S.lessons.matches.length) {
         applied = '<div class="meta" style="margin-bottom:8px">📘 طبّقت ' + S.lessons.matches.length +
@@ -6671,7 +6847,11 @@ const CHAT = {
     /* نصوصك تُعلّمني نبرتك: حوارات، أمثلة ردود، أي كتابة */
     const proseTexts = results.filter(r => r.text && ['txt', 'md', 'markdown', 'csv', 'log'].indexOf(r.ext) >= 0).map(r => r.text);
     let toneLearned = null;
-    if (proseTexts.length) toneLearned = await TONE.learn(proseTexts);
+    let repliesLearned = null;
+    if (proseTexts.length) {
+      toneLearned = await TONE.learn(proseTexts);
+      repliesLearned = await TONE.learnReplies(proseTexts);
+    }
     await KG.discover(200);
     const ok = results.filter(r => !r.error);
     const dup = ok.filter(r => r.duplicate).length;
@@ -6749,6 +6929,14 @@ const CHAT = {
         '<p style="font-size:12.5px;color:var(--ink3)">سأقلّد هذا الأسلوب في صياغتي: طول الجملة، الافتتاحيات، الإيموجي، النبرة. ' +
         'بصراحة هذا تقليد لأسلوب السطح — لست نموذجًا لغويًا يؤلّف كلامًا حرًّا.</p>');
     }
+    if (repliesLearned && repliesLearned.added) {
+      const SIT = { salam: 'السلام عليكم', hi: 'التحية', morning: 'صباح الخير', evening: 'مساء الخير', how: 'كيف حالك', thanks: 'الشكر', bye: 'الوداع', sorry: 'الاعتذار', praise_fail: 'حين تعاتبني' };
+      L.push('<h4>تعلّمت كيف أردّ عليك</h4>' +
+        '<p>استخرجت <b>' + repliesLearned.pairs + '</b> زوجًا (سؤالك ← ردّه)، واعتمدت <b>' + repliesLearned.added + '</b> ردًّا:</p><ul>' +
+        Object.keys(repliesLearned.bySituation).map(k => '<li><b>' + U.esc(SIT[k] || k) + ':</b> ' + repliesLearned.bySituation[k] + ' ردًّا — مثال: «' +
+          U.esc((TONE.learnedFor(k) || [''])[0].slice(0, 70)) + '»</li>').join('') + '</ul>' +
+        '<p style="font-size:12.5px;color:var(--ink3)">من الآن سأردّ بكلامك أنت في هذه المواقف بدل ردودي المدمجة. جرّب: قل لي «السلام عليكم».</p>');
+    }
     const errs = results.filter(r => r.error);
     if (errs.length) L.push('<p style="color:var(--warn)">تعذّر تحليل ' + errs.length + ' ملف: ' + U.esc(errs.slice(0, 3).map(e => U.base(e.name) + ' (' + e.error + ')').join('، ')) + '</p>');
     L.push('<p style="font-size:12px;color:var(--ink3)">كل هذه الملفات محفوظة في متصفحك فقط (IndexedDB). لم يُرسل أي شيء إلى أي خادم.</p>');
@@ -6773,6 +6961,11 @@ const CHAT = {
       '<b>ألعاب بداخله</b><span>' + now.games + '</span></div>' +
       '<p class="sub" style="margin:6px 0 0">نزّله الآن وسيحوي كل ما أعطيتَه حتى هذه اللحظة.</p></div>');
 
+    /* ما دخل عقله من هذه الدفعة — بالتفصيل، لا مجرد أسماء */
+    const newAssets = ok.map(r => LIB.cache.find(x => x.id === r.assetId))
+      .filter(a => a && ['model', 'image', 'audio'].indexOf(a.kind) >= 0);
+    if (newAssets.length) L.push(await MIND.card(newAssets.slice(0, 8)));
+
     /* هل هناك ملفات لم يتعرّف عليها بثقة؟ اطلب من المستخدم تعريفها */
     const unsure = ok.filter(r => {
       const an = r.analysis || {};
@@ -6789,7 +6982,7 @@ const CHAT = {
     const acts = [];
     const appId = U.uid('appnow');
     TMP.set(appId, { buildApp: true });
-    acts.push({ label: '⬇ نزّل النموذج المحدَّث', act: 'buildAppNow', id: appId });
+    acts.push({ label: '✨ أنشئ نموذجًا من هذا', act: 'buildAppNow', id: appId });
     if (project) acts.push({ label: 'افتح المشروع', act: 'openProject', id: project.id });
     if (now.mech || now.assets) acts.push({ label: '🎮 اصنع لعبة من ملفاتي', act: 'quickAsk', id: 'اصنع لي لعبة من ملفاتي' });
     return { html: L.join(''), actions: acts };
@@ -6852,7 +7045,7 @@ const CHAT = {
     async greet(a) {
       a.f.execution.push('رد تحية متنوّع حسب حالة النظام');
       const hi = SMALLTALK.match(a.text);
-      const line = hi ? hi.reply() : VARY.pick('hi', ['أهلًا بك.', 'مرحبًا.', 'هلا والله.']);
+      const line = hi ? SMALLTALK.replyFor(hi).text : VARY.pick('hi', ['أهلًا بك.', 'مرحبًا.', 'هلا والله.']);
       return { noThink: true, html: '<p>' + TONE.emo() + U.esc(line) + '</p><p>' + U.esc(TONE.fit(await SMALLTALK.followUp())) + '</p>' };
     },
     /* ---------------- تحليل مشروع ---------------- */
@@ -7443,33 +7636,13 @@ Object.assign(CHAT.handlers, {
 Object.assign(CHAT.handlers, {
   async build_app(a) {
     a.f.execution.push('حزم الأصول والمعرفة والألعاب في تطبيق واحد');
-    a.f.constraints.push('لا يمكن توليد APK موقَّع داخل المتصفح — يُسلَّم مشروع أندرويد قابل للبناء');
-    const bundle = await APPX.collect();
-    const html = APPX.buildHTML(bundle);
-    const zip = await APPX.androidZip(html, { pkg: 'com.kadkad.lab', label: bundle.name, versionCode: bundle.generation, versionName: bundle.generation + '.0' });
-    const hid = U.uid('apphtml'), zid = U.uid('appzip');
-    TMP.set(hid, { blob: new Blob([html], { type: 'text/html' }), name: 'kadkad-app.html' });
-    TMP.set(zid, { blob: zip, name: 'kadkad-android-project.zip' });
-    a.f.verification.push('التطبيق مبني فعليًا: ' + U.bytes(html.length) + ' · المشروع ' + U.bytes(zip.size));
-    const L = [];
-    L.push('<h4>تطبيقك جاهز</h4>');
-    L.push('<div class="kv">' +
-      '<b>ألعاب</b><span>' + bundle.games.length + '</span>' +
-      '<b>أصول مضمَّنة</b><span>' + bundle.assets.length + ' (' + U.bytes(bundle.bytes) + ')' + (bundle.skipped ? ' · تُخطّي ' + bundle.skipped + ' لتجاوز الحد' : '') + '</span>' +
-      '<b>معرفة</b><span>' + bundle.knowledge.length + ' سجلًا · ' + bundle.facts.length + ' معلومة عنك</span>' +
-      '<b>الإصدار</b><span>' + U.esc(REG.genName(bundle.generation)) + '</span>' +
-      '<b>حجم التطبيق</b><span>' + U.bytes(html.length) + '</span></div>');
-    L.push('<h4>كيف تثبّته على هاتفك</h4>');
-    L.push('<p><b>الأسرع (بلا أدوات):</b> نزّل ملف <code>kadkad-app.html</code>، افتحه في متصفح هاتفك، ثم من قائمة المتصفح اختر <b>«إضافة إلى الشاشة الرئيسية»</b>. سيظهر كتطبيق ويفتح بملء الشاشة ويعمل بلا إنترنت.</p>');
-    L.push('<p><b>APK حقيقي:</b> نزّل مشروع أندرويد، افتحه في Android Studio، ثم Build ← Build APK. الملف الناتج <code>app-debug.apk</code> تثبّته مباشرة.</p>');
-    L.push('<p style="font-size:12.5px;color:var(--ink3)"><b>بصراحة:</b> لا أستطيع إخراج APK جاهزًا من داخل المتصفح. ' +
-      'بناء APK يحتاج <code>d8</code> لتحويل الشيفرة و<code>aapt2</code> للموارد ثم التوقيع بمفتاح خاص عبر <code>apksigner</code> — ' +
-      'وأندرويد يرفض تثبيت أي APK غير موقَّع. لذلك أسلّمك المشروع كاملًا بدل أن أَعِدك بملف لا أستطيع إنتاجه.</p>');
-    L.push('<p style="font-size:12.5px;color:var(--ink3)">كلما أرسلت لي ملفات أكثر وعلّمتني أكثر، كبر ما بداخل هذا التطبيق. أعد البناء في أي وقت.</p>');
-    return {
-      html: L.join(''),
-      actions: [{ label: '⬇ تطبيق HTML', act: 'download', id: hid }, { label: '⬇ مشروع أندرويد', act: 'download', id: zid }, { label: 'الإعدادات', act: 'goto', id: 'set' }]
-    };
+    const named = await UI.askModelName();
+    if (!named) return { noThink: true, html: '<p>أُلغي الإنشاء.</p>' };
+    const r = await APPX.create(named);
+    const hid = U.uid('apphtml');
+    TMP.set(hid, { blob: new Blob([r.html], { type: 'text/html' }), name: r.fileName });
+    a.f.verification.push('التطبيق مبني فعليًا: ' + U.bytes(r.html.length) + ' · سُجّل كنموذج ' + r.meta.version);
+    return { html: APPX.report(r), actions: [{ label: '⬇ نزّل «' + U.esc(r.name) + '»', act: 'download', id: hid }, { label: 'سجل النماذج', act: 'goto', id: 'models' }] };
   },
 
   async web_search(a) {
@@ -7575,6 +7748,14 @@ Object.assign(CHAT.handlers, {
   },
 });
 
+
+Object.assign(CHAT.handlers, {
+  async whats_in_mind(a) {
+    a.f.execution.push('جرد ما في الذاكرة وما يمكن فعله بكل أصل');
+    return { noThink: true, html: await MIND.inventoryCard() };
+  },
+});
+
 CHAT.gameReport = function (out, logs) {
   const g = out.game, d = out.design, A = g.axes;
   const L = [];
@@ -7667,11 +7848,8 @@ const BACKUP = {
 };
 
 /* ============================ 39b · APP EXPORT ======================== */
-/* يحزم كل ما أعطيتَه وكل ما تعلّمه في تطبيق واحد:
-   (أ) ملف HTML مستقل قابل للتثبيت على الشاشة الرئيسية،
-   (ب) مشروع أندرويد كامل قابل للبناء إلى APK بأدوات أندرويد الرسمية.
-   ملاحظة صريحة: لا يمكن توليد APK مُوقَّع داخل المتصفح — التوقيع والبناء
-   يحتاجان أدوات أندرويد (d8/aapt2/apksigner). المشروع يُنتج APK عند بنائه. */
+/* يحزم كل ما أعطيتَه وكل ما تعلّمه في ملف تطبيق واحد مستقل،
+   قابل للتثبيت على الشاشة الرئيسية ويعمل بلا إنترنت. */
 const APPX = {
   BUDGET: 42 * 1024 * 1024,
 
@@ -7707,6 +7885,51 @@ const APPX = {
       }
     }
     return bundle;
+  },
+
+  /* إنشاء نموذج مُسمّى: يُحزَم، ويُسجَّل في سجل النماذج بنبذته وما تدرّب عليه */
+  async create(named) {
+    const bundle = await this.collect();
+    bundle.name = named.name || bundle.name;
+    bundle.bio = named.bio || '';
+    const html = this.buildHTML(bundle);
+    const trained = {
+      assets: bundle.assets.length, bytes: bundle.bytes, skipped: bundle.skipped,
+      knowledge: bundle.knowledge.length, mechanics: KB.byKind('mechanic').length,
+      models: LIB.cache.filter(a => a.kind === 'model').length,
+      images: LIB.cache.filter(a => a.kind === 'image').length,
+      sounds: LIB.cache.filter(a => a.kind === 'audio').length,
+      code: LIB.cache.filter(a => a.kind === 'code' || a.kind === 'web').length,
+      games: bundle.games.length, projects: bundle.projects.length,
+      lessons: LESSONS.list.length, facts: bundle.facts.length,
+      tone: TONE.style && TONE.style.samples ? TONE.describe(TONE.style) : null,
+      style: STYLE.cur && STYLE.cur.samples ? STYLE.describe(STYLE.cur) : null,
+    };
+    const meta = await REG.saveNamed({ name: bundle.name, bio: bundle.bio, trained, size: html.length });
+    const safe = (bundle.name || 'kadkad').replace(/[^\w؀-ۿ -]/g, '').trim() || 'kadkad';
+    return { html, name: bundle.name, bio: bundle.bio, fileName: safe + '.html', bundle, trained, meta };
+  },
+
+  report(r) {
+    const t = r.trained;
+    const L = [];
+    L.push('<h4>تم إنشاء النموذج: «' + U.esc(r.name) + '»</h4>');
+    if (r.bio) L.push('<p style="color:var(--ink2)">' + U.esc(r.bio) + '</p>');
+    L.push('<div class="kv">' +
+      '<b>الإصدار</b><span>' + U.esc(r.meta.version) + ' · ' + U.esc(r.meta.name) + '</span>' +
+      '<b>تدرّب على</b><span>' + t.models + ' مجسم · ' + t.images + ' صورة · ' + t.sounds + ' صوت · ' + t.code + ' ملف شيفرة</span>' +
+      '<b>يحمل بداخله</b><span>' + t.assets + ' أصلًا (' + U.bytes(t.bytes) + ')' + (t.skipped ? ' · تُخطّي ' + t.skipped + ' لتجاوز الحد' : '') + '</span>' +
+      '<b>معرفة</b><span>' + t.knowledge + ' سجلًا · ' + t.mechanics + ' ميكانيكية · ' + t.projects + ' مشروع</span>' +
+      '<b>ألعاب</b><span>' + t.games + '</span>' +
+      '<b>دروس منك</b><span>' + t.lessons + ' درسًا · ' + t.facts + ' معلومة عنك</span>' +
+      (t.tone ? '<b>نبرته</b><span>' + U.esc(t.tone) + '</span>' : '') +
+      (t.style ? '<b>أسلوب كتابته للكود</b><span>' + U.esc(t.style) + '</span>' : '') +
+      '<b>الحجم</b><span>' + U.bytes(r.html.length) + '</span></div>');
+    L.push('<p><b>التثبيت:</b> نزّل الملف، افتحه في متصفح هاتفك، ثم «إضافة إلى الشاشة الرئيسية». ' +
+      'يفتح كتطبيق بملء الشاشة ويعمل بلا إنترنت.</p>');
+    L.push('<p style="font-size:12.5px;color:var(--ink3)">سُجّل في «سجل النماذج» باسمه ونبذته، فلا يضيع. ' +
+      'كلما أعطيتني ملفات أكثر، أنشئ نموذجًا أكبر بنفس الطريقة.</p>');
+    return L.join('');
   },
 
   /* التطبيق الشخصي: ملف HTML واحد مستقل تمامًا */
@@ -7803,123 +8026,6 @@ const APPX = {
     return T.join('\n');
   },
 
-  /* مشروع أندرويد كامل: WebView يحمّل التطبيق من assets — يُبنى بـ Gradle */
-  androidFiles(html, meta) {
-    const pkg = meta.pkg || 'com.kadkad.lab';
-    const path = pkg.replace(/\./g, '/');
-    const label = meta.label || 'KAD-KAD';
-    return [
-      { name: 'settings.gradle', data: 'pluginManagement {\n  repositories { google(); mavenCentral(); gradlePluginPortal() }\n}\ndependencyResolutionManagement {\n  repositories { google(); mavenCentral() }\n}\nrootProject.name = "KadKadApp"\ninclude ":app"\n' },
-      {
-        name: 'build.gradle', data: 'plugins {\n  id "com.android.application" version "8.5.2" apply false\n}\n'
-      },
-      {
-        name: 'gradle.properties', data: 'org.gradle.jvmargs=-Xmx2048m\nandroid.useAndroidX=true\nandroid.nonTransitiveRClass=true\n'
-      },
-      {
-        name: 'app/build.gradle', data:
-          'plugins { id "com.android.application" }\n\n' +
-          'android {\n' +
-          '  namespace "' + pkg + '"\n' +
-          '  compileSdk 34\n\n' +
-          '  defaultConfig {\n' +
-          '    applicationId "' + pkg + '"\n' +
-          '    minSdk 23\n    targetSdk 34\n' +
-          '    versionCode ' + (meta.versionCode || 1) + '\n' +
-          '    versionName "' + (meta.versionName || '1.0') + '"\n' +
-          '  }\n\n' +
-          '  buildTypes {\n' +
-          '    release {\n      minifyEnabled false\n' +
-          '      proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"\n    }\n  }\n' +
-          '  compileOptions {\n    sourceCompatibility JavaVersion.VERSION_17\n    targetCompatibility JavaVersion.VERSION_17\n  }\n' +
-          '}\n\ndependencies {\n  implementation "androidx.appcompat:appcompat:1.7.0"\n}\n'
-      },
-      { name: 'app/proguard-rules.pro', data: '# لا شيء مطلوب — التطبيق كله داخل WebView\n' },
-      {
-        name: 'app/src/main/AndroidManifest.xml', data:
-          '<?xml version="1.0" encoding="utf-8"?>\n' +
-          '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n' +
-          '  <!-- لا إذن إنترنت: التطبيق يعمل بالكامل من ملفاته المحلية -->\n' +
-          '  <application\n' +
-          '      android:allowBackup="true"\n' +
-          '      android:label="@string/app_name"\n' +
-          '      android:icon="@mipmap/ic_launcher"\n' +
-          '      android:theme="@style/Theme.AppCompat.NoActionBar"\n' +
-          '      android:hardwareAccelerated="true">\n' +
-          '    <activity android:name=".MainActivity"\n' +
-          '        android:exported="true"\n' +
-          '        android:screenOrientation="portrait"\n' +
-          '        android:configChanges="orientation|screenSize|keyboardHidden">\n' +
-          '      <intent-filter>\n' +
-          '        <action android:name="android.intent.action.MAIN" />\n' +
-          '        <category android:name="android.intent.category.LAUNCHER" />\n' +
-          '      </intent-filter>\n' +
-          '    </activity>\n' +
-          '  </application>\n' +
-          '</manifest>\n'
-      },
-      {
-        name: 'app/src/main/java/' + path + '/MainActivity.java', data:
-          'package ' + pkg + ';\n\n' +
-          'import android.annotation.SuppressLint;\n' +
-          'import android.os.Bundle;\n' +
-          'import android.view.View;\n' +
-          'import android.webkit.WebSettings;\n' +
-          'import android.webkit.WebView;\n' +
-          'import androidx.appcompat.app.AppCompatActivity;\n\n' +
-          'public class MainActivity extends AppCompatActivity {\n' +
-          '  private WebView web;\n\n' +
-          '  @SuppressLint("SetJavaScriptEnabled")\n' +
-          '  @Override\n' +
-          '  protected void onCreate(Bundle savedInstanceState) {\n' +
-          '    super.onCreate(savedInstanceState);\n' +
-          '    web = new WebView(this);\n' +
-          '    WebSettings s = web.getSettings();\n' +
-          '    s.setJavaScriptEnabled(true);\n' +
-          '    s.setDomStorageEnabled(true);          // لازم لحفظ التقدّم\n' +
-          '    s.setDatabaseEnabled(true);\n' +
-          '    s.setMediaPlaybackRequiresUserGesture(false);\n' +
-          '    s.setAllowFileAccess(true);\n' +
-          '    web.setBackgroundColor(0xFF07070D);\n' +
-          '    setContentView(web);\n' +
-          '    web.loadUrl("file:///android_asset/index.html");\n' +
-          '  }\n\n' +
-          '  @Override\n' +
-          '  public void onBackPressed() {\n' +
-          '    if (web != null && web.canGoBack()) web.goBack();\n' +
-          '    else super.onBackPressed();\n' +
-          '  }\n' +
-          '}\n'
-      },
-      { name: 'app/src/main/res/values/strings.xml', data: '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n  <string name="app_name">' + label.replace(/[<>&]/g, '') + '</string>\n</resources>\n' },
-      { name: 'app/src/main/assets/index.html', data: html },
-      {
-        name: 'BUILD.md', data:
-          '# بناء التطبيق إلى APK\n\n' +
-          'هذا مشروع أندرويد كامل. لتحويله إلى ملف APK قابل للتثبيت:\n\n' +
-          '## الطريقة الأسهل — Android Studio\n' +
-          '1. افتح Android Studio ← Open ← اختر هذا المجلد.\n' +
-          '2. انتظر مزامنة Gradle.\n' +
-          '3. Build ← Build Bundle(s) / APK(s) ← Build APK(s).\n' +
-          '4. ستجد الملف في `app/build/outputs/apk/debug/app-debug.apk`.\n\n' +
-          '## من سطر الأوامر\n' +
-          '```bash\n./gradlew assembleDebug\n```\n\n' +
-          '## لماذا لم يُنتَج APK مباشرةً؟\n' +
-          'بناء APK يتطلب تحويل الشيفرة إلى DEX (d8) وتجميع الموارد (aapt2)\n' +
-          'ثم التوقيع بمفتاح خاص (apksigner). هذه أدوات سطر أوامر لا تعمل داخل\n' +
-          'المتصفح، وأندرويد يرفض تثبيت أي APK غير موقَّع. لذلك يُسلَّم المشروع\n' +
-          'جاهزًا للبناء بدل ادّعاء إنتاج APK.\n\n' +
-          '## ملاحظات\n' +
-          '- التطبيق لا يطلب إذن الإنترنت: كل شيء داخل `app/src/main/assets/index.html`.\n' +
-          '- نسخة التصحيح (debug) تُوقَّع تلقائيًا بمفتاح التطوير وتُثبَّت مباشرة.\n' +
-          '- للنشر استخدم `assembleRelease` مع مفتاحك الخاص.\n'
-      },
-    ];
-  },
-
-  async androidZip(html, meta) {
-    return ZIPW.build(this.androidFiles(html, meta));
-  }
 };
 
 /* ============================ 39c · WEB LOOKUP (اختياري) ============== */
@@ -8149,12 +8255,14 @@ const UI = {
       return;
     }
     if (ac.act === 'buildAppNow') {
-      toast('جارٍ بناء تطبيقك…');
+      const named = await this.askModelName();
+      if (!named) return;
+      toast('جارٍ إنشاء النموذج…');
       try {
-        const bundle = await APPX.collect();
-        const html = APPX.buildHTML(bundle);
-        BACKUP.saveBlob(new Blob([html], { type: 'text/html' }), 'kadkad-app.html');
-        toast('نُزّل (' + U.bytes(html.length) + ') · ' + bundle.assets.length + ' أصلًا · ' + bundle.games.length + ' لعبة', 'ok', 4200);
+        const r = await APPX.create(named);
+        BACKUP.saveBlob(new Blob([r.html], { type: 'text/html' }), r.fileName);
+        this.renderModels();
+        toast('أُنشئ «' + r.name + '» (' + U.bytes(r.html.length) + ')', 'ok', 4200);
       } catch (e) { toast('فشل: ' + e.message, 'er', 4000); }
       return;
     }
@@ -8170,6 +8278,37 @@ const UI = {
       BACKUP.download(d, 'kadkad-backup-' + new Date().toISOString().slice(0, 10) + '.json');
       return toast('تم التصدير', 'ok');
     }
+  },
+
+  /* ---------- تسمية النموذج عند إنشائه ---------- */
+  askModelName() {
+    return new Promise(async (resolve) => {
+      const st = LIB.stats();
+      const mech = KB.byKind('mechanic').length;
+      const games = (await DB.all('games')).length;
+      const gen = REG.activeGen || 1;
+      const suggest = (FACTS.get('name') ? 'نموذج ' + FACTS.get('name') : 'KAD-KAD') + ' ' + gen + '.' + REG.models.filter(m => m.cap === 'export').length;
+      const body = modal('إنشاء نموذج', 
+        '<p class="sub">سيُحزم كل ما أعطيتَه وكل ما تعلّمه في ملف واحد، ويُسجَّل باسمه.</p>' +
+        '<div class="kv" style="margin-bottom:10px">' +
+        '<b>سيتدرّب على</b><span>' + st.total + ' ملفًا · ' + mech + ' ميكانيكية · ' + games + ' لعبة</span>' +
+        '<b>دروس منك</b><span>' + LESSONS.list.length + '</span></div>' +
+        '<label class="sub" style="margin:0">اسم النموذج</label>' +
+        '<input id="mdlName" value="' + U.esc(suggest) + '" maxlength="48">' +
+        '<label class="sub" style="margin:10px 0 0">نبذة تعليمه — على ماذا درّبته؟ (اختياري)</label>' +
+        '<textarea id="mdlBio" rows="3" maxlength="240" placeholder="مثال: درّبته على مشاريع سباق ومجسمات سيارات وأصوات محركات."></textarea>' +
+        '<div class="row" style="margin-top:12px"><button class="btn pri sm" id="mdlOk">أنشئ النموذج</button>' +
+        '<button class="btn sm" id="mdlNo">إلغاء</button></div>');
+      let done = false;
+      const finish = (v) => { if (done) return; done = true; closeModal(); resolve(v); };
+      U.$('#mdlOk', body).addEventListener('click', () => {
+        const name = (U.$('#mdlName', body).value || '').trim() || suggest;
+        finish({ name, bio: (U.$('#mdlBio', body).value || '').trim() });
+      });
+      U.$('#mdlNo', body).addEventListener('click', () => finish(null));
+      U.$('#modalClose').addEventListener('click', () => finish(null), { once: true });
+      setTimeout(() => { const i = U.$('#mdlName', body); if (i) { i.focus(); i.select(); } }, 60);
+    });
   },
 
   /* ---------- تشغيل لعبة ---------- */
@@ -8473,8 +8612,12 @@ Object.assign(UI, {
       gens[gn].forEach(m => {
         const c = U.el('div', { class: 'card tight' });
         const stTag = { active: 'g', candidate: 'w', archived: '', rejected: 'r' }[m.status] || '';
+        const t = m.trainedOn;
         c.innerHTML = '<h3 style="font-size:13.5px">' + U.esc(m.name) + ' <span class="tag ' + stTag + '">' + U.esc(m.status) + '</span></h3>' +
           '<p class="sub">v' + U.esc(m.version) + ' · ' + U.date(m.created) + ' · ' + U.bytes(m.size) + '</p>' +
+          (t ? '<div class="kv"><b>تدرّب على</b><span>' + t.models + ' مجسم · ' + t.images + ' صورة · ' + t.sounds + ' صوت · ' + t.code + ' شيفرة</span>' +
+            '<b>يحمل</b><span>' + t.assets + ' أصلًا · ' + t.games + ' لعبة · ' + t.mechanics + ' ميكانيكية</span>' +
+            (t.tone ? '<b>نبرته</b><span>' + U.esc(t.tone) + '</span>' : '') + '</div>' : '') +
           '<div class="kv"><b>القياس</b><span>' + U.esc(TRAIN.fmtMetrics(m.cap, m.metrics)) + '</span>' +
           '<b>البيانات</b><span>' + (m.dataset.n || 0) + ' عينة · ' + U.esc(m.dataset.source || '—') + '</span>' +
           '<b>القدرات</b><span>' + U.esc((m.capabilities || []).join('، ')) + '</span></div>' +
@@ -8836,16 +8979,6 @@ const SELFTEST = {
         ok('زر «العب» داخل التطبيق المُصدَّر', clicked.errors.length === 0,
           clicked.errors.length ? clicked.errors[0].msg.slice(0, 100) : 'الصفحة سليمة وطبقة اللعب فُتحت');
       }
-      const zip = await APPX.androidZip(html, { pkg: 'com.kadkad.lab', label: 'اختبار' });
-      const az = await ZIP.read(await zip.arrayBuffer());
-      const names = az.entries.map(x => x.name);
-      const need = ['settings.gradle', 'app/build.gradle', 'app/src/main/AndroidManifest.xml',
-        'app/src/main/java/com/kadkad/lab/MainActivity.java', 'app/src/main/assets/index.html', 'BUILD.md'];
-      const missing = need.filter(n => names.indexOf(n) < 0);
-      ok('مشروع أندرويد مكتمل', missing.length === 0, missing.length ? 'ناقص: ' + missing.join('، ') : names.length + ' ملفًا · ' + U.bytes(zip.size));
-      const mfEntry = az.entries.find(x => x.name === 'app/src/main/AndroidManifest.xml');
-      const mfTxt = new TextDecoder().decode(await ZIP.extract(az, mfEntry));
-      ok('بيان المشروع بلا إذن إنترنت', mfTxt.indexOf('android.permission.INTERNET') < 0 && mfTxt.indexOf('android.intent.category.LAUNCHER') > 0, 'مُشغِّل موجود · بلا أذونات شبكة');
     } catch (e) { ok('بناء تطبيق HTML مستقل', false, e.message); }
 
     /* 10d. حديث طبيعي: يردّ على التحية ولا يكرّر نفسه */
@@ -8905,6 +9038,48 @@ const SELFTEST = {
     ok('يفهم «هذا سيارة»', tp.category === 'Vehicles', 'صنّفه ' + tp.category + ' · وصفك: ' + (tp.label || '—'));
     ok('يميّز نوع الملف من كلامك', TEACH.kindOf('هذه الصورة خامة') === 'image' && TEACH.kindOf('هذا الصوت محرك') === 'audio' && TEACH.kindOf('هذا المجسم سيارة') === 'model',
       'صورة/صوت/مجسم');
+
+    /* 10i. تعليمه كيف يردّ من ملف حوار */
+    try {
+      const sample = ['المستخدم: السلام عليكم\nالذكاء: وعليكم السلام ورحمة الله، تحت أمرك.\n' +
+        'المستخدم: شكرا\nالذكاء: العفو، هذا واجبي.\nالمستخدم: كيف حالك\nالذكاء: بخير، كل الأنظمة تعمل.'];
+      const pairs = TONE.learnPairs(sample);
+      ok('يستخرج أزواج (سؤالك ← ردّه)', pairs.length === 3 && pairs[0].a.indexOf('وعليكم السلام') >= 0,
+        pairs.length + ' زوجًا · أول ردّ: ' + (pairs[0] ? pairs[0].a.slice(0, 34) : '—'));
+      const keep = TONE.replies;
+      const lr = await TONE.learnReplies(sample);
+      const salamRule = SMALLTALK.match('السلام عليكم');
+      const used = SMALLTALK.replyFor(salamRule);
+      ok('يردّ بكلامك أنت بدل ردّه المدمج', lr.added >= 2 && used.taught && used.text.indexOf('تحت أمرك') >= 0,
+        'اعتمد ' + lr.added + ' ردًّا · ردّ السلام: ' + used.text.slice(0, 40));
+      TONE.replies = keep; await DB.setKV('learnedReplies', keep || {});
+    } catch (e) { ok('يستخرج أزواج (سؤالك ← ردّه)', false, e.message); }
+
+    /* 10j. المجسمات داخل عقله */
+    const anyModel = LIB.cache.filter(a => a.kind === 'model')[0];
+    if (anyModel) {
+      const uses = MIND.uses(anyModel);
+      ok('يعرف ماذا يفعل بكل مجسم', uses.length > 0, anyModel.name + ' → ' + uses.map(u => (u.ready ? '✅' : '⏳') + u.can).slice(0, 2).join(' · '));
+    } else {
+      const fake = { kind: 'model', category: 'Vehicles', name: 't.glb', analysis: { stats: { animations: 2 } } };
+      ok('يعرف ماذا يفعل بكل مجسم', MIND.uses(fake).length >= 3, 'مركبة → ' + MIND.uses(fake).length + ' استخدامات');
+    }
+    const invCard = await MIND.inventoryCard();
+    ok('يعرض ما في عقله', invCard.indexOf('ما في عقلي') >= 0 && invCard.length > 120, U.bytes(invCard.length) + ' من التفاصيل');
+
+    /* 10k. إنشاء نموذج مُسمّى */
+    try {
+      const n0 = REG.models.filter(m => m.cap === 'export').length;
+      const r = await APPX.create({ name: 'نموذج اختبار', bio: 'نبذة اختبار' });
+      const reg = REG.models.filter(m => m.cap === 'export');
+      ok('إنشاء نموذج باسمه ونبذته', r.name === 'نموذج اختبار' && reg.length === n0 + 1 && reg[reg.length - 1].note === 'نبذة اختبار',
+        r.name + ' v' + r.meta.version + ' · ' + U.bytes(r.html.length));
+      ok('النموذج يسجّل على ماذا تدرّب', r.trained && typeof r.trained.models === 'number' && r.meta.trainedOn,
+        r.trained.models + ' مجسم · ' + r.trained.images + ' صورة · ' + r.trained.sounds + ' صوت');
+      await DB.del('models', r.meta.id);
+      REG.models = await DB.all('models');
+    } catch (e) { ok('إنشاء نموذج باسمه ونبذته', false, e.message); }
+    ok('لا يَعِد بـ APK لا يستطيع إنتاجه', typeof APPX.androidZip === 'undefined' && typeof APPX.androidFiles === 'undefined', 'حُذف توليد أندرويد');
 
     /* 11. مولّدات الكود: كل واحد يُفحص ويُشغَّل فعليًا */
     const genIds = Object.keys(SNIPPET.gens);
@@ -9334,34 +9509,20 @@ function bindEvents() {
   /* بناء التطبيق */
   const appxLog = (m, c) => { const el = U.$('#appxLog'); el.classList.remove('hide'); el.innerHTML += '<div class="' + (c || '') + '">' + U.esc(m) + '</div>'; el.scrollTop = el.scrollHeight; };
   U.$('#appxHtml').addEventListener('click', async () => {
+    const named = await UI.askModelName();
+    if (!named) return;
     const b = U.$('#appxHtml'); b.disabled = true;
     U.$('#appxLog').innerHTML = '';
     try {
       appxLog('جمع الأصول والمعرفة…');
-      const bundle = await APPX.collect();
-      appxLog('ضُمّن ' + bundle.assets.length + ' أصلًا (' + U.bytes(bundle.bytes) + ')' + (bundle.skipped ? ' · تُخطّي ' + bundle.skipped + ' لتجاوز الحد' : ''), 'di');
-      appxLog(bundle.games.length + ' لعبة · ' + bundle.knowledge.length + ' سجل معرفة', 'di');
-      const html = APPX.buildHTML(bundle);
-      appxLog('حجم التطبيق: ' + U.bytes(html.length), 'di');
-      BACKUP.saveBlob(new Blob([html], { type: 'text/html' }), 'kadkad-app.html');
-      appxLog('✔ نُزّل. افتحه على هاتفك ثم «إضافة إلى الشاشة الرئيسية».', 'ok');
-      toast('نُزّل تطبيقك', 'ok');
-    } catch (e) { appxLog('✖ ' + e.message, 'er'); toast('فشل: ' + e.message, 'er', 4000); }
-    finally { b.disabled = false; }
-  });
-  U.$('#appxApk').addEventListener('click', async () => {
-    const b = U.$('#appxApk'); b.disabled = true;
-    U.$('#appxLog').innerHTML = '';
-    try {
-      appxLog('جمع المحتوى…');
-      const bundle = await APPX.collect();
-      const html = APPX.buildHTML(bundle);
-      appxLog('توليد مشروع أندرويد…');
-      const zip = await APPX.androidZip(html, { pkg: 'com.kadkad.lab', label: bundle.name, versionCode: bundle.generation, versionName: bundle.generation + '.0' });
-      BACKUP.saveBlob(zip, 'kadkad-android-project.zip');
-      appxLog('✔ نُزّل المشروع (' + U.bytes(zip.size) + '). افتحه في Android Studio ثم Build APK — اقرأ BUILD.md.', 'ok');
-      appxLog('لا يمكن توليد APK داخل المتصفح: البناء يحتاج d8/aapt2 والتوقيع بمفتاح خاص.', 'wa');
-      toast('نُزّل مشروع أندرويد', 'ok', 3800);
+      const r = await APPX.create(named);
+      appxLog('ضُمّن ' + r.trained.assets + ' أصلًا (' + U.bytes(r.trained.bytes) + ')' + (r.trained.skipped ? ' · تُخطّي ' + r.trained.skipped + ' لتجاوز الحد' : ''), 'di');
+      appxLog(r.trained.games + ' لعبة · ' + r.trained.knowledge + ' سجل معرفة · ' + r.trained.lessons + ' درسًا', 'di');
+      BACKUP.saveBlob(new Blob([r.html], { type: 'text/html' }), r.fileName);
+      appxLog('✔ أُنشئ «' + r.name + '» (' + r.meta.version + ') — ' + U.bytes(r.html.length), 'ok');
+      appxLog('افتحه على هاتفك ثم «إضافة إلى الشاشة الرئيسية».', 'di');
+      UI.renderModels();
+      toast('أُنشئ النموذج: ' + r.name, 'ok', 3800);
     } catch (e) { appxLog('✖ ' + e.message, 'er'); toast('فشل: ' + e.message, 'er', 4000); }
     finally { b.disabled = false; }
   });
@@ -9452,7 +9613,7 @@ async function boot() {
       toast('تراكمت بيانات جديدة — بدأت دورة تطور تلقائية', 'ok', 4200);
     }
   }
-  window.KAD = { U, TOK, VEC, ML, REG, DATA, TRAIN, BENCH, EVO, KG, LIB, INGEST, CODE, GLB, OBJ, ZIP, AUDIO, IMG, PROJ, CONCEPT, CREATIVE, REASON, GEN2D, GEN3D, BUILDER, TESTER, FIXER, JOBS, CHAT, UI, BACKUP, SELFTEST, S, FACTS, STYLE, SNIPPET, SELF, SBX, GLV, KB, DB, ZIPW, AXML, DEX, APK, APPX, WEB, TONE, VARY, SMALLTALK, FROMYOU, LESSONS, TEACH, SEED_INTENT, DOMAIN_LEX, MECH_DEFS, ARCHETYPES, AXES, CAPS, INTENT_TRIGGERS, triggerScores, INTENT_EMB };
+  window.KAD = { U, TOK, VEC, ML, REG, DATA, TRAIN, BENCH, EVO, KG, LIB, INGEST, CODE, GLB, OBJ, ZIP, AUDIO, IMG, PROJ, CONCEPT, CREATIVE, REASON, GEN2D, GEN3D, BUILDER, TESTER, FIXER, JOBS, CHAT, UI, BACKUP, SELFTEST, S, FACTS, STYLE, SNIPPET, SELF, SBX, GLV, KB, DB, ZIPW, AXML, DEX, APK, APPX, WEB, TONE, VARY, SMALLTALK, FROMYOU, LESSONS, TEACH, MIND, SEED_INTENT, DOMAIN_LEX, MECH_DEFS, ARCHETYPES, AXES, CAPS, INTENT_TRIGGERS, triggerScores, INTENT_EMB };
   window.triggerScores = triggerScores;
   console.log('%cKAD-KAD AI GAME LAB', 'color:#7c5cff;font-weight:800;font-size:15px', '— نواة محلية جاهزة. window.KAD متاح للفحص.');
 }
