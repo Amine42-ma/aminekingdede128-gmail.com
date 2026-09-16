@@ -105,3 +105,10 @@ Everything runs on your device; nothing is uploaded. Browser voices are free and
 OpenAI-compatible endpoint gives fully human voices and unlocks WAV export of the dubbed track.
 
 </details>
+
+---
+
+## مشروع آخر في هذا المستودع
+
+**[GameMorph.AI](GAMEMORPH.md)** — `gamemorph.html` — استوديو من ملف واحد يفكّك أكواد ألعاب HTML5 ويستخرج ميكانيكياتها،
+ويولّد ألعاباً كاملة تُصدَّر كملف HTML مستقل يعمل على الهاتف بأزرار لمس ومؤثرات 8-bit وجزيئات.
