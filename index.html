@@ -1287,15 +1287,27 @@ const REG = {
   /* نموذج مُسمّى أنشأه المستخدم — يُحفظ بنبذته وما تدرّب عليه */
   async saveNamed(o) {
     const gen = this.activeGen || 1;
-    const sameGen = this.models.filter(m => m.cap === 'export' && m.gen === gen).length;
+    /* سلسلة النسب V1 → V2 → V3: كل نسخة تعرف أباها، ولا تُحذف نسخة أبدًا */
+    const prior = this.models.filter(m => m.cap === 'export').sort((a, b) => a.created - b.created);
+    const parent = prior.length ? prior[prior.length - 1] : null;
+    const vnum = prior.length + 1;
     const meta = {
       id: U.uid('m'), cap: 'export', gen,
       name: o.name || ('نموذج ' + this.genName(gen)),
-      version: gen + '.' + sameGen,
+      version: 'V' + vnum,
+      vnum, parent: parent ? parent.id : null,
+      parentVersion: parent ? parent.version : null,
+      parentName: parent ? parent.name : null,
+      grew: parent ? {
+        knowledge: (o.trained.knowledge || 0) - ((parent.trainedOn && parent.trainedOn.knowledge) || 0),
+        taught: (o.trained.taught || 0) - ((parent.trainedOn && parent.trainedOn.taught) || 0),
+        assets: (o.trained.assets || 0) - ((parent.trainedOn && parent.trainedOn.assets) || 0),
+        bytes: (o.size || 0) - (parent.size || 0),
+      } : null,
       status: 'created', metrics: {}, dataset: { n: o.trained.assets, source: 'ملفاتك' },
       weightsId: null, created: U.now(), trained: U.now(),
       note: o.bio || '', size: o.size || 0,
-      capabilities: ['يحمل أصولك', 'يشغّل ألعابك', 'يعرض معرفتك'],
+      capabilities: ['يحمل أصولك', 'يشغّل ألعابك', 'يحمل المعرفة التي علّمتَها'],
       trainedOn: o.trained, history: [],
     };
     await DB.put('models', meta);
@@ -5065,6 +5077,357 @@ const LESSONS = {
 
 /* ============================ 27g · TEACH (عرّفه بالملف) ============== */
 /* ترفع مجسمًا وتقول «هذا سيارة» فيسجّلها ويستخدمها على هذا الأساس. */
+/* ============================ 27ط · LEARN (المعرفة من نصوصك) ========= */
+/* الفرق بين «حفظ ملف» و«تعلّم منه»: هذا يقرأ النص ويستخرج منه قواعد وحقائق
+   وعلاقات ومواضيع، يخزّنها كمعرفة قابلة للاسترجاع، ويستخدمها في الردّ.
+   النص الأصلي يبقى محفوظًا أيضًا — لكنه لم يعد كل ما عندي منه. */
+const LEARN = {
+  /* ---------- أدوات نصية ---------- */
+  QUOTED: '[«"\u201C\u2018\']([^»"\u201D\u2019\'\\n]{1,160})[»"\u201D\u2019\']',
+
+  lines(text) {
+    return String(text || '').split(/\r?\n/);
+  },
+  /* جمل مع رقم السطر — كل معرفة تعرف من أين جاءت */
+  sentences(text) {
+    const out = [];
+    this.lines(text).forEach((ln, i) => {
+      const clean = ln.replace(/^\s*(?:[-*>•·]|\d+[.)])\s*/, '').trim();
+      if (!clean) return;
+      clean.split(/(?<=[.!?؟。])\s+/).forEach(sn => {
+        const t = sn.trim();
+        if (t.length >= 4) out.push({ text: t, line: i + 1 });
+      });
+    });
+    return out;
+  },
+
+  /* ---------- ١) قواعد الردّ: متى أقول ماذا ---------- */
+  REPLY_LITERAL: [
+    new RegExp('(?:عند(?:ما)?|اذا|إذا|لو|حين(?:ما)?|كلما)[^«"\u201C\'\\n]{0,60}' +
+      '[«"\u201C\u2018\']([^»"\u201D\u2019\'\\n]{1,160})[»"\u201D\u2019\'][^«"\u201C\'\\n]{0,80}?' +
+      '(?:رد|ردّ|اجب|أجب|قل|جاوب|الرد|الجواب|اكتب)[^«"\u201C\'\\n]{0,40}' +
+      '[«"\u201C\u2018\']([^»"\u201D\u2019\'\\n]{1,300})[»"\u201D\u2019\']', 'g'),
+    /(?:when|if)\s+(?:the\s+)?user\s+(?:says|writes|asks|sends)[^"']{0,20}["']([^"'\n]{1,160})["'][^"']{0,60}(?:reply|answer|respond|say)[^"']{0,20}["']([^"'\n]{1,300})["']/gi,
+  ],
+  /* صيغة السهم في سطر واحد:  السلام عليكم ← وعليكم السلام */
+  ARROW: /^\s*(.{2,120}?)\s*(?:←|<-|=>|->|⇒|\|\|)\s*(.{2,300})\s*$/,
+  /* قاعدة موصوفة بلا ردّ حرفي: «عند قول المستخدم "س" يجب الرد بتحية مناسبة» */
+  REPLY_DESCRIBED: new RegExp('(?:عند(?:ما)?|اذا|إذا|لو|حين(?:ما)?|كلما)[^«"\u201C\'\\n]{0,60}' +
+    '[«"\u201C\u2018\']([^»"\u201D\u2019\'\\n]{1,160})[»"\u201D\u2019\'][^\\n]{0,40}?' +
+    '(?:يجب|ينبغي|عليك)?\\s*(?:ال)?(?:رد|ردّ|اجابه|إجابة|جواب|اجب|أجب|قل)\\s*(?:ب|بـ)?\\s*([^\\n]{2,160})', 'g'),
+
+  replyRules(text) {
+    const out = [], seen = new Set();
+    const push = (trigger, response, line, literal) => {
+      const t = String(trigger || '').trim(), r = String(response || '').trim();
+      if (t.length < 2 || r.length < 2) return;
+      const k = TOK.normalize(t) + '→' + TOK.normalize(r);
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push({ trigger: t, response: r, line, literal: !!literal });
+    };
+    this.REPLY_LITERAL.forEach(re => {
+      re.lastIndex = 0;
+      let m;
+      while ((m = re.exec(text))) push(m[1], m[2], CODE.line(text, m.index), true);
+    });
+    this.lines(text).forEach((ln, i) => {
+      const m = this.ARROW.exec(ln);
+      if (m && !/^\s*(?:https?:|\/\/)/.test(ln)) push(m[1], m[2], i + 1, true);
+    });
+    /* حوارات مكتوبة (المستخدم: … / الرد: …) — كلها تُحفظ لا المواقف المعروفة فقط */
+    TONE.learnPairs([text]).forEach(p => push(p.q, p.a, null, true));
+    /* قواعد موصوفة: المحفّز حرفي والردّ وصف */
+    this.REPLY_DESCRIBED.lastIndex = 0;
+    let m;
+    while ((m = this.REPLY_DESCRIBED.exec(text))) {
+      const desc = m[2].replace(/[.،؛]\s*$/, '').trim();
+      if (out.some(r => TOK.normalize(r.trigger) === TOK.normalize(m[1]) && r.literal)) continue;
+      if (/^[«"\u201C\u2018']/.test(desc)) continue;
+      push(m[1], desc, CODE.line(text, m.index), false);
+    }
+    return out;
+  },
+
+  /* ---------- ٢) التوجيهات: كيف أتصرّف عمومًا ---------- */
+  DIRECTIVES: [
+    { kind: 'avoid', re: /^(?:لا\s+ت\S+|تجنب|تجنّب|امتنع|ابتعد عن|ممنوع|never\b|don'?t\b|do not\b|avoid\b)/i },
+    { kind: 'must', re: /^(?:يجب|ينبغي|عليك|لازم|احرص|تاكد|تأكد|always\b|you must\b|make sure\b|ensure\b)/i },
+    { kind: 'style', re: /^(?:ال)?(?:تحدث|تكلم|تكلّم|كتابه|كتابة|اكتب|رد|ردّ|اجابه|إجابة|اجب|أجب|جواب|استخدم لغه|استخدم لغة|اسلوب|أسلوب|نبره|نبرة|لغه|لغة)|^(?:speak|write|reply|respond|answer|use a|tone)\b/i },
+  ],
+  directives(text) {
+    const out = [], seen = new Set();
+    this.sentences(text).forEach(sn => {
+      const t = sn.text.replace(/^\s*(?:و|ثم)\s+/, '');
+      if (t.length > 220) return;
+      for (const d of this.DIRECTIVES) {
+        if (!d.re.test(TOK.normalize(t)) && !d.re.test(t)) continue;
+        const key = d.kind + '|' + TOK.normalize(t);
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push({ kind: d.kind, body: t, line: sn.line, subjects: this.subjectsOf(t) });
+        return;
+      }
+    });
+    return out;
+  },
+  /* الكلمات الدالّة داخل التوجيه — بها أعرف متى ينطبق */
+  subjectsOf(t) {
+    const stop = new Set(['يجب', 'لا', 'ان', 'أن', 'مع', 'على', 'في', 'من', 'الى', 'إلى', 'هذا', 'هذه', 'التي', 'الذي',
+      'always', 'never', 'must', 'the', 'and', 'with', 'when', 'user', 'you', 'your']);
+    return Array.from(new Set(TOK.tokens(t, { bigrams: false, charGrams: false })
+      .filter(w => w.length > 2 && !stop.has(w)))).slice(0, 6);
+  },
+
+  /* ---------- ٣) الحقائق والتعريفات ---------- */
+  FACTS: [
+    /^(.{2,60}?)\s+(?:هو|هي|هما|عباره عن|عبارة عن)\s+(.{3,300})$/,
+    /^(?:تعريف|التعريف|معنى)\s+(.{2,60}?)\s*[:：\-–]\s*(.{3,300})$/,
+    /^(.{2,60}?)\s+(?:تعني|يعني|يقصد به|المقصود به)\s+(.{3,300})$/,
+    /^(.{2,60}?)\s*[:：]\s*(.{3,300})$/,
+    /^(.{2,60}?)\s+(?:is|are|means|refers to)\s+(.{3,300})$/i,
+  ],
+  facts(text) {
+    const out = [], seen = new Set();
+    this.sentences(text).forEach(sn => {
+      const t = sn.text.replace(/[.،؛]\s*$/, '');
+      if (this.DIRECTIVES.some(d => d.re.test(TOK.normalize(t)))) return;   /* توجيه لا حقيقة */
+      if (this.ARROW.test(t)) return;
+      for (const re of this.FACTS) {
+        const m = re.exec(t);
+        if (!m) continue;
+        const subj = m[1].trim().replace(/^(?:و|ثم|ان|أن)\s+/, '');
+        const pred = m[2].trim();
+        if (subj.length < 2 || pred.length < 3) continue;
+        if (/^https?:/.test(pred)) continue;
+        const k = TOK.normalize(subj) + '|' + TOK.normalize(pred).slice(0, 40);
+        if (seen.has(k)) return;
+        seen.add(k);
+        out.push({ subject: subj, value: pred, line: sn.line });
+        return;
+      }
+    });
+    return out;
+  },
+
+  /* ---------- ٤) العلاقات بين المفاهيم ---------- */
+  RELATIONS: [
+    { re: /^(.{2,60}?)\s+(?:يستخدم|تستخدم|يستعمل)\s+(.{2,60})$/, type: 'uses' },
+    { re: /^(.{2,60}?)\s+(?:يحتوي على|تحتوي على|يتضمن|يشمل)\s+(.{2,60})$/, type: 'contains' },
+    { re: /^(.{2,60}?)\s+(?:جزء من|جزءٌ من|ينتمي الى|ينتمي إلى)\s+(.{2,60})$/, type: 'partOf' },
+    { re: /^(.{2,60}?)\s+(?:يعتمد على|تعتمد على|يحتاج|يتطلب)\s+(.{2,60})$/, type: 'dependsOn' },
+    { re: /^(.{2,60}?)\s+(?:مرتبط ب|مرتبطه ب|مرتبطة ب|علاقته ب)\s*(.{2,60})$/, type: 'relatedTo' },
+    { re: /^(.{2,60}?)\s+uses\s+(.{2,60})$/i, type: 'uses' },
+    { re: /^(.{2,60}?)\s+contains\s+(.{2,60})$/i, type: 'contains' },
+    { re: /^(.{2,60}?)\s+(?:is part of|belongs to)\s+(.{2,60})$/i, type: 'partOf' },
+    { re: /^(.{2,60}?)\s+(?:depends on|requires|needs)\s+(.{2,60})$/i, type: 'dependsOn' },
+  ],
+  REL_AR: { uses: 'يستخدم', contains: 'يحتوي', partOf: 'جزء من', dependsOn: 'يعتمد على', relatedTo: 'مرتبط بـ' },
+  relations(text) {
+    const out = [], seen = new Set();
+    this.sentences(text).forEach(sn => {
+      const t = sn.text.replace(/[.،؛]\s*$/, '');
+      if (this.DIRECTIVES.some(d => d.re.test(TOK.normalize(t)) || d.re.test(t))) return;
+      for (const r of this.RELATIONS) {
+        const m = r.re.exec(t);
+        if (!m) continue;
+        const a = m[1].trim(), b = m[2].trim();
+        const k = TOK.normalize(a) + r.type + TOK.normalize(b);
+        if (seen.has(k)) return;
+        seen.add(k);
+        out.push({ from: a, type: r.type, to: b, line: sn.line });
+        return;
+      }
+    });
+    return out;
+  },
+
+  /* ---------- ٥) المواضيع: عناوين النص وما تحتها ---------- */
+  HEAD: /^\s*(?:#{1,4}\s*(.{2,80})|={2,}\s*(.{2,80})\s*={2,}|\[(.{2,80})\]|(.{2,60}?)\s*[:：]\s*)$/,
+  topics(text) {
+    const out = [];
+    const ls = this.lines(text);
+    let cur = null;
+    ls.forEach((ln, i) => {
+      const m = this.HEAD.exec(ln);
+      const title = m ? (m[1] || m[2] || m[3] || m[4] || '').trim() : null;
+      if (title && title.length >= 2) {
+        if (cur && cur.body.trim().length > 20) out.push(cur);
+        cur = { title, body: '', line: i + 1 };
+        return;
+      }
+      if (cur) cur.body += ln + '\n';
+    });
+    if (cur && cur.body.trim().length > 20) out.push(cur);
+    return out.filter(t => t.body.trim().length > 20).slice(0, 60);
+  },
+
+  /* ---------- الاستخراج الكامل من نص واحد ---------- */
+  extract(text, fileName) {
+    return {
+      file: fileName || null,
+      rules: this.replyRules(text),
+      directives: this.directives(text),
+      facts: this.facts(text),
+      relations: this.relations(text),
+      topics: this.topics(text),
+    };
+  },
+
+  /* ---------- التخزين: يُدمج ولا يمسح ما سبق ---------- */
+  async store(ex, sourceId, project) {
+    const from = ex.file ? ' (من ' + ex.file + (0 ? '' : '') + ')' : '';
+    let added = 0;
+    for (const r of ex.rules) {
+      await KB.add({
+        kind: 'rule', title: 'قاعدة ردّ: ' + r.trigger.slice(0, 60),
+        body: r.response,
+        tags: ['taught', 'rule', r.literal ? 'literal' : 'described'].concat(TOK.tokens(r.trigger, { bigrams: false, charGrams: false }).slice(0, 4)),
+        confidence: r.literal ? .95 : .8, source: sourceId, project,
+        taught: true, origin: ex.file, line: r.line,
+        trigger: r.trigger, literal: r.literal,
+      });
+      added++;
+      await U.yield();
+    }
+    for (const d of ex.directives) {
+      await KB.add({
+        kind: 'directive', title: 'تعليمة (' + d.kind + '): ' + d.body.slice(0, 60),
+        body: d.body, tags: ['taught', 'directive', d.kind].concat(d.subjects.slice(0, 4)),
+        confidence: .9, source: sourceId, project,
+        taught: true, origin: ex.file, line: d.line, dkind: d.kind, subjects: d.subjects,
+      });
+      added++;
+      await U.yield();
+    }
+    for (const f of ex.facts) {
+      await KB.add({
+        kind: 'fact', title: f.subject, body: f.value,
+        tags: ['taught', 'fact'].concat(TOK.tokens(f.subject, { bigrams: false, charGrams: false }).slice(0, 4)),
+        confidence: .85, source: sourceId, project: project || null,
+        taught: true, origin: ex.file, line: f.line,
+      });
+      added++;
+      await U.yield();
+    }
+    /* العلاقات تُربط في الرسم المعرفي. التعريف الموجود لا يُطمس بنصّ العلاقة:
+       لو عرّفتَ «المحرك» ثم ذكرتَه في علاقة، يبقى تعريفك ويُضاف السطر. */
+    const proj = project || null;
+    const ensure = async (title, relLine) => {
+      const ex2 = KB.cache.find(k => k.kind === 'fact' && k.title === title && k.project === proj);
+      if (ex2) {
+        if ((ex2.body || '').indexOf(relLine) < 0) {
+          ex2.body = ((ex2.body || '') + '\n' + relLine).trim();
+          ex2.updated = U.now();
+          await DB.put('knowledge', ex2);
+        }
+        return ex2;
+      }
+      return await KB.add({
+        kind: 'fact', title, body: relLine,
+        tags: ['taught', 'relation'], confidence: .75, source: sourceId, project: proj,
+        taught: true, origin: ex.file, line: r0.line,
+      });
+    };
+    let r0 = null;
+    for (const r of ex.relations) {
+      r0 = r;
+      const line = r.from + ' ' + this.REL_AR[r.type] + ' ' + r.to;
+      const a = await ensure(r.from, line);
+      const b = await ensure(r.to, line);
+      if (a && b && a.id !== b.id) await KG.link(a.id, b.id, r.type, .85, this.REL_AR[r.type]);
+      added += 2;
+      await U.yield();
+    }
+    for (const t of ex.topics) {
+      await KB.add({
+        kind: 'concept', title: t.title, body: t.body.trim().slice(0, 1200),
+        tags: ['taught', 'topic'].concat(TOK.tokens(t.title, { bigrams: false, charGrams: false }).slice(0, 4)),
+        confidence: .75, source: sourceId, project,
+        taught: true, origin: ex.file, line: t.line,
+      });
+      added++;
+      await U.yield();
+    }
+    return added;
+  },
+
+  /* يتعلّم من دفعة ملفات ويجمع الحصيلة */
+  async fromFiles(rows) {
+    const sum = { files: 0, rules: 0, directives: 0, facts: 0, relations: 0, topics: 0, added: 0, perFile: [] };
+    for (const r of rows) {
+      if (!r.text) continue;
+      const ex = this.extract(r.text, U.base(r.name));
+      const n = ex.rules.length + ex.directives.length + ex.facts.length + ex.relations.length + ex.topics.length;
+      if (!n) { sum.perFile.push({ file: U.base(r.name), n: 0 }); sum.files++; continue; }
+      sum.added += await this.store(ex, r.assetId || null, r.project || null);
+      sum.files++;
+      sum.rules += ex.rules.length; sum.directives += ex.directives.length;
+      sum.facts += ex.facts.length; sum.relations += ex.relations.length; sum.topics += ex.topics.length;
+      sum.perFile.push({ file: U.base(r.name), n, rules: ex.rules.length, facts: ex.facts.length, directives: ex.directives.length });
+    }
+    return sum;
+  },
+
+  /* ---------- الاسترجاع والاستخدام ---------- */
+  rules() { return KB.byKind('rule'); },
+  dirs() { return KB.byKind('directive'); },
+
+  /* هل علّمتني ردًّا على هذا الكلام؟ */
+  matchReply(userText) {
+    const q = TOK.normalize(userText || '').trim();
+    if (!q) return null;
+    const qt = new Set(TOK.tokens(userText, { bigrams: false, charGrams: false }));
+    let best = null;
+    this.rules().forEach(r => {
+      const t = TOK.normalize(r.trigger || r.title || '');
+      if (!t) return;
+      let sc = 0;
+      if (q === t) sc = 1;
+      else if (q.indexOf(t) >= 0 || t.indexOf(q) >= 0) sc = .82;
+      else {
+        const tt = TOK.tokens(r.trigger || '', { bigrams: false, charGrams: false });
+        if (!tt.length) return;
+        let hit = 0;
+        tt.forEach(w => { if (qt.has(w)) hit++; });
+        sc = hit / tt.length * .78;
+      }
+      if (sc > .55 && (!best || sc > best.score)) best = { rec: r, score: U.round(sc, 2) };
+    });
+    return best;
+  },
+
+  /* التوجيهات التي تنطبق على هذا الطلب */
+  applicable(userText) {
+    const qt = new Set(TOK.tokens(userText || '', { bigrams: false, charGrams: false }));
+    const out = [];
+    this.dirs().forEach(d => {
+      const subs = d.subjects || [];
+      const general = d.dkind === 'style' || !subs.length;
+      const hit = subs.some(w => qt.has(w));
+      if (general || hit) out.push({ rec: d, matched: hit });
+    });
+    return out.sort((a, b) => (b.matched ? 1 : 0) - (a.matched ? 1 : 0)).slice(0, 6);
+  },
+
+  /* هل في معرفتي المُعلَّمة جواب لهذا السؤال؟ */
+  answer(question) {
+    const hits = KB.search(question, { limit: 6, min: .12 })
+      .filter(h => h.rec.taught && (h.rec.kind === 'fact' || h.rec.kind === 'concept'));
+    if (!hits.length) return null;
+    return { top: hits[0], all: hits.slice(0, 4) };
+  },
+
+  stats() {
+    const t = KB.cache.filter(k => k.taught);
+    const by = {};
+    t.forEach(k => by[k.kind] = (by[k.kind] || 0) + 1);
+    const files = new Set(t.map(k => k.origin).filter(Boolean));
+    return { total: t.length, by, files: files.size, fileNames: Array.from(files).slice(0, 40) };
+  },
+};
+
 const TEACH = {
   WORDS: {
     Vehicles: ['سياره', 'مركبه', 'عربه', 'شاحنه', 'دباب', 'موتور', 'طياره', 'قارب', 'car', 'vehicle', 'truck', 'bike', 'plane', 'boat'],
@@ -7509,6 +7872,20 @@ const CHAT = {
       let ingestOut = null;
       if (files.length) ingestOut = await this.handleFiles(files, typing);
 
+      /* ٢أ. ما علّمتني إياه يسبق ما وُلدتُ به: قاعدة ردّ من ملفاتك تُطبَّق أولًا */
+      const taught = text.trim() && !files.length ? LEARN.matchReply(text) : null;
+      if (taught && taught.rec.literal) {
+        typing.remove();
+        const r = taught.rec;
+        const html = '<p>' + U.esc(TONE.fit(r.body)) + '</p>' +
+          '<p style="font-size:11.5px;color:var(--ink3)">📘 من قاعدة علّمتَني إياها: «' +
+          U.esc((r.trigger || '').slice(0, 50)) + '» → هذا الردّ · <code>' +
+          U.esc(r.origin || 'ملفاتك') + (r.line ? ':' + r.line : '') + '</code> · تطابق ' + U.pct(taught.score) + '</p>';
+        UI.addMessage({ role: 'ai', html });
+        await this.save({ role: 'ai', html, intent: 'taught_rule', conf: taught.score });
+        return;
+      }
+
       /* 2. تحية أو مجاملة؟ تُجاب فورًا وبصياغة مختلفة كل مرة */
       const st = text.trim() ? SMALLTALK.match(text) : null;
       if (st && SMALLTALK.isPure(text) && !files.length) {
@@ -7518,7 +7895,12 @@ const CHAT = {
         /* إن كان ردّك المُعلَّم يعرض المساعدة أصلًا، فلا نُتبعه بسطر يكرّر العرض */
         const selfSufficient = rep2.taught && /[?؟]\s*$|تحت أمرك|في خدمتك|جاهز|تفضل|اطلب|ننجز/.test(line);
         const follow = (st.id === 'bye' || st.id === 'sorry' || selfSufficient) ? '' : await SMALLTALK.followUp();
-        const html = '<p>' + (rep2.taught ? '' : TONE.emo()) + U.esc(line) + '</p>' + (follow ? '<p>' + U.esc(TONE.fit(follow)) + '</p>' : '');
+        const note = taught && !taught.rec.literal
+          ? '<p style="font-size:11.5px;color:var(--ink3)">📘 طبّقت تعليمتك: ' +
+            U.esc((taught.rec.body || '').slice(0, 110)) + ' · <code>' +
+            U.esc(taught.rec.origin || 'ملفاتك') + (taught.rec.line ? ':' + taught.rec.line : '') + '</code></p>'
+          : '';
+        const html = '<p>' + (rep2.taught ? '' : TONE.emo()) + U.esc(line) + '</p>' + (follow ? '<p>' + U.esc(TONE.fit(follow)) + '</p>' : '') + note;
         UI.addMessage({ role: 'ai', html });
         await this.save({ role: 'ai', html, intent: 'smalltalk:' + st.id, conf: 1 });
         return;
@@ -7577,12 +7959,17 @@ const CHAT = {
     }
     await STYLE.infer(true);
     /* نصوصك تُعلّمني نبرتك: حوارات، أمثلة ردود، أي كتابة */
-    const proseTexts = results.filter(r => r.text && ['txt', 'md', 'markdown', 'csv', 'log'].indexOf(r.ext) >= 0).map(r => r.text);
+    const proseRows = results.filter(r => r.text && !r.error && ['txt', 'md', 'markdown', 'csv', 'log'].indexOf(r.ext) >= 0);
+    const proseTexts = proseRows.map(r => r.text);
     let toneLearned = null;
     let repliesLearned = null;
+    let knowledgeLearned = null;
     if (proseTexts.length) {
       toneLearned = await TONE.learn(proseTexts);
       repliesLearned = await TONE.learnReplies(proseTexts);
+      /* الفرق الحقيقي: النص يتحوّل قواعد وحقائق وعلاقات ومواضيع لا مجرد ملف محفوظ */
+      status.textContent = 'استخراج المعرفة من نصوصك…';
+      knowledgeLearned = await LEARN.fromFiles(proseRows);
     }
     await KG.discover(200);
     const ok = results.filter(r => !r.error);
@@ -7683,6 +8070,33 @@ const CHAT = {
           U.esc((TONE.learnedFor(k) || [''])[0].slice(0, 70)) + '»</li>').join('') + '</ul>' +
         '<p style="font-size:12.5px;color:var(--ink3)">من الآن سأردّ بكلامك أنت في هذه المواقف بدل ردودي المدمجة. جرّب: قل لي «السلام عليكم».</p>');
     }
+    /* المعرفة المستخرجة من نصوصك — لا الملف المحفوظ */
+    if (knowledgeLearned && knowledgeLearned.files) {
+      const K = knowledgeLearned;
+      const st = LEARN.stats();
+      if (K.added) {
+        L.push('<h4>استخرجت معرفة من نصوصك</h4>');
+        L.push('<div class="kv">' +
+          (K.rules ? '<b>قواعد ردّ</b><span>' + K.rules + ' — متى أقول ماذا</span>' : '') +
+          (K.directives ? '<b>تعليمات</b><span>' + K.directives + ' — كيف أتصرّف</span>' : '') +
+          (K.facts ? '<b>حقائق وتعريفات</b><span>' + K.facts + '</span>' : '') +
+          (K.relations ? '<b>علاقات</b><span>' + K.relations + ' — مربوطة في الرسم المعرفي</span>' : '') +
+          (K.topics ? '<b>مواضيع</b><span>' + K.topics + '</span>' : '') +
+          '<b>الإجمالي المتراكم</b><span>' + st.total + ' سجلًا من ' + st.files + ' ملفًا</span>' +
+          '</div>');
+        const sample = LEARN.rules().slice(-3).reverse();
+        if (sample.length) L.push('<p style="font-size:12.5px"><b>أمثلة مما تعلّمته الآن:</b></p><ul>' +
+          sample.map(r => '<li>إذا قلتَ «<b>' + U.esc((r.trigger || '').slice(0, 50)) + '</b>» ' +
+            (r.literal ? 'أردّ: «' + U.esc((r.body || '').slice(0, 90)) + '»' : 'أطبّق تعليمتك: ' + U.esc((r.body || '').slice(0, 90))) +
+            ' <span style="color:var(--ink3);font-size:11.5px">— ' + U.esc(r.origin || '') + (r.line ? ':' + r.line : '') + '</span></li>').join('') + '</ul>');
+        L.push('<p style="font-size:12.5px;color:var(--ink3)">هذه معرفة قابلة للاسترجاع لا نصّ مخزَّن: تُدمج مع ما سبق ولا تمحوه، ' +
+          'وتبقى بعد إغلاق الصفحة، وأرجع إليها في المحادثة. جرّب أن تسألني عمّا في الملف.</p>');
+      }
+      const empty = K.perFile.filter(f => !f.n);
+      if (empty.length) L.push('<p style="font-size:12.5px;color:var(--warn)">' + empty.length +
+        ' ملفًا لم أستخرج منه قاعدة أو حقيقة: ' + U.esc(empty.slice(0, 3).map(f => f.file).join('، ')) +
+        ' — نصّه محفوظ وقابل للبحث، لكنني لن أدّعي أنني فهمت منه قواعد.</p>');
+    }
     const errs = results.filter(r => r.error);
     if (errs.length) L.push('<p style="color:var(--warn)">تعذّر تحليل ' + errs.length + ' ملف: ' + U.esc(errs.slice(0, 3).map(e => U.base(e.name) + ' (' + e.error + ')').join('، ')) + '</p>');
     L.push('<p style="font-size:12px;color:var(--ink3)">كل هذه الملفات محفوظة في متصفحك فقط (IndexedDB). لم يُرسل أي شيء إلى أي خادم.</p>');
@@ -7751,9 +8165,36 @@ const CHAT = {
     }
     return intent;
   },
+  /* صيغة سؤال: أداة استفهام في المقدّمة أو علامة استفهام في النهاية */
+  isQuestion(t) {
+    const q = TOK.normalize(t || '').trim();
+    if (!q) return false;
+    if (/[?؟]\s*$/.test(q)) return true;
+    return /^(?:ما|ماذا|من|منو|كيف|هل|اين|وين|لماذا|ليش|متى|كم|ايش|شنو|what|who|how|why|where|when|which|is|are|does|do)\b/.test(q) ||
+      /^(?:ما|من|هل|اين|كيف)/.test(q);
+  },
+  /* نوايا هي أوامر تنفيذ — لا تُستبدل بجواب من المعرفة مهما طابق */
+  ACTION_INTENTS: ['build_game', 'make_different', 'improve', 'analyze_project', 'organize_code',
+    'build_app', 'train_model', 'benchmark', 'evolve', 'report_mistake', 'remember_fact', 'teach_asset'],
+
   /* ---------- التوجيه حسب النية ---------- */
   async route(intent0, text, f, ctx, ingestOut) {
     let intent = this.resolveIntent(intent0, text);
+    /* سؤال صريح لا يُفهم تصحيحًا — كان «ما هو المحرك» يُسجَّل درسًا */
+    if (intent.label === 'report_mistake' && this.isQuestion(text) &&
+      !/اخطات|أخطأت|خطا|خطأ|غلط|ليس هذا|صحح|لا تستخدم/.test(TOK.normalize(text))) {
+      f.context.push('صيغته سؤال لا تصحيح — لم أسجّله درسًا');
+      intent = { label: 'question_general', conf: .6, top: intent.top };
+    }
+    /* ما علّمتَني إياه يُجيب قبل الاسترجاع العام، ما دام الطلب سؤالًا لا أمرًا */
+    if (!ingestOut && text && this.isQuestion(text) && this.ACTION_INTENTS.indexOf(intent.label) < 0) {
+      const ta = LEARN.answer(text);
+      if (ta && ta.top.score > .3) {
+        f.known.push('جواب من المعرفة التي علّمتَني إياها (' + (ta.top.rec.origin || 'ملفاتك') + ')');
+        REASON.select(f);
+        return await this.handlers.question_general.call(this, { text, f, ctx, intent, ingestOut, lessons: null });
+      }
+    }
     if (intent.redirected) f.context.push('طلب مركّب: فُهم كـ «بناء لعبة» مع قيد «' + intent.redirected + '»');
     /* دروس سابقة — محفوظة لا مؤقّتة، فتُطبَّق في أي محادثة */
     const les = LESSONS.match(text, 4);
@@ -8363,6 +8804,35 @@ Object.assign(CHAT.handlers, {
   /* ---------------- الحالة العامة / الغموض ---------------- */
   async question_general(a) {
     const txt = a.text || '';
+    /* ما علّمتَني إياه من نصوصك يُجيب أولًا، ومعه مصدره */
+    const taughtAns = LEARN.answer(txt);
+    if (taughtAns && taughtAns.top.score > .22) {
+      a.f.known.push('وجدتُ جوابًا في المعرفة التي علّمتَني إياها');
+      a.f.execution.push('استرجاع من المعرفة المُعلَّمة قبل أي شيء آخر');
+      const t = taughtAns.top.rec;
+      const more = taughtAns.all.slice(1, 3);
+      /* العلاقات المستخرجة من نصّك أنت فقط — لا الروابط المكتشفة بالتشابه */
+      const REL = ['uses', 'contains', 'partOf', 'dependsOn', 'relatedTo'];
+      const rel = KG.neighbors(t.id, 1)
+        .filter(n => n.edge && REL.indexOf(n.edge.type) >= 0)
+        .map(n => {
+          const k = KB.cache.find(x => x.id === n.id);
+          return k ? { title: k.title, type: n.edge.type, dir: n.edge.from === t.id ? 'out' : 'in' } : null;
+        })
+        .filter(Boolean).slice(0, 4);
+      const L = ['<p>' + U.esc(TONE.fit(t.body || t.title)) + '</p>'];
+      L.push('<p style="font-size:11.5px;color:var(--ink3)">📘 من معرفتك: <b>' + U.esc(t.title) + '</b> · <code>' +
+        U.esc(t.origin || 'ملفاتك') + (t.line ? ':' + t.line : '') + '</code> · تطابق ' + U.pct(taughtAns.top.score) + '</p>');
+      if (rel.length) L.push('<p style="font-size:12.5px"><b>علاقاته في نصّك:</b> ' +
+        U.esc(rel.map(r => (r.dir === 'out' ? '' : '← ') + LEARN.REL_AR[r.type] + ' ' + r.title).join(' · ')) + '</p>');
+      if (more.length) L.push('<details class="think"><summary>معرفة أخرى قريبة (' + more.length + ')</summary><div class="body"><ul>' +
+        more.map(h => '<li><b>' + U.esc(h.rec.title) + '</b> — ' + U.esc((h.rec.body || '').slice(0, 140)) +
+          ' <span style="color:var(--ink3)">(' + U.esc(h.rec.origin || '') + ')</span></li>').join('') + '</ul></div></details>');
+      const dirs = LEARN.applicable(txt).filter(d => d.matched);
+      if (dirs.length) L.push('<p style="font-size:11.5px;color:var(--ink3)">طبّقت تعليماتك: ' +
+        U.esc(dirs.slice(0, 2).map(d => (d.rec.body || '').slice(0, 70)).join(' · ')) + '</p>');
+      return { html: L.join('') };
+    }
     const hits = KB.search(txt, { limit: 5 });
     const assets = LIB.search(txt, { limit: 4, min: .15 });
     a.f.unknown.push('لم أطابق نية واضحة — انتقلت إلى الاسترجاع الدلالي');
@@ -8375,7 +8845,11 @@ Object.assign(CHAT.handlers, {
           '<p>وضّح لي واحدة من هذه:</p><ul>' +
           '<li>تحليل ملفات أو مشروع (أرفقها)</li><li>بناء لعبة (قل «اصنع لعبة…»)</li>' +
           '<li>البحث في معرفتي (قل «أين نظام…»)</li><li>تدريب أو تقييم النماذج</li></ul>' +
-          '<p style="font-size:12.5px;color:var(--ink3)">كل تصحيح تعطيني إياه يدخل مجموعة تدريب النوايا ويحسّن الإصدار القادم.</p>'
+          '<p style="font-size:12.5px;color:var(--ink3)">كل تصحيح تعطيني إياه يدخل مجموعة تدريب النوايا ويحسّن الإصدار القادم.</p>' +
+          (LEARN.stats().total
+            ? '<p style="font-size:12.5px;color:var(--ink3)">عندي ' + LEARN.stats().total + ' سجل معرفة علّمتَني إياه من ' +
+              LEARN.stats().files + ' ملفًا، لكن لا شيء فيه يطابق هذا السؤال.</p>'
+            : '<p style="font-size:12.5px;color:var(--ink3)">لم تعلّمني شيئًا بعد. ارفع ملف <code>.txt</code> فيه قواعدك ومعلوماتك وسأستخرجها وأستخدمها.</p>')
       };
     }
     const L = ['<h4>أقرب ما لديّ لطلبك</h4>'];
@@ -8687,7 +9161,28 @@ const APPX = {
       made: U.now(), generation: REG.activeGen,
       owner: FACTS.get('name') || null,
       facts: FACTS.recall(),
-      knowledge: KB.cache.map(k => ({ kind: k.kind, title: k.title, body: (k.body || '').slice(0, 700), tags: (k.tags || []).slice(0, 8), confidence: k.confidence })),
+      knowledge: KB.cache.map(k => ({
+        kind: k.kind, title: k.title, body: (k.body || '').slice(0, 1600),
+        tags: (k.tags || []).slice(0, 8), confidence: k.confidence,
+        taught: !!k.taught, origin: k.origin || null, line: k.line || null,
+        trigger: k.trigger || null, literal: k.literal || null, dkind: k.dkind || null,
+      })),
+      /* ما علّمتَه إياه يُضمَّن كاملًا: القواعد والتعليمات والردود والنبرة */
+      taught: {
+        rules: KB.byKind('rule').map(k => ({ trigger: k.trigger || k.title, response: k.body, literal: !!k.literal, origin: k.origin, line: k.line })),
+        directives: KB.byKind('directive').map(k => ({ kind: k.dkind, body: k.body, subjects: k.subjects || [], origin: k.origin, line: k.line })),
+        facts: KB.cache.filter(k => k.taught && k.kind === 'fact').map(k => ({ title: k.title, body: k.body, origin: k.origin, line: k.line })),
+        topics: KB.cache.filter(k => k.taught && k.kind === 'concept').map(k => ({ title: k.title, body: (k.body || '').slice(0, 1600), origin: k.origin })),
+        relations: KG.edges.filter(e => ['uses', 'contains', 'partOf', 'dependsOn', 'relatedTo'].indexOf(e.type) >= 0)
+          .map(e => {
+            const a = KB.cache.find(k => k.id === e.from), b = KB.cache.find(k => k.id === e.to);
+            return a && b ? { from: a.title, type: e.type, to: b.title } : null;
+          }).filter(Boolean),
+        replies: TONE.replies || {},
+        tone: TONE.style || null,
+        lessons: LESSONS.list.map(l => ({ request: l.request, correction: l.correction, kind: l.kind, target: l.target })),
+        sources: LEARN.stats().fileNames,
+      },
       projects: projects.map(p => ({ name: p.name, files: p.files, systems: p.summary ? p.summary.systems.slice(0, 8).map(x => x.system) : [], mechanics: p.summary ? p.summary.mechanics.map(m => m.name) : [] })),
       models: REG.models.map(m => ({ name: m.name, version: m.version, status: m.status, metrics: m.metrics, dataset: m.dataset })),
       games: games.map(g => ({ id: g.id, title: g.title, backend: g.backend, controls: g.spec.controls, html: g.html, axes: g.axes, novelty: g.design.novelty })),
@@ -8717,10 +9212,17 @@ const APPX = {
     const bundle = await this.collect();
     bundle.name = named.name || bundle.name;
     bundle.bio = named.bio || '';
+    /* رقم النسخة يُعرف قبل البناء حتى يُضمَّن داخل الملف نفسه */
+    const prior = REG.models.filter(m => m.cap === 'export').sort((a, b) => a.created - b.created);
+    bundle.version = 'V' + (prior.length + 1);
+    bundle.parentVersion = prior.length ? prior[prior.length - 1].version : null;
     const html = this.buildHTML(bundle);
     const trained = {
       assets: bundle.assets.length, bytes: bundle.bytes, skipped: bundle.skipped,
       knowledge: bundle.knowledge.length, mechanics: KB.byKind('mechanic').length,
+      taught: LEARN.stats().total, taughtFiles: LEARN.stats().files,
+      rules: bundle.taught.rules.length, directives: bundle.taught.directives.length,
+      taughtFacts: bundle.taught.facts.length, relations: bundle.taught.relations.length,
       models: LIB.cache.filter(a => a.kind === 'model').length,
       images: LIB.cache.filter(a => a.kind === 'image').length,
       sounds: LIB.cache.filter(a => a.kind === 'audio').length,
@@ -8741,7 +9243,10 @@ const APPX = {
     L.push('<h4>تم إنشاء النموذج: «' + U.esc(r.name) + '»</h4>');
     if (r.bio) L.push('<p style="color:var(--ink2)">' + U.esc(r.bio) + '</p>');
     L.push('<div class="kv">' +
-      '<b>الإصدار</b><span>' + U.esc(r.meta.version) + ' · ' + U.esc(r.meta.name) + '</span>' +
+      '<b>الإصدار</b><span>' + U.esc(r.meta.version) + ' · ' + U.esc(r.meta.name) +
+        (r.meta.parentVersion ? ' <span style="color:var(--ink3)">(نمت من ' + U.esc(r.meta.parentVersion) + ')</span>' : ' <span style="color:var(--ink3)">(أول نسخة)</span>') + '</span>' +
+      (t.taught ? '<b>ما علّمتَه</b><span>' + t.taught + ' سجلًا من ' + t.taughtFiles + ' ملفًا · ' +
+        t.rules + ' قاعدة ردّ · ' + t.directives + ' تعليمة · ' + t.taughtFacts + ' حقيقة · ' + t.relations + ' علاقة</span>' : '') +
       '<b>تدرّب على</b><span>' + t.models + ' مجسم · ' + t.images + ' صورة · ' + t.sounds + ' صوت · ' + t.code + ' ملف شيفرة</span>' +
       '<b>يحمل بداخله</b><span>' + t.assets + ' أصلًا (' + U.bytes(t.bytes) + ')' + (t.skipped ? ' · تُخطّي ' + t.skipped + ' لتجاوز الحد' : '') + '</span>' +
       '<b>معرفة</b><span>' + t.knowledge + ' سجلًا · ' + t.mechanics + ' ميكانيكية · ' + t.projects + ' مشروع</span>' +
@@ -8752,8 +9257,16 @@ const APPX = {
       '<b>الحجم</b><span>' + U.bytes(r.html.length) + '</span></div>');
     L.push('<p><b>التثبيت:</b> نزّل الملف، افتحه في متصفح هاتفك، ثم «إضافة إلى الشاشة الرئيسية». ' +
       'يفتح كتطبيق بملء الشاشة ويعمل بلا إنترنت.</p>');
-    L.push('<p style="font-size:12.5px;color:var(--ink3)">سُجّل في «سجل النماذج» باسمه ونبذته، فلا يضيع. ' +
-      'كلما أعطيتني ملفات أكثر، أنشئ نموذجًا أكبر بنفس الطريقة.</p>');
+    if (r.meta.grew) {
+      const g = r.meta.grew;
+      L.push('<p style="font-size:12.5px;color:var(--ok)">نمت عن ' + U.esc(r.meta.parentVersion) + ': ' +
+        (g.taught > 0 ? '+' + g.taught + ' سجل معرفة · ' : '') +
+        (g.assets > 0 ? '+' + g.assets + ' أصلًا · ' : '') +
+        (g.bytes > 0 ? '+' + U.bytes(g.bytes) + ' حجمًا' : 'بنفس الحجم تقريبًا') + '</p>');
+    }
+    L.push('<p style="font-size:12.5px;color:var(--ink3)">المعرفة <b>مضمَّنة داخل الملف</b> لا مرتبطة بملفاتك الأصلية: ' +
+      'افتح تبويب «اسأله» داخل النسخة وستجيب مما علّمتَها وهي مغلقة عن الإنترنت. ' +
+      U.esc(r.meta.parentVersion || 'ولا نسخة سابقة') + (r.meta.parentVersion ? ' لم تُحذف — كل الإصدارات تبقى في «سجل النماذج».' : '.') + '</p>');
     return L.join('');
   },
 
@@ -8761,8 +9274,10 @@ const APPX = {
   buildHTML(b) {
     const data = JSON.stringify({
       name: b.name, made: b.made, generation: b.generation, owner: b.owner,
-      facts: b.facts, knowledge: b.knowledge.slice(0, 400), projects: b.projects,
+      version: b.version || null, parentVersion: b.parentVersion || null,
+      facts: b.facts, knowledge: b.knowledge, projects: b.projects,
       models: b.models, games: b.games, assets: b.assets,
+      taught: b.taught,
     }).replace(/<\/script/gi, '<\\/script');
     const T = [];
     T.push('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">');
@@ -8802,7 +9317,7 @@ const APPX = {
     T.push('</style></head><body><div id="w">');
     T.push('<header><div class="lg">KK</div><div><b>' + U.esc(b.name) + '</b><small>' + (b.owner ? U.esc(b.owner) + ' · ' : '') + REG.genName(b.generation) + ' · ' + new Date(b.made).toLocaleDateString('ar') + '</small></div></header>');
     T.push('<main id="m"></main>');
-    T.push('<nav><button class="on" data-t="games">ألعابي</button><button data-t="assets">أصولي</button><button data-t="know">معرفتي</button></nav>');
+    T.push('<nav><button class="on" data-t="games">ألعابي</button><button data-t="assets">أصولي</button><button data-t="know">معرفتي</button><button data-t="ask">اسأله</button></nav>');
     T.push('</div><div id="play"><button class="x">✕</button><iframe id="fr" sandbox="allow-scripts"></iframe></div>');
     T.push('<scr' + 'ipt id="kad-data" type="application/json">' + data + '</scr' + 'ipt>');
     T.push('<scr' + 'ipt>');
@@ -8841,8 +9356,50 @@ const APPX = {
     T.push('  var apps = D.knowledge.filter(function(k){return k.kind==="app"});');
     T.push('  if(apps.length) h += \'<div class="c"><h3>تطبيقات حُلِّلت (\'+apps.length+\')</h3>\'+apps.map(function(k){return \'<p>• \'+esc(k.title)+\'</p>\'}).join("")+\'</div>\';');
     T.push('  h += \'<div class="c"><h3>النماذج</h3>\'+D.models.filter(function(x){return x.status==="active"}).map(function(x){return \'<p>• \'+esc(x.name)+\' v\'+esc(x.version)+\'</p>\'}).join("")+\'</div>\';');
+    /* المعرفة التي علّمها المستخدم — مضمَّنة في هذه النسخة لا مرتبطة بملفات غائبة */
+    T.push('  var TA = D.taught || {};');
+    T.push('  if((TA.rules||[]).length) h += \'<div class="c"><h3>قواعد ردّ علّمتَه إياها (\'+TA.rules.length+\')</h3>\'+TA.rules.slice(0,60).map(function(r){');
+    T.push('   return \'<p>• «\'+esc(r.trigger)+\'» → \'+esc(String(r.response).slice(0,120))+\' <span style="color:#6f77a0;font-size:11px">\'+esc(r.origin||"")+(r.line?":"+r.line:"")+\'</span></p>\'}).join("")+\'</div>\';');
+    T.push('  if((TA.directives||[]).length) h += \'<div class="c"><h3>تعليمات (\'+TA.directives.length+\')</h3>\'+TA.directives.slice(0,60).map(function(d){');
+    T.push('   return \'<p>• \'+esc(d.body)+\' <span style="color:#6f77a0;font-size:11px">\'+esc(d.origin||"")+\'</span></p>\'}).join("")+\'</div>\';');
+    T.push('  if((TA.facts||[]).length) h += \'<div class="c"><h3>حقائق وتعريفات (\'+TA.facts.length+\')</h3>\'+TA.facts.slice(0,120).map(function(f){');
+    T.push('   return \'<p><b>\'+esc(f.title)+\':</b> \'+esc(String(f.body).slice(0,180))+\'</p>\'}).join("")+\'</div>\';');
+    T.push('  if((TA.relations||[]).length) h += \'<div class="c"><h3>علاقات (\'+TA.relations.length+\')</h3>\'+TA.relations.slice(0,80).map(function(r){');
+    T.push('   return \'<p>• \'+esc(r.from)+\' → \'+esc(r.type)+\' → \'+esc(r.to)+\'</p>\'}).join("")+\'</div>\';');
+    T.push('  if((TA.topics||[]).length) h += \'<div class="c"><h3>مواضيع (\'+TA.topics.length+\')</h3>\'+TA.topics.slice(0,40).map(function(t){');
+    T.push('   return \'<p><b>\'+esc(t.title)+\'</b><br><span style="color:#a6adcf;font-size:12px">\'+esc(String(t.body).slice(0,200))+\'</span></p>\'}).join("")+\'</div>\';');
+    T.push('  if((TA.sources||[]).length) h += \'<div class="c"><h3>مصادر التعليم</h3><p>\'+TA.sources.map(esc).join("، ")+\'</p></div>\';');
     T.push('  return h || \'<div class="empty">لا معرفة بعد.</div>\';');
+    T.push(' },');
+    /* الاستخدام لا العرض فقط: النسخة تجيب من معرفتها المضمَّنة */
+    T.push(' ask: function(){');
+    T.push('  var TA = D.taught || {};');
+    T.push('  var n = (TA.rules||[]).length + (TA.facts||[]).length + (TA.topics||[]).length;');
+    T.push('  return \'<div class="c"><h3>اسأل هذه النسخة</h3><p>تجيب من \'+n+\' سجل معرفة مضمَّن داخل الملف — بلا إنترنت وبلا خادم.</p>\'+');
+    T.push('   \'<input id="qi" placeholder="اكتب سؤالك أو تحيتك…" style="width:100%;padding:10px;border-radius:10px;border:1px solid #222741;background:#07070d;color:#e9ecff;font:inherit">\'+');
+    T.push('   \'<button class="go" id="qb" style="margin-top:8px">أجب</button></div><div id="qa"></div>\';');
     T.push(' }};');
+    T.push('function norm(s){return String(s||"").toLowerCase().replace(/[\\u064B-\\u0652]/g,"").replace(/[أإآ]/g,"ا").replace(/[ىي]/g,"ي").replace(/ة/g,"ه").replace(/[^\\w\\u0600-\\u06FF ]/g," ").replace(/\\s+/g," ").trim()}');
+    T.push('function answer(q){');
+    T.push(' var TA = D.taught || {}, nq = norm(q), qt = nq.split(" ").filter(Boolean);');
+    T.push(' var best=null;');
+    T.push(' (TA.rules||[]).forEach(function(r){ var t=norm(r.trigger); if(!t) return; var sc=0;');
+    T.push('  if(nq===t) sc=1; else if(nq.indexOf(t)>=0||t.indexOf(nq)>=0) sc=.82;');
+    T.push('  else { var tt=t.split(" ").filter(Boolean), hit=0; tt.forEach(function(w){ if(qt.indexOf(w)>=0) hit++ }); sc=tt.length?hit/tt.length*.78:0 }');
+    T.push('  if(sc>.55 && (!best||sc>best.sc)) best={sc:sc, text:r.response, src:(r.origin||"")+(r.line?":"+r.line:""), kind:"قاعدة"} });');
+    T.push(' if(best) return best;');
+    T.push(' var pool=(TA.facts||[]).concat((TA.topics||[]).map(function(t){return {title:t.title,body:t.body,origin:t.origin}}));');
+    T.push(' pool.forEach(function(f){ var t=norm(f.title), b=norm(f.body), sc=0;');
+    T.push('  var tt=t.split(" ").filter(Boolean), hit=0; tt.forEach(function(w){ if(qt.indexOf(w)>=0) hit++ });');
+    T.push('  sc = tt.length ? hit/tt.length*.9 : 0;');
+    T.push('  if(!sc){ var h2=0; qt.forEach(function(w){ if(w.length>2 && b.indexOf(w)>=0) h2++ }); sc = qt.length ? h2/qt.length*.5 : 0 }');
+    T.push('  if(sc>.3 && (!best||sc>best.sc)) best={sc:sc, text:f.body, src:f.origin||"", kind:"حقيقة", title:f.title} });');
+    T.push(' return best;');
+    T.push('}');
+    T.push('m.addEventListener("click", function(e){ if(e.target && e.target.id==="qb"){');
+    T.push(' var q=document.getElementById("qi").value, a=answer(q), box=document.getElementById("qa");');
+    T.push(' box.innerHTML = a ? \'<div class="c"><h3>\'+esc(a.title||a.kind)+\'</h3><p>\'+esc(a.text)+\'</p><p style="color:#6f77a0;font-size:11px">📘 \'+esc(a.kind)+\' من \'+esc(a.src||"تعليمك")+\' · تطابق \'+Math.round(a.sc*100)+\'%</p></div>\'');
+    T.push('  : \'<div class="c"><p>لم يعلّمني أحد جوابًا لهذا. هذه النسخة تجيب مما عُلِّمته فقط — لا تخترع.</p></div>\'; } });');
     T.push('function show(t){ m.innerHTML = views[t](); m.scrollTop=0; }');
     T.push('document.querySelectorAll("nav button").forEach(function(btn){ btn.onclick=function(){');
     T.push(' document.querySelectorAll("nav button").forEach(function(x){x.classList.remove("on")}); btn.classList.add("on"); show(btn.dataset.t); }; });');
@@ -9343,21 +9900,39 @@ Object.assign(UI, {
     const f = U.$('#kFilters');
     if (!f.dataset.built) {
       f.dataset.built = '1';
-      const kinds = ['all', 'project', 'mechanic', 'concept'];
+      const kinds = ['all', 'taught', 'rule', 'directive', 'fact', 'project', 'mechanic', 'concept'];
+      const KAR = { all: 'الكل', taught: 'ما علّمتَه', rule: 'قواعد ردّ', directive: 'تعليمات', fact: 'حقائق' };
       kinds.forEach(k => {
-        const b = U.el('button', { class: 'fchip' + (k === S.kFilter ? ' on' : '') }, k === 'all' ? 'الكل' : k);
+        const b = U.el('button', { class: 'fchip' + (k === S.kFilter ? ' on' : '') }, KAR[k] || k);
         b.addEventListener('click', () => { S.kFilter = k; U.$$('.fchip', f).forEach(x => x.classList.remove('on')); b.classList.add('on'); this.renderKnowledge(); });
         f.appendChild(b);
       });
     }
     const q = (U.$('#kSearch').value || '').trim();
     let rows = q ? KB.search(q, { limit: 60, min: -1 }).map(r => r.rec) : KB.cache.slice().sort((a, b) => b.created - a.created);
-    if (S.kFilter !== 'all') rows = rows.filter(r => r.kind === S.kFilter);
-    box.innerHTML = rows.length ? '' : '<div class="empty"><div class="big">🧠</div>لا معرفة بعد — حلّل مشروعًا.</div>';
+    if (S.kFilter === 'taught') rows = rows.filter(r => r.taught);
+    else if (S.kFilter !== 'all') rows = rows.filter(r => r.kind === S.kFilter);
+    const tst = LEARN.stats();
+    const head = U.$('#kTaught') || (() => {
+      const d = U.el('div', { id: 'kTaught', class: 'card tight', style: 'margin-bottom:8px' });
+      box.parentNode.insertBefore(d, box);
+      return d;
+    })();
+    head.innerHTML = tst.total
+      ? '<h3 style="font-size:13.5px">ما علّمتَني إياه</h3><p class="sub">' + tst.total + ' سجلًا من <b>' + tst.files + '</b> ملفًا · ' +
+        Object.keys(tst.by).map(k => tst.by[k] + ' ' + ({ rule: 'قاعدة ردّ', directive: 'تعليمة', fact: 'حقيقة', concept: 'موضوع' }[k] || k)).join(' · ') +
+        '</p><p class="sub" style="margin-top:4px">المصادر: ' + U.esc(tst.fileNames.slice(0, 6).join('، ')) +
+        (tst.fileNames.length > 6 ? ' +' + (tst.fileNames.length - 6) : '') + '</p>'
+      : '<h3 style="font-size:13.5px">لم تعلّمني شيئًا بعد</h3>' +
+        '<p class="sub">ارفع ملف <code>.txt</code> فيه قواعدك أو معلوماتك أو طريقة ردّي، وسأستخرج منه قواعد وحقائق وعلاقات وأستخدمها في المحادثة.</p>';
+    box.innerHTML = rows.length ? '' : '<div class="empty"><div class="big">🧠</div>لا معرفة بعد — حلّل مشروعًا أو علّمني بملف نصي.</div>';
     rows.slice(0, 120).forEach(r => {
       const c = U.el('div', { class: 'card tight' });
-      c.innerHTML = '<h3 style="font-size:13.5px">' + U.esc(r.title) + ' <span class="tag ' + (r.kind === 'mechanic' ? 'a' : r.kind === 'project' ? 'c' : '') + '">' + U.esc(r.kind) + '</span></h3>' +
-        '<p class="sub" style="margin-bottom:6px">ثقة ' + U.pct(r.confidence) + ' · ' + U.ago(r.created) + (r.version > 1 ? ' · v' + r.version : '') + '</p>' +
+      c.innerHTML = '<h3 style="font-size:13.5px">' + U.esc(r.title) + ' <span class="tag ' + (r.kind === 'mechanic' ? 'a' : r.kind === 'project' ? 'c' : '') + '">' + U.esc(r.kind) + '</span>' +
+        (r.taught ? ' <span class="tag g">علّمتَني</span>' : '') + '</h3>' +
+        '<p class="sub" style="margin-bottom:6px">ثقة ' + U.pct(r.confidence) + ' · ' + U.ago(r.created) + (r.version > 1 ? ' · v' + r.version : '') +
+        (r.origin ? ' · <code>' + U.esc(r.origin) + (r.line ? ':' + r.line : '') + '</code>' : '') + '</p>' +
+        (r.trigger ? '<p class="sub" style="margin:0 0 4px">إذا قلتَ: «' + U.esc(r.trigger) + '»</p>' : '') +
         '<div style="font-size:12.5px;color:var(--ink2);white-space:pre-wrap">' + U.esc((r.body || '').slice(0, 260)) + '</div>' +
         (r.tags && r.tags.length ? '<div style="margin-top:6px">' + r.tags.slice(0, 8).map(t => '<span class="tag">' + U.esc(t) + '</span>').join(' ') + '</div>' : '');
       box.appendChild(c);
@@ -9439,9 +10014,15 @@ Object.assign(UI, {
         const stTag = { active: 'g', candidate: 'w', archived: '', rejected: 'r' }[m.status] || '';
         const t = m.trainedOn;
         c.innerHTML = '<h3 style="font-size:13.5px">' + U.esc(m.name) + ' <span class="tag ' + stTag + '">' + U.esc(m.status) + '</span></h3>' +
-          '<p class="sub">v' + U.esc(m.version) + ' · ' + U.date(m.created) + ' · ' + U.bytes(m.size) + '</p>' +
+          '<p class="sub">' + U.esc(m.version) + ' · ' + U.date(m.created) + ' · ' + U.bytes(m.size) +
+            (m.parentVersion ? ' · <span style="color:var(--ok)">' + U.esc(m.parentVersion) + ' → ' + U.esc(m.version) + '</span>' : (m.cap === 'export' ? ' · أول نسخة' : '')) + '</p>' +
           (t ? '<div class="kv"><b>تدرّب على</b><span>' + t.models + ' مجسم · ' + t.images + ' صورة · ' + t.sounds + ' صوت · ' + t.code + ' شيفرة</span>' +
+            (t.taught ? '<b>علّمتَه</b><span>' + t.taught + ' سجل معرفة من ' + (t.taughtFiles || 0) + ' ملفًا · ' +
+              (t.rules || 0) + ' قاعدة · ' + (t.directives || 0) + ' تعليمة · ' + (t.taughtFacts || 0) + ' حقيقة</span>' : '') +
             '<b>يحمل</b><span>' + t.assets + ' أصلًا · ' + t.games + ' لعبة · ' + t.mechanics + ' ميكانيكية</span>' +
+            (m.grew ? '<b>نموّه عن السابق</b><span>' + (m.grew.taught > 0 ? '+' + m.grew.taught + ' معرفة · ' : '') +
+              (m.grew.assets > 0 ? '+' + m.grew.assets + ' أصلًا · ' : '') +
+              (m.grew.bytes > 0 ? '+' + U.bytes(m.grew.bytes) : 'بلا نمو في الحجم') + '</span>' : '') +
             (t.tone ? '<b>نبرته</b><span>' + U.esc(t.tone) + '</span>' : '') + '</div>' : '') +
           '<div class="kv"><b>القياس</b><span>' + U.esc(TRAIN.fmtMetrics(m.cap, m.metrics)) + '</span>' +
           '<b>البيانات</b><span>' + (m.dataset.n || 0) + ' عينة · ' + U.esc(m.dataset.source || '—') + '</span>' +
@@ -9706,6 +10287,70 @@ const SELFTEST = {
     const tpStKey = Object.keys(tpRun.__state)[0];
     ok('حالة الدالة مهيّأة بقيَمك', /^Car#/.test(tpStKey) && tpRun.__state[tpStKey].steerRate === 2.4,
       tpStKey + ' → ' + JSON.stringify(tpRun.__state[tpStKey] || {}).slice(0, 55));
+    /* 4ب٢. التعلّم من النصوص: الملف يصير معرفة لا نصًّا مخزَّنًا */
+    const lrnTxt = [
+      'تعليمات التعامل',
+      '',
+      'عند قول المستخدم "السلام عليكم" يجب الرد بتحية مناسبة.',
+      'عندما يقول المستخدم "من انت" رد "أنا مساعدك الذي علّمتَه بنفسك."',
+      'كيف حالك ← بخير الحمد لله.',
+      'التحدث باللغة العربية عندما يتحدث المستخدم بالعربية.',
+      'لا تستخدم كلمات معقدة في الشرح.',
+      'يجب ذكر مصدر المعلومة.',
+      '',
+      'المحرك هو الجزء الذي يعطي السيارة قوتها.',
+      'الكاميرا تعني العين التي يرى بها اللاعب.',
+      'نظام القيادة يستخدم نظام الفيزياء.',
+      'السيارة تحتوي على العجلات.',
+      '',
+      '## قواعد اللعبة',
+      'اللاعب يجمع النقاط من الشوارع ثم تنتهي الجولة عندما ينتهي الوقت.',
+    ].join('\n');
+    const lx = LEARN.extract(lrnTxt, 'rules.txt');
+    const lrRule = lx.rules.filter(r => /من انت/.test(r.trigger))[0];
+    ok('يستخرج قاعدة ردّ حرفية من نصّك', !!lrRule && /علّمتَه بنفسك/.test(lrRule.response) && lrRule.literal,
+      lrRule ? '«' + lrRule.trigger + '» → «' + lrRule.response.slice(0, 32) + '»' : 'لم تُستخرج');
+    ok('يفهم صيغة السهم في سطر واحد', lx.rules.some(r => /كيف حالك/.test(r.trigger) && /بخير/.test(r.response)));
+    const lrDesc = lx.rules.filter(r => /السلام/.test(r.trigger))[0];
+    ok('يميّز القاعدة الموصوفة عن الحرفية', !!lrDesc && !lrDesc.literal,
+      lrDesc ? 'وصف: ' + lrDesc.response.slice(0, 40) : 'لم تُستخرج');
+    ok('يستخرج التعليمات الثلاث الأنواع',
+      lx.directives.some(d => d.kind === 'style') && lx.directives.some(d => d.kind === 'avoid') && lx.directives.some(d => d.kind === 'must'),
+      lx.directives.map(d => d.kind).join('، '));
+    ok('يستخرج التعريفات', lx.facts.some(f => /المحرك/.test(f.subject)) && lx.facts.some(f => /الكاميرا/.test(f.subject)),
+      lx.facts.length + ' حقيقة');
+    ok('يستخرج العلاقات بين المفاهيم',
+      lx.relations.some(r => r.type === 'uses') && lx.relations.some(r => r.type === 'contains'),
+      lx.relations.map(r => r.from + '→' + r.type + '→' + r.to).slice(0, 2).join(' · '));
+    ok('يستخرج المواضيع من العناوين', lx.topics.some(t => /قواعد اللعبة/.test(t.title)),
+      lx.topics.map(t => t.title).join('، '));
+
+    /* التخزين والاسترجاع الفعليان */
+    const lrnBefore = LEARN.stats().total;
+    await LEARN.store(lx, null, 'selftest-' + Date.now());
+    const lrnAfter = LEARN.stats().total;
+    ok('المعرفة تُخزَّن وتتراكم ولا تمحو ما سبق', lrnAfter > lrnBefore,
+      lrnBefore + ' → ' + lrnAfter + ' سجلًا');
+    const mr = LEARN.matchReply('من انت');
+    ok('يسترجع الردّ الذي علّمتَه إياه', !!mr && /علّمتَه بنفسك/.test(mr.rec.body),
+      mr ? 'تطابق ' + U.pct(mr.score) : 'لم يُطابق');
+    const mr2 = LEARN.matchReply('السلام عليكم');
+    ok('القاعدة الموصوفة تُطابَق أيضًا', !!mr2 && !mr2.rec.literal);
+    const la = LEARN.answer('ما هو المحرك');
+    ok('يجيب من المعرفة المستخرجة', !!la && /قوتها/.test(la.top.rec.body || ''),
+      la ? la.top.rec.title + ' — ' + (la.top.rec.body || '').slice(0, 40) : 'لا جواب');
+    ok('كل معرفة تعرف مصدرها', !!la && la.top.rec.origin === 'rules.txt', la ? String(la.top.rec.origin) : '—');
+    ok('السؤال لا يُفهم تصحيحًا', CHAT.isQuestion('ما هو المحرك') && !CHAT.isQuestion('اصنع لي لعبة'));
+
+    /* الإصدارات: النسخة الجديدة تحمل المعرفة ولا تحذف السابقة */
+    const vPrior = REG.models.filter(m => m.cap === 'export').length;
+    const vMeta = await REG.saveNamed({ name: 'نسخة اختبار', bio: '', trained: { assets: 0, knowledge: KB.cache.length, taught: LEARN.stats().total }, size: 1234 });
+    ok('النسخة الجديدة ترث سلسلة النسب', vMeta.version === 'V' + (vPrior + 1) &&
+      (vPrior === 0 ? vMeta.parent === null : !!vMeta.parent),
+      vMeta.version + (vMeta.parentVersion ? ' (من ' + vMeta.parentVersion + ')' : ' (أولى)'));
+    ok('النسخ السابقة لا تُحذف', REG.models.filter(m => m.cap === 'export').length === vPrior + 1,
+      REG.models.filter(m => m.cap === 'export').length + ' نسخة محفوظة');
+
     /* 4ج. تعدين ملفات HTML — لعبتك كلها قد تكون صفحة واحدة */
     const htmlSrc = '<!doctype html>\n<html><head><title>T</title></head><body>\n' +
       '<script src="ext.js"><\/script>\n' +
