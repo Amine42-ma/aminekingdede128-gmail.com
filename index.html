@@ -1671,10 +1671,18 @@ const EVO = {
    تعقيد دوري، تدفق الاستدعاءات، تكرار، وأنظمة اللعبة المحتملة. */
 const CODE = {
   /* يزيل التعليقات والسلاسل النصية مع الحفاظ على الأطوال والمواضع */
+  /* يطمس التعليقات والسلاسل مع الحفاظ على الطول والأسطر، فتبقى كل الفهارس صالحة.
+     كان يبني مصفوفة من 6 ملايين حرف لملف 6MB فيخنق الذاكرة — الآن مقاطع فقط. */
   strip(src) {
-    const out = src.split('');
-    let i = 0, n = src.length;
-    const blank = (a, b) => { for (let k = a; k < b && k < n; k++) if (out[k] !== '\n') out[k] = ' '; };
+    const n = src.length;
+    const out = [];
+    let i = 0, last = 0;
+    const blank = (a, b) => {
+      const e = Math.min(b, n);
+      if (e <= a) return;
+      out.push(src.slice(last, a), src.slice(a, e).replace(/[^\n]/g, ' '));
+      last = e;
+    };
     while (i < n) {
       const c = src[i], d = src[i + 1];
       if (c === '/' && d === '/') { let j = src.indexOf('\n', i); if (j < 0) j = n; blank(i, j); i = j; }
@@ -1685,6 +1693,7 @@ const CODE = {
         blank(i + 1, j); i = Math.min(j + 1, n);
       } else i++;
     }
+    out.push(src.slice(last));
     return out.join('');
   },
   block(s, from) { /* يعيد فهرس نهاية الكتلة { } */
@@ -1693,13 +1702,28 @@ const CODE = {
     for (; i < s.length; i++) { if (s[i] === '{') d++; else if (s[i] === '}') { d--; if (!d) return i; } }
     return s.length - 1;
   },
-  line(src, idx) { let l = 1; for (let i = 0; i < idx && i < src.length; i++) if (src[i] === '\n') l++; return l; },
+  /* كان هذا يمسح من بداية الملف في كل نداء، فصار تحليل ملف 6MB يستغرق دقائق.
+     نبني فهرس الأسطر مرة واحدة لكل ملف ونبحث فيه ثنائيًا. */
+  lineIndex(src) {
+    const a = [];
+    for (let i = 0; i < src.length; i++) if (src.charCodeAt(i) === 10) a.push(i);
+    return a;
+  },
+  /* الفهرس يُمرَّر صراحةً: تخزينه في حقل ومقارنته بـ === يقارن محتوى سلسلتين
+     بحجم الملف كله في كل نداء، وهو ما كان يستهلك ثواني على ملف 6MB. */
+  lineAt(a, idx) {
+    let lo = 0, hi = a.length;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (a[mid] < idx) lo = mid + 1; else hi = mid; }
+    return lo + 1;
+  },
+  line(src, idx) { return this.lineAt(this.lineIndex(src), idx); },
   complexity(body) {
     const m = body.match(/\b(if|for|while|case|catch)\b|&&|\|\||\?\s*[^.:]/g);
     return 1 + (m ? m.length : 0);
   },
   analyze(src, name) {
     const clean = this.strip(src);
+    const LN = this.lineIndex(src);
     const R = {
       file: name, lines: src.split('\n').length, chars: src.length,
       functions: [], classes: [], vars: [], imports: [], exports: [],
@@ -1712,11 +1736,11 @@ const CODE = {
     let m;
     const reImp = /\bimport\s+(?:([\w*\s{},$]+)\s+from\s+)?['"`]([^'"`]+)['"`]/g;
     const rawNoStr = src; /* نحتاج النص الأصلي لقراءة المسارات */
-    while ((m = reImp.exec(rawNoStr))) R.imports.push({ what: (m[1] || '*').trim(), from: m[2], line: this.line(src, m.index) });
+    while ((m = reImp.exec(rawNoStr))) R.imports.push({ what: (m[1] || '*').trim(), from: m[2], line: this.lineAt(LN, m.index) });
     const reReq = /\brequire\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g;
-    while ((m = reReq.exec(rawNoStr))) R.imports.push({ what: 'require', from: m[1], line: this.line(src, m.index) });
+    while ((m = reReq.exec(rawNoStr))) R.imports.push({ what: 'require', from: m[1], line: this.lineAt(LN, m.index) });
     const reSrc = /<script[^>]+src\s*=\s*['"]([^'"]+)['"]/gi;
-    while ((m = reSrc.exec(rawNoStr))) R.imports.push({ what: 'script', from: m[1], line: this.line(src, m.index) });
+    while ((m = reSrc.exec(rawNoStr))) R.imports.push({ what: 'script', from: m[1], line: this.lineAt(LN, m.index) });
     const reExp = /\bexport\s+(?:default\s+)?(?:(class|function|const|let|var)\s+([A-Za-z_$][\w$]*)|\{([^}]*)\})/g;
     while ((m = reExp.exec(clean))) {
       if (m[2]) R.exports.push(m[2]);
@@ -1741,12 +1765,12 @@ const CODE = {
         methods.push({
           name: nm, args: mm[5].split(',').map(s => s.trim()).filter(Boolean),
           static: !!mm[1], async: !!mm[2], lines: mbody.split('\n').length,
-          complexity: this.complexity(mbody), line: this.line(src, start + mm.index),
+          complexity: this.complexity(mbody), line: this.lineAt(LN, start + mm.index),
           calls: this.callsIn(mbody)
         });
       }
       R.classes.push({
-        name: m[1], extends: m[2] || null, line: this.line(src, start),
+        name: m[1], extends: m[2] || null, line: this.lineAt(LN, start),
         lines: body.split('\n').length, methods,
         fields: (body.match(/(?:^|\n)\s*(?:#|this\.)([\w$]+)\s*=/g) || []).map(s => s.replace(/.*[.#]/, '').replace(/\s*=$/, '').trim()).filter((v, i, a) => a.indexOf(v) === i).slice(0, 40)
       });
@@ -1755,12 +1779,14 @@ const CODE = {
 
     /* ---- top level functions ---- */
     const reFn = /(?:^|[\n;}])\s*(export\s+)?(async\s+)?function\s*(\*)?\s*([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*\{/g;
+    const FN_CAP = 6000;   /* سقف معلن: الملفات الضخمة تُفهرس جزئيًا بدل أن تُجمّد الصفحة */
     while ((m = reFn.exec(clean))) {
+      if (R.functions.length >= FN_CAP) { R.truncatedIndex = true; break; }
       const bs = m.index + m[0].length - 1, be = this.block(clean, bs - 1);
       const body = clean.slice(bs, be + 1);
       R.functions.push({
         name: m[4], args: m[5].split(',').map(s => s.trim()).filter(Boolean), async: !!m[2],
-        kind: 'function', line: this.line(src, m.index), lines: body.split('\n').length,
+        kind: 'function', line: this.lineAt(LN, m.index), lines: body.split('\n').length,
         complexity: this.complexity(body), calls: this.callsIn(body), exported: !!m[1]
       });
       if (m[2]) R.async++;
@@ -1773,21 +1799,22 @@ const CODE = {
       else { const nl = clean.indexOf('\n', m.index + m[0].length); body = clean.slice(m.index, nl < 0 ? clean.length : nl); }
       R.functions.push({
         name: m[2], args: (m[4] || m[5] || '').split(',').map(s => s.trim()).filter(Boolean), async: !!m[3],
-        kind: 'arrow', line: this.line(src, m.index), lines, complexity: this.complexity(body),
+        kind: 'arrow', line: this.lineAt(LN, m.index), lines, complexity: this.complexity(body),
         calls: this.callsIn(body), exported: !!m[1]
       });
     }
     /* ---- variables ---- */
     const reVar = /(?:^|[\n;{])\s*(const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;\n]{0,60})/g;
+    const fnNames = new Set(R.functions.map(f => f.name));
     while ((m = reVar.exec(clean))) {
-      if (R.functions.some(f => f.name === m[2])) continue;
-      R.vars.push({ name: m[2], kind: m[1], line: this.line(src, m.index), hint: m[3].trim().slice(0, 40) });
+      if (fnNames.has(m[2])) continue;
+      R.vars.push({ name: m[2], kind: m[1], line: this.lineAt(LN, m.index), hint: m[3].trim().slice(0, 40) });
     }
     /* ---- events / callbacks ---- */
     const reEv = /addEventListener\s*\(\s*['"`]([\w-]+)['"`]/g;
-    while ((m = reEv.exec(rawNoStr))) R.events.push({ type: m[1], line: this.line(src, m.index), api: 'addEventListener' });
+    while ((m = reEv.exec(rawNoStr))) R.events.push({ type: m[1], line: this.lineAt(LN, m.index), api: 'addEventListener' });
     const reOn = /\bon(click|keydown|keyup|mousedown|mousemove|mouseup|touchstart|touchmove|touchend|load|resize|error|message|wheel|pointerdown|pointermove|pointerup)\s*=/gi;
-    while ((m = reOn.exec(clean))) R.events.push({ type: m[1].toLowerCase(), line: this.line(src, m.index), api: 'handler' });
+    while ((m = reOn.exec(clean))) R.events.push({ type: m[1].toLowerCase(), line: this.lineAt(LN, m.index), api: 'handler' });
     /* ---- game loops ---- */
     ['requestAnimationFrame', 'setInterval', 'setTimeout', 'update', 'tick', 'gameLoop', 'fixedUpdate'].forEach(k => {
       const c = (clean.match(new RegExp('\\b' + k + '\\b', 'g')) || []).length;
@@ -2991,6 +3018,8 @@ const SBX = {
           /* إشارة من اللعبة نفسها: أنها أقلعت بلا استثناء */
           res.events.push(d.event);
           if (d.event === 'ready') res.ready = true;
+          /* تقرير دوالك المنقولة: أيّها نُفِّذ فعلًا وأيّها أخفق ولماذا */
+          if (d.event === 'yours') res.yours = { ran: d.ran || [], count: d.count || {}, err: d.err || {}, self: d.self || null, total: d.total || 0 };
           return;
         }
         if (!d || d.__kad !== 1 || d.id !== id) return;
@@ -3387,8 +3416,10 @@ const INGEST = {
         rec.subCategory = c;
       }
     } else if (kind === 'code' || kind === 'web' || (kind === 'data' && ext === 'json') || this.TEXT_EXT.includes(ext)) {
-      const txt = new TextDecoder('utf-8', { fatal: false }).decode(buf.slice(0, 2 * 1024 * 1024));
-      rec.text = txt.length < 400000 ? txt : null;
+      /* الملفات الكبيرة تُقرأ كاملة — التعلّم لا يكتمل من جزء منها */
+      const txt = new TextDecoder('utf-8', { fatal: false }).decode(buf.slice(0, 24 * 1024 * 1024));
+      rec.text = txt.length < 8 * 1024 * 1024 ? txt : txt.slice(0, 8 * 1024 * 1024);
+      rec.truncated = txt.length >= 8 * 1024 * 1024;
       if (['js', 'ts', 'jsx', 'tsx', 'mjs', 'cjs'].includes(ext)) {
         rec.analysis = Object.assign({ type: 'code', lang: ext }, CODE.analyze(txt, name));
         rec.category = 'Code';
@@ -5100,6 +5131,263 @@ const MIND = {
   }
 };
 
+/* ============================ 27i · TRANSPLANT (شيفرتك حرفيًا) ======== */
+/* الاعتراض المحقّ: كان يقول «بنيتُها من شيفرتك» وهو لم يأخذ منها إلا أرقامًا.
+   هذه الوحدة تنقل دوالك نفسها — نصًّا كما كتبتها — إلى اللعبة المولَّدة،
+   وتفحص قبل ذلك هل الدالة قابلة للنقل أصلًا، وتقول السبب إن لم تكن. */
+const TRANSPLANT = {
+  /* ما يُسمح للدالة أن تعتمد عليه خارج معاملاتها */
+  SAFE: new Set(('Math JSON Number String Boolean Array Object parseInt parseFloat isNaN isFinite ' +
+    'Infinity NaN undefined true false null this return var let const function if else for while do ' +
+    'switch case break continue new typeof instanceof in of delete void try catch finally throw ' +
+    'Date performance Symbol Map Set').split(/\s+/)),
+  /* ما يجعل الدالة غير قابلة للنقل — ومعه سبب مفهوم */
+  BLOCKERS: [
+    { re: /\bdocument\b|\bwindow\b|\blocalStorage\b/, why: 'تستخدم DOM/المتصفح مباشرة' },
+    { re: /\bTHREE\b|\bBABYLON\b|\bPhaser\b|\bcc\.|\bpc\./, why: 'تعتمد على محرّك خارجي (THREE/Phaser/…)' },
+    { re: /\bgl\.|\bWebGLRenderingContext\b/, why: 'تتحدّث إلى WebGL مباشرة' },
+    { re: /\brequire\s*\(|\bimport\s+/, why: 'تستورد وحدات خارجية' },
+    { re: /\bfetch\s*\(|XMLHttpRequest|WebSocket/, why: 'تتصل بالشبكة' },
+    { re: /\basync\b|\bawait\b/, why: 'غير متزامنة — لا تصلح داخل حلقة الإطار' },
+    { re: /\bsuper\b|\bextends\b/, why: 'ترث من صنف آخر غير موجود عندي' },
+  ],
+  /* الأدوار التي أعرف كيف أستدعيها داخل اللعبة */
+  ROLES: [
+    { id: 'steer', name: 'التوجيه', re: /steer|turn|rotate|توجيه|انعطاف/i, sig: ['state', 'axis', 'dt'] },
+    { id: 'throttle', name: 'التسارع', re: /throttle|accel|gas|drive|تسارع|دفع/i, sig: ['state', 'dt'] },
+    { id: 'brake', name: 'الفرملة', re: /brake|decel|stop|فرمل/i, sig: ['state', 'dt'] },
+    { id: 'move', name: 'الحركة', re: /move|update.*pos|step|تحرك|حركه/i, sig: ['state', 'dt'] },
+    { id: 'jump', name: 'القفز', re: /jump|leap|قفز/i, sig: ['state', 'dt'] },
+    { id: 'collide', name: 'الاصطدام', re: /collide|collision|intersect|overlap|hit|اصطدام|تصادم/i, sig: ['a', 'b'] },
+    { id: 'score', name: 'النقاط', re: /score|point|combo|نقاط/i, sig: ['state', 'n'] },
+    { id: 'spawn', name: 'التوليد', re: /spawn|create.*enemy|wave|توليد/i, sig: ['state'] },
+    { id: 'camera', name: 'الكاميرا', re: /camera|follow|lookat|كاميرا|متابعه/i, sig: ['cam', 'target', 'dt'] },
+    { id: 'helper', name: 'مساعدة حسابية', re: /clamp|lerp|dist|length|normalize|angle|wrap/i, sig: ['a', 'b'] },
+  ],
+
+  /* يستخرج نص كل دالة/دالة صنف من ملف بالضبط كما كتبتها */
+  extract(src, fileName) {
+    const clean = CODE.strip(src);
+    const out = [];
+    const LN = CODE.lineIndex(src);
+    const lineAt = (i) => CODE.lineAt(LN, i);
+    const CAP = 4000;   /* لا نفحص أكثر من هذا في الملف الواحد — الملفات الضخمة لها ذيل مكرّر */
+    let m;
+    /* دوال مستقلة */
+    const reFn = /(?:^|[\n;}])\s*(?:export\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*\{/g;
+    while ((m = reFn.exec(clean))) {
+      /* نتخطّى المحرف الفاصل و export كي يبدأ النص عند function تمامًا */
+      const st = m.index + (m[0].length - m[0].replace(/^[\n;}]?\s*(?:export\s+)?/, '').length);
+      const end = CODE.block(clean, st);
+      if (end < 0 || end <= st) continue;
+      out.push({ name: m[1], args: m[2].split(',').map(x => x.trim()).filter(Boolean), kind: 'function',
+        code: src.slice(st, end + 1), line: lineAt(st), file: fileName, owner: null });
+      if (out.length >= CAP) break;
+    }
+    /* دوال داخل الأصناف */
+    const reCls = /\bclass\s+([A-Za-z_$][\w$]*)/g;
+    while ((m = reCls.exec(clean))) {
+      const cs = m.index, ce = CODE.block(clean, cs);
+      if (ce < 0) continue;
+      const body = clean.slice(cs, ce + 1);
+      const reM = /(?:^|[\n;{}])\s*(?:static\s+)?(?:async\s+)?([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*\{/g;
+      let mm;
+      while ((mm = reM.exec(body))) {
+        const nm = mm[1];
+        if (['if', 'for', 'while', 'switch', 'catch', 'function', 'return', 'class', 'constructor'].indexOf(nm) >= 0) continue;
+        const bs = cs + mm.index + (mm[0].length - mm[0].replace(/^[\n;{}]?\s*(?:static\s+)?/, '').length);
+        const be = CODE.block(clean, bs);
+        if (be < 0 || be <= bs) continue;
+        out.push({ name: nm, args: mm[2].split(',').map(x => x.trim()).filter(Boolean), kind: 'method',
+          code: src.slice(bs, be + 1), line: lineAt(bs), file: fileName, owner: m[1] });
+      }
+    }
+    return out;
+  },
+
+  /* ثوابت المستوى الأعلى في ملفك — الدالة قد تعتمد عليها فأنقلها معها */
+  consts(src) {
+    const out = {};
+    const re = /(?:^|[\n;])[ \t]*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(-?\d+(?:\.\d+)?|"[^"\n]*"|'[^'\n]*'|true|false)\s*[;\n]/g;
+    let m;
+    while ((m = re.exec(src))) if (!Object.prototype.hasOwnProperty.call(out, m[1])) out[m[1]] = m[2];
+    return out;
+  },
+
+  /* القيم التي يضعها بانيك في حقول الصنف — أرقامك أنت لا أرقامي */
+  fieldDefaults(src, cls, consts) {
+    const out = {};
+    const has = (o, k) => o && Object.prototype.hasOwnProperty.call(o, k);
+    const i = cls ? src.indexOf('class ' + cls) : -1;
+    const seg = i < 0 ? src : src.slice(i, i + 6000);
+    /* الحقل قد يأخذ قيمته من ثابت في أعلى ملفك (this.gravity = GRAVITY) — وهي قيمتك أيضًا */
+    const re = /this\.([A-Za-z_$][\w$]*)\s*=\s*(-?\d+(?:\.\d+)?|true|false|[A-Za-z_$][\w$]*)\s*[;,}]/g;
+    let m;
+    while ((m = re.exec(seg))) {
+      if (has(out, m[1])) continue;
+      const v = m[2];
+      if (/^-?\d/.test(v)) out[m[1]] = Number(v);
+      else if (v === 'true') out[m[1]] = 1;
+      else if (v === 'false') out[m[1]] = 0;
+      else if (has(consts, v)) { const cv = consts[v]; out[m[1]] = /^-?\d/.test(cv) ? Number(cv) : cv; }
+    }
+    return out;
+  },
+
+  /* أسماء الحالة التي تستطيع اللعبة تزويدها لدالتك كل إطار */
+  LIVE: new Set(('speed heading angle ang x y z vx vy vz onGround grounded score r radius').split(/\s+/)),
+
+  /* هل يمكن نقلها؟ ولماذا لا؟ */
+  judge(fn, consts) {
+    const body = CODE.strip(fn.code);
+    for (const b of this.BLOCKERS) if (b.re.test(body)) return { ok: false, why: b.why };
+    const lines = fn.code.split('\n').length;
+    if (lines > 70) return { ok: false, why: 'طويلة جدًا (' + lines + ' سطر) — النقل يصبح هشًّا' };
+    const open = body.indexOf('{');
+    const inner = open < 0 ? '' : body.slice(open + 1, body.lastIndexOf('}'));
+    if (inner.replace(/\s/g, '').length < 12) return { ok: false, why: 'جسمها شبه فارغ — لا منطق يُنقل' };
+    /* الحقول التي تقرأها من this — سأوفّرها كحالة */
+    const fields = Array.from(new Set((inner.match(/this\.([A-Za-z_$][\w$]*)/g) || []).map(x => x.slice(5))));
+    const locals = new Set(fn.args.map(a => a.split('=')[0].trim()));
+    (inner.match(/\b(?:var|let|const)\s+([A-Za-z_$][\w$]*)/g) || []).forEach(d => locals.add(d.split(/\s+/)[1]));
+    (inner.match(/\bfunction\s+([A-Za-z_$][\w$]*)/g) || []).forEach(d => locals.add(d.split(/\s+/)[1]));
+    /* كل معرّف حر إمّا ثابت في ملفك أنقله معها، أو سبب رفض صريح */
+    const free = [], need = {};
+    const re = /\b([A-Za-z_$][\w$]*)\b(?!\s*:)/g;
+    let m;
+    while ((m = re.exec(inner))) {
+      const id = m[1];
+      if (this.SAFE.has(id) || locals.has(id) || id === fn.name) continue;
+      if (inner.slice(Math.max(0, m.index - 1), m.index) === '.') continue;
+      if (consts && Object.prototype.hasOwnProperty.call(consts, id)) { need[id] = consts[id]; continue; }
+      if (free.indexOf(id) < 0) free.push(id);
+    }
+    if (free.length) return { ok: false, why: 'تعتمد على متغيّر خارجي لا أملكه: ' + free.slice(0, 3).join('، ') };
+    return { ok: true, fields, consts: need, lines };
+  },
+
+  role(fn) {
+    for (const r of this.ROLES) if (r.re.test(fn.name) || (fn.owner && r.re.test(fn.owner))) return r;
+    return null;
+  },
+
+  /* يحلّل كل ملفات شيفرتك ويعيد ما يمكن نقله وما لا يمكن ولماذا */
+  async survey(limitFiles) {
+    const rows = await DB.all('files');
+    const code = rows.filter(r => ['js', 'ts', 'jsx', 'mjs', 'cjs'].indexOf(r.ext) >= 0 && r.text)
+      .slice(0, limitFiles || 25);
+    const usable = [], rejected = [];
+    for (const r of code) {
+      let fns = [];
+      try { fns = this.extract(r.text, U.base(r.name)); } catch (e) { continue; }
+      const cs = this.consts(r.text);
+      const defCache = {};
+      fns.forEach(fn => {
+        const j = this.judge(fn, cs);
+        if (!j.ok) { rejected.push({ name: fn.name, owner: fn.owner, file: fn.file, line: fn.line, why: j.why }); return; }
+        const defaults = fn.owner
+          ? (defCache[fn.owner] || (defCache[fn.owner] = this.fieldDefaults(r.text, fn.owner, cs)))
+          : {};
+        const missing = j.fields.filter(f => !Object.prototype.hasOwnProperty.call(defaults, f) && !this.LIVE.has(f));
+        usable.push(Object.assign({}, fn, {
+          fields: j.fields, consts: j.consts, lines: j.lines, role: this.role(fn), defaults, missing,
+        }));
+      });
+      await U.yield();
+    }
+    usable.sort((a, b) => ((b.role ? 2 : 0) - (a.role ? 2 : 0)) || (a.missing.length - b.missing.length) || (a.lines - b.lines));
+    return { usable, rejected, files: code.length };
+  },
+
+  /* لا أنقل إلا ما سأستدعيه فعلًا: دور أعرفه + كل حقوله متوفّرة عندي.
+     الباقي يُذكر في التقرير كـ«قابل للنقل بلا دور» — لا أزرعه ميتًا في اللعبة. */
+  pick(sv, roles, max) {
+    const out = [], seen = {};
+    for (const fn of sv.usable) {
+      if (!fn.role || roles.indexOf(fn.role.id) < 0) continue;
+      if (fn.missing.length || seen[fn.role.id]) continue;
+      seen[fn.role.id] = 1;
+      out.push(fn);
+      if (out.length >= (max || 4)) break;
+    }
+    return out;
+  },
+
+  testArg(a) {
+    const nm = a.split('=')[0].trim().toLowerCase();
+    if (/^(dt|delta|deltatime|elapsed|t|time|step)$/.test(nm)) return 0.016;
+    if (/axis|dir|input|steer|^x$/.test(nm)) return 1;
+    return 0.5;
+  },
+
+  /* يولّد كتلة تُدرَج في اللعبة: دوالك نصًّا + حالتها بقيَمك أنت */
+  emit(picked) {
+    if (!picked.length) return { code: '', calls: [] };
+    const L = [], cs = {};
+    picked.forEach(p => Object.keys(p.consts || {}).forEach(k => { cs[k] = p.consts[k]; }));
+    L.push('/* ' + '='.repeat(56));
+    L.push('   شيفرة منقولة من ملفاتك — نصًّا كما كتبتها، بلا إعادة صياغة.');
+    picked.forEach(p => L.push('   · ' + (p.owner ? p.owner + '.' : '') + p.name + '()  ←  ' + p.file + ':' + p.line));
+    L.push('   ' + '='.repeat(56) + ' */');
+    L.push('var YOURS=(function(){');
+    Object.keys(cs).forEach(k => L.push('  var ' + k + '=' + cs[k] + ';   /* ثابت من ملفك */'));
+    const st = { _: {} };
+    picked.forEach(p => { const o = p.owner || '_'; st[o] = Object.assign(st[o] || {}, p.defaults || {}); });
+    const names = [];
+    picked.forEach(p => {
+      const key = (p.owner ? p.owner + '_' : '') + p.name;
+      if (p.kind === 'method') {
+        /* الدالة تستعمل this — نلفّها ونمرّر الحالة، والجسم يبقى حرفًا بحرف */
+        const inner = p.code.replace(/^[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/, '').replace(/\}\s*$/, '');
+        L.push('  function your_' + key + '(self' + (p.args.length ? ', ' + p.args.join(', ') : '') + '){');
+        L.push('    return (function(){' + inner + '}).call(self);');
+        L.push('  }');
+      } else {
+        L.push('  ' + p.code.split('\n').join('\n  '));
+      }
+      names.push({
+        key, js: p.kind === 'method' ? 'your_' + key : p.name, role: p.role ? p.role.id : null,
+        kind: p.kind, owner: p.owner || '_', name: p.name, args: p.args, fields: p.fields || [],
+        src: p.file + ':' + p.line, test: p.args.map(a => this.testArg(a)),
+      });
+    });
+    L.push('  var __state=' + JSON.stringify(st) + ';');
+    L.push('  return { __state: __state, ' + names.map(x => x.key + ': ' + x.js).join(', ') + ' };');
+    L.push('})();');
+    return { code: L.join('\n'), calls: names };
+  },
+
+  /* الجسر داخل اللعبة: يستدعي دالتك، ويبلّغ بصدق أيّها نُفِّذ وأيّها أخفق */
+  bridge(code, calls) {
+    /* يُدرَج دائمًا — حتى بلا نقل — كي لا يستدعي المولّد دالة غير معرّفة */
+    return [
+      code || '/* لم أنقل أي دالة من ملفاتك في هذه اللعبة */',
+      'var YOUR_CALLS=' + JSON.stringify(calls || []) + ';',
+      'var yourRan={},yourErr={},yourSelf=null;',
+      'function YST(o){if(typeof YOURS==="undefined"||!YOURS.__state)return{};if(!YOURS.__state[o])YOURS.__state[o]={};return YOURS.__state[o]}',
+      'function yourCall(role,args,build,read){if(typeof YOURS==="undefined")return false;',
+      ' for(var yi=0;yi<YOUR_CALLS.length;yi++){var yc=YOUR_CALLS[yi];if(yc.role!==role)continue;',
+      '  var fn=YOURS[yc.key];if(typeof fn!=="function")continue;',
+      '  var s=YST(yc.owner||"_");build(s);',
+      '  try{fn.apply(null,(yc.kind==="method"?[s]:[]).concat(args));read(s);yourRan[yc.key]=(yourRan[yc.key]||0)+1;return true}',
+      '  catch(e){yourErr[yc.key]=String((e&&e.message)||e)}}',
+      ' return false}',
+      'function yourSelfTest(){var r={ok:[],err:[]};if(typeof YOURS==="undefined")return r;',
+      ' for(var yi=0;yi<YOUR_CALLS.length;yi++){var yc=YOUR_CALLS[yi];var fn=YOURS[yc.key];',
+      '  if(typeof fn!=="function"){r.err.push({k:yc.key,e:"لم تُعرَّف"});continue}',
+      '  var b=YST(yc.owner||"_"),s={},k;for(k in b)s[k]=b[k];',
+      '  s.heading=0;s.angle=0;s.ang=0;s.speed=1;s.x=0;s.y=0;s.z=0;s.vx=0;s.vy=0;s.onGround=true;s.grounded=true;',
+      '  try{fn.apply(null,(yc.kind==="method"?[s]:[]).concat(yc.test||[]));r.ok.push(yc.key)}',
+      '  catch(e){r.err.push({k:yc.key,e:String((e&&e.message)||e)})}}',
+      ' return r}',
+      'try{yourSelf=yourSelfTest()}catch(e){}',
+      'function yourPost(){try{parent.postMessage({__game:1,event:"yours",ran:Object.keys(yourRan),count:yourRan,err:yourErr,self:yourSelf,total:YOUR_CALLS.length},"*")}catch(e){}}',
+      /* مرّتان: مبكرًا ليصل التقرير قبل انتهاء الاختبار، ومتأخرًا ليشمل ما استُدعي أثناء اللعب */
+      'setTimeout(yourPost,1200);setTimeout(yourPost,2600);',
+    ].join('\n');
+  }
+};
+
 /* ============================ 28 · DESIGN SPACE ======================== */
 /* فضاء تصميم حقيقي: 9 محاور × قيم متعددة = مساحة بحث قابلة للاستكشاف.
    الابتكار هنا ليس عبارة تسويقية: النظام يبحث فعليًا في هذه المساحة،
@@ -5433,11 +5721,21 @@ const GEN2D = {
       UPD.push(
         '/* قيادة: عزم + توجيه + احتكاك جانبي */',
         'var thr=(ay<0?1:0)+(act?0.3:0), brk=(ay>0?1:0);',
-        'P.sp += thr*' + P.accel + '*dt - brk*' + P.brake + '*dt - P.sp*' + P.drag + '*dt;',
+        '/* دوالك المنقولة تسبق معادلاتي؛ إن لم تُنقل دالة فمعادلتي هي العاملة */',
+        'var _yf=' + P.maxSpeed + ';',
+        'var _yt=false,_yb=false;',
+        'if(thr>0.01)_yt=yourCall("throttle",[dt],function(s){s.speed=Math.abs(P.sp)*((s.maxSpeed||_yf)/_yf)},',
+        ' function(s){var f=(s.maxSpeed||_yf)/_yf,gn=s.speed/f-Math.abs(P.sp);if(gn>0)P.sp+=gn*thr});',
+        'if(brk>0.01)_yb=yourCall("brake",[dt],function(s){s.speed=Math.abs(P.sp)*((s.maxSpeed||_yf)/_yf)},',
+        ' function(s){var f=(s.maxSpeed||_yf)/_yf,dp=Math.abs(P.sp)-s.speed/f,sg=P.sp<0?-1:1;',
+        '  if(dp>0)P.sp=sg*Math.max(0,Math.abs(P.sp)-dp*brk)});',
+        'P.sp += (_yt?0:thr*' + P.accel + '*dt) - (_yb?0:brk*' + P.brake + '*dt) - P.sp*' + P.drag + '*dt;',
         'if(P.sp<-' + P.maxSpeed + '*0.4)P.sp=-' + P.maxSpeed + '*0.4;',
         'if(P.sp>' + P.maxSpeed + ')P.sp=' + P.maxSpeed + ';',
-        'steerAng = ax*' + P.steerRate + '*clamp(Math.abs(P.sp)/' + P.maxSpeed + ',0,1);',
-        'P.ang += steerAng*dt*(P.sp<0?-1:1);',
+        'var _ys=yourCall("steer",[ax,dt],function(s){s.speed=Math.abs(P.sp)*((s.maxSpeed||_yf)/_yf);s.heading=P.ang;s.angle=P.ang},',
+        ' function(s){P.ang=(s.heading!=null?s.heading:(s.angle!=null?s.angle:P.ang))});',
+        'if(!_ys){steerAng = ax*' + P.steerRate + '*clamp(Math.abs(P.sp)/' + P.maxSpeed + ',0,1);',
+        'P.ang += steerAng*dt*(P.sp<0?-1:1);}',
         'P.vx=Math.cos(P.ang)*P.sp;P.vy=Math.sin(P.ang)*P.sp;',
         'P.x+=P.vx*dt;P.y+=P.vy*dt;'
       );
@@ -5448,10 +5746,16 @@ const GEN2D = {
       UPD.push(
         '/* منصات: جاذبية + قفز مع سماحية coyote */',
         'P.vx = ax*' + P.moveSpeed + ';',
-        'P.vy += ' + P.gravity + '*dt;',
         'if(grounded)coyote=0.12; else coyote-=dt;',
-        'if((keys["w"]||keys[" "]||keys["arrowup"]||actDown||stickY<-0.5)&&coyote>0){P.vy=-' + P.jumpVel + ';coyote=0;grounded=false}',
-        'P.x+=P.vx*dt;P.y+=P.vy*dt;',
+        'if((keys["w"]||keys[" "]||keys["arrowup"]||actDown||stickY<-0.5)&&coyote>0){',
+        ' var _yj=yourCall("jump",[dt],function(s){s.vy=P.vy;s.y=P.y;s.onGround=true;s.grounded=true;s.speed=len(P.vx,P.vy)},',
+        '  function(s){if(s.vy!=null)P.vy=s.vy});',
+        ' if(!_yj)P.vy=-' + P.jumpVel + ';',
+        ' coyote=0;grounded=false}',
+        '/* دالة الحركة المنقولة من ملفك تتولّى الجاذبية والتكامل معًا إن وُجدت */',
+        'var _ym=yourCall("move",[dt],function(s){s.x=P.x;s.y=P.y;s.vx=P.vx;s.vy=P.vy;s.onGround=grounded;s.grounded=grounded;s.speed=len(P.vx,P.vy)},',
+        ' function(s){if(s.vx!=null)P.vx=s.vx;if(s.vy!=null)P.vy=s.vy;if(s.x!=null)P.x=s.x;if(s.y!=null)P.y=s.y});',
+        'if(!_ym){P.vy += ' + P.gravity + '*dt;P.x+=P.vx*dt;P.y+=P.vy*dt;}',
         'grounded=false;',
         'for(var i=0;i<platforms.length;i++){var pl=platforms[i];',
         ' if(P.x+P.r>pl.x&&P.x-P.r<pl.x+pl.w&&P.y+P.r>pl.y&&P.y+P.r<pl.y+pl.h+24&&P.vy>=0){P.y=pl.y-P.r;P.vy=0;grounded=true}}',
@@ -5463,8 +5767,13 @@ const GEN2D = {
         '/* خطو حر في فضاء مستمر */',
         'var l=len(ax,ay)||1;',
         'var sp=' + P.moveSpeed + spd(A) + ';',
+        '/* إن نقلتُ دالة حركة من ملفك فهي التي تحرّك اللاعب */',
+        'var _ym=yourCall("move",[dt],function(s){s.x=P.x;s.y=P.y;s.vx=P.vx;s.vy=P.vy;s.speed=len(P.vx,P.vy);s.angle=P.ang;s.heading=P.ang},',
+        ' function(s){if(s.vx!=null)P.vx=s.vx;if(s.vy!=null)P.vy=s.vy;if(s.x!=null)P.x=s.x;if(s.y!=null)P.y=s.y});',
+        'if(!_ym){',
         'P.vx+= (ax/l*sp - P.vx)*clamp(dt*10,0,1);P.vy+=(ay/l*sp - P.vy)*clamp(dt*10,0,1);',
         'if(!ax&&!ay){P.vx*=0.88;P.vy*=0.88}',
+        '}',
         'P.x+=P.vx*dt;P.y+=P.vy*dt;',
         'if(len(P.vx,P.vy)>1)P.ang=Math.atan2(P.vy,P.vx);'
       );
@@ -5693,6 +6002,7 @@ const GEN2D = {
       '(function(){',
       '"use strict";',
       'var cvs=document.getElementById("c");var g=cvs.getContext("2d");',
+      TRANSPLANT.bridge(spec.yoursCode, spec.yourCalls),
       H.join('\n'),
       I.join('\n'),
       'function onKey(k,v){' + KEYS.join('\n') + '}',
@@ -5767,11 +6077,16 @@ const GEN2D = {
    الأصول تُضمَّن كـ base64 لأن الإطار المعزول لا يصل إلى blob: الأب. */
 const GEN3D = {
   runtime(cfg) {
-    const C = JSON.stringify(cfg);
+    /* شيفرتك تُدرَج نصًّا لا داخل CFG، وإلا تكرّرت في الملف مهرّبة كسلسلة */
+    const C = JSON.stringify(Object.assign({}, cfg, { yoursCode: undefined, yourCalls: undefined }));
     return [
       '(function(){',
       '"use strict";',
       'var CFG=' + C + ';',
+      /* شيفرتك المنقولة تُدرَج هنا قبل أي شيء، فتراها في مصدر اللعبة كما كتبتها */
+      TRANSPLANT.bridge(cfg.yoursCode, cfg.yourCalls),
+      /* تحويل وحدات السرعة بين أرقامك وأرقام محرّكي */
+      'function yf(s){return (s.maxSpeed?s.maxSpeed:CFG.maxSpeed)/CFG.maxSpeed}',
       'var cvs=document.getElementById("c");',
       'var gl=cvs.getContext("webgl",{antialias:true,alpha:false});',
       'if(!gl){document.body.innerHTML="<p style=\'padding:20px\'>WebGL غير متاح</p>";return}',
@@ -5932,10 +6247,19 @@ const GEN3D = {
       'if(stickY<-0.25)thr=Math.min(1,-stickY*1.4); else if(stickY>0.3)brk=1;',
       'if(actDown)thr=1;',
       'if(!over){',
-      'car.sp+=thr*CFG.accel*dt-brk*CFG.brake*dt-car.sp*CFG.drag*dt;',
+      /* إن كانت لديك دالة تسارع/فرملة منقولة فهي صاحبة القرار، وإلا فمعادلتي */
+      'var _yt=false,_yb=false;',
+      'if(thr>0.01)_yt=yourCall("throttle",[dt],function(s){s.speed=Math.abs(car.sp)*yf(s)},',
+      ' function(s){var ns=s.speed/yf(s),gn=ns-Math.abs(car.sp);if(gn>0)car.sp+=gn*thr});',
+      'if(brk>0.01)_yb=yourCall("brake",[dt],function(s){s.speed=Math.abs(car.sp)*yf(s)},',
+      ' function(s){var ns=s.speed/yf(s),dp=Math.abs(car.sp)-ns,sg=car.sp<0?-1:1;',
+      '  if(dp>0)car.sp=sg*Math.max(0,Math.abs(car.sp)-dp*brk)});',
+      'car.sp+=(_yt?0:thr*CFG.accel*dt)-(_yb?0:brk*CFG.brake*dt)-car.sp*CFG.drag*dt;',
       'if(car.sp>CFG.maxSpeed)car.sp=CFG.maxSpeed;if(car.sp<-CFG.maxSpeed*0.35)car.sp=-CFG.maxSpeed*0.35;',
       'car.steer+=(ax-car.steer)*Math.min(dt*8,1);',
-      'car.ang-=car.steer*CFG.steerRate*dt*Math.min(Math.abs(car.sp)/6,1)*(car.sp<0?-1:1);',
+      'var _ys=yourCall("steer",[car.steer,dt],function(s){s.speed=Math.abs(car.sp)*yf(s);s.heading=car.ang;s.angle=car.ang},',
+      ' function(s){car.ang=(s.heading!=null?s.heading:(s.angle!=null?s.angle:car.ang))});',
+      'if(!_ys)car.ang-=car.steer*CFG.steerRate*dt*Math.min(Math.abs(car.sp)/6,1)*(car.sp<0?-1:1);',
       'car.x+=Math.sin(car.ang)*car.sp*dt;car.z+=Math.cos(car.ang)*car.sp*dt;',
       'for(var i=0;i<buildings.length;i++){var b=buildings[i];',
       'if(Math.abs(car.x-b.x)<b.w/2+1.4&&Math.abs(car.z-b.z)<b.d/2+1.4){car.sp*=-0.25;car.x-=Math.sin(car.ang)*2.2;car.z-=Math.cos(car.ang)*2.2}}',
@@ -6181,9 +6505,27 @@ const BUILDER = {
       params = r.params; yourParams = r.used;
       if (yourParams.length) L('   معاملاتك: ' + yourParams.map(x => x.key + '=' + x.v + ' (' + x.from + ')').join('، '));
     }
+    /* ④ﺏ نقل شيفرتك حرفيًا: أي دالة من ملفاتك أستطيع استدعاءها داخل هذه اللعبة؟ */
+    let transplant = null;
+    if (userBuild) {
+      L('④ﺏ فحص شيفرتك: أي دالة يمكن نقلها كما هي؟');
+      const sv = await TRANSPLANT.survey(30);
+      const roles = backend === '3d' || design.axes.locomotion === 'drive'
+        ? ['steer', 'throttle', 'brake']
+        : design.axes.locomotion === 'jump' ? ['jump', 'move'] : ['move'];
+      const picked = TRANSPLANT.pick(sv, roles, 4);
+      const em = TRANSPLANT.emit(picked);
+      transplant = { survey: sv, picked, code: em.code, calls: em.calls, roles };
+      L('   دوالك المفحوصة: ' + (sv.usable.length + sv.rejected.length) +
+        ' في ' + sv.files + ' ملفًا · قابلة للنقل: ' + sv.usable.length + ' · نُقلت: ' + picked.length);
+      picked.forEach(p => L('   ↳ ' + (p.owner ? p.owner + '.' : '') + p.name + '() من ' + p.file + ':' + p.line + ' — ' + p.role.name));
+      if (!picked.length) L('   ⚠ لم أنقل شيئًا — السبب مذكور لكل دالة في التقرير');
+    }
+
     const spec = {
       title, axes: design.axes, seed, palette, params,
       controls: this.controlsText(design.axes),
+      yoursCode: transplant ? transplant.code : '', yourCalls: transplant ? transplant.calls : [],
     };
     let html, js, cfg = null, used = [];
     if (backend === '3d') {
@@ -6219,6 +6561,7 @@ const BUILDER = {
         camDist: 14, camH: 7, camSmooth: 5, fov: 62, carTarget: 4.2, carYaw: Math.PI,
         basePitch: .62, pitchPerSpeed: 1.05, minGain: .08, maxGain: .8,
         glb, engine: eng, props, tex, hiRes: true,
+        yoursCode: spec.yoursCode, yourCalls: spec.yourCalls,
       };
       if (params.camDist) cfg.camDist = params.camDist;
       if (params.camH) cfg.camH = params.camH;
@@ -6258,6 +6601,23 @@ const BUILDER = {
       design: { novelty: U.round(design.novelty, 3), coherence: U.round(design.coherence, 3), assetFit: U.round(design.assetFit, 3), closest: design.closest, closestDistance: design.closestDistance, alternatives: design.alternatives.map(a => a.axes) },
       assets: used.map(a => ({ id: a.id, name: a.name, kind: a.kind, category: a.category })),
       fromUser: !!userBuild,
+      transplanted: transplant ? transplant.picked.map(x => ({
+        name: x.name, owner: x.owner, file: x.file, line: x.line, lines: x.lines,
+        role: x.role ? x.role.name : null, key: (x.owner ? x.owner + '_' : '') + x.name, code: x.code,
+      })) : [],
+      rejectedCode: transplant ? transplant.survey.rejected.slice(0, 10) : [],
+      idleCode: transplant ? transplant.survey.usable
+        .filter(x => transplant.picked.indexOf(x) < 0)
+        .slice(0, 8)
+        .map(x => ({ name: x.name, owner: x.owner, file: x.file, line: x.line,
+          why: x.missing.length ? 'تحتاج حقولًا لا أملكها: ' + x.missing.slice(0, 3).join('، ')
+            : (x.role ? 'دورها «' + x.role.name + '» لا يُستدعى في هذا النوع من الألعاب' : 'لم أتعرّف على دورها داخل اللعبة') })) : [],
+      scannedCode: transplant ? (transplant.survey.usable.length + transplant.survey.rejected.length) : 0,
+      usableCount: transplant ? transplant.survey.usable.length : 0,
+      yourFnRan: (test.yours && test.yours.self && test.yours.self.ok) || [],
+      yourFnErr: (test.yours && test.yours.self && test.yours.self.err) || [],
+      yourFnLive: (test.yours && test.yours.ran) || [],
+      yourFnCount: (test.yours && test.yours.count) || {},
       yourMechanics: userBuild ? userBuild.matched.map(m => ({ title: m.k.title, mech: m.k.mech, source: (LIB.cache.find(x => x.id === m.k.source) || {}).name || null })) : [],
       yourParams: yourParams,
       test: { ok: test.ok, errors: test.errors, frames: test.frames, warns: test.warns },
@@ -7381,11 +7741,21 @@ Object.assign(CHAT.handlers, {
     a.f.verification.push(out.test.ok ? 'اللعبة عملت في الصندوق المعزول (' + out.test.frames + ' إطار، بلا أخطاء)' : 'الاختبار رصد مشكلة: ' + out.test.reason);
     let head = '';
     if (out.game.fromUser) {
+      /* الفصل الصريح: «دالة منقولة» شيء و«رقم مأخوذ من ملفك» شيء آخر.
+         خلطهما هو الادّعاء الزائد الذي اعترض عليه المستخدم بحق. */
+      const G = out.game, ran = (G.yourFnRan || []).length;
       const parts = [];
-      if (out.game.yourMechanics.length) parts.push(out.game.yourMechanics.length + ' ميكانيكية من شيفرتك');
-      if (out.game.assets.length) parts.push(out.game.assets.length + ' أصلًا من ملفاتك');
-      head = '<p>بنيتُها من موادّك: ' + U.esc(parts.join(' و')) +
-        (u.projectCount > 1 ? '، ممزوجة من <b>' + u.projectCount + '</b> مصادر مختلفة' : '') + '.</p>';
+      if (ran) parts.push('<b>' + ran + '</b> دالة من شيفرتك منقولة نصًّا ومُنفَّذة');
+      if (G.yourParams && G.yourParams.length) parts.push('<b>' + G.yourParams.length + '</b> رقمًا من معاملاتك');
+      if (G.yourMechanics.length) parts.push('<b>' + G.yourMechanics.length + '</b> ميكانيكية موصوفة من مشاريعك');
+      if (G.assets.length) parts.push('<b>' + G.assets.length + '</b> أصلًا من ملفاتك');
+      head = parts.length ? '<p>من موادّك: ' + parts.join(' · ') +
+        (u.projectCount > 1 ? '، ممزوجة من <b>' + u.projectCount + '</b> مصادر' : '') + '.</p>' : '';
+      if (!ran) head += '<p style="color:var(--warn);font-size:12.5px">' +
+        ((G.transplanted || []).length
+          ? 'نقلتُ ' + G.transplanted.length + ' دالة من شيفرتك لكنها لم تُنفَّذ بنجاح — السبب لكل واحدة أسفل التقرير.'
+          : 'لم أنقل أي دالة من شيفرتك إلى هذه اللعبة — منطق اللعب كلّه من تأليفي. ' +
+            'السبب لكل دالة مذكور في «شيفرتك داخل اللعبة» أسفل التقرير.') + '</p>';
       if (u.missing.length) head += '<p style="color:var(--warn);font-size:12.5px">لم أجد عندك: ' +
         U.esc(u.missing.map(m => m.key).join('، ')) + ' — أرسل مشروعًا فيه هذه الأنظمة وسأضيفها في المرة القادمة.</p>';
     }
@@ -7776,13 +8146,54 @@ CHAT.gameReport = function (out, logs) {
       '<li><b>' + U.esc(m.title) + '</b>' + (m.source ? ' — من <code>' + U.esc(m.source) + '</code>' : '') + '</li>').join('') + '</ul>');
   }
   if (g.yourParams && g.yourParams.length) {
-    L.push('<p><b>معاملاتك:</b> ' + U.esc(g.yourParams.map(x => x.key + '=' + x.v + ' (' + x.from + ')').join('، ')) + '</p>');
+    L.push('<p><b>أرقامك المستخدمة:</b> ' + U.esc(g.yourParams.map(x => x.key + '=' + x.v + ' (' + x.from + ')').join('، ')) + '</p>');
   }
+  L.push(CHAT.transplantReport(g));
   if (g.assets.length) L.push('<p><b>أصولك المستخدمة فعليًا:</b> ' + U.esc(g.assets.map(a => a.name + ' (' + a.category + ')').join('، ')) + '</p>');
   else if (g.backend === '2d') L.push('<p style="font-size:12.5px;color:var(--ink3)">لم تُستخدم أصول خارجية — الرسم هندسي مولَّد. أرفق GLB لسيارة وصوت محرك وستدخل اللعبة تلقائيًا في المرة القادمة.</p>');
   if (g.fixes && g.fixes.length) L.push('<p><b>إصلاحات تلقائية:</b> ' + U.esc(g.fixes.map(f => f.why).join('، ')) + '</p>');
   L.push('<p><b>التحكم:</b> ' + U.esc(g.spec.controls) + '</p>');
   L.push('<details class="think"><summary>سجل خط الإنتاج (٨ مراحل)</summary><div class="body mono">' + logs.map(U.esc).join('<br>') + '</div></details>');
+  return L.join('');
+};
+/* تقرير النقل: لا يقول «أخذتُ من شيفرتك» إلا عن دالة نُقلت ونُفِّذت،
+   ويقول بصراحة عن كل دالة لم تُنقل لماذا لم تُنقل. */
+CHAT.transplantReport = function (g) {
+  if (!g.fromUser) return '';
+  const T = g.transplanted || [], okRan = g.yourFnRan || [], errs = g.yourFnErr || [], live = g.yourFnLive || [], cnt = g.yourFnCount || {};
+  const L = ['<h4>شيفرتك داخل اللعبة</h4>'];
+  if (!g.scannedCode) {
+    L.push('<p style="color:var(--warn)">لم أجد ملفات شيفرة (js/ts) في ذاكرتي أفحصها. ' +
+      'أرسل مشروع لعبة فيه ملفات <code>.js</code> — أو ملف <code>.zip</code> يحتويها — وسأنقل منها.</p>');
+    return L.join('');
+  }
+  L.push('<p style="font-size:12.5px;color:var(--ink3)">فحصتُ <b>' + g.scannedCode + '</b> دالة من ملفاتك؛ ' +
+    '<b>' + (g.usableCount || 0) + '</b> منها قابلة للنقل تقنيًا، ونُقلت <b>' + T.length + '</b>.</p>');
+  if (T.length) {
+    L.push('<ul>' + T.map(t => {
+      const failed = errs.filter(e => e.k === t.key)[0];
+      const state = failed ? '<span style="color:var(--err)">✖ أخفقت عند التنفيذ: ' + U.esc(failed.e) + '</span>'
+        : okRan.indexOf(t.key) >= 0
+          ? '<span style="color:var(--ok)">✔ نُفِّذت فعلًا داخل الصندوق' +
+            (live.indexOf(t.key) >= 0 ? ' · واستُدعيت ' + (cnt[t.key] || 0) + ' مرة أثناء اللعب' : '') + '</span>'
+          : '<span style="color:var(--ink3)">— لم تُختبَر</span>';
+      return '<li><code>' + U.esc((t.owner ? t.owner + '.' : '') + t.name) + '()</code> — ' +
+        U.esc(t.role || 'دور غير مسمّى') + ' · من <code>' + U.esc(t.file + ':' + t.line) + '</code><br>' + state +
+        '<details class="think"><summary>الشيفرة كما كتبتها أنت</summary><div class="body mono">' +
+        U.esc(t.code) + '</div></details></li>';
+    }).join('') + '</ul>');
+    L.push('<p style="font-size:12.5px;color:var(--ink3)">هذه الدوال موجودة نصًّا في مصدر اللعبة تحت <code>var YOURS</code> — ' +
+      'اضغط «اعرض الشيفرة» وابحث عنها. قيَم حقولها مأخوذة من بانيك أنت، لا من افتراضاتي.</p>');
+  } else {
+    L.push('<p style="color:var(--warn)">لم أنقل أي دالة. لن أقول إنني بنيتُ اللعبة من شيفرتك وأنا لم أفعل.</p>');
+  }
+  const idle = g.idleCode || [], rej = g.rejectedCode || [];
+  if (idle.length) L.push('<details class="think"><summary>قابلة للنقل لكنها لم تُستدعَ (' + idle.length + ')</summary><div class="body"><ul>' +
+    idle.map(x => '<li><code>' + U.esc((x.owner ? x.owner + '.' : '') + x.name) + '()</code> ' +
+      U.esc(x.file + ':' + x.line) + ' — ' + U.esc(x.why) + '</li>').join('') + '</ul></div></details>');
+  if (rej.length) L.push('<details class="think"><summary>لم أستطع نقلها ولماذا (' + rej.length + ')</summary><div class="body"><ul>' +
+    rej.map(x => '<li><code>' + U.esc((x.owner ? x.owner + '.' : '') + x.name) + '()</code> ' +
+      U.esc(x.file + ':' + x.line) + ' — ' + U.esc(x.why) + '</li>').join('') + '</ul></div></details>');
   return L.join('');
 };
 CHAT.gameActions = function (g) {
@@ -8827,6 +9238,63 @@ const SELFTEST = {
     ok('رصد الأحداث', ca.events.length >= 1, ca.events.map(e => e.type).join(','));
     ok('كشف أنظمة اللعبة', ca.systems.some(s => s.system === 'vehicle'), ca.systems.map(s => s.system).slice(0, 4).join('، '));
     ok('تجاهل التعليقات والسلاسل', CODE.strip('var a="}}}";/* } */ var b=1;').indexOf('}') < 0);
+    /* الطمس يجب أن يحافظ على الطول والأسطر وإلا انزاحت كل الفهارس وأرقام الأسطر */
+    const stSrc = 'var a = "x}y";\n/* تعليق\nمتعدد */\nfunction f(){ return 1; }\n// نهاية\n';
+    const stOut = CODE.strip(stSrc);
+    ok('الطمس يحافظ على الطول والأسطر',
+      stOut.length === stSrc.length && stOut.split('\n').length === stSrc.split('\n').length &&
+      stOut.indexOf('function f(){ return 1; }') === stSrc.indexOf('function f(){ return 1; }'),
+      stOut.length + '/' + stSrc.length + ' حرف · ' + stOut.split('\n').length + ' سطر');
+
+    /* 4ب. نقل شيفرة المستخدم حرفيًا — الادّعاء الذي يجب أن يكون صادقًا */
+    const tpSrc = 'const CHUNK = 8;\n' +
+      'export class Car {\n' +
+      '  constructor(){ this.maxSpeed = 32; this.accel = 15; this.steerRate = 2.4; this.speed = 0; this.heading = 0; this.wheels = []; }\n' +
+      '  throttle(dt){ this.speed += this.accel * dt; if (this.speed > this.maxSpeed) this.speed = this.maxSpeed; }\n' +
+      '  steer(axis, dt){ this.heading += axis * this.steerRate * dt * (this.speed / this.maxSpeed); }\n' +
+      '  updateWheels(dt){ for (const w of this.wheels) { w.spin += this.speed * dt; } }\n' +
+      '  update(dt){ if (input.isDown("w")) this.throttle(dt); }\n' +
+      '  noop(){}\n' +
+      '}\n' +
+      'export function gridSize(n){ var t = 0; for (var i = 0; i < n; i++) t += CHUNK; return t; }\n';
+    const tpFns = TRANSPLANT.extract(tpSrc, 'Car.js');
+    const byName = (n) => tpFns.filter(f => f.name === n)[0];
+    ok('استخراج نص الدالة كما هو', !!byName('throttle') && byName('throttle').code.indexOf('throttle(dt){') === 0,
+      byName('throttle') ? byName('throttle').code.slice(0, 34) : 'لم تُستخرج');
+    ok('رقم السطر صحيح', byName('throttle') && byName('throttle').line === 4, byName('throttle') ? 'سطر ' + byName('throttle').line : '—');
+    ok('استخراج دالة عليا بلا export', !!byName('gridSize') && byName('gridSize').code.indexOf('function gridSize') === 0);
+    const tpC = TRANSPLANT.consts(tpSrc);
+    ok('التقاط ثوابت ملفك', String(tpC.CHUNK) === '8', 'CHUNK=' + tpC.CHUNK);
+    const tpD = TRANSPLANT.fieldDefaults(tpSrc, 'Car');
+    ok('التقاط قيَم بانيك', tpD.maxSpeed === 32 && tpD.accel === 15, 'maxSpeed=' + tpD.maxSpeed + ' accel=' + tpD.accel);
+    ok('رفض ما يعتمد على متغيّر خارجي', (() => { const j = TRANSPLANT.judge(byName('update'), tpC); return !j.ok && /input/.test(j.why); })(),
+      TRANSPLANT.judge(byName('update'), tpC).why);
+    ok('رفض الدالة الفارغة', !TRANSPLANT.judge(byName('noop'), tpC).ok, TRANSPLANT.judge(byName('noop'), tpC).why);
+    ok('قبول الدالة الخالصة', TRANSPLANT.judge(byName('steer'), tpC).ok);
+    ok('حلّ الثابت بدل رفض الدالة', (() => { const j = TRANSPLANT.judge(byName('gridSize'), tpC); return j.ok && String(j.consts.CHUNK) === '8'; })());
+    const tpPick = ['throttle', 'steer'].map(n => Object.assign({}, byName(n), {
+      role: TRANSPLANT.role(byName(n)), defaults: tpD, consts: TRANSPLANT.judge(byName(n), tpC).consts,
+      fields: TRANSPLANT.judge(byName(n), tpC).fields,
+    }));
+    const tpEm = TRANSPLANT.emit(tpPick);
+    ok('الكتلة المولَّدة تُصرَّف', (() => { try { new Function(tpEm.code); return true; } catch (e) { return false; } })());
+    ok('الشيفرة المنقولة نصّية لا معاد صياغتها', tpEm.code.indexOf('this.speed += this.accel * dt') >= 0);
+    ok('مصدر كل دالة مذكور في الكتلة', tpEm.code.indexOf('Car.js:4') >= 0 && tpEm.code.indexOf('Car.js:5') >= 0);
+    const tpRun = new Function(tpEm.code + '\nreturn YOURS;')();
+    const tpSt = { maxSpeed: 32, accel: 15, speed: 0 };
+    tpRun.Car_throttle(tpSt, 1);
+    ok('دالتك تعطي أرقامك عند التنفيذ', tpSt.speed === 15, 'بعد ثانية: ' + tpSt.speed + ' (accel من ملفك = 15)');
+    for (let i = 0; i < 40; i++) tpRun.Car_throttle(tpSt, 1);
+    ok('سقف السرعة من ملفك لا مني', tpSt.speed === 32, 'توقّف عند ' + tpSt.speed);
+    const tpS2 = { maxSpeed: 32, steerRate: 2.4, speed: 16, heading: 0 };
+    tpRun.Car_steer(tpS2, 1, 1);
+    ok('معادلة التوجيه كما كتبتها', Math.abs(tpS2.heading - 1.2) < 1e-9, 'heading = ' + tpS2.heading);
+    ok('حالة الدالة مهيّأة بقيَمك', tpRun.__state.Car && tpRun.__state.Car.steerRate === 2.4,
+      JSON.stringify(tpRun.__state.Car || {}).slice(0, 60));
+    ok('لا يُنقل ما لا يستطيع استدعاءه', (() => {
+      const sv = { usable: [Object.assign({}, byName('updateWheels'), { role: TRANSPLANT.role(byName('updateWheels')), missing: ['wheels'] })] };
+      return TRANSPLANT.pick(sv, ['move', 'steer', 'throttle'], 4).length === 0;
+    })(), 'updateWheels تحتاج wheels فلم تُنقل');
     const mech = CONCEPT.fromCode(ca, 'VehicleController.js');
     ok('استخراج الميكانيكيات', mech.length >= 1, mech.map(x => x.mech).join('، '));
     const inf = CONCEPT.inferParams(sample, 'vehicle.control');
