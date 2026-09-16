@@ -1147,15 +1147,10 @@ const DOMAIN_LEX = {
 };
 
 /* أنماط لعب معروفة — تُستخدم كمرجع سلبي لقياس الأصالة (لا للنسخ) */
-const ARCHETYPES = [
-  { id: 'snake', name: 'Snake', axes: { topology: 'grid', locomotion: 'step', growth: 'length', resource: 'none', threat: 'self', objective: 'survive', feedback: 'score', constraint: 'walls', twist: 'none' } },
-  { id: 'racer', name: 'Arcade racer', axes: { topology: 'continuous', locomotion: 'drive', growth: 'none', resource: 'fuel', threat: 'timer', objective: 'reach', feedback: 'tempo', constraint: 'track', twist: 'none' } },
-  { id: 'platformer', name: 'Platformer', axes: { topology: 'continuous', locomotion: 'jump', growth: 'none', resource: 'none', threat: 'environment', objective: 'reach', feedback: 'score', constraint: 'gravity', twist: 'none' } },
-  { id: 'shooter', name: 'Arena shooter', axes: { topology: 'continuous', locomotion: 'step', growth: 'none', resource: 'ammo', threat: 'enemy', objective: 'survive', feedback: 'score', constraint: 'walls', twist: 'none' } },
-  { id: 'citysandbox', name: 'City sandbox', axes: { topology: 'continuous', locomotion: 'drive', growth: 'territory', resource: 'money', threat: 'none', objective: 'build', feedback: 'territory', constraint: 'none', twist: 'none' } },
-  { id: 'agario', name: 'Blob eater', axes: { topology: 'continuous', locomotion: 'step', growth: 'mass', resource: 'none', threat: 'enemy', objective: 'dominate', feedback: 'score', constraint: 'none', twist: 'none' } },
-  { id: 'tetris', name: 'Falling blocks', axes: { topology: 'grid', locomotion: 'none', growth: 'none', resource: 'none', threat: 'decay', objective: 'survive', feedback: 'score', constraint: 'walls', twist: 'none' } },
-];
+/* حُذفت قائمة الألعاب المعروفة المدمجة بناءً على طلبك: لم تكن تُولّد لعبة،
+   لكنها كانت مرجع «الأصالة» ومصدر تهيئة نموذج الأنماط — فكانت تشدّ التوليد
+   نحوها. صار المرجع الآن موادّك أنت: محاور مشاريعك، وكل لعبة سبق أن بُنيت. */
+const ARCHETYPES = [];  /* فارغة عمدًا — انظر التعليق أعلاه */
 
 
 /* محفّزات لغوية عالية الدقة لكل نية — طبقة مسبقة تُدمج مع المصنّف المتعلَّم.
@@ -1264,8 +1259,8 @@ const REG = {
     await this.save({ cap: 'domain', gen: 1, model: dm, metrics: de, dataset: { n: dd.X.length, classes: dd.labels.length, source: 'seed' }, status: 'active', note: 'مصنّف مجالات الكود والأصول' });
 
     const pm = ML.newPattern();
-    ARCHETYPES.forEach(a => ML.patternObserve(pm, Object.values(a.axes).map((v, i) => Object.keys(a.axes)[i] + ':' + v)));
-    await this.save({ cap: 'pattern', gen: 1, model: pm, metrics: { acc: 0, n: ARCHETYPES.length }, dataset: { n: ARCHETYPES.length, source: 'archetypes' }, status: 'active', note: 'أنماط التصميم المبدئية' });
+    /* بلا قوالب مسبقة: النموذج يبدأ فارغًا ويتعلّم من تركيباتك أنت */
+    await this.save({ cap: 'pattern', gen: 1, model: pm, metrics: { acc: 0, n: 0 }, dataset: { n: 0, source: 'empty' }, status: 'active', note: 'نموذج أنماط فارغ — يتعلّم من موادّك' });
 
     const qm = ML.newReg(CAPS.quality.dim);
     await this.save({ cap: 'quality', gen: 1, model: qm, metrics: { r2: 0, n: 0, acc: 0 }, dataset: { n: 0, source: 'empty' }, status: 'active', note: 'متنبئ الجودة — ينتظر بيانات تقييم حقيقية من تجاربك' });
@@ -1385,7 +1380,7 @@ const DATA = {
       intent: Object.values(SEED_INTENT).reduce((a, b) => a + b.length, 0) + this.extra.intent.length,
       domain: Object.keys(DOMAIN_LEX).length * 2 + this.extra.domain.length,
       quality: this.extra.quality.length,
-      pattern: this.extra.domain.length + ARCHETYPES.length,
+      pattern: this.extra.domain.length,
     };
   },
   buildIntent() {
@@ -1513,7 +1508,7 @@ const TRAIN = {
         result = { model: m, metrics: ev, hist, dataset: { n: q.X.length, source: 'user-feedback' } };
       } else if (cap === 'pattern') {
         const m = ML.newPattern();
-        ARCHETYPES.forEach(a => ML.patternObserve(m, Object.keys(a.axes).map(k => k + ':' + a.axes[k])));
+        /* لا قوالب مدمجة — الملاحظات كلها من معرفتك وألعابك */
         const ks = await DB.all('knowledge');
         let obs = 0;
         ks.filter(k => k.kind === 'mechanic' || k.kind === 'concept').forEach(k => {
@@ -1521,7 +1516,7 @@ const TRAIN = {
           if (items.length > 1) { ML.patternObserve(m, items); obs++; }
         });
         o.log('ملاحظات مستخلصة من المعرفة: ' + obs, 'di');
-        result = { model: m, metrics: { acc: Math.min(1, obs / 40), n: obs + ARCHETYPES.length }, hist: [], dataset: { n: obs + ARCHETYPES.length, source: 'knowledge' } };
+        result = { model: m, metrics: { acc: Math.min(1, obs / 40), n: obs }, hist: [], dataset: { n: obs, source: 'knowledge' } };
       }
       o.log('✔ انتهى التدريب — ' + this.fmtMetrics(cap, result.metrics), 'ok');
       const meta = await REG.save({
@@ -1585,13 +1580,15 @@ const BENCH = {
       return { score: U.clamp(ev.r2, 0, 1), detail: ev, metric: 'r2' };
     }
     if (meta.cap === 'pattern') {
-      /* تقييم: هل يميّز التركيبات المعروفة عن العشوائية؟ */
+      /* التقييم على تركيباتك أنت — ما بُني فعلًا — لا على قوالب مدمجة */
+      const games = await DB.all('games');
+      const sets = games.map(g => g.axes).filter(Boolean);
       let hit = 0, tot = 0;
-      ARCHETYPES.forEach(a => {
-        const items = Object.keys(a.axes).map(k => k + ':' + a.axes[k]);
+      sets.forEach(ax => {
+        const items = Object.keys(ax).map(k => k + ':' + ax[k]);
         for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) { tot++; if (ML.patternPMI(m, items[i], items[j]) > 0) hit++; }
       });
-      return { score: tot ? hit / tot : 0, detail: { pairs: tot, positive: hit }, metric: 'coherence' };
+      return { score: tot ? hit / tot : 0, detail: { pairs: tot, positive: hit, games: sets.length }, metric: 'coherence' };
     }
     return null;
   },
@@ -2233,6 +2230,86 @@ const GLB = {
     return out;
   }
 };
+
+/* ============================ 21ب · GLB WRITER ======================== */
+/* يكتب GLB صالحًا من رؤوس ومثلثات خام. سببه: ملفات HTML التي ترسلها تحوي
+   مجسمات مكتوبة كمصفوفات أرقام لا كملفات — وبهذا تصير أصولًا حقيقية
+   تُعايَن وتدخل اللعبة وتُصدَّر، لا مجرد أرقام في تقرير. */
+const GLBW = {
+  build(o) {
+    const pos = o.pos instanceof Float32Array ? o.pos : new Float32Array(o.pos);
+    const n = pos.length / 3;
+    let idx = o.idx && o.idx.length ? Uint32Array.from(o.idx) : null;
+    if (!idx) { idx = new Uint32Array(n); for (let i = 0; i < n; i++) idx[i] = i; }
+    const small = n <= 65535;
+    const iArr = small ? Uint16Array.from(idx) : idx;
+    const nor = o.nor && o.nor.length === pos.length
+      ? (o.nor instanceof Float32Array ? o.nor : new Float32Array(o.nor))
+      : this.normals(pos, idx);
+    const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) {
+      const v = pos[i * 3 + k];
+      if (v < min[k]) min[k] = v;
+      if (v > max[k]) max[k] = v;
+    }
+    if (!isFinite(min[0])) { min[0] = min[1] = min[2] = 0; max[0] = max[1] = max[2] = 0; }
+    const pad4 = (x) => (x + 3) & ~3;
+    const posLen = pos.byteLength, norLen = nor.byteLength, idxLen = iArr.byteLength;
+    const offPos = 0, offNor = pad4(posLen), offIdx = pad4(offNor + norLen);
+    const binLen = pad4(offIdx + idxLen);
+    const json = {
+      asset: { version: '2.0', generator: 'KAD-KAD (مستخرج من ملفك)' },
+      scene: 0, scenes: [{ nodes: [0] }],
+      nodes: [{ mesh: 0, name: o.name || 'Extracted' }],
+      meshes: [{ name: o.name || 'Extracted', primitives: [{ attributes: { POSITION: 0, NORMAL: 1 }, indices: 2 }] }],
+      accessors: [
+        { bufferView: 0, componentType: 5126, count: n, type: 'VEC3', min, max },
+        { bufferView: 1, componentType: 5126, count: n, type: 'VEC3' },
+        { bufferView: 2, componentType: small ? 5123 : 5125, count: iArr.length, type: 'SCALAR' },
+      ],
+      bufferViews: [
+        { buffer: 0, byteOffset: offPos, byteLength: posLen },
+        { buffer: 0, byteOffset: offNor, byteLength: norLen },
+        { buffer: 0, byteOffset: offIdx, byteLength: idxLen },
+      ],
+      buffers: [{ byteLength: binLen }],
+    };
+    let js = JSON.stringify(json);
+    while (js.length % 4) js += ' ';
+    const jb = new TextEncoder().encode(js);
+    const total = 12 + 8 + jb.length + 8 + binLen;
+    const buf = new ArrayBuffer(total);
+    const dv = new DataView(buf), u8 = new Uint8Array(buf);
+    dv.setUint32(0, 0x46546C67, true); dv.setUint32(4, 2, true); dv.setUint32(8, total, true);
+    dv.setUint32(12, jb.length, true); dv.setUint32(16, 0x4E4F534A, true);
+    u8.set(jb, 20);
+    const bo = 20 + jb.length;
+    dv.setUint32(bo, binLen, true); dv.setUint32(bo + 4, 0x004E4942, true);
+    u8.set(new Uint8Array(pos.buffer, pos.byteOffset, posLen), bo + 8 + offPos);
+    u8.set(new Uint8Array(nor.buffer, nor.byteOffset, norLen), bo + 8 + offNor);
+    u8.set(new Uint8Array(iArr.buffer, iArr.byteOffset, idxLen), bo + 8 + offIdx);
+    return buf;
+  },
+  /* أعرّف النواظم من المثلثات نفسها حين لا يعطيها ملفك */
+  normals(pos, idx) {
+    const n = pos.length / 3, out = new Float32Array(pos.length);
+    for (let t = 0; t + 2 < idx.length; t += 3) {
+      const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
+      if (a >= pos.length || b >= pos.length || c >= pos.length) continue;
+      const ux = pos[b] - pos[a], uy = pos[b + 1] - pos[a + 1], uz = pos[b + 2] - pos[a + 2];
+      const vx = pos[c] - pos[a], vy = pos[c + 1] - pos[a + 1], vz = pos[c + 2] - pos[a + 2];
+      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      for (const o2 of [a, b, c]) { out[o2] += nx; out[o2 + 1] += ny; out[o2 + 2] += nz; }
+    }
+    for (let i = 0; i < n; i++) {
+      const L = Math.hypot(out[i * 3], out[i * 3 + 1], out[i * 3 + 2]) || 1;
+      out[i * 3] /= L; out[i * 3 + 1] /= L; out[i * 3 + 2] /= L;
+      if (L === 1 && !out[i * 3] && !out[i * 3 + 1] && !out[i * 3 + 2]) out[i * 3 + 1] = 1;
+    }
+    return out;
+  },
+};
+
 
 /* ---- OBJ (نصي) ---- */
 const OBJ = {
@@ -3427,6 +3504,9 @@ const INGEST = {
       } else if (ext === 'html' || ext === 'htm') {
         rec.analysis = this.analyzeHTML(txt, name);
         rec.category = 'Code'; rec.tags = ['html'].concat(rec.analysis.systems.slice(0, 3).map(s => s.system));
+        /* لعبتك في ملف HTML واحد: المجسّم قد يكون مصفوفة أرقام لا ملفًا.
+           أستخرجه وأبني منه GLB حقيقيًا فيدخل المكتبة واللعبة كأي مجسّم. */
+        rec.embedded = await this.modelsFromHTML(txt, name, o);
       } else if (ext === 'css' || ext === 'scss') {
         rec.analysis = this.analyzeCSS(txt);
         rec.category = 'Code'; rec.tags = ['css', 'style'];
@@ -3468,6 +3548,38 @@ const INGEST = {
     /* حفظ نص الملف للكود (لازم للتنظيم والبحث) */
     if (rec.text) await DB.put('files', { id: asset.id, project: o.project, name, hash: rec.hash, text: rec.text, ext });
     return rec;
+  },
+  /* يستخرج مجسمات مكتوبة داخل صفحة HTML ويحوّلها أصولًا حقيقية */
+  async modelsFromHTML(txt, name, o) {
+    let found = [];
+    try { found = HTMLX.models(txt, name); } catch (e) { return { found: 0, added: [], error: e.message }; }
+    const added = [], failed = [];
+    for (const f of found.slice(0, 12)) {
+      let buf = null;
+      try { buf = HTMLX.toGLB(f); } catch (e) { buf = null; }
+      if (!buf) { failed.push({ name: f.name, why: 'تعذّر تحويلها إلى مجسّم صالح' }); continue; }
+      try {
+        const g = GLB.parse(buf);
+        const st = GLB.stats(g);
+        if (!st.triangles) { failed.push({ name: f.name, why: 'بلا مثلثات' }); continue; }
+        const bbox = GLB.bbox(g);
+        const cls = GLB.classify(st, bbox, f.name);
+        const blob = new Blob([buf], { type: 'model/gltf-binary' });
+        const hash = await U.sha256(buf);
+        const { asset, duplicate } = await LIB.add({
+          name: f.name, path: name + ' › ' + f.name, kind: 'model', category: cls[0].category,
+          tags: ['3d', 'model', 'مستخرج-من-html'].concat(cls.slice(0, 2).map(c => c.category.toLowerCase())),
+          size: buf.byteLength, mime: 'model/gltf-binary', hash, project: o.project,
+          analysis: {
+            type: 'model', format: 'glb', stats: st, bbox, classification: cls,
+            extractedFrom: U.base(name), how: f.how, line: f.line || null,
+          },
+        }, blob);
+        added.push({ name: f.name, id: asset.id, tris: st.triangles, verts: st.vertices, how: f.how, line: f.line || null, duplicate });
+      } catch (e) { failed.push({ name: f.name, why: e.message }); }
+      await U.yield();
+    }
+    return { found: found.length, added, failed };
   },
   modelTags(st, cls, bbox) {
     const t = ['3d', 'model'];
@@ -5131,6 +5243,107 @@ const MIND = {
   }
 };
 
+/* ============================ 27ح · HTMLX (تعدين ملفات HTML) ========== */
+/* ألعابك تأتي في ملف HTML واحد: الشيفرة داخل <script> والمجسمات مصفوفات أرقام
+   أو data: مضمّنة. كانت هذه الملفات تُحلَّل ثم تُهمَل عند النقل — هذه الوحدة
+   تفتحها وتُخرج منها الشيفرة والمجسمات بمواضعها الحقيقية في الملف. */
+const HTMLX = {
+  /* كل كتلة <script> داخلية مع إزاحتها وسطرها في الملف الأصلي */
+  scripts(txt) {
+    const out = [];
+    const re = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
+    const LN = CODE.lineIndex(txt);
+    let m;
+    while ((m = re.exec(txt))) {
+      const attrs = m[1] || '';
+      if (/\bsrc\s*=/.test(attrs)) continue;                       /* ملف خارجي لا شيفرة هنا */
+      if (/type\s*=\s*["']?(?!text\/javascript|module|application\/javascript)/i.test(attrs)
+        && /type\s*=/.test(attrs)) continue;                       /* shaders وقوالب ليست JS */
+      const code = m[2];
+      if (code.trim().length < 40) continue;
+      const off = m.index + m[0].indexOf(code);
+      out.push({ code, offset: off, line: CODE.lineAt(LN, off) });
+    }
+    return out;
+  },
+
+  /* مجسمات مكتوبة داخل الصفحة: data: مضمّن، أو glTF نصي، أو مصفوفات رؤوس */
+  models(txt, fileName) {
+    const found = [];
+    const seen = new Set();
+
+    /* ١) data: يحمل GLB حقيقيًا (glTF magic) أو glTF JSON */
+    const reData = /data:([a-z0-9.+\/-]*);base64,([A-Za-z0-9+/=]{200,})/gi;
+    let m;
+    while ((m = reData.exec(txt))) {
+      let buf = null;
+      try {
+        const bin = atob(m[2].replace(/\s+/g, ''));
+        const u8 = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+        buf = u8.buffer;
+      } catch (e) { continue; }
+      const dv = new DataView(buf);
+      if (buf.byteLength > 12 && dv.getUint32(0, true) === 0x46546C67) {
+        found.push({ kind: 'glb', name: U.base(fileName) + '-مضمَّن-' + (found.length + 1), buf, how: 'ملف GLB مضمَّن كـ data: داخل الصفحة' });
+      }
+    }
+
+    /* ٢) glTF نصي مضمّن */
+    const reGltf = /\{\s*"asset"\s*:\s*\{[^}]*"version"\s*:\s*"2\.0"[\s\S]{200,}?\}\s*\}/g;
+    while ((m = reGltf.exec(txt))) {
+      try {
+        const j = JSON.parse(m[0]);
+        if (j.meshes && j.meshes.length) found.push({ kind: 'gltf', name: U.base(fileName) + '-gltf-' + (found.length + 1), json: j, how: 'glTF مكتوب نصًّا داخل الصفحة' });
+      } catch (e) { /* ليس glTF كاملًا */ }
+    }
+
+    /* ٣) الحالة الشائعة فعلًا: مصفوفات رؤوس مكتوبة بيدك */
+    const clean = CODE.strip(txt);
+    const LN = CODE.lineIndex(txt);
+    const reArr = /(?:(?:var|let|const)\s+([A-Za-z_$][\w$]*)\s*=\s*|([A-Za-z_$][\w$]*)\s*[:=]\s*)(?:new\s+(Float32Array|Float64Array|Int16Array|Uint16Array|Uint32Array)\s*\(\s*)?\[([\s\S]{60,40000}?)\]/g;
+    const arrays = [];
+    while ((m = reArr.exec(clean))) {
+      const nm = (m[1] || m[2] || '').trim();
+      const body = txt.slice(m.index + m[0].length - 1 - m[4].length, m.index + m[0].length - 1);
+      if (!/^[\s\d.,+\-eE]*$/.test(body)) continue;                /* أرقام فقط */
+      const nums = body.split(',').map(x => parseFloat(x)).filter(x => !isNaN(x));
+      if (nums.length < 24) continue;
+      arrays.push({ name: nm, nums, typed: m[3] || null, line: CODE.lineAt(LN, m.index), index: m.index });
+    }
+    const isIdx = (a) => /idx|indic|index|tri|face|element/i.test(a.name) ||
+      (a.typed && /Uint|Int/.test(a.typed) && a.nums.every(x => Number.isInteger(x) && x >= 0));
+    const isPos = (a) => !isIdx(a) && a.nums.length % 3 === 0 &&
+      (/pos|vert|geom|mesh|model|point|shape|cube|body|car|player|tree|house|wall|prop/i.test(a.name) || a.nums.some(x => !Number.isInteger(x)));
+    const idxArrays = arrays.filter(isIdx);
+    arrays.filter(isPos).forEach(a => {
+      const key = a.name + ':' + a.nums.length;
+      if (seen.has(key)) return;
+      seen.add(key);
+      /* مصفوفة الفهارس الأقرب بعده في الملف — الترتيب المعتاد في الشيفرة اليدوية */
+      const after = idxArrays.filter(x => x.index > a.index).sort((x, y) => x.index - y.index)[0];
+      const vcount = a.nums.length / 3;
+      const idx = after && after.nums.every(x => x < vcount) ? after.nums : null;
+      found.push({
+        kind: 'verts', name: a.name || (U.base(fileName) + '-mesh'), pos: a.nums, idx,
+        line: a.line, verts: vcount, tris: Math.floor((idx ? idx.length : a.nums.length / 3) / 3),
+        how: 'مصفوفة رؤوس مكتوبة في شيفرتك' + (idx ? ' مع مصفوفة مثلثات' : ' بلا فهارس — كل ثلاثة رؤوس مثلث'),
+      });
+    });
+    return found;
+  },
+
+  /* يحوّل ما وُجد إلى GLB حقيقي جاهز للمكتبة */
+  toGLB(f) {
+    if (f.kind === 'glb') return f.buf;
+    if (f.kind === 'verts') {
+      if (!f.pos || f.pos.length < 9) return null;
+      return GLBW.build({ pos: f.pos, idx: f.idx, name: f.name });
+    }
+    return null;
+  },
+};
+
 /* ============================ 27i · TRANSPLANT (شيفرتك حرفيًا) ======== */
 /* الاعتراض المحقّ: كان يقول «بنيتُها من شيفرتك» وهو لم يأخذ منها إلا أرقامًا.
    هذه الوحدة تنقل دوالك نفسها — نصًّا كما كتبتها — إلى اللعبة المولَّدة،
@@ -5272,44 +5485,97 @@ const TRANSPLANT = {
   },
 
   /* يحلّل كل ملفات شيفرتك ويعيد ما يمكن نقله وما لا يمكن ولماذا */
+  /* ملفاتك ليست .js فقط: لعبتك كلها قد تكون في index.html واحد.
+     نفكّ كل ملف إلى «وحدات شيفرة» مع إزاحة سطر، فيبقى file:line صحيحًا. */
+  units(r) {
+    const base = U.base(r.name);
+    if (['html', 'htm'].indexOf(r.ext) >= 0) {
+      let blocks = [];
+      try { blocks = HTMLX.scripts(r.text); } catch (e) { blocks = []; }
+      return blocks.map((b, i) => ({
+        text: b.code, file: base, lineOffset: b.line - 1, project: r.project || null,
+        label: base + (blocks.length > 1 ? ' «' + (i + 1) + '»' : ''),
+      }));
+    }
+    return [{ text: r.text, file: base, lineOffset: 0, project: r.project || null, label: base }];
+  },
+
   async survey(limitFiles) {
     const rows = await DB.all('files');
-    const code = rows.filter(r => ['js', 'ts', 'jsx', 'mjs', 'cjs'].indexOf(r.ext) >= 0 && r.text)
-      .slice(0, limitFiles || 25);
+    const code = rows.filter(r => ['js', 'ts', 'jsx', 'mjs', 'cjs', 'html', 'htm'].indexOf(r.ext) >= 0 && r.text)
+      .slice(0, limitFiles || 40);
     const usable = [], rejected = [];
+    let unitCount = 0;
     for (const r of code) {
-      let fns = [];
-      try { fns = this.extract(r.text, U.base(r.name)); } catch (e) { continue; }
-      const cs = this.consts(r.text);
-      const defCache = {};
-      fns.forEach(fn => {
-        const j = this.judge(fn, cs);
-        if (!j.ok) { rejected.push({ name: fn.name, owner: fn.owner, file: fn.file, line: fn.line, why: j.why }); return; }
-        const defaults = fn.owner
-          ? (defCache[fn.owner] || (defCache[fn.owner] = this.fieldDefaults(r.text, fn.owner, cs)))
-          : {};
-        const missing = j.fields.filter(f => !Object.prototype.hasOwnProperty.call(defaults, f) && !this.LIVE.has(f));
-        usable.push(Object.assign({}, fn, {
-          fields: j.fields, consts: j.consts, lines: j.lines, role: this.role(fn), defaults, missing,
-        }));
-      });
-      await U.yield();
+      for (const u of this.units(r)) {
+        unitCount++;
+        let fns = [];
+        try { fns = this.extract(u.text, u.file); } catch (e) { continue; }
+        const cs = this.consts(u.text);
+        const defCache = {};
+        fns.forEach(fn => {
+          fn.line += u.lineOffset;
+          fn.project = u.project;
+          const j = this.judge(fn, cs);
+          if (!j.ok) { rejected.push({ name: fn.name, owner: fn.owner, file: fn.file, line: fn.line, why: j.why }); return; }
+          const defaults = fn.owner
+            ? (defCache[fn.owner] || (defCache[fn.owner] = this.fieldDefaults(u.text, fn.owner, cs)))
+            : {};
+          const missing = j.fields.filter(f => !Object.prototype.hasOwnProperty.call(defaults, f) && !this.LIVE.has(f));
+          usable.push(Object.assign({}, fn, {
+            fields: j.fields, consts: j.consts, lines: j.lines, role: this.role(fn), defaults, missing,
+            strength: this.strength(fn, j),
+          }));
+        });
+        await U.yield();
+      }
     }
-    usable.sort((a, b) => ((b.role ? 2 : 0) - (a.role ? 2 : 0)) || (a.missing.length - b.missing.length) || (a.lines - b.lines));
-    return { usable, rejected, files: code.length };
+    usable.sort((a, b) => ((b.role ? 2 : 0) - (a.role ? 2 : 0)) || (a.missing.length - b.missing.length) || (b.strength - a.strength));
+    return { usable, rejected, files: code.length, units: unitCount };
+  },
+
+  /* «أقوى» ليست كلمة مبهمة: أقيسها بكثافة الحساب الفعلي داخل الدالة —
+     عمليات حسابية، شروط، حقول حالة تقرأها — وأخصم على الاعتماد الناقص. */
+  strength(fn, j) {
+    const body = fn.code;
+    const math = (body.match(/[+\-*/%]|Math\.\w+/g) || []).length;
+    const branch = (body.match(/\b(if|else|for|while|switch|\?)\b|\?/g) || []).length;
+    const fields = (j.fields || []).length;
+    const params = fn.args.length;
+    return math * 2 + branch * 3 + fields * 2 + params + Math.min(j.lines || 1, 20);
   },
 
   /* لا أنقل إلا ما سأستدعيه فعلًا: دور أعرفه + كل حقوله متوفّرة عندي.
      الباقي يُذكر في التقرير كـ«قابل للنقل بلا دور» — لا أزرعه ميتًا في اللعبة. */
   pick(sv, roles, max) {
-    const out = [], seen = {};
-    for (const fn of sv.usable) {
-      if (!fn.role || roles.indexOf(fn.role.id) < 0) continue;
-      if (fn.missing.length || seen[fn.role.id]) continue;
-      seen[fn.role.id] = 1;
-      out.push(fn);
+    const out = [], usedFile = {};
+    for (const role of roles) {
+      const cands = sv.usable.filter(f => f.role && f.role.id === role && !f.missing.length);
+      if (!cands.length) continue;
+      /* الأقوى في كل دور — ومع تساوي القوة أفضّل ملفًا لم يساهم بعد،
+         فتدخل ألعابك كلها في اللعبة الجديدة لا لعبة واحدة منها. */
+      cands.sort((a, b) => ((usedFile[a.file] ? 1 : 0) - (usedFile[b.file] ? 1 : 0)) || (b.strength - a.strength));
+      out.push(cands[0]);
+      usedFile[cands[0].file] = 1;
       if (out.length >= (max || 4)) break;
     }
+    return out;
+  },
+
+  /* البدائل التي لم أخترها لكل دور — أعرضها كي ترى على أي أساس اخترت */
+  runnersUp(sv, picked, roles) {
+    const chosen = new Set(picked.map(p => p.file + ':' + p.line));
+    const out = [];
+    roles.forEach(role => {
+      sv.usable
+        .filter(f => f.role && f.role.id === role && !f.missing.length && !chosen.has(f.file + ':' + f.line))
+        .sort((a, b) => b.strength - a.strength)
+        .slice(0, 2)
+        .forEach(f => out.push({
+          name: f.name, owner: f.owner, file: f.file, line: f.line,
+          role: f.role.name, strength: f.strength,
+        }));
+    });
     return out;
   },
 
@@ -5331,11 +5597,16 @@ const TRANSPLANT = {
     L.push('   ' + '='.repeat(56) + ' */');
     L.push('var YOURS=(function(){');
     Object.keys(cs).forEach(k => L.push('  var ' + k + '=' + cs[k] + ';   /* ثابت من ملفك */'));
-    const st = { _: {} };
-    picked.forEach(p => { const o = p.owner || '_'; st[o] = Object.assign(st[o] || {}, p.defaults || {}); });
+    /* الحالة مفصولة بالملف: صنفان باسم Player من لعبتين مختلفتين لا يخلط أرقامهما */
+    const stKey = (p) => (p.owner || '_') + '#' + p.file;
+    const st = {};
+    picked.forEach(p => { const o = stKey(p); st[o] = Object.assign(st[o] || {}, p.defaults || {}); });
     const names = [];
+    const taken = {};
     picked.forEach(p => {
-      const key = (p.owner ? p.owner + '_' : '') + p.name;
+      let key = ((p.owner ? p.owner + '_' : '') + p.name).replace(/[^\w$]/g, '_');
+      /* لعبتان مختلفتان قد تحملان دالة بنفس الاسم — لا أدع إحداهما تطمس الأخرى */
+      if (taken[key]) key = key + '_' + (++taken[key]); else taken[key] = 1;
       if (p.kind === 'method') {
         /* الدالة تستعمل this — نلفّها ونمرّر الحالة، والجسم يبقى حرفًا بحرف */
         const inner = p.code.replace(/^[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/, '').replace(/\}\s*$/, '');
@@ -5343,12 +5614,16 @@ const TRANSPLANT = {
         L.push('    return (function(){' + inner + '}).call(self);');
         L.push('  }');
       } else {
-        L.push('  ' + p.code.split('\n').join('\n  '));
+        /* كل دالة في غلافها: دالتان بنفس الاسم من لعبتين لا تطمس إحداهما الأخرى */
+        L.push('  var your_' + key + '=(function(){');
+        L.push('    ' + p.code.split('\n').join('\n    '));
+        L.push('    return ' + p.name + ';');
+        L.push('  })();');
       }
       names.push({
-        key, js: p.kind === 'method' ? 'your_' + key : p.name, role: p.role ? p.role.id : null,
-        kind: p.kind, owner: p.owner || '_', name: p.name, args: p.args, fields: p.fields || [],
-        src: p.file + ':' + p.line, test: p.args.map(a => this.testArg(a)),
+        key, js: 'your_' + key, role: p.role ? p.role.id : null,
+        kind: p.kind, owner: stKey(p), name: p.name, args: p.args, fields: p.fields || [],
+        src: p.file + ':' + p.line, from: p.file, test: p.args.map(a => this.testArg(a)),
       });
     });
     L.push('  var __state=' + JSON.stringify(st) + ';');
@@ -5494,8 +5769,13 @@ const CREATIVE = {
   async design(brief) {
     const b = Object.assign({ theme: '', wantDifferent: false, assets: [], hints: {}, seed: Date.now() }, brief || {});
     const pm = REG.patternModel();
-    const prevGames = await DB.all('games');
-    const known = ARCHETYPES.map(a => a.axes).concat(prevGames.map(g => g.axes).filter(Boolean));
+    const prevGames = (await DB.all('games')).sort((x, y) => y.created - x.created);
+    /* المرجع صار موادّك: محاور مشاريعك المرفوعة + كل لعبة بُنيت لك من قبل */
+    const yours = await this.axesFromYourProjects();
+    const known = yours.map(y => y.axes).concat(prevGames.map(g => g.axes).filter(Boolean));
+    /* منع التكرار الصريح: آخر ما بُني لك ممنوع أن يتكرّر بحذافيره */
+    const recent = prevGames.slice(0, 6).map(g => g.axes).filter(Boolean);
+    const recentKeys = new Set(recent.map(a => Object.keys(AXES).map(k => a[k]).join('|')));
     const rnd = U.rng(U.hash32(b.theme + '|' + b.seed));
     const keys = Object.keys(AXES);
 
@@ -5537,22 +5817,87 @@ const CREATIVE = {
       }
     });
     const all = pool.concat(mutated).sort((x, y) => y.s.total - x.s.total);
-    /* أزل التكرار */
-    const seen = new Set(), ranked = [];
+    /* أزل التكرار داخل هذه الجولة، ثم استبعد ما بنيته لك مؤخّرًا حرفيًا */
+    const seen = new Set(), ranked = [], repeats = [];
     for (const c of all) {
       const key = keys.map(k => c.axes[k]).join('|');
-      if (seen.has(key)) continue; seen.add(key); ranked.push(c);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (recentKeys.has(key)) { repeats.push(c); continue; }
+      ranked.push(c);
       if (ranked.length >= 6) break;
     }
+    /* إن لم يبقَ شيء غير مكرّر أقولها بدل أن أعيد نفس اللعبة صامتًا */
+    const exhausted = !ranked.length;
+    if (exhausted) ranked.push.apply(ranked, repeats.slice(0, 6));
     const best = ranked[0];
     const closest = known.map(k => ({ k, d: this.distance(best.axes, k) })).sort((a, b2) => a.d - b2.d)[0];
-    const closestName = closest ? (ARCHETYPES.find(a => a.axes === closest.k) || {}).name || 'لعبة مولّدة سابقًا' : null;
+    const closestSrc = closest ? (yours.find(y => y.axes === closest.k) || null) : null;
+    const closestName = closest ? (closestSrc ? closestSrc.name : 'لعبة سبق أن بنيتُها لك') : null;
     return {
       axes: best.axes, score: best.s, alternatives: ranked.slice(1, 4),
       novelty: best.s.nov, coherence: best.s.coh, assetFit: best.s.fit,
       closest: closestName, closestDistance: closest ? U.round(closest.d, 2) : null,
       fixed, considered: all.length,
+      baseline: { yours: yours.length, built: prevGames.length },
+      avoidedRepeats: repeats.length, exhausted,
     };
+  },
+
+  /* بناء من موادّك لا يعني تكرار نفس اللعبة: ما ثبّتته شيفرتك يبقى،
+     وما وضعتُه أنا افتراضًا يتغيّر — ولا أعيد تركيبة بنيتُها لك مؤخّرًا. */
+  varyUnpinned(base, pinned, recentAxes, seed) {
+    const keys = Object.keys(AXES);
+    const free = keys.filter(k => !pinned.has(k));
+    const keyOf = (a) => keys.map(k => a[k]).join('|');
+    const recent = new Set((recentAxes || []).map(keyOf));
+    const pm = REG.patternModel();
+    const rnd = U.rng(U.hash32(String(seed) + '|vary'));
+    if (!free.length) return { axes: base, avoided: 0, exhausted: recent.has(keyOf(base)), varied: [] };
+    let best = null, avoided = 0;
+    const tried = new Set();
+    for (let i = 0; i < 900; i++) {
+      const a = Object.assign({}, base);
+      free.forEach(k => { a[k] = U.pick(AXES[k], rnd); });
+      if (!this.feasible(a)) continue;
+      const k = keyOf(a);
+      if (tried.has(k)) continue;
+      tried.add(k);
+      if (recent.has(k)) { avoided++; continue; }
+      const coh = this.coherence(a, pm);
+      const nov = this.novelty(a, recentAxes || []);
+      const sc = coh * 0.55 + nov * 0.45;
+      if (!best || sc > best.sc) best = { axes: a, sc, coh, nov };
+    }
+    if (!best) return { axes: base, avoided, exhausted: true, varied: [] };
+    const varied = free.filter(k => best.axes[k] !== base[k]);
+    return { axes: best.axes, avoided, exhausted: false, varied, score: best.sc };
+  },
+
+  /* محاور مستنتجة من مشاريعك المرفوعة — هذه مرجع الأصالة بدل قوالب مدمجة */
+  async axesFromYourProjects() {
+    const rows = await DB.all('files');
+    const out = [];
+    const byFile = {};
+    rows.forEach(r => {
+      if (!r.text || ['js', 'ts', 'jsx', 'mjs', 'cjs', 'html', 'htm'].indexOf(r.ext) < 0) return;
+      const t = r.text;
+      const ax = {};
+      if (/\bjump\b|\bgravity\b|platform/i.test(t)) { ax.locomotion = 'jump'; ax.topology = 'continuous'; }
+      else if (/\bsteer\b|throttle|vehicle|\bcar\b|drive/i.test(t)) { ax.locomotion = 'drive'; ax.topology = 'continuous'; }
+      else if (/\bgrid\b|\btile\b|cell/i.test(t)) { ax.locomotion = 'step'; ax.topology = 'grid'; }
+      if (!ax.locomotion) return;
+      ax.growth = /\blength\b|tail|segments/i.test(t) ? 'length' : /\bmass\b|\bsize\b\s*\+/i.test(t) ? 'mass' : 'none';
+      ax.resource = /\bfuel\b|\bammo\b|\benergy\b|\bstamina\b/i.test(t) ? 'fuel' : 'none';
+      ax.threat = /\benemy\b|enemies|\bchase\b|\bhazard\b/i.test(t) ? 'enemy' : /\btimer\b|countdown/i.test(t) ? 'timer' : 'environment';
+      ax.objective = /\bcollect\b|pickup|\bcoin\b|\bgem\b/i.test(t) ? 'collect' : /\bsurvive\b/i.test(t) ? 'survive' : 'reach';
+      ax.feedback = 'score'; ax.constraint = 'none'; ax.twist = 'none';
+      const key = U.base(r.name);
+      if (byFile[key]) return;
+      byFile[key] = 1;
+      out.push({ name: key, axes: ax });
+    });
+    return out;
   },
   /* يستخرج قيود التصميم من نص الطلب نفسه — قبل أي تأثير للأصول */
   themeHints(theme) {
@@ -6464,21 +6809,30 @@ const BUILDER = {
     if (brief.fromUser) {
       L('③ تصميم من موادّك أنت (لا من قوالب جاهزة)');
       const u = brief.understanding;
-      const axes = FROMYOU.axesFrom(u, req.theme);
+      const det = FROMYOU.axesDetailed(u, req.theme);
+      /* المقارنة بموادّك وبما بنيتُه لك — لا بقوالب ألعاب مدمجة */
+      const mine = await CREATIVE.axesFromYourProjects();
+      const games = (await DB.all('games')).sort((x, y) => y.created - x.created);
+      const built = games.map(g => ({ name: g.title, axes: g.axes })).filter(x => x.axes);
+      /* ما ثبّتته شيفرتك يبقى؛ الباقي يتنوّع ولا يكرّر آخر ما بنيتُه لك */
+      const vr = CREATIVE.varyUnpinned(det.axes, det.pinned, games.slice(0, 8).map(g => g.axes).filter(Boolean), seed);
+      const axes = vr.axes;
+      const refs = mine.concat(built);
+      const near = refs.map(x => ({ n: x.name, d: CREATIVE.distance(axes, x.axes) })).sort((a2, b2) => a2.d - b2.d)[0];
       design = {
         axes, score: { total: 1, nov: 0, coh: 1, fit: 1 }, alternatives: [],
-        novelty: CREATIVE.novelty(axes, ARCHETYPES.map(a => a.axes)),
+        novelty: CREATIVE.novelty(axes, refs.map(x => x.axes)),
         coherence: CREATIVE.coherence(axes, REG.patternModel()),
         assetFit: 1, fixed: {}, considered: 0,
-        closest: (function () {
-          const c = ARCHETYPES.map(x => ({ n: x.name, d: CREATIVE.distance(axes, x.axes) })).sort((x, y) => x.d - y.d)[0];
-          return c ? c.n : null;
-        })(),
-        closestDistance: (function () {
-          const c = ARCHETYPES.map(x => CREATIVE.distance(axes, x.axes)).sort((x, y) => x - y)[0];
-          return c == null ? null : U.round(c, 2);
-        })(),
+        baseline: { yours: mine.length, built: built.length },
+        avoidedRepeats: vr.avoided, exhausted: vr.exhausted,
+        pinnedAxes: Array.from(det.pinned), variedAxes: vr.varied,
+        closest: near ? near.n : null,
+        closestDistance: near ? U.round(near.d, 2) : null,
       };
+      L('   ثبّتته موادّك: ' + (det.pinned.size ? Array.from(det.pinned).map(k => AXIS_AR[k] || k).join('، ') : 'لا شيء') +
+        ' · نوّعت: ' + (vr.varied.length ? vr.varied.map(k => AXIS_AR[k] || k).join('، ') : 'لا شيء') +
+        (vr.avoided ? ' · تجنّبت ' + vr.avoided + ' تركيبة سبقت' : ''));
       userBuild = u;
       L('   ميكانيكياتك المستخدمة: ' + (u.matched.length ? u.matched.map(m => m.k.title).join('، ') : 'لا شيء مطابق'));
       L('   أصولك: ' + u.models.length + ' مجسم · ' + u.images.length + ' صورة · ' + u.sounds.length + ' صوت');
@@ -6509,16 +6863,20 @@ const BUILDER = {
     let transplant = null;
     if (userBuild) {
       L('④ﺏ فحص شيفرتك: أي دالة يمكن نقلها كما هي؟');
-      const sv = await TRANSPLANT.survey(30);
+      const sv = await TRANSPLANT.survey(40);
       const roles = backend === '3d' || design.axes.locomotion === 'drive'
         ? ['steer', 'throttle', 'brake']
         : design.axes.locomotion === 'jump' ? ['jump', 'move'] : ['move'];
       const picked = TRANSPLANT.pick(sv, roles, 4);
       const em = TRANSPLANT.emit(picked);
-      transplant = { survey: sv, picked, code: em.code, calls: em.calls, roles };
+      const runners = TRANSPLANT.runnersUp(sv, picked, roles);
+      const sources = Array.from(new Set(picked.map(p => p.file)));
+      transplant = { survey: sv, picked, code: em.code, calls: em.calls, roles, runners, sources };
       L('   دوالك المفحوصة: ' + (sv.usable.length + sv.rejected.length) +
-        ' في ' + sv.files + ' ملفًا · قابلة للنقل: ' + sv.usable.length + ' · نُقلت: ' + picked.length);
-      picked.forEach(p => L('   ↳ ' + (p.owner ? p.owner + '.' : '') + p.name + '() من ' + p.file + ':' + p.line + ' — ' + p.role.name));
+        ' في ' + sv.files + ' ملفًا (' + sv.units + ' كتلة شيفرة) · قابلة للنقل: ' + sv.usable.length + ' · نُقلت: ' + picked.length);
+      picked.forEach(p => L('   ↳ ' + (p.owner ? p.owner + '.' : '') + p.name + '() من ' + p.file + ':' + p.line +
+        ' — ' + p.role.name + ' · قوة ' + p.strength));
+      if (sources.length > 1) L('   ✦ مدموجة من ' + sources.length + ' ملفًا مختلفًا: ' + sources.join('، '));
       if (!picked.length) L('   ⚠ لم أنقل شيئًا — السبب مذكور لكل دالة في التقرير');
     }
 
@@ -6613,6 +6971,14 @@ const BUILDER = {
           why: x.missing.length ? 'تحتاج حقولًا لا أملكها: ' + x.missing.slice(0, 3).join('، ')
             : (x.role ? 'دورها «' + x.role.name + '» لا يُستدعى في هذا النوع من الألعاب' : 'لم أتعرّف على دورها داخل اللعبة') })) : [],
       scannedCode: transplant ? (transplant.survey.usable.length + transplant.survey.rejected.length) : 0,
+      codeSources: transplant ? transplant.sources : [],
+      runnersUp: transplant ? transplant.runners : [],
+      strengths: transplant ? transplant.picked.map(x => ({ key: (x.owner ? x.owner + '_' : '') + x.name, s: x.strength })) : [],
+      baseline: design.baseline || null,
+      avoidedRepeats: design.avoidedRepeats || 0,
+      exhausted: !!design.exhausted,
+      pinnedAxes: design.pinnedAxes || [],
+      variedAxes: design.variedAxes || [],
       usableCount: transplant ? transplant.survey.usable.length : 0,
       yourFnRan: (test.yours && test.yours.self && test.yours.self.ok) || [],
       yourFnErr: (test.yours && test.yours.self && test.yours.self.err) || [],
@@ -6794,26 +7160,32 @@ const FROMYOU = {
   },
 
   /* يحوّل ميكانيكياتك إلى محاور تصميم — التصميم يتبع موادّك لا العكس */
-  axesFrom(u, request) {
+  axesFrom(u, request) { return this.axesDetailed(u, request).axes; },
+
+  /* يفرّق بين محور ثبّتته موادّك أو طلبك، ومحور وضعتُه أنا افتراضًا.
+     الأول لا يُمسّ؛ الثاني هو ما أنوّعه كي لا تتكرّر اللعبة نفسها. */
+  axesDetailed(u, request) {
+    const pinned = new Set();
     const has = id => u.matched.some(m => m.k.mech === id) || u.inv.mech.some(k => k.mech === id);
     const q = TOK.normalize(request);
+    const pin = (k) => { pinned.add(k); };
     const ax = {
       topology: 'continuous', locomotion: 'step', growth: 'none', resource: 'none',
       threat: 'enemy', objective: 'collect', constraint: 'none', twist: 'none',
     };
-    if (has('vehicle.control') || /سياره|مركبه|قياده|سباق|car|driv/.test(q)) { ax.locomotion = 'drive'; ax.topology = 'continuous'; }
-    else if (has('movement.platform') || /قفز|منصات|jump|platform/.test(q)) { ax.locomotion = 'jump'; ax.topology = 'continuous'; }
-    else if (has('movement.grid') || /دوده|ثعبان|snake/.test(q)) { ax.topology = 'grid'; ax.locomotion = 'step'; }
-    if (has('growth.length') || /دوده|ثعبان|snake|نمو/.test(q)) { ax.growth = 'length'; ax.threat = 'self'; }
-    if (has('spawn.wave') || /عدو|اعداء|مطارد|enemy/.test(q)) ax.threat = 'enemy';
-    if (has('mission.objective') || /مهمه|مهام|توصيل|mission/.test(q)) ax.objective = 'collect';
-    if (/بقاء|صمود|survive/.test(q)) ax.objective = 'survive';
-    if (/وصول|بوابه|reach|نهايه/.test(q)) ax.objective = 'reach';
-    if (/وقود|fuel|بنزين/.test(q)) ax.resource = 'fuel';
-    if (/ظلام|عتمه|dark/.test(q)) { ax.constraint = 'darkness'; ax.resource = 'light'; }
+    if (has('vehicle.control') || /سياره|مركبه|قياده|سباق|car|driv/.test(q)) { ax.locomotion = 'drive'; ax.topology = 'continuous'; pin('locomotion'); pin('topology'); }
+    else if (has('movement.platform') || /قفز|منصات|jump|platform/.test(q)) { ax.locomotion = 'jump'; ax.topology = 'continuous'; pin('locomotion'); pin('topology'); }
+    else if (has('movement.grid') || /دوده|ثعبان|snake/.test(q)) { ax.topology = 'grid'; ax.locomotion = 'step'; pin('locomotion'); pin('topology'); }
+    if (has('growth.length') || /دوده|ثعبان|snake|نمو/.test(q)) { ax.growth = 'length'; ax.threat = 'self'; pin('growth'); pin('threat'); }
+    if (/عدو|اعداء|مطارد|enemy/.test(q)) { ax.threat = 'enemy'; pin('threat'); }
+    if (/مهمه|مهام|توصيل|mission/.test(q)) { ax.objective = 'collect'; pin('objective'); }
+    if (/بقاء|صمود|survive/.test(q)) { ax.objective = 'survive'; pin('objective'); }
+    if (/وصول|بوابه|reach|نهايه/.test(q)) { ax.objective = 'reach'; pin('objective'); }
+    if (/وقود|fuel|بنزين/.test(q)) { ax.resource = 'fuel'; pin('resource'); }
+    if (/ظلام|عتمه|dark/.test(q)) { ax.constraint = 'darkness'; ax.resource = 'light'; pin('constraint'); pin('resource'); }
     if (ax.topology === 'grid' && ax.locomotion !== 'step') ax.locomotion = 'step';
     if (ax.objective === 'dominate' && ax.growth !== 'territory') ax.objective = 'collect';
-    return ax;
+    return { axes: ax, pinned };
   },
 
   /* معاملاتك أنت تُحقن في اللعبة */
@@ -7228,6 +7600,20 @@ const CHAT = {
       L.push('<li><b>' + (names[k] || k) + ':</b> ' + g.slice(0, 5).map(r => U.esc(U.base(r.name))).join('، ') + (g.length > 5 ? ' +' + (g.length - 5) : '') + '</li>');
     }
     L.push('</ul>');
+    /* ما استخرجته من داخل صفحات HTML — هذا ما كان يضيع قبل الآن */
+    const emb = ok.filter(r => r.embedded && r.embedded.found);
+    if (emb.length) {
+      const rows = [];
+      emb.forEach(r => (r.embedded.added || []).forEach(a => rows.push(
+        '<li><b>' + U.esc(a.name) + '</b> — ' + a.tris + ' مثلثًا · ' + a.verts + ' رأسًا · ' +
+        'من <code>' + U.esc(U.base(r.name)) + (a.line ? ':' + a.line : '') + '</code><br>' +
+        '<span style="font-size:12px;color:var(--ink3)">' + U.esc(a.how) + '</span></li>')));
+      const failed = emb.reduce((n, r) => n + ((r.embedded.failed || []).length), 0);
+      if (rows.length) L.push('<h4>مجسمات كانت مخبّأة داخل صفحاتك</h4>' +
+        '<p style="font-size:12.5px;color:var(--ink3)">مكتوبة كأرقام في الشيفرة لا كملفات — بنيتُ منها GLB حقيقيًا، ' +
+        'فصارت في المكتبة وتدخل اللعبة كأي مجسّم.</p><ul>' + rows.join('') + '</ul>');
+      if (failed) L.push('<p style="font-size:12px;color:var(--warn)">و' + failed + ' مصفوفة بدت مجسّمًا ولم تصلح — تركتُها بدل أن أدّعي.</p>');
+    }
     /* تفاصيل لأبرز ملف من كل نوع */
     const highlight = [];
     ['model', 'audio', 'code', 'image'].forEach(k => { if (groups[k]) highlight.push(groups[k][0]); });
@@ -7768,7 +8154,8 @@ Object.assign(CHAT.handlers, {
     const L = ['<h4>ابتعدت عن المألوف عمدًا</h4>',
       '<p style="font-size:12.5px;color:var(--ink3)">هذه المرة اخترعتُ التركيبة لأنك طلبت شيئًا مختلفًا. ' +
       'لو أردت لعبة من ملفاتك أنت، قل «اصنع لعبة من ملفاتي».</p>',
-      '<p>وزنت الأصالة بـ 48% من دالة الاختيار بدل 30%، وقارنت كل مرشّح بـ ' + (ARCHETYPES.length) + ' نمطًا معروفًا وبكل لعبة سبق أن ولّدتها.</p>'];
+      '<p>وزنت الأصالة بـ 48% من دالة الاختيار بدل 30%، وقارنت كل مرشّح بموادّك أنت وبكل لعبة سبق أن بنيتُها لك — ' +
+      'لم تعد عندي قائمة ألعاب جاهزة أقارن بها.</p>'];
     return { html: L.join('') + this.gameReport(out, logs), actions: this.gameActions(out.game) };
   },
   /* ---------------- تحسين ---------------- */
@@ -8151,6 +8538,18 @@ CHAT.gameReport = function (out, logs) {
   L.push(CHAT.transplantReport(g));
   if (g.assets.length) L.push('<p><b>أصولك المستخدمة فعليًا:</b> ' + U.esc(g.assets.map(a => a.name + ' (' + a.category + ')').join('، ')) + '</p>');
   else if (g.backend === '2d') L.push('<p style="font-size:12.5px;color:var(--ink3)">لم تُستخدم أصول خارجية — الرسم هندسي مولَّد. أرفق GLB لسيارة وصوت محرك وستدخل اللعبة تلقائيًا في المرة القادمة.</p>');
+  if ((g.pinnedAxes || []).length || (g.variedAxes || []).length) {
+    L.push('<p style="font-size:12.5px"><b>ما ثبّتته شيفرتك:</b> ' +
+      U.esc((g.pinnedAxes || []).map(k => AXIS_AR[k] || k).join('، ') || 'لا شيء') +
+      ' · <b>ما نوّعتُه هذه المرة:</b> ' +
+      U.esc((g.variedAxes || []).map(k => AXIS_AR[k] || k).join('، ') || 'لا شيء') + '</p>');
+  }
+  if (g.avoidedRepeats) L.push('<p style="font-size:12.5px;color:var(--ok)">تجنّبتُ ' + g.avoidedRepeats +
+    ' تركيبة كنتُ قد بنيتُها لك من قبل — هذه ليست إعادة لما رأيته.</p>');
+  if (g.exhausted) L.push('<p style="color:var(--warn);font-size:12.5px">استنفدتُ التركيبات الممكنة ضمن قيود طلبك، ' +
+    'فاضطررتُ لإعادة واحدة سبقت. وسّع الطلب أو أعطني مشروعًا جديدًا وسأخرج بتركيبة لم تُبنَ من قبل.</p>');
+  if (g.baseline) L.push('<p style="font-size:12px;color:var(--ink3)">قِستُ الأصالة مقابل <b>' + g.baseline.yours +
+    '</b> من مشاريعك و<b>' + g.baseline.built + '</b> لعبة سبق أن بنيتُها لك — لا توجد عندي قائمة ألعاب جاهزة.</p>');
   if (g.fixes && g.fixes.length) L.push('<p><b>إصلاحات تلقائية:</b> ' + U.esc(g.fixes.map(f => f.why).join('، ')) + '</p>');
   L.push('<p><b>التحكم:</b> ' + U.esc(g.spec.controls) + '</p>');
   L.push('<details class="think"><summary>سجل خط الإنتاج (٨ مراحل)</summary><div class="body mono">' + logs.map(U.esc).join('<br>') + '</div></details>');
@@ -8182,6 +8581,21 @@ CHAT.transplantReport = function (g) {
         '<details class="think"><summary>الشيفرة كما كتبتها أنت</summary><div class="body mono">' +
         U.esc(t.code) + '</div></details></li>';
     }).join('') + '</ul>');
+    if ((g.codeSources || []).length > 1) {
+      L.push('<p style="color:var(--ok)">✦ <b>مدموجة من ' + g.codeSources.length + ' من ألعابك</b>: ' +
+        U.esc(g.codeSources.join(' · ')) + ' — أخذتُ أقوى دالة لكل دور، لا كل شيء من لعبة واحدة.</p>');
+    }
+    if ((g.strengths || []).length) {
+      L.push('<p style="font-size:12px;color:var(--ink3)"><b>كيف قِستُ «الأقوى»:</b> عمليات حسابية ×2 + تفرّعات ×3 + ' +
+        'حقول حالة ×2 + معاملات + طول محدود. النتيجة: ' +
+        U.esc(g.strengths.map(x => x.key + '=' + x.s).join('، ')) + '.</p>');
+    }
+    if ((g.runnersUp || []).length) {
+      L.push('<details class="think"><summary>البدائل التي لم أخترها (' + g.runnersUp.length + ')</summary><div class="body"><ul>' +
+        g.runnersUp.map(r => '<li><code>' + U.esc((r.owner ? r.owner + '.' : '') + r.name) + '()</code> ' +
+          U.esc(r.file + ':' + r.line) + ' — ' + U.esc(r.role) + ' · قوة ' + r.strength + '</li>').join('') +
+        '</ul></div></details>');
+    }
     L.push('<p style="font-size:12.5px;color:var(--ink3)">هذه الدوال موجودة نصًّا في مصدر اللعبة تحت <code>var YOURS</code> — ' +
       'اضغط «اعرض الشيفرة» وابحث عنها. قيَم حقولها مأخوذة من بانيك أنت، لا من افتراضاتي.</p>');
   } else {
@@ -9289,8 +9703,51 @@ const SELFTEST = {
     const tpS2 = { maxSpeed: 32, steerRate: 2.4, speed: 16, heading: 0 };
     tpRun.Car_steer(tpS2, 1, 1);
     ok('معادلة التوجيه كما كتبتها', Math.abs(tpS2.heading - 1.2) < 1e-9, 'heading = ' + tpS2.heading);
-    ok('حالة الدالة مهيّأة بقيَمك', tpRun.__state.Car && tpRun.__state.Car.steerRate === 2.4,
-      JSON.stringify(tpRun.__state.Car || {}).slice(0, 60));
+    const tpStKey = Object.keys(tpRun.__state)[0];
+    ok('حالة الدالة مهيّأة بقيَمك', /^Car#/.test(tpStKey) && tpRun.__state[tpStKey].steerRate === 2.4,
+      tpStKey + ' → ' + JSON.stringify(tpRun.__state[tpStKey] || {}).slice(0, 55));
+    /* 4ج. تعدين ملفات HTML — لعبتك كلها قد تكون صفحة واحدة */
+    const htmlSrc = '<!doctype html>\n<html><head><title>T</title></head><body>\n' +
+      '<script src="ext.js"><\/script>\n' +
+      '<script>\n' +
+      'const TILE = 16;\n' +
+      'var boxVerts = new Float32Array([0,0,0, 1,0,0, 1,1,0, 0,0,0, 1,1,0, 0,1,0,\n' +
+      ' 0,0,1, 1,0,1, 1,1,1, 0,0,1, 1,1,1, 0,1,1]);\n' +
+      'class Kart {\n' +
+      '  constructor(){ this.maxSpeed = 21; this.turn = 1.7; this.speed = 0; this.heading = 0; }\n' +
+      '  steer(axis, dt){ this.heading += axis * this.turn * dt * (this.speed / this.maxSpeed) + TILE * 0; }\n' +
+      '}\n' +
+      '<\/script></body></html>';
+    const hxS = HTMLX.scripts(htmlSrc);
+    ok('يقرأ الشيفرة داخل <script> ويتخطّى الخارجي', hxS.length === 1 && hxS[0].code.indexOf('class Kart') > 0,
+      hxS.length + ' كتلة · تبدأ عند السطر ' + (hxS[0] ? hxS[0].line : '—'));
+    const hxFns = TRANSPLANT.extract(hxS[0].code, 'T.html').map(f => Object.assign(f, { line: f.line + hxS[0].line - 1 }));
+    const hxSteer = hxFns.filter(f => f.name === 'steer')[0];
+    ok('رقم السطر داخل HTML صحيح', hxSteer && htmlSrc.split('\n')[hxSteer.line - 1].indexOf('steer(axis, dt)') >= 0,
+      hxSteer ? 'السطر ' + hxSteer.line : 'لم تُستخرج');
+    const hxM = HTMLX.models(htmlSrc, 'T.html');
+    ok('يجد المجسّم المكتوب كأرقام في صفحتك', hxM.length === 1 && hxM[0].verts === 12,
+      hxM.length + ' مجسم · ' + (hxM[0] ? hxM[0].verts + ' رأسًا' : ''));
+    const hxGLB = HTMLX.toGLB(hxM[0]);
+    const hxStats = GLB.stats(GLB.parse(hxGLB));
+    ok('يتحوّل إلى GLB صالح يقرأه المحلّل', hxStats.triangles === 4 && hxStats.vertices === 12,
+      hxStats.triangles + ' مثلث · ' + hxStats.vertices + ' رأس · ' + U.bytes(hxGLB.byteLength));
+    ok('النواظم تُحسب حين لا يعطيها ملفك', hxStats.hasNormals);
+
+    /* 4د. لا ألعاب مدمجة + لا تكرار */
+    ok('لا توجد ألعاب جاهزة في ذاكرته', ARCHETYPES.length === 0, ARCHETYPES.length + ' قالبًا');
+    const vBase = { topology: 'continuous', locomotion: 'drive', growth: 'none', resource: 'none',
+      threat: 'enemy', objective: 'collect', constraint: 'none', twist: 'none' };
+    const vPin = new Set(['topology', 'locomotion']);
+    const vKey = (a) => Object.keys(AXES).map(k => a[k]).join('|');
+    const vSeen = [], vOut = [];
+    for (let i = 0; i < 5; i++) {
+      const r = CREATIVE.varyUnpinned(vBase, vPin, vSeen.slice(), 1000 + i * 7);
+      vSeen.push(r.axes); vOut.push(vKey(r.axes));
+    }
+    ok('لا يعيد نفس اللعبة حين تطلبها مرارًا', new Set(vOut).size === 5, new Set(vOut).size + ' تركيبة مختلفة من 5');
+    ok('ما ثبّتته شيفرتك لا يُمسّ', vSeen.every(a => a.locomotion === 'drive' && a.topology === 'continuous'));
+
     ok('لا يُنقل ما لا يستطيع استدعاءه', (() => {
       const sv = { usable: [Object.assign({}, byName('updateWheels'), { role: TRANSPLANT.role(byName('updateWheels')), missing: ['wheels'] })] };
       return TRANSPLANT.pick(sv, ['move', 'steer', 'throttle'], 4).length === 0;
@@ -10081,7 +10538,7 @@ async function boot() {
       toast('تراكمت بيانات جديدة — بدأت دورة تطور تلقائية', 'ok', 4200);
     }
   }
-  window.KAD = { U, TOK, VEC, ML, REG, DATA, TRAIN, BENCH, EVO, KG, LIB, INGEST, CODE, GLB, OBJ, ZIP, AUDIO, IMG, PROJ, CONCEPT, CREATIVE, REASON, GEN2D, GEN3D, BUILDER, TESTER, FIXER, JOBS, CHAT, UI, BACKUP, SELFTEST, S, FACTS, STYLE, SNIPPET, SELF, SBX, GLV, KB, DB, ZIPW, AXML, DEX, APK, APPX, WEB, TONE, VARY, SMALLTALK, FROMYOU, LESSONS, TEACH, MIND, SEED_INTENT, DOMAIN_LEX, MECH_DEFS, ARCHETYPES, AXES, CAPS, INTENT_TRIGGERS, triggerScores, INTENT_EMB };
+  window.KAD = { U, TOK, VEC, ML, REG, DATA, TRAIN, BENCH, EVO, KG, LIB, INGEST, CODE, GLB, OBJ, ZIP, AUDIO, IMG, PROJ, CONCEPT, CREATIVE, REASON, GEN2D, GEN3D, BUILDER, TESTER, FIXER, JOBS, CHAT, UI, BACKUP, SELFTEST, S, FACTS, STYLE, SNIPPET, SELF, SBX, GLV, KB, DB, ZIPW, AXML, DEX, APK, APPX, WEB, TONE, VARY, SMALLTALK, FROMYOU, LESSONS, TEACH, MIND, SEED_INTENT, DOMAIN_LEX, MECH_DEFS, ARCHETYPES, GLBW, HTMLX, TRANSPLANT, AXES, CAPS, INTENT_TRIGGERS, triggerScores, INTENT_EMB };
   window.triggerScores = triggerScores;
   console.log('%cKAD-KAD AI GAME LAB', 'color:#7c5cff;font-weight:800;font-size:15px', '— نواة محلية جاهزة. window.KAD متاح للفحص.');
 }
