@@ -627,3 +627,82 @@ body::after{content:'';position:fixed;width:1px;height:1px;left:-10px;top:-10px;
   .pedal.gas.img{width:88px;height:112px}
   .pedal.brake.img{width:88px;height:98px}
 }
+
+/* رابط دعوة الغرفة */
+.link-box{display:flex;gap:8px;margin:10px 0}
+.link-box input{flex:1;background:rgba(255,255,255,.07);border:1px solid var(--line2);
+  border-radius:10px;padding:11px 13px;color:var(--txt);font-size:12.5px;
+  font-family:ui-monospace,monospace;direction:ltr;text-align:left}
+
+/* ======================= أزرار التحكّم — مظهر احترافي =====================
+   لغة واحدة لكل الأزرار تُطابق الدواسات المعدنية: زجاج داكن، حافّة عليا
+   مضيئة، ظلّ سفلي، وأيقونات SVG حادّة بدل الإيموجي. */
+:root{
+  --btn-face: linear-gradient(180deg,rgba(58,66,82,.92),rgba(20,25,35,.94));
+  --btn-face-on: linear-gradient(180deg,rgba(84,96,118,.96),rgba(32,39,52,.96));
+  --btn-edge: rgba(255,255,255,.16);
+  --btn-sh: 0 3px 0 rgba(0,0,0,.45), 0 8px 18px rgba(0,0,0,.42);
+}
+
+/* أيقونات موحّدة */
+.tbtn svg, .round svg, .pedal svg{
+  fill:none; stroke:currentColor; stroke-width:1.9;
+  stroke-linecap:round; stroke-linejoin:round; display:block}
+
+/* أزرار الشريط العلوي */
+.tbtn{background:var(--btn-face);border:1px solid var(--btn-edge);
+  border-radius:14px;box-shadow:var(--btn-sh);color:#dfe6f2;
+  position:relative;overflow:hidden;transition:transform .07s,box-shadow .07s,background .12s}
+.tbtn::before{content:'';position:absolute;inset:1px 1px auto;height:42%;
+  border-radius:13px 13px 8px 8px;
+  background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,0));
+  pointer-events:none}
+.tbtn i{display:grid;place-items:center}
+.tbtn i svg{width:19px;height:19px}
+.tbtn span{color:#aab6c8}
+.tbtn:active,.tbtn.pressed{transform:translateY(2px);
+  box-shadow:0 1px 0 rgba(0,0,0,.45), 0 3px 8px rgba(0,0,0,.4);
+  background:var(--btn-face-on)}
+
+/* الأزرار الدائرية الجانبية */
+.round{background:var(--btn-face);border:1px solid var(--btn-edge);
+  box-shadow:var(--btn-sh);color:#e2e9f4;position:relative;overflow:hidden;
+  transition:transform .07s,box-shadow .07s,background .12s}
+.round::before{content:'';position:absolute;inset:1px 1px auto;height:46%;border-radius:999px;
+  background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0));pointer-events:none}
+.round svg{width:20px;height:20px}
+.round:active,.round.pressed{transform:translateY(2px) scale(.97);
+  box-shadow:0 1px 0 rgba(0,0,0,.45);background:var(--btn-face-on);color:#fff}
+body.on-bike .round.bike-only.active{background:linear-gradient(180deg,rgba(255,210,63,.42),rgba(120,88,12,.75));
+  border-color:rgba(255,210,63,.8);color:#fff8e2}
+
+/* لوحتا التوجيه */
+.pad{background:var(--btn-face);border:1px solid var(--btn-edge);
+  box-shadow:var(--btn-sh);position:relative;overflow:hidden;
+  transition:transform .07s,box-shadow .07s,background .12s}
+.pad::before{content:'';position:absolute;inset:1px 1px auto;height:40%;border-radius:16px 16px 8px 8px;
+  background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,0));pointer-events:none}
+.pad svg{stroke:#cfe0f5;stroke-width:2.6}
+.pad:active,.pad.pressed{transform:translateY(2px);background:var(--btn-face-on);
+  box-shadow:0 1px 0 rgba(0,0,0,.45)}
+.pad:active svg,.pad.pressed svg{stroke:#fff}
+
+/* النيترو وفرملة اليد بنفس اللغة مع لمسة لونية */
+.pedal.nitro,.pedal.hand{background:var(--btn-face);border:1px solid var(--btn-edge);
+  box-shadow:var(--btn-sh);position:relative;overflow:hidden;gap:1px;
+  transition:transform .07s,box-shadow .07s,background .12s}
+.pedal.nitro::before,.pedal.hand::before{content:'';position:absolute;inset:1px 1px auto;height:44%;
+  border-radius:16px 16px 8px 8px;
+  background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,0));pointer-events:none}
+.pedal.nitro svg{width:21px;height:21px;color:var(--cyan)}
+.pedal.hand svg{width:21px;height:21px;color:#ffb4a8}
+.pedal.nitro span,.pedal.hand span{font-size:10.5px;font-weight:800;color:#9fb0c6}
+.pedal.nitro:active,.pedal.nitro.pressed{background:linear-gradient(180deg,rgba(56,189,248,.45),rgba(12,40,60,.92));
+  border-color:rgba(56,189,248,.75);transform:translateY(2px)}
+.pedal.hand:active,.pedal.hand.pressed{background:linear-gradient(180deg,rgba(255,92,92,.42),rgba(60,14,14,.92));
+  border-color:rgba(255,120,100,.7);transform:translateY(2px)}
+
+/* شريط الراديو بنفس اللغة */
+.rbtn{background:var(--btn-face);border:1px solid var(--btn-edge);color:#dfe6f2;
+  box-shadow:0 2px 0 rgba(0,0,0,.4)}
+.rbtn:active{transform:translateY(1px);background:var(--btn-face-on)}

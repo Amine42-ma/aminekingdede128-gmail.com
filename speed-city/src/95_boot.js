@@ -151,6 +151,17 @@
       if (dom.msLevel) dom.msLevel.textContent = 'المستوى ' + sv.level;
       if (dom.btnPlayLabel) dom.btnPlayLabel.textContent = sv.xp > 0 ? 'متابعة اللعب' : 'ابدأ اللعب';
 
+      /* جاء اللاعب من رابط غرفة؟ اتّصل بخادم الصفحة وادخلها مباشرةً */
+      if (SC.net && SC.net.linkRoom && SC.net.linkRoom()) {
+        const saved = SC.util.store.get('speedcity.net', {});
+        const nm = (dom.netName && dom.netName.value) || saved.name ||
+                   ('سائق ' + Math.floor(Math.random() * 900 + 100));
+        SC.net.joinFromLink(nm).then((ok) => {
+          if (ok) SC.hud.toast('دخلت غرفة الدعوة — افتح «اللعب الجماعي» لرؤية من معك', 'ok', 4500);
+          else SC.hud.toast('تعذّر الاتّصال بخادم الغرفة', 'bad', 4000);
+        });
+      }
+
       dom.loading.classList.remove('show');
       dom.screenMenu.classList.add('show');
       SC.game.snapCamera();

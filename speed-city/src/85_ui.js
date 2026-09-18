@@ -501,6 +501,27 @@ SC.ui = (function () {
     buildRooms();
   }
 
+  /* إن رفض المتصفّح النسخ التلقائي نعرض الرابط ليُنسخ يدوياً */
+  function showLink(link) {
+    dom.resultTitle.textContent = 'رابط الغرفة';
+    dom.resultTitle.className = 'res-title';
+    dom.resultSub.textContent = 'انسخ الرابط وأرسله لأصدقائك — من يفتحه يدخل غرفتك مباشرةً.';
+    dom.resultRows.innerHTML = '';
+    const box = U.el('div', 'link-box');
+    const inp = U.el('input');
+    inp.type = 'text'; inp.value = link; inp.readOnly = true;
+    box.appendChild(inp);
+    dom.resultRows.appendChild(box);
+    const wrap = U.el('div', 'pause-btns');
+    const ok = U.el('button', 'btn primary xl', 'تمّ');
+    SC.input.bindTap(ok, () => { hideAll(); open('online'); });
+    wrap.appendChild(ok);
+    dom.resultRows.appendChild(wrap);
+    dom.screenResult.classList.add('show');
+    current = 'result';
+    setTimeout(() => { try { inp.select(); } catch (e) {} }, 60);
+  }
+
   function buildRooms() {
     if (!dom.roomList) return;
     const st = SC.net.state;
@@ -509,7 +530,8 @@ SC.ui = (function () {
     /* الحصّة: كم غرفة لك من الحدّ */
     if (dom.roomQuota) {
       const full = st.roomsOwned >= st.roomLimit;
-      dom.roomQuota.textContent = 'غرفك ' + st.roomsOwned + ' / ' + st.roomLimit;
+      dom.roomQuota.textContent = 'غرفك ' + st.roomsOwned + ' / ' + st.roomLimit +
+        (SC.net.connected ? ' · على الخادم ' + (st.serverTotal || 1) : '');
       dom.roomQuota.className = 'quota' + (full ? ' full' : '');
       dom.roomQuota.title = full ? 'احذف غرفة قديمة لتُنشئ جديدة' : '';
     }
@@ -527,7 +549,17 @@ SC.ui = (function () {
         if (here && !here.fixed) {
           const c = U.el('span', 'code', here.code);
           dom.roomHere.appendChild(c);
-          const leave = U.el('button', 'btn tiny ghost', 'خروج إلى المدينة الحرّة');
+          /* رابط الغرفة: يفتحه صديقك في متصفّحه فيدخل إليها مباشرةً */
+          const copy = U.el('button', 'btn tiny', '🔗 نسخ رابط الدعوة');
+          SC.input.bindTap(copy, () => {
+            const link = SC.net.roomLink(here.code);
+            const done = () => SC.hud.toast('نُسخ الرابط — أرسله لأصدقائك', 'ok', 3000);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(link).then(done, () => showLink(link));
+            } else showLink(link);
+          });
+          dom.roomHere.appendChild(copy);
+          const leave = U.el('button', 'btn tiny ghost', 'خروج');
           SC.input.bindTap(leave, () => SC.net.leaveRoom());
           dom.roomHere.appendChild(leave);
         }

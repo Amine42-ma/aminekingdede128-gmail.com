@@ -837,19 +837,32 @@ SC.character = (function () {
     const vars = walkerVariants();
     const v = vars[variantIndex % vars.length];
     const mat = walkerMaterial();
+    const hipY = 0.92;
+
+    /* أخفض نقطة في الحذاء بالنسبة إلى أصل المجسّم: بدون إزاحتها كان
+       المارّة يقفون معلّقين فوق الرصيف (٩ سم) بدل أن تلمس أقدامهم الأرض،
+       ويزداد الخطأ مع اختلاف الأطوال لأن المقياس يضاعفه. */
+    if (v.footOff == null) {
+      v.legL.computeBoundingBox();
+      v.footOff = hipY + v.legL.boundingBox.min.y;
+    }
+
     const root = new THREE.Group();
     root.scale.setScalar(v.tall || 1);           // فروق الطول بين الناس
+    const rig = new THREE.Group();
+    rig.position.y = -v.footOff;                 // تُلامس الأقدام y = 0 تماماً
+    root.add(rig);
+
     const upper = new THREE.Mesh(v.upper, mat);
     upper.castShadow = true;
-    root.add(upper);
-    const hipY = 0.92;
+    rig.add(upper);
     const legX = v.legX || 0.085;
     const legL = new THREE.Group(); legL.position.set(legX, hipY, 0);
     const legR = new THREE.Group(); legR.position.set(-legX, hipY, 0);
     const mL = new THREE.Mesh(v.legL, mat), mR = new THREE.Mesh(v.legR, mat);
     mL.castShadow = mR.castShadow = true;
     legL.add(mL); legR.add(mR);
-    root.add(legL); root.add(legR);
+    rig.add(legL); rig.add(legR);
 
     const shY = 1.352;
     const armX = v.armX || 0.166;
@@ -858,9 +871,9 @@ SC.character = (function () {
     const aL = new THREE.Mesh(v.armL, mat), aR = new THREE.Mesh(v.armR, mat);
     aL.castShadow = aR.castShadow = true;
     armL.add(aL); armR.add(aR);
-    root.add(armL); root.add(armR);
+    rig.add(armL); rig.add(armR);
 
-    return { root, upper, legL, legR, armL, armR, phase: Math.random() * 6.283 };
+    return { root, rig, upper, legL, legR, armL, armR, phase: Math.random() * 6.283 };
   }
 
   /* ------------------------ مقود قابل للدوران ------------------------- */

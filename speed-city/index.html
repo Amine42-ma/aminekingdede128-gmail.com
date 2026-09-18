@@ -638,6 +638,85 @@ body::after{content:'';position:fixed;width:1px;height:1px;left:-10px;top:-10px;
   .pedal.brake.img{width:88px;height:98px}
 }
 
+/* رابط دعوة الغرفة */
+.link-box{display:flex;gap:8px;margin:10px 0}
+.link-box input{flex:1;background:rgba(255,255,255,.07);border:1px solid var(--line2);
+  border-radius:10px;padding:11px 13px;color:var(--txt);font-size:12.5px;
+  font-family:ui-monospace,monospace;direction:ltr;text-align:left}
+
+/* ======================= أزرار التحكّم — مظهر احترافي =====================
+   لغة واحدة لكل الأزرار تُطابق الدواسات المعدنية: زجاج داكن، حافّة عليا
+   مضيئة، ظلّ سفلي، وأيقونات SVG حادّة بدل الإيموجي. */
+:root{
+  --btn-face: linear-gradient(180deg,rgba(58,66,82,.92),rgba(20,25,35,.94));
+  --btn-face-on: linear-gradient(180deg,rgba(84,96,118,.96),rgba(32,39,52,.96));
+  --btn-edge: rgba(255,255,255,.16);
+  --btn-sh: 0 3px 0 rgba(0,0,0,.45), 0 8px 18px rgba(0,0,0,.42);
+}
+
+/* أيقونات موحّدة */
+.tbtn svg, .round svg, .pedal svg{
+  fill:none; stroke:currentColor; stroke-width:1.9;
+  stroke-linecap:round; stroke-linejoin:round; display:block}
+
+/* أزرار الشريط العلوي */
+.tbtn{background:var(--btn-face);border:1px solid var(--btn-edge);
+  border-radius:14px;box-shadow:var(--btn-sh);color:#dfe6f2;
+  position:relative;overflow:hidden;transition:transform .07s,box-shadow .07s,background .12s}
+.tbtn::before{content:'';position:absolute;inset:1px 1px auto;height:42%;
+  border-radius:13px 13px 8px 8px;
+  background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,0));
+  pointer-events:none}
+.tbtn i{display:grid;place-items:center}
+.tbtn i svg{width:19px;height:19px}
+.tbtn span{color:#aab6c8}
+.tbtn:active,.tbtn.pressed{transform:translateY(2px);
+  box-shadow:0 1px 0 rgba(0,0,0,.45), 0 3px 8px rgba(0,0,0,.4);
+  background:var(--btn-face-on)}
+
+/* الأزرار الدائرية الجانبية */
+.round{background:var(--btn-face);border:1px solid var(--btn-edge);
+  box-shadow:var(--btn-sh);color:#e2e9f4;position:relative;overflow:hidden;
+  transition:transform .07s,box-shadow .07s,background .12s}
+.round::before{content:'';position:absolute;inset:1px 1px auto;height:46%;border-radius:999px;
+  background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0));pointer-events:none}
+.round svg{width:20px;height:20px}
+.round:active,.round.pressed{transform:translateY(2px) scale(.97);
+  box-shadow:0 1px 0 rgba(0,0,0,.45);background:var(--btn-face-on);color:#fff}
+body.on-bike .round.bike-only.active{background:linear-gradient(180deg,rgba(255,210,63,.42),rgba(120,88,12,.75));
+  border-color:rgba(255,210,63,.8);color:#fff8e2}
+
+/* لوحتا التوجيه */
+.pad{background:var(--btn-face);border:1px solid var(--btn-edge);
+  box-shadow:var(--btn-sh);position:relative;overflow:hidden;
+  transition:transform .07s,box-shadow .07s,background .12s}
+.pad::before{content:'';position:absolute;inset:1px 1px auto;height:40%;border-radius:16px 16px 8px 8px;
+  background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,0));pointer-events:none}
+.pad svg{stroke:#cfe0f5;stroke-width:2.6}
+.pad:active,.pad.pressed{transform:translateY(2px);background:var(--btn-face-on);
+  box-shadow:0 1px 0 rgba(0,0,0,.45)}
+.pad:active svg,.pad.pressed svg{stroke:#fff}
+
+/* النيترو وفرملة اليد بنفس اللغة مع لمسة لونية */
+.pedal.nitro,.pedal.hand{background:var(--btn-face);border:1px solid var(--btn-edge);
+  box-shadow:var(--btn-sh);position:relative;overflow:hidden;gap:1px;
+  transition:transform .07s,box-shadow .07s,background .12s}
+.pedal.nitro::before,.pedal.hand::before{content:'';position:absolute;inset:1px 1px auto;height:44%;
+  border-radius:16px 16px 8px 8px;
+  background:linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,0));pointer-events:none}
+.pedal.nitro svg{width:21px;height:21px;color:var(--cyan)}
+.pedal.hand svg{width:21px;height:21px;color:#ffb4a8}
+.pedal.nitro span,.pedal.hand span{font-size:10.5px;font-weight:800;color:#9fb0c6}
+.pedal.nitro:active,.pedal.nitro.pressed{background:linear-gradient(180deg,rgba(56,189,248,.45),rgba(12,40,60,.92));
+  border-color:rgba(56,189,248,.75);transform:translateY(2px)}
+.pedal.hand:active,.pedal.hand.pressed{background:linear-gradient(180deg,rgba(255,92,92,.42),rgba(60,14,14,.92));
+  border-color:rgba(255,120,100,.7);transform:translateY(2px)}
+
+/* شريط الراديو بنفس اللغة */
+.rbtn{background:var(--btn-face);border:1px solid var(--btn-edge);color:#dfe6f2;
+  box-shadow:0 2px 0 rgba(0,0,0,.4)}
+.rbtn:active{transform:translateY(1px);background:var(--btn-face-on)}
+
 </style>
 </head>
 <body data-steer="buttons">
@@ -667,11 +746,11 @@ body::after{content:'';position:fixed;width:1px;height:1px;left:-10px;top:-10px;
       <div class="chip wp" id="wpChip"></div>
     </div>
     <div class="topbtns">
-      <button class="tbtn" id="btnMissions"><i>📋</i><span>المهام</span></button>
-      <button class="tbtn" id="btnShop"><i>🏬</i><span>المتجر</span></button>
-      <button class="tbtn" id="btnMap"><i>🗺️</i><span>الخريطة</span></button>
-      <button class="tbtn" id="btnSettings"><i>⚙️</i><span>الإعدادات</span></button>
-      <button class="tbtn" id="btnPause"><i>⏸</i><span>إيقاف</span></button>
+      <button class="tbtn" id="btnMissions"><i><svg viewBox="0 0 24 24"><path d="M8 4h8a2 2 0 0 1 2 2v13a1 1 0 0 1-1.5.9L12 17.5 7.5 19.9A1 1 0 0 1 6 19V6a2 2 0 0 1 2-2Z"/><path d="M9.5 9.5h5M9.5 12.5h3"/></svg></i><span>المهام</span></button>
+      <button class="tbtn" id="btnShop"><i><svg viewBox="0 0 24 24"><path d="M4 9h16l-1 10a2 2 0 0 1-2 1.8H7A2 2 0 0 1 5 19Z"/><path d="M8.5 9V7a3.5 3.5 0 0 1 7 0v2"/></svg></i><span>المتجر</span></button>
+      <button class="tbtn" id="btnMap"><i><svg viewBox="0 0 24 24"><path d="m3 6.5 6-2.2 6 2.2 6-2.2v13.2l-6 2.2-6-2.2-6 2.2Z"/><path d="M9 4.3v15.4M15 6.5v15.4"/></svg></i><span>الخريطة</span></button>
+      <button class="tbtn" id="btnSettings"><i><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.4M12 18.6V21M21 12h-2.4M5.4 12H3m13.4-6.4-1.7 1.7M9.3 14.7l-1.7 1.7m0-10.8 1.7 1.7m5.4 5.4 1.7 1.7"/></svg></i><span>الإعدادات</span></button>
+      <button class="tbtn" id="btnPause"><i><svg viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg></i><span>إيقاف</span></button>
     </div>
   </div>
 
@@ -723,16 +802,15 @@ body::after{content:'';position:fixed;width:1px;height:1px;left:-10px;top:-10px;
   <!-- الدواسات والأزرار (يمين) -->
   <div class="ctl ctl-right">
     <div class="side-btns">
-      <button class="round" id="btnCam" title="الكاميرا">🎥</button>
-      <button class="round" id="btnHorn" title="المنبّه">📢</button>
-      <button class="round" id="btnLight" title="الأضواء">💡</button>
-      <button class="round" id="btnFlip" title="إعادة للطريق">🔄</button>
-      <button class="round" id="btnBack" title="النظر خلفاً">👁</button>
-      <button class="round bike-only" id="btnWheelie" title="وقوف على عجلة">🏍</button>
+      <button class="round" id="btnCam" title="الكاميرا"><svg viewBox="0 0 24 24"><path d="M3 7.5h11a1.5 1.5 0 0 1 1.5 1.5v6A1.5 1.5 0 0 1 14 16.5H3Z"/><path d="m15.5 12 5-2.8v5.6Z"/></svg></button>
+      <button class="round" id="btnHorn" title="المنبّه"><svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L13 5.5v13L7.5 14.5H4Z"/><path d="M16.5 9.2a4 4 0 0 1 0 5.6"/></svg></button>
+      <button class="round" id="btnFlip" title="إعادة للطريق"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4.5V10h-5.5"/></svg></button>
+      <button class="round" id="btnBack" title="النظر خلفاً"><svg viewBox="0 0 24 24"><path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.6"/></svg></button>
+      <button class="round bike-only" id="btnWheelie" title="وقوف على عجلة"><svg viewBox="0 0 24 24"><circle cx="6" cy="17" r="3.4"/><circle cx="19" cy="12" r="2.6"/><path d="M6 17 10 9h4l3 3"/><path d="M10.5 9h4.5"/></svg></button>
     </div>
     <div class="pedals">
-      <button class="pedal nitro" id="btnBoost"><span>نيترو</span></button>
-      <button class="pedal hand" id="btnHand"><span>يد</span></button>
+      <button class="pedal nitro" id="btnBoost"><svg viewBox="0 0 24 24"><path d="M13 2.5 5.5 13.5H11l-1 8 7.5-11H12Z"/></svg><span>نيترو</span></button>
+      <button class="pedal hand" id="btnHand"><svg viewBox="0 0 24 24"><path d="M7 20V8.5a1.8 1.8 0 0 1 3.6 0"/><path d="M10.6 12V6a1.8 1.8 0 0 1 3.6 0v6"/><path d="M14.2 12V8a1.8 1.8 0 0 1 3.6 0v7a5.5 5.5 0 0 1-5.5 5.5H10"/></svg><span>يد</span></button>
       <button class="pedal brake img" id="btnBrake" aria-label="الفرامل"></button>
       <button class="pedal gas img" id="btnGas" aria-label="الغاز"></button>
     </div>
@@ -8739,19 +8817,32 @@ SC.character = (function () {
     const vars = walkerVariants();
     const v = vars[variantIndex % vars.length];
     const mat = walkerMaterial();
+    const hipY = 0.92;
+
+    /* أخفض نقطة في الحذاء بالنسبة إلى أصل المجسّم: بدون إزاحتها كان
+       المارّة يقفون معلّقين فوق الرصيف (٩ سم) بدل أن تلمس أقدامهم الأرض،
+       ويزداد الخطأ مع اختلاف الأطوال لأن المقياس يضاعفه. */
+    if (v.footOff == null) {
+      v.legL.computeBoundingBox();
+      v.footOff = hipY + v.legL.boundingBox.min.y;
+    }
+
     const root = new THREE.Group();
     root.scale.setScalar(v.tall || 1);           // فروق الطول بين الناس
+    const rig = new THREE.Group();
+    rig.position.y = -v.footOff;                 // تُلامس الأقدام y = 0 تماماً
+    root.add(rig);
+
     const upper = new THREE.Mesh(v.upper, mat);
     upper.castShadow = true;
-    root.add(upper);
-    const hipY = 0.92;
+    rig.add(upper);
     const legX = v.legX || 0.085;
     const legL = new THREE.Group(); legL.position.set(legX, hipY, 0);
     const legR = new THREE.Group(); legR.position.set(-legX, hipY, 0);
     const mL = new THREE.Mesh(v.legL, mat), mR = new THREE.Mesh(v.legR, mat);
     mL.castShadow = mR.castShadow = true;
     legL.add(mL); legR.add(mR);
-    root.add(legL); root.add(legR);
+    rig.add(legL); rig.add(legR);
 
     const shY = 1.352;
     const armX = v.armX || 0.166;
@@ -8760,9 +8851,9 @@ SC.character = (function () {
     const aL = new THREE.Mesh(v.armL, mat), aR = new THREE.Mesh(v.armR, mat);
     aL.castShadow = aR.castShadow = true;
     armL.add(aL); armR.add(aR);
-    root.add(armL); root.add(armR);
+    rig.add(armL); rig.add(armR);
 
-    return { root, upper, legL, legR, armL, armR, phase: Math.random() * 6.283 };
+    return { root, rig, upper, legL, legR, armL, armR, phase: Math.random() * 6.283 };
   }
 
   /* ------------------------ مقود قابل للدوران ------------------------- */
@@ -13171,6 +13262,27 @@ SC.ui = (function () {
     buildRooms();
   }
 
+  /* إن رفض المتصفّح النسخ التلقائي نعرض الرابط ليُنسخ يدوياً */
+  function showLink(link) {
+    dom.resultTitle.textContent = 'رابط الغرفة';
+    dom.resultTitle.className = 'res-title';
+    dom.resultSub.textContent = 'انسخ الرابط وأرسله لأصدقائك — من يفتحه يدخل غرفتك مباشرةً.';
+    dom.resultRows.innerHTML = '';
+    const box = U.el('div', 'link-box');
+    const inp = U.el('input');
+    inp.type = 'text'; inp.value = link; inp.readOnly = true;
+    box.appendChild(inp);
+    dom.resultRows.appendChild(box);
+    const wrap = U.el('div', 'pause-btns');
+    const ok = U.el('button', 'btn primary xl', 'تمّ');
+    SC.input.bindTap(ok, () => { hideAll(); open('online'); });
+    wrap.appendChild(ok);
+    dom.resultRows.appendChild(wrap);
+    dom.screenResult.classList.add('show');
+    current = 'result';
+    setTimeout(() => { try { inp.select(); } catch (e) {} }, 60);
+  }
+
   function buildRooms() {
     if (!dom.roomList) return;
     const st = SC.net.state;
@@ -13179,7 +13291,8 @@ SC.ui = (function () {
     /* الحصّة: كم غرفة لك من الحدّ */
     if (dom.roomQuota) {
       const full = st.roomsOwned >= st.roomLimit;
-      dom.roomQuota.textContent = 'غرفك ' + st.roomsOwned + ' / ' + st.roomLimit;
+      dom.roomQuota.textContent = 'غرفك ' + st.roomsOwned + ' / ' + st.roomLimit +
+        (SC.net.connected ? ' · على الخادم ' + (st.serverTotal || 1) : '');
       dom.roomQuota.className = 'quota' + (full ? ' full' : '');
       dom.roomQuota.title = full ? 'احذف غرفة قديمة لتُنشئ جديدة' : '';
     }
@@ -13197,7 +13310,17 @@ SC.ui = (function () {
         if (here && !here.fixed) {
           const c = U.el('span', 'code', here.code);
           dom.roomHere.appendChild(c);
-          const leave = U.el('button', 'btn tiny ghost', 'خروج إلى المدينة الحرّة');
+          /* رابط الغرفة: يفتحه صديقك في متصفّحه فيدخل إليها مباشرةً */
+          const copy = U.el('button', 'btn tiny', '🔗 نسخ رابط الدعوة');
+          SC.input.bindTap(copy, () => {
+            const link = SC.net.roomLink(here.code);
+            const done = () => SC.hud.toast('نُسخ الرابط — أرسله لأصدقائك', 'ok', 3000);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(link).then(done, () => showLink(link));
+            } else showLink(link);
+          });
+          dom.roomHere.appendChild(copy);
+          const leave = U.el('button', 'btn tiny ghost', 'خروج');
           SC.input.bindTap(leave, () => SC.net.leaveRoom());
           dom.roomHere.appendChild(leave);
         }
@@ -15614,7 +15737,7 @@ SC.net = (function () {
     ws: null, id: 0, name: '', url: '', connected: false, connecting: false,
     players: new Map(),          // id -> { id, name, car, x, z, y, yaw, v, veh, tx, tz, tyaw, last }
     mic: false, micWanted: false, voices: new Map(), stream: null,
-    rooms: [], room: null, roomLimit: 3, roomsOwned: 0,
+    rooms: [], room: null, roomLimit: 3, roomsOwned: 0, serverTotal: 0, pendingRoom: null,
     lastSend: 0, ping: 0, onEvent: null, race: null
   };
 
@@ -15755,6 +15878,12 @@ SC.net = (function () {
         state.rooms = m.list || [];
         state.roomLimit = m.limit == null ? state.roomLimit : m.limit;
         state.roomsOwned = m.mine || 0;
+        state.serverTotal = m.total || 0;
+        /* قدِمنا من رابط فيه رمز غرفة: ادخلها بمجرّد معرفة القائمة */
+        if (state.pendingRoom) {
+          const code = state.pendingRoom; state.pendingRoom = null;
+          joinRoom(code);
+        }
         emit('rooms', m);
         break;
       case 'room.joined':
@@ -15931,7 +16060,45 @@ SC.net = (function () {
   }
 
   /* ------------------------------ الدعوات ------------------------------ */
-  /* ------------------------------ الغرف ------------------------------ */
+  /* ------------------------------ الغرف ------------------------------ *
+     الغرفة يُدخل إليها برابط متصفّح عادي: الخادم هو من يخدم اللعبة، فرابط
+     الغرفة هو عنوان الصفحة نفسه + رمزها. من يفتحه يتّصل ويدخل مباشرةً. */
+  function roomLink(code) {
+    try {
+      const u = new URL(location.href);
+      u.hash = '';
+      u.search = '?room=' + encodeURIComponent(code);
+      return u.toString();
+    } catch (e) { return String(code); }
+  }
+
+  /* عنوان الخادم المستنتج من الصفحة نفسها */
+  function serverURL() {
+    try {
+      return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
+    } catch (e) { return ''; }
+  }
+
+  /* رمز الغرفة إن جاء اللاعب من رابط دعوة */
+  function linkRoom() {
+    try {
+      const q = new URLSearchParams(location.search);
+      const c = (q.get('room') || '').trim().toUpperCase();
+      return /^[A-Z0-9]{3,8}$/.test(c) ? c : null;
+    } catch (e) { return null; }
+  }
+
+  /* اتّصل بخادم الصفحة وادخل الغرفة المطلوبة (يُستدعى عند الإقلاع) */
+  function joinFromLink(name) {
+    const code = linkRoom();
+    if (!code) return Promise.resolve(false);
+    state.pendingRoom = code;
+    return connect(serverURL(), name).then(() => true).catch(() => {
+      state.pendingRoom = null;
+      return false;
+    });
+  }
+
   const refreshRooms = () => send({ t: 'rooms' });
   const createRoom = (name) => send({ t: 'room.create', name: name || '' });
   const deleteRoom = (code) => send({ t: 'room.delete', code });
@@ -15947,6 +16114,7 @@ SC.net = (function () {
   return { state, connect, disconnect, update, send, invite, acceptInvite, decline, chat,
            startMic, stopMic, micReady, playerList, myKey,
            refreshRooms, createRoom, deleteRoom, joinRoom, leaveRoom,
+           roomLink, serverURL, linkRoom, joinFromLink,
            get connected() { return state.connected; }, get room() { return state.room; },
            get id() { return state.id; }, set onEvent(f) { state.onEvent = f; } };
 })();
@@ -16121,6 +16289,17 @@ window.SC_MODEL_DATA = {
       if (dom.msCar) dom.msCar.textContent = (defs[sv.current] || {}).name || '—';
       if (dom.msLevel) dom.msLevel.textContent = 'المستوى ' + sv.level;
       if (dom.btnPlayLabel) dom.btnPlayLabel.textContent = sv.xp > 0 ? 'متابعة اللعب' : 'ابدأ اللعب';
+
+      /* جاء اللاعب من رابط غرفة؟ اتّصل بخادم الصفحة وادخلها مباشرةً */
+      if (SC.net && SC.net.linkRoom && SC.net.linkRoom()) {
+        const saved = SC.util.store.get('speedcity.net', {});
+        const nm = (dom.netName && dom.netName.value) || saved.name ||
+                   ('سائق ' + Math.floor(Math.random() * 900 + 100));
+        SC.net.joinFromLink(nm).then((ok) => {
+          if (ok) SC.hud.toast('دخلت غرفة الدعوة — افتح «اللعب الجماعي» لرؤية من معك', 'ok', 4500);
+          else SC.hud.toast('تعذّر الاتّصال بخادم الغرفة', 'bad', 4000);
+        });
+      }
 
       dom.loading.classList.remove('show');
       dom.screenMenu.classList.add('show');

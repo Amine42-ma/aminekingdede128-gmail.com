@@ -26,7 +26,7 @@ SC.net = (function () {
     ws: null, id: 0, name: '', url: '', connected: false, connecting: false,
     players: new Map(),          // id -> { id, name, car, x, z, y, yaw, v, veh, tx, tz, tyaw, last }
     mic: false, micWanted: false, voices: new Map(), stream: null,
-    rooms: [], room: null, roomLimit: 3, roomsOwned: 0,
+    rooms: [], room: null, roomLimit: 3, roomsOwned: 0, serverTotal: 0, pendingRoom: null,
     lastSend: 0, ping: 0, onEvent: null, race: null
   };
 
@@ -167,6 +167,12 @@ SC.net = (function () {
         state.rooms = m.list || [];
         state.roomLimit = m.limit == null ? state.roomLimit : m.limit;
         state.roomsOwned = m.mine || 0;
+        state.serverTotal = m.total || 0;
+        /* قدِمنا من رابط فيه رمز غرفة: ادخلها بمجرّد معرفة القائمة */
+        if (state.pendingRoom) {
+          const code = state.pendingRoom; state.pendingRoom = null;
+          joinRoom(code);
+        }
         emit('rooms', m);
         break;
       case 'room.joined':
@@ -343,7 +349,45 @@ SC.net = (function () {
   }
 
   /* ------------------------------ الدعوات ------------------------------ */
-  /* ------------------------------ الغرف ------------------------------ */
+  /* ------------------------------ الغرف ------------------------------ *
+     الغرفة يُدخل إليها برابط متصفّح عادي: الخادم هو من يخدم اللعبة، فرابط
+     الغرفة هو عنوان الصفحة نفسه + رمزها. من يفتحه يتّصل ويدخل مباشرةً. */
+  function roomLink(code) {
+    try {
+      const u = new URL(location.href);
+      u.hash = '';
+      u.search = '?room=' + encodeURIComponent(code);
+      return u.toString();
+    } catch (e) { return String(code); }
+  }
+
+  /* عنوان الخادم المستنتج من الصفحة نفسها */
+  function serverURL() {
+    try {
+      return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
+    } catch (e) { return ''; }
+  }
+
+  /* رمز الغرفة إن جاء اللاعب من رابط دعوة */
+  function linkRoom() {
+    try {
+      const q = new URLSearchParams(location.search);
+      const c = (q.get('room') || '').trim().toUpperCase();
+      return /^[A-Z0-9]{3,8}$/.test(c) ? c : null;
+    } catch (e) { return null; }
+  }
+
+  /* اتّصل بخادم الصفحة وادخل الغرفة المطلوبة (يُستدعى عند الإقلاع) */
+  function joinFromLink(name) {
+    const code = linkRoom();
+    if (!code) return Promise.resolve(false);
+    state.pendingRoom = code;
+    return connect(serverURL(), name).then(() => true).catch(() => {
+      state.pendingRoom = null;
+      return false;
+    });
+  }
+
   const refreshRooms = () => send({ t: 'rooms' });
   const createRoom = (name) => send({ t: 'room.create', name: name || '' });
   const deleteRoom = (code) => send({ t: 'room.delete', code });
@@ -359,6 +403,7 @@ SC.net = (function () {
   return { state, connect, disconnect, update, send, invite, acceptInvite, decline, chat,
            startMic, stopMic, micReady, playerList, myKey,
            refreshRooms, createRoom, deleteRoom, joinRoom, leaveRoom,
+           roomLink, serverURL, linkRoom, joinFromLink,
            get connected() { return state.connected; }, get room() { return state.room; },
            get id() { return state.id; }, set onEvent(f) { state.onEvent = f; } };
 })();

@@ -88,7 +88,8 @@ function roomsFor(c) {
   const list = [...rooms.values()]
     .sort((a, b) => (b.fixed ? 1 : 0) - (a.fixed ? 1 : 0) || b.created - a.created)
     .map((r) => Object.assign(roomInfo(r), { mine: !!(c.key && r.key === c.key) }));
-  return { t: 'rooms', list, limit: MAX_ROOMS, mine: countOwned(c.key), room: c.room };
+  return { t: 'rooms', list, limit: MAX_ROOMS, mine: countOwned(c.key), room: c.room,
+           total: clients.size };          // كم شخصاً على الخادم كلّه
 }
 function countOwned(key) {
   if (!key) return 0;
