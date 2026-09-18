@@ -317,6 +317,262 @@ SC.game = (function () {
   }
   function setRivalsActive(on) { G.rivalAI.forEach((a) => { a.active = on; }); }
 
+  /* ==================== سباق الاستعراض خلف شاشة البداية ==================
+     خلف القائمة يدور سباق قصير: سيارتك تنطلق من آخر الشبكة، تحتكّ
+     بالمنافسين وتتقدّم، وتفوز قرب نهاية المقطع الموسيقي ثم يُعاد من جديد.
+     لا يمسّ حفظك ولا موقع سيارتك: كل شيء يعود كما كان عند «ابدأ اللعب». */
+  const ATTRACT = { intro: 4.0, race: 52.0, win: 9.0 };     // ≈ ٦٥ ثانية
+
+  /* خطّ سير موازٍ للحلقة بإزاحة جانبية: بدونه يطلب الجميع نفس الخطّ
+     تماماً فيتكدّسون في المنعطف الأوّل ويقفون */
+  function lanePath(base, off) {
+    const n = base.length;
+    return base.map((p, i) => {
+      const q = base[(i + 1) % n];
+      const dx = q.x - p.x, dz = q.z - p.z, L = Math.hypot(dx, dz) || 1;
+      return { x: p.x + (-dz / L) * off, z: p.z + (dx / L) * off };
+    });
+  }
+
+  function startAttract() {
+    if (G.attract || !G.ready || !G.car) return;
+    const car = G.car;
+    const base = SC.missions.circuitPath(5, 5, 4, 4);   // حلقة واسعة بمستقيمات طويلة
+    const A = { t: 0, path: base, shot: 0, shotT: 0, won: false, acc: 0, lastHit: -9,
+                saved: { x: car.pos.x, z: car.pos.z, yaw: car.yaw },
+                savedLights: car.lightsOn, camPos: new THREE.Vector3(), camAt: new THREE.Vector3() };
+
+    const p0 = base[0], p1 = base[1];
+    const yaw = Math.atan2(p1.x - p0.x, p1.z - p0.z);
+    const fx = Math.sin(yaw), fz = Math.cos(yaw);          // إلى الأمام
+    const rx = fz, rz = -fx;                               // إلى اليمين
+    const put = (lat, along) => ({ x: p0.x + rx * lat + fx * along,
+                                   z: p0.z + rz * lat + fz * along });
+
+    clearRivals();
+    /* لكلٍّ مساره: أربعة خطوط متجاورة على عرض الطريق */
+    const LANES = [2.4, -2.4, 0.8, -0.8];                  // [أنت, ثلاثة منافسين]
+    const grid = [[LANES[1], -2], [LANES[2], -11], [LANES[3], -20]];
+    grid.forEach((g, i) => {
+      const q = put(g[0], g[1]);
+      const lp = lanePath(base, LANES[i + 1]);
+      const ai = addRival(lp, 0.56 + i * 0.03, q.x, q.z, yaw, i);
+      ai.wp = 1;
+    });
+    setRivalsActive(false);
+
+    const myPath = lanePath(base, LANES[0]);
+    const me = put(LANES[0], -29);
+    car.place(me.x, me.z, yaw);
+    car.lightsOn = SC.world.state.isNight;
+    A.ai = new SC.AIDriver(car, { skill: 0.68, path: myPath, targetSpeed: car.def.topSpeed * 0.45 });
+    A.ai.active = false;
+    A.ai.wp = 0;
+
+    G.attract = A;
+    G.mode = 'attract';
+    G.freezeCam = true;
+    document.body.classList.add('attract');
+    snapAttractCamera();
+    SC.audio.menuPlay();
+  }
+
+  function stopAttract() {
+    const A = G.attract;
+    if (!A) return;
+    clearRivals();
+    G.attract = null;
+    G.mode = 'menu';
+    G.freezeCam = false;
+    document.body.classList.remove('attract');
+    SC.audio.menuStop(0.7);
+    const car = G.car;
+    const sp = SC.world.nearestSpawn(A.saved.x, A.saved.z);
+    car.place(sp.x, sp.z, sp.yaw);
+    car.input = { throttle: 0, brake: 0, steer: 0, handbrake: 0, boost: 0, wheelie: 0 };
+    car.lightsOn = A.savedLights;
+    snapCamera();
+  }
+
+  function resetAttract() {
+    const A = G.attract;
+    if (!A) return;
+    const keep = A.saved, lights = A.savedLights;
+    G.attract = null;
+    clearRivals();
+    startAttract();
+    if (G.attract) { G.attract.saved = keep; G.attract.savedLights = lights; }
+  }
+
+  function updateAttract(dt) {
+    const A = G.attract;
+    if (!A) return;
+    A.t += dt;
+    const T = ATTRACT, car = G.car;
+    const total = T.intro + T.race + T.win;
+
+    /* انطلاق بعد العدّ التنازلي */
+    const live = A.t > T.intro;
+    if (live && !A.live) { A.live = true; setRivalsActive(true); A.ai.active = true; SC.audio.blip(880, 0.12); }
+
+    /* شدّ الحبل: يلحق بهم أوّلاً ثم يتقدّم قرب النهاية فيفوز في وقته.
+       سرعات مدينة معتدلة: المنعطفات هنا قائمة الزاوية، والاندفاع يقذف
+       السيارة خارج الطريق فيضيع الاستعراض. */
+    const k = U.clamp((A.t - T.intro) / T.race, 0, 1);
+    const late = k > 0.82;                       // اللحظات الأخيرة: يتراجعون
+    A.ai.targetSpeed = car.def.topSpeed * (0.42 + 0.22 * k);
+    G.rivalAI.forEach((ai, i) => {
+      ai.targetSpeed = ai.v.def.topSpeed *
+        ((late ? 0.30 : 0.47 - 0.12 * k) + i * 0.012);
+    });
+
+    /* إن قذف منعطفٌ سيارةً بعيداً عن مسارها أعِد ربطها بأقرب نقطة —
+       بدونها تتوه بقيّة الجولة لأن الملاحة لا تتقدّم إلا عن قرب.
+       وإن وقفت تماماً (تكدّس في زاوية) أعِدها إلى الخطّ: هذا استعراض
+       في الخلفية، ووقوف سيارة فيه أسوأ من إعادة صامتة. */
+    const fix = (ai) => {
+      const path = ai.path || A.path;
+      const t = path[ai.wp % path.length];
+      const far = Math.hypot(t.x - ai.v.pos.x, t.z - ai.v.pos.z) > 55;
+      ai.dead = (Math.abs(ai.v.kmh) < 4) ? (ai.dead || 0) + dt : 0;
+      if (!far && ai.dead < 1.6) return;
+      let best = 0, bd = 1e9;
+      for (let i = 0; i < path.length; i++) {
+        const q = path[i];
+        const d = Math.hypot(q.x - ai.v.pos.x, q.z - ai.v.pos.z);
+        if (d < bd) { bd = d; best = i; }
+      }
+      ai.wp = (best + 1) % path.length;
+      if (ai.dead >= 1.6) {
+        const a = path[best], b = path[(best + 1) % path.length];
+        ai.v.place(a.x, a.z, Math.atan2(b.x - a.x, b.z - a.z));
+        ai.dead = 0; ai.stuck = 0; ai.reverse = 0;
+      }
+    };
+    fix(A.ai);
+    G.rivalAI.forEach(fix);
+
+    /* فيزياء بخطوة ثابتة لكل السيارات */
+    const all = G.rivals.concat([car]);
+    A.acc = Math.min(A.acc + dt, 0.25);
+    let n = 0;
+    while (A.acc >= FIXED && n < 4) {
+      A.ai.update(FIXED, all);
+      G.rivalAI.forEach((ai) => ai.update(FIXED, all));
+      A.acc -= FIXED; n++;
+    }
+
+    /* الاحتكاك بين السيارات: تلامس ودفع وشرر — لا تحطيم */
+    for (let i = 0; i < all.length; i++) {
+      for (let j = i + 1; j < all.length; j++) {
+        const a = all[i], b = all[j];
+        const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z;
+        const d = Math.hypot(dx, dz);
+        const minD = (a.halfLen + b.halfLen) * 0.52;
+        if (d > minD || d < 1e-4) continue;
+        const ux = dx / d, uz = dz / d, push = (minD - d) * 0.40;
+        a.pos.x -= ux * push; a.pos.z -= uz * push;
+        b.pos.x += ux * push; b.pos.z += uz * push;
+        a.yawRate -= 0.35 * dt * 60 * 0.016; b.yawRate += 0.35 * dt * 60 * 0.016;
+        if (A.t - A.lastHit > 0.45) {
+          A.lastHit = A.t;
+          SC.audio.crash(0.30);
+          const mx = (a.pos.x + b.pos.x) / 2, mz = (a.pos.z + b.pos.z) / 2;
+          const my = SC.world.groundHeight(mx, mz) + 0.65;
+          for (let sp = 0; sp < 6; sp++) SC.fx.spark(mx, my, mz, ux, uz);
+        }
+      }
+    }
+
+    /* لحظة الفوز ثم إعادة الجولة */
+    if (!A.won && A.t >= T.intro + T.race) {
+      A.won = true;
+      if (G.dom && G.dom.attractWin) G.dom.attractWin.classList.add('show');
+      SC.audio.good && SC.audio.good();
+    }
+    if (A.t >= total) {
+      if (G.dom && G.dom.attractWin) G.dom.attractWin.classList.remove('show');
+      resetAttract();
+      return;
+    }
+
+    attractCamera(dt);
+    SC.fx.updateParticles(dt);
+  }
+
+  /* ------------------------ كاميرا سينمائية للاستعراض ------------------- */
+  const _av = new THREE.Vector3(), _aw = new THREE.Vector3();
+
+  /* لوحة القائمة تحتلّ وسط الشاشة، فنُميل هدف الكاميرا جانباً حتى تظهر
+     السيارات في ثلث الشاشة لا خلف اللوحة */
+  function biasAim(s) {
+    const dx = s.tx - s.px, dz = s.tz - s.pz;
+    const L = Math.hypot(dx, dz) || 1;
+    const b = 0.36 * L;
+    s.tx += (-dz / L) * b;
+    s.tz += (dx / L) * b;
+    return s;
+  }
+
+  function attractShot(i, car, t) {
+    const yaw = car.yaw, fx = Math.sin(yaw), fz = Math.cos(yaw);
+    const rx = fz, rz = -fx;
+    const p = car.pos;
+    return biasAim(rawShot(i, p, fx, fz, rx, rz));
+  }
+
+  function rawShot(i, p, fx, fz, rx, rz) {
+    switch (i % 5) {
+      case 0:   // منخفضة أمام السيارة تنظر إليها
+        return { px: p.x + fx * 9.5, py: 1.0, pz: p.z + fz * 9.5,
+                 tx: p.x, ty: 0.9, tz: p.z, fov: 42 };
+      case 1:   // جانبية قريبة تمرّ معها
+        return { px: p.x + rx * 6.5 - fx * 1.5, py: 1.35, pz: p.z + rz * 6.5 - fz * 1.5,
+                 tx: p.x, ty: 0.85, tz: p.z, fov: 50 };
+      case 2:   // مطاردة منخفضة خلفها
+        return { px: p.x - fx * 7.5, py: 1.9, pz: p.z - fz * 7.5,
+                 tx: p.x + fx * 6, ty: 1.1, tz: p.z + fz * 6, fov: 58 };
+      case 3:   // من الأعلى مائلة
+        return { px: p.x - fx * 10 + rx * 7, py: 9.5, pz: p.z - fz * 10 + rz * 7,
+                 tx: p.x + fx * 4, ty: 0.8, tz: p.z + fz * 4, fov: 46 };
+      default:  // عجلة قريبة: الإحساس بالسرعة
+        return { px: p.x - rx * 3.0 - fx * 2.2, py: 0.55, pz: p.z - rz * 3.0 - fz * 2.2,
+                 tx: p.x + fx * 2, ty: 0.7, tz: p.z + fz * 2, fov: 62 };
+    }
+  }
+
+  function snapAttractCamera() {
+    const A = G.attract; if (!A) return;
+    const s = attractShot(0, G.car, 0);
+    G.camera.position.set(s.px, s.py, s.pz);
+    G.camera.lookAt(s.tx, s.ty, s.tz);
+    A.camPos.set(s.px, s.py, s.pz);
+    A.camAt.set(s.tx, s.ty, s.tz);
+  }
+
+  function attractCamera(dt) {
+    const A = G.attract, car = G.car;
+    A.shotT += dt;
+    /* اللقطة الأخيرة تُترك للفوز */
+    const dur = A.won ? 99 : 7.0;
+    if (A.shotT > dur) { A.shotT = 0; A.shot++; }
+    const s = attractShot(A.won ? 0 : A.shot, car, A.shotT);
+    const lerp = Math.min(1, dt * (A.shotT < 0.12 ? 60 : 6));
+    _av.set(s.px, s.py, s.pz);
+    _aw.set(s.tx, s.ty, s.tz);
+    A.camPos.lerp(_av, lerp);
+    A.camAt.lerp(_aw, lerp);
+    /* لا تدخل الأرض */
+    const gy = SC.world.groundHeight(A.camPos.x, A.camPos.z);
+    if (A.camPos.y < gy + 0.35) A.camPos.y = gy + 0.35;
+    G.camera.position.copy(A.camPos);
+    G.camera.lookAt(A.camAt);
+    if (Math.abs(G.camera.fov - s.fov) > 0.3) {
+      G.camera.fov = U.lerp(G.camera.fov, s.fov, Math.min(1, dt * 4));
+      G.camera.updateProjectionMatrix();
+    }
+  }
+
   /* ترتيب اللاعب في السباق بحسب التقدّم على المسار */
   function racePosition(mstate) {
     const def = mstate.active;
@@ -816,6 +1072,8 @@ SC.game = (function () {
       updateArrow(car);
     }
 
+    if (G.paused && G.attract) updateAttract(dt);
+
     autoQuality(dt);
     if (!G.freezeCam) updateCamera(dt, car);
     const under = G.camera.position.y < SC.world.CFG.seaY - 0.1;
@@ -1061,6 +1319,7 @@ SC.game = (function () {
     setTimeOfDay, setTraffic, setQuality, setWaypoint, togglePause, persist, setPeds, startOnlineRace,
     addMoney, addXp, addRep, repMult, setPassenger, shake, snapCamera,
     refreshFreeMarkers, buildMissionMarkers,
+    startAttract, stopAttract,
     get car() { return G.car; }
   };
 })();

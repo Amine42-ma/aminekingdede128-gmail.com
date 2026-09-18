@@ -301,6 +301,11 @@ SC.audio = (function () {
       url: 'https://qcucttfkpnpkpfdbnsoq.supabase.co/storage/v1/object/public/Game/Full+Speed+Ahead.mp3' }
   ];
 
+  /* موسيقى شاشة البداية: مقطع واحد يدور خلف سباق الاستعراض، ويُحفظ
+     للعمل دون إنترنت مثل بقيّة المقاطع. */
+  const MENU_TRACK = { id: 'born_for_the_rush', title: 'Born for the Rush', kind: 'url',
+    url: 'https://qcucttfkpnpkpfdbnsoq.supabase.co/storage/v1/object/public/Game/Born+for+the+Rush.mp3' };
+
   /* ----------------------- تخزين الموسيقى للعمل دون إنترنت ---------------
      نحفظ كل مقطع في IndexedDB أوّل مرّة يُشغَّل (أو عند الضغط على «حفظ
      للتشغيل دون إنترنت»)، وبعدها يعمل الراديو كاملاً بلا اتصال. */
@@ -366,7 +371,7 @@ SC.audio = (function () {
 
   /* حفظ كل المقاطع دفعةً واحدة (زر «حفظ للتشغيل دون إنترنت») */
   function cacheAll(onProgress) {
-    const list = buildStations().filter((s) => s.kind === 'url');
+    const list = buildStations().filter((s) => s.kind === 'url').concat([MENU_TRACK]);
     let done = 0, ok = 0;
     const step = (i) => {
       if (i >= list.length) { if (onProgress) onProgress(done, list.length, ok); return Promise.resolve(ok); }
@@ -381,7 +386,7 @@ SC.audio = (function () {
 
   /* افحص ما هو محفوظ مسبقاً */
   function refreshCached() {
-    const list = buildStations().filter((s) => s.kind === 'url');
+    const list = buildStations().filter((s) => s.kind === 'url').concat([MENU_TRACK]);
     return Promise.all(list.map((s) => dbGet(s.id).then((b) => { radio.cached[s.id] = !!b; })))
       .then(() => { if (radio.onChange) radio.onChange(currentStation(), radio.index, false); });
   }
@@ -525,6 +530,86 @@ SC.audio = (function () {
     }
   }
 
+  /* ====================== موسيقى شاشة البداية ==========================
+     عنصر <audio> مستقلّ عن الراديو: يبدأ مع سباق الاستعراض ويتوقّف بخفوت
+     عند الضغط على «ابدأ اللعب». المتصفّح يمنع التشغيل قبل أول لمسة، فإن
+     فشل ننتظر اللمسة الأولى ثم نعيد المحاولة. */
+  const menuM = { el: null, objUrl: null, want: false, fadeTimer: 0, waiting: false };
+
+  function menuVolume() { return U.clamp((music.vol == null ? 0.45 : music.vol) * 1.25, 0, 1); }
+
+  function ensureMenuEl() {
+    if (menuM.el) return menuM.el;
+    const el = new Audio();
+    el.preload = 'none';
+    el.loop = true;                      // المقطع يدور ما دامت القائمة مفتوحة
+    menuM.el = el;
+    return el;
+  }
+
+  function menuPlay() {
+    if (menuVolume() <= 0) return Promise.resolve(false);
+    menuM.want = true;
+    const el = ensureMenuEl();
+    if (menuM.fadeTimer) { clearInterval(menuM.fadeTimer); menuM.fadeTimer = 0; }
+    el.volume = menuVolume();
+    const go = (src, fromCache) => {
+      if (!menuM.want) return false;
+      if (el.src !== src) {
+        if (menuM.objUrl) { URL.revokeObjectURL(menuM.objUrl); menuM.objUrl = null; }
+        if (fromCache) menuM.objUrl = src;
+        el.src = src;
+      }
+      const pr = el.play();
+      if (pr && pr.catch) pr.catch(() => waitForTap());
+      return true;
+    };
+    return dbGet(MENU_TRACK.id).then((blob) => {
+      if (blob) return go(URL.createObjectURL(blob), true);
+      const ok = go(MENU_TRACK.url, false);
+      cacheTrack(MENU_TRACK);            // احفظه ليعمل دون إنترنت لاحقاً
+      return ok;
+    }).catch(() => go(MENU_TRACK.url, false));
+  }
+
+  /* سياسة المتصفّح: لا صوت قبل لمسة — فانتظرها ثم شغّل */
+  function waitForTap() {
+    if (menuM.waiting) return;
+    menuM.waiting = true;
+    const once = () => {
+      window.removeEventListener('pointerdown', once);
+      menuM.waiting = false;
+      if (menuM.want) menuPlay();
+    };
+    window.addEventListener('pointerdown', once, { once: true });
+  }
+
+  function menuStop(fadeSec) {
+    menuM.want = false;
+    const el = menuM.el;
+    if (!el) return;
+    const f = fadeSec == null ? 0.8 : fadeSec;
+    if (menuM.fadeTimer) clearInterval(menuM.fadeTimer);
+    if (f <= 0) { el.pause(); return; }
+    const step = 1 / (f * 20);
+    menuM.fadeTimer = setInterval(() => {
+      el.volume = Math.max(0, el.volume - step * menuVolume());
+      if (el.volume <= 0.001) {
+        clearInterval(menuM.fadeTimer); menuM.fadeTimer = 0;
+        el.pause();
+        if (menuM.objUrl) { URL.revokeObjectURL(menuM.objUrl); menuM.objUrl = null; }
+      }
+    }, 50);
+  }
+
+  /* موضع المقطع وطوله — يستعملهما سباق الاستعراض لمزامنة لحظة الفوز */
+  function menuInfo() {
+    const el = menuM.el;
+    return { playing: !!(el && !el.paused), time: el ? el.currentTime : 0,
+             duration: el && isFinite(el.duration) ? el.duration : 0,
+             title: MENU_TRACK.title };
+  }
+
   function startMusic() {
     init();
     if (!ready || music.on) return;
@@ -574,6 +659,7 @@ SC.audio = (function () {
   }
 
   return { init, resume, update, setEnabled, setVolume, setUnderwater, blip, crash, horn, hornBeep, pop,
+           menuPlay, menuStop, menuInfo, MENU_TRACK,
            startMusic, stopMusic, setMusicVolume, setSfxVolume, setEngineSound, music,
            radioNext, radioPrev, radioSet, radioStations, radioCurrent, radioOnChange,
            cacheAll, refreshCached, radioCachedMap, radioSavingMap,

@@ -49,6 +49,7 @@
     btnSettings: $('btnSettings'), btnPause: $('btnPause'), wheelie: $('btnWheelie'),
     stunt: $('stunt'), stuntTime: $('stuntTime'), stuntName: $('stuntName'),
     msMoney: $('msMoney'), msCar: $('msCar'), msLevel: $('msLevel'), btnPlayLabel: $('btnPlayLabel'),
+    attractWin: $('attractWin'), attractTag: $('attractTag'), attractTrack: $('attractTrack'),
     screenOnline: $('screenOnline'), netStatus: $('netStatus'), netName: $('netName'),
     netUrl: $('netUrl'), netConnect: $('netConnect'), netDisconnect: $('netDisconnect'),
     netMic: $('netMic'), netPlayers: $('netPlayers'), netCount: $('netCount'),
@@ -58,6 +59,14 @@
     roomName: $('roomName'), roomCreate: $('roomCreate'),
     roomCode: $('roomCode'), roomJoin: $('roomJoin'), roomList: $('roomList'),
     netChat: $('netChat'), netMsg: $('netMsg'), netSend: $('netSend'),
+    screenMusic: $('screenMusic'), musicCount: $('musicCount'), musicAdd: $('musicAdd'),
+    musicFile: $('musicFile'), musicStop: $('musicStop'), musicList: $('musicList'),
+    musicQuota: $('musicQuota'), musicShareCard: $('musicShareCard'), musicShareAll: $('musicShareAll'),
+    musicShareState: $('musicShareState'), musicHeard: $('musicHeard'),
+    screenRights: $('screenRights'), rightsOpts: $('rightsOpts'), rightsAgree: $('rightsAgree'),
+    rightsOk: $('rightsOk'), rightsCancel: $('rightsCancel'),
+    screenReport: $('screenReport'), reportWhat: $('reportWhat'), reportOpts: $('reportOpts'),
+    reportSend: $('reportSend'), reportCancel: $('reportCancel'),
     screenDealer: $('screenDealer'), dealerTitle: $('dealerTitle'), dealerMoney: $('dealerMoney'),
     dealerCanvas: $('dealerCanvas'), dealerBadge: $('dealerBadge'), dealerPrev: $('dealerPrev'),
     dealerNext: $('dealerNext'), dealerName: $('dealerName'), dealerTag: $('dealerTag'),
@@ -102,6 +111,7 @@
 
       /* أزرار القائمة الرئيسية */
       const play = () => {
+        SC.game.stopAttract();            // أوقف سباق الاستعراض وأعد السيارة
         SC.ui.hideAll();
         dom.hud.classList.remove('hidden');
         SC.game.start();
@@ -143,6 +153,9 @@
       dom.screenMenu.classList.add('show');
       SC.game.snapCamera();
       SC.game.frame();
+      /* سباق الاستعراض + موسيقى القائمة خلف الشاشة */
+      if (dom.attractTrack && SC.audio.MENU_TRACK) dom.attractTrack.textContent = SC.audio.MENU_TRACK.title;
+      SC.game.startAttract();
       window.SC_READY = true;
       document.title = 'READY · مدينة السرعة';
     } catch (e) { fail(e); }

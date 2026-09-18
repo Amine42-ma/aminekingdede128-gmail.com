@@ -27,6 +27,7 @@ SC.ui = (function () {
     SC.input.bindTap(dom.btnShop, () => open('shop'));
     SC.input.bindTap(dom.btnMap, () => { mapView.mode = 'world'; open('map'); });
     initRadio();
+    initMusic();
     if (dom.poiEnter) SC.input.bindTap(dom.poiEnter, () => enterPOI());
     if (dom.dealerPrev) SC.input.bindTap(dom.dealerPrev, () => { dealerIdx--; buildDealer(); });
     if (dom.dealerNext) SC.input.bindTap(dom.dealerNext, () => { dealerIdx++; buildDealer(); });
@@ -70,6 +71,7 @@ SC.ui = (function () {
     current = name;
     const el = dom['screen' + name.charAt(0).toUpperCase() + name.slice(1)];
     if (!el) return;
+    if (name === 'music') buildMusic();
     if (name === 'online') { buildOnline(); buildRooms(); setMicState();
                              setNetStatus(SC.net.connected ? 'متّصل ✓' : 'غير متّصل', SC.net.connected ? 'on' : '');
                              if (SC.net.connected) SC.net.refreshRooms(); }
@@ -251,6 +253,204 @@ SC.ui = (function () {
     dom.netChat.appendChild(line);
     while (dom.netChat.children.length > 40) dom.netChat.removeChild(dom.netChat.firstChild);
     dom.netChat.scrollTop = dom.netChat.scrollHeight;
+  }
+
+  /* ==================== مكتبة الموسيقى الشخصية ==========================
+     الملفّات من جهاز اللاعب فقط. لا تنزيل من الإنترنت ولا حقل رابط — بعد
+     إقرار الحقوق يُفتح منتقي ملفّات النظام، ويبقى الملفّ محلّياً. */
+  let rightsPick = 'own', reportPick = 'copyright', reportTarget = null;
+
+  function initMusic() {
+    if (!dom.musicAdd) return;
+
+    SC.input.bindTap(dom.musicAdd, () => openRights());
+    SC.input.bindTap(dom.musicStop, () => { SC.mylib.stop(); buildMusic(); });
+
+    /* المنتقي يُفتح فقط بعد الموافقة في نافذة الإقرار */
+    dom.musicFile.addEventListener('change', () => {
+      const f = dom.musicFile.files && dom.musicFile.files[0];
+      dom.musicFile.value = '';
+      if (!f) return;
+      SC.mylib.add(f, { confirmed: true, rights: rightsPick })
+        .then((rec) => {
+          SC.hud.toast('أُضيف «' + rec.title + '» إلى مكتبتك — محفوظ على جهازك وحده', 'ok', 3600);
+          buildMusic();
+        })
+        .catch((e) => {
+          const msg = { type: 'هذا ليس ملفّاً صوتياً مدعوماً',
+                        size: 'الملفّ أكبر من ' + Math.round(SC.mylib.MAX_SIZE / 1048576) + ' ميغابايت',
+                        full: 'بلغت الحدّ: ' + SC.mylib.MAX_TRACKS + ' مقطعاً — احذف واحداً أوّلاً',
+                        store: 'تعذّر الحفظ على الجهاز — قد تكون ذاكرة المتصفّح ممتلئة'
+                      }[e.message] || 'تعذّرت الإضافة';
+          SC.hud.toast(msg, 'bad', 4200);
+        });
+    });
+
+    SC.input.bindTap(dom.musicShareAll, () => {
+      const st = SC.mylib.state;
+      if (!st.policy.sharing) {
+        SC.hud.toast('مشاركة الموسيقى معطّلة على هذا الخادم', 'bad', 3200);
+        return;
+      }
+      SC.mylib.setShareAll(!st.shareOn);
+      buildMusic();
+    });
+
+    /* نافذة إقرار الحقوق */
+    SC.input.bindTap(dom.rightsCancel, () => { hideAll(); open('music'); });
+    SC.input.bindTap(dom.rightsOk, () => {
+      if (!dom.rightsAgree.checked) {
+        SC.hud.toast('علّم الإقرار أوّلاً', 'bad', 2600);
+        return;
+      }
+      hideAll(true);
+      dom.screenMusic.classList.add('show');
+      current = 'music';
+      dom.musicFile.click();              // منتقي ملفّات الجهاز — لا روابط
+    });
+
+    /* نافذة الإبلاغ */
+    SC.input.bindTap(dom.reportCancel, () => { hideAll(); open('music'); });
+    SC.input.bindTap(dom.reportSend, () => {
+      if (!reportTarget) { hideAll(); return; }
+      SC.mylib.report(reportTarget, reportPick);
+      hideAll(); open('music');
+      SC.hud.toast('أُرسل البلاغ وأُوقفت مشاركة المقطع', 'ok', 4000);
+    });
+
+    SC.mylib.onChange = () => { if (current === 'music') buildMusic(); };
+    SC.mylib.load().then(buildMusic);
+  }
+
+  function openRights() {
+    rightsPick = 'own';
+    dom.rightsAgree.checked = false;
+    dom.rightsOpts.innerHTML = '';
+    SC.mylib.RIGHTS.forEach((r) => {
+      const b = U.el('button', r.id === rightsPick ? 'on' : '', esc(r.label) +
+        (r.share ? '' : ' <span style="opacity:.6">— بلا مشاركة</span>'));
+      SC.input.bindTap(b, () => {
+        rightsPick = r.id;
+        [...dom.rightsOpts.children].forEach((c, i) => c.classList.toggle('on', SC.mylib.RIGHTS[i].id === r.id));
+      });
+      dom.rightsOpts.appendChild(b);
+    });
+    hideAll(true);
+    dom.screenRights.classList.add('show');
+    current = 'rights';
+  }
+
+  function openReport(target, what) {
+    reportTarget = target; reportPick = 'copyright';
+    dom.reportWhat.textContent = what;
+    dom.reportOpts.innerHTML = '';
+    SC.mylib.REASONS.forEach((r) => {
+      const b = U.el('button', r.id === reportPick ? 'on' : '', esc(r.label));
+      SC.input.bindTap(b, () => {
+        reportPick = r.id;
+        [...dom.reportOpts.children].forEach((c, i) => c.classList.toggle('on', SC.mylib.REASONS[i].id === r.id));
+      });
+      dom.reportOpts.appendChild(b);
+    });
+    hideAll(true);
+    dom.screenReport.classList.add('show');
+    current = 'report';
+  }
+
+  const fileSize = (n) => n >= 1048576
+    ? (Math.round(n / 104858) / 10) + ' م.ب'
+    : Math.max(1, Math.round(n / 1024)) + ' ك.ب';
+
+  function buildMusic() {
+    if (!dom.musicList) return;
+    const st = SC.mylib.state, list = st.list;
+    dom.musicCount.textContent = list.length + ' مقاطع';
+    if (dom.musicQuota) dom.musicQuota.textContent = list.length + ' / ' + SC.mylib.MAX_TRACKS;
+
+    dom.musicList.innerHTML = '';
+    if (!list.length) {
+      dom.musicList.appendChild(U.el('div', 'net-empty',
+        'لا مقاطع بعد — اضغط «+ إضافة موسيقى من الجهاز»'));
+    }
+    list.forEach((rec) => {
+      const playing = st.playingId === rec.id;
+      const row = U.el('div', 'music-row' + (playing ? ' on' : ''));
+      const R = SC.mylib.rightsOf(rec.rights);
+      row.innerHTML = '<span class="mt">' + esc(rec.title) + '</span>' +
+        (rec.reported ? '<span class="flag">مُبلَّغ عنه</span>' : '') +
+        '<span class="mm">' + esc(R.label) + ' · ' + fileSize(rec.size) + '</span>';
+
+      const pb = U.el('button', 'btn tiny primary', playing ? '❚❚' : '▶');
+      SC.input.bindTap(pb, () => {
+        if (playing) { SC.mylib.stop(); } else SC.mylib.play(rec.id);
+        buildMusic();
+      });
+      row.appendChild(pb);
+
+      if (st.policy.sharing && R.share && !rec.reported) {
+        const sb = U.el('button', 'btn tiny' + (rec.share ? ' shared' : ''), rec.share ? 'تُشارَك' : 'مشاركة');
+        SC.input.bindTap(sb, () => { SC.mylib.setShare(rec.id, !rec.share); buildMusic(); });
+        row.appendChild(sb);
+      }
+
+      const rb = U.el('button', 'btn tiny ghost', '🚩');
+      rb.title = 'إبلاغ عن هذا المقطع';
+      SC.input.bindTap(rb, () => openReport(rec.id, 'المقطع: «' + rec.title + '» من مكتبتك'));
+      row.appendChild(rb);
+
+      const db = U.el('button', 'btn tiny danger', 'حذف');
+      SC.input.bindTap(db, () => confirmDeleteTrack(rec));
+      row.appendChild(db);
+
+      dom.musicList.appendChild(row);
+    });
+
+    /* بطاقة المشاركة: تختفي كلّياً إن عطّلها الخادم */
+    if (dom.musicShareCard) {
+      dom.musicShareCard.style.display = st.policy.sharing ? '' : 'none';
+    }
+    if (dom.musicShareAll) {
+      dom.musicShareAll.textContent = st.shareOn ? 'مفعّلة' : 'مطفأة';
+      dom.musicShareAll.classList.toggle('on', st.shareOn);
+    }
+    if (dom.musicShareState) {
+      dom.musicShareState.textContent = !st.policy.sharing
+        ? 'معطّلة على هذا الخادم'
+        : (st.shareOn ? 'يُعرض اسم ما تسمعه لمن في غرفتك' : 'لا يُرسل شيء');
+    }
+    if (dom.musicHeard) {
+      dom.musicHeard.innerHTML = '';
+      st.heard.forEach((h) => {
+        const row = U.el('div', 'heard-row',
+          '🎧 <b>' + esc(h.name || 'لاعب') + '</b> يسمع: ' + esc(h.title));
+        const rb = U.el('button', 'btn tiny ghost', '🚩');
+        SC.input.bindTap(rb, () => openReport({ id: h.id, title: h.title },
+          'ما يشاركه ' + (h.name || 'لاعب') + ': «' + h.title + '»'));
+        row.appendChild(rb);
+        dom.musicHeard.appendChild(row);
+      });
+    }
+  }
+
+  function confirmDeleteTrack(rec) {
+    dom.resultTitle.textContent = 'حذف الموسيقى؟';
+    dom.resultTitle.className = 'res-title';
+    dom.resultSub.textContent = '«' + rec.title + '» — سيُمسح من جهازك نهائياً.';
+    dom.resultRows.innerHTML = '';
+    const wrap = U.el('div', 'pause-btns');
+    const yes = U.el('button', 'btn xl', 'نعم، احذفه');
+    SC.input.bindTap(yes, () => {
+      SC.mylib.remove(rec.id).then(() => {
+        SC.hud.toast('حُذف المقطع من مكتبتك', 'ok', 2600);
+        hideAll(); open('music');
+      });
+    });
+    const no = U.el('button', 'btn primary xl', 'تراجع');
+    SC.input.bindTap(no, () => { hideAll(); open('music'); });
+    wrap.appendChild(yes); wrap.appendChild(no);
+    dom.resultRows.appendChild(wrap);
+    dom.screenResult.classList.add('show');
+    current = 'result';
   }
 
   /* ------------------------------- الغرف -------------------------------- */
@@ -914,6 +1114,12 @@ SC.ui = (function () {
       });
     }
     wrap.appendChild(save);
+    /* مدخل مكتبة الموسيقى الشخصية */
+    const mine = U.el('button', 'rsave');
+    const n = SC.mylib ? SC.mylib.state.list.length : 0;
+    mine.innerHTML = '<i>🎵</i><span>موسيقاي من الجهاز' + (n ? ' (' + n + ')' : '') + '</span>';
+    SC.input.bindTap(mine, () => { closeRadioList(); open('music'); });
+    wrap.appendChild(mine);
   }
   function toggleRadioList() {
     if (!dom.radioList) return;
@@ -1137,6 +1343,13 @@ SC.ui = (function () {
           'node server/server.mjs — واللعبة تعمل كاملةً بدونه');
     }
 
+    {
+      const b = U.el('button', 'btn ghost', '🎵 موسيقاي — أضف من جهازك');
+      SC.input.bindTap(b, () => open('music'));
+      row('الموسيقى الشخصية', b,
+          'أضف مقاطع تملك حقّ استخدامها من جهازك. تُحفظ على جهازك وحده ولا تُرفع لأي خادم');
+    }
+
     row('صوت المحرّك', seg('engine', [['0', 'مطفأ'], ['1', 'مُفعّل']], null, (v) => {
       SC.settings.engineSound = v === '1';
       SC.audio.setEngineSound(SC.settings.engineSound);
@@ -1269,5 +1482,6 @@ SC.ui = (function () {
 
   return { init, open, hideAll, refreshWallet, buildRadioList, closeRadioList, layoutTopbar,
            showPOI, openDealer, openGarage, enterPOI, showResult, showPrompt, tick, buildShop, drawMap,
+           buildMusic, openReport,
            get current() { return current; } };
 })();

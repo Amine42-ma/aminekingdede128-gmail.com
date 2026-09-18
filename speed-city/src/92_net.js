@@ -171,6 +171,7 @@ SC.net = (function () {
         break;
       case 'room.joined':
         state.room = m.room;
+        if (SC.mylib) SC.mylib.clearHeard();  // ما يسمعه أهل الغرفة السابقة
         clearPlayers();                       // لاعبو الغرفة السابقة ليسوا هنا
         (m.players || []).forEach(addPlayer);
         emit('players');
@@ -194,6 +195,11 @@ SC.net = (function () {
         break;
       case 'room.error':
         emit('roomError', m);
+        break;
+
+      /* ------------------- الموسيقى الشخصية (أسماء فقط) ------------------ */
+      case 'music.policy': case 'music.now': case 'music.blocked': case 'music.reported':
+        if (SC.mylib) SC.mylib.onNet(m);
         break;
     }
   }

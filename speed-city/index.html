@@ -525,6 +525,89 @@ body.on-bike .round.bike-only.active{background:rgba(255,210,63,.32);border-colo
 .p-body.online.linked.show-conn .net-conn{display:block}
 .p-body.online:not(.linked) #netEdit{display:none}
 
+/* ------------------ سباق الاستعراض خلف شاشة البداية -------------------- */
+/* أثناء السباق نخفّف تعتيم القائمة وضبابها حتى يُرى، ونُبقي النصّ مقروءاً */
+body.attract .menu{background:rgba(6,9,15,.30);backdrop-filter:blur(2px)}
+body.attract .menu-inner{
+  background:linear-gradient(180deg,rgba(6,9,15,.62),rgba(6,9,15,.78));
+  border:1px solid var(--line);border-radius:22px;box-shadow:var(--sh);
+  padding:20px 22px;max-width:480px}
+body.attract .menu-hint{opacity:.85}
+
+.attract-win{position:absolute;top:calc(12% + var(--safe-t));left:50%;
+  transform:translateX(-50%) scale(.85);display:none;flex-direction:column;align-items:center;gap:2px;
+  background:rgba(255,210,63,.16);border:1px solid rgba(255,210,63,.55);border-radius:18px;
+  padding:10px 26px;backdrop-filter:blur(6px);opacity:0;transition:opacity .25s,transform .25s;z-index:2}
+.attract-win.show{display:flex;opacity:1;transform:translateX(-50%) scale(1)}
+.attract-win b{font-size:22px;font-weight:900;color:var(--gold)}
+.attract-win span{font-size:12px;font-weight:700;color:var(--txt);opacity:.9}
+
+.attract-tag{position:absolute;bottom:calc(14px + var(--safe-b));right:calc(14px + var(--safe-r));
+  display:none;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--dim);
+  background:rgba(6,9,15,.55);border:1px solid var(--line2);border-radius:99px;
+  padding:5px 12px;backdrop-filter:blur(6px);z-index:2}
+body.attract .attract-tag{display:flex}
+
+/* ===================== مكتبة الموسيقى الشخصية ========================== */
+.p-body.music{display:grid;gap:12px}
+.dimline{font-size:11.5px;line-height:1.75;color:var(--dim)}
+.dimline b{color:var(--txt)}
+
+.rights-note{background:rgba(255,180,80,.10);border:1px solid rgba(255,180,80,.34);
+  border-radius:var(--r);padding:12px 14px}
+.rights-note b{font-size:13.5px;color:#ffcf8a}
+.rights-note p{margin:6px 0 0;font-size:12.5px;line-height:1.8;color:var(--txt)}
+.rights-note p.dimline{color:var(--dim);font-size:11.5px}
+
+.music-actions{display:flex;gap:10px;flex-wrap:wrap}
+.music-actions .btn{flex:1;min-width:150px}
+
+.music-list{display:grid;gap:8px;max-height:280px;overflow:auto;-webkit-overflow-scrolling:touch}
+.music-row{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);
+  border:1px solid var(--line2);border-radius:var(--r2,12px);padding:9px 11px;flex-wrap:wrap}
+.music-row.on{border-color:rgba(127,232,192,.55);background:rgba(127,232,192,.10)}
+.music-row .mt{font-weight:800;font-size:13.5px;max-width:52%;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.music-row .mm{flex:1;font-size:11px;color:var(--dim)}
+.music-row .flag{font-size:10.5px;font-weight:800;border-radius:99px;padding:2px 8px;
+  background:rgba(255,90,70,.18);color:#ffb4a8;border:1px solid rgba(255,120,100,.5)}
+.music-row .btn.tiny{padding:6px 10px}
+.music-row .btn.danger{background:rgba(255,90,70,.18);border-color:rgba(255,120,100,.5);color:#ffb4a8}
+.music-row .btn.shared{background:rgba(127,232,192,.20);border-color:rgba(127,232,192,.55);color:#7fe8c0}
+
+.share-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.share-row .btn.on{background:rgba(127,232,192,.22);border-color:rgba(127,232,192,.6);color:#7fe8c0}
+.heard-list{display:grid;gap:6px;margin-top:8px}
+.heard-row{display:flex;align-items:center;gap:8px;font-size:12px;
+  background:rgba(255,255,255,.04);border:1px solid var(--line2);border-radius:10px;padding:7px 10px}
+.heard-row b{font-weight:800}
+.heard-row .btn{margin-inline-start:auto}
+
+.dlg{background:rgba(10,14,22,.96);border:1px solid var(--line);border-radius:22px;
+  padding:20px 22px;width:min(460px,92vw);box-shadow:var(--sh);max-height:88vh;overflow:auto}
+.dlg-title{font-size:17px;font-weight:900;margin-bottom:8px}
+.dlg-text{font-size:12.5px;line-height:1.8;color:var(--dim);margin-bottom:12px}
+.rights-opts{display:grid;gap:7px;margin-bottom:12px}
+.rights-opts button{text-align:start;background:rgba(255,255,255,.05);border:1px solid var(--line2);
+  border-radius:12px;padding:10px 13px;font-size:12.5px;font-weight:700;color:var(--txt);
+  font-family:inherit;cursor:pointer}
+.rights-opts button.on{background:rgba(255,210,63,.16);border-color:rgba(255,210,63,.55);color:var(--gold)}
+.rights-check{display:flex;align-items:flex-start;gap:9px;font-size:12px;line-height:1.7;
+  color:var(--txt);margin-bottom:14px}
+.rights-check input{width:20px;height:20px;accent-color:#ffd23f;flex:none;margin-top:1px}
+
+/* أثناء الاستعراض تصغر لوحة القائمة حتى يُرى السباق خلفها */
+body.attract .menu-inner{max-width:390px;padding:16px 18px}
+body.attract .logo.big{font-size:min(9vw,40px)}
+body.attract .logo-sub{margin-top:5px;font-size:10.5px;letter-spacing:1.4px}
+body.attract .menu-save{margin:2px 0 10px}
+body.attract .menu-btns{margin-top:14px;gap:8px;max-width:300px}
+body.attract .btn.xl{padding:13px 18px;font-size:16px}
+body.attract .menu-hint{display:none}
+@media (min-height:620px){
+  body.attract .menu-hint{display:block;margin-top:14px;font-size:11px;line-height:1.85}
+}
+
 </style>
 </head>
 <body data-steer="buttons">
@@ -710,6 +793,9 @@ body.on-bike .round.bike-only.active{background:rgba(255,210,63,.32);border-colo
 <!-- ====================== القائمة الرئيسية ====================== -->
 <div class="screen menu" id="screenMenu">
   <div class="menu-bg"></div>
+  <!-- شارة الفوز في سباق الاستعراض خلف القائمة -->
+  <div class="attract-win" id="attractWin"><b>🏁 الفوز!</b><span>المركز الأوّل</span></div>
+  <div class="attract-tag" id="attractTag">🎵 <span id="attractTrack">Born for the Rush</span></div>
   <div class="menu-inner">
     <div class="logo big">مدينة <span>السرعة</span></div>
     <div class="logo-sub">SPEED CITY — عالم مفتوح · قيادة · مهام · جمع سيارات</div>
@@ -804,6 +890,92 @@ body.on-bike .round.bike-only.active{background:rgba(255,210,63,.32);border-colo
         <input id="netMsg" type="text" maxlength="120" placeholder="اكتب رسالة…">
         <button class="btn tiny" id="netSend">إرسال</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= مكتبة الموسيقى الشخصية ======================= -->
+<div class="screen panel" id="screenMusic">
+  <div class="p-head">
+    <h2>موسيقاي</h2>
+    <div class="net-status" id="musicCount">0 مقاطع</div>
+    <button class="x" data-close>✕</button>
+  </div>
+  <div class="p-body music">
+
+    <div class="rights-note">
+      <b>⚠️ قبل الإضافة</b>
+      <p>أضف فقط الموسيقى التي <b>تملك حقّ استخدامها ومشاركتها</b>: من إنتاجك، أو مرخّصة لك،
+         أو يسمح صاحبها بإعادة استخدامها. مسؤولية الحقوق عليك أنت.</p>
+      <p class="dimline">اللعبة لا تنزّل موسيقى من الإنترنت ولا تقبل روابط يوتيوب أو سبوتيفاي أو
+         أي خدمة تنزيل — تضيف من جهازك فقط. هذا التصميم يهدف إلى تقليل مخاطر انتهاك حقوق
+         النشر والامتثال لشروط المنصّات، وليس ضماناً قانونياً.</p>
+    </div>
+
+    <div class="music-actions">
+      <button class="btn primary" id="musicAdd">+ إضافة موسيقى من الجهاز</button>
+      <input type="file" id="musicFile" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac" hidden>
+      <button class="btn ghost" id="musicStop">■ إيقاف</button>
+    </div>
+
+    <div class="net-card">
+      <div class="net-title">مقاطعي <span class="quota" id="musicQuota"></span></div>
+      <div id="musicList" class="music-list"></div>
+      <div class="dimline">المقاطع محفوظة على جهازك وحده داخل المتصفّح — لا تُرفع إلى أي خادم.</div>
+    </div>
+
+    <div class="net-card" id="musicShareCard">
+      <div class="net-title">مشاركة ما أستمع إليه</div>
+      <div class="share-row">
+        <button class="btn" id="musicShareAll">مطفأة</button>
+        <span class="dimline" id="musicShareState">—</span>
+      </div>
+      <div class="dimline">
+        تُرسل <b>اسم المقطع نصّاً فقط</b> لمن في غرفتك — ولا يُرسل الملفّ الصوتي ولا يُعاد بثّه
+        أبداً. لا تُفعَّل إلا للمقاطع التي أقررتَ بأنّك تملك حقّ مشاركتها، ويستطيع مشغّل الخادم
+        تعطيل المشاركة كلّياً.
+      </div>
+      <div id="musicHeard" class="heard-list"></div>
+    </div>
+
+    <div class="net-card">
+      <div class="net-title">الحقوق والإبلاغ</div>
+      <div class="dimline">
+        رأيت مقطعاً يخالف حقوق النشر؟ اضغط <b>🚩 إبلاغ</b> بجانبه. عند وصول البلاغ تتوقّف
+        مشاركة ذلك العنوان فوراً لدى الجميع، ويُسجَّل لمشغّل الخادم لينظر فيه ويزيله.
+        وتستطيع دائماً <b>حذف الموسيقى</b> من مكتبتك بزرّ الحذف.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- نافذة إقرار الحقوق قبل اختيار الملفّ -->
+<div class="screen dialog" id="screenRights">
+  <div class="dlg">
+    <div class="dlg-title">إقرار حقوق قبل الإضافة</div>
+    <div class="dlg-text">
+      أضف فقط الموسيقى التي تملك حقّ استخدامها ومشاركتها.
+      اختر وصف حقوق هذا المقطع:
+    </div>
+    <div id="rightsOpts" class="rights-opts"></div>
+    <label class="rights-check"><input type="checkbox" id="rightsAgree">
+      <span>أُقرّ بأنّني مسؤول عن حقوق ما أضيفه، وأنّ اللعبة ليست مصدراً لتنزيل الموسيقى.</span></label>
+    <div class="pause-btns">
+      <button class="btn primary xl" id="rightsOk">موافق — اختر الملفّ</button>
+      <button class="btn xl" id="rightsCancel">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- نافذة الإبلاغ -->
+<div class="screen dialog" id="screenReport">
+  <div class="dlg">
+    <div class="dlg-title">الإبلاغ عن موسيقى</div>
+    <div class="dlg-text" id="reportWhat">—</div>
+    <div id="reportOpts" class="rights-opts"></div>
+    <div class="pause-btns">
+      <button class="btn xl" id="reportSend">إرسال البلاغ</button>
+      <button class="btn primary xl" id="reportCancel">تراجع</button>
     </div>
   </div>
 </div>
@@ -10462,6 +10634,11 @@ SC.audio = (function () {
       url: 'https://qcucttfkpnpkpfdbnsoq.supabase.co/storage/v1/object/public/Game/Full+Speed+Ahead.mp3' }
   ];
 
+  /* موسيقى شاشة البداية: مقطع واحد يدور خلف سباق الاستعراض، ويُحفظ
+     للعمل دون إنترنت مثل بقيّة المقاطع. */
+  const MENU_TRACK = { id: 'born_for_the_rush', title: 'Born for the Rush', kind: 'url',
+    url: 'https://qcucttfkpnpkpfdbnsoq.supabase.co/storage/v1/object/public/Game/Born+for+the+Rush.mp3' };
+
   /* ----------------------- تخزين الموسيقى للعمل دون إنترنت ---------------
      نحفظ كل مقطع في IndexedDB أوّل مرّة يُشغَّل (أو عند الضغط على «حفظ
      للتشغيل دون إنترنت»)، وبعدها يعمل الراديو كاملاً بلا اتصال. */
@@ -10527,7 +10704,7 @@ SC.audio = (function () {
 
   /* حفظ كل المقاطع دفعةً واحدة (زر «حفظ للتشغيل دون إنترنت») */
   function cacheAll(onProgress) {
-    const list = buildStations().filter((s) => s.kind === 'url');
+    const list = buildStations().filter((s) => s.kind === 'url').concat([MENU_TRACK]);
     let done = 0, ok = 0;
     const step = (i) => {
       if (i >= list.length) { if (onProgress) onProgress(done, list.length, ok); return Promise.resolve(ok); }
@@ -10542,7 +10719,7 @@ SC.audio = (function () {
 
   /* افحص ما هو محفوظ مسبقاً */
   function refreshCached() {
-    const list = buildStations().filter((s) => s.kind === 'url');
+    const list = buildStations().filter((s) => s.kind === 'url').concat([MENU_TRACK]);
     return Promise.all(list.map((s) => dbGet(s.id).then((b) => { radio.cached[s.id] = !!b; })))
       .then(() => { if (radio.onChange) radio.onChange(currentStation(), radio.index, false); });
   }
@@ -10686,6 +10863,86 @@ SC.audio = (function () {
     }
   }
 
+  /* ====================== موسيقى شاشة البداية ==========================
+     عنصر <audio> مستقلّ عن الراديو: يبدأ مع سباق الاستعراض ويتوقّف بخفوت
+     عند الضغط على «ابدأ اللعب». المتصفّح يمنع التشغيل قبل أول لمسة، فإن
+     فشل ننتظر اللمسة الأولى ثم نعيد المحاولة. */
+  const menuM = { el: null, objUrl: null, want: false, fadeTimer: 0, waiting: false };
+
+  function menuVolume() { return U.clamp((music.vol == null ? 0.45 : music.vol) * 1.25, 0, 1); }
+
+  function ensureMenuEl() {
+    if (menuM.el) return menuM.el;
+    const el = new Audio();
+    el.preload = 'none';
+    el.loop = true;                      // المقطع يدور ما دامت القائمة مفتوحة
+    menuM.el = el;
+    return el;
+  }
+
+  function menuPlay() {
+    if (menuVolume() <= 0) return Promise.resolve(false);
+    menuM.want = true;
+    const el = ensureMenuEl();
+    if (menuM.fadeTimer) { clearInterval(menuM.fadeTimer); menuM.fadeTimer = 0; }
+    el.volume = menuVolume();
+    const go = (src, fromCache) => {
+      if (!menuM.want) return false;
+      if (el.src !== src) {
+        if (menuM.objUrl) { URL.revokeObjectURL(menuM.objUrl); menuM.objUrl = null; }
+        if (fromCache) menuM.objUrl = src;
+        el.src = src;
+      }
+      const pr = el.play();
+      if (pr && pr.catch) pr.catch(() => waitForTap());
+      return true;
+    };
+    return dbGet(MENU_TRACK.id).then((blob) => {
+      if (blob) return go(URL.createObjectURL(blob), true);
+      const ok = go(MENU_TRACK.url, false);
+      cacheTrack(MENU_TRACK);            // احفظه ليعمل دون إنترنت لاحقاً
+      return ok;
+    }).catch(() => go(MENU_TRACK.url, false));
+  }
+
+  /* سياسة المتصفّح: لا صوت قبل لمسة — فانتظرها ثم شغّل */
+  function waitForTap() {
+    if (menuM.waiting) return;
+    menuM.waiting = true;
+    const once = () => {
+      window.removeEventListener('pointerdown', once);
+      menuM.waiting = false;
+      if (menuM.want) menuPlay();
+    };
+    window.addEventListener('pointerdown', once, { once: true });
+  }
+
+  function menuStop(fadeSec) {
+    menuM.want = false;
+    const el = menuM.el;
+    if (!el) return;
+    const f = fadeSec == null ? 0.8 : fadeSec;
+    if (menuM.fadeTimer) clearInterval(menuM.fadeTimer);
+    if (f <= 0) { el.pause(); return; }
+    const step = 1 / (f * 20);
+    menuM.fadeTimer = setInterval(() => {
+      el.volume = Math.max(0, el.volume - step * menuVolume());
+      if (el.volume <= 0.001) {
+        clearInterval(menuM.fadeTimer); menuM.fadeTimer = 0;
+        el.pause();
+        if (menuM.objUrl) { URL.revokeObjectURL(menuM.objUrl); menuM.objUrl = null; }
+      }
+    }, 50);
+  }
+
+  /* موضع المقطع وطوله — يستعملهما سباق الاستعراض لمزامنة لحظة الفوز */
+  function menuInfo() {
+    const el = menuM.el;
+    return { playing: !!(el && !el.paused), time: el ? el.currentTime : 0,
+             duration: el && isFinite(el.duration) ? el.duration : 0,
+             title: MENU_TRACK.title };
+  }
+
   function startMusic() {
     init();
     if (!ready || music.on) return;
@@ -10735,12 +10992,305 @@ SC.audio = (function () {
   }
 
   return { init, resume, update, setEnabled, setVolume, setUnderwater, blip, crash, horn, hornBeep, pop,
+           menuPlay, menuStop, menuInfo, MENU_TRACK,
            startMusic, stopMusic, setMusicVolume, setSfxVolume, setEngineSound, music,
            radioNext, radioPrev, radioSet, radioStations, radioCurrent, radioOnChange,
            cacheAll, refreshCached, radioCachedMap, radioSavingMap,
            radioPause, radioResume, playStation, get radioEl() { return radio.el; },
            get engineGain() { return eng ? eng.g.gain.value : null; },
            ui, good, bad, cash, check, count, get ctx() { return ctx; } };
+})();
+
+</script>
+<!-- ===== src/62_mymusic.js ===== -->
+<script>
+/* ============================================================================
+   SPEED CITY — مكتبة الموسيقى الشخصية
+
+   ما يفعله هذا الملف:
+     • يضيف مقاطع صوتية يختارها اللاعب **من جهازه** فقط (MP3 / WAV / OGG…).
+     • يحفظها في IndexedDB **على الجهاز وحده**. لا تُرفع إلى أي خادم أبداً.
+     • يشغّلها داخل اللعبة كبديل عن الراديو.
+
+   ما لا يفعله — عن قصد:
+     • لا ينزّل موسيقى من الإنترنت، ولا يقبل رابط يوتيوب أو سبوتيفاي أو أي
+       خدمة أخرى، ولا يستخرج صوتاً من روابط. لا يوجد أي حقل رابط في الواجهة.
+     • لا يرسل ملفّ الصوت إلى لاعب آخر ولا يعيد بثّه. مشاركة «ما أستمع إليه»
+       ترسل **الاسم فقط** (نصّاً)، وهي مطفأة افتراضياً، ويستطيع مشغّل الخادم
+       تعطيلها كلّياً (ALLOW_MUSIC_SHARING).
+
+   مسؤولية الحقوق على من يضيف الملف: الواجهة تطلب إقراراً صريحاً قبل كل
+   إضافة، وتتيح الإبلاغ والحذف. هذا التصميم يهدف إلى **تقليل مخاطر انتهاك
+   حقوق النشر** والامتثال لشروط المنصّات — وليس ضماناً قانونياً.
+   ========================================================================== */
+SC.mylib = (function () {
+  const U = SC.util;
+
+  const DB_NAME = 'speedcity-mylib', ST_BLOB = 'blobs', ST_META = 'meta';
+  const MAX_SIZE = 40 * 1024 * 1024;              // ٤٠ ميغابايت للمقطع الواحد
+  const MAX_TRACKS = 40;
+  const OK_TYPE = /^audio\/|\.(mp3|wav|ogg|m4a|aac|flac|opus)$/i;
+
+  /* تصنيف الحقوق الذي يختاره اللاعب عند الإضافة */
+  const RIGHTS = [
+    { id: 'own',      label: 'من إنتاجي وأملك حقوقه',            share: true },
+    { id: 'licensed', label: 'مرخّص لي باستخدامه ومشاركته',       share: true },
+    { id: 'free',     label: 'صاحبه يسمح بإعادة الاستخدام (مثل CC)', share: true },
+    { id: 'personal', label: 'للاستماع الشخصي فقط — لا أملك حقّ مشاركته', share: false }
+  ];
+  const rightsOf = (id) => RIGHTS.find((r) => r.id === id) || RIGHTS[3];
+
+  const state = {
+    list: [],                 // البيانات الوصفية فقط (بلا الملفّات)
+    ready: false,
+    playingId: null,
+    el: null,
+    objUrl: null,
+    shareOn: false,           // مفتاح عام — مطفأ افتراضياً
+    policy: { sharing: false },   // ما يسمح به الخادم
+    blocked: {},              // عناوين أوقف الخادم مشاركتها بعد بلاغ
+    heard: [],                // ما يشاركه من في غرفتك (أسماء فقط)
+    onChange: null
+  };
+
+  const emit = () => { if (state.onChange) state.onChange(); };
+
+  /* ------------------------------ التخزين ------------------------------- */
+  let dbPromise = null;
+  function openDB() {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise((res) => {
+      try {
+        const rq = indexedDB.open(DB_NAME, 1);
+        rq.onupgradeneeded = () => {
+          const db = rq.result;
+          if (!db.objectStoreNames.contains(ST_BLOB)) db.createObjectStore(ST_BLOB);
+          if (!db.objectStoreNames.contains(ST_META)) db.createObjectStore(ST_META);
+        };
+        rq.onsuccess = () => res(rq.result);
+        rq.onerror = () => res(null);
+      } catch (e) { res(null); }
+    });
+    return dbPromise;
+  }
+  function tx(store, mode, fn) {
+    return openDB().then((db) => new Promise((res) => {
+      if (!db) return res(null);
+      try {
+        const t = db.transaction(store, mode);
+        const rq = fn(t.objectStore(store));
+        if (rq) { rq.onsuccess = () => res(rq.result); rq.onerror = () => res(null); }
+        else { t.oncomplete = () => res(true); t.onerror = () => res(null); }
+      } catch (e) { res(null); }
+    }));
+  }
+  const metaGet = () => tx(ST_META, 'readonly', (s) => s.get('list'));
+  const metaPut = (v) => tx(ST_META, 'readwrite', (s) => { s.put(v, 'list'); });
+  const blobGet = (id) => tx(ST_BLOB, 'readonly', (s) => s.get(id));
+  const blobPut = (id, b) => tx(ST_BLOB, 'readwrite', (s) => { s.put(b, id); });
+  const blobDel = (id) => tx(ST_BLOB, 'readwrite', (s) => { s.delete(id); });
+
+  function load() {
+    return metaGet().then((v) => {
+      state.list = Array.isArray(v) ? v : [];
+      state.ready = true;
+      try { state.shareOn = localStorage.getItem('speedcity-music-share') === '1'; } catch (e) {}
+      emit();
+      return state.list;
+    });
+  }
+  const save = () => metaPut(state.list.map((t) => Object.assign({}, t)));
+
+  /* ------------------------------ الإضافة ------------------------------- *
+     تُستدعى بعد أن يوافق اللاعب صراحةً على إقرار الحقوق في الواجهة.
+     الملفّ يبقى على الجهاز: لا رفع ولا إرسال. */
+  function add(file, opts) {
+    const o = opts || {};
+    if (!o.confirmed) return Promise.reject(new Error('needs-confirm'));
+    if (!file) return Promise.reject(new Error('no-file'));
+    if (!(OK_TYPE.test(file.type || '') || OK_TYPE.test(file.name || ''))) {
+      return Promise.reject(new Error('type'));
+    }
+    if (file.size > MAX_SIZE) return Promise.reject(new Error('size'));
+    if (state.list.length >= MAX_TRACKS) return Promise.reject(new Error('full'));
+
+    const id = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    const title = (o.title || file.name.replace(/\.[^.]+$/, '')).slice(0, 60).trim() || 'مقطع';
+    const rights = rightsOf(o.rights).id;
+    const rec = { id, title, size: file.size, type: file.type || '', added: Date.now(),
+                  rights, share: false, reported: false, artist: (o.artist || '').slice(0, 40) };
+    return blobPut(id, file).then((ok) => {
+      if (ok === null) throw new Error('store');
+      state.list.push(rec);
+      return save().then(() => { emit(); return rec; });
+    });
+  }
+
+  /* ------------------------------ الحذف --------------------------------- */
+  function remove(id) {
+    const i = state.list.findIndex((t) => t.id === id);
+    if (i < 0) return Promise.resolve(false);
+    if (state.playingId === id) stop();
+    state.list.splice(i, 1);
+    return blobDel(id).then(() => save()).then(() => { emit(); return true; });
+  }
+  function clearAll() {
+    const ids = state.list.map((t) => t.id);
+    stop();
+    state.list.length = 0;
+    return Promise.all(ids.map(blobDel)).then(() => save()).then(() => { emit(); return true; });
+  }
+
+  /* ------------------------------ التشغيل ------------------------------- */
+  function ensureEl() {
+    if (state.el) return state.el;
+    const el = new Audio();
+    el.preload = 'none';
+    el.addEventListener('ended', () => next());
+    state.el = el;
+    return el;
+  }
+  function volume() {
+    const v = SC.settings && SC.settings.music;
+    return U.clamp((v == null ? 0.45 : v) * 1.15, 0, 1);
+  }
+  function play(id) {
+    const rec = state.list.find((t) => t.id === id);
+    if (!rec) return Promise.resolve(false);
+    return blobGet(id).then((blob) => {
+      if (!blob) return false;
+      const el = ensureEl();
+      SC.audio.radioSet && SC.audio.radioSet('off');     // لا يعملان معاً
+      if (state.objUrl) URL.revokeObjectURL(state.objUrl);
+      state.objUrl = URL.createObjectURL(blob);
+      el.src = state.objUrl;
+      el.volume = volume();
+      state.playingId = id;
+      const pr = el.play();
+      if (pr && pr.catch) pr.catch(() => {});
+      shareNow(rec);
+      emit();
+      return true;
+    });
+  }
+  function stop() {
+    if (state.el) state.el.pause();
+    if (state.objUrl) { URL.revokeObjectURL(state.objUrl); state.objUrl = null; }
+    state.playingId = null;
+    shareNow(null);
+    emit();
+  }
+  function next() {
+    if (!state.list.length) return;
+    const i = state.list.findIndex((t) => t.id === state.playingId);
+    play(state.list[(i + 1) % state.list.length].id);
+  }
+  function setVolume() { if (state.el) state.el.volume = volume(); }
+  function pause() { if (state.el) state.el.pause(); }
+  function resume() {
+    if (state.el && state.playingId && volume() > 0) {
+      const pr = state.el.play(); if (pr && pr.catch) pr.catch(() => {});
+    }
+  }
+
+  /* ---------------------------- المشاركة (الاسم فقط) --------------------- *
+     لا يُرسل الملفّ ولا أي جزء منه. تُرسل كلمة واحدة: عنوان المقطع، وفقط
+     إذا: سمح الخادم + فعّل اللاعب المفتاح العام + أقرّ بحقّ مشاركة المقطع
+     + لم يُبلَّغ عنه. أي شرط يسقط ⇒ لا تُرسل شيئاً. */
+  function canShare(rec) {
+    return !!(state.policy.sharing && state.shareOn && rec && rec.share &&
+              rightsOf(rec.rights).share && !rec.reported &&
+              !state.blocked[titleKey(rec.title)]);
+  }
+  const titleKey = (t) => String(t || '').trim().toLowerCase();
+
+  function shareNow(rec) {
+    if (!SC.net || !SC.net.connected) return;
+    if (rec && canShare(rec)) SC.net.send({ t: 'music.now', title: rec.title.slice(0, 60) });
+    else SC.net.send({ t: 'music.now', title: '' });      // أوقف عرض اسمي عندهم
+  }
+
+  function setShare(id, on) {
+    const rec = state.list.find((t) => t.id === id);
+    if (!rec) return false;
+    if (on && !rightsOf(rec.rights).share) return false;  // لا مشاركة لِما لا تملك حقّه
+    if (on && rec.reported) return false;
+    rec.share = !!on;
+    save().then(emit);
+    if (state.playingId === id) shareNow(rec);
+    return true;
+  }
+  function setShareAll(on) {
+    state.shareOn = !!on;
+    try { localStorage.setItem('speedcity-music-share', on ? '1' : '0'); } catch (e) {}
+    if (!on) shareNow(null);
+    else {
+      const rec = state.list.find((t) => t.id === state.playingId);
+      if (rec) shareNow(rec);
+    }
+    emit();
+  }
+
+  /* ------------------------- الإبلاغ والإزالة ---------------------------- *
+     البلاغ يوقف المشاركة فوراً عند المُبلِّغ، ويُرسَل إلى الخادم ليوقف
+     مشاركة ذلك العنوان لدى الجميع ويسجّله لمشغّل الخادم لينظر فيه. */
+  const REASONS = [
+    { id: 'copyright', label: 'موسيقى محمية بحقوق نشر بلا إذن' },
+    { id: 'offensive', label: 'محتوى مسيء' },
+    { id: 'other',     label: 'سبب آخر' }
+  ];
+
+  function report(target, reason, note) {
+    const r = { title: '', ownerId: 0, reason: reason || 'copyright',
+                note: String(note || '').slice(0, 200) };
+    if (typeof target === 'string' && state.list.some((t) => t.id === target)) {
+      const rec = state.list.find((t) => t.id === target);
+      rec.reported = true; rec.share = false;             // أوقفها محلياً فوراً
+      r.title = rec.title;
+      save().then(emit);
+      if (state.playingId === rec.id) shareNow(null);
+    } else if (target && typeof target === 'object') {
+      r.title = target.title || ''; r.ownerId = target.id || 0;
+    }
+    state.blocked[titleKey(r.title)] = true;
+    if (SC.net && SC.net.connected) SC.net.send({ t: 'music.report', title: r.title,
+                                                  ownerId: r.ownerId, reason: r.reason, note: r.note });
+    emit();
+    return r;
+  }
+
+  /* رسائل الخادم: السياسة، وما يسمعه من في الغرفة، وقوائم المنع */
+  function onNet(m) {
+    if (m.t === 'music.policy') { state.policy.sharing = !!m.sharing; emit(); }
+    else if (m.t === 'music.now') {
+      const i = state.heard.findIndex((h) => h.id === m.id);
+      if (!m.title) { if (i >= 0) state.heard.splice(i, 1); }
+      else if (i >= 0) { state.heard[i].title = m.title; state.heard[i].name = m.name; }
+      else state.heard.push({ id: m.id, name: m.name, title: m.title });
+      emit();
+    } else if (m.t === 'music.blocked') {
+      (m.titles || []).forEach((t) => { state.blocked[titleKey(t)] = true; });
+      /* أوقف مشاركة ما مُنع، وأعلِم صاحبه */
+      let hit = false;
+      state.list.forEach((rec) => {
+        if (state.blocked[titleKey(rec.title)] && rec.share) { rec.share = false; rec.reported = true; hit = true; }
+      });
+      if (hit) { save().then(emit); SC.hud && SC.hud.toast('أُوقفت مشاركة مقطع بعد بلاغ حقوق', 'bad', 5000); }
+      state.heard = state.heard.filter((h) => !state.blocked[titleKey(h.title)]);
+      emit();
+    } else if (m.t === 'music.reported') {
+      SC.hud && SC.hud.toast('وصل بلاغك — أُوقفت مشاركة المقطع', 'ok', 4000);
+    }
+  }
+
+  function clearHeard() { state.heard.length = 0; emit(); }
+
+  return { RIGHTS, REASONS, state, load, add, remove, clearAll,
+           play, stop, pause, resume, next, setVolume,
+           setShare, setShareAll, canShare, report, onNet, clearHeard,
+           rightsOf, MAX_SIZE, MAX_TRACKS,
+           get playing() { return state.list.find((t) => t.id === state.playingId) || null; },
+           set onChange(f) { state.onChange = f; } };
 })();
 
 </script>
@@ -11954,6 +12504,7 @@ SC.ui = (function () {
     SC.input.bindTap(dom.btnShop, () => open('shop'));
     SC.input.bindTap(dom.btnMap, () => { mapView.mode = 'world'; open('map'); });
     initRadio();
+    initMusic();
     if (dom.poiEnter) SC.input.bindTap(dom.poiEnter, () => enterPOI());
     if (dom.dealerPrev) SC.input.bindTap(dom.dealerPrev, () => { dealerIdx--; buildDealer(); });
     if (dom.dealerNext) SC.input.bindTap(dom.dealerNext, () => { dealerIdx++; buildDealer(); });
@@ -11997,6 +12548,7 @@ SC.ui = (function () {
     current = name;
     const el = dom['screen' + name.charAt(0).toUpperCase() + name.slice(1)];
     if (!el) return;
+    if (name === 'music') buildMusic();
     if (name === 'online') { buildOnline(); buildRooms(); setMicState();
                              setNetStatus(SC.net.connected ? 'متّصل ✓' : 'غير متّصل', SC.net.connected ? 'on' : '');
                              if (SC.net.connected) SC.net.refreshRooms(); }
@@ -12178,6 +12730,204 @@ SC.ui = (function () {
     dom.netChat.appendChild(line);
     while (dom.netChat.children.length > 40) dom.netChat.removeChild(dom.netChat.firstChild);
     dom.netChat.scrollTop = dom.netChat.scrollHeight;
+  }
+
+  /* ==================== مكتبة الموسيقى الشخصية ==========================
+     الملفّات من جهاز اللاعب فقط. لا تنزيل من الإنترنت ولا حقل رابط — بعد
+     إقرار الحقوق يُفتح منتقي ملفّات النظام، ويبقى الملفّ محلّياً. */
+  let rightsPick = 'own', reportPick = 'copyright', reportTarget = null;
+
+  function initMusic() {
+    if (!dom.musicAdd) return;
+
+    SC.input.bindTap(dom.musicAdd, () => openRights());
+    SC.input.bindTap(dom.musicStop, () => { SC.mylib.stop(); buildMusic(); });
+
+    /* المنتقي يُفتح فقط بعد الموافقة في نافذة الإقرار */
+    dom.musicFile.addEventListener('change', () => {
+      const f = dom.musicFile.files && dom.musicFile.files[0];
+      dom.musicFile.value = '';
+      if (!f) return;
+      SC.mylib.add(f, { confirmed: true, rights: rightsPick })
+        .then((rec) => {
+          SC.hud.toast('أُضيف «' + rec.title + '» إلى مكتبتك — محفوظ على جهازك وحده', 'ok', 3600);
+          buildMusic();
+        })
+        .catch((e) => {
+          const msg = { type: 'هذا ليس ملفّاً صوتياً مدعوماً',
+                        size: 'الملفّ أكبر من ' + Math.round(SC.mylib.MAX_SIZE / 1048576) + ' ميغابايت',
+                        full: 'بلغت الحدّ: ' + SC.mylib.MAX_TRACKS + ' مقطعاً — احذف واحداً أوّلاً',
+                        store: 'تعذّر الحفظ على الجهاز — قد تكون ذاكرة المتصفّح ممتلئة'
+                      }[e.message] || 'تعذّرت الإضافة';
+          SC.hud.toast(msg, 'bad', 4200);
+        });
+    });
+
+    SC.input.bindTap(dom.musicShareAll, () => {
+      const st = SC.mylib.state;
+      if (!st.policy.sharing) {
+        SC.hud.toast('مشاركة الموسيقى معطّلة على هذا الخادم', 'bad', 3200);
+        return;
+      }
+      SC.mylib.setShareAll(!st.shareOn);
+      buildMusic();
+    });
+
+    /* نافذة إقرار الحقوق */
+    SC.input.bindTap(dom.rightsCancel, () => { hideAll(); open('music'); });
+    SC.input.bindTap(dom.rightsOk, () => {
+      if (!dom.rightsAgree.checked) {
+        SC.hud.toast('علّم الإقرار أوّلاً', 'bad', 2600);
+        return;
+      }
+      hideAll(true);
+      dom.screenMusic.classList.add('show');
+      current = 'music';
+      dom.musicFile.click();              // منتقي ملفّات الجهاز — لا روابط
+    });
+
+    /* نافذة الإبلاغ */
+    SC.input.bindTap(dom.reportCancel, () => { hideAll(); open('music'); });
+    SC.input.bindTap(dom.reportSend, () => {
+      if (!reportTarget) { hideAll(); return; }
+      SC.mylib.report(reportTarget, reportPick);
+      hideAll(); open('music');
+      SC.hud.toast('أُرسل البلاغ وأُوقفت مشاركة المقطع', 'ok', 4000);
+    });
+
+    SC.mylib.onChange = () => { if (current === 'music') buildMusic(); };
+    SC.mylib.load().then(buildMusic);
+  }
+
+  function openRights() {
+    rightsPick = 'own';
+    dom.rightsAgree.checked = false;
+    dom.rightsOpts.innerHTML = '';
+    SC.mylib.RIGHTS.forEach((r) => {
+      const b = U.el('button', r.id === rightsPick ? 'on' : '', esc(r.label) +
+        (r.share ? '' : ' <span style="opacity:.6">— بلا مشاركة</span>'));
+      SC.input.bindTap(b, () => {
+        rightsPick = r.id;
+        [...dom.rightsOpts.children].forEach((c, i) => c.classList.toggle('on', SC.mylib.RIGHTS[i].id === r.id));
+      });
+      dom.rightsOpts.appendChild(b);
+    });
+    hideAll(true);
+    dom.screenRights.classList.add('show');
+    current = 'rights';
+  }
+
+  function openReport(target, what) {
+    reportTarget = target; reportPick = 'copyright';
+    dom.reportWhat.textContent = what;
+    dom.reportOpts.innerHTML = '';
+    SC.mylib.REASONS.forEach((r) => {
+      const b = U.el('button', r.id === reportPick ? 'on' : '', esc(r.label));
+      SC.input.bindTap(b, () => {
+        reportPick = r.id;
+        [...dom.reportOpts.children].forEach((c, i) => c.classList.toggle('on', SC.mylib.REASONS[i].id === r.id));
+      });
+      dom.reportOpts.appendChild(b);
+    });
+    hideAll(true);
+    dom.screenReport.classList.add('show');
+    current = 'report';
+  }
+
+  const fileSize = (n) => n >= 1048576
+    ? (Math.round(n / 104858) / 10) + ' م.ب'
+    : Math.max(1, Math.round(n / 1024)) + ' ك.ب';
+
+  function buildMusic() {
+    if (!dom.musicList) return;
+    const st = SC.mylib.state, list = st.list;
+    dom.musicCount.textContent = list.length + ' مقاطع';
+    if (dom.musicQuota) dom.musicQuota.textContent = list.length + ' / ' + SC.mylib.MAX_TRACKS;
+
+    dom.musicList.innerHTML = '';
+    if (!list.length) {
+      dom.musicList.appendChild(U.el('div', 'net-empty',
+        'لا مقاطع بعد — اضغط «+ إضافة موسيقى من الجهاز»'));
+    }
+    list.forEach((rec) => {
+      const playing = st.playingId === rec.id;
+      const row = U.el('div', 'music-row' + (playing ? ' on' : ''));
+      const R = SC.mylib.rightsOf(rec.rights);
+      row.innerHTML = '<span class="mt">' + esc(rec.title) + '</span>' +
+        (rec.reported ? '<span class="flag">مُبلَّغ عنه</span>' : '') +
+        '<span class="mm">' + esc(R.label) + ' · ' + fileSize(rec.size) + '</span>';
+
+      const pb = U.el('button', 'btn tiny primary', playing ? '❚❚' : '▶');
+      SC.input.bindTap(pb, () => {
+        if (playing) { SC.mylib.stop(); } else SC.mylib.play(rec.id);
+        buildMusic();
+      });
+      row.appendChild(pb);
+
+      if (st.policy.sharing && R.share && !rec.reported) {
+        const sb = U.el('button', 'btn tiny' + (rec.share ? ' shared' : ''), rec.share ? 'تُشارَك' : 'مشاركة');
+        SC.input.bindTap(sb, () => { SC.mylib.setShare(rec.id, !rec.share); buildMusic(); });
+        row.appendChild(sb);
+      }
+
+      const rb = U.el('button', 'btn tiny ghost', '🚩');
+      rb.title = 'إبلاغ عن هذا المقطع';
+      SC.input.bindTap(rb, () => openReport(rec.id, 'المقطع: «' + rec.title + '» من مكتبتك'));
+      row.appendChild(rb);
+
+      const db = U.el('button', 'btn tiny danger', 'حذف');
+      SC.input.bindTap(db, () => confirmDeleteTrack(rec));
+      row.appendChild(db);
+
+      dom.musicList.appendChild(row);
+    });
+
+    /* بطاقة المشاركة: تختفي كلّياً إن عطّلها الخادم */
+    if (dom.musicShareCard) {
+      dom.musicShareCard.style.display = st.policy.sharing ? '' : 'none';
+    }
+    if (dom.musicShareAll) {
+      dom.musicShareAll.textContent = st.shareOn ? 'مفعّلة' : 'مطفأة';
+      dom.musicShareAll.classList.toggle('on', st.shareOn);
+    }
+    if (dom.musicShareState) {
+      dom.musicShareState.textContent = !st.policy.sharing
+        ? 'معطّلة على هذا الخادم'
+        : (st.shareOn ? 'يُعرض اسم ما تسمعه لمن في غرفتك' : 'لا يُرسل شيء');
+    }
+    if (dom.musicHeard) {
+      dom.musicHeard.innerHTML = '';
+      st.heard.forEach((h) => {
+        const row = U.el('div', 'heard-row',
+          '🎧 <b>' + esc(h.name || 'لاعب') + '</b> يسمع: ' + esc(h.title));
+        const rb = U.el('button', 'btn tiny ghost', '🚩');
+        SC.input.bindTap(rb, () => openReport({ id: h.id, title: h.title },
+          'ما يشاركه ' + (h.name || 'لاعب') + ': «' + h.title + '»'));
+        row.appendChild(rb);
+        dom.musicHeard.appendChild(row);
+      });
+    }
+  }
+
+  function confirmDeleteTrack(rec) {
+    dom.resultTitle.textContent = 'حذف الموسيقى؟';
+    dom.resultTitle.className = 'res-title';
+    dom.resultSub.textContent = '«' + rec.title + '» — سيُمسح من جهازك نهائياً.';
+    dom.resultRows.innerHTML = '';
+    const wrap = U.el('div', 'pause-btns');
+    const yes = U.el('button', 'btn xl', 'نعم، احذفه');
+    SC.input.bindTap(yes, () => {
+      SC.mylib.remove(rec.id).then(() => {
+        SC.hud.toast('حُذف المقطع من مكتبتك', 'ok', 2600);
+        hideAll(); open('music');
+      });
+    });
+    const no = U.el('button', 'btn primary xl', 'تراجع');
+    SC.input.bindTap(no, () => { hideAll(); open('music'); });
+    wrap.appendChild(yes); wrap.appendChild(no);
+    dom.resultRows.appendChild(wrap);
+    dom.screenResult.classList.add('show');
+    current = 'result';
   }
 
   /* ------------------------------- الغرف -------------------------------- */
@@ -12841,6 +13591,12 @@ SC.ui = (function () {
       });
     }
     wrap.appendChild(save);
+    /* مدخل مكتبة الموسيقى الشخصية */
+    const mine = U.el('button', 'rsave');
+    const n = SC.mylib ? SC.mylib.state.list.length : 0;
+    mine.innerHTML = '<i>🎵</i><span>موسيقاي من الجهاز' + (n ? ' (' + n + ')' : '') + '</span>';
+    SC.input.bindTap(mine, () => { closeRadioList(); open('music'); });
+    wrap.appendChild(mine);
   }
   function toggleRadioList() {
     if (!dom.radioList) return;
@@ -13064,6 +13820,13 @@ SC.ui = (function () {
           'node server/server.mjs — واللعبة تعمل كاملةً بدونه');
     }
 
+    {
+      const b = U.el('button', 'btn ghost', '🎵 موسيقاي — أضف من جهازك');
+      SC.input.bindTap(b, () => open('music'));
+      row('الموسيقى الشخصية', b,
+          'أضف مقاطع تملك حقّ استخدامها من جهازك. تُحفظ على جهازك وحده ولا تُرفع لأي خادم');
+    }
+
     row('صوت المحرّك', seg('engine', [['0', 'مطفأ'], ['1', 'مُفعّل']], null, (v) => {
       SC.settings.engineSound = v === '1';
       SC.audio.setEngineSound(SC.settings.engineSound);
@@ -13196,6 +13959,7 @@ SC.ui = (function () {
 
   return { init, open, hideAll, refreshWallet, buildRadioList, closeRadioList, layoutTopbar,
            showPOI, openDealer, openGarage, enterPOI, showResult, showPrompt, tick, buildShop, drawMap,
+           buildMusic, openReport,
            get current() { return current; } };
 })();
 
@@ -13520,6 +14284,262 @@ SC.game = (function () {
     G.rivals.length = 0; G.rivalAI.length = 0;
   }
   function setRivalsActive(on) { G.rivalAI.forEach((a) => { a.active = on; }); }
+
+  /* ==================== سباق الاستعراض خلف شاشة البداية ==================
+     خلف القائمة يدور سباق قصير: سيارتك تنطلق من آخر الشبكة، تحتكّ
+     بالمنافسين وتتقدّم، وتفوز قرب نهاية المقطع الموسيقي ثم يُعاد من جديد.
+     لا يمسّ حفظك ولا موقع سيارتك: كل شيء يعود كما كان عند «ابدأ اللعب». */
+  const ATTRACT = { intro: 4.0, race: 52.0, win: 9.0 };     // ≈ ٦٥ ثانية
+
+  /* خطّ سير موازٍ للحلقة بإزاحة جانبية: بدونه يطلب الجميع نفس الخطّ
+     تماماً فيتكدّسون في المنعطف الأوّل ويقفون */
+  function lanePath(base, off) {
+    const n = base.length;
+    return base.map((p, i) => {
+      const q = base[(i + 1) % n];
+      const dx = q.x - p.x, dz = q.z - p.z, L = Math.hypot(dx, dz) || 1;
+      return { x: p.x + (-dz / L) * off, z: p.z + (dx / L) * off };
+    });
+  }
+
+  function startAttract() {
+    if (G.attract || !G.ready || !G.car) return;
+    const car = G.car;
+    const base = SC.missions.circuitPath(5, 5, 4, 4);   // حلقة واسعة بمستقيمات طويلة
+    const A = { t: 0, path: base, shot: 0, shotT: 0, won: false, acc: 0, lastHit: -9,
+                saved: { x: car.pos.x, z: car.pos.z, yaw: car.yaw },
+                savedLights: car.lightsOn, camPos: new THREE.Vector3(), camAt: new THREE.Vector3() };
+
+    const p0 = base[0], p1 = base[1];
+    const yaw = Math.atan2(p1.x - p0.x, p1.z - p0.z);
+    const fx = Math.sin(yaw), fz = Math.cos(yaw);          // إلى الأمام
+    const rx = fz, rz = -fx;                               // إلى اليمين
+    const put = (lat, along) => ({ x: p0.x + rx * lat + fx * along,
+                                   z: p0.z + rz * lat + fz * along });
+
+    clearRivals();
+    /* لكلٍّ مساره: أربعة خطوط متجاورة على عرض الطريق */
+    const LANES = [2.4, -2.4, 0.8, -0.8];                  // [أنت, ثلاثة منافسين]
+    const grid = [[LANES[1], -2], [LANES[2], -11], [LANES[3], -20]];
+    grid.forEach((g, i) => {
+      const q = put(g[0], g[1]);
+      const lp = lanePath(base, LANES[i + 1]);
+      const ai = addRival(lp, 0.56 + i * 0.03, q.x, q.z, yaw, i);
+      ai.wp = 1;
+    });
+    setRivalsActive(false);
+
+    const myPath = lanePath(base, LANES[0]);
+    const me = put(LANES[0], -29);
+    car.place(me.x, me.z, yaw);
+    car.lightsOn = SC.world.state.isNight;
+    A.ai = new SC.AIDriver(car, { skill: 0.68, path: myPath, targetSpeed: car.def.topSpeed * 0.45 });
+    A.ai.active = false;
+    A.ai.wp = 0;
+
+    G.attract = A;
+    G.mode = 'attract';
+    G.freezeCam = true;
+    document.body.classList.add('attract');
+    snapAttractCamera();
+    SC.audio.menuPlay();
+  }
+
+  function stopAttract() {
+    const A = G.attract;
+    if (!A) return;
+    clearRivals();
+    G.attract = null;
+    G.mode = 'menu';
+    G.freezeCam = false;
+    document.body.classList.remove('attract');
+    SC.audio.menuStop(0.7);
+    const car = G.car;
+    const sp = SC.world.nearestSpawn(A.saved.x, A.saved.z);
+    car.place(sp.x, sp.z, sp.yaw);
+    car.input = { throttle: 0, brake: 0, steer: 0, handbrake: 0, boost: 0, wheelie: 0 };
+    car.lightsOn = A.savedLights;
+    snapCamera();
+  }
+
+  function resetAttract() {
+    const A = G.attract;
+    if (!A) return;
+    const keep = A.saved, lights = A.savedLights;
+    G.attract = null;
+    clearRivals();
+    startAttract();
+    if (G.attract) { G.attract.saved = keep; G.attract.savedLights = lights; }
+  }
+
+  function updateAttract(dt) {
+    const A = G.attract;
+    if (!A) return;
+    A.t += dt;
+    const T = ATTRACT, car = G.car;
+    const total = T.intro + T.race + T.win;
+
+    /* انطلاق بعد العدّ التنازلي */
+    const live = A.t > T.intro;
+    if (live && !A.live) { A.live = true; setRivalsActive(true); A.ai.active = true; SC.audio.blip(880, 0.12); }
+
+    /* شدّ الحبل: يلحق بهم أوّلاً ثم يتقدّم قرب النهاية فيفوز في وقته.
+       سرعات مدينة معتدلة: المنعطفات هنا قائمة الزاوية، والاندفاع يقذف
+       السيارة خارج الطريق فيضيع الاستعراض. */
+    const k = U.clamp((A.t - T.intro) / T.race, 0, 1);
+    const late = k > 0.82;                       // اللحظات الأخيرة: يتراجعون
+    A.ai.targetSpeed = car.def.topSpeed * (0.42 + 0.22 * k);
+    G.rivalAI.forEach((ai, i) => {
+      ai.targetSpeed = ai.v.def.topSpeed *
+        ((late ? 0.30 : 0.47 - 0.12 * k) + i * 0.012);
+    });
+
+    /* إن قذف منعطفٌ سيارةً بعيداً عن مسارها أعِد ربطها بأقرب نقطة —
+       بدونها تتوه بقيّة الجولة لأن الملاحة لا تتقدّم إلا عن قرب.
+       وإن وقفت تماماً (تكدّس في زاوية) أعِدها إلى الخطّ: هذا استعراض
+       في الخلفية، ووقوف سيارة فيه أسوأ من إعادة صامتة. */
+    const fix = (ai) => {
+      const path = ai.path || A.path;
+      const t = path[ai.wp % path.length];
+      const far = Math.hypot(t.x - ai.v.pos.x, t.z - ai.v.pos.z) > 55;
+      ai.dead = (Math.abs(ai.v.kmh) < 4) ? (ai.dead || 0) + dt : 0;
+      if (!far && ai.dead < 1.6) return;
+      let best = 0, bd = 1e9;
+      for (let i = 0; i < path.length; i++) {
+        const q = path[i];
+        const d = Math.hypot(q.x - ai.v.pos.x, q.z - ai.v.pos.z);
+        if (d < bd) { bd = d; best = i; }
+      }
+      ai.wp = (best + 1) % path.length;
+      if (ai.dead >= 1.6) {
+        const a = path[best], b = path[(best + 1) % path.length];
+        ai.v.place(a.x, a.z, Math.atan2(b.x - a.x, b.z - a.z));
+        ai.dead = 0; ai.stuck = 0; ai.reverse = 0;
+      }
+    };
+    fix(A.ai);
+    G.rivalAI.forEach(fix);
+
+    /* فيزياء بخطوة ثابتة لكل السيارات */
+    const all = G.rivals.concat([car]);
+    A.acc = Math.min(A.acc + dt, 0.25);
+    let n = 0;
+    while (A.acc >= FIXED && n < 4) {
+      A.ai.update(FIXED, all);
+      G.rivalAI.forEach((ai) => ai.update(FIXED, all));
+      A.acc -= FIXED; n++;
+    }
+
+    /* الاحتكاك بين السيارات: تلامس ودفع وشرر — لا تحطيم */
+    for (let i = 0; i < all.length; i++) {
+      for (let j = i + 1; j < all.length; j++) {
+        const a = all[i], b = all[j];
+        const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z;
+        const d = Math.hypot(dx, dz);
+        const minD = (a.halfLen + b.halfLen) * 0.52;
+        if (d > minD || d < 1e-4) continue;
+        const ux = dx / d, uz = dz / d, push = (minD - d) * 0.40;
+        a.pos.x -= ux * push; a.pos.z -= uz * push;
+        b.pos.x += ux * push; b.pos.z += uz * push;
+        a.yawRate -= 0.35 * dt * 60 * 0.016; b.yawRate += 0.35 * dt * 60 * 0.016;
+        if (A.t - A.lastHit > 0.45) {
+          A.lastHit = A.t;
+          SC.audio.crash(0.30);
+          const mx = (a.pos.x + b.pos.x) / 2, mz = (a.pos.z + b.pos.z) / 2;
+          const my = SC.world.groundHeight(mx, mz) + 0.65;
+          for (let sp = 0; sp < 6; sp++) SC.fx.spark(mx, my, mz, ux, uz);
+        }
+      }
+    }
+
+    /* لحظة الفوز ثم إعادة الجولة */
+    if (!A.won && A.t >= T.intro + T.race) {
+      A.won = true;
+      if (G.dom && G.dom.attractWin) G.dom.attractWin.classList.add('show');
+      SC.audio.good && SC.audio.good();
+    }
+    if (A.t >= total) {
+      if (G.dom && G.dom.attractWin) G.dom.attractWin.classList.remove('show');
+      resetAttract();
+      return;
+    }
+
+    attractCamera(dt);
+    SC.fx.updateParticles(dt);
+  }
+
+  /* ------------------------ كاميرا سينمائية للاستعراض ------------------- */
+  const _av = new THREE.Vector3(), _aw = new THREE.Vector3();
+
+  /* لوحة القائمة تحتلّ وسط الشاشة، فنُميل هدف الكاميرا جانباً حتى تظهر
+     السيارات في ثلث الشاشة لا خلف اللوحة */
+  function biasAim(s) {
+    const dx = s.tx - s.px, dz = s.tz - s.pz;
+    const L = Math.hypot(dx, dz) || 1;
+    const b = 0.36 * L;
+    s.tx += (-dz / L) * b;
+    s.tz += (dx / L) * b;
+    return s;
+  }
+
+  function attractShot(i, car, t) {
+    const yaw = car.yaw, fx = Math.sin(yaw), fz = Math.cos(yaw);
+    const rx = fz, rz = -fx;
+    const p = car.pos;
+    return biasAim(rawShot(i, p, fx, fz, rx, rz));
+  }
+
+  function rawShot(i, p, fx, fz, rx, rz) {
+    switch (i % 5) {
+      case 0:   // منخفضة أمام السيارة تنظر إليها
+        return { px: p.x + fx * 9.5, py: 1.0, pz: p.z + fz * 9.5,
+                 tx: p.x, ty: 0.9, tz: p.z, fov: 42 };
+      case 1:   // جانبية قريبة تمرّ معها
+        return { px: p.x + rx * 6.5 - fx * 1.5, py: 1.35, pz: p.z + rz * 6.5 - fz * 1.5,
+                 tx: p.x, ty: 0.85, tz: p.z, fov: 50 };
+      case 2:   // مطاردة منخفضة خلفها
+        return { px: p.x - fx * 7.5, py: 1.9, pz: p.z - fz * 7.5,
+                 tx: p.x + fx * 6, ty: 1.1, tz: p.z + fz * 6, fov: 58 };
+      case 3:   // من الأعلى مائلة
+        return { px: p.x - fx * 10 + rx * 7, py: 9.5, pz: p.z - fz * 10 + rz * 7,
+                 tx: p.x + fx * 4, ty: 0.8, tz: p.z + fz * 4, fov: 46 };
+      default:  // عجلة قريبة: الإحساس بالسرعة
+        return { px: p.x - rx * 3.0 - fx * 2.2, py: 0.55, pz: p.z - rz * 3.0 - fz * 2.2,
+                 tx: p.x + fx * 2, ty: 0.7, tz: p.z + fz * 2, fov: 62 };
+    }
+  }
+
+  function snapAttractCamera() {
+    const A = G.attract; if (!A) return;
+    const s = attractShot(0, G.car, 0);
+    G.camera.position.set(s.px, s.py, s.pz);
+    G.camera.lookAt(s.tx, s.ty, s.tz);
+    A.camPos.set(s.px, s.py, s.pz);
+    A.camAt.set(s.tx, s.ty, s.tz);
+  }
+
+  function attractCamera(dt) {
+    const A = G.attract, car = G.car;
+    A.shotT += dt;
+    /* اللقطة الأخيرة تُترك للفوز */
+    const dur = A.won ? 99 : 7.0;
+    if (A.shotT > dur) { A.shotT = 0; A.shot++; }
+    const s = attractShot(A.won ? 0 : A.shot, car, A.shotT);
+    const lerp = Math.min(1, dt * (A.shotT < 0.12 ? 60 : 6));
+    _av.set(s.px, s.py, s.pz);
+    _aw.set(s.tx, s.ty, s.tz);
+    A.camPos.lerp(_av, lerp);
+    A.camAt.lerp(_aw, lerp);
+    /* لا تدخل الأرض */
+    const gy = SC.world.groundHeight(A.camPos.x, A.camPos.z);
+    if (A.camPos.y < gy + 0.35) A.camPos.y = gy + 0.35;
+    G.camera.position.copy(A.camPos);
+    G.camera.lookAt(A.camAt);
+    if (Math.abs(G.camera.fov - s.fov) > 0.3) {
+      G.camera.fov = U.lerp(G.camera.fov, s.fov, Math.min(1, dt * 4));
+      G.camera.updateProjectionMatrix();
+    }
+  }
 
   /* ترتيب اللاعب في السباق بحسب التقدّم على المسار */
   function racePosition(mstate) {
@@ -14020,6 +15040,8 @@ SC.game = (function () {
       updateArrow(car);
     }
 
+    if (G.paused && G.attract) updateAttract(dt);
+
     autoQuality(dt);
     if (!G.freezeCam) updateCamera(dt, car);
     const under = G.camera.position.y < SC.world.CFG.seaY - 0.1;
@@ -14265,6 +15287,7 @@ SC.game = (function () {
     setTimeOfDay, setTraffic, setQuality, setWaypoint, togglePause, persist, setPeds, startOnlineRace,
     addMoney, addXp, addRep, repMult, setPassenger, shake, snapCamera,
     refreshFreeMarkers, buildMissionMarkers,
+    startAttract, stopAttract,
     get car() { return G.car; }
   };
 })();
@@ -14445,6 +15468,7 @@ SC.net = (function () {
         break;
       case 'room.joined':
         state.room = m.room;
+        if (SC.mylib) SC.mylib.clearHeard();  // ما يسمعه أهل الغرفة السابقة
         clearPlayers();                       // لاعبو الغرفة السابقة ليسوا هنا
         (m.players || []).forEach(addPlayer);
         emit('players');
@@ -14468,6 +15492,11 @@ SC.net = (function () {
         break;
       case 'room.error':
         emit('roomError', m);
+        break;
+
+      /* ------------------- الموسيقى الشخصية (أسماء فقط) ------------------ */
+      case 'music.policy': case 'music.now': case 'music.blocked': case 'music.reported':
+        if (SC.mylib) SC.mylib.onNet(m);
         break;
     }
   }
@@ -14700,6 +15729,7 @@ window.SC_MODEL_DATA = {
     btnSettings: $('btnSettings'), btnPause: $('btnPause'), wheelie: $('btnWheelie'),
     stunt: $('stunt'), stuntTime: $('stuntTime'), stuntName: $('stuntName'),
     msMoney: $('msMoney'), msCar: $('msCar'), msLevel: $('msLevel'), btnPlayLabel: $('btnPlayLabel'),
+    attractWin: $('attractWin'), attractTag: $('attractTag'), attractTrack: $('attractTrack'),
     screenOnline: $('screenOnline'), netStatus: $('netStatus'), netName: $('netName'),
     netUrl: $('netUrl'), netConnect: $('netConnect'), netDisconnect: $('netDisconnect'),
     netMic: $('netMic'), netPlayers: $('netPlayers'), netCount: $('netCount'),
@@ -14709,6 +15739,14 @@ window.SC_MODEL_DATA = {
     roomName: $('roomName'), roomCreate: $('roomCreate'),
     roomCode: $('roomCode'), roomJoin: $('roomJoin'), roomList: $('roomList'),
     netChat: $('netChat'), netMsg: $('netMsg'), netSend: $('netSend'),
+    screenMusic: $('screenMusic'), musicCount: $('musicCount'), musicAdd: $('musicAdd'),
+    musicFile: $('musicFile'), musicStop: $('musicStop'), musicList: $('musicList'),
+    musicQuota: $('musicQuota'), musicShareCard: $('musicShareCard'), musicShareAll: $('musicShareAll'),
+    musicShareState: $('musicShareState'), musicHeard: $('musicHeard'),
+    screenRights: $('screenRights'), rightsOpts: $('rightsOpts'), rightsAgree: $('rightsAgree'),
+    rightsOk: $('rightsOk'), rightsCancel: $('rightsCancel'),
+    screenReport: $('screenReport'), reportWhat: $('reportWhat'), reportOpts: $('reportOpts'),
+    reportSend: $('reportSend'), reportCancel: $('reportCancel'),
     screenDealer: $('screenDealer'), dealerTitle: $('dealerTitle'), dealerMoney: $('dealerMoney'),
     dealerCanvas: $('dealerCanvas'), dealerBadge: $('dealerBadge'), dealerPrev: $('dealerPrev'),
     dealerNext: $('dealerNext'), dealerName: $('dealerName'), dealerTag: $('dealerTag'),
@@ -14753,6 +15791,7 @@ window.SC_MODEL_DATA = {
 
       /* أزرار القائمة الرئيسية */
       const play = () => {
+        SC.game.stopAttract();            // أوقف سباق الاستعراض وأعد السيارة
         SC.ui.hideAll();
         dom.hud.classList.remove('hidden');
         SC.game.start();
@@ -14794,6 +15833,9 @@ window.SC_MODEL_DATA = {
       dom.screenMenu.classList.add('show');
       SC.game.snapCamera();
       SC.game.frame();
+      /* سباق الاستعراض + موسيقى القائمة خلف الشاشة */
+      if (dom.attractTrack && SC.audio.MENU_TRACK) dom.attractTrack.textContent = SC.audio.MENU_TRACK.title;
+      SC.game.startAttract();
       window.SC_READY = true;
       document.title = 'READY · مدينة السرعة';
     } catch (e) { fail(e); }

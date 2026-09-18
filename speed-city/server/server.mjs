@@ -18,7 +18,7 @@
    ========================================================================== */
 import http from 'node:http';
 import { createHash, randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -26,6 +26,10 @@ const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const PORT = Number(process.env.PORT || 8080);
 const MAX_ROOMS = Math.max(1, Number(process.env.MAX_ROOMS || 3));   // لكل شخص
 const MAX_PLAYERS = Math.max(2, Number(process.env.MAX_PLAYERS || 12));
+/* مشاركة أسماء ما يسمعه اللاعبون: مطفأة افتراضياً.
+   حتى حين تُفعَّل لا يمرّ عبر الخادم أي ملفّ صوتي — نصّ العنوان فقط. */
+const MUSIC_SHARING = process.env.ALLOW_MUSIC_SHARING === '1';
+const REPORTS_FILE = join(ROOT, 'server', 'music-reports.json');
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
 const MIME = {
@@ -93,6 +97,32 @@ function countOwned(key) {
   return n;
 }
 
+/* --------------------------- بلاغات الموسيقى ----------------------------
+   الخادم لا يستضيف أي ملفّ صوتي ولا ينقله. يمرّ به عنوان نصّي فقط، وعند
+   أي بلاغ يُمنع ذلك العنوان من المشاركة فوراً ويُسجَّل ليراجعه المشغّل
+   وينفّذ الإزالة المناسبة. */
+const blockedTitles = new Set();
+const reports = [];
+const tkey = (t) => String(t || '').trim().toLowerCase().slice(0, 80);
+
+async function saveReports() {
+  try {
+    await writeFile(REPORTS_FILE, JSON.stringify({
+      updated: new Date().toISOString(),
+      blocked: [...blockedTitles],
+      reports: reports.slice(-500)
+    }, null, 2), 'utf8');
+  } catch (e) { /* التسجيل على القرص اختياري */ }
+}
+async function loadReports() {
+  try {
+    const raw = JSON.parse(await readFile(REPORTS_FILE, 'utf8'));
+    (raw.blocked || []).forEach((t) => blockedTitles.add(t));
+    (raw.reports || []).forEach((r) => reports.push(r));
+    if (blockedTitles.size) console.log('  عناوين ممنوعة من المشاركة:', blockedTitles.size);
+  } catch (e) { /* أوّل تشغيل */ }
+}
+
 /* ------------------------------ WebSocket ------------------------------- */
 function accept(key) {
   return createHash('sha1').update(key + GUID).digest('base64');
@@ -154,6 +184,7 @@ function leaveRoom(c, quiet) {
   const r = rooms.get(c.room);
   if (!r) { c.room = null; return; }
   r.members.delete(c.id);
+  if (c.nowPlaying) roomcast(r.code, { t: 'music.now', id: c.id, name: c.name, title: '' });
   roomcast(r.code, { t: 'leave', id: c.id });
   c.room = null;
   if (!quiet) send(c, { t: 'room.left' });
@@ -173,6 +204,8 @@ server.on('upgrade', (req, socket) => {
   clients.set(id, client);
   enterRoom(client, LOBBY);
   send(client, { t: 'welcome', id, players: mates(client), limit: MAX_ROOMS });
+  send(client, { t: 'music.policy', sharing: MUSIC_SHARING });
+  if (blockedTitles.size) send(client, { t: 'music.blocked', titles: [...blockedTitles] });
   send(client, roomsFor(client));
   pushRooms();
 
@@ -293,13 +326,54 @@ function handle(c, m) {
       break;
     }
 
+    /* ------------------------- الموسيقى الشخصية ------------------------ *
+       يمرّ العنوان نصّاً فقط. لا ملفّات ولا بثّ ولا تخزين للصوت هنا. */
+    case 'music.now': {
+      if (!MUSIC_SHARING) { send(c, { t: 'music.policy', sharing: false }); break; }
+      const title = String(m.title || '').slice(0, 60).trim();
+      if (title && blockedTitles.has(tkey(title))) {
+        send(c, { t: 'music.blocked', titles: [title] });
+        break;
+      }
+      c.nowPlaying = title;
+      roomcast(c.room, { t: 'music.now', id: c.id, name: c.name, title }, c.id);
+      break;
+    }
+
+    case 'music.report': {
+      const title = String(m.title || '').slice(0, 60).trim();
+      if (!title) break;
+      blockedTitles.add(tkey(title));
+      const rec = { at: new Date().toISOString(), title, reason: String(m.reason || 'other').slice(0, 30),
+                    note: String(m.note || '').slice(0, 200), by: c.name, byId: c.id,
+                    ownerId: Number(m.ownerId) || 0, room: c.room };
+      reports.push(rec);
+      console.log('🚩 بلاغ موسيقى:', rec.title, '|', rec.reason, '| من', rec.by);
+      saveReports();
+      /* أوقف مشاركته لدى الجميع فوراً */
+      for (const o of clients.values()) {
+        if (tkey(o.nowPlaying) === tkey(title)) {
+          o.nowPlaying = '';
+          roomcast(o.room, { t: 'music.now', id: o.id, name: o.name, title: '' });
+        }
+        send(o, { t: 'music.blocked', titles: [title] });
+      }
+      send(c, { t: 'music.reported', title });
+      break;
+    }
+
     case 'ping': send(c, { t: 'pong', ts: m.ts }); break;
   }
 }
+
+await loadReports();
 
 server.listen(PORT, () => {
   console.log('\n  🏁 خادم مدينة السرعة يعمل');
   console.log('  الصفحة:   http://localhost:' + PORT);
   console.log('  الخادم:   ws://localhost:' + PORT);
-  console.log('  حدّ الغرف لكل لاعب: ' + MAX_ROOMS + ' — وحدّ اللاعبين في الغرفة: ' + MAX_PLAYERS + '\n');
+  console.log('  حدّ الغرف لكل لاعب: ' + MAX_ROOMS + ' — وحدّ اللاعبين في الغرفة: ' + MAX_PLAYERS);
+  console.log('  مشاركة أسماء الموسيقى: ' + (MUSIC_SHARING ? 'مفعّلة (أسماء نصّية فقط)' : 'معطّلة')
+              + '  — للتفعيل: ALLOW_MUSIC_SHARING=1');
+  console.log('  بلاغات الموسيقى تُسجَّل في server/music-reports.json\n');
 });

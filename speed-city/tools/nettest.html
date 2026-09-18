@@ -4,13 +4,16 @@
 /* حزام اختبار خفيف لوحدة الشبكة وحدها: لا عالم ولا رسم — فقط البروتوكول.
    يُحمّل src/92_net.js بأقلّ ما يحتاجه من بدائل. */
 window.SC = {
-  util: { damp: (a, b) => b, angleDelta: () => 0 },
-  audio: { resume() {} },
+  util: { damp: (a, b) => b, angleDelta: () => 0, clamp: (v, a, b) => Math.min(b, Math.max(a, v)) },
+  audio: { resume() {}, radioSet() {} },
   cars: { defs: { cortina: {} } },
   game: { save: { current: 'cortina' }, G: { scene: { add() {}, remove() {} } } },
-  world: { state: { isNight: false }, groundHeight: () => 0 }
+  world: { state: { isNight: false }, groundHeight: () => 0 },
+  settings: { music: 0.45 },
+  hud: { toast(t) { (window.__toasts = window.__toasts || []).push(t); } }
 };
 </script>
+<script src="../src/62_mymusic.js"></script>
 <script src="../src/92_net.js"></script>
 <script>window.NET_READY = true;</script>
 </body></html>

@@ -192,6 +192,9 @@
 <!-- ====================== القائمة الرئيسية ====================== -->
 <div class="screen menu" id="screenMenu">
   <div class="menu-bg"></div>
+  <!-- شارة الفوز في سباق الاستعراض خلف القائمة -->
+  <div class="attract-win" id="attractWin"><b>🏁 الفوز!</b><span>المركز الأوّل</span></div>
+  <div class="attract-tag" id="attractTag">🎵 <span id="attractTrack">Born for the Rush</span></div>
   <div class="menu-inner">
     <div class="logo big">مدينة <span>السرعة</span></div>
     <div class="logo-sub">SPEED CITY — عالم مفتوح · قيادة · مهام · جمع سيارات</div>
@@ -290,6 +293,92 @@
   </div>
 </div>
 
+<!-- ======================= مكتبة الموسيقى الشخصية ======================= -->
+<div class="screen panel" id="screenMusic">
+  <div class="p-head">
+    <h2>موسيقاي</h2>
+    <div class="net-status" id="musicCount">0 مقاطع</div>
+    <button class="x" data-close>✕</button>
+  </div>
+  <div class="p-body music">
+
+    <div class="rights-note">
+      <b>⚠️ قبل الإضافة</b>
+      <p>أضف فقط الموسيقى التي <b>تملك حقّ استخدامها ومشاركتها</b>: من إنتاجك، أو مرخّصة لك،
+         أو يسمح صاحبها بإعادة استخدامها. مسؤولية الحقوق عليك أنت.</p>
+      <p class="dimline">اللعبة لا تنزّل موسيقى من الإنترنت ولا تقبل روابط يوتيوب أو سبوتيفاي أو
+         أي خدمة تنزيل — تضيف من جهازك فقط. هذا التصميم يهدف إلى تقليل مخاطر انتهاك حقوق
+         النشر والامتثال لشروط المنصّات، وليس ضماناً قانونياً.</p>
+    </div>
+
+    <div class="music-actions">
+      <button class="btn primary" id="musicAdd">+ إضافة موسيقى من الجهاز</button>
+      <input type="file" id="musicFile" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac" hidden>
+      <button class="btn ghost" id="musicStop">■ إيقاف</button>
+    </div>
+
+    <div class="net-card">
+      <div class="net-title">مقاطعي <span class="quota" id="musicQuota"></span></div>
+      <div id="musicList" class="music-list"></div>
+      <div class="dimline">المقاطع محفوظة على جهازك وحده داخل المتصفّح — لا تُرفع إلى أي خادم.</div>
+    </div>
+
+    <div class="net-card" id="musicShareCard">
+      <div class="net-title">مشاركة ما أستمع إليه</div>
+      <div class="share-row">
+        <button class="btn" id="musicShareAll">مطفأة</button>
+        <span class="dimline" id="musicShareState">—</span>
+      </div>
+      <div class="dimline">
+        تُرسل <b>اسم المقطع نصّاً فقط</b> لمن في غرفتك — ولا يُرسل الملفّ الصوتي ولا يُعاد بثّه
+        أبداً. لا تُفعَّل إلا للمقاطع التي أقررتَ بأنّك تملك حقّ مشاركتها، ويستطيع مشغّل الخادم
+        تعطيل المشاركة كلّياً.
+      </div>
+      <div id="musicHeard" class="heard-list"></div>
+    </div>
+
+    <div class="net-card">
+      <div class="net-title">الحقوق والإبلاغ</div>
+      <div class="dimline">
+        رأيت مقطعاً يخالف حقوق النشر؟ اضغط <b>🚩 إبلاغ</b> بجانبه. عند وصول البلاغ تتوقّف
+        مشاركة ذلك العنوان فوراً لدى الجميع، ويُسجَّل لمشغّل الخادم لينظر فيه ويزيله.
+        وتستطيع دائماً <b>حذف الموسيقى</b> من مكتبتك بزرّ الحذف.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- نافذة إقرار الحقوق قبل اختيار الملفّ -->
+<div class="screen dialog" id="screenRights">
+  <div class="dlg">
+    <div class="dlg-title">إقرار حقوق قبل الإضافة</div>
+    <div class="dlg-text">
+      أضف فقط الموسيقى التي تملك حقّ استخدامها ومشاركتها.
+      اختر وصف حقوق هذا المقطع:
+    </div>
+    <div id="rightsOpts" class="rights-opts"></div>
+    <label class="rights-check"><input type="checkbox" id="rightsAgree">
+      <span>أُقرّ بأنّني مسؤول عن حقوق ما أضيفه، وأنّ اللعبة ليست مصدراً لتنزيل الموسيقى.</span></label>
+    <div class="pause-btns">
+      <button class="btn primary xl" id="rightsOk">موافق — اختر الملفّ</button>
+      <button class="btn xl" id="rightsCancel">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- نافذة الإبلاغ -->
+<div class="screen dialog" id="screenReport">
+  <div class="dlg">
+    <div class="dlg-title">الإبلاغ عن موسيقى</div>
+    <div class="dlg-text" id="reportWhat">—</div>
+    <div id="reportOpts" class="rights-opts"></div>
+    <div class="pause-btns">
+      <button class="btn xl" id="reportSend">إرسال البلاغ</button>
+      <button class="btn primary xl" id="reportCancel">تراجع</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================ المتجر ============================ -->
 <div class="screen panel" id="screenShop">
   <div class="p-head">
@@ -372,6 +461,7 @@
 <script src="src/40_ai.js"></script>
 <script src="src/50_input.js"></script>
 <script src="src/60_audio.js"></script>
+<script src="src/62_mymusic.js"></script>
 <script src="src/70_hud.js"></script>
 <script src="src/80_missions.js"></script>
 <script src="src/85_ui.js"></script>
