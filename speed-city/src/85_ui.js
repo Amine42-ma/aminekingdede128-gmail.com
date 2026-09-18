@@ -26,6 +26,7 @@ SC.ui = (function () {
     SC.input.bindTap(dom.btnMissions, () => open('missions'));
     SC.input.bindTap(dom.btnShop, () => open('shop'));
     SC.input.bindTap(dom.btnMap, () => { mapView.mode = 'world'; open('map'); });
+    if (dom.btnOnline) SC.input.bindTap(dom.btnOnline, () => open('online'));
     initRadio();
     initMusic();
     if (dom.poiEnter) SC.input.bindTap(dom.poiEnter, () => enterPOI());
