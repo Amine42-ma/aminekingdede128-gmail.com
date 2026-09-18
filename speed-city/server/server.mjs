@@ -1,22 +1,31 @@
 /* ============================================================================
    SPEED CITY — خادم اللعب الجماعي (بلا أي مكتبات خارجية)
-   يشغّل: خادم ملفات ثابت + WebSocket لتبادل مواقع اللاعبين والدعوات والصوت.
+   يشغّل: خادم ملفات ثابت + WebSocket للغرف ومواقع اللاعبين والدردشة والصوت.
 
    التشغيل:
        node server/server.mjs            # المنفذ 8080
        PORT=3000 node server/server.mjs
+       MAX_ROOMS=5 node server/server.mjs   # حدّ الغرف لكل شخص (٣ افتراضياً)
 
    ثم افتح  http://localhost:8080  من هاتفك أو حاسوبك على نفس الشبكة،
    واكتب في اللعبة عنوان الخادم:  ws://<عنوان الجهاز>:8080
+
+   الغرف:
+     • كل لاعب داخل غرفة واحدة دائماً. الافتراضية «المدينة الحرّة» ولا تُحذف.
+     • ينشئ اللاعب غرفاً برمز عشوائي، وله حدّ أقصى — إن بلغه فعليه حذف
+       غرفة قديمة من غرفه قبل إنشاء جديدة.
+     • المواقع والدردشة والصوت لا تتجاوز حدود الغرفة.
    ========================================================================== */
 import http from 'node:http';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const PORT = Number(process.env.PORT || 8080);
+const MAX_ROOMS = Math.max(1, Number(process.env.MAX_ROOMS || 3));   // لكل شخص
+const MAX_PLAYERS = Math.max(2, Number(process.env.MAX_PLAYERS || 12));
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
 const MIME = {
@@ -44,10 +53,47 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-/* ------------------------------ WebSocket ------------------------------- */
-const clients = new Map();          // id -> { socket, name, car, state, room }
+/* ------------------------------ الغرف ----------------------------------- */
+const LOBBY = 'CITY';
+const rooms = new Map();          // code -> { code, name, key, ownerName, created, members:Set, max, fixed }
+const clients = new Map();        // id   -> { socket, id, name, car, key, room, state }
 let nextId = 1;
 
+rooms.set(LOBBY, {
+  code: LOBBY, name: 'المدينة الحرّة', key: null, ownerName: 'الخادم',
+  created: Date.now(), members: new Set(), max: 64, fixed: true
+});
+
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // بلا حروف تلتبس بالأرقام
+function newCode() {
+  for (let attempt = 0; attempt < 400; attempt++) {
+    let c = '';
+    for (let i = 0; i < 5; i++) c += CODE_CHARS[(Math.random() * CODE_CHARS.length) | 0];
+    if (!rooms.has(c)) return c;
+  }
+  return 'R' + Date.now().toString(36).toUpperCase();
+}
+
+const roomInfo = (r) => ({
+  code: r.code, name: r.name, ownerName: r.ownerName, players: r.members.size,
+  max: r.max, fixed: !!r.fixed, created: r.created
+});
+
+/* قائمة الغرف كما يراها لاعب بعينه: يعرف أيّها غرفه وكم بقي له */
+function roomsFor(c) {
+  const list = [...rooms.values()]
+    .sort((a, b) => (b.fixed ? 1 : 0) - (a.fixed ? 1 : 0) || b.created - a.created)
+    .map((r) => Object.assign(roomInfo(r), { mine: !!(c.key && r.key === c.key) }));
+  return { t: 'rooms', list, limit: MAX_ROOMS, mine: countOwned(c.key), room: c.room };
+}
+function countOwned(key) {
+  if (!key) return 0;
+  let n = 0;
+  for (const r of rooms.values()) if (r.key === key) n++;
+  return n;
+}
+
+/* ------------------------------ WebSocket ------------------------------- */
 function accept(key) {
   return createHash('sha1').update(key + GUID).digest('base64');
 }
@@ -65,12 +111,52 @@ function frame(str) {
 function send(c, obj) {
   try { c.socket.write(frame(JSON.stringify(obj))); } catch (e) {}
 }
-function broadcast(obj, exceptId) {
+/* البثّ داخل غرفة واحدة فقط — لا يسمع لاعبو غرفة لاعبي غرفة أخرى */
+function roomcast(code, obj, exceptId) {
+  const r = rooms.get(code);
+  if (!r) return;
   const buf = frame(JSON.stringify(obj));
-  for (const [id, c] of clients) {
+  for (const id of r.members) {
     if (id === exceptId) continue;
+    const c = clients.get(id);
+    if (!c) continue;
     try { c.socket.write(buf); } catch (e) {}
   }
+}
+/* تُرسل قائمة الغرف للجميع عند أي تغيّر، وكلٌّ يراها بمنظوره */
+function pushRooms() {
+  for (const c of clients.values()) send(c, roomsFor(c));
+}
+
+function mates(c) {
+  const r = rooms.get(c.room);
+  if (!r) return [];
+  return [...r.members].filter((id) => id !== c.id)
+    .map((id) => clients.get(id)).filter(Boolean)
+    .map((o) => ({ id: o.id, name: o.name, car: o.car }));
+}
+
+function enterRoom(c, code) {
+  const r = rooms.get(code);
+  if (!r) { send(c, { t: 'room.error', code: 'missing' }); return false; }
+  if (r.members.size >= r.max && c.room !== code) {
+    send(c, { t: 'room.error', code: 'full' }); return false;
+  }
+  leaveRoom(c, true);
+  r.members.add(c.id);
+  c.room = code;
+  send(c, { t: 'room.joined', room: roomInfo(r), players: mates(c) });
+  roomcast(code, { t: 'join', id: c.id, name: c.name, car: c.car }, c.id);
+  console.log('→', c.name, 'دخل الغرفة', code, '(' + r.members.size + ')');
+  return true;
+}
+function leaveRoom(c, quiet) {
+  const r = rooms.get(c.room);
+  if (!r) { c.room = null; return; }
+  r.members.delete(c.id);
+  roomcast(r.code, { t: 'leave', id: c.id });
+  c.room = null;
+  if (!quiet) send(c, { t: 'room.left' });
 }
 
 server.on('upgrade', (req, socket) => {
@@ -82,12 +168,13 @@ server.on('upgrade', (req, socket) => {
   socket.setNoDelay(true);
 
   const id = nextId++;
-  const client = { socket, id, name: 'لاعب ' + id, car: 'cortina', state: null };
+  const client = { socket, id, name: 'لاعب ' + id, car: 'cortina',
+                   key: null, room: null, state: null };
   clients.set(id, client);
-  send(client, { t: 'welcome', id, players: [...clients.values()].filter((c) => c.id !== id)
-    .map((c) => ({ id: c.id, name: c.name, car: c.car })) });
-  broadcast({ t: 'join', id, name: client.name, car: client.car }, id);
-  console.log('→ اتّصل', client.name, '| المتّصلون:', clients.size);
+  enterRoom(client, LOBBY);
+  send(client, { t: 'welcome', id, players: mates(client), limit: MAX_ROOMS });
+  send(client, roomsFor(client));
+  pushRooms();
 
   let buf = Buffer.alloc(0);
   socket.on('data', (chunk) => {
@@ -116,9 +203,10 @@ server.on('upgrade', (req, socket) => {
 
   const bye = () => {
     if (!clients.has(id)) return;
+    leaveRoom(client, true);
     clients.delete(id);
-    broadcast({ t: 'leave', id });
-    console.log('← خرج', client.name, '| المتّصلون:', clients.size);
+    console.log('←', client.name, 'خرج | المتّصلون:', clients.size);
+    pushRooms();
   };
   socket.on('close', bye);
   socket.on('error', bye);
@@ -129,20 +217,82 @@ function handle(c, m) {
     case 'hello':
       c.name = String(m.name || c.name).slice(0, 20);
       c.car = m.car || c.car;
-      broadcast({ t: 'name', id: c.id, name: c.name, car: c.car }, c.id);
+      /* مفتاح ثابت يحفظه اللاعب في متصفّحه: به نعرف غرفه بعد إعادة الاتّصال */
+      if (m.key) c.key = String(m.key).slice(0, 64);
+      roomcast(c.room, { t: 'name', id: c.id, name: c.name, car: c.car }, c.id);
+      send(c, roomsFor(c));
       break;
-    case 'pos':
-      c.state = m;
-      broadcast({ t: 'pos', id: c.id, x: m.x, z: m.z, y: m.y, yaw: m.yaw, v: m.v, car: m.car }, c.id);
+
+    case 'rooms':
+      send(c, roomsFor(c));
       break;
-    case 'chat':
-      broadcast({ t: 'chat', id: c.id, name: c.name, msg: String(m.msg || '').slice(0, 200) });
-      break;
-    case 'invite': case 'accept': case 'decline': case 'race': case 'rtc': {
-      const to = clients.get(m.to);
-      if (to) send(to, Object.assign({}, m, { from: c.id, name: c.name }));
+
+    case 'room.create': {
+      if (!c.key) { send(c, { t: 'room.error', code: 'nokey' }); break; }
+      const owned = [...rooms.values()].filter((r) => r.key === c.key);
+      if (owned.length >= MAX_ROOMS) {
+        send(c, { t: 'room.error', code: 'limit', limit: MAX_ROOMS,
+                  rooms: owned.map(roomInfo) });
+        break;
+      }
+      const code = newCode();
+      const room = {
+        code, name: String(m.name || '').trim().slice(0, 24) || ('غرفة ' + code),
+        key: c.key, ownerName: c.name, created: Date.now(),
+        members: new Set(), max: MAX_PLAYERS, fixed: false
+      };
+      rooms.set(code, room);
+      console.log('+ غرفة', code, '«' + room.name + '» لـ', c.name);
+      enterRoom(c, code);
+      pushRooms();
       break;
     }
+
+    case 'room.delete': {
+      const r = rooms.get(String(m.code || ''));
+      if (!r) { send(c, { t: 'room.error', code: 'missing' }); break; }
+      if (r.fixed || !c.key || r.key !== c.key) {
+        send(c, { t: 'room.error', code: 'notowner' }); break;
+      }
+      /* أعِد من فيها إلى المدينة الحرّة قبل الحذف */
+      for (const id of [...r.members]) {
+        const o = clients.get(id);
+        if (o) { enterRoom(o, LOBBY); send(o, { t: 'room.closed', code: r.code, name: r.name }); }
+      }
+      rooms.delete(r.code);
+      console.log('- حُذفت الغرفة', r.code);
+      send(c, { t: 'room.deleted', code: r.code });
+      pushRooms();
+      break;
+    }
+
+    case 'room.join':
+      if (enterRoom(c, String(m.code || '').toUpperCase())) pushRooms();
+      break;
+
+    case 'room.leave':
+      enterRoom(c, LOBBY);
+      pushRooms();
+      break;
+
+    case 'pos':
+      c.state = m;
+      roomcast(c.room, { t: 'pos', id: c.id, x: m.x, z: m.z, y: m.y,
+                         yaw: m.yaw, v: m.v, car: m.car }, c.id);
+      break;
+
+    case 'chat':
+      roomcast(c.room, { t: 'chat', id: c.id, name: c.name,
+                         msg: String(m.msg || '').slice(0, 200) });
+      break;
+
+    /* الرسائل المباشرة: لا تُسلَّم إلا داخل الغرفة نفسها */
+    case 'invite': case 'accept': case 'decline': case 'race': case 'rtc': {
+      const to = clients.get(m.to);
+      if (to && to.room === c.room) send(to, Object.assign({}, m, { from: c.id, name: c.name }));
+      break;
+    }
+
     case 'ping': send(c, { t: 'pong', ts: m.ts }); break;
   }
 }
@@ -150,5 +300,6 @@ function handle(c, m) {
 server.listen(PORT, () => {
   console.log('\n  🏁 خادم مدينة السرعة يعمل');
   console.log('  الصفحة:   http://localhost:' + PORT);
-  console.log('  الخادم:   ws://localhost:' + PORT + '\n');
+  console.log('  الخادم:   ws://localhost:' + PORT);
+  console.log('  حدّ الغرف لكل لاعب: ' + MAX_ROOMS + ' — وحدّ اللاعبين في الغرفة: ' + MAX_PLAYERS + '\n');
 });

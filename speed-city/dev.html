@@ -226,26 +226,54 @@
   </div>
   <div class="p-body online">
     <div class="net-card">
-      <div class="net-row">
-        <label>اسمك في اللعبة</label>
-        <input id="netName" type="text" maxlength="18" placeholder="السائق">
-      </div>
-      <div class="net-row">
-        <label>عنوان الخادم</label>
-        <input id="netUrl" type="text" placeholder="ws://192.168.1.5:8080">
+      <div class="net-conn">
+        <div class="net-row">
+          <label>اسمك في اللعبة</label>
+          <input id="netName" type="text" maxlength="18" placeholder="السائق">
+        </div>
+        <div class="net-row">
+          <label>عنوان الخادم</label>
+          <input id="netUrl" type="text" placeholder="ws://192.168.1.5:8080">
+        </div>
       </div>
       <div class="net-actions">
         <button class="btn primary" id="netConnect">اتّصال</button>
         <button class="btn" id="netDisconnect">قطع الاتّصال</button>
-        <button class="btn ghost" id="netMic">🎙 الميكروفون</button>
+        <button class="btn tiny ghost" id="netEdit">تغيير الخادم</button>
       </div>
-      <div class="net-hint">
+      <div class="mic-row">
+        <button class="btn ghost" id="netMic">🎙 تفعيل الميكروفون</button>
+        <span class="mic-state" id="micState">الإذن غير مطلوب بعد</span>
+      </div>
+      <div class="net-hint net-conn" id="micHint">
+        المتصفّح وحده يمنح إذن الميكروفون: اضغط الزرّ ثم اختر «سماح» في نافذة المتصفّح.
+        بعدها يسمعك كل من في غرفتك ويسمعونك — والصوت لا يخرج خارج الغرفة.
+      </div>
+      <div class="net-hint net-conn">
         شغّل الخادم المرفق على حاسوبك:
         <code>node server/server.mjs</code>
         ثم اكتب هنا <code>ws://عنوان-الجهاز:8080</code>.
-        كل من على نفس الشبكة (أو عبر الإنترنت إن نشرت الخادم) يستطيع اللعب معك،
-        مع الصوت المباشر بالميكروفون.
+        كل من على نفس الشبكة (أو عبر الإنترنت إن نشرت الخادم) يستطيع اللعب معك.
       </div>
+    </div>
+
+    <!-- الغرف: أنشئ غرفتك أو ادخل غرفة صنعها غيرك -->
+    <div class="net-card">
+      <div class="net-title">
+        الغرف
+        <span class="quota" id="roomQuota"></span>
+        <button class="btn tiny ghost" id="roomRefresh">تحديث</button>
+      </div>
+      <div id="roomHere" class="room-here"></div>
+      <div class="net-row">
+        <input id="roomName" type="text" maxlength="24" placeholder="اسم غرفتك (اختياري)">
+        <button class="btn tiny primary" id="roomCreate">+ غرفة</button>
+      </div>
+      <div class="net-row">
+        <input id="roomCode" type="text" maxlength="6" placeholder="رمز غرفة صديقك" autocapitalize="characters">
+        <button class="btn tiny" id="roomJoin">دخول بالرمز</button>
+      </div>
+      <div id="roomList" class="room-list"></div>
     </div>
     <div class="net-card">
       <div class="net-title">اللاعبون المتّصلون <span id="netCount">(0)</span></div>

@@ -7,10 +7,26 @@
 SC.net = (function () {
   const U = SC.util;
 
+  const KEY_STORE = 'speedcity-player-key';
+
+  /* مفتاح ثابت لهذا الجهاز: به يعرف الخادم أنّ هذه غرفي أنا حتى بعد
+     إعادة الاتّصال أو إغلاق اللعبة، فيُطبَّق حدّ الغرف على الشخص لا الجلسة. */
+  function myKey() {
+    let k = null;
+    try { k = localStorage.getItem(KEY_STORE); } catch (e) {}
+    if (!k) {
+      k = (crypto.randomUUID ? crypto.randomUUID()
+                             : String(Date.now()) + Math.random().toString(36).slice(2));
+      try { localStorage.setItem(KEY_STORE, k); } catch (e) {}
+    }
+    return k;
+  }
+
   const state = {
     ws: null, id: 0, name: '', url: '', connected: false, connecting: false,
     players: new Map(),          // id -> { id, name, car, x, z, y, yaw, v, veh, tx, tz, tyaw, last }
-    mic: false, voices: new Map(), stream: null,
+    mic: false, micWanted: false, voices: new Map(), stream: null,
+    rooms: [], room: null, roomLimit: 3, roomsOwned: 0,
     lastSend: 0, ping: 0, onEvent: null, race: null
   };
 
@@ -34,7 +50,7 @@ SC.net = (function () {
       ws.onopen = () => {
         clearTimeout(timeout);
         state.connected = true; state.connecting = false;
-        send({ t: 'hello', name: state.name, car: SC.game.save.current });
+        send({ t: 'hello', name: state.name, car: SC.game.save.current, key: myKey() });
         emit('open');
         resolve(true);
       };
@@ -57,6 +73,8 @@ SC.net = (function () {
   }
 
   function disconnect() {
+    state.micWanted = false;
+    state.rooms = []; state.room = null;
     stopMic();
     if (state.ws) { try { state.ws.close(); } catch (e) {} }
     state.ws = null; state.connected = false;
@@ -143,6 +161,40 @@ SC.net = (function () {
       case 'pong':
         state.ping = Math.round(performance.now() - m.ts);
         break;
+
+      /* ------------------------------ الغرف ------------------------------ */
+      case 'rooms':
+        state.rooms = m.list || [];
+        state.roomLimit = m.limit == null ? state.roomLimit : m.limit;
+        state.roomsOwned = m.mine || 0;
+        emit('rooms', m);
+        break;
+      case 'room.joined':
+        state.room = m.room;
+        clearPlayers();                       // لاعبو الغرفة السابقة ليسوا هنا
+        (m.players || []).forEach(addPlayer);
+        emit('players');
+        emit('room', m.room);
+        emit('toast', { text: 'دخلت «' + m.room.name + '»', kind: 'ok' });
+        /* الصوت مع أهل الغرفة الجديدة */
+        if (state.mic) state.players.forEach((p) => callPeer(p.id));
+        else if (state.micWanted) startMic();
+        break;
+      case 'room.left':
+        state.room = null;
+        clearPlayers();
+        emit('room', null);
+        break;
+      case 'room.closed':
+        emit('toast', { text: 'أُغلقت الغرفة «' + (m.name || m.code) + '»', kind: 'bad' });
+        break;
+      case 'room.deleted':
+        emit('toast', { text: 'حُذفت الغرفة ' + m.code, kind: 'ok' });
+        emit('rooms', null);
+        break;
+      case 'room.error':
+        emit('roomError', m);
+        break;
     }
   }
 
@@ -181,28 +233,60 @@ SC.net = (function () {
     });
   }
 
-  /* --------------------------- الميكروفون (صوت) ------------------------ */
+  /* --------------------------- الميكروفون (صوت) ------------------------
+     المتصفّح لا يعطي الميكروفون إلا بعد لمسة من اللاعب وإذن صريح، ولا
+     يمكن لأي صفحة أن تمنح نفسها الإذن. لذلك نطلبه بوضوح ونشرح سبب الرفض. */
+  const MIC_HELP = 'افتح إعدادات الموقع في المتصفّح ← الأذونات ← الميكروفون ← اسمح، ثم أعد المحاولة.';
+
+  /* حالة الإذن إن كان المتصفّح يكشفها: granted / denied / prompt / unknown */
+  async function micReady() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return 'unsupported';
+    if (!window.isSecureContext) return 'insecure';     // يحتاج https أو localhost
+    try {
+      const st = await navigator.permissions.query({ name: 'microphone' });
+      return st.state;
+    } catch (e) { return 'unknown'; }
+  }
+
   async function startMic() {
+    state.micWanted = true;
     if (state.mic) return true;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      emit('toast', { text: 'المتصفّح لا يدعم الميكروفون', kind: 'bad' });
+      emit('mic-error', { code: 'unsupported', text: 'هذا المتصفّح لا يدعم الميكروفون' });
+      return false;
+    }
+    if (!window.isSecureContext) {
+      emit('mic-error', { code: 'insecure',
+        text: 'الميكروفون يحتاج اتّصالاً آمناً — افتح اللعبة عبر https أو من localhost' });
       return false;
     }
     try {
       state.stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true }, video: false
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: false
       });
       state.mic = true;
+      /* شغّل الصوت الخارج من بقيّة اللاعبين — يحتاج لمسة، وهذه هي اللمسة */
+      SC.audio && SC.audio.resume && SC.audio.resume();
       state.players.forEach((p) => callPeer(p.id));
       emit('mic', true);
+      emit('toast', { text: '🎙 الميكروفون مفتوح — يسمعك من في الغرفة', kind: 'ok' });
       return true;
     } catch (e) {
-      emit('toast', { text: 'رُفض إذن الميكروفون', kind: 'bad' });
+      const n = e && e.name;
+      let info = { code: 'denied', text: 'رُفض إذن الميكروفون. ' + MIC_HELP };
+      if (n === 'NotFoundError' || n === 'DevicesNotFoundError') {
+        info = { code: 'nodevice', text: 'لا يوجد ميكروفون في هذا الجهاز' };
+      } else if (n === 'NotReadableError' || n === 'TrackStartError') {
+        info = { code: 'busy', text: 'الميكروفون مشغول في تطبيق آخر — أغلقه ثم أعد المحاولة' };
+      }
+      state.micWanted = false;
+      emit('mic-error', info);
       return false;
     }
   }
   function stopMic() {
-    state.mic = false;
+    state.mic = false; state.micWanted = false;
     if (state.stream) { state.stream.getTracks().forEach((t) => t.stop()); state.stream = null; }
     state.voices.forEach((v, id) => closeVoice(id));
     emit('mic', false);
@@ -253,6 +337,13 @@ SC.net = (function () {
   }
 
   /* ------------------------------ الدعوات ------------------------------ */
+  /* ------------------------------ الغرف ------------------------------ */
+  const refreshRooms = () => send({ t: 'rooms' });
+  const createRoom = (name) => send({ t: 'room.create', name: name || '' });
+  const deleteRoom = (code) => send({ t: 'room.delete', code });
+  const joinRoom = (code) => send({ t: 'room.join', code });
+  const leaveRoom = () => send({ t: 'room.leave' });
+
   const invite = (to) => send({ t: 'invite', to });
   const acceptInvite = (to, race) => send({ t: 'accept', to, race });
   const decline = (to) => send({ t: 'decline', to });
@@ -260,6 +351,8 @@ SC.net = (function () {
   const playerList = () => Array.from(state.players.values());
 
   return { state, connect, disconnect, update, send, invite, acceptInvite, decline, chat,
-           startMic, stopMic, playerList, get connected() { return state.connected; },
+           startMic, stopMic, micReady, playerList, myKey,
+           refreshRooms, createRoom, deleteRoom, joinRoom, leaveRoom,
+           get connected() { return state.connected; }, get room() { return state.room; },
            get id() { return state.id; }, set onEvent(f) { state.onEvent = f; } };
 })();

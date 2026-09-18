@@ -474,3 +474,43 @@ body.on-bike .round.bike-only.active{background:rgba(255,210,63,.32);border-colo
 .stunt.show{display:flex;opacity:1;transform:translateX(-50%) scale(1)}
 .stunt b{font-size:15px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums}
 .stunt span{font-size:11px;font-weight:700;color:var(--txt)}
+
+/* ------------------------- الغرف واللعب الجماعي ------------------------- */
+.net-title{display:flex;align-items:center;gap:8px}
+.net-title .quota{font-size:12px;font-weight:700;color:var(--dim);
+  background:rgba(255,255,255,.07);border:1px solid var(--line2);border-radius:99px;padding:2px 9px}
+.net-title .quota.full{color:#ffb4a8;border-color:rgba(255,120,100,.45);background:rgba(255,90,70,.14)}
+.net-title .btn.tiny{margin-inline-start:auto}
+
+.mic-row{display:flex;align-items:center;gap:10px;margin:4px 0 8px;flex-wrap:wrap}
+.mic-state{font-size:12.5px;font-weight:700;color:var(--dim)}
+.mic-state.on{color:#7fe8c0} .mic-state.err{color:#ffb4a8}
+
+.room-here{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;
+  background:rgba(127,232,192,.10);border:1px solid rgba(127,232,192,.32);
+  border-radius:var(--r2,12px);padding:9px 12px;font-size:13px}
+.room-here b{font-weight:800}
+.room-here .code{font-family:ui-monospace,monospace;font-weight:800;letter-spacing:1.5px;
+  background:rgba(0,0,0,.30);border-radius:7px;padding:2px 8px}
+.room-here .btn{margin-inline-start:auto}
+
+.room-list{display:grid;gap:8px;max-height:270px;overflow:auto;-webkit-overflow-scrolling:touch}
+.room-row{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.05);
+  border:1px solid var(--line2);border-radius:var(--r2,12px);padding:9px 11px;flex-wrap:wrap}
+.room-row.on{border-color:rgba(127,232,192,.55);background:rgba(127,232,192,.10)}
+.room-row .rname{font-weight:800;font-size:13.5px}
+.room-row .rcode{font-family:ui-monospace,monospace;font-size:11.5px;letter-spacing:1.4px;
+  color:var(--dim);background:rgba(0,0,0,.28);border-radius:6px;padding:1px 7px}
+.room-row .rmeta{flex:1;font-size:11.5px;color:var(--dim)}
+.room-row .mine{font-size:10.5px;font-weight:800;color:#0b0f17;background:var(--gold);
+  border-radius:99px;padding:2px 8px}
+.room-row .btn.tiny{padding:6px 11px}
+.room-row .btn.danger{background:rgba(255,90,70,.18);border-color:rgba(255,120,100,.5);color:#ffb4a8}
+
+/* زرّ معطّل: يظهر باهتاً حتى يُفهم أنّه غير متاح الآن */
+.btn.off{opacity:.45;filter:grayscale(.45)}
+
+/* بعد الاتّصال تُطوى إعدادات الخادم حتى تظهر الغرف على شاشة الهاتف */
+.p-body.online.linked .net-conn{display:none}
+.p-body.online.linked.show-conn .net-conn{display:block}
+.p-body.online:not(.linked) #netEdit{display:none}

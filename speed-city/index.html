@@ -485,6 +485,46 @@ body.on-bike .round.bike-only.active{background:rgba(255,210,63,.32);border-colo
 .stunt b{font-size:15px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums}
 .stunt span{font-size:11px;font-weight:700;color:var(--txt)}
 
+/* ------------------------- الغرف واللعب الجماعي ------------------------- */
+.net-title{display:flex;align-items:center;gap:8px}
+.net-title .quota{font-size:12px;font-weight:700;color:var(--dim);
+  background:rgba(255,255,255,.07);border:1px solid var(--line2);border-radius:99px;padding:2px 9px}
+.net-title .quota.full{color:#ffb4a8;border-color:rgba(255,120,100,.45);background:rgba(255,90,70,.14)}
+.net-title .btn.tiny{margin-inline-start:auto}
+
+.mic-row{display:flex;align-items:center;gap:10px;margin:4px 0 8px;flex-wrap:wrap}
+.mic-state{font-size:12.5px;font-weight:700;color:var(--dim)}
+.mic-state.on{color:#7fe8c0} .mic-state.err{color:#ffb4a8}
+
+.room-here{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;
+  background:rgba(127,232,192,.10);border:1px solid rgba(127,232,192,.32);
+  border-radius:var(--r2,12px);padding:9px 12px;font-size:13px}
+.room-here b{font-weight:800}
+.room-here .code{font-family:ui-monospace,monospace;font-weight:800;letter-spacing:1.5px;
+  background:rgba(0,0,0,.30);border-radius:7px;padding:2px 8px}
+.room-here .btn{margin-inline-start:auto}
+
+.room-list{display:grid;gap:8px;max-height:270px;overflow:auto;-webkit-overflow-scrolling:touch}
+.room-row{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.05);
+  border:1px solid var(--line2);border-radius:var(--r2,12px);padding:9px 11px;flex-wrap:wrap}
+.room-row.on{border-color:rgba(127,232,192,.55);background:rgba(127,232,192,.10)}
+.room-row .rname{font-weight:800;font-size:13.5px}
+.room-row .rcode{font-family:ui-monospace,monospace;font-size:11.5px;letter-spacing:1.4px;
+  color:var(--dim);background:rgba(0,0,0,.28);border-radius:6px;padding:1px 7px}
+.room-row .rmeta{flex:1;font-size:11.5px;color:var(--dim)}
+.room-row .mine{font-size:10.5px;font-weight:800;color:#0b0f17;background:var(--gold);
+  border-radius:99px;padding:2px 8px}
+.room-row .btn.tiny{padding:6px 11px}
+.room-row .btn.danger{background:rgba(255,90,70,.18);border-color:rgba(255,120,100,.5);color:#ffb4a8}
+
+/* زرّ معطّل: يظهر باهتاً حتى يُفهم أنّه غير متاح الآن */
+.btn.off{opacity:.45;filter:grayscale(.45)}
+
+/* بعد الاتّصال تُطوى إعدادات الخادم حتى تظهر الغرف على شاشة الهاتف */
+.p-body.online.linked .net-conn{display:none}
+.p-body.online.linked.show-conn .net-conn{display:block}
+.p-body.online:not(.linked) #netEdit{display:none}
+
 </style>
 </head>
 <body data-steer="buttons">
@@ -704,26 +744,54 @@ body.on-bike .round.bike-only.active{background:rgba(255,210,63,.32);border-colo
   </div>
   <div class="p-body online">
     <div class="net-card">
-      <div class="net-row">
-        <label>اسمك في اللعبة</label>
-        <input id="netName" type="text" maxlength="18" placeholder="السائق">
-      </div>
-      <div class="net-row">
-        <label>عنوان الخادم</label>
-        <input id="netUrl" type="text" placeholder="ws://192.168.1.5:8080">
+      <div class="net-conn">
+        <div class="net-row">
+          <label>اسمك في اللعبة</label>
+          <input id="netName" type="text" maxlength="18" placeholder="السائق">
+        </div>
+        <div class="net-row">
+          <label>عنوان الخادم</label>
+          <input id="netUrl" type="text" placeholder="ws://192.168.1.5:8080">
+        </div>
       </div>
       <div class="net-actions">
         <button class="btn primary" id="netConnect">اتّصال</button>
         <button class="btn" id="netDisconnect">قطع الاتّصال</button>
-        <button class="btn ghost" id="netMic">🎙 الميكروفون</button>
+        <button class="btn tiny ghost" id="netEdit">تغيير الخادم</button>
       </div>
-      <div class="net-hint">
+      <div class="mic-row">
+        <button class="btn ghost" id="netMic">🎙 تفعيل الميكروفون</button>
+        <span class="mic-state" id="micState">الإذن غير مطلوب بعد</span>
+      </div>
+      <div class="net-hint net-conn" id="micHint">
+        المتصفّح وحده يمنح إذن الميكروفون: اضغط الزرّ ثم اختر «سماح» في نافذة المتصفّح.
+        بعدها يسمعك كل من في غرفتك ويسمعونك — والصوت لا يخرج خارج الغرفة.
+      </div>
+      <div class="net-hint net-conn">
         شغّل الخادم المرفق على حاسوبك:
         <code>node server/server.mjs</code>
         ثم اكتب هنا <code>ws://عنوان-الجهاز:8080</code>.
-        كل من على نفس الشبكة (أو عبر الإنترنت إن نشرت الخادم) يستطيع اللعب معك،
-        مع الصوت المباشر بالميكروفون.
+        كل من على نفس الشبكة (أو عبر الإنترنت إن نشرت الخادم) يستطيع اللعب معك.
       </div>
+    </div>
+
+    <!-- الغرف: أنشئ غرفتك أو ادخل غرفة صنعها غيرك -->
+    <div class="net-card">
+      <div class="net-title">
+        الغرف
+        <span class="quota" id="roomQuota"></span>
+        <button class="btn tiny ghost" id="roomRefresh">تحديث</button>
+      </div>
+      <div id="roomHere" class="room-here"></div>
+      <div class="net-row">
+        <input id="roomName" type="text" maxlength="24" placeholder="اسم غرفتك (اختياري)">
+        <button class="btn tiny primary" id="roomCreate">+ غرفة</button>
+      </div>
+      <div class="net-row">
+        <input id="roomCode" type="text" maxlength="6" placeholder="رمز غرفة صديقك" autocapitalize="characters">
+        <button class="btn tiny" id="roomJoin">دخول بالرمز</button>
+      </div>
+      <div id="roomList" class="room-list"></div>
     </div>
     <div class="net-card">
       <div class="net-title">اللاعبون المتّصلون <span id="netCount">(0)</span></div>
@@ -8208,94 +8276,193 @@ SC.character = (function () {
     return (r << 16) | (g << 8) | b;
   }
 
+  /* الأزياء: لكل شخص لون وبنية وطول وتسريحة — حتى لا يتكرّر المارّة */
   const PED_OUTFITS = [
-    { skin: 0xd9a17a, hair: 0x2b2119, top: 0x2f4f7a, pants: 0x2a2f3a, shoe: 0x1a1a1c, trim: 0xe8eef5, hat: null },
-    { skin: 0xf0c9a0, hair: 0x6b4a2a, top: 0x8c2f2f, pants: 0x3b4250, shoe: 0x222222, trim: 0xf2d9a0, hat: null },
-    { skin: 0xa9714b, hair: 0x141414, top: 0x2f7a52, pants: 0x54586a, shoe: 0x2a2a2a, trim: 0xd8e8dc, hat: 0x20323f },
-    { skin: 0xe8b98d, hair: 0x6b4f22, top: 0xd9b13a, pants: 0x27303f, shoe: 0x191919, trim: 0x5a4418, hat: null },
-    { skin: 0x8d5a3b, hair: 0x1c1712, top: 0x6b4a9e, pants: 0x3a3f4a, shoe: 0x202020, trim: 0xe0d4f2, hat: null },
-    { skin: 0xf2d3b3, hair: 0x55575c, top: 0xdedede, pants: 0x2f3548, shoe: 0x151515, trim: 0x9aa4b2, hat: 0x8c2f2f },
-    { skin: 0xc98d63, hair: 0x33241a, top: 0x1f6f8c, pants: 0x232a36, shoe: 0x1d1d20, trim: 0xf0f6fa, hat: null },
-    { skin: 0xffd9b8, hair: 0x4a2f1e, top: 0xe07a3c, pants: 0x46506a, shoe: 0x262626, trim: 0x2a2118, hat: null },
-    { skin: 0x9c6842, hair: 0x0f0f0f, top: 0x3b4b66, pants: 0x6a6f7e, shoe: 0x232323, trim: 0xc7d2e0, hat: 0x2f4f7a },
-    { skin: 0xecc39b, hair: 0x7a6318, top: 0xb03a6a, pants: 0x2b3244, shoe: 0x1b1b1e, trim: 0xf6d9e6, hat: null }
+    { skin: 0xd9a17a, hair: 0x2b2119, top: 0x2f4f7a, pants: 0x2a2f3a, shoe: 0x1a1a1c, trim: 0xe8eef5,
+      hat: null, build: 1.00, tall: 1.00, hairStyle: 'short', beard: false, eye: 0x4a3b2a },
+    { skin: 0xf0c9a0, hair: 0x6b4a2a, top: 0x8c2f2f, pants: 0x3b4250, shoe: 0x222222, trim: 0xf2d9a0,
+      hat: null, build: 0.94, tall: 0.96, hairStyle: 'long', beard: false, eye: 0x3a6a4a },
+    { skin: 0xa9714b, hair: 0x141414, top: 0x2f7a52, pants: 0x54586a, shoe: 0x2a2a2a, trim: 0xd8e8dc,
+      hat: 0x20323f, build: 1.08, tall: 1.03, hairStyle: 'cap', beard: true, eye: 0x2e2018 },
+    { skin: 0xe8b98d, hair: 0x6b4f22, top: 0xd9b13a, pants: 0x27303f, shoe: 0x191919, trim: 0x5a4418,
+      hat: null, build: 0.97, tall: 1.01, hairStyle: 'short', beard: false, eye: 0x2f5a7a },
+    { skin: 0x8d5a3b, hair: 0x1c1712, top: 0x6b4a9e, pants: 0x3a3f4a, shoe: 0x202020, trim: 0xe0d4f2,
+      hat: null, build: 1.02, tall: 0.98, hairStyle: 'bun', beard: false, eye: 0x33241a },
+    { skin: 0xf2d3b3, hair: 0x55575c, top: 0xdedede, pants: 0x2f3548, shoe: 0x151515, trim: 0x9aa4b2,
+      hat: 0x8c2f2f, build: 1.10, tall: 0.99, hairStyle: 'bald', beard: true, eye: 0x4a4a52 },
+    { skin: 0xc98d63, hair: 0x33241a, top: 0x1f6f8c, pants: 0x232a36, shoe: 0x1d1d20, trim: 0xf0f6fa,
+      hat: null, build: 0.92, tall: 1.05, hairStyle: 'long', beard: false, eye: 0x2e4a3a },
+    { skin: 0xffd9b8, hair: 0x4a2f1e, top: 0xe07a3c, pants: 0x46506a, shoe: 0x262626, trim: 0x2a2118,
+      hat: null, build: 1.00, tall: 0.94, hairStyle: 'bun', beard: false, eye: 0x5a4028 },
+    { skin: 0x9c6842, hair: 0x0f0f0f, top: 0x3b4b66, pants: 0x6a6f7e, shoe: 0x232323, trim: 0xc7d2e0,
+      hat: 0x2f4f7a, build: 1.05, tall: 1.02, hairStyle: 'cap', beard: false, eye: 0x241a14 },
+    { skin: 0xecc39b, hair: 0x7a6318, top: 0xb03a6a, pants: 0x2b3244, shoe: 0x1b1b1e, trim: 0xf6d9e6,
+      hat: null, build: 0.95, tall: 0.97, hairStyle: 'long', beard: false, eye: 0x3f6ea0 }
   ];
 
-  /* يبني أشكال المارّة مرّة واحدة: الجزء العلوي + ساقان */
+  /* ====================================================================
+     بناء المارّة — تشريح مبسّط لكنّه متّصل: لا فجوات بين الكتف والذراع
+     ولا بين الورك والفخذ، ووجه بملامح حقيقية (جفن، حاجب، أنف، شفتان،
+     ذقن، أذنان). كل شخص ٥ رسمات فقط لأن الألوان مخبوزة في الرؤوس.
+     ==================================================================== */
   let pedCache = null;
   function walkerVariants() {
     if (pedCache) return pedCache;
-    const capsule = (r, len, seg) => new THREE.CapsuleGeometry(r, len, 3, seg || 8);
-    const sphere = (r, s) => new THREE.SphereGeometry(r, s || 10, 8);
+    const cap = (r, len, seg) => new THREE.CapsuleGeometry(r, len, 4, seg || 10);
+    const sph = (r, s, t) => new THREE.SphereGeometry(r, s || 10, t || (s ? Math.max(6, s - 2) : 8));
     const box = (x, y, z) => new THREE.BoxGeometry(x, y, z);
+    /* مخروط ناقص: العضلة تضيق نحو المفصل فيبدو الطرف طبيعياً لا أنبوباً */
+    const taper = (r1, r2, h, seg) => new THREE.CylinderGeometry(r1, r2, h, seg || 10, 1);
 
     pedCache = PED_OUTFITS.map((o) => {
-      /* الذراع: كمّ ثم ساعد ثم كفّ بأصابع مبسّطة */
+      const B = o.build;                       // عرض البنية
+      const sleeve = shade(o.top, 0.88);
+      const dark = shade(o.top, 0.58);
+      const skinDark = shade(o.skin, 0.80);
+      const lip = shade(o.skin, 0.66);
+
+      /* ---------------------------- الذراع ---------------------------- *
+         تبدأ من داخل الجذع: كرة الكتف تتداخل مع الصدر فلا يظهر فاصل. */
       const arm = (side) => mergeParts([
-        { geo: sphere(0.058, 8), matrix: M4(0, -0.015, 0, 0, 0, 0, 1, 0.85, 1), color: o.top },
-        { geo: capsule(0.049, 0.17, 8), matrix: M4(0, -0.13, 0), color: o.top },
-        { geo: new THREE.TorusGeometry(0.046, 0.010, 5, 10), matrix: M4(0, -0.255, 0, Math.PI / 2, 0, 0), color: shade(o.top, 0.62) },
-        { geo: capsule(0.042, 0.15, 8), matrix: M4(0, -0.38, 0.01), color: o.skin },
-        { geo: sphere(0.040, 8), matrix: M4(0, -0.525, 0.02, 0, 0, 0, 0.92, 1, 0.78), color: o.skin },
-        { geo: box(0.048, 0.030, 0.028), matrix: M4(0, -0.565, 0.03), color: o.skin }
+        { geo: sph(0.063, 12), matrix: M4(0, -0.006, 0, 0, 0, 0, 0.96, 1.02, 0.96), color: o.top },
+        { geo: taper(0.057, 0.048, 0.205, 10), matrix: M4(0, -0.122, 0), color: sleeve },
+        { geo: new THREE.TorusGeometry(0.047, 0.010, 6, 12), matrix: M4(0, -0.228, 0, Math.PI / 2, 0, 0), color: dark },
+        { geo: sph(0.046, 10), matrix: M4(0, -0.246, 0), color: o.skin },            // المرفق
+        { geo: taper(0.045, 0.037, 0.185, 10), matrix: M4(0, -0.342, 0.004), color: o.skin },
+        { geo: sph(0.038, 10), matrix: M4(0, -0.438, 0.008, 0, 0, 0, 1, 0.9, 1), color: o.skin },  // الرسغ
+        /* الكفّ: راحة وإبهام وثلاثة أصابع */
+        { geo: box(0.046, 0.062, 0.028), matrix: M4(0, -0.482, 0.012), color: o.skin },
+        { geo: box(0.020, 0.038, 0.020), matrix: M4(side * 0.028, -0.470, 0.016, 0, 0, side * 0.55), color: o.skin },
+        { geo: box(0.041, 0.040, 0.022), matrix: M4(0, -0.526, 0.014), color: o.skin },
+        { geo: box(0.013, 0.014, 0.019), matrix: M4(-0.013, -0.549, 0.014), color: skinDark },
+        { geo: box(0.013, 0.014, 0.019), matrix: M4(0.013, -0.549, 0.014), color: skinDark }
       ]);
 
-      /* الجذع: صدر وحوض وياقة وسحّاب وحزام وكتفان ورأس بوجه */
+      /* ------------------------- الجذع والرأس ------------------------- */
       const parts = [
-        { geo: capsule(0.132, 0.30, 12), matrix: M4(0, 1.18, 0, 0, 0, 0, 1.30, 1, 0.84), color: o.top },
-        { geo: capsule(0.10, 0.12, 8), matrix: M4(0, 0.95, 0, 0, 0, 0, 1.25, 1, 0.9), color: o.pants },
-        /* كتفان بارزان */
-        { geo: sphere(0.066, 8), matrix: M4(0.140, 1.372, 0, 0, 0, 0, 1, 0.85, 0.95), color: o.top },
-        { geo: sphere(0.066, 8), matrix: M4(-0.140, 1.372, 0, 0, 0, 0, 1, 0.85, 0.95), color: o.top },
-        /* سحّاب أمامي رفيع وحزام */
-        { geo: box(0.013, 0.26, 0.010), matrix: M4(0, 1.19, 0.112), color: shade(o.top, 0.55) },
-        { geo: box(0.245, 0.032, 0.152), matrix: M4(0, 1.015, 0), color: o.shoe },
-        { geo: box(0.042, 0.028, 0.013), matrix: M4(0, 1.015, 0.080), color: o.trim },
-        /* ياقة صغيرة عند الرقبة ورقبة */
-        { geo: new THREE.CylinderGeometry(0.062, 0.082, 0.040, 12), matrix: M4(0, 1.404, 0), color: shade(o.top, 0.72) },
-        { geo: new THREE.CylinderGeometry(0.046, 0.051, 0.080, 8), matrix: M4(0, 1.440, 0), color: o.skin },
-        /* الرأس */
-        { geo: sphere(0.088, 14), matrix: M4(0, 1.548, 0, 0, 0, 0, 0.95, 1.07, 1), color: o.skin },
-        { geo: sphere(0.067, 10), matrix: M4(0, 1.507, 0.020, 0, 0, 0, 0.90, 0.80, 1.02), color: o.skin },
-        /* عينان بحدقة وحاجبان */
-        { geo: sphere(0.016, 8), matrix: M4(0.034, 1.566, 0.074, 0, 0, 0, 1, 0.8, 0.7), color: 0xf4f4f2 },
-        { geo: sphere(0.016, 8), matrix: M4(-0.034, 1.566, 0.074, 0, 0, 0, 1, 0.8, 0.7), color: 0xf4f4f2 },
-        { geo: sphere(0.0082, 6), matrix: M4(0.034, 1.565, 0.085), color: 0x141418 },
-        { geo: sphere(0.0082, 6), matrix: M4(-0.034, 1.565, 0.085), color: 0x141418 },
-        { geo: box(0.032, 0.008, 0.012), matrix: M4(0.034, 1.588, 0.080), color: o.hair },
-        { geo: box(0.032, 0.008, 0.012), matrix: M4(-0.034, 1.588, 0.080), color: o.hair },
-        /* أنف وفم وأذنان */
-        { geo: sphere(0.019, 6), matrix: M4(0, 1.545, 0.084, 0, 0, 0, 0.8, 0.9, 1.1), color: o.skin },
-        { geo: box(0.034, 0.007, 0.010), matrix: M4(0, 1.512, 0.082), color: 0x8a5450 },
-        { geo: sphere(0.020, 6), matrix: M4(0.088, 1.548, 0, 0, 0, 0, 0.45, 1, 0.8), color: o.skin },
-        { geo: sphere(0.020, 6), matrix: M4(-0.088, 1.548, 0, 0, 0, 0, 0.45, 1, 0.8), color: o.skin }
+        /* صدر عريض يضيق عند الخصر */
+        { geo: cap(0.126, 0.20, 14), matrix: M4(0, 1.247, 0, 0, 0, 0, 1.34 * B, 1, 0.86), color: o.top },
+        { geo: cap(0.112, 0.09, 12), matrix: M4(0, 1.098, 0, 0, 0, 0, 1.22 * B, 1, 0.84), color: o.top },
+        { geo: cap(0.104, 0.07, 12), matrix: M4(0, 0.985, 0, 0, 0, 0, 1.26 * B, 1, 0.90), color: o.pants },
+        /* كتفان يتداخلان مع الصدر فلا فجوة عند الذراع */
+        { geo: sph(0.071, 12), matrix: M4(0.132 * B, 1.352, 0, 0, 0, 0, 1, 0.86, 0.96), color: o.top },
+        { geo: sph(0.071, 12), matrix: M4(-0.132 * B, 1.352, 0, 0, 0, 0, 1, 0.86, 0.96), color: o.top },
+        /* تفاصيل الزيّ: سحّاب، جيبان، حزام بإبزيم */
+        { geo: box(0.014, 0.25, 0.010), matrix: M4(0, 1.212, 0.109), color: dark },
+        { geo: box(0.052, 0.040, 0.010), matrix: M4(0.072, 1.145, 0.104), color: dark },
+        { geo: box(0.052, 0.040, 0.010), matrix: M4(-0.072, 1.145, 0.104), color: dark },
+        { geo: box(0.236 * B, 0.030, 0.150), matrix: M4(0, 1.030, 0), color: o.shoe },
+        { geo: box(0.040, 0.026, 0.013), matrix: M4(0, 1.030, 0.078), color: o.trim },
+        /* ياقة ورقبة */
+        { geo: new THREE.CylinderGeometry(0.060, 0.084, 0.042, 14), matrix: M4(0, 1.398, 0), color: shade(o.top, 0.74) },
+        { geo: taper(0.044, 0.050, 0.085, 10), matrix: M4(0, 1.442, -0.002), color: o.skin },
+        { geo: sph(0.030, 8), matrix: M4(0, 1.462, 0.038, 0, 0, 0, 0.9, 1.1, 0.7), color: o.skin },   // حنجرة
+
+        /* ------------------------------ الرأس -------------------------
+           كل ملمح موضوع بحيث يبرز ملّيمترات قليلة عن سطح الجمجمة: لو غاص
+           اختفى، ولو زاد صار خطماً. أنصاف أقطار الجمجمة: ٠٫٠٨٧ أفقياً
+           و٠٫٠٩٢ رأسياً، ومركزها ١٫٥٥٦. */
+        { geo: sph(0.087, 18, 14), matrix: M4(0, 1.556, 0, 0, 0, 0, 0.94, 1.06, 1.00), color: o.skin },
+        /* فكّ وذقن وخدّان: يشكّلون الوجه بلا نتوء */
+        { geo: sph(0.074, 12), matrix: M4(0, 1.5125, 0.006, 0, 0, 0, 0.93, 0.72, 0.96), color: o.skin },
+        { geo: sph(0.031, 10), matrix: M4(0, 1.4885, 0.032, 0, 0, 0, 1.05, 0.82, 0.86), color: o.skin },
+        { geo: sph(0.027, 8), matrix: M4(0.047, 1.5315, 0.036, 0, 0, 0, 0.95, 0.88, 0.72), color: o.skin },
+        { geo: sph(0.027, 8), matrix: M4(-0.047, 1.5315, 0.036, 0, 0, 0, 0.95, 0.88, 0.72), color: o.skin },
+        /* حافّة الحاجب: ظلّ خفيف فوق العينين */
+        { geo: box(0.092, 0.012, 0.018), matrix: M4(0, 1.5835, 0.0625, -0.22, 0, 0), color: o.skin },
+        /* العينان: محجر رفيع، بياض بارز قليلاً، قزحية، بؤبؤ، جفن علوي */
+        { geo: sph(0.0165, 8), matrix: M4(0.031, 1.5625, 0.0725, 0, 0, 0, 1, 0.76, 0.42), color: skinDark },
+        { geo: sph(0.0165, 8), matrix: M4(-0.031, 1.5625, 0.0725, 0, 0, 0, 1, 0.76, 0.42), color: skinDark },
+        { geo: sph(0.0132, 10), matrix: M4(0.031, 1.5625, 0.0782, 0, 0, 0, 1, 0.78, 0.50), color: 0xf6f5f2 },
+        { geo: sph(0.0132, 10), matrix: M4(-0.031, 1.5625, 0.0782, 0, 0, 0, 1, 0.78, 0.50), color: 0xf6f5f2 },
+        { geo: sph(0.0064, 8), matrix: M4(0.031, 1.5620, 0.0836, 0, 0, 0, 1, 1, 0.5), color: o.eye },
+        { geo: sph(0.0064, 8), matrix: M4(-0.031, 1.5620, 0.0836, 0, 0, 0, 1, 1, 0.5), color: o.eye },
+        { geo: sph(0.0029, 6), matrix: M4(0.031, 1.5620, 0.0854), color: 0x0d0d10 },
+        { geo: sph(0.0029, 6), matrix: M4(-0.031, 1.5620, 0.0854), color: 0x0d0d10 },
+        { geo: box(0.030, 0.0075, 0.011), matrix: M4(0.031, 1.5695, 0.0778, -0.34, 0, 0), color: o.skin },
+        { geo: box(0.030, 0.0075, 0.011), matrix: M4(-0.031, 1.5695, 0.0778, -0.34, 0, 0), color: o.skin },
+        /* حاجبان رفيعان مائلان */
+        { geo: box(0.031, 0.0055, 0.009), matrix: M4(0.032, 1.5830, 0.0775, -0.10, 0, -0.12), color: o.hair },
+        { geo: box(0.031, 0.0055, 0.009), matrix: M4(-0.032, 1.5830, 0.0775, -0.10, 0, 0.12), color: o.hair },
+        /* أنف: جسر ثم أرنبة ثم منخران */
+        { geo: box(0.016, 0.042, 0.018), matrix: M4(0, 1.5510, 0.0735, 0.14, 0, 0), color: o.skin },
+        { geo: sph(0.0125, 8), matrix: M4(0, 1.5310, 0.0765, 0, 0, 0, 1.10, 0.95, 1.00), color: o.skin },
+        { geo: sph(0.0048, 6), matrix: M4(0.0090, 1.5268, 0.0752), color: skinDark },
+        { geo: sph(0.0048, 6), matrix: M4(-0.0090, 1.5268, 0.0752), color: skinDark },
+        /* شفتان */
+        { geo: box(0.025, 0.0060, 0.009), matrix: M4(0, 1.5095, 0.0700), color: lip },
+        { geo: box(0.027, 0.0022, 0.009), matrix: M4(0, 1.5058, 0.0702), color: shade(o.skin, 0.52) },
+        { geo: box(0.023, 0.0070, 0.009), matrix: M4(0, 1.5015, 0.0692), color: shade(o.skin, 0.82) },
+        /* أذنان بشحمة */
+        { geo: sph(0.019, 8), matrix: M4(0.082, 1.5510, 0.002, 0, 0, 0, 0.46, 1.10, 0.82), color: o.skin },
+        { geo: sph(0.019, 8), matrix: M4(-0.082, 1.5510, 0.002, 0, 0, 0, 0.46, 1.10, 0.82), color: o.skin },
+        { geo: sph(0.0080, 6), matrix: M4(0.0835, 1.5335, 0.002), color: skinDark },
+        { geo: sph(0.0080, 6), matrix: M4(-0.0835, 1.5335, 0.002), color: skinDark }
       ];
-      /* شعر أو قبّعة */
+
+      if (o.beard) {
+        parts.push({ geo: sph(0.0755, 12), matrix: M4(0, 1.5115, 0.006, 0, 0, 0, 0.94, 0.73, 0.97), color: o.hair });
+        parts.push({ geo: box(0.034, 0.010, 0.012), matrix: M4(0, 1.5195, 0.0715), color: o.hair });   // شارب
+      }
+
+      /* ------------------------ الشعر أو القبّعة ------------------------ */
+      /* الشعر قشرتان: تاج يقف عند خطّ الشعر فوق الحاجب، ومؤخّرة تنزل
+         خلف الأذن. الغطاء الكامل كان يدفن الوجه كلّه تحت خوذة. */
+      /* الشعر قشرة تتبع الجمجمة نفسها (٠٫٩٤ × ١٫٠٦ × ١٫٠٠) وتكبرها بقليل
+         فقط، وتقف عند خطّ الشعر فوق الحاجب؛ والمؤخّرة تنزل خلف الأذن. */
+      const SK = [0.96, 1.08, 1.02];                       // مقياس الشعر فوق الجمجمة
+      const crown = (r, th) => new THREE.SphereGeometry(r, 18, 12, 0, 6.283, 0, th);
+      const backHalf = (r, th) => new THREE.SphereGeometry(r, 14, 10, Math.PI, Math.PI, 0, th);
+      /* رقعة على الجبهة تتبع انحناء الجمجمة تماماً — بديل الخصلة الطائرة */
+      const fringe = (r) => new THREE.SphereGeometry(r, 14, 6, Math.PI * 0.5 - 0.62, 1.24, 0.80, 0.46);
       if (o.hat) {
-        parts.push({ geo: new THREE.SphereGeometry(0.0955, 14, 9, 0, 6.283, 0, 1.6),
-                     matrix: M4(0, 1.556, -0.002, 0, 0, 0, 1.02, 0.88, 1.04), color: o.hat });
-        parts.push({ geo: box(0.170, 0.016, 0.090), matrix: M4(0, 1.586, 0.072), color: o.hat });
-        parts.push({ geo: box(0.150, 0.050, 0.035), matrix: M4(0, 1.498, -0.082), color: o.hair });
+        parts.push({ geo: crown(0.0885, 1.22),
+                     matrix: M4(0, 1.556, -0.002, 0, 0, 0, SK[0] + 0.02, SK[1] - 0.02, SK[2] + 0.02), color: o.hat });
+        parts.push({ geo: backHalf(0.0890, 1.62),
+                     matrix: M4(0, 1.556, -0.002, 0, 0, 0, SK[0] + 0.02, SK[1] - 0.02, SK[2] + 0.02), color: o.hat });
+        /* حافّة القبّعة أمام الجبين */
+        parts.push({ geo: box(0.158, 0.013, 0.082), matrix: M4(0, 1.5985, 0.070, -0.16, 0, 0), color: shade(o.hat, 0.8) });
+        parts.push({ geo: sph(0.018, 8), matrix: M4(0, 1.6255, -0.002, 0, 0, 0, 1, 0.5, 1), color: shade(o.hat, 1.2) });
+        parts.push({ geo: box(0.130, 0.042, 0.028), matrix: M4(0, 1.514, -0.078), color: o.hair });
+      } else if (o.hairStyle === 'bald') {
+        parts.push({ geo: new THREE.SphereGeometry(0.0875, 16, 8, 0, 6.283, 1.12, 0.62),
+                     matrix: M4(0, 1.556, -0.002, 0, 0, 0, SK[0], SK[1] - 0.02, SK[2]), color: o.hair });
       } else {
-        parts.push({ geo: new THREE.SphereGeometry(0.0945, 16, 11, 0, 6.283, 0, 1.98),
-                     matrix: M4(0, 1.552, -0.006, 0, 0, 0, 1.0, 1.08, 1.05), color: o.hair });
-        parts.push({ geo: box(0.130, 0.060, 0.044), matrix: M4(0, 1.492, -0.072), color: o.hair });
-        parts.push({ geo: new THREE.SphereGeometry(0.070, 12, 8, 0, Math.PI, 0, Math.PI * 0.5),
-                     matrix: M4(0, 1.598, 0.030, 0.30, Math.PI / 2, 0, 1.30, 0.50, 0.70), color: o.hair });
+        parts.push({ geo: crown(0.0872, 1.18),
+                     matrix: M4(0, 1.556, -0.002, 0, 0, 0, SK[0], SK[1], SK[2]), color: o.hair });
+        parts.push({ geo: backHalf(0.0876, 1.86),
+                     matrix: M4(0, 1.556, -0.002, 0, 0, 0, SK[0], SK[1], SK[2]), color: o.hair });
+        parts.push({ geo: fringe(0.0874),
+                     matrix: M4(0, 1.556, -0.002, 0, 0, 0, SK[0] + 0.01, SK[1] + 0.01, SK[2] + 0.01), color: o.hair });
+        if (o.hairStyle === 'long') {
+          parts.push({ geo: box(0.142, 0.150, 0.046), matrix: M4(0, 1.474, -0.062), color: o.hair });
+          parts.push({ geo: sph(0.038, 10), matrix: M4(0.077, 1.502, -0.024, 0, 0, 0, 0.72, 1.55, 0.95), color: o.hair });
+          parts.push({ geo: sph(0.038, 10), matrix: M4(-0.077, 1.502, -0.024, 0, 0, 0, 0.72, 1.55, 0.95), color: o.hair });
+        } else if (o.hairStyle === 'bun') {
+          parts.push({ geo: sph(0.043, 12), matrix: M4(0, 1.578, -0.094), color: o.hair });
+          parts.push({ geo: new THREE.TorusGeometry(0.037, 0.0075, 6, 14), matrix: M4(0, 1.578, -0.094), color: shade(o.hair, 1.35) });
+        } else {
+          parts.push({ geo: box(0.120, 0.048, 0.032), matrix: M4(0, 1.508, -0.070), color: o.hair });
+        }
       }
       const upper = mergeParts(parts);
 
-      /* الساق: فخذ وركبة وساق وحذاء بنعل */
+      /* ----------------------------- الساق ---------------------------- */
       const leg = (side) => mergeParts([
-        { geo: capsule(0.071, 0.30, 8), matrix: M4(0, -0.22, 0), color: o.pants },
-        { geo: sphere(0.062, 8), matrix: M4(0, -0.44, 0.004), color: o.pants },
-        { geo: capsule(0.058, 0.26, 8), matrix: M4(0, -0.62, 0), color: o.pants },
-        { geo: new THREE.TorusGeometry(0.056, 0.009, 5, 10), matrix: M4(0, -0.79, 0, Math.PI / 2, 0, 0), color: o.pants },
-        { geo: box(0.084, 0.055, 0.185), matrix: M4(0, -0.852, 0.042), color: o.shoe },
-        { geo: box(0.090, 0.020, 0.198), matrix: M4(0, -0.882, 0.045), color: 0x2a2a2e },
-        { geo: sphere(0.044, 8), matrix: M4(0, -0.850, 0.128, 0, 0, 0, 0.92, 0.62, 1.0), color: o.shoe }
+        { geo: sph(0.079, 12), matrix: M4(0, -0.014, 0, 0, 0, 0, 1, 0.95, 1), color: o.pants },
+        { geo: taper(0.074, 0.062, 0.325, 10), matrix: M4(0, -0.205, 0), color: o.pants },
+        { geo: sph(0.063, 10), matrix: M4(0, -0.392, 0.004), color: o.pants },
+        { geo: taper(0.060, 0.047, 0.300, 10), matrix: M4(0, -0.556, -0.002), color: o.pants },
+        { geo: new THREE.TorusGeometry(0.050, 0.009, 6, 12), matrix: M4(0, -0.706, -0.002, Math.PI / 2, 0, 0), color: shade(o.pants, 0.78) },
+        { geo: sph(0.043, 10), matrix: M4(0, -0.730, 0.002), color: o.shoe },
+        { geo: box(0.082, 0.056, 0.170), matrix: M4(0, -0.786, 0.038), color: o.shoe },
+        { geo: sph(0.042, 10), matrix: M4(0, -0.782, 0.112, 0, 0, 0, 0.95, 0.66, 1.0), color: o.shoe },
+        { geo: box(0.090, 0.020, 0.192), matrix: M4(0, -0.820, 0.041), color: 0x24242a },
+        { geo: box(0.070, 0.010, 0.030), matrix: M4(0, -0.772, -0.044), color: o.trim }
       ]);
-      return { upper, legL: leg(1), legR: leg(-1), armL: arm(1), armR: arm(-1), outfit: o };
+
+      return { upper, legL: leg(1), legR: leg(-1), armL: arm(1), armR: arm(-1),
+               outfit: o, armX: 0.166 * B, legX: 0.082 * B, tall: o.tall };
     });
     return pedCache;
   }
@@ -8312,20 +8479,23 @@ SC.character = (function () {
     const v = vars[variantIndex % vars.length];
     const mat = walkerMaterial();
     const root = new THREE.Group();
+    root.scale.setScalar(v.tall || 1);           // فروق الطول بين الناس
     const upper = new THREE.Mesh(v.upper, mat);
     upper.castShadow = true;
     root.add(upper);
     const hipY = 0.92;
-    const legL = new THREE.Group(); legL.position.set(0.085, hipY, 0);
-    const legR = new THREE.Group(); legR.position.set(-0.085, hipY, 0);
+    const legX = v.legX || 0.085;
+    const legL = new THREE.Group(); legL.position.set(legX, hipY, 0);
+    const legR = new THREE.Group(); legR.position.set(-legX, hipY, 0);
     const mL = new THREE.Mesh(v.legL, mat), mR = new THREE.Mesh(v.legR, mat);
     mL.castShadow = mR.castShadow = true;
     legL.add(mL); legR.add(mR);
     root.add(legL); root.add(legR);
 
-    const shY = 1.38;
-    const armL = new THREE.Group(); armL.position.set(0.172, shY, 0);
-    const armR = new THREE.Group(); armR.position.set(-0.172, shY, 0);
+    const shY = 1.352;
+    const armX = v.armX || 0.166;
+    const armL = new THREE.Group(); armL.position.set(armX, shY, 0);
+    const armR = new THREE.Group(); armR.position.set(-armX, shY, 0);
     const aL = new THREE.Mesh(v.armL, mat), aR = new THREE.Mesh(v.armR, mat);
     aL.castShadow = aR.castShadow = true;
     armL.add(aL); armR.add(aR);
@@ -11827,7 +11997,9 @@ SC.ui = (function () {
     current = name;
     const el = dom['screen' + name.charAt(0).toUpperCase() + name.slice(1)];
     if (!el) return;
-    if (name === 'online') buildOnline();
+    if (name === 'online') { buildOnline(); buildRooms(); setMicState();
+                             setNetStatus(SC.net.connected ? 'متّصل ✓' : 'غير متّصل', SC.net.connected ? 'on' : '');
+                             if (SC.net.connected) SC.net.refreshRooms(); }
     if (name === 'shop') buildShop();
     if (name === 'missions') buildMissions();
     if (name === 'dealer') buildDealer();
@@ -11888,6 +12060,12 @@ SC.ui = (function () {
     if (!dom.netStatus) return;
     dom.netStatus.textContent = text;
     dom.netStatus.className = 'net-status ' + (cls || '');
+    /* بعد الاتّصال تُطوى إعدادات الخادم: على شاشة الهاتف كانت تدفع
+       قائمة الغرف تحت حافّة الشاشة */
+    if (dom.onlineBody) {
+      dom.onlineBody.classList.toggle('linked', !!SC.net.connected);
+      if (!SC.net.connected) dom.onlineBody.classList.remove('show-conn');
+    }
   }
 
   function initOnline() {
@@ -11908,10 +12086,38 @@ SC.ui = (function () {
         SC.hud.toast('تعذّر الاتّصال بالخادم — تأكّد من تشغيله ومن العنوان', 'bad', 4200);
       }
     });
-    SC.input.bindTap(dom.netDisconnect, () => { SC.net.disconnect(); setNetStatus('غير متّصل'); });
+    SC.input.bindTap(dom.netDisconnect, () => { SC.net.disconnect(); setNetStatus('غير متّصل'); buildRooms(); });
+    if (dom.netEdit) SC.input.bindTap(dom.netEdit, () => {
+      dom.onlineBody && dom.onlineBody.classList.toggle('show-conn');
+    });
     SC.input.bindTap(dom.netMic, async () => {
-      if (SC.net.state.mic) SC.net.stopMic();
-      else await SC.net.startMic();
+      if (SC.net.state.mic) { SC.net.stopMic(); setMicState(); }
+      else { setMicState('جارٍ طلب الإذن…'); await SC.net.startMic(); setMicState(); }
+    });
+
+    /* ------------------------------ الغرف ------------------------------ */
+    if (dom.roomRefresh) SC.input.bindTap(dom.roomRefresh, () => {
+      if (needNet()) return;
+      SC.net.refreshRooms();
+    });
+    if (dom.roomCreate) SC.input.bindTap(dom.roomCreate, () => {
+      if (needNet()) return;
+      const st = SC.net.state;
+      if (st.roomsOwned >= st.roomLimit) {     // نفس قاعدة الخادم، لكن فوراً
+        const mine = st.rooms.filter((r) => r.mine).map((r) => '«' + r.name + '»').join('، ');
+        SC.hud.toast('بلغت الحدّ: ' + st.roomLimit + ' غرف لك. احذف واحدة أوّلاً — ' + mine,
+                     'bad', 6000);
+        return;
+      }
+      SC.net.createRoom(dom.roomName.value.trim() || randomRoomName());
+      dom.roomName.value = '';
+    });
+    if (dom.roomJoin) SC.input.bindTap(dom.roomJoin, () => {
+      if (needNet()) return;
+      const code = (dom.roomCode.value || '').trim().toUpperCase();
+      if (!code) { SC.hud.toast('اكتب رمز الغرفة أوّلاً', 'bad'); return; }
+      SC.net.joinRoom(code);
+      dom.roomCode.value = '';
     });
     SC.input.bindTap(dom.netSend, sendChat);
     dom.netMsg && dom.netMsg.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
@@ -11927,14 +12133,25 @@ SC.ui = (function () {
         buildOnline();
       } else if (type === 'players') {
         buildOnline();
+      } else if (type === 'rooms' || type === 'room') {
+        buildRooms();
+        buildOnline();
+      } else if (type === 'roomError') {
+        onRoomError(data);
+      } else if (type === 'mic-error') {
+        setMicState(data.text, 'err');
+        SC.hud.toast(data.text, 'bad', 5200);
       } else if (type === 'toast') {
         SC.hud.toast(data.text, data.kind);
       } else if (type === 'chat') {
         addChat(data.name, data.msg);
         if (current !== 'online') SC.hud.toast('💬 ' + data.name + ': ' + data.msg, '', 3000);
       } else if (type === 'mic') {
-        if (dom.netMic) dom.netMic.classList.toggle('primary', !!data);
-        SC.hud.toast(data ? '🎙 الميكروفون مفتوح' : 'الميكروفون مغلق', data ? 'ok' : '');
+        if (dom.netMic) {
+          dom.netMic.classList.toggle('primary', !!data);
+          dom.netMic.textContent = data ? '🎙 إغلاق الميكروفون' : '🎙 تفعيل الميكروفون';
+        }
+        setMicState();
       } else if (type === 'invite') {
         onInvite(data);
       } else if (type === 'accept') {
@@ -11963,6 +12180,133 @@ SC.ui = (function () {
     dom.netChat.scrollTop = dom.netChat.scrollHeight;
   }
 
+  /* ------------------------------- الغرف -------------------------------- */
+  const ROOM_WORDS = ['الصقور', 'الليل', 'الجسر', 'الميناء', 'النيترو', 'الرمال', 'العاصفة',
+                      'الشارع', 'الشمال', 'البرق', 'الواحة', 'الخليج', 'الإطارات', 'السرعة'];
+  function randomRoomName() {
+    return 'غرفة ' + ROOM_WORDS[(Math.random() * ROOM_WORDS.length) | 0];
+  }
+  function needNet() {
+    if (SC.net.connected) return false;
+    SC.hud.toast('اتّصل بالخادم أوّلاً', 'bad', 2600);
+    return true;
+  }
+
+  async function setMicState(text, cls) {
+    const el = dom.micState;
+    if (!el) return;
+    if (text) { el.textContent = text; el.className = 'mic-state ' + (cls || ''); return; }
+    if (SC.net.state.mic) { el.textContent = 'مفتوح — يسمعك من في الغرفة'; el.className = 'mic-state on'; return; }
+    const st = await SC.net.micReady();
+    const map = {
+      granted: ['الإذن ممنوح — اضغط للتشغيل', ''],
+      denied: ['الإذن مرفوض — غيّره من إعدادات المتصفّح', 'err'],
+      prompt: ['اضغط الزرّ ثم اختر «سماح»', ''],
+      unsupported: ['هذا المتصفّح لا يدعم الميكروفون', 'err'],
+      insecure: ['يحتاج https أو localhost', 'err'],
+      unknown: ['اضغط الزرّ لطلب الإذن', '']
+    };
+    const v = map[st] || map.unknown;
+    el.textContent = v[0]; el.className = 'mic-state ' + v[1];
+  }
+
+  function onRoomError(m) {
+    if (m.code === 'limit') {
+      const names = (m.rooms || []).map((r) => '«' + r.name + '»').join('، ');
+      SC.hud.toast('بلغت الحدّ: ' + m.limit + ' غرف. احذف واحدة من غرفك أوّلاً — ' + names,
+                   'bad', 6000);
+    } else if (m.code === 'full') SC.hud.toast('الغرفة ممتلئة', 'bad', 3000);
+    else if (m.code === 'missing') SC.hud.toast('لا توجد غرفة بهذا الرمز', 'bad', 3000);
+    else if (m.code === 'notowner') SC.hud.toast('لا تُحذف إلا غرفك أنت', 'bad', 3000);
+    else if (m.code === 'nokey') SC.hud.toast('تعذّر تمييز جهازك — أعد الاتّصال', 'bad', 3000);
+    buildRooms();
+  }
+
+  function buildRooms() {
+    if (!dom.roomList) return;
+    const st = SC.net.state;
+    const here = st.room;
+
+    /* الحصّة: كم غرفة لك من الحدّ */
+    if (dom.roomQuota) {
+      const full = st.roomsOwned >= st.roomLimit;
+      dom.roomQuota.textContent = 'غرفك ' + st.roomsOwned + ' / ' + st.roomLimit;
+      dom.roomQuota.className = 'quota' + (full ? ' full' : '');
+      dom.roomQuota.title = full ? 'احذف غرفة قديمة لتُنشئ جديدة' : '';
+    }
+    if (dom.roomCreate) dom.roomCreate.classList.toggle('off', st.roomsOwned >= st.roomLimit);
+
+    /* شارة الغرفة الحالية */
+    if (dom.roomHere) {
+      dom.roomHere.innerHTML = '';
+      if (!SC.net.connected) {
+        dom.roomHere.style.display = 'none';
+      } else {
+        dom.roomHere.style.display = '';
+        const n = U.el('span', '', 'أنت في <b>' + esc(here ? here.name : '—') + '</b>');
+        dom.roomHere.appendChild(n);
+        if (here && !here.fixed) {
+          const c = U.el('span', 'code', here.code);
+          dom.roomHere.appendChild(c);
+          const leave = U.el('button', 'btn tiny ghost', 'خروج إلى المدينة الحرّة');
+          SC.input.bindTap(leave, () => SC.net.leaveRoom());
+          dom.roomHere.appendChild(leave);
+        }
+      }
+    }
+
+    dom.roomList.innerHTML = '';
+    if (!SC.net.connected) {
+      dom.roomList.appendChild(U.el('div', 'net-empty', 'اتّصل بالخادم لرؤية الغرف'));
+      return;
+    }
+    if (!st.rooms.length) {
+      dom.roomList.appendChild(U.el('div', 'net-empty', 'لا توجد غرف بعد — أنشئ أوّل غرفة'));
+      return;
+    }
+    st.rooms.forEach((r) => {
+      const inIt = here && here.code === r.code;
+      const row = U.el('div', 'room-row' + (inIt ? ' on' : ''));
+      row.innerHTML = '<span class="rname">' + esc(r.name) + '</span>' +
+        (r.fixed ? '' : '<span class="rcode">' + esc(r.code) + '</span>') +
+        (r.mine ? '<span class="mine">غرفتك</span>' : '') +
+        '<span class="rmeta">' + r.players + '/' + r.max + ' لاعب' +
+        (r.fixed ? '' : ' · ' + esc(r.ownerName)) + '</span>';
+      if (!inIt) {
+        const join = U.el('button', 'btn tiny primary', 'دخول');
+        SC.input.bindTap(join, () => SC.net.joinRoom(r.code));
+        row.appendChild(join);
+      }
+      if (r.mine && !r.fixed) {
+        const del = U.el('button', 'btn tiny danger', 'حذف');
+        SC.input.bindTap(del, () => confirmDeleteRoom(r));
+        row.appendChild(del);
+      }
+      dom.roomList.appendChild(row);
+    });
+  }
+
+  /* الحذف نهائي ويُخرج من فيها، فنسأل مرّة */
+  function confirmDeleteRoom(r) {
+    const el = dom.screenResult;
+    dom.resultTitle.textContent = 'حذف الغرفة؟';
+    dom.resultTitle.className = 'res-title';
+    dom.resultSub.textContent = '«' + r.name + '» — سيخرج من فيها إلى المدينة الحرّة، ولا رجعة.';
+    dom.resultRows.innerHTML = '';
+    const wrap = U.el('div', 'pause-btns');
+    const yes = U.el('button', 'btn xl', 'نعم، احذفها');
+    SC.input.bindTap(yes, () => { SC.net.deleteRoom(r.code); hideAll(); open('online'); });
+    const no = U.el('button', 'btn primary xl', 'تراجع');
+    SC.input.bindTap(no, () => { hideAll(); open('online'); });
+    wrap.appendChild(yes); wrap.appendChild(no);
+    dom.resultRows.appendChild(wrap);
+    el.classList.add('show');
+    current = 'result';
+  }
+
+  const esc = (t) => String(t == null ? '' : t).replace(/[<>&]/g, (c) =>
+    ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+
   function buildOnline() {
     if (!dom.netPlayers) return;
     const list = SC.net.playerList();
@@ -11973,7 +12317,7 @@ SC.ui = (function () {
       return;
     }
     if (!list.length) {
-      dom.netPlayers.appendChild(U.el('div', 'net-empty', 'لا يوجد لاعبون آخرون الآن'));
+      dom.netPlayers.appendChild(U.el('div', 'net-empty', 'لا أحد معك في هذه الغرفة الآن'));
       return;
     }
     list.forEach((p) => {
@@ -12713,9 +13057,11 @@ SC.ui = (function () {
 
     /* اللعب الجماعي يحتاج خادماً محلياً، فلا يظهر في شاشة البداية ولا في الـHUD */
     {
-      const b = U.el('button', 'btn ghost', '🌐 اللعب الجماعي (يحتاج خادماً)');
+      const b = U.el('button', 'btn ghost', '🌐 اللعب الجماعي — الغرف والميكروفون');
       SC.input.bindTap(b, () => open('online'));
-      row('تجريبي', b, 'شغّل خادم اللعبة على جهازك ثم اتّصل — اللعبة تعمل كاملةً بدونه');
+      row('اللعب مع أصدقائك', b,
+          'أنشئ غرفة أو ادخل غرفة غيرك وتكلّم بالميكروفون. يحتاج خادماً: ' +
+          'node server/server.mjs — واللعبة تعمل كاملةً بدونه');
     }
 
     row('صوت المحرّك', seg('engine', [['0', 'مطفأ'], ['1', 'مُفعّل']], null, (v) => {
@@ -13935,10 +14281,26 @@ SC.game = (function () {
 SC.net = (function () {
   const U = SC.util;
 
+  const KEY_STORE = 'speedcity-player-key';
+
+  /* مفتاح ثابت لهذا الجهاز: به يعرف الخادم أنّ هذه غرفي أنا حتى بعد
+     إعادة الاتّصال أو إغلاق اللعبة، فيُطبَّق حدّ الغرف على الشخص لا الجلسة. */
+  function myKey() {
+    let k = null;
+    try { k = localStorage.getItem(KEY_STORE); } catch (e) {}
+    if (!k) {
+      k = (crypto.randomUUID ? crypto.randomUUID()
+                             : String(Date.now()) + Math.random().toString(36).slice(2));
+      try { localStorage.setItem(KEY_STORE, k); } catch (e) {}
+    }
+    return k;
+  }
+
   const state = {
     ws: null, id: 0, name: '', url: '', connected: false, connecting: false,
     players: new Map(),          // id -> { id, name, car, x, z, y, yaw, v, veh, tx, tz, tyaw, last }
-    mic: false, voices: new Map(), stream: null,
+    mic: false, micWanted: false, voices: new Map(), stream: null,
+    rooms: [], room: null, roomLimit: 3, roomsOwned: 0,
     lastSend: 0, ping: 0, onEvent: null, race: null
   };
 
@@ -13962,7 +14324,7 @@ SC.net = (function () {
       ws.onopen = () => {
         clearTimeout(timeout);
         state.connected = true; state.connecting = false;
-        send({ t: 'hello', name: state.name, car: SC.game.save.current });
+        send({ t: 'hello', name: state.name, car: SC.game.save.current, key: myKey() });
         emit('open');
         resolve(true);
       };
@@ -13985,6 +14347,8 @@ SC.net = (function () {
   }
 
   function disconnect() {
+    state.micWanted = false;
+    state.rooms = []; state.room = null;
     stopMic();
     if (state.ws) { try { state.ws.close(); } catch (e) {} }
     state.ws = null; state.connected = false;
@@ -14071,6 +14435,40 @@ SC.net = (function () {
       case 'pong':
         state.ping = Math.round(performance.now() - m.ts);
         break;
+
+      /* ------------------------------ الغرف ------------------------------ */
+      case 'rooms':
+        state.rooms = m.list || [];
+        state.roomLimit = m.limit == null ? state.roomLimit : m.limit;
+        state.roomsOwned = m.mine || 0;
+        emit('rooms', m);
+        break;
+      case 'room.joined':
+        state.room = m.room;
+        clearPlayers();                       // لاعبو الغرفة السابقة ليسوا هنا
+        (m.players || []).forEach(addPlayer);
+        emit('players');
+        emit('room', m.room);
+        emit('toast', { text: 'دخلت «' + m.room.name + '»', kind: 'ok' });
+        /* الصوت مع أهل الغرفة الجديدة */
+        if (state.mic) state.players.forEach((p) => callPeer(p.id));
+        else if (state.micWanted) startMic();
+        break;
+      case 'room.left':
+        state.room = null;
+        clearPlayers();
+        emit('room', null);
+        break;
+      case 'room.closed':
+        emit('toast', { text: 'أُغلقت الغرفة «' + (m.name || m.code) + '»', kind: 'bad' });
+        break;
+      case 'room.deleted':
+        emit('toast', { text: 'حُذفت الغرفة ' + m.code, kind: 'ok' });
+        emit('rooms', null);
+        break;
+      case 'room.error':
+        emit('roomError', m);
+        break;
     }
   }
 
@@ -14109,28 +14507,60 @@ SC.net = (function () {
     });
   }
 
-  /* --------------------------- الميكروفون (صوت) ------------------------ */
+  /* --------------------------- الميكروفون (صوت) ------------------------
+     المتصفّح لا يعطي الميكروفون إلا بعد لمسة من اللاعب وإذن صريح، ولا
+     يمكن لأي صفحة أن تمنح نفسها الإذن. لذلك نطلبه بوضوح ونشرح سبب الرفض. */
+  const MIC_HELP = 'افتح إعدادات الموقع في المتصفّح ← الأذونات ← الميكروفون ← اسمح، ثم أعد المحاولة.';
+
+  /* حالة الإذن إن كان المتصفّح يكشفها: granted / denied / prompt / unknown */
+  async function micReady() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return 'unsupported';
+    if (!window.isSecureContext) return 'insecure';     // يحتاج https أو localhost
+    try {
+      const st = await navigator.permissions.query({ name: 'microphone' });
+      return st.state;
+    } catch (e) { return 'unknown'; }
+  }
+
   async function startMic() {
+    state.micWanted = true;
     if (state.mic) return true;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      emit('toast', { text: 'المتصفّح لا يدعم الميكروفون', kind: 'bad' });
+      emit('mic-error', { code: 'unsupported', text: 'هذا المتصفّح لا يدعم الميكروفون' });
+      return false;
+    }
+    if (!window.isSecureContext) {
+      emit('mic-error', { code: 'insecure',
+        text: 'الميكروفون يحتاج اتّصالاً آمناً — افتح اللعبة عبر https أو من localhost' });
       return false;
     }
     try {
       state.stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true }, video: false
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: false
       });
       state.mic = true;
+      /* شغّل الصوت الخارج من بقيّة اللاعبين — يحتاج لمسة، وهذه هي اللمسة */
+      SC.audio && SC.audio.resume && SC.audio.resume();
       state.players.forEach((p) => callPeer(p.id));
       emit('mic', true);
+      emit('toast', { text: '🎙 الميكروفون مفتوح — يسمعك من في الغرفة', kind: 'ok' });
       return true;
     } catch (e) {
-      emit('toast', { text: 'رُفض إذن الميكروفون', kind: 'bad' });
+      const n = e && e.name;
+      let info = { code: 'denied', text: 'رُفض إذن الميكروفون. ' + MIC_HELP };
+      if (n === 'NotFoundError' || n === 'DevicesNotFoundError') {
+        info = { code: 'nodevice', text: 'لا يوجد ميكروفون في هذا الجهاز' };
+      } else if (n === 'NotReadableError' || n === 'TrackStartError') {
+        info = { code: 'busy', text: 'الميكروفون مشغول في تطبيق آخر — أغلقه ثم أعد المحاولة' };
+      }
+      state.micWanted = false;
+      emit('mic-error', info);
       return false;
     }
   }
   function stopMic() {
-    state.mic = false;
+    state.mic = false; state.micWanted = false;
     if (state.stream) { state.stream.getTracks().forEach((t) => t.stop()); state.stream = null; }
     state.voices.forEach((v, id) => closeVoice(id));
     emit('mic', false);
@@ -14181,6 +14611,13 @@ SC.net = (function () {
   }
 
   /* ------------------------------ الدعوات ------------------------------ */
+  /* ------------------------------ الغرف ------------------------------ */
+  const refreshRooms = () => send({ t: 'rooms' });
+  const createRoom = (name) => send({ t: 'room.create', name: name || '' });
+  const deleteRoom = (code) => send({ t: 'room.delete', code });
+  const joinRoom = (code) => send({ t: 'room.join', code });
+  const leaveRoom = () => send({ t: 'room.leave' });
+
   const invite = (to) => send({ t: 'invite', to });
   const acceptInvite = (to, race) => send({ t: 'accept', to, race });
   const decline = (to) => send({ t: 'decline', to });
@@ -14188,7 +14625,9 @@ SC.net = (function () {
   const playerList = () => Array.from(state.players.values());
 
   return { state, connect, disconnect, update, send, invite, acceptInvite, decline, chat,
-           startMic, stopMic, playerList, get connected() { return state.connected; },
+           startMic, stopMic, micReady, playerList, myKey,
+           refreshRooms, createRoom, deleteRoom, joinRoom, leaveRoom,
+           get connected() { return state.connected; }, get room() { return state.room; },
            get id() { return state.id; }, set onEvent(f) { state.onEvent = f; } };
 })();
 
@@ -14264,6 +14703,11 @@ window.SC_MODEL_DATA = {
     screenOnline: $('screenOnline'), netStatus: $('netStatus'), netName: $('netName'),
     netUrl: $('netUrl'), netConnect: $('netConnect'), netDisconnect: $('netDisconnect'),
     netMic: $('netMic'), netPlayers: $('netPlayers'), netCount: $('netCount'),
+    micState: $('micState'), micHint: $('micHint'), netEdit: $('netEdit'),
+    onlineBody: document.querySelector('#screenOnline .p-body'),
+    roomQuota: $('roomQuota'), roomRefresh: $('roomRefresh'), roomHere: $('roomHere'),
+    roomName: $('roomName'), roomCreate: $('roomCreate'),
+    roomCode: $('roomCode'), roomJoin: $('roomJoin'), roomList: $('roomList'),
     netChat: $('netChat'), netMsg: $('netMsg'), netSend: $('netSend'),
     screenDealer: $('screenDealer'), dealerTitle: $('dealerTitle'), dealerMoney: $('dealerMoney'),
     dealerCanvas: $('dealerCanvas'), dealerBadge: $('dealerBadge'), dealerPrev: $('dealerPrev'),

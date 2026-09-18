@@ -70,7 +70,9 @@ SC.ui = (function () {
     current = name;
     const el = dom['screen' + name.charAt(0).toUpperCase() + name.slice(1)];
     if (!el) return;
-    if (name === 'online') buildOnline();
+    if (name === 'online') { buildOnline(); buildRooms(); setMicState();
+                             setNetStatus(SC.net.connected ? 'متّصل ✓' : 'غير متّصل', SC.net.connected ? 'on' : '');
+                             if (SC.net.connected) SC.net.refreshRooms(); }
     if (name === 'shop') buildShop();
     if (name === 'missions') buildMissions();
     if (name === 'dealer') buildDealer();
@@ -131,6 +133,12 @@ SC.ui = (function () {
     if (!dom.netStatus) return;
     dom.netStatus.textContent = text;
     dom.netStatus.className = 'net-status ' + (cls || '');
+    /* بعد الاتّصال تُطوى إعدادات الخادم: على شاشة الهاتف كانت تدفع
+       قائمة الغرف تحت حافّة الشاشة */
+    if (dom.onlineBody) {
+      dom.onlineBody.classList.toggle('linked', !!SC.net.connected);
+      if (!SC.net.connected) dom.onlineBody.classList.remove('show-conn');
+    }
   }
 
   function initOnline() {
@@ -151,10 +159,38 @@ SC.ui = (function () {
         SC.hud.toast('تعذّر الاتّصال بالخادم — تأكّد من تشغيله ومن العنوان', 'bad', 4200);
       }
     });
-    SC.input.bindTap(dom.netDisconnect, () => { SC.net.disconnect(); setNetStatus('غير متّصل'); });
+    SC.input.bindTap(dom.netDisconnect, () => { SC.net.disconnect(); setNetStatus('غير متّصل'); buildRooms(); });
+    if (dom.netEdit) SC.input.bindTap(dom.netEdit, () => {
+      dom.onlineBody && dom.onlineBody.classList.toggle('show-conn');
+    });
     SC.input.bindTap(dom.netMic, async () => {
-      if (SC.net.state.mic) SC.net.stopMic();
-      else await SC.net.startMic();
+      if (SC.net.state.mic) { SC.net.stopMic(); setMicState(); }
+      else { setMicState('جارٍ طلب الإذن…'); await SC.net.startMic(); setMicState(); }
+    });
+
+    /* ------------------------------ الغرف ------------------------------ */
+    if (dom.roomRefresh) SC.input.bindTap(dom.roomRefresh, () => {
+      if (needNet()) return;
+      SC.net.refreshRooms();
+    });
+    if (dom.roomCreate) SC.input.bindTap(dom.roomCreate, () => {
+      if (needNet()) return;
+      const st = SC.net.state;
+      if (st.roomsOwned >= st.roomLimit) {     // نفس قاعدة الخادم، لكن فوراً
+        const mine = st.rooms.filter((r) => r.mine).map((r) => '«' + r.name + '»').join('، ');
+        SC.hud.toast('بلغت الحدّ: ' + st.roomLimit + ' غرف لك. احذف واحدة أوّلاً — ' + mine,
+                     'bad', 6000);
+        return;
+      }
+      SC.net.createRoom(dom.roomName.value.trim() || randomRoomName());
+      dom.roomName.value = '';
+    });
+    if (dom.roomJoin) SC.input.bindTap(dom.roomJoin, () => {
+      if (needNet()) return;
+      const code = (dom.roomCode.value || '').trim().toUpperCase();
+      if (!code) { SC.hud.toast('اكتب رمز الغرفة أوّلاً', 'bad'); return; }
+      SC.net.joinRoom(code);
+      dom.roomCode.value = '';
     });
     SC.input.bindTap(dom.netSend, sendChat);
     dom.netMsg && dom.netMsg.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
@@ -170,14 +206,25 @@ SC.ui = (function () {
         buildOnline();
       } else if (type === 'players') {
         buildOnline();
+      } else if (type === 'rooms' || type === 'room') {
+        buildRooms();
+        buildOnline();
+      } else if (type === 'roomError') {
+        onRoomError(data);
+      } else if (type === 'mic-error') {
+        setMicState(data.text, 'err');
+        SC.hud.toast(data.text, 'bad', 5200);
       } else if (type === 'toast') {
         SC.hud.toast(data.text, data.kind);
       } else if (type === 'chat') {
         addChat(data.name, data.msg);
         if (current !== 'online') SC.hud.toast('💬 ' + data.name + ': ' + data.msg, '', 3000);
       } else if (type === 'mic') {
-        if (dom.netMic) dom.netMic.classList.toggle('primary', !!data);
-        SC.hud.toast(data ? '🎙 الميكروفون مفتوح' : 'الميكروفون مغلق', data ? 'ok' : '');
+        if (dom.netMic) {
+          dom.netMic.classList.toggle('primary', !!data);
+          dom.netMic.textContent = data ? '🎙 إغلاق الميكروفون' : '🎙 تفعيل الميكروفون';
+        }
+        setMicState();
       } else if (type === 'invite') {
         onInvite(data);
       } else if (type === 'accept') {
@@ -206,6 +253,133 @@ SC.ui = (function () {
     dom.netChat.scrollTop = dom.netChat.scrollHeight;
   }
 
+  /* ------------------------------- الغرف -------------------------------- */
+  const ROOM_WORDS = ['الصقور', 'الليل', 'الجسر', 'الميناء', 'النيترو', 'الرمال', 'العاصفة',
+                      'الشارع', 'الشمال', 'البرق', 'الواحة', 'الخليج', 'الإطارات', 'السرعة'];
+  function randomRoomName() {
+    return 'غرفة ' + ROOM_WORDS[(Math.random() * ROOM_WORDS.length) | 0];
+  }
+  function needNet() {
+    if (SC.net.connected) return false;
+    SC.hud.toast('اتّصل بالخادم أوّلاً', 'bad', 2600);
+    return true;
+  }
+
+  async function setMicState(text, cls) {
+    const el = dom.micState;
+    if (!el) return;
+    if (text) { el.textContent = text; el.className = 'mic-state ' + (cls || ''); return; }
+    if (SC.net.state.mic) { el.textContent = 'مفتوح — يسمعك من في الغرفة'; el.className = 'mic-state on'; return; }
+    const st = await SC.net.micReady();
+    const map = {
+      granted: ['الإذن ممنوح — اضغط للتشغيل', ''],
+      denied: ['الإذن مرفوض — غيّره من إعدادات المتصفّح', 'err'],
+      prompt: ['اضغط الزرّ ثم اختر «سماح»', ''],
+      unsupported: ['هذا المتصفّح لا يدعم الميكروفون', 'err'],
+      insecure: ['يحتاج https أو localhost', 'err'],
+      unknown: ['اضغط الزرّ لطلب الإذن', '']
+    };
+    const v = map[st] || map.unknown;
+    el.textContent = v[0]; el.className = 'mic-state ' + v[1];
+  }
+
+  function onRoomError(m) {
+    if (m.code === 'limit') {
+      const names = (m.rooms || []).map((r) => '«' + r.name + '»').join('، ');
+      SC.hud.toast('بلغت الحدّ: ' + m.limit + ' غرف. احذف واحدة من غرفك أوّلاً — ' + names,
+                   'bad', 6000);
+    } else if (m.code === 'full') SC.hud.toast('الغرفة ممتلئة', 'bad', 3000);
+    else if (m.code === 'missing') SC.hud.toast('لا توجد غرفة بهذا الرمز', 'bad', 3000);
+    else if (m.code === 'notowner') SC.hud.toast('لا تُحذف إلا غرفك أنت', 'bad', 3000);
+    else if (m.code === 'nokey') SC.hud.toast('تعذّر تمييز جهازك — أعد الاتّصال', 'bad', 3000);
+    buildRooms();
+  }
+
+  function buildRooms() {
+    if (!dom.roomList) return;
+    const st = SC.net.state;
+    const here = st.room;
+
+    /* الحصّة: كم غرفة لك من الحدّ */
+    if (dom.roomQuota) {
+      const full = st.roomsOwned >= st.roomLimit;
+      dom.roomQuota.textContent = 'غرفك ' + st.roomsOwned + ' / ' + st.roomLimit;
+      dom.roomQuota.className = 'quota' + (full ? ' full' : '');
+      dom.roomQuota.title = full ? 'احذف غرفة قديمة لتُنشئ جديدة' : '';
+    }
+    if (dom.roomCreate) dom.roomCreate.classList.toggle('off', st.roomsOwned >= st.roomLimit);
+
+    /* شارة الغرفة الحالية */
+    if (dom.roomHere) {
+      dom.roomHere.innerHTML = '';
+      if (!SC.net.connected) {
+        dom.roomHere.style.display = 'none';
+      } else {
+        dom.roomHere.style.display = '';
+        const n = U.el('span', '', 'أنت في <b>' + esc(here ? here.name : '—') + '</b>');
+        dom.roomHere.appendChild(n);
+        if (here && !here.fixed) {
+          const c = U.el('span', 'code', here.code);
+          dom.roomHere.appendChild(c);
+          const leave = U.el('button', 'btn tiny ghost', 'خروج إلى المدينة الحرّة');
+          SC.input.bindTap(leave, () => SC.net.leaveRoom());
+          dom.roomHere.appendChild(leave);
+        }
+      }
+    }
+
+    dom.roomList.innerHTML = '';
+    if (!SC.net.connected) {
+      dom.roomList.appendChild(U.el('div', 'net-empty', 'اتّصل بالخادم لرؤية الغرف'));
+      return;
+    }
+    if (!st.rooms.length) {
+      dom.roomList.appendChild(U.el('div', 'net-empty', 'لا توجد غرف بعد — أنشئ أوّل غرفة'));
+      return;
+    }
+    st.rooms.forEach((r) => {
+      const inIt = here && here.code === r.code;
+      const row = U.el('div', 'room-row' + (inIt ? ' on' : ''));
+      row.innerHTML = '<span class="rname">' + esc(r.name) + '</span>' +
+        (r.fixed ? '' : '<span class="rcode">' + esc(r.code) + '</span>') +
+        (r.mine ? '<span class="mine">غرفتك</span>' : '') +
+        '<span class="rmeta">' + r.players + '/' + r.max + ' لاعب' +
+        (r.fixed ? '' : ' · ' + esc(r.ownerName)) + '</span>';
+      if (!inIt) {
+        const join = U.el('button', 'btn tiny primary', 'دخول');
+        SC.input.bindTap(join, () => SC.net.joinRoom(r.code));
+        row.appendChild(join);
+      }
+      if (r.mine && !r.fixed) {
+        const del = U.el('button', 'btn tiny danger', 'حذف');
+        SC.input.bindTap(del, () => confirmDeleteRoom(r));
+        row.appendChild(del);
+      }
+      dom.roomList.appendChild(row);
+    });
+  }
+
+  /* الحذف نهائي ويُخرج من فيها، فنسأل مرّة */
+  function confirmDeleteRoom(r) {
+    const el = dom.screenResult;
+    dom.resultTitle.textContent = 'حذف الغرفة؟';
+    dom.resultTitle.className = 'res-title';
+    dom.resultSub.textContent = '«' + r.name + '» — سيخرج من فيها إلى المدينة الحرّة، ولا رجعة.';
+    dom.resultRows.innerHTML = '';
+    const wrap = U.el('div', 'pause-btns');
+    const yes = U.el('button', 'btn xl', 'نعم، احذفها');
+    SC.input.bindTap(yes, () => { SC.net.deleteRoom(r.code); hideAll(); open('online'); });
+    const no = U.el('button', 'btn primary xl', 'تراجع');
+    SC.input.bindTap(no, () => { hideAll(); open('online'); });
+    wrap.appendChild(yes); wrap.appendChild(no);
+    dom.resultRows.appendChild(wrap);
+    el.classList.add('show');
+    current = 'result';
+  }
+
+  const esc = (t) => String(t == null ? '' : t).replace(/[<>&]/g, (c) =>
+    ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+
   function buildOnline() {
     if (!dom.netPlayers) return;
     const list = SC.net.playerList();
@@ -216,7 +390,7 @@ SC.ui = (function () {
       return;
     }
     if (!list.length) {
-      dom.netPlayers.appendChild(U.el('div', 'net-empty', 'لا يوجد لاعبون آخرون الآن'));
+      dom.netPlayers.appendChild(U.el('div', 'net-empty', 'لا أحد معك في هذه الغرفة الآن'));
       return;
     }
     list.forEach((p) => {
@@ -956,9 +1130,11 @@ SC.ui = (function () {
 
     /* اللعب الجماعي يحتاج خادماً محلياً، فلا يظهر في شاشة البداية ولا في الـHUD */
     {
-      const b = U.el('button', 'btn ghost', '🌐 اللعب الجماعي (يحتاج خادماً)');
+      const b = U.el('button', 'btn ghost', '🌐 اللعب الجماعي — الغرف والميكروفون');
       SC.input.bindTap(b, () => open('online'));
-      row('تجريبي', b, 'شغّل خادم اللعبة على جهازك ثم اتّصل — اللعبة تعمل كاملةً بدونه');
+      row('اللعب مع أصدقائك', b,
+          'أنشئ غرفة أو ادخل غرفة غيرك وتكلّم بالميكروفون. يحتاج خادماً: ' +
+          'node server/server.mjs — واللعبة تعمل كاملةً بدونه');
     }
 
     row('صوت المحرّك', seg('engine', [['0', 'مطفأ'], ['1', 'مُفعّل']], null, (v) => {
