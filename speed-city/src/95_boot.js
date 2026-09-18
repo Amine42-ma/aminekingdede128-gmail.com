@@ -15,6 +15,7 @@
     building_house:        { file: 'building_house.glb',        label: 'البيت' },
     building_school:       { file: 'building_school.glb',       label: 'المدرسة' },
     building_garage:       { file: 'building_garage.glb',       label: 'الكراج', width: 7.4 },
+    building_gas:          { file: 'building_gas.glb',          label: 'محطّة الوقود', width: 34 },
     car_cortina:           { file: 'car_cortina.glb',           label: 'السيارة', length: 4.3 },
     bike_cyberpunk:        { file: 'bike_cyberpunk.glb',        label: 'الدراجة', length: 2.2 },
     van_motorhome:         { file: 'van_motorhome.glb',         label: 'البيت المتنقّل', length: 9.3 }
@@ -45,7 +46,8 @@
     prompt: $('prompt'), promptTitle: $('promptTitle'), promptDesc: $('promptDesc'),
     promptReward: $('promptReward'), promptStart: $('promptStart'), promptClose: $('promptClose'),
     btnMissions: $('btnMissions'), btnShop: $('btnShop'), btnMap: $('btnMap'),
-    btnSettings: $('btnSettings'), btnPause: $('btnPause'),
+    btnSettings: $('btnSettings'), btnPause: $('btnPause'), wheelie: $('btnWheelie'),
+    stunt: $('stunt'), stuntTime: $('stuntTime'), stuntName: $('stuntName'),
     msMoney: $('msMoney'), msCar: $('msCar'), msLevel: $('msLevel'), btnPlayLabel: $('btnPlayLabel'),
     screenOnline: $('screenOnline'), netStatus: $('netStatus'), netName: $('netName'),
     netUrl: $('netUrl'), netConnect: $('netConnect'), netDisconnect: $('netDisconnect'),

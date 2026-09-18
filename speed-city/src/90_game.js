@@ -26,28 +26,103 @@ SC.game = (function () {
     renderer: null, scene: null, camera: null, car: null, clock: null,
     paused: true, mode: 'menu', waypoint: null, rivals: [], rivalAI: [],
     missions: [], missionMarkers: [], nearMission: null, nearPOI: null, playerPathIdx: 0,
-    time: 0, frames: 0, fps: 60, ready: false, miniZoom: 3.0
+    time: 0, frames: 0, fps: 60, ready: false, miniZoom: 0.95
   };
 
   /* --------------------------- إعدادات الجودة --------------------------- */
-  function pickQuality() {
-    const mob = U.isMobile;
+  /* ====================== مدير الجودة الديناميكي =========================
+     ثلاثة مستويات واضحة، وكل مستوى يضبط كل ما يؤثّر في الأداء:
+
+       منخفضة : بلا ظلال · بلا تنعيم حواف · دقّة منخفضة · بلا جزيئات
+                (دخان الإطارات والشرر) · مدى رؤية قصير · مرور ومارّة أقلّ
+       متوسطة : ظلال بسيطة ثابتة (PCFShadowMap) · دقّة الجهاز الطبيعية
+       عالية  : ظلال ناعمة ديناميكية (PCFSoftShadowMap) · انعكاسات على
+                هياكل السيارات · تنعيم حواف · دقّة الجهاز الكاملة
+
+     يمكن تغييره أثناء اللعب من الإعدادات بلا إعادة تحميل. */
+  const QUALITY_LEVELS = {
+    low: {
+      label: 'منخفضة', pixelRatio: 1, shadows: false, shadowType: null, shadowSize: 512,
+      shadowRange: 55, aa: false, particles: 0, skidCount: 260, traffic: 6, peds: 6,
+      far: 480, envIntensity: 0.35, reflections: false, lodBias: 0.62
+    },
+    medium: {
+      label: 'متوسطة', pixelRatio: 'device', shadows: true, shadowType: 'basic', shadowSize: 1024,
+      shadowRange: 70, aa: true, particles: 320, skidCount: 700, traffic: 10, peds: 10,
+      far: 720, envIntensity: 0.75, reflections: false, lodBias: 0.85
+    },
+    high: {
+      label: 'عالية', pixelRatio: 'full', shadows: true, shadowType: 'soft', shadowSize: 2048,
+      shadowRange: 95, aa: true, particles: 460, skidCount: 1000, traffic: 16, peds: 14,
+      far: 1000, envIntensity: 1.0, reflections: true, lodBias: 1
+    }
+  };
+
+  function resolvePixelRatio(mode) {
     const dpr = window.devicePixelRatio || 1;
+    if (mode === 'full') return Math.min(dpr, 2);
+    if (mode === 'device') return Math.min(dpr, 1.75);
+    return Math.min(dpr, 1);                 // منخفضة: بكسل واحد لكل بكسل شاشة
+  }
+
+  function pickQuality() {
     let q = settings.quality;
-    if (q === 'auto') q = mob ? 'low' : 'high';
-    const presets = {
-      low:   { pixelRatio: Math.min(dpr, 1.25), shadows: false, shadowSize: 1024, shadowRange: 60,
-               skidCount: 400, particles: 200, traffic: 6, peds: 6, far: 480, aa: false },
-      medium:{ pixelRatio: Math.min(dpr, 1.75), shadows: true, shadowSize: 1024, shadowRange: 70,
-               skidCount: 700, particles: 320, traffic: 10, peds: 10, far: 720, aa: true },
-      high:  { pixelRatio: Math.min(dpr, 2), shadows: true, shadowSize: 2048, shadowRange: 95,
-               skidCount: 1000, particles: 460, traffic: 16, peds: 14, far: 1000, aa: true }
-    };
-    const p = presets[q] || presets.medium;
-    if (!settings.shadows) p.shadows = false;
+    if (q === 'auto') q = U.isMobile ? 'low' : 'high';
+    const src = QUALITY_LEVELS[q] || QUALITY_LEVELS.medium;
+    const p = Object.assign({}, src);
+    p.pixelRatio = resolvePixelRatio(src.pixelRatio);
+    if (!settings.shadows) { p.shadows = false; p.shadowType = null; }
     p.name = q;
     SC.quality = p;
     return p;
+  }
+
+  /* تطبيق المستوى على مشهد يعمل — بلا إعادة تحميل */
+  function applyQuality(name) {
+    if (name) settings.quality = name;
+    const q = pickQuality();
+    const R = G.renderer;
+    if (!R) return q;
+
+    R.setPixelRatio(q.pixelRatio);
+    R.shadowMap.enabled = q.shadows;
+    R.shadowMap.type = q.shadowType === 'soft' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+    R.shadowMap.needsUpdate = true;
+
+    const sun = SC.world.state.sun;
+    if (sun) {
+      sun.castShadow = q.shadows;
+      if (q.shadows) {
+        sun.shadow.mapSize.set(q.shadowSize, q.shadowSize);
+        const S = q.shadowRange;
+        sun.shadow.camera.left = -S; sun.shadow.camera.right = S;
+        sun.shadow.camera.top = S; sun.shadow.camera.bottom = -S;
+        sun.shadow.camera.updateProjectionMatrix();
+        if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+      }
+    }
+
+    /* الانعكاسات على هياكل السيارات: خريطة البيئة */
+    const scn = G.scene;
+    if (scn) scn.environmentIntensity = q.reflections ? q.envIntensity
+                                                     : Math.min(q.envIntensity, 0.4);
+
+    /* الجزيئات: مُطفأة تماماً في المستوى المنخفض */
+    if (SC.fx && SC.fx.setBudget) SC.fx.setBudget(q.particles, q.skidCount);
+
+    /* كثافة الحياة في المدينة */
+    if (SC.traffic && SC.traffic.setCount) SC.traffic.setCount(settings.traffic ? q.traffic : 0);
+    if (SC.peds && SC.peds.setCount && G.car) SC.peds.setCount(settings.peds ? q.peds : 0, G.car.pos);
+
+    /* مدى الرؤية */
+    if (G.camera) {
+      G.camera.far = Math.max(1500, q.far * 1.6);
+      G.camera.updateProjectionMatrix();
+    }
+    G.qualityFar = q.far;
+    SC.world.state.quality = q;
+    persist();
+    return q;
   }
 
   /* ------------------------------ الحفظ --------------------------------- */
@@ -90,6 +165,7 @@ SC.game = (function () {
 
   /* ------------------------------ التهيئة ------------------------------- */
   async function init(dom, sources) {
+    G.dom = dom;
     load();
     const q = pickQuality();
 
@@ -202,6 +278,8 @@ SC.game = (function () {
       for (let i = 0; i < Math.round(p * 8); i++) SC.fx.spark(f.x, f.y, f.z, Math.sin(car.yaw), Math.cos(car.yaw));
     };
     car.onCurb = (p) => { U.vibrate(10); shake(p * 0.25); };
+    car.onStunt = (secs, kind) => onStunt(secs, kind);
+    document.body.classList.toggle('on-bike', !!car.isBike);
     G.scene.add(car.root);
     G.car = car;
     save.current = id;
@@ -340,6 +418,33 @@ SC.game = (function () {
   const camState = { pos: new THREE.Vector3(), look: new THREE.Vector3(), shake: 0, fov: 62 };
   const _cv = new THREE.Vector3(), _cv2 = new THREE.Vector3();
   function shake(a) { camState.shake = Math.min(1.2, camState.shake + a); }
+
+  /* ----------------------------- حيل الدرّاجة ---------------------------
+     تُحتسب المكافأة عند إنزال العجلة: كلّما طالت المدّة زاد المال والسمعة. */
+  function onStunt(secs, kind) {
+    if (secs < 1.2) return;                       // أقلّ من ثانية: لا تُحتسب
+    const label = kind === 'stoppie' ? 'وقوف على المقدّمة' : 'وقوف على عجلة';
+    const cash = Math.round(Math.min(secs, 12) * 26 * repMult());
+    addMoney(cash);
+    addRep(Math.min(1.2, secs * 0.18), 'stunt');
+    save.stuntBest = Math.max(save.stuntBest || 0, secs);
+    persist();
+    SC.hud.toast(label + ' ' + secs.toFixed(1) + 'ث  +$' + cash, 'good', 2000);
+    SC.audio.ui && SC.audio.ui(1);
+    U.vibrate(18);
+  }
+
+  /* شارة المدّة الحيّة أعلى الشاشة */
+  function updateStuntBadge(car) {
+    const d = G.dom; if (!d || !d.stunt) return;
+    const live = car.isBike && (car.wheelie > 0.45 || car.stoppie > 0.45);
+    if (live) {
+      d.stuntTime.textContent = car.wheelieTime.toFixed(1) + 'ث';
+      d.stuntName.textContent = car.wheelie >= car.stoppie ? 'وقوف على عجلة' : 'وقوف على المقدّمة';
+    }
+    if (live !== G._stuntShown) { G._stuntShown = live; d.stunt.classList.toggle('show', live); }
+    if (d.wheelie) d.wheelie.classList.toggle('active', !!(car.wheelie > 0.2));
+  }
 
   const CAM_MODES = ['chase', 'far', 'hood', 'orbit'];
   const CAM_NAMES = { chase: 'خلفية', far: 'بعيدة', hood: 'من داخل المقصورة', orbit: 'دوران حول السيارة' };
@@ -689,8 +794,9 @@ SC.game = (function () {
       const inp = SC.input.update(dt, settings);
       const frozen = SC.missions.state.countdown > 0;
       car.input = frozen
-        ? { throttle: 0, brake: 1, steer: 0, handbrake: 1, boost: 0 }
-        : { throttle: inp.throttle, brake: inp.brake, steer: inp.steer, handbrake: inp.handbrake, boost: inp.boost };
+        ? { throttle: 0, brake: 1, steer: 0, handbrake: 1, boost: 0, wheelie: 0 }
+        : { throttle: inp.throttle, brake: inp.brake, steer: inp.steer, handbrake: inp.handbrake,
+            boost: inp.boost, wheelie: inp.wheelie || 0 };
 
       /* خطوات فيزياء ثابتة */
       G.acc = Math.min((G.acc || 0) + dt, 0.30);
@@ -706,6 +812,7 @@ SC.game = (function () {
       SC.missions.update(dt, car);
       checkNearMission(car);
       checkNearPOI(car);
+      updateStuntBadge(car);
       updateArrow(car);
     }
 
@@ -890,10 +997,11 @@ SC.game = (function () {
     SC.traffic.setCount(on ? SC.quality.traffic : 0, G.car.pos);
     persist();
   }
+  /* تغيير الجودة فوراً بلا إعادة تحميل */
   function setQuality(name) {
-    settings.quality = name;
-    persist();
-    location.reload();
+    const q = applyQuality(name);
+    SC.hud.toast('🎚 الجودة: ' + q.label, '', 1800);
+    return q;
   }
   function setWaypoint(p) {
     G.waypoint = p;
@@ -947,6 +1055,7 @@ SC.game = (function () {
 
   return {
     G, save, settings, init, frame, step, start, spawnPlayer, respawn, startMission, setSeason,
+    applyQuality, QUALITY_LEVELS,
     buyCar, selectCar,
     setCamera, cycleCamera, CAM_MODES, CAM_NAMES,
     setTimeOfDay, setTraffic, setQuality, setWaypoint, togglePause, persist, setPeds, startOnlineRace,

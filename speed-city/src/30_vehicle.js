@@ -128,9 +128,11 @@ SC.Vehicle = (function () {
       this.nitro = 1; this.nitroActive = false;
       this.groundY = 0; this.bodyY = 0; this.bodyVY = 0; this.sink = 0;
       this.roll = 0; this.pitch = 0;
+      this.isBike = !!this.def.leanIn;      // الدرّاجات تميل داخل المنعطف
+      this.wheelie = 0; this.wheelieTime = 0; this.stoppie = 0;
       this.slip = 0; this.impact = 0; this.airborne = false;
       this.distance = 0; this.topSpeedSeen = 0;
-      this.input = { throttle: 0, brake: 0, steer: 0, handbrake: 0, boost: 0 };
+      this.input = { throttle: 0, brake: 0, steer: 0, handbrake: 0, boost: 0, wheelie: 0 };
       this.steerAngle = 0;
 
       this.cabin = new THREE.Group();       // تتبع ميلان الهيكل ليجلس السائق بثبات
@@ -311,6 +313,7 @@ SC.Vehicle = (function () {
     /* --------------------------- إعادة الوضع --------------------------- */
     place(x, z, yaw) {
       this.sink = 0;
+      this.wheelie = 0; this.stoppie = 0; this.wheelieTime = 0;
       this.pos.set(x, SC.world.groundHeight(x, z), z);
       this.yaw = yaw || 0;
       this.vLong = this.vLat = this.yawRate = this.speed = 0;
@@ -336,7 +339,9 @@ SC.Vehicle = (function () {
 
       /* --- المقود: تقلّ زاويته كلما زادت السرعة --- */
       const spd = Math.abs(this.vLong);
-      const steerLimit = def.steerMax * (1 - 0.38 * U.clamp(spd / 46, 0, 1));
+      /* أثناء الوقوف على عجلة تفقد العجلة الأمامية ملامسة الأرض، فيضعف التوجيه */
+      const wlift = this.wheelie || 0, slift = this.stoppie || 0;
+      const steerLimit = def.steerMax * (1 - 0.38 * U.clamp(spd / 46, 0, 1)) * (1 - 0.62 * wlift);
       const steerRate = (5.2 - 2.2 * U.clamp(spd / 40, 0, 1)) * dt;
       // ملاحظة: محور yaw في three يدور نحو +X، وهو يسار الشاشة عند النظر للأمام،
       // لذا نعكس الإشارة حتى يكون "يمين" في الأزرار = يمين على الشاشة فعلاً.
@@ -385,9 +390,12 @@ SC.Vehicle = (function () {
       /* ثبات خلفي يزداد مع السرعة (مثل الضغط الهوائي): انعطاف حادّ في المدينة
          بلا فقدان السيطرة على السرعات العالية */
       const dfR = 1 + U.clamp(Math.abs(this.vLong) / 52, 0, 0.95);
-      const Cf = 14.0 * mass * grip, Cr = 13.0 * mass * grip * dfR * (hb ? 0.42 : 1);
-      const maxF = grip * mass * G * 0.64;
-      const maxR = grip * mass * G * 0.58 * dfR * (hb ? 0.42 : 1);
+      /* نقل الحِمل: رفع المقدّمة يفرّغ الإطار الأمامي ويضغط الخلفي، والعكس بالعكس */
+      const loadF = 1 - 0.86 * wlift + 0.30 * slift;
+      const loadR = 1 + 0.22 * wlift - 0.88 * slift;
+      const Cf = 14.0 * mass * grip * loadF, Cr = 13.0 * mass * grip * dfR * (hb ? 0.42 : 1) * loadR;
+      const maxF = grip * mass * G * 0.64 * loadF;
+      const maxR = grip * mass * G * 0.58 * dfR * (hb ? 0.42 : 1) * loadR;
       let Fyf = U.clamp(-Cf * slipF, -maxF, maxF);
       let Fyr = U.clamp(-Cr * slipR, -maxR, maxR);
 
@@ -399,7 +407,7 @@ SC.Vehicle = (function () {
       const accLat = (Fyf * Math.cos(this.steerAngle) + Fyr) / mass - this.yawRate * this.vLong;
       const Izz = mass * (this.wheelBase * this.wheelBase + this.size.x * this.size.x) / 11;
       /* تخميد الالتفاف: يمنع دوران المركبة حول نفسها بلا توقّف */
-      const yawDamp = this.yawRate * (1.15 + Math.abs(this.vLong) * 0.045) * (hb ? 0.4 : 1);
+      const yawDamp = this.yawRate * (1.15 + Math.abs(this.vLong) * 0.045 + 2.6 * wlift + 1.4 * slift) * (hb ? 0.4 : 1);
       const yawAcc = (a * Fyf * Math.cos(this.steerAngle) - b * Fyr) / Izz - yawDamp;
 
       this.vLong += accLong * dt;
@@ -516,21 +524,61 @@ SC.Vehicle = (function () {
       this.bodyY = U.clamp(this.bodyY, -0.12, 0.34);
     }
 
+    /* ------------------- حيل الدرّاجة: الوقوف على عجلة -------------------
+       شرطها واقعي: غاز قويّ وسرعة معقولة ومقود شبه مستقيم. أثناءها ترتفع
+       المقدّمة فيقلّ أثر التوجيه ويزداد تخميد الانعراج حتى تبقى مسيطراً. */
+    _updateStunts(dt) {
+      if (!this.isBike) { this.wheelie = 0; this.stoppie = 0; return; }
+      const v = Math.abs(this.vLong);
+      /* المقود المائل بشدّة يُنزل العجلة — لا يمكن الانعطاف الحادّ على عجلة واحدة */
+      const turning = Math.abs(this.input.steer || 0);
+      const wantWheelie = (this.input.wheelie > 0.5) && this.input.throttle > 0.55 &&
+                          v > 4 && v < this.def.topSpeed * 0.92 &&
+                          turning < 0.55 && !this.airborne;
+      const wantStoppie = !wantWheelie && this.input.brake > 0.75 && v > 9 && turning < 0.40;
+      this.wheelie = U.damp(this.wheelie, wantWheelie ? 1 : 0, wantWheelie ? 3.4 : 5.5, dt);
+      this.stoppie = U.damp(this.stoppie, wantStoppie ? 1 : 0, wantStoppie ? 4.5 : 7, dt);
+      if (this.wheelie < 0.01) this.wheelie = 0;
+      if (this.stoppie < 0.01) this.stoppie = 0;
+
+      /* عدّاد مدّة الحيلة — تُكافأ عند إنهائها */
+      const doing = this.wheelie > 0.45 || this.stoppie > 0.45;
+      if (doing) this.wheelieTime += dt;
+      else if (this.wheelieTime > 0) {
+        if (this.onStunt) this.onStunt(this.wheelieTime, this.wheelie > this.stoppie ? 'wheelie' : 'stoppie');
+        this.wheelieTime = 0;
+      }
+    }
+
     /* --------------------------- المظهر والميلان ------------------------ */
     _visuals(dt, accLong, accLat) {
+      this._updateStunts(dt);
       /* ميلان الهيكل: السيارات تميل قليلاً، والدراجة تميل كثيراً كالحقيقة */
       const leanK = (this.def.lean || 0.08) * U.clamp(this.kmh / 55, 0, 1);
       const leanDir = this.def.leanIn ? 1 : -1;     // الدراجة تميل داخل المنعطف
-      const targetRoll = U.clamp(-accLat / 22, -1, 1) * leanK * leanDir;
-      const targetPitch = U.clamp(accLong / 40, -0.32, 0.32) * 0.55;
+      const targetRoll = U.clamp(-accLat / 22, -1, 1) * leanK * leanDir * (1 - this.wheelie * 0.55);
+      let targetPitch = U.clamp(accLong / 40, -0.32, 0.32) * 0.55;
+      /* رفع المقدّمة / الوقوف على المقدّمة */
+      targetPitch += this.wheelie * 0.62 - this.stoppie * 0.36;
       this.roll = U.damp(this.roll, targetRoll, 7, dt);
       this.pitch = U.damp(this.pitch, targetPitch, 6.5, dt);
 
       this.root.position.set(this.pos.x, this.pos.y, this.pos.z);
       this.root.rotation.set(0, this.yaw, 0);
-      this.body.position.y = this.bodyY;
+      /* الدوران حول العجلة الملامسة للأرض لا حول مركز الهيكل — كالواقع:
+         في الوقوف على عجلة المحور هو الخلفية، وفي الوقوف على المقدّمة الأمامية.
+         نرفع الهيكل ونزيحه بمقدار يُبقي تلك العجلة ثابتة على الأسفلت. */
+      const stuntPitch = this.wheelie * 0.62 - this.stoppie * 0.36;
+      let lift = 0, pivotZ = 0;
+      if (Math.abs(stuntPitch) > 0.001) {
+        const wz = this.halfLen * 0.78;
+        const cz = stuntPitch > 0 ? -wz : wz;        // العجلة التي تبقى على الأرض
+        lift = -cz * Math.sin(stuntPitch);
+        pivotZ = cz - cz * Math.cos(stuntPitch);
+      }
+      this.body.position.set(0, this.bodyY + lift, pivotZ);
       this.body.rotation.set(-this.pitch, 0, this.roll);
-      this.cabin.position.y = this.bodyY;
+      this.cabin.position.set(0, this.bodyY + lift, pivotZ);
       this.cabin.rotation.set(-this.pitch, 0, this.roll);
       this.accLongSmooth = U.damp(this.accLongSmooth || 0, accLong, 6, dt);
       this._updateDriver(dt);

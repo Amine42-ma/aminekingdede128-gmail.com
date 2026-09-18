@@ -26,7 +26,7 @@ SC.fx = (function () {
 
   /* يضيف قطعة أثر بين الموضع السابق والحالي لعجلة ما */
   function addSkid(id, x, z, dirX, dirZ, width, strength, t) {
-    if (!skid) return;
+    if (!skid || !skidOn) return;
     const prev = skid.last.get(id);
     skid.last.set(id, { x, z });
     if (!prev) return;
@@ -124,8 +124,19 @@ SC.fx = (function () {
     };
   }
 
+  let particlesOn = true, skidOn = true;
+  /* ميزانية المؤثّرات: المستوى المنخفض يوقف الجزيئات وآثار الإطارات تماماً */
+  function setBudget(particleCount, skidCount) {
+    particlesOn = particleCount > 0;
+    skidOn = skidCount > 0;
+    if (!particlesOn && particles) {
+      for (let i = 0; i < particles.N; i++) particles.life[i] = particles.max[i] + 1;
+    }
+    if (!skidOn) clearSkid();
+  }
+
   function emit(x, y, z, vx, vy, vz, opt) {
-    if (!particles) return;
+    if (!particles || !particlesOn) return;
     const i = particles.head;
     particles.head = (i + 1) % particles.N;
     particles.pos[i * 3] = x; particles.pos[i * 3 + 1] = y; particles.pos[i * 3 + 2] = z;
@@ -221,5 +232,6 @@ SC.fx = (function () {
     skid.geo.setDrawRange(0, 0);
   }
 
-  return { init, addSkid, endSkid, fadeSkid, clearSkid, emit, smoke, spark, dust, updateParticles, makeMarker };
+  return { init, addSkid, endSkid, fadeSkid, clearSkid, emit, smoke, spark, dust, updateParticles,
+           makeMarker, setBudget, get particlesOn() { return particlesOn; }, get skidOn() { return skidOn; } };
 })();

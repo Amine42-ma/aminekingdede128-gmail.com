@@ -5,7 +5,7 @@ SC.input = (function () {
   const U = SC.util;
 
   const state = {
-    throttle: 0, brake: 0, steer: 0, handbrake: 0, boost: 0,
+    throttle: 0, brake: 0, steer: 0, handbrake: 0, boost: 0, wheelie: 0,
     steerRaw: 0, source: 'touch'
   };
 
@@ -148,6 +148,8 @@ SC.input = (function () {
     bindHold(dom.brake, () => { held.brake = true; }, () => { held.brake = false; });
     bindHold(dom.hand, () => { held.hand = true; U.vibrate(16); }, () => { held.hand = false; });
     bindHold(dom.boost, () => { held.boost = true; }, () => { held.boost = false; });
+    if (dom.wheelie) bindHold(dom.wheelie,
+      () => { held.wheelie = true; }, () => { held.wheelie = false; });
     bindWheel(dom.wheel);
     ['cam', 'horn', 'flip', 'light'].forEach((k) => bindTap(dom[k], () => fire(k)));
     /* النظر للخلف: يبقى ما دام الزر مضغوطاً */
@@ -195,6 +197,8 @@ SC.input = (function () {
     if (held.brake) brake = 1;
     if (held.hand) hand = 1;
     if (held.boost) boost = 1;
+    let wheelie = held.wheelie ? 1 : 0;
+    if (kb.KeyX) wheelie = 1;
 
     /* ذراع التحكّم */
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -231,6 +235,7 @@ SC.input = (function () {
     state.brake = U.damp(state.brake, brake, 14, dt);
     state.handbrake = hand;
     state.boost = boost;
+    state.wheelie = wheelie;
     /* النظر بالكيبورد: Q/E للالتفات، وV للنظر خلفاً */
     if (kb.KeyQ) { look.yaw = U.clamp(look.yaw + 1.8 * dt, -Math.PI * 0.98, Math.PI * 0.98); look.idle = 0; }
     if (kb.KeyE) { look.yaw = U.clamp(look.yaw - 1.8 * dt, -Math.PI * 0.98, Math.PI * 0.98); look.idle = 0; }

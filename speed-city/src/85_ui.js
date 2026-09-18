@@ -88,9 +88,9 @@ SC.ui = (function () {
   }
   function hideAll(silent) {
     Object.keys(preview).forEach((k) => previewStop(preview[k]));
-    ['screenMenu', 'screenShop', 'screenMap', 'screenMissions', 'screenSettings', 'screenResult',
-     'screenPause', 'screenOnline']
-      .forEach((k) => dom[k] && dom[k].classList.remove('show'));
+    /* أغلق كل شاشة موجودة فعلاً — القائمة الثابتة كانت تنسى الشاشات الجديدة
+       (المعرض والكراج) فتبقى مفتوحة بلا مخرج */
+    U.$$('.screen:not(.boot)').forEach((el) => el.classList.remove('show'));
     current = null;
     dom.hud.classList.remove('dim');
     if (!silent) {
@@ -967,11 +967,9 @@ SC.ui = (function () {
       SC.game.persist();
     }), 'مطفأ افتراضياً — تبقى أصوات الإطارات والرياح والاصطدام');
 
-    row('جودة الرسوم', seg('quality', [['low', 'خفيفة'], ['medium', 'متوسطة'], ['high', 'عالية']],
-      null, (v) => {
-        SC.hud.toast('سيُعاد تحميل اللعبة لتطبيق الجودة…', '', 1800);
-        setTimeout(() => SC.game.setQuality(v), 700);
-      }), 'خفيفة = أنسب للهواتف');
+    row('جودة الرسوم', seg('quality', [['low', 'منخفضة'], ['medium', 'متوسطة'], ['high', 'عالية']],
+      null, (v) => SC.game.setQuality(v)),
+      'منخفضة: بلا ظلال ولا جزيئات · متوسطة: ظلال بسيطة · عالية: ظلال ناعمة وانعكاسات');
 
     row('ضبط تلقائي للأداء', seg('auto', [['1', 'مفعّل'], ['0', 'مطفأ']], null,
       (v) => { SC.settings.autoScale = v === '1'; SC.game.persist(); }),

@@ -37,14 +37,14 @@ SC.hud = (function () {
       g.fillRect(X(isl.cx - gl), Z(isl.cz - gl), gl * 2 * scale, gl * 2 * scale);
 
       /* المربّعات */
-      g.fillStyle = '#1c2230';
+      g.fillStyle = '#161b26';                   // المربّعات أغمق ليبرز الشارع
       W.state.blockRects.forEach((b) => {
         if (b.island !== isl.id) return;
         g.fillRect(X(b.x0), Z(b.z0), (b.x1 - b.x0) * scale, (b.z1 - b.z0) * scale);
       });
 
       /* الشوارع */
-      g.strokeStyle = '#39414f';
+      g.strokeStyle = '#59637a';                 // شوارع أفتح تُقرأ بوضوح
       g.lineWidth = CFG.road * scale;
       for (let i = 0; i <= isl.blocks; i++) {
         const line = -isl.half + i * CFG.pitch;
@@ -66,7 +66,7 @@ SC.hud = (function () {
       g.setLineDash([]);
 
       /* المباني */
-      g.fillStyle = '#525c6e';
+      g.fillStyle = '#7d8798';                   // المباني أفتح فتُميَّز عن المربّع
       W.state.colliders.forEach((col) => {
         if (col.kind !== 'building') return;
         const cx = (col.minX + col.maxX) / 2, cz = (col.minZ + col.maxZ) / 2;
@@ -103,7 +103,11 @@ SC.hud = (function () {
       speedCtx = dom.speed.getContext('2d');
     }
     if (dom.mini) {
-      const s = 260;
+      /* الدقّة تتبع كثافة بكسل الشاشة وحجم العنصر — كانت ٢٦٠ ثابتة فتظهر ضبابية */
+      const rect = dom.mini.getBoundingClientRect();
+      const css = Math.max(140, Math.round(rect.width || 170));
+      const dpr = Math.min(2.5, window.devicePixelRatio || 1);
+      const s = Math.min(560, Math.round(css * dpr));
       dom.mini.width = s; dom.mini.height = s;
       miniCtx = dom.mini.getContext('2d');
     }
@@ -232,24 +236,31 @@ SC.hud = (function () {
         if (!keep) return;
         px = px / d * edge; py = py / d * edge;
       }
-      const near = world < 150;
-      const rr = off ? 5 : (near ? 8.5 : 6.4);
+      const near = world < 200;
+      const rr = off ? 5 : (near ? 9 : 7.5);
+      /* قرص بحافّة بيضاء ليقرأ فوق أي خلفية */
+      g.beginPath(); g.arc(R + px, R + py, rr + 1.6, 0, 7);
+      g.fillStyle = 'rgba(8,14,22,0.82)'; g.fill();
       g.beginPath(); g.arc(R + px, R + py, rr, 0, 7);
       g.fillStyle = poi.color; g.fill();
-      g.lineWidth = 1.5; g.strokeStyle = 'rgba(0,0,0,0.6)'; g.stroke();
+      g.lineWidth = 1.4; g.strokeStyle = 'rgba(255,255,255,0.9)'; g.stroke();
       if (!off) {
-        g.font = '700 ' + (rr * 1.2).toFixed(1) + 'px system-ui, sans-serif';
+        g.font = '700 ' + (rr * 1.15).toFixed(1) + 'px system-ui, sans-serif';
         g.textAlign = 'center'; g.textBaseline = 'middle';
         g.fillStyle = '#0b0f17';
         g.fillText(poi.icon, R + px, R + py + 0.5);
-        if (near) {
-          g.font = '800 9.5px system-ui, sans-serif';
-          g.textBaseline = 'bottom';
-          g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,0.78)';
-          g.strokeText(poi.name, R + px, R + py - rr - 2);
-          g.fillStyle = '#eaf0f8';
-          g.fillText(poi.name, R + px, R + py - rr - 2);
-        }
+        /* الاسم تحت كل أيقونة دائماً، مع المسافة عند الاقتراب */
+        const label = near ? poi.name + ' · ' + Math.round(world) + ' م' : poi.name;
+        const fs = near ? 10 : 9;
+        g.font = '800 ' + fs + 'px system-ui, sans-serif';
+        g.textBaseline = 'top';
+        const tw = g.measureText(label).width;
+        const ty = R + py + rr + 2.5;
+        g.fillStyle = 'rgba(8,14,22,0.80)';
+        roundRect(g, R + px - tw / 2 - 4, ty - 1.5, tw + 8, fs + 5, (fs + 5) / 2);
+        g.fill();
+        g.fillStyle = near ? '#ffd23f' : '#eaf0f8';
+        g.fillText(label, R + px, ty + 1);
       }
     };
     (SC.world.pois ? SC.world.pois() : []).forEach((poi) => {
@@ -258,7 +269,16 @@ SC.hud = (function () {
 
     (game.traffic || []).forEach((v) => drawDot(v.pos.x, v.pos.z, 'rgba(255,255,255,0.45)', 2.4));
     (game.rivals || []).forEach((v) => drawDot(v.pos.x, v.pos.z, '#ff5c5c', 3.6, true));
-    markers.forEach((mk) => drawDot(mk.x, mk.z, mk.color, mk.size || 5, true));
+    /* علامات المهام: نعرض ما هو داخل الدائرة، وأقرب ثلاث فقط على الحافّة */
+    const inView = [], outside = [];
+    markers.forEach((mk) => {
+      const p = projectMini(mk.x, mk.z);
+      const d = Math.hypot(p.x - R, p.y - R);
+      (d > R - 10 ? outside : inView).push({ mk, d: Math.hypot(mk.x - car.pos.x, mk.z - car.pos.z) });
+    });
+    inView.forEach((e) => drawDot(e.mk.x, e.mk.z, e.mk.color, e.mk.size || 5, true));
+    outside.sort((a, b) => a.d - b.d).slice(0, 3)
+           .forEach((e) => drawDot(e.mk.x, e.mk.z, e.mk.color, 4, true));
     if (game.waypoint) drawDot(game.waypoint.x, game.waypoint.z, '#38bdf8', 5, true);
 
     /* سهم اللاعب */
@@ -363,37 +383,53 @@ SC.hud = (function () {
     });
 
     /* أماكن المدينة على الخريطة الكبيرة */
+    /* عند عرض الجزر كلّها تتكدّس الرموز فوق بعضها فتصير بقعاً لا تُقرأ:
+       نرسمها حينئذٍ نقاطاً ملوّنة صغيرة، وعند التقريب نُظهر الرمز والاسم. */
+    const poiZoom = s > 0.045;
+    const labelBoxes = [];
     (SC.world.pois ? SC.world.pois() : []).forEach((poi) => {
       const p = toScreen(poi.x, poi.z);
       if (p.x < -40 || p.x > W + 40 || p.y < -40 || p.y > H + 40) return;
-      const rr = U.clamp(Math.min(W, H) * 0.019, 7, 15 * K);
+      const rr = poiZoom ? U.clamp(Math.min(W, H) * 0.019, 7, 15 * K) : Math.max(2.2, 3.2 * K);
       g.beginPath(); g.arc(p.x, p.y, rr, 0, 7);
       g.fillStyle = poi.color; g.fill();
-      g.lineWidth = Math.max(1.4, rr * 0.18); g.strokeStyle = 'rgba(0,0,0,0.6)'; g.stroke();
+      g.lineWidth = Math.max(1, rr * 0.18); g.strokeStyle = 'rgba(0,0,0,0.6)'; g.stroke();
+      if (!poiZoom) return;
       g.font = '700 ' + (rr * 1.15).toFixed(1) + 'px system-ui, sans-serif';
       g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillStyle = '#0b0f17';
       g.fillText(poi.icon, p.x, p.y + 0.5);
-      if (s > 0.045) {                    // الاسم عند التقريب الكافي
-        const fs = U.clamp(rr * 0.85, 8, 12 * K);
-        g.font = '800 ' + fs.toFixed(1) + 'px system-ui, sans-serif';
-        g.textBaseline = 'bottom';
-        g.lineWidth = 3.5; g.strokeStyle = 'rgba(0,0,0,0.8)';
-        g.strokeText(poi.name, p.x, p.y - rr - 3);
-        g.fillStyle = '#eaf0f8';
-        g.fillText(poi.name, p.x, p.y - rr - 3);
+
+      /* الاسم تحت الرمز، وإن تعارض مع اسم آخر نُزيحه حتى يُقرأ الاثنان */
+      const fs = U.clamp(rr * 0.85, 8, 12 * K);
+      g.font = '800 ' + fs.toFixed(1) + 'px system-ui, sans-serif';
+      const tw = g.measureText(poi.name).width, th = fs * 1.25;
+      const slots = [rr + 3 + th * 0.5, -(rr + 3 + th * 0.5),
+                     rr + 3 + th * 1.7, -(rr + 3 + th * 1.7)];
+      let ly = slots[0];
+      for (const dy of slots) {
+        const box = { x0: p.x - tw / 2 - 2, x1: p.x + tw / 2 + 2,
+                      y0: p.y + dy - th / 2, y1: p.y + dy + th / 2 };
+        const clash = labelBoxes.some((q) => !(box.x1 < q.x0 || box.x0 > q.x1 ||
+                                               box.y1 < q.y0 || box.y0 > q.y1));
+        if (!clash) { ly = dy; labelBoxes.push(box); break; }
       }
+      g.textBaseline = 'middle';
+      g.lineWidth = 3.5; g.strokeStyle = 'rgba(0,0,0,0.85)';
+      g.strokeText(poi.name, p.x, p.y + ly);
+      g.fillStyle = '#eaf0f8';
+      g.fillText(poi.name, p.x, p.y + ly);
     });
 
     /* العلامات */
-    const MR = U.clamp(Math.min(W, H) * 0.013, 5, 11 * K);
+    const MR = poiZoom ? U.clamp(Math.min(W, H) * 0.013, 5, 11 * K) : Math.max(2.0, 2.8 * K);
     const icon = (wx, wz, color, label, r) => {
       const p = toScreen(wx, wz);
       const rr = r || MR;
       g.beginPath(); g.arc(p.x, p.y, rr, 0, 7);
       g.fillStyle = color; g.fill();
       g.lineWidth = Math.max(1.2, rr * 0.2); g.strokeStyle = 'rgba(0,0,0,0.55)'; g.stroke();
-      if (label) {
+      if (label && rr > 4) {
         g.font = '700 ' + (rr * 1.25).toFixed(1) + 'px system-ui, sans-serif';
         g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
         g.fillText(label, p.x, p.y + 0.5);
