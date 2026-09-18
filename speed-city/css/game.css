@@ -811,6 +811,65 @@ body.on-bike .round.bike-only.active{background:linear-gradient(180deg,rgba(255,
 .radio-list button:active{transform:translateY(1px)}
 .radio-list button.on{background:linear-gradient(180deg,rgba(255,210,63,.30),rgba(120,88,12,.75)) !important;
   border-color:rgba(255,210,63,.7) !important;color:#fff4d4}
-.rname{background:var(--btn-face) !important;border:1px solid var(--btn-edge) !important;
+button.rname{background:var(--btn-face) !important;border:1px solid var(--btn-edge) !important;
   box-shadow:0 2px 0 rgba(0,0,0,.4);color:#e6edf8;font-weight:800}
-.rname:active{transform:translateY(1px)}
+button.rname:active{transform:translateY(1px)}
+
+/* ــ الغرف: من بالداخل، ونتيجة البحث ــ */
+.room-row .rwho{flex-basis:100%;font-size:11.5px;color:#a8d8ff;line-height:1.7}
+.room-row .rwho.empty{color:var(--dim);font-style:italic}
+.room-found{font-size:12px;color:#8fe3b8;margin:2px 2px 8px;min-height:0}
+.room-found.none{color:#ffb4a8}
+#roomSearch{flex:1}
+
+/* ــ زرّ اللعب الجماعي في شاشة البداية ــ */
+#btnMenuOnline{position:relative;display:flex;align-items:center;justify-content:center;gap:9px}
+#btnMenuOnline .btn-tag{font-size:11px;font-weight:700;opacity:.85;letter-spacing:.2px;
+  background:rgba(0,0,0,.30);border-radius:99px;padding:2px 9px;white-space:nowrap}
+
+
+/* ــ شارة «من حولك يشغّل موسيقى» ــ */
+.near-music{position:absolute;top:calc(env(safe-area-inset-top,0px) + 112px);inset-inline-start:12px;
+  display:flex;align-items:center;gap:8px;max-width:min(70vw,360px);
+  background:linear-gradient(180deg,rgba(12,18,30,.90),rgba(8,12,20,.86));
+  border:1px solid rgba(255,210,63,.45);border-radius:99px;padding:5px 7px 5px 12px;
+  box-shadow:0 6px 18px rgba(0,0,0,.42);pointer-events:auto;z-index:6}
+.near-music[hidden]{display:none}
+.near-music .nm-who{font-size:12px;color:#ffe9a8;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;line-height:1.5}
+.near-music .nm-who b{color:#fff}
+.near-music .pid,.heard-row .pid{font-family:ui-monospace,monospace;font-size:10.5px;
+  color:#a8d8ff;background:rgba(0,0,0,.34);border-radius:6px;padding:1px 5px}
+.near-music .btn.tiny{padding:5px 10px;flex:none}
+
+
+/* ــ رخصة القيادة ــ */
+.chip.lic{cursor:pointer;border:1px solid var(--line2);background:rgba(255,255,255,.06)}
+.chip.lic.warn{border-color:rgba(255,210,63,.65);background:rgba(255,210,63,.14);color:#ffe9a8}
+.chip.lic.dead{border-color:rgba(255,110,90,.7);background:rgba(255,90,70,.18);color:#ffb4a8;
+  animation:licPulse 1.6s ease-in-out infinite}
+@keyframes licPulse{0%,100%{opacity:1}50%{opacity:.55}}
+
+.lic-card{background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
+  border:1px solid var(--line2);border-radius:var(--r,16px);padding:16px;display:grid;gap:12px}
+.lic-top{display:flex;align-items:center;gap:12px}
+.lic-badge{font-size:34px;line-height:1}
+.lic-name{font-weight:900;font-size:17px}
+.lic-sub{font-size:11.5px;color:var(--dim)}
+.lic-meter{height:10px;border-radius:99px;background:rgba(0,0,0,.4);overflow:hidden;
+  border:1px solid var(--line2)}
+.lic-meter>span{display:block;height:100%;border-radius:99px;
+  background:linear-gradient(90deg,#7fe8c0,#39c07f);transition:width .35s ease}
+.lic-meter>span.warn{background:linear-gradient(90deg,#ffd23f,#e8a416)}
+.lic-meter>span.dead{background:linear-gradient(90deg,#ff7a63,#d8412a)}
+.lic-left{font-weight:800;font-size:14px}
+.lic-rows{display:grid;gap:7px}
+.lic-row{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;
+  background:rgba(255,255,255,.04);border:1px solid var(--line2);
+  border-radius:var(--r2,12px);padding:8px 11px}
+.lic-row span{color:var(--dim)}
+
+/* ــ القواعد والشروط ــ */
+.rule-list{margin:0;padding-inline-start:20px;display:grid;gap:9px}
+.rule-list li{font-size:12.8px;line-height:1.85;color:#cfd9e6}
+.rule-list li b{color:#fff}

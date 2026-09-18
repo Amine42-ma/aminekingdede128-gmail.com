@@ -33,7 +33,13 @@
       <div class="chip money"><i>💰</i><span id="money">$0</span></div>
       <div class="chip lvl"><span id="level">المستوى ١</span><i class="xp"><b id="xpBar"></b></i></div>
       <div class="chip rep" id="repChip"><i>🤝</i><span id="repVal">70%</span></div>
+      <button class="chip lic" id="licChip"><i>🪪</i><span id="licVal">30 يوماً</span></button>
       <div class="chip wp" id="wpChip"></div>
+    </div>
+    <!-- من حولك يشغّل موسيقى: اسمه ورقمه وما يسمعه، وزرّ إبلاغ في متناول اليد -->
+    <div class="near-music" id="nearMusic" hidden>
+      <span class="nm-who" id="nearMusicWho"></span>
+      <button class="btn tiny ghost" id="nearMusicReport">🚩 إبلاغ</button>
     </div>
     <div class="topbtns">
       <button class="tbtn" id="btnMissions"><i><svg viewBox="0 0 24 24"><path d="M8 4h8a2 2 0 0 1 2 2v13a1 1 0 0 1-1.5.9L12 17.5 7.5 19.9A1 1 0 0 1 6 19V6a2 2 0 0 1 2-2Z"/><path d="M9.5 9.5h5M9.5 12.5h3"/></svg></i><span>المهام</span></button>
@@ -203,6 +209,8 @@
 
     <div class="menu-btns">
       <button class="btn primary xl" id="btnPlay"><i>▶</i> <b id="btnPlayLabel">ابدأ اللعب</b></button>
+      <button class="btn net xl" id="btnMenuOnline"><i>🌐</i> <b>اللعب الجماعي</b>
+        <span class="btn-tag" id="menuNetTag">غرف · ميكروفون</span></button>
       <div class="menu-row">
         <button class="btn" id="btnMenuMissions"><i>📋</i> المهام</button>
         <button class="btn" id="btnMenuShop"><i>🏬</i> المعرض</button>
@@ -249,10 +257,14 @@
         بعدها يسمعك كل من في غرفتك ويسمعونك — والصوت لا يخرج خارج الغرفة.
       </div>
       <div class="net-hint net-conn">
-        شغّل الخادم المرفق على حاسوبك:
-        <code>node server/server.mjs</code>
-        ثم اكتب هنا <code>ws://عنوان-الجهاز:8080</code>.
-        كل من على نفس الشبكة (أو عبر الإنترنت إن نشرت الخادم) يستطيع اللعب معك.
+        اللعبة تتّصل وحدها بالخادم الذي فتحتَ منه هذه الصفحة — لا شيء تكتبه.
+        هذا الحقل لمن أراد خادماً آخر فقط: شغّل <code>node server/server.mjs</code>
+        واكتب <code>ws://عنوان-الجهاز:8080</code>.
+      </div>
+      <div class="net-hint net-conn">
+        <b>بصراحة:</b> المتصفّح وحده لا يستطيع أن يُبقي غرفة قائمة بعد إغلاقه —
+        من يُبقيها هو الخادم المرفق. شغّله على جهاز يبقى يعمل، أو انشره على
+        استضافة مجّانية، فيصير رابط الغرفة يعمل دائماً ولو خرجتَ أنت.
       </div>
     </div>
 
@@ -266,13 +278,23 @@
       <div id="roomHere" class="room-here"></div>
       <div class="net-row">
         <input id="roomName" type="text" maxlength="24" placeholder="اسم غرفتك (اختياري)">
-        <button class="btn tiny primary" id="roomCreate">+ غرفة</button>
+        <button class="btn tiny primary" id="roomCreate">＋ انشر غرفة</button>
       </div>
       <div class="net-row">
         <input id="roomCode" type="text" maxlength="6" placeholder="رمز غرفة صديقك" autocapitalize="characters">
         <button class="btn tiny" id="roomJoin">دخول بالرمز</button>
       </div>
+      <div class="net-row">
+        <input id="roomSearch" type="search" maxlength="24" placeholder="🔎 ابحث باسم الغرفة أو رمزها أو اسم لاعب">
+        <button class="btn tiny ghost" id="roomRandom">🎲 دخول عشوائي</button>
+      </div>
+      <div id="roomFound" class="room-found"></div>
       <div id="roomList" class="room-list"></div>
+      <div class="net-hint">
+        كل غرفة تنشرها تظهر هنا للجميع، ولها رابط تفتحه أنت أو غيرك في المتصفّح فيدخل إليها
+        مباشرةً. الغرفة تبقى قائمة بعد خروجك، ويدخلها الناس بالرابط متى شاؤوا — ولا تختفي
+        إلّا إن حذفتها أنت.
+      </div>
     </div>
     <div class="net-card">
       <div class="net-title">اللاعبون المتّصلون <span id="netCount">(0)</span></div>
@@ -285,6 +307,96 @@
         <input id="netMsg" type="text" maxlength="120" placeholder="اكتب رسالة…">
         <button class="btn tiny" id="netSend">إرسال</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================= القواعد والشروط ========================= -->
+<div class="screen panel" id="screenRules">
+  <div class="p-head">
+    <h2>القواعد والشروط</h2>
+    <div class="net-status" id="rulesVer">النسخة ١</div>
+    <button class="x" data-close>✕</button>
+  </div>
+  <div class="p-body rules">
+    <div class="net-card">
+      <div class="net-title">قواعد اللعب الجماعي</div>
+      <ol class="rule-list">
+        <li>احترم من معك: لا سبّ ولا تهديد ولا مضايقة في الدردشة أو بالميكروفون.</li>
+        <li>لا تنتحل شخصية غيرك، ولا تستعمل اسماً مسيئاً.</li>
+        <li>لا تعطّل لعب الآخرين عمداً ولا تعرقل سباقاتهم بلا سبب.</li>
+        <li>لا تنشر بيانات شخصية — لا هاتفك ولا عنوانك ولا حسابك — ولا تطلبها من أحد.</li>
+        <li>صاحب الغرفة يضع قواعد غرفته وله أن يحذفها متى شاء.</li>
+        <li>مخالفة هذه القواعد قد تُخرجك من الغرفة أو من الخادم.</li>
+      </ol>
+    </div>
+
+    <div class="net-card">
+      <div class="net-title">الموسيقى وحقوق النشر</div>
+      <ol class="rule-list">
+        <li>أضف من جهازك فقط ما <b>تملك حقّ استخدامه ومشاركته</b>؛ المسؤولية عليك.</li>
+        <li>اللعبة لا تنزّل موسيقى ولا تقبل روابط يوتيوب أو سبوتيفاي أو أي خدمة تنزيل.</li>
+        <li>لا يُرفع ملفّك الصوتي إلى أي خادم ولا يُعاد بثّه — يبقى في جهازك وحده.</li>
+        <li>ما يُشارَك مع من في غرفتك هو <b>اسم المقطع نصّاً</b> لا غير، ويمكنك تعطيل ذلك كلّياً.</li>
+        <li>لأي لاعب أن يبلّغ عن عنوان؛ وعند البلاغ تتوقّف مشاركته فوراً ويُراجعه مشغّل الخادم.</li>
+        <li>تستطيع حذف أي مقطع من مكتبتك في أي وقت.</li>
+      </ol>
+      <div class="dimline">
+        هذا التصميم يهدف إلى تقليل مخاطر انتهاك حقوق النشر والامتثال لشروط المنصّات،
+        وهو ليس ضماناً قانونياً ولا استشارة قانونية.
+      </div>
+    </div>
+
+    <div class="net-card">
+      <div class="net-title">بياناتك</div>
+      <ol class="rule-list">
+        <li>تقدّمك وإعداداتك وموسيقاك محفوظة في متصفّح جهازك، لا على خادم.</li>
+        <li>في اللعب الجماعي يُرسل إلى الخادم: اسمك، ورقمك، وموقع سيارتك، ورسائل دردشتك.</li>
+        <li>صوت الميكروفون يمرّ بين اللاعبين مباشرةً (WebRTC) ولا يُسجَّل.</li>
+        <li>«مسح البيانات» في الإعدادات يمحو كل ذلك من جهازك.</li>
+      </ol>
+    </div>
+
+    <div class="net-card">
+      <div class="net-title">القيادة في المدينة</div>
+      <ol class="rule-list">
+        <li>رخصة القيادة تنتهي مع مرور الأيّام، وتجديدها من مركز الشرطة 🚓.</li>
+        <li>القيادة برخصة منتهية توقفك دورية وتغرّمك <b>ضِعف</b> ثمن التجديد.</li>
+        <li>صدم المارّة يُنقص ثقة الناس بك ويكلّفك غرامة.</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ رخصة القيادة ============================ -->
+<div class="screen panel" id="screenLicence">
+  <div class="p-head">
+    <h2>رخصة القيادة</h2>
+    <div class="net-status" id="licStatus">سارية</div>
+    <button class="x" data-close>✕</button>
+  </div>
+  <div class="p-body licence">
+    <div class="lic-card">
+      <div class="lic-top">
+        <span class="lic-badge">🪪</span>
+        <div>
+          <div class="lic-name" id="licName">—</div>
+          <div class="lic-sub">مدينة السرعة — إدارة المرور</div>
+        </div>
+      </div>
+      <div class="lic-meter"><span id="licBar"></span></div>
+      <div class="lic-left" id="licLeft">—</div>
+      <div class="dimline" id="licNote"></div>
+      <button class="btn primary xl" id="licRenew">تجديد الرخصة — <b id="licFee">$500</b></button>
+      <div class="dimline">
+        الرخصة تنقص يوماً بيوم مع أيّام المدينة (اليوم ≈ ٨ دقائق لعب)، ولا تنقص وأنت خارج اللعبة.
+        وإن قدتَ وهي منتهية أوقفتك دورية وغرّمتك <b id="licFine">$1000</b> — ضِعف ثمن التجديد —
+        وتكرّر ذلك حتى تجدّد.
+      </div>
+    </div>
+    <div class="net-card">
+      <div class="net-title">سجلّك</div>
+      <div class="lic-rows" id="licRows"></div>
     </div>
   </div>
 </div>
@@ -459,6 +571,7 @@
 <script src="src/50_input.js"></script>
 <script src="src/60_audio.js"></script>
 <script src="src/62_mymusic.js"></script>
+<script src="src/65_licence.js"></script>
 <script src="src/70_hud.js"></script>
 <script src="src/80_missions.js"></script>
 <script src="src/85_ui.js"></script>

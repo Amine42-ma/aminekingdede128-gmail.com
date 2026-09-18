@@ -38,8 +38,14 @@
     loadBar: $('loadBar'), loadText: $('loadText'),
     money: $('money'), level: $('level'), xpBar: $('xpBar'), wpChip: $('wpChip'), fps: $('fps'),
     repChip: $('repChip'), repVal: $('repVal'),
+    licChip: $('licChip'), licVal: $('licVal'), screenRules: $('screenRules'),
+    screenLicence: $('screenLicence'), licStatus: $('licStatus'), licName: $('licName'),
+    licBar: $('licBar'), licLeft: $('licLeft'), licNote: $('licNote'),
+    licRenew: $('licRenew'), licFee: $('licFee'), licFine: $('licFine'), licRows: $('licRows'),
     objective: $('objective'), objTitle: $('objTitle'), objText: $('objText'), objMeta: $('objMeta'),
     mini: $('mini'), compass: $('compass'), speed: $('speed'),
+    nearMusic: $('nearMusic'), nearMusicWho: $('nearMusicWho'),
+    nearMusicReport: $('nearMusicReport'),
     toasts: $('toasts'), banner: $('banner'),
     poiPrompt: $('poiPrompt'), poiIcon: $('poiIcon'), poiName: $('poiName'),
     poiSub: $('poiSub'), poiEnter: $('poiEnter'),
@@ -59,6 +65,8 @@
     roomQuota: $('roomQuota'), roomRefresh: $('roomRefresh'), roomHere: $('roomHere'),
     roomName: $('roomName'), roomCreate: $('roomCreate'),
     roomCode: $('roomCode'), roomJoin: $('roomJoin'), roomList: $('roomList'),
+    roomSearch: $('roomSearch'), roomRandom: $('roomRandom'), roomFound: $('roomFound'),
+    menuNetTag: $('menuNetTag'),
     netChat: $('netChat'), netMsg: $('netMsg'), netSend: $('netSend'),
     screenMusic: $('screenMusic'), musicCount: $('musicCount'), musicAdd: $('musicAdd'),
     musicFile: $('musicFile'), musicStop: $('musicStop'), musicList: $('musicList'),
@@ -125,6 +133,7 @@
       SC.input.bindTap($('btnMenuMissions'), () => SC.ui.open('missions'));
       SC.input.bindTap($('btnMenuShop'), () => SC.ui.open('shop'));
       SC.input.bindTap($('btnMenuSettings'), () => SC.ui.open('settings'));
+      SC.input.bindTap($('btnMenuOnline'), () => SC.ui.open('online'));
       SC.input.bindTap($('btnPauseMissions'), () => SC.ui.open('missions'));
       SC.input.bindTap($('btnPauseShop'), () => SC.ui.open('shop'));
       SC.input.bindTap($('btnPauseSettings'), () => SC.ui.open('settings'));

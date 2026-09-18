@@ -18,6 +18,60 @@
    حقوق النشر** والامتثال لشروط المنصّات — وليس ضماناً قانونياً.
    ========================================================================== */
 SC.mylib = (function () {
+/* -------------------- تطبيع العناوين ومطابقة المتشابه --------------------
+   لا يوجد في المتصفّح بصمة صوتية حقيقية (تحتاج قاعدة بصمات مرخّصة)، لكن
+   أكثر ما يفلت من المنع هو العنوان نفسه مكتوباً بصيغة أخرى:
+   «Song (Official Video)» و«song - HQ» و«سونغ ft. فلان». فنُطبّع العنوان
+   ونقارن تشابهه، فيُمسك المتشابه لا المطابق وحده. */
+const NOISE = /\b(official|video|audio|lyrics?|lyric|hd|hq|4k|full|remaster(ed)?|version|mv|mp3|free|download|visuali[sz]er|live|cover|feat|ft|prod|by|the|a)\b/g;
+/* تُطبَّق بعد توحيد الهمزة والياء والتاء المربوطة، فتُكتب بصورتها بعد التوحيد */
+const AR_NOISE = /(الاغنيه|اغنيه|النسخه|نسخه|الاصليه|اصليه|كلمات|بدون موسيقي|فيديو|كليب|رسميه|رسمي|حصريه|حصري|تحميل|جديد|اوديو|بجوده عاليه)/g;
+const AR_DIAC = /[ؐ-ًؚ-ٰٟۖ-ۭـ]/g;
+
+function normTitle(t) {
+  let s = String(t || '').toLowerCase();
+  try { s = s.normalize('NFKD').replace(/[̀-ͯ]/g, ''); } catch (e) {}
+  s = s.replace(AR_DIAC, '')
+       .replace(/[أإآٱ]/g, 'ا').replace(/[ىئ]/g, 'ي').replace(/[ؤ]/g, 'و')
+       .replace(/ة/g, 'ه')
+       .replace(/[\(\[\{][^\)\]\}]*[\)\]\}]/g, ' ')      // ما بين الأقواس زينة غالباً
+       .replace(/[^\p{L}\p{N}]+/gu, ' ')
+       .replace(AR_NOISE, ' ')
+       .replace(NOISE, ' ')
+       .replace(/\s+/g, ' ').trim();
+  return s.slice(0, 80);
+}
+
+/* تشابه: نصف من الكلمات المشتركة ونصف من تقارب الحروف */
+function tokenSim(a, b) {
+  const A = new Set(a.split(' ').filter(Boolean));
+  const B = new Set(b.split(' ').filter(Boolean));
+  if (!A.size || !B.size) return 0;
+  let inter = 0;
+  A.forEach((w) => { if (B.has(w)) inter++; });
+  return inter / (A.size + B.size - inter);
+}
+function charSim(a, b) {
+  if (a === b) return 1;
+  const big = (s) => { const g = new Set(); for (let i = 0; i < s.length - 1; i++) g.add(s.slice(i, i + 2)); return g; };
+  const A = big(a), B = big(b);
+  if (!A.size || !B.size) return 0;
+  let inter = 0;
+  A.forEach((g) => { if (B.has(g)) inter++; });
+  return (2 * inter) / (A.size + B.size);
+}
+function similar(a, b) {
+  const x = normTitle(a), y = normTitle(b);
+  if (!x || !y) return 0;
+  if (x === y) return 1;
+  /* «اسم» داخل «اسم - نسخة» — بشرط أن يكون الجزء معتبراً لا حرفين،
+     وإلّا لَمنَعَ عنوانٌ قصيرٌ كلَّ ما احتواه */
+  const short = x.length < y.length ? x : y, long = x.length < y.length ? y : x;
+  if (short.length >= 5 && short.length * 2 >= long.length && long.includes(short)) return 0.95;
+  return 0.5 * tokenSim(x, y) + 0.5 * charSim(x, y);
+}
+const SIM_AT = 0.82;                                     // فوقها يُعدّ العنوانان واحداً
+
   const U = SC.util;
 
   const DB_NAME = 'speedcity-mylib', ST_BLOB = 'blobs', ST_META = 'meta';
@@ -197,9 +251,18 @@ SC.mylib = (function () {
   function canShare(rec) {
     return !!(state.policy.sharing && state.shareOn && rec && rec.share &&
               rightsOf(rec.rights).share && !rec.reported &&
-              !state.blocked[titleKey(rec.title)]);
+              !isBlocked(rec.title));
   }
-  const titleKey = (t) => String(t || '').trim().toLowerCase();
+  const titleKey = normTitle;
+
+  /* هل مُنع هذا العنوان — أو ما يشبهه كثيراً؟ */
+  function isBlocked(title) {
+    const k = normTitle(title);
+    if (!k) return false;
+    if (state.blocked[k]) return true;
+    for (const b in state.blocked) if (similar(b, k) >= SIM_AT) return true;
+    return false;
+  }
 
   function shareNow(rec) {
     if (!SC.net || !SC.net.connected) return;
@@ -270,10 +333,10 @@ SC.mylib = (function () {
       /* أوقف مشاركة ما مُنع، وأعلِم صاحبه */
       let hit = false;
       state.list.forEach((rec) => {
-        if (state.blocked[titleKey(rec.title)] && rec.share) { rec.share = false; rec.reported = true; hit = true; }
+        if (isBlocked(rec.title) && rec.share) { rec.share = false; rec.reported = true; hit = true; }
       });
       if (hit) { save().then(emit); SC.hud && SC.hud.toast('أُوقفت مشاركة مقطع بعد بلاغ حقوق', 'bad', 5000); }
-      state.heard = state.heard.filter((h) => !state.blocked[titleKey(h.title)]);
+      state.heard = state.heard.filter((h) => !isBlocked(h.title));
       emit();
     } else if (m.t === 'music.reported') {
       SC.hud && SC.hud.toast('وصل بلاغك — أُوقفت مشاركة المقطع', 'ok', 4000);
@@ -288,7 +351,7 @@ SC.mylib = (function () {
   return { RIGHTS, REASONS, state, load, add, remove, clearAll, blob,
            play, stop, pause, resume, next, setVolume,
            setShare, setShareAll, canShare, report, onNet, clearHeard,
-           rightsOf, MAX_SIZE, MAX_TRACKS,
+           rightsOf, MAX_SIZE, MAX_TRACKS, normTitle, similar, isBlocked, SIM_AT,
            get playing() { return state.list.find((t) => t.id === state.playingId) || null; },
            set onChange(f) { state.onChange = f; } };
 })();

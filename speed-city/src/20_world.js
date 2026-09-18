@@ -2385,7 +2385,7 @@ SC.world = (function () {
 
   return { CFG, TEX, state, build, update, groundHeight, onRoad, inBounds, queryColliders,
            snapToRoad, nearestSpawn, randomRoadPoint, setTimeOfDay, setAutoTime, setDayTime,
-           refreshEnv, canvasTex, PRESETS,
+           refreshEnv, canvasTex, PRESETS, DAY_SECONDS,
            isWater, distToWater, onSand, islandAt, islandById, nearestIsland, bridgeAt, BRIDGES,
            setUnderwater, placeReef, setSeason, pois: () => state.pois, nearestPOI };
 })();

@@ -98,13 +98,21 @@ SC.net = (function () {
   }
   function removePlayer(id) {
     const p = state.players.get(id);
+    if (p && p.plate) {
+      p.plate.material.map && p.plate.material.map.dispose();
+      p.plate.material.dispose();
+      p.plate = null; p.plateTex = null; p.plateCanvas = null;
+    }
     if (p && p.veh) SC.game.G.scene.remove(p.veh.root);
     state.players.delete(id);
     closeVoice(id);
     emit('players');
   }
   function clearPlayers() {
-    state.players.forEach((p) => { if (p.veh) SC.game.G.scene.remove(p.veh.root); });
+    state.players.forEach((p) => {
+      if (p.plate) { p.plate.material.map && p.plate.material.map.dispose(); p.plate.material.dispose(); }
+      if (p.veh) SC.game.G.scene.remove(p.veh.root);
+    });
     state.players.clear();
     state.voices.forEach((v, id) => closeVoice(id));
     emit('players');
@@ -210,6 +218,74 @@ SC.net = (function () {
     }
   }
 
+  /* --------------------- اللوحة فوق سيارة كل لاعب ----------------------
+     اسمه ورقمه (الأيدي) وما يشغّله من موسيقى — بها يعرفه من حوله ويستطيع
+     التبليغ عن مقطع بعينه من شاشة «موسيقاي». */
+  const PLATE_W = 512, PLATE_H = 144;
+  function drawPlate(p) {
+    const cv = p.plateCanvas || (p.plateCanvas = document.createElement('canvas'));
+    cv.width = PLATE_W; cv.height = PLATE_H;
+    const c = cv.getContext('2d');
+    c.clearRect(0, 0, PLATE_W, PLATE_H);
+
+    const tune = p.tune || '';
+    const lines = tune ? 2 : 1;
+    const boxH = lines === 2 ? 132 : 84;
+    const y0 = (PLATE_H - boxH) / 2;
+
+    /* خلفية داكنة شبه شفّافة بحواف مستديرة — تُقرأ فوق أي لون في المدينة */
+    c.fillStyle = 'rgba(8,13,22,.78)';
+    c.strokeStyle = tune ? 'rgba(255,210,63,.75)' : 'rgba(140,190,255,.55)';
+    c.lineWidth = 4;
+    const r = 26, x0 = 12, w = PLATE_W - 24;
+    c.beginPath();
+    c.moveTo(x0 + r, y0); c.lineTo(x0 + w - r, y0);
+    c.quadraticCurveTo(x0 + w, y0, x0 + w, y0 + r); c.lineTo(x0 + w, y0 + boxH - r);
+    c.quadraticCurveTo(x0 + w, y0 + boxH, x0 + w - r, y0 + boxH); c.lineTo(x0 + r, y0 + boxH);
+    c.quadraticCurveTo(x0, y0 + boxH, x0, y0 + boxH - r); c.lineTo(x0, y0 + r);
+    c.quadraticCurveTo(x0, y0, x0 + r, y0); c.closePath();
+    c.fill(); c.stroke();
+
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.font = '700 40px system-ui, "Segoe UI", sans-serif';
+    c.fillStyle = '#eaf2ff';
+    const nameY = lines === 2 ? y0 + 40 : y0 + boxH / 2;
+    c.fillText(String(p.name || 'لاعب').slice(0, 16), PLATE_W / 2, nameY);
+
+    /* الأيدي: رقمه على الخادم، به يُميَّز إن تشابهت الأسماء */
+    c.font = '700 26px ui-monospace, monospace';
+    c.fillStyle = 'rgba(160,200,255,.9)';
+    c.fillText('#' + p.id, PLATE_W / 2, nameY + 30);
+
+    if (tune) {
+      c.font = '600 30px system-ui, "Segoe UI", sans-serif';
+      c.fillStyle = '#ffd23f';
+      c.fillText('🎵 ' + tune.slice(0, 22), PLATE_W / 2, y0 + boxH - 26);
+    }
+    if (p.plateTex) p.plateTex.needsUpdate = true;
+  }
+
+  function plateFor(p) {
+    if (p.plate) return p.plate;
+    drawPlate(p);
+    p.plateTex = new THREE.CanvasTexture(p.plateCanvas);
+    p.plateTex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.SpriteMaterial({ map: p.plateTex, transparent: true,
+                                           depthTest: false, depthWrite: false });
+    const sp = new THREE.Sprite(mat);
+    sp.scale.set(3.4, 0.96, 1);
+    sp.renderOrder = 900;                 // فوق كل شيء، لا يحجبها جدار
+    p.plate = sp;
+    return sp;
+  }
+
+  /* ما يشغّله هذا اللاعب الآن (اسم المقطع فقط — لا ملفّ صوتي يمرّ أبداً) */
+  function tuneOf(id) {
+    if (!SC.mylib || !SC.mylib.state) return '';
+    const h = SC.mylib.state.heard.find((x) => x.id === id);
+    return h ? h.title : '';
+  }
+
   /* ------------------------ التحديث في حلقة اللعبة --------------------- */
   function update(dt, car) {
     if (!state.connected) return;
@@ -230,7 +306,14 @@ SC.net = (function () {
           p.veh.place(p.tx, p.tz, p.tyaw);
           p.veh.lightsOn = SC.world.state.isNight;
           SC.game.G.scene.add(p.veh.root);
+          p.veh.root.add(plateFor(p));
+          plateFor(p).position.set(0, 2.5, 0);
         } catch (e) { return; }
+      }
+      /* اللوحة تتبدّل حين يتبدّل اسمه أو ما يشغّله */
+      const tune = tuneOf(p.id);
+      if (p.plate && (p.tune !== tune || p.plateName !== p.name)) {
+        p.tune = tune; p.plateName = p.name; drawPlate(p);
       }
       p.x = U.damp(p.x, p.tx, 12, dt);
       p.z = U.damp(p.z, p.tz, 12, dt);
@@ -389,6 +472,18 @@ SC.net = (function () {
   }
 
   const refreshRooms = () => send({ t: 'rooms' });
+  const randomRoom = () => send({ t: 'room.random' });
+
+  /* بحث في الغرف المعروضة: بالاسم أو بالرمز أو باسم صاحبها أو باسم من فيها */
+  function searchRooms(q) {
+    const t = String(q || '').trim().toLowerCase();
+    if (!t) return state.rooms.slice();
+    return state.rooms.filter((r) =>
+      String(r.name || '').toLowerCase().includes(t) ||
+      String(r.code || '').toLowerCase().includes(t) ||
+      String(r.ownerName || '').toLowerCase().includes(t) ||
+      (r.names || []).some((n) => String(n).toLowerCase().includes(t)));
+  }
   const createRoom = (name) => send({ t: 'room.create', name: name || '' });
   const deleteRoom = (code) => send({ t: 'room.delete', code });
   const joinRoom = (code) => send({ t: 'room.join', code });
@@ -402,7 +497,7 @@ SC.net = (function () {
 
   return { state, connect, disconnect, update, send, invite, acceptInvite, decline, chat,
            startMic, stopMic, micReady, playerList, myKey,
-           refreshRooms, createRoom, deleteRoom, joinRoom, leaveRoom,
+           refreshRooms, createRoom, deleteRoom, joinRoom, leaveRoom, randomRoom, searchRooms,
            roomLink, serverURL, linkRoom, joinFromLink,
            get connected() { return state.connected; }, get room() { return state.room; },
            get id() { return state.id; }, set onEvent(f) { state.onEvent = f; } };

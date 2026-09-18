@@ -821,9 +821,68 @@ body.on-bike .round.bike-only.active{background:linear-gradient(180deg,rgba(255,
 .radio-list button:active{transform:translateY(1px)}
 .radio-list button.on{background:linear-gradient(180deg,rgba(255,210,63,.30),rgba(120,88,12,.75)) !important;
   border-color:rgba(255,210,63,.7) !important;color:#fff4d4}
-.rname{background:var(--btn-face) !important;border:1px solid var(--btn-edge) !important;
+button.rname{background:var(--btn-face) !important;border:1px solid var(--btn-edge) !important;
   box-shadow:0 2px 0 rgba(0,0,0,.4);color:#e6edf8;font-weight:800}
-.rname:active{transform:translateY(1px)}
+button.rname:active{transform:translateY(1px)}
+
+/* ــ الغرف: من بالداخل، ونتيجة البحث ــ */
+.room-row .rwho{flex-basis:100%;font-size:11.5px;color:#a8d8ff;line-height:1.7}
+.room-row .rwho.empty{color:var(--dim);font-style:italic}
+.room-found{font-size:12px;color:#8fe3b8;margin:2px 2px 8px;min-height:0}
+.room-found.none{color:#ffb4a8}
+#roomSearch{flex:1}
+
+/* ــ زرّ اللعب الجماعي في شاشة البداية ــ */
+#btnMenuOnline{position:relative;display:flex;align-items:center;justify-content:center;gap:9px}
+#btnMenuOnline .btn-tag{font-size:11px;font-weight:700;opacity:.85;letter-spacing:.2px;
+  background:rgba(0,0,0,.30);border-radius:99px;padding:2px 9px;white-space:nowrap}
+
+
+/* ــ شارة «من حولك يشغّل موسيقى» ــ */
+.near-music{position:absolute;top:calc(env(safe-area-inset-top,0px) + 112px);inset-inline-start:12px;
+  display:flex;align-items:center;gap:8px;max-width:min(70vw,360px);
+  background:linear-gradient(180deg,rgba(12,18,30,.90),rgba(8,12,20,.86));
+  border:1px solid rgba(255,210,63,.45);border-radius:99px;padding:5px 7px 5px 12px;
+  box-shadow:0 6px 18px rgba(0,0,0,.42);pointer-events:auto;z-index:6}
+.near-music[hidden]{display:none}
+.near-music .nm-who{font-size:12px;color:#ffe9a8;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;line-height:1.5}
+.near-music .nm-who b{color:#fff}
+.near-music .pid,.heard-row .pid{font-family:ui-monospace,monospace;font-size:10.5px;
+  color:#a8d8ff;background:rgba(0,0,0,.34);border-radius:6px;padding:1px 5px}
+.near-music .btn.tiny{padding:5px 10px;flex:none}
+
+
+/* ــ رخصة القيادة ــ */
+.chip.lic{cursor:pointer;border:1px solid var(--line2);background:rgba(255,255,255,.06)}
+.chip.lic.warn{border-color:rgba(255,210,63,.65);background:rgba(255,210,63,.14);color:#ffe9a8}
+.chip.lic.dead{border-color:rgba(255,110,90,.7);background:rgba(255,90,70,.18);color:#ffb4a8;
+  animation:licPulse 1.6s ease-in-out infinite}
+@keyframes licPulse{0%,100%{opacity:1}50%{opacity:.55}}
+
+.lic-card{background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
+  border:1px solid var(--line2);border-radius:var(--r,16px);padding:16px;display:grid;gap:12px}
+.lic-top{display:flex;align-items:center;gap:12px}
+.lic-badge{font-size:34px;line-height:1}
+.lic-name{font-weight:900;font-size:17px}
+.lic-sub{font-size:11.5px;color:var(--dim)}
+.lic-meter{height:10px;border-radius:99px;background:rgba(0,0,0,.4);overflow:hidden;
+  border:1px solid var(--line2)}
+.lic-meter>span{display:block;height:100%;border-radius:99px;
+  background:linear-gradient(90deg,#7fe8c0,#39c07f);transition:width .35s ease}
+.lic-meter>span.warn{background:linear-gradient(90deg,#ffd23f,#e8a416)}
+.lic-meter>span.dead{background:linear-gradient(90deg,#ff7a63,#d8412a)}
+.lic-left{font-weight:800;font-size:14px}
+.lic-rows{display:grid;gap:7px}
+.lic-row{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;
+  background:rgba(255,255,255,.04);border:1px solid var(--line2);
+  border-radius:var(--r2,12px);padding:8px 11px}
+.lic-row span{color:var(--dim)}
+
+/* ــ القواعد والشروط ــ */
+.rule-list{margin:0;padding-inline-start:20px;display:grid;gap:9px}
+.rule-list li{font-size:12.8px;line-height:1.85;color:#cfd9e6}
+.rule-list li b{color:#fff}
 
 </style>
 </head>
@@ -851,7 +910,13 @@ body.on-bike .round.bike-only.active{background:linear-gradient(180deg,rgba(255,
       <div class="chip money"><i>💰</i><span id="money">$0</span></div>
       <div class="chip lvl"><span id="level">المستوى ١</span><i class="xp"><b id="xpBar"></b></i></div>
       <div class="chip rep" id="repChip"><i>🤝</i><span id="repVal">70%</span></div>
+      <button class="chip lic" id="licChip"><i>🪪</i><span id="licVal">30 يوماً</span></button>
       <div class="chip wp" id="wpChip"></div>
+    </div>
+    <!-- من حولك يشغّل موسيقى: اسمه ورقمه وما يسمعه، وزرّ إبلاغ في متناول اليد -->
+    <div class="near-music" id="nearMusic" hidden>
+      <span class="nm-who" id="nearMusicWho"></span>
+      <button class="btn tiny ghost" id="nearMusicReport">🚩 إبلاغ</button>
     </div>
     <div class="topbtns">
       <button class="tbtn" id="btnMissions"><i><svg viewBox="0 0 24 24"><path d="M8 4h8a2 2 0 0 1 2 2v13a1 1 0 0 1-1.5.9L12 17.5 7.5 19.9A1 1 0 0 1 6 19V6a2 2 0 0 1 2-2Z"/><path d="M9.5 9.5h5M9.5 12.5h3"/></svg></i><span>المهام</span></button>
@@ -1021,6 +1086,8 @@ body.on-bike .round.bike-only.active{background:linear-gradient(180deg,rgba(255,
 
     <div class="menu-btns">
       <button class="btn primary xl" id="btnPlay"><i>▶</i> <b id="btnPlayLabel">ابدأ اللعب</b></button>
+      <button class="btn net xl" id="btnMenuOnline"><i>🌐</i> <b>اللعب الجماعي</b>
+        <span class="btn-tag" id="menuNetTag">غرف · ميكروفون</span></button>
       <div class="menu-row">
         <button class="btn" id="btnMenuMissions"><i>📋</i> المهام</button>
         <button class="btn" id="btnMenuShop"><i>🏬</i> المعرض</button>
@@ -1067,10 +1134,14 @@ body.on-bike .round.bike-only.active{background:linear-gradient(180deg,rgba(255,
         بعدها يسمعك كل من في غرفتك ويسمعونك — والصوت لا يخرج خارج الغرفة.
       </div>
       <div class="net-hint net-conn">
-        شغّل الخادم المرفق على حاسوبك:
-        <code>node server/server.mjs</code>
-        ثم اكتب هنا <code>ws://عنوان-الجهاز:8080</code>.
-        كل من على نفس الشبكة (أو عبر الإنترنت إن نشرت الخادم) يستطيع اللعب معك.
+        اللعبة تتّصل وحدها بالخادم الذي فتحتَ منه هذه الصفحة — لا شيء تكتبه.
+        هذا الحقل لمن أراد خادماً آخر فقط: شغّل <code>node server/server.mjs</code>
+        واكتب <code>ws://عنوان-الجهاز:8080</code>.
+      </div>
+      <div class="net-hint net-conn">
+        <b>بصراحة:</b> المتصفّح وحده لا يستطيع أن يُبقي غرفة قائمة بعد إغلاقه —
+        من يُبقيها هو الخادم المرفق. شغّله على جهاز يبقى يعمل، أو انشره على
+        استضافة مجّانية، فيصير رابط الغرفة يعمل دائماً ولو خرجتَ أنت.
       </div>
     </div>
 
@@ -1084,13 +1155,23 @@ body.on-bike .round.bike-only.active{background:linear-gradient(180deg,rgba(255,
       <div id="roomHere" class="room-here"></div>
       <div class="net-row">
         <input id="roomName" type="text" maxlength="24" placeholder="اسم غرفتك (اختياري)">
-        <button class="btn tiny primary" id="roomCreate">+ غرفة</button>
+        <button class="btn tiny primary" id="roomCreate">＋ انشر غرفة</button>
       </div>
       <div class="net-row">
         <input id="roomCode" type="text" maxlength="6" placeholder="رمز غرفة صديقك" autocapitalize="characters">
         <button class="btn tiny" id="roomJoin">دخول بالرمز</button>
       </div>
+      <div class="net-row">
+        <input id="roomSearch" type="search" maxlength="24" placeholder="🔎 ابحث باسم الغرفة أو رمزها أو اسم لاعب">
+        <button class="btn tiny ghost" id="roomRandom">🎲 دخول عشوائي</button>
+      </div>
+      <div id="roomFound" class="room-found"></div>
       <div id="roomList" class="room-list"></div>
+      <div class="net-hint">
+        كل غرفة تنشرها تظهر هنا للجميع، ولها رابط تفتحه أنت أو غيرك في المتصفّح فيدخل إليها
+        مباشرةً. الغرفة تبقى قائمة بعد خروجك، ويدخلها الناس بالرابط متى شاؤوا — ولا تختفي
+        إلّا إن حذفتها أنت.
+      </div>
     </div>
     <div class="net-card">
       <div class="net-title">اللاعبون المتّصلون <span id="netCount">(0)</span></div>
@@ -1103,6 +1184,96 @@ body.on-bike .round.bike-only.active{background:linear-gradient(180deg,rgba(255,
         <input id="netMsg" type="text" maxlength="120" placeholder="اكتب رسالة…">
         <button class="btn tiny" id="netSend">إرسال</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================= القواعد والشروط ========================= -->
+<div class="screen panel" id="screenRules">
+  <div class="p-head">
+    <h2>القواعد والشروط</h2>
+    <div class="net-status" id="rulesVer">النسخة ١</div>
+    <button class="x" data-close>✕</button>
+  </div>
+  <div class="p-body rules">
+    <div class="net-card">
+      <div class="net-title">قواعد اللعب الجماعي</div>
+      <ol class="rule-list">
+        <li>احترم من معك: لا سبّ ولا تهديد ولا مضايقة في الدردشة أو بالميكروفون.</li>
+        <li>لا تنتحل شخصية غيرك، ولا تستعمل اسماً مسيئاً.</li>
+        <li>لا تعطّل لعب الآخرين عمداً ولا تعرقل سباقاتهم بلا سبب.</li>
+        <li>لا تنشر بيانات شخصية — لا هاتفك ولا عنوانك ولا حسابك — ولا تطلبها من أحد.</li>
+        <li>صاحب الغرفة يضع قواعد غرفته وله أن يحذفها متى شاء.</li>
+        <li>مخالفة هذه القواعد قد تُخرجك من الغرفة أو من الخادم.</li>
+      </ol>
+    </div>
+
+    <div class="net-card">
+      <div class="net-title">الموسيقى وحقوق النشر</div>
+      <ol class="rule-list">
+        <li>أضف من جهازك فقط ما <b>تملك حقّ استخدامه ومشاركته</b>؛ المسؤولية عليك.</li>
+        <li>اللعبة لا تنزّل موسيقى ولا تقبل روابط يوتيوب أو سبوتيفاي أو أي خدمة تنزيل.</li>
+        <li>لا يُرفع ملفّك الصوتي إلى أي خادم ولا يُعاد بثّه — يبقى في جهازك وحده.</li>
+        <li>ما يُشارَك مع من في غرفتك هو <b>اسم المقطع نصّاً</b> لا غير، ويمكنك تعطيل ذلك كلّياً.</li>
+        <li>لأي لاعب أن يبلّغ عن عنوان؛ وعند البلاغ تتوقّف مشاركته فوراً ويُراجعه مشغّل الخادم.</li>
+        <li>تستطيع حذف أي مقطع من مكتبتك في أي وقت.</li>
+      </ol>
+      <div class="dimline">
+        هذا التصميم يهدف إلى تقليل مخاطر انتهاك حقوق النشر والامتثال لشروط المنصّات،
+        وهو ليس ضماناً قانونياً ولا استشارة قانونية.
+      </div>
+    </div>
+
+    <div class="net-card">
+      <div class="net-title">بياناتك</div>
+      <ol class="rule-list">
+        <li>تقدّمك وإعداداتك وموسيقاك محفوظة في متصفّح جهازك، لا على خادم.</li>
+        <li>في اللعب الجماعي يُرسل إلى الخادم: اسمك، ورقمك، وموقع سيارتك، ورسائل دردشتك.</li>
+        <li>صوت الميكروفون يمرّ بين اللاعبين مباشرةً (WebRTC) ولا يُسجَّل.</li>
+        <li>«مسح البيانات» في الإعدادات يمحو كل ذلك من جهازك.</li>
+      </ol>
+    </div>
+
+    <div class="net-card">
+      <div class="net-title">القيادة في المدينة</div>
+      <ol class="rule-list">
+        <li>رخصة القيادة تنتهي مع مرور الأيّام، وتجديدها من مركز الشرطة 🚓.</li>
+        <li>القيادة برخصة منتهية توقفك دورية وتغرّمك <b>ضِعف</b> ثمن التجديد.</li>
+        <li>صدم المارّة يُنقص ثقة الناس بك ويكلّفك غرامة.</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ رخصة القيادة ============================ -->
+<div class="screen panel" id="screenLicence">
+  <div class="p-head">
+    <h2>رخصة القيادة</h2>
+    <div class="net-status" id="licStatus">سارية</div>
+    <button class="x" data-close>✕</button>
+  </div>
+  <div class="p-body licence">
+    <div class="lic-card">
+      <div class="lic-top">
+        <span class="lic-badge">🪪</span>
+        <div>
+          <div class="lic-name" id="licName">—</div>
+          <div class="lic-sub">مدينة السرعة — إدارة المرور</div>
+        </div>
+      </div>
+      <div class="lic-meter"><span id="licBar"></span></div>
+      <div class="lic-left" id="licLeft">—</div>
+      <div class="dimline" id="licNote"></div>
+      <button class="btn primary xl" id="licRenew">تجديد الرخصة — <b id="licFee">$500</b></button>
+      <div class="dimline">
+        الرخصة تنقص يوماً بيوم مع أيّام المدينة (اليوم ≈ ٨ دقائق لعب)، ولا تنقص وأنت خارج اللعبة.
+        وإن قدتَ وهي منتهية أوقفتك دورية وغرّمتك <b id="licFine">$1000</b> — ضِعف ثمن التجديد —
+        وتكرّر ذلك حتى تجدّد.
+      </div>
+    </div>
+    <div class="net-card">
+      <div class="net-title">سجلّك</div>
+      <div class="lic-rows" id="licRows"></div>
     </div>
   </div>
 </div>
@@ -7880,7 +8051,7 @@ SC.world = (function () {
 
   return { CFG, TEX, state, build, update, groundHeight, onRoad, inBounds, queryColliders,
            snapToRoad, nearestSpawn, randomRoadPoint, setTimeOfDay, setAutoTime, setDayTime,
-           refreshEnv, canvasTex, PRESETS,
+           refreshEnv, canvasTex, PRESETS, DAY_SECONDS,
            isWater, distToWater, onSand, islandAt, islandById, nearestIsland, bridgeAt, BRIDGES,
            setUnderwater, placeReef, setSeason, pois: () => state.pois, nearestPOI };
 })();
@@ -11411,6 +11582,60 @@ SC.audio = (function () {
    حقوق النشر** والامتثال لشروط المنصّات — وليس ضماناً قانونياً.
    ========================================================================== */
 SC.mylib = (function () {
+/* -------------------- تطبيع العناوين ومطابقة المتشابه --------------------
+   لا يوجد في المتصفّح بصمة صوتية حقيقية (تحتاج قاعدة بصمات مرخّصة)، لكن
+   أكثر ما يفلت من المنع هو العنوان نفسه مكتوباً بصيغة أخرى:
+   «Song (Official Video)» و«song - HQ» و«سونغ ft. فلان». فنُطبّع العنوان
+   ونقارن تشابهه، فيُمسك المتشابه لا المطابق وحده. */
+const NOISE = /\b(official|video|audio|lyrics?|lyric|hd|hq|4k|full|remaster(ed)?|version|mv|mp3|free|download|visuali[sz]er|live|cover|feat|ft|prod|by|the|a)\b/g;
+/* تُطبَّق بعد توحيد الهمزة والياء والتاء المربوطة، فتُكتب بصورتها بعد التوحيد */
+const AR_NOISE = /(الاغنيه|اغنيه|النسخه|نسخه|الاصليه|اصليه|كلمات|بدون موسيقي|فيديو|كليب|رسميه|رسمي|حصريه|حصري|تحميل|جديد|اوديو|بجوده عاليه)/g;
+const AR_DIAC = /[ؐ-ًؚ-ٰٟۖ-ۭـ]/g;
+
+function normTitle(t) {
+  let s = String(t || '').toLowerCase();
+  try { s = s.normalize('NFKD').replace(/[̀-ͯ]/g, ''); } catch (e) {}
+  s = s.replace(AR_DIAC, '')
+       .replace(/[أإآٱ]/g, 'ا').replace(/[ىئ]/g, 'ي').replace(/[ؤ]/g, 'و')
+       .replace(/ة/g, 'ه')
+       .replace(/[\(\[\{][^\)\]\}]*[\)\]\}]/g, ' ')      // ما بين الأقواس زينة غالباً
+       .replace(/[^\p{L}\p{N}]+/gu, ' ')
+       .replace(AR_NOISE, ' ')
+       .replace(NOISE, ' ')
+       .replace(/\s+/g, ' ').trim();
+  return s.slice(0, 80);
+}
+
+/* تشابه: نصف من الكلمات المشتركة ونصف من تقارب الحروف */
+function tokenSim(a, b) {
+  const A = new Set(a.split(' ').filter(Boolean));
+  const B = new Set(b.split(' ').filter(Boolean));
+  if (!A.size || !B.size) return 0;
+  let inter = 0;
+  A.forEach((w) => { if (B.has(w)) inter++; });
+  return inter / (A.size + B.size - inter);
+}
+function charSim(a, b) {
+  if (a === b) return 1;
+  const big = (s) => { const g = new Set(); for (let i = 0; i < s.length - 1; i++) g.add(s.slice(i, i + 2)); return g; };
+  const A = big(a), B = big(b);
+  if (!A.size || !B.size) return 0;
+  let inter = 0;
+  A.forEach((g) => { if (B.has(g)) inter++; });
+  return (2 * inter) / (A.size + B.size);
+}
+function similar(a, b) {
+  const x = normTitle(a), y = normTitle(b);
+  if (!x || !y) return 0;
+  if (x === y) return 1;
+  /* «اسم» داخل «اسم - نسخة» — بشرط أن يكون الجزء معتبراً لا حرفين،
+     وإلّا لَمنَعَ عنوانٌ قصيرٌ كلَّ ما احتواه */
+  const short = x.length < y.length ? x : y, long = x.length < y.length ? y : x;
+  if (short.length >= 5 && short.length * 2 >= long.length && long.includes(short)) return 0.95;
+  return 0.5 * tokenSim(x, y) + 0.5 * charSim(x, y);
+}
+const SIM_AT = 0.82;                                     // فوقها يُعدّ العنوانان واحداً
+
   const U = SC.util;
 
   const DB_NAME = 'speedcity-mylib', ST_BLOB = 'blobs', ST_META = 'meta';
@@ -11590,9 +11815,18 @@ SC.mylib = (function () {
   function canShare(rec) {
     return !!(state.policy.sharing && state.shareOn && rec && rec.share &&
               rightsOf(rec.rights).share && !rec.reported &&
-              !state.blocked[titleKey(rec.title)]);
+              !isBlocked(rec.title));
   }
-  const titleKey = (t) => String(t || '').trim().toLowerCase();
+  const titleKey = normTitle;
+
+  /* هل مُنع هذا العنوان — أو ما يشبهه كثيراً؟ */
+  function isBlocked(title) {
+    const k = normTitle(title);
+    if (!k) return false;
+    if (state.blocked[k]) return true;
+    for (const b in state.blocked) if (similar(b, k) >= SIM_AT) return true;
+    return false;
+  }
 
   function shareNow(rec) {
     if (!SC.net || !SC.net.connected) return;
@@ -11663,10 +11897,10 @@ SC.mylib = (function () {
       /* أوقف مشاركة ما مُنع، وأعلِم صاحبه */
       let hit = false;
       state.list.forEach((rec) => {
-        if (state.blocked[titleKey(rec.title)] && rec.share) { rec.share = false; rec.reported = true; hit = true; }
+        if (isBlocked(rec.title) && rec.share) { rec.share = false; rec.reported = true; hit = true; }
       });
       if (hit) { save().then(emit); SC.hud && SC.hud.toast('أُوقفت مشاركة مقطع بعد بلاغ حقوق', 'bad', 5000); }
-      state.heard = state.heard.filter((h) => !state.blocked[titleKey(h.title)]);
+      state.heard = state.heard.filter((h) => !isBlocked(h.title));
       emit();
     } else if (m.t === 'music.reported') {
       SC.hud && SC.hud.toast('وصل بلاغك — أُوقفت مشاركة المقطع', 'ok', 4000);
@@ -11681,8 +11915,114 @@ SC.mylib = (function () {
   return { RIGHTS, REASONS, state, load, add, remove, clearAll, blob,
            play, stop, pause, resume, next, setVolume,
            setShare, setShareAll, canShare, report, onNet, clearHeard,
-           rightsOf, MAX_SIZE, MAX_TRACKS,
+           rightsOf, MAX_SIZE, MAX_TRACKS, normTitle, similar, isBlocked, SIM_AT,
            get playing() { return state.list.find((t) => t.id === state.playingId) || null; },
+           set onChange(f) { state.onChange = f; } };
+})();
+
+</script>
+<!-- ===== src/65_licence.js ===== -->
+<script>
+/* ============================================================================
+   SPEED CITY — رخصة القيادة
+   رخصة تنتهي ببطء مع مرور الأيّام في اللعبة (اليوم ≈ ٨ دقائق لعب).
+   تجديدها من مركز الشرطة بـ ٥٠٠. وإن قدتَ وهي منتهية أوقفتك الشرطة
+   وغرّمتك الضِّعف — ١٠٠٠ — وكرّرت ذلك حتى تجدّد.
+   ========================================================================== */
+SC.licence = (function () {
+  const FEE = 500;                 // ثمن التجديد
+  const FINE = FEE * 2;            // غرامة القيادة بلا رخصة: الضِّعف
+  const DAYS = 30;                 // مدّة الرخصة بأيّام اللعبة
+  const WARN_AT = 5;               // من هنا يبدأ التنبيه
+  const GRACE = 25;                // ثوانٍ من القيادة قبل أوّل إيقاف
+  const REPEAT = 90;               // ثمّ إيقاف كل هذه المدّة إن أصرّ
+  const STOP_SEC = 4;              // كم ثانية تُمسك الشرطة السيارة
+
+  const state = {
+    days: DAYS,                    // ما بقي من أيّام الرخصة
+    drive: 0,                      // ثوانٍ قيادة بلا رخصة منذ آخر إيقاف
+    stop: 0,                       // عدّاد الإيقاف الحالي
+    fines: 0,                      // كم غرامة دفع
+    warned: 0,                     // آخر رقم يوم نبّهناه عنده
+    onChange: null
+  };
+
+  const expired = () => state.days <= 0;
+  const stopped = () => state.stop > 0;
+  const fee = () => FEE;
+  const fine = () => FINE;
+  const full = () => DAYS;
+
+  function emit() { if (state.onChange) state.onChange(state); }
+
+  function load(save) {
+    const l = save.licence || {};
+    state.days = typeof l.days === 'number' ? l.days : DAYS;
+    state.fines = l.fines || 0;
+    state.drive = 0; state.stop = 0; state.warned = 0;
+    emit();
+  }
+  function store(save) {
+    save.licence = { days: +state.days.toFixed(3), fines: state.fines };
+  }
+
+  /* ينقص يوم كامل كلّما مرّ يوم في المدينة — لا بالساعة الحقيقية، بل بوقت
+     اللعب، فلا تنتهي رخصة لاعبٍ تركَ اللعبة شهراً. */
+  function tick(dt, drivingKmh) {
+    if (state.days > 0) {
+      const before = state.days;
+      state.days = Math.max(0, state.days - dt / DAY_SECONDS());
+      if (Math.ceil(before) !== Math.ceil(state.days)) emit();
+      if (state.days <= 0) {
+        emit();
+        return { event: 'expired' };
+      }
+      const d = Math.ceil(state.days);
+      if (d <= WARN_AT && d !== state.warned) { state.warned = d; return { event: 'warn', days: d }; }
+      return null;
+    }
+
+    /* منتهية: الشرطة تراك */
+    if (state.stop > 0) {
+      state.stop = Math.max(0, state.stop - dt);
+      if (state.stop === 0) emit();
+      return state.stop > 0 ? { event: 'held' } : null;
+    }
+    if (drivingKmh > 8) state.drive += dt;
+    const need = state.fines === 0 ? GRACE : REPEAT;
+    if (state.drive >= need) {
+      state.drive = 0;
+      state.stop = STOP_SEC;
+      state.fines++;
+      emit();
+      return { event: 'caught', fine: FINE };
+    }
+    return null;
+  }
+
+  function DAY_SECONDS() {
+    /* اليوم في المدينة ≈ ٤٨٠ ثانية — نقرأه من العالم إن أتاحه */
+    return (SC.world && SC.world.DAY_SECONDS) || 480;
+  }
+
+  function renew(save) {
+    if (save.money < FEE) return { ok: false, why: 'money', need: FEE };
+    save.money -= FEE;
+    state.days = DAYS; state.drive = 0; state.stop = 0; state.warned = 0;
+    emit();
+    return { ok: true, paid: FEE, days: DAYS };
+  }
+
+  /* نصّ قصير للواجهة */
+  function label() {
+    if (expired()) return 'رخصتك منتهية';
+    const d = Math.ceil(state.days);
+    return d + ' ' + (d === 1 ? 'يوم' : d === 2 ? 'يومان' : d <= 10 ? 'أيّام' : 'يوماً');
+  }
+  const ratio = () => Math.max(0, Math.min(1, state.days / DAYS));
+
+  return { state, load, store, tick, renew, expired, stopped, label, ratio,
+           fee, fine, full, WARN_AT,
            set onChange(f) { state.onChange = f; } };
 })();
 
@@ -12264,14 +12604,49 @@ SC.hud = (function () {
     dom.objective.classList.toggle('warn', !!o.warn);
   }
 
+  /* ------------------ موسيقى من حولك: من يشغّلها وزرّ الإبلاغ -------------
+     لا يصل إلينا ملفّ صوتي من أحد — الاسم النصّي فقط. نعرض أقرب لاعب
+     يشارك عنواناً، باسمه ورقمه، ليُعرف من هو ويُبلَّغ عنه بضغطة. */
+  let nearNow = null, accNear = 0;
+  function drawNear(car) {
+    const el = dom.nearMusic;
+    if (!el) return;
+    const heard = (SC.mylib && SC.mylib.state.heard) || [];
+    let best = null, bestD = 90 * 90;              // ٩٠ متراً: مدى «من حولك»
+    if (SC.net && SC.net.connected) {
+      heard.forEach((h) => {
+        const p = SC.net.state.players.get(h.id);
+        if (!p) return;
+        const dx = p.x - car.pos.x, dz = p.z - car.pos.z;
+        const d = dx * dx + dz * dz;
+        if (d < bestD) { bestD = d; best = { id: h.id, name: p.name || h.name, title: h.title }; }
+      });
+    }
+    const same = best ? (nearNow && best.id === nearNow.id && best.title === nearNow.title)
+                      : !nearNow;                       // لا أحد قبلُ ولا الآن ⇒ لا شيء يتغيّر
+    if (same) return;
+    nearNow = best;
+    if (!best) { el.hidden = true; return; }
+    el.hidden = false;
+    if (dom.nearMusicWho) {
+      dom.nearMusicWho.innerHTML = '🎵 <b>' + esc(best.name || 'لاعب') +
+        '</b> <span class="pid">#' + best.id + '</span> — ' + esc(best.title);
+    }
+  }
+  const esc = (t) => String(t == null ? '' : t).replace(/[<>&]/g, (c) =>
+    ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+  const nearTarget = () => nearNow;
+
   function update(dt, game) {
     const car = game.car;
-    accSpeed += dt; accMini += dt;
+    accSpeed += dt; accMini += dt; accNear += dt;
     if (accSpeed > 1 / 30) { drawSpeed(car, game); accSpeed = 0; }
     if (accMini > 1 / 22) { drawMini(car, game); accMini = 0; }
+    if (accNear > 0.5) { drawNear(car); accNear = 0; }
   }
 
   return { init, buildCityMap, update, toast, banner, setObjective, drawBigMap, screenToWorld, projectMini,
+           nearTarget,
            setMarkers, addMarker, clearMarkers, markers, maps, mapFor, focusBigMap,
            mapX, mapZ, get cityScale() { return cityScale; } };
 })();
@@ -12915,6 +13290,8 @@ SC.ui = (function () {
     SC.input.bindTap(dom.btnPause, () => open('pause'));
     if (dom.btnOnline) SC.input.bindTap(dom.btnOnline, () => open('online'));
     initOnline();
+    initNearMusic();
+    initLicence();
 
     U.$$('[data-close]').forEach((b) => SC.input.bindTap(b, () => hideAll()));
 
@@ -12943,9 +13320,10 @@ SC.ui = (function () {
     const el = dom['screen' + name.charAt(0).toUpperCase() + name.slice(1)];
     if (!el) return;
     if (name === 'music') buildMusic();
+    if (name === 'licence') buildLicence();
     if (name === 'online') { buildOnline(); buildRooms(); setMicState();
                              setNetStatus(SC.net.connected ? 'متّصل ✓' : 'غير متّصل', SC.net.connected ? 'on' : '');
-                             if (SC.net.connected) SC.net.refreshRooms(); }
+                             if (SC.net.connected) SC.net.refreshRooms(); else autoConnect(); }
     if (name === 'shop') buildShop();
     if (name === 'missions') buildMissions();
     if (name === 'dealer') buildDealer();
@@ -13021,6 +13399,111 @@ SC.ui = (function () {
     }
   }
 
+  /* اتّصال تلقائي بخادم الصفحة نفسها: من فتح الرابط فهو على الخادم،
+     فلا داعي لكتابة عنوان. يبقى حقل العنوان لمن أراد خادماً آخر. */
+  let autoTried = 0;
+  function autoConnect(force) {
+    const st = SC.net.state;
+    if (st.connected || st.connecting) return;
+    if (!location.host) return;                 // ملفّ محلّي: لا خادم لنصله
+    if (!force && Date.now() - autoTried < 6000) return;
+    autoTried = Date.now();
+    const url = (dom.netUrl && dom.netUrl.value.trim()) || SC.net.serverURL();
+    const name = (dom.netName && dom.netName.value.trim()) || 'سائق';
+    setNetStatus('جارٍ الاتّصال…');
+    SC.net.connect(url, name).then(() => {
+      U.store.set('speedcity.net', { url, name, auto: true });
+    }).catch(() => {
+      setNetStatus('لا خادم على هذا الرابط', 'err');
+      if (dom.onlineBody) dom.onlineBody.classList.add('show-conn');
+      buildRooms();
+    });
+  }
+
+  /* شارة زرّ «اللعب الجماعي» في شاشة البداية: كم شخصاً على الخادم الآن */
+  function netTag() {
+    if (!dom.menuNetTag) return;
+    const st = SC.net.state;
+    if (!SC.net.connected) { dom.menuNetTag.textContent = 'غرف · ميكروفون'; return; }
+    const n = st.serverTotal || 1;
+    dom.menuNetTag.textContent = n + ' على الخادم · ' +
+      st.rooms.filter((r) => !r.fixed).length + ' غرفة';
+  }
+
+  /* «🚩 إبلاغ» تحت الشارة: يفتح نافذة البلاغ على ما يشغّله أقرب لاعب */
+  /* ---------------------------- رخصة القيادة --------------------------- */
+  function initLicence() {
+    if (dom.licChip) SC.input.bindTap(dom.licChip, () => open('licence'));
+    if (dom.licRenew) SC.input.bindTap(dom.licRenew, () => {
+      const r = SC.game.renewLicence();
+      if (r.ok) buildLicence();
+    });
+    SC.licence.onChange = () => { licenceChip(); if (current === 'licence') buildLicence(); };
+    licenceChip();
+  }
+
+  /* الشارة في شريط الحالة: تصفرّ حين تقترب النهاية وتحمرّ حين تنتهي */
+  function licenceChip() {
+    if (!dom.licChip) return;
+    const L = SC.licence;
+    const soon = !L.expired() && Math.ceil(L.state.days) <= L.WARN_AT;
+    dom.licVal.textContent = L.label();
+    dom.licChip.classList.toggle('warn', soon);
+    dom.licChip.classList.toggle('dead', L.expired());
+    dom.licChip.title = L.expired()
+      ? 'رخصتك منتهية — اضغط للتجديد'
+      : 'رخصة القيادة: ' + L.label();
+  }
+
+  function buildLicence() {
+    const L = SC.licence, sv = SC.game.save;
+    if (!dom.licBar) return;
+    const gone = L.expired();
+    if (dom.licStatus) {
+      dom.licStatus.textContent = gone ? 'منتهية' : (Math.ceil(L.state.days) <= L.WARN_AT ? 'توشك أن تنتهي' : 'سارية');
+      dom.licStatus.className = 'net-status ' + (gone ? 'err' : (Math.ceil(L.state.days) <= L.WARN_AT ? '' : 'on'));
+    }
+    if (dom.licName) dom.licName.textContent = (U.store.get('speedcity.net', {}).name) || 'السائق';
+    dom.licBar.style.width = Math.round(L.ratio() * 100) + '%';
+    dom.licBar.className = gone ? 'dead' : (L.ratio() < 0.2 ? 'warn' : '');
+    if (dom.licLeft) dom.licLeft.textContent = gone ? 'انتهت — أنت معرّض للإيقاف والغرامة' : 'المتبقّي: ' + L.label();
+    if (dom.licFee) dom.licFee.textContent = U.money(L.fee());
+    if (dom.licFine) dom.licFine.textContent = U.money(L.fine());
+    if (dom.licNote) {
+      dom.licNote.textContent = gone
+        ? 'كل ما تقوده الآن مخالفة: الدورية توقفك وتأخذ ' + U.money(L.fine()) + ' في كل مرّة.'
+        : 'جدّدها قبل أن تنتهي — التجديد أرخص من الغرامة بمرّتين.';
+    }
+    if (dom.licRenew) {
+      const can = sv.money >= L.fee();
+      dom.licRenew.classList.toggle('off', !can);
+      dom.licRenew.classList.toggle('danger', gone);
+    }
+    if (dom.licRows) {
+      dom.licRows.innerHTML = '';
+      const rows = [
+        ['مدّة الرخصة كاملةً', L.full() + ' يوماً في المدينة'],
+        ['ثمن التجديد', U.money(L.fee())],
+        ['غرامة القيادة بلا رخصة', U.money(L.fine()) + ' — الضِّعف'],
+        ['مرّات إيقافك', String(L.state.fines)]
+      ];
+      rows.forEach(([k, v]) => {
+        dom.licRows.appendChild(U.el('div', 'lic-row',
+          '<span>' + esc(k) + '</span><b>' + esc(v) + '</b>'));
+      });
+    }
+  }
+
+  function initNearMusic() {
+    if (!dom.nearMusicReport) return;
+    SC.input.bindTap(dom.nearMusicReport, () => {
+      const t = SC.hud.nearTarget && SC.hud.nearTarget();
+      if (!t) { SC.hud.toast('لا أحد قريب يشغّل موسيقى الآن', 'bad', 2600); return; }
+      openReport({ id: t.id, title: t.title },
+        'ما يشاركه ' + (t.name || 'لاعب') + ' (#' + t.id + '): «' + t.title + '»');
+    });
+  }
+
   function initOnline() {
     if (!dom.netConnect) return;
     const saved = U.store.get('speedcity.net', {});
@@ -13065,6 +13548,20 @@ SC.ui = (function () {
       SC.net.createRoom(dom.roomName.value.trim() || randomRoomName());
       dom.roomName.value = '';
     });
+    if (dom.roomSearch) {
+      dom.roomSearch.addEventListener('input', () => buildRooms());
+      dom.roomSearch.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        const hits = SC.net.searchRooms(dom.roomSearch.value)
+                       .filter((r) => !r.fixed && r.players < r.max);
+        if (hits.length) SC.net.joinRoom(hits[0].code);     // Enter يدخل أوّل نتيجة
+        else SC.hud.toast('لا غرفة بهذا الاسم', 'bad', 2600);
+      });
+    }
+    if (dom.roomRandom) SC.input.bindTap(dom.roomRandom, () => {
+      if (needNet()) return;
+      SC.net.randomRoom();
+    });
     if (dom.roomJoin) SC.input.bindTap(dom.roomJoin, () => {
       if (needNet()) return;
       const code = (dom.roomCode.value || '').trim().toUpperCase();
@@ -13080,15 +13577,18 @@ SC.ui = (function () {
         setNetStatus('متّصل ✓', 'on');
         SC.hud.toast('اتّصلت باللعب الجماعي', 'ok');
         buildOnline();
+        netTag();
       } else if (type === 'close') {
         setNetStatus('انقطع الاتّصال', 'err');
         SC.hud.toast('انقطع الاتّصال بالخادم', 'bad');
         buildOnline();
+        netTag();
       } else if (type === 'players') {
         buildOnline();
       } else if (type === 'rooms' || type === 'room') {
         buildRooms();
         buildOnline();
+        netTag();
       } else if (type === 'roomError') {
         onRoomError(data);
       } else if (type === 'mic-error') {
@@ -13299,7 +13799,8 @@ SC.ui = (function () {
       dom.musicHeard.innerHTML = '';
       st.heard.forEach((h) => {
         const row = U.el('div', 'heard-row',
-          '🎧 <b>' + esc(h.name || 'لاعب') + '</b> يسمع: ' + esc(h.title));
+          '🎧 <b>' + esc(h.name || 'لاعب') + '</b> <span class="pid">#' + h.id + '</span>' +
+          ' يسمع: ' + esc(h.title));
         const rb = U.el('button', 'btn tiny ghost', '🚩');
         SC.input.bindTap(rb, () => openReport({ id: h.id, title: h.title },
           'ما يشاركه ' + (h.name || 'لاعب') + ': «' + h.title + '»'));
@@ -13369,6 +13870,7 @@ SC.ui = (function () {
     else if (m.code === 'missing') SC.hud.toast('لا توجد غرفة بهذا الرمز', 'bad', 3000);
     else if (m.code === 'notowner') SC.hud.toast('لا تُحذف إلا غرفك أنت', 'bad', 3000);
     else if (m.code === 'nokey') SC.hud.toast('تعذّر تمييز جهازك — أعد الاتّصال', 'bad', 3000);
+    else if (m.code === 'norandom') SC.hud.toast('لا توجد غرف مفتوحة الآن — انشر غرفتك وانتظر من يدخل', 'bad', 4200);
     buildRooms();
   }
 
@@ -13401,8 +13903,12 @@ SC.ui = (function () {
     /* الحصّة: كم غرفة لك من الحدّ */
     if (dom.roomQuota) {
       const full = st.roomsOwned >= st.roomLimit;
+      /* كم لك من الغرف، وكم شخصاً على الخادم كلّه، وكم معك في غرفتك */
       dom.roomQuota.textContent = 'غرفك ' + st.roomsOwned + ' / ' + st.roomLimit +
-        (SC.net.connected ? ' · على الخادم ' + (st.serverTotal || 1) : '');
+        (SC.net.connected
+          ? ' · على الخادم ' + (st.serverTotal || 1) + ' لاعب' +
+            ' · معك هنا ' + (st.players.size + 1)
+          : '');
       dom.roomQuota.className = 'quota' + (full ? ' full' : '');
       dom.roomQuota.title = full ? 'احذف غرفة قديمة لتُنشئ جديدة' : '';
     }
@@ -13415,20 +13921,17 @@ SC.ui = (function () {
         dom.roomHere.style.display = 'none';
       } else {
         dom.roomHere.style.display = '';
-        const n = U.el('span', '', 'أنت في <b>' + esc(here ? here.name : '—') + '</b>');
+        const mates = SC.net.playerList().map((p) => p.name);
+        const n = U.el('span', '', 'أنت في <b>' + esc(here ? here.name : '—') + '</b>' +
+          (mates.length ? ' — معك ' + mates.map(esc).join('، ')
+                        : ' — لا أحد معك بعد، أرسل الرابط'));
         dom.roomHere.appendChild(n);
         if (here && !here.fixed) {
           const c = U.el('span', 'code', here.code);
           dom.roomHere.appendChild(c);
           /* رابط الغرفة: يفتحه صديقك في متصفّحه فيدخل إليها مباشرةً */
           const copy = U.el('button', 'btn tiny', '🔗 نسخ رابط الدعوة');
-          SC.input.bindTap(copy, () => {
-            const link = SC.net.roomLink(here.code);
-            const done = () => SC.hud.toast('نُسخ الرابط — أرسله لأصدقائك', 'ok', 3000);
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              navigator.clipboard.writeText(link).then(done, () => showLink(link));
-            } else showLink(link);
-          });
+          SC.input.bindTap(copy, () => copyLink(here.code));
           dom.roomHere.appendChild(copy);
           const leave = U.el('button', 'btn tiny ghost', 'خروج');
           SC.input.bindTap(leave, () => SC.net.leaveRoom());
@@ -13438,26 +13941,56 @@ SC.ui = (function () {
     }
 
     dom.roomList.innerHTML = '';
+    if (dom.roomFound) dom.roomFound.textContent = '';
+    if (dom.roomRandom) dom.roomRandom.classList.toggle('off', !SC.net.connected);
     if (!SC.net.connected) {
       dom.roomList.appendChild(U.el('div', 'net-empty', 'اتّصل بالخادم لرؤية الغرف'));
       return;
     }
     if (!st.rooms.length) {
-      dom.roomList.appendChild(U.el('div', 'net-empty', 'لا توجد غرف بعد — أنشئ أوّل غرفة'));
+      dom.roomList.appendChild(U.el('div', 'net-empty', 'لا توجد غرف بعد — انشر أوّل غرفة'));
       return;
     }
-    st.rooms.forEach((r) => {
+
+    /* البحث يصفّي المعروض فقط — والغرف كلّها عند اللاعب أصلاً */
+    const q = dom.roomSearch ? dom.roomSearch.value : '';
+    const shown = SC.net.searchRooms(q);
+    if (dom.roomFound && String(q).trim()) {
+      dom.roomFound.textContent = shown.length
+        ? 'نتائج البحث: ' + shown.length + ' من ' + st.rooms.length
+        : 'لا غرفة تطابق «' + String(q).trim() + '»';
+      dom.roomFound.className = 'room-found' + (shown.length ? '' : ' none');
+    }
+    if (!shown.length) {
+      dom.roomList.appendChild(U.el('div', 'net-empty',
+        'لا نتيجة — جرّب اسماً آخر، أو اضغط «دخول عشوائي»'));
+      return;
+    }
+
+    shown.forEach((r) => {
       const inIt = here && here.code === r.code;
       const row = U.el('div', 'room-row' + (inIt ? ' on' : ''));
+      /* من بالداخل الآن بالاسم: يعرف اللاعب أين الناس قبل أن يدخل */
+      const who = (r.names || []).length
+        ? '<span class="rwho">👥 ' + (r.names || []).map(esc).join('، ') +
+          (r.players > r.names.length ? ' +' + (r.players - r.names.length) : '') + '</span>'
+        : '<span class="rwho empty">لا أحد بالداخل — ادخل أنت أوّلاً</span>';
       row.innerHTML = '<span class="rname">' + esc(r.name) + '</span>' +
         (r.fixed ? '' : '<span class="rcode">' + esc(r.code) + '</span>') +
         (r.mine ? '<span class="mine">غرفتك</span>' : '') +
         '<span class="rmeta">' + r.players + '/' + r.max + ' لاعب' +
-        (r.fixed ? '' : ' · ' + esc(r.ownerName)) + '</span>';
+        (r.fixed ? '' : ' · ' + esc(r.ownerName)) + '</span>' + who;
       if (!inIt) {
         const join = U.el('button', 'btn tiny primary', 'دخول');
         SC.input.bindTap(join, () => SC.net.joinRoom(r.code));
         row.appendChild(join);
+      }
+      if (!r.fixed) {
+        /* رابط أي غرفة منشورة — لا غرفتك وحدها */
+        const lnk = U.el('button', 'btn tiny ghost', '🔗');
+        lnk.title = 'انسخ رابط هذه الغرفة';
+        SC.input.bindTap(lnk, () => copyLink(r.code));
+        row.appendChild(lnk);
       }
       if (r.mine && !r.fixed) {
         const del = U.el('button', 'btn tiny danger', 'حذف');
@@ -13466,6 +13999,15 @@ SC.ui = (function () {
       }
       dom.roomList.appendChild(row);
     });
+  }
+
+  /* نسخ رابط غرفة إلى الحافظة، وإن رفض المتصفّح عرضناه ليُنسخ يدوياً */
+  function copyLink(code) {
+    const link = SC.net.roomLink(code);
+    const done = () => SC.hud.toast('نُسخ الرابط — أرسله لأصدقائك', 'ok', 3000);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(done, () => showLink(link));
+    } else showLink(link);
   }
 
   /* الحذف نهائي ويُخرج من فيها، فنسأل مرّة */
@@ -13915,7 +14457,7 @@ SC.ui = (function () {
     dom.poiName.textContent = poi.name;
     dom.poiSub.textContent = poi.en;
     const enter = dom.poiEnter;
-    const usable = poi.kind === 'dealer' || poi.kind === 'garage';
+    const usable = poi.kind === 'dealer' || poi.kind === 'garage' || poi.kind === 'police';
     enter.textContent = usable ? 'دخول' : 'زيارة';
     enter.classList.toggle('off', !usable);
     el.classList.add('show');
@@ -13927,6 +14469,7 @@ SC.ui = (function () {
     if (!poi) return;
     if (poi.kind === 'dealer') openDealer(poi);
     else if (poi.kind === 'garage') openGarage();
+    else if (poi.kind === 'police') open('licence');
     else SC.hud.toast(poi.icon + ' ' + poi.name + ' — ' + poi.en, '', 2200);
   }
 
@@ -14317,6 +14860,14 @@ SC.ui = (function () {
     row('الاهتزاز', seg('haptics', [['1', 'مُفعّل'], ['0', 'مُطفأ']], null,
       (v) => { SC.settings.haptics = v === '1'; SC.game.persist(); }));
 
+    const rules = U.el('button', 'btn', '📜 اقرأ القواعد والشروط');
+    SC.input.bindTap(rules, () => open('rules'));
+    row('القواعد والشروط', rules, 'قواعد اللعب الجماعي · الموسيقى والحقوق · بياناتك');
+
+    const lic = U.el('button', 'btn', '🪪 رخصة القيادة');
+    SC.input.bindTap(lic, () => open('licence'));
+    row('الرخصة', lic, 'المتبقّي والتجديد');
+
     const reset = U.el('button', 'btn danger', 'مسح البيانات والبدء من جديد');
     SC.input.bindTap(reset, () => {
       if (!confirm('سيتم حذف المال والمركبات والتقدّم. متابعة؟')) return;
@@ -14393,7 +14944,7 @@ SC.ui = (function () {
 
   return { init, open, hideAll, refreshWallet, buildRadioList, closeRadioList, layoutTopbar,
            showPOI, openDealer, openGarage, enterPOI, showResult, showPrompt, tick, buildShop, drawMap,
-           buildMusic, openReport,
+           buildMusic, openReport, buildLicence, licenceChip,
            get current() { return current; } };
 })();
 
@@ -14538,8 +15089,10 @@ SC.game = (function () {
     /* الحفظات القديمة كانت مثبّتة على النهار قبل وجود الدورة التلقائية:
        ننقلها مرّة واحدة إلى «تلقائي»، ومن يختار غيره بعدها يبقى اختياره. */
     if (!save.todAuto) { save.todAuto = 1; settings.timeOfDay = 'auto'; }
+    SC.licence.load(save);
   }
   function persist() {
+    SC.licence.store(save);
     U.store.set(SAVE_KEY, Object.assign({}, save, { settings }));
   }
   function addMoney(n) {
@@ -15473,6 +16026,40 @@ SC.game = (function () {
     }
   }
 
+  /* --------------------------- رخصة القيادة ---------------------------- */
+  function tickLicence(dt, car) {
+    if (G.mode === 'menu' || G.mode === 'attract') return;    // لا تنقص في الاستعراض
+    const ev = SC.licence.tick(dt, car.kmh);
+    if (!ev) return;
+    if (ev.event === 'warn') {
+      SC.hud.toast('🪪 رخصتك تنتهي بعد ' + SC.licence.label() +
+                   ' — جدّدها من مركز الشرطة بـ ' + U.money(SC.licence.fee()), 'bad', 5200);
+    } else if (ev.event === 'expired') {
+      SC.hud.banner('🪪 انتهت رخصتك', 'جدّدها من مركز الشرطة 🚓 قبل أن توقفك دورية', 3600);
+      persist();
+    } else if (ev.event === 'caught') {
+      const paid = Math.min(save.money, ev.fine);
+      addMoney(-paid);
+      SC.hud.banner('🚓 أوقفتك الشرطة', 'قيادة برخصة منتهية — غرامة ' + U.money(ev.fine) +
+                    (paid < ev.fine ? ' (دُفع ' + U.money(paid) + ')' : ''), 3400);
+      SC.hud.toast('جدّد رخصتك من مركز الشرطة بـ ' + U.money(SC.licence.fee()) +
+                   ' — الغرامة ضِعف الثمن', 'bad', 5600);
+      SC.audio.ui && SC.audio.ui();
+    }
+  }
+
+  function renewLicence() {
+    const r = SC.licence.renew(save);
+    if (r.ok) {
+      persist();
+      SC.ui && SC.ui.refreshWallet();
+      SC.hud.toast('🪪 جُدّدت رخصتك — ' + SC.licence.label() + ' · −' + U.money(r.paid), 'ok', 4200);
+    } else {
+      SC.hud.toast('لا يكفي المال — التجديد بـ ' + U.money(r.need), 'bad', 3600);
+    }
+    return r;
+  }
+
   /* أقرب مكان في المدينة: يظهر شريط «دخول» عند الاقتراب */
   function checkNearPOI(car) {
     const slow = car.kmh < 42;                    // لا يفتح وأنت مندفع
@@ -15507,7 +16094,10 @@ SC.game = (function () {
 
     if (!G.paused) {
       const inp = SC.input.update(dt, settings);
-      const frozen = SC.missions.state.countdown > 0;
+      /* الرخصة تنقص مع الوقت — وإن انتهت أوقفتك الشرطة وغرّمتك الضِّعف */
+      tickLicence(dt, car);
+      const held = SC.licence.stopped();        // الشرطة ممسكة بالسيارة الآن
+      const frozen = SC.missions.state.countdown > 0 || held;
       car.input = frozen
         ? { throttle: 0, brake: 1, steer: 0, handbrake: 1, boost: 0, wheelie: 0 }
         : { throttle: inp.throttle, brake: inp.brake, steer: inp.steer, handbrake: inp.handbrake,
@@ -15809,6 +16399,7 @@ SC.game = (function () {
     buyCar, selectCar,
     setCamera, cycleCamera, CAM_MODES, CAM_NAMES,
     setTimeOfDay, setTraffic, setQuality, setWaypoint, togglePause, persist, setPeds, startOnlineRace,
+    renewLicence,
     addMoney, addXp, addRep, repMult, setPassenger, shake, snapCamera,
     refreshFreeMarkers, buildMissionMarkers,
     startAttract, stopAttract,
@@ -15919,13 +16510,21 @@ SC.net = (function () {
   }
   function removePlayer(id) {
     const p = state.players.get(id);
+    if (p && p.plate) {
+      p.plate.material.map && p.plate.material.map.dispose();
+      p.plate.material.dispose();
+      p.plate = null; p.plateTex = null; p.plateCanvas = null;
+    }
     if (p && p.veh) SC.game.G.scene.remove(p.veh.root);
     state.players.delete(id);
     closeVoice(id);
     emit('players');
   }
   function clearPlayers() {
-    state.players.forEach((p) => { if (p.veh) SC.game.G.scene.remove(p.veh.root); });
+    state.players.forEach((p) => {
+      if (p.plate) { p.plate.material.map && p.plate.material.map.dispose(); p.plate.material.dispose(); }
+      if (p.veh) SC.game.G.scene.remove(p.veh.root);
+    });
     state.players.clear();
     state.voices.forEach((v, id) => closeVoice(id));
     emit('players');
@@ -16031,6 +16630,74 @@ SC.net = (function () {
     }
   }
 
+  /* --------------------- اللوحة فوق سيارة كل لاعب ----------------------
+     اسمه ورقمه (الأيدي) وما يشغّله من موسيقى — بها يعرفه من حوله ويستطيع
+     التبليغ عن مقطع بعينه من شاشة «موسيقاي». */
+  const PLATE_W = 512, PLATE_H = 144;
+  function drawPlate(p) {
+    const cv = p.plateCanvas || (p.plateCanvas = document.createElement('canvas'));
+    cv.width = PLATE_W; cv.height = PLATE_H;
+    const c = cv.getContext('2d');
+    c.clearRect(0, 0, PLATE_W, PLATE_H);
+
+    const tune = p.tune || '';
+    const lines = tune ? 2 : 1;
+    const boxH = lines === 2 ? 132 : 84;
+    const y0 = (PLATE_H - boxH) / 2;
+
+    /* خلفية داكنة شبه شفّافة بحواف مستديرة — تُقرأ فوق أي لون في المدينة */
+    c.fillStyle = 'rgba(8,13,22,.78)';
+    c.strokeStyle = tune ? 'rgba(255,210,63,.75)' : 'rgba(140,190,255,.55)';
+    c.lineWidth = 4;
+    const r = 26, x0 = 12, w = PLATE_W - 24;
+    c.beginPath();
+    c.moveTo(x0 + r, y0); c.lineTo(x0 + w - r, y0);
+    c.quadraticCurveTo(x0 + w, y0, x0 + w, y0 + r); c.lineTo(x0 + w, y0 + boxH - r);
+    c.quadraticCurveTo(x0 + w, y0 + boxH, x0 + w - r, y0 + boxH); c.lineTo(x0 + r, y0 + boxH);
+    c.quadraticCurveTo(x0, y0 + boxH, x0, y0 + boxH - r); c.lineTo(x0, y0 + r);
+    c.quadraticCurveTo(x0, y0, x0 + r, y0); c.closePath();
+    c.fill(); c.stroke();
+
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.font = '700 40px system-ui, "Segoe UI", sans-serif';
+    c.fillStyle = '#eaf2ff';
+    const nameY = lines === 2 ? y0 + 40 : y0 + boxH / 2;
+    c.fillText(String(p.name || 'لاعب').slice(0, 16), PLATE_W / 2, nameY);
+
+    /* الأيدي: رقمه على الخادم، به يُميَّز إن تشابهت الأسماء */
+    c.font = '700 26px ui-monospace, monospace';
+    c.fillStyle = 'rgba(160,200,255,.9)';
+    c.fillText('#' + p.id, PLATE_W / 2, nameY + 30);
+
+    if (tune) {
+      c.font = '600 30px system-ui, "Segoe UI", sans-serif';
+      c.fillStyle = '#ffd23f';
+      c.fillText('🎵 ' + tune.slice(0, 22), PLATE_W / 2, y0 + boxH - 26);
+    }
+    if (p.plateTex) p.plateTex.needsUpdate = true;
+  }
+
+  function plateFor(p) {
+    if (p.plate) return p.plate;
+    drawPlate(p);
+    p.plateTex = new THREE.CanvasTexture(p.plateCanvas);
+    p.plateTex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.SpriteMaterial({ map: p.plateTex, transparent: true,
+                                           depthTest: false, depthWrite: false });
+    const sp = new THREE.Sprite(mat);
+    sp.scale.set(3.4, 0.96, 1);
+    sp.renderOrder = 900;                 // فوق كل شيء، لا يحجبها جدار
+    p.plate = sp;
+    return sp;
+  }
+
+  /* ما يشغّله هذا اللاعب الآن (اسم المقطع فقط — لا ملفّ صوتي يمرّ أبداً) */
+  function tuneOf(id) {
+    if (!SC.mylib || !SC.mylib.state) return '';
+    const h = SC.mylib.state.heard.find((x) => x.id === id);
+    return h ? h.title : '';
+  }
+
   /* ------------------------ التحديث في حلقة اللعبة --------------------- */
   function update(dt, car) {
     if (!state.connected) return;
@@ -16051,7 +16718,14 @@ SC.net = (function () {
           p.veh.place(p.tx, p.tz, p.tyaw);
           p.veh.lightsOn = SC.world.state.isNight;
           SC.game.G.scene.add(p.veh.root);
+          p.veh.root.add(plateFor(p));
+          plateFor(p).position.set(0, 2.5, 0);
         } catch (e) { return; }
+      }
+      /* اللوحة تتبدّل حين يتبدّل اسمه أو ما يشغّله */
+      const tune = tuneOf(p.id);
+      if (p.plate && (p.tune !== tune || p.plateName !== p.name)) {
+        p.tune = tune; p.plateName = p.name; drawPlate(p);
       }
       p.x = U.damp(p.x, p.tx, 12, dt);
       p.z = U.damp(p.z, p.tz, 12, dt);
@@ -16210,6 +16884,18 @@ SC.net = (function () {
   }
 
   const refreshRooms = () => send({ t: 'rooms' });
+  const randomRoom = () => send({ t: 'room.random' });
+
+  /* بحث في الغرف المعروضة: بالاسم أو بالرمز أو باسم صاحبها أو باسم من فيها */
+  function searchRooms(q) {
+    const t = String(q || '').trim().toLowerCase();
+    if (!t) return state.rooms.slice();
+    return state.rooms.filter((r) =>
+      String(r.name || '').toLowerCase().includes(t) ||
+      String(r.code || '').toLowerCase().includes(t) ||
+      String(r.ownerName || '').toLowerCase().includes(t) ||
+      (r.names || []).some((n) => String(n).toLowerCase().includes(t)));
+  }
   const createRoom = (name) => send({ t: 'room.create', name: name || '' });
   const deleteRoom = (code) => send({ t: 'room.delete', code });
   const joinRoom = (code) => send({ t: 'room.join', code });
@@ -16223,7 +16909,7 @@ SC.net = (function () {
 
   return { state, connect, disconnect, update, send, invite, acceptInvite, decline, chat,
            startMic, stopMic, micReady, playerList, myKey,
-           refreshRooms, createRoom, deleteRoom, joinRoom, leaveRoom,
+           refreshRooms, createRoom, deleteRoom, joinRoom, leaveRoom, randomRoom, searchRooms,
            roomLink, serverURL, linkRoom, joinFromLink,
            get connected() { return state.connected; }, get room() { return state.room; },
            get id() { return state.id; }, set onEvent(f) { state.onEvent = f; } };
@@ -16287,8 +16973,14 @@ window.SC_MODEL_DATA = {
     loadBar: $('loadBar'), loadText: $('loadText'),
     money: $('money'), level: $('level'), xpBar: $('xpBar'), wpChip: $('wpChip'), fps: $('fps'),
     repChip: $('repChip'), repVal: $('repVal'),
+    licChip: $('licChip'), licVal: $('licVal'), screenRules: $('screenRules'),
+    screenLicence: $('screenLicence'), licStatus: $('licStatus'), licName: $('licName'),
+    licBar: $('licBar'), licLeft: $('licLeft'), licNote: $('licNote'),
+    licRenew: $('licRenew'), licFee: $('licFee'), licFine: $('licFine'), licRows: $('licRows'),
     objective: $('objective'), objTitle: $('objTitle'), objText: $('objText'), objMeta: $('objMeta'),
     mini: $('mini'), compass: $('compass'), speed: $('speed'),
+    nearMusic: $('nearMusic'), nearMusicWho: $('nearMusicWho'),
+    nearMusicReport: $('nearMusicReport'),
     toasts: $('toasts'), banner: $('banner'),
     poiPrompt: $('poiPrompt'), poiIcon: $('poiIcon'), poiName: $('poiName'),
     poiSub: $('poiSub'), poiEnter: $('poiEnter'),
@@ -16308,6 +17000,8 @@ window.SC_MODEL_DATA = {
     roomQuota: $('roomQuota'), roomRefresh: $('roomRefresh'), roomHere: $('roomHere'),
     roomName: $('roomName'), roomCreate: $('roomCreate'),
     roomCode: $('roomCode'), roomJoin: $('roomJoin'), roomList: $('roomList'),
+    roomSearch: $('roomSearch'), roomRandom: $('roomRandom'), roomFound: $('roomFound'),
+    menuNetTag: $('menuNetTag'),
     netChat: $('netChat'), netMsg: $('netMsg'), netSend: $('netSend'),
     screenMusic: $('screenMusic'), musicCount: $('musicCount'), musicAdd: $('musicAdd'),
     musicFile: $('musicFile'), musicStop: $('musicStop'), musicList: $('musicList'),
@@ -16374,6 +17068,7 @@ window.SC_MODEL_DATA = {
       SC.input.bindTap($('btnMenuMissions'), () => SC.ui.open('missions'));
       SC.input.bindTap($('btnMenuShop'), () => SC.ui.open('shop'));
       SC.input.bindTap($('btnMenuSettings'), () => SC.ui.open('settings'));
+      SC.input.bindTap($('btnMenuOnline'), () => SC.ui.open('online'));
       SC.input.bindTap($('btnPauseMissions'), () => SC.ui.open('missions'));
       SC.input.bindTap($('btnPauseShop'), () => SC.ui.open('shop'));
       SC.input.bindTap($('btnPauseSettings'), () => SC.ui.open('settings'));

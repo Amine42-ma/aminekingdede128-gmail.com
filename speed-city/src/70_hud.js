@@ -573,14 +573,49 @@ SC.hud = (function () {
     dom.objective.classList.toggle('warn', !!o.warn);
   }
 
+  /* ------------------ موسيقى من حولك: من يشغّلها وزرّ الإبلاغ -------------
+     لا يصل إلينا ملفّ صوتي من أحد — الاسم النصّي فقط. نعرض أقرب لاعب
+     يشارك عنواناً، باسمه ورقمه، ليُعرف من هو ويُبلَّغ عنه بضغطة. */
+  let nearNow = null, accNear = 0;
+  function drawNear(car) {
+    const el = dom.nearMusic;
+    if (!el) return;
+    const heard = (SC.mylib && SC.mylib.state.heard) || [];
+    let best = null, bestD = 90 * 90;              // ٩٠ متراً: مدى «من حولك»
+    if (SC.net && SC.net.connected) {
+      heard.forEach((h) => {
+        const p = SC.net.state.players.get(h.id);
+        if (!p) return;
+        const dx = p.x - car.pos.x, dz = p.z - car.pos.z;
+        const d = dx * dx + dz * dz;
+        if (d < bestD) { bestD = d; best = { id: h.id, name: p.name || h.name, title: h.title }; }
+      });
+    }
+    const same = best ? (nearNow && best.id === nearNow.id && best.title === nearNow.title)
+                      : !nearNow;                       // لا أحد قبلُ ولا الآن ⇒ لا شيء يتغيّر
+    if (same) return;
+    nearNow = best;
+    if (!best) { el.hidden = true; return; }
+    el.hidden = false;
+    if (dom.nearMusicWho) {
+      dom.nearMusicWho.innerHTML = '🎵 <b>' + esc(best.name || 'لاعب') +
+        '</b> <span class="pid">#' + best.id + '</span> — ' + esc(best.title);
+    }
+  }
+  const esc = (t) => String(t == null ? '' : t).replace(/[<>&]/g, (c) =>
+    ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+  const nearTarget = () => nearNow;
+
   function update(dt, game) {
     const car = game.car;
-    accSpeed += dt; accMini += dt;
+    accSpeed += dt; accMini += dt; accNear += dt;
     if (accSpeed > 1 / 30) { drawSpeed(car, game); accSpeed = 0; }
     if (accMini > 1 / 22) { drawMini(car, game); accMini = 0; }
+    if (accNear > 0.5) { drawNear(car); accNear = 0; }
   }
 
   return { init, buildCityMap, update, toast, banner, setObjective, drawBigMap, screenToWorld, projectMini,
+           nearTarget,
            setMarkers, addMarker, clearMarkers, markers, maps, mapFor, focusBigMap,
            mapX, mapZ, get cityScale() { return cityScale; } };
 })();

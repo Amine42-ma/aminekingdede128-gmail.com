@@ -1,3 +1,4 @@
 node_modules/
 *.log
 server/music-reports.json
+server/rooms.json

@@ -45,6 +45,8 @@ SC.ui = (function () {
     SC.input.bindTap(dom.btnPause, () => open('pause'));
     if (dom.btnOnline) SC.input.bindTap(dom.btnOnline, () => open('online'));
     initOnline();
+    initNearMusic();
+    initLicence();
 
     U.$$('[data-close]').forEach((b) => SC.input.bindTap(b, () => hideAll()));
 
@@ -73,9 +75,10 @@ SC.ui = (function () {
     const el = dom['screen' + name.charAt(0).toUpperCase() + name.slice(1)];
     if (!el) return;
     if (name === 'music') buildMusic();
+    if (name === 'licence') buildLicence();
     if (name === 'online') { buildOnline(); buildRooms(); setMicState();
                              setNetStatus(SC.net.connected ? 'متّصل ✓' : 'غير متّصل', SC.net.connected ? 'on' : '');
-                             if (SC.net.connected) SC.net.refreshRooms(); }
+                             if (SC.net.connected) SC.net.refreshRooms(); else autoConnect(); }
     if (name === 'shop') buildShop();
     if (name === 'missions') buildMissions();
     if (name === 'dealer') buildDealer();
@@ -151,6 +154,111 @@ SC.ui = (function () {
     }
   }
 
+  /* اتّصال تلقائي بخادم الصفحة نفسها: من فتح الرابط فهو على الخادم،
+     فلا داعي لكتابة عنوان. يبقى حقل العنوان لمن أراد خادماً آخر. */
+  let autoTried = 0;
+  function autoConnect(force) {
+    const st = SC.net.state;
+    if (st.connected || st.connecting) return;
+    if (!location.host) return;                 // ملفّ محلّي: لا خادم لنصله
+    if (!force && Date.now() - autoTried < 6000) return;
+    autoTried = Date.now();
+    const url = (dom.netUrl && dom.netUrl.value.trim()) || SC.net.serverURL();
+    const name = (dom.netName && dom.netName.value.trim()) || 'سائق';
+    setNetStatus('جارٍ الاتّصال…');
+    SC.net.connect(url, name).then(() => {
+      U.store.set('speedcity.net', { url, name, auto: true });
+    }).catch(() => {
+      setNetStatus('لا خادم على هذا الرابط', 'err');
+      if (dom.onlineBody) dom.onlineBody.classList.add('show-conn');
+      buildRooms();
+    });
+  }
+
+  /* شارة زرّ «اللعب الجماعي» في شاشة البداية: كم شخصاً على الخادم الآن */
+  function netTag() {
+    if (!dom.menuNetTag) return;
+    const st = SC.net.state;
+    if (!SC.net.connected) { dom.menuNetTag.textContent = 'غرف · ميكروفون'; return; }
+    const n = st.serverTotal || 1;
+    dom.menuNetTag.textContent = n + ' على الخادم · ' +
+      st.rooms.filter((r) => !r.fixed).length + ' غرفة';
+  }
+
+  /* «🚩 إبلاغ» تحت الشارة: يفتح نافذة البلاغ على ما يشغّله أقرب لاعب */
+  /* ---------------------------- رخصة القيادة --------------------------- */
+  function initLicence() {
+    if (dom.licChip) SC.input.bindTap(dom.licChip, () => open('licence'));
+    if (dom.licRenew) SC.input.bindTap(dom.licRenew, () => {
+      const r = SC.game.renewLicence();
+      if (r.ok) buildLicence();
+    });
+    SC.licence.onChange = () => { licenceChip(); if (current === 'licence') buildLicence(); };
+    licenceChip();
+  }
+
+  /* الشارة في شريط الحالة: تصفرّ حين تقترب النهاية وتحمرّ حين تنتهي */
+  function licenceChip() {
+    if (!dom.licChip) return;
+    const L = SC.licence;
+    const soon = !L.expired() && Math.ceil(L.state.days) <= L.WARN_AT;
+    dom.licVal.textContent = L.label();
+    dom.licChip.classList.toggle('warn', soon);
+    dom.licChip.classList.toggle('dead', L.expired());
+    dom.licChip.title = L.expired()
+      ? 'رخصتك منتهية — اضغط للتجديد'
+      : 'رخصة القيادة: ' + L.label();
+  }
+
+  function buildLicence() {
+    const L = SC.licence, sv = SC.game.save;
+    if (!dom.licBar) return;
+    const gone = L.expired();
+    if (dom.licStatus) {
+      dom.licStatus.textContent = gone ? 'منتهية' : (Math.ceil(L.state.days) <= L.WARN_AT ? 'توشك أن تنتهي' : 'سارية');
+      dom.licStatus.className = 'net-status ' + (gone ? 'err' : (Math.ceil(L.state.days) <= L.WARN_AT ? '' : 'on'));
+    }
+    if (dom.licName) dom.licName.textContent = (U.store.get('speedcity.net', {}).name) || 'السائق';
+    dom.licBar.style.width = Math.round(L.ratio() * 100) + '%';
+    dom.licBar.className = gone ? 'dead' : (L.ratio() < 0.2 ? 'warn' : '');
+    if (dom.licLeft) dom.licLeft.textContent = gone ? 'انتهت — أنت معرّض للإيقاف والغرامة' : 'المتبقّي: ' + L.label();
+    if (dom.licFee) dom.licFee.textContent = U.money(L.fee());
+    if (dom.licFine) dom.licFine.textContent = U.money(L.fine());
+    if (dom.licNote) {
+      dom.licNote.textContent = gone
+        ? 'كل ما تقوده الآن مخالفة: الدورية توقفك وتأخذ ' + U.money(L.fine()) + ' في كل مرّة.'
+        : 'جدّدها قبل أن تنتهي — التجديد أرخص من الغرامة بمرّتين.';
+    }
+    if (dom.licRenew) {
+      const can = sv.money >= L.fee();
+      dom.licRenew.classList.toggle('off', !can);
+      dom.licRenew.classList.toggle('danger', gone);
+    }
+    if (dom.licRows) {
+      dom.licRows.innerHTML = '';
+      const rows = [
+        ['مدّة الرخصة كاملةً', L.full() + ' يوماً في المدينة'],
+        ['ثمن التجديد', U.money(L.fee())],
+        ['غرامة القيادة بلا رخصة', U.money(L.fine()) + ' — الضِّعف'],
+        ['مرّات إيقافك', String(L.state.fines)]
+      ];
+      rows.forEach(([k, v]) => {
+        dom.licRows.appendChild(U.el('div', 'lic-row',
+          '<span>' + esc(k) + '</span><b>' + esc(v) + '</b>'));
+      });
+    }
+  }
+
+  function initNearMusic() {
+    if (!dom.nearMusicReport) return;
+    SC.input.bindTap(dom.nearMusicReport, () => {
+      const t = SC.hud.nearTarget && SC.hud.nearTarget();
+      if (!t) { SC.hud.toast('لا أحد قريب يشغّل موسيقى الآن', 'bad', 2600); return; }
+      openReport({ id: t.id, title: t.title },
+        'ما يشاركه ' + (t.name || 'لاعب') + ' (#' + t.id + '): «' + t.title + '»');
+    });
+  }
+
   function initOnline() {
     if (!dom.netConnect) return;
     const saved = U.store.get('speedcity.net', {});
@@ -195,6 +303,20 @@ SC.ui = (function () {
       SC.net.createRoom(dom.roomName.value.trim() || randomRoomName());
       dom.roomName.value = '';
     });
+    if (dom.roomSearch) {
+      dom.roomSearch.addEventListener('input', () => buildRooms());
+      dom.roomSearch.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        const hits = SC.net.searchRooms(dom.roomSearch.value)
+                       .filter((r) => !r.fixed && r.players < r.max);
+        if (hits.length) SC.net.joinRoom(hits[0].code);     // Enter يدخل أوّل نتيجة
+        else SC.hud.toast('لا غرفة بهذا الاسم', 'bad', 2600);
+      });
+    }
+    if (dom.roomRandom) SC.input.bindTap(dom.roomRandom, () => {
+      if (needNet()) return;
+      SC.net.randomRoom();
+    });
     if (dom.roomJoin) SC.input.bindTap(dom.roomJoin, () => {
       if (needNet()) return;
       const code = (dom.roomCode.value || '').trim().toUpperCase();
@@ -210,15 +332,18 @@ SC.ui = (function () {
         setNetStatus('متّصل ✓', 'on');
         SC.hud.toast('اتّصلت باللعب الجماعي', 'ok');
         buildOnline();
+        netTag();
       } else if (type === 'close') {
         setNetStatus('انقطع الاتّصال', 'err');
         SC.hud.toast('انقطع الاتّصال بالخادم', 'bad');
         buildOnline();
+        netTag();
       } else if (type === 'players') {
         buildOnline();
       } else if (type === 'rooms' || type === 'room') {
         buildRooms();
         buildOnline();
+        netTag();
       } else if (type === 'roomError') {
         onRoomError(data);
       } else if (type === 'mic-error') {
@@ -429,7 +554,8 @@ SC.ui = (function () {
       dom.musicHeard.innerHTML = '';
       st.heard.forEach((h) => {
         const row = U.el('div', 'heard-row',
-          '🎧 <b>' + esc(h.name || 'لاعب') + '</b> يسمع: ' + esc(h.title));
+          '🎧 <b>' + esc(h.name || 'لاعب') + '</b> <span class="pid">#' + h.id + '</span>' +
+          ' يسمع: ' + esc(h.title));
         const rb = U.el('button', 'btn tiny ghost', '🚩');
         SC.input.bindTap(rb, () => openReport({ id: h.id, title: h.title },
           'ما يشاركه ' + (h.name || 'لاعب') + ': «' + h.title + '»'));
@@ -499,6 +625,7 @@ SC.ui = (function () {
     else if (m.code === 'missing') SC.hud.toast('لا توجد غرفة بهذا الرمز', 'bad', 3000);
     else if (m.code === 'notowner') SC.hud.toast('لا تُحذف إلا غرفك أنت', 'bad', 3000);
     else if (m.code === 'nokey') SC.hud.toast('تعذّر تمييز جهازك — أعد الاتّصال', 'bad', 3000);
+    else if (m.code === 'norandom') SC.hud.toast('لا توجد غرف مفتوحة الآن — انشر غرفتك وانتظر من يدخل', 'bad', 4200);
     buildRooms();
   }
 
@@ -531,8 +658,12 @@ SC.ui = (function () {
     /* الحصّة: كم غرفة لك من الحدّ */
     if (dom.roomQuota) {
       const full = st.roomsOwned >= st.roomLimit;
+      /* كم لك من الغرف، وكم شخصاً على الخادم كلّه، وكم معك في غرفتك */
       dom.roomQuota.textContent = 'غرفك ' + st.roomsOwned + ' / ' + st.roomLimit +
-        (SC.net.connected ? ' · على الخادم ' + (st.serverTotal || 1) : '');
+        (SC.net.connected
+          ? ' · على الخادم ' + (st.serverTotal || 1) + ' لاعب' +
+            ' · معك هنا ' + (st.players.size + 1)
+          : '');
       dom.roomQuota.className = 'quota' + (full ? ' full' : '');
       dom.roomQuota.title = full ? 'احذف غرفة قديمة لتُنشئ جديدة' : '';
     }
@@ -545,20 +676,17 @@ SC.ui = (function () {
         dom.roomHere.style.display = 'none';
       } else {
         dom.roomHere.style.display = '';
-        const n = U.el('span', '', 'أنت في <b>' + esc(here ? here.name : '—') + '</b>');
+        const mates = SC.net.playerList().map((p) => p.name);
+        const n = U.el('span', '', 'أنت في <b>' + esc(here ? here.name : '—') + '</b>' +
+          (mates.length ? ' — معك ' + mates.map(esc).join('، ')
+                        : ' — لا أحد معك بعد، أرسل الرابط'));
         dom.roomHere.appendChild(n);
         if (here && !here.fixed) {
           const c = U.el('span', 'code', here.code);
           dom.roomHere.appendChild(c);
           /* رابط الغرفة: يفتحه صديقك في متصفّحه فيدخل إليها مباشرةً */
           const copy = U.el('button', 'btn tiny', '🔗 نسخ رابط الدعوة');
-          SC.input.bindTap(copy, () => {
-            const link = SC.net.roomLink(here.code);
-            const done = () => SC.hud.toast('نُسخ الرابط — أرسله لأصدقائك', 'ok', 3000);
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              navigator.clipboard.writeText(link).then(done, () => showLink(link));
-            } else showLink(link);
-          });
+          SC.input.bindTap(copy, () => copyLink(here.code));
           dom.roomHere.appendChild(copy);
           const leave = U.el('button', 'btn tiny ghost', 'خروج');
           SC.input.bindTap(leave, () => SC.net.leaveRoom());
@@ -568,26 +696,56 @@ SC.ui = (function () {
     }
 
     dom.roomList.innerHTML = '';
+    if (dom.roomFound) dom.roomFound.textContent = '';
+    if (dom.roomRandom) dom.roomRandom.classList.toggle('off', !SC.net.connected);
     if (!SC.net.connected) {
       dom.roomList.appendChild(U.el('div', 'net-empty', 'اتّصل بالخادم لرؤية الغرف'));
       return;
     }
     if (!st.rooms.length) {
-      dom.roomList.appendChild(U.el('div', 'net-empty', 'لا توجد غرف بعد — أنشئ أوّل غرفة'));
+      dom.roomList.appendChild(U.el('div', 'net-empty', 'لا توجد غرف بعد — انشر أوّل غرفة'));
       return;
     }
-    st.rooms.forEach((r) => {
+
+    /* البحث يصفّي المعروض فقط — والغرف كلّها عند اللاعب أصلاً */
+    const q = dom.roomSearch ? dom.roomSearch.value : '';
+    const shown = SC.net.searchRooms(q);
+    if (dom.roomFound && String(q).trim()) {
+      dom.roomFound.textContent = shown.length
+        ? 'نتائج البحث: ' + shown.length + ' من ' + st.rooms.length
+        : 'لا غرفة تطابق «' + String(q).trim() + '»';
+      dom.roomFound.className = 'room-found' + (shown.length ? '' : ' none');
+    }
+    if (!shown.length) {
+      dom.roomList.appendChild(U.el('div', 'net-empty',
+        'لا نتيجة — جرّب اسماً آخر، أو اضغط «دخول عشوائي»'));
+      return;
+    }
+
+    shown.forEach((r) => {
       const inIt = here && here.code === r.code;
       const row = U.el('div', 'room-row' + (inIt ? ' on' : ''));
+      /* من بالداخل الآن بالاسم: يعرف اللاعب أين الناس قبل أن يدخل */
+      const who = (r.names || []).length
+        ? '<span class="rwho">👥 ' + (r.names || []).map(esc).join('، ') +
+          (r.players > r.names.length ? ' +' + (r.players - r.names.length) : '') + '</span>'
+        : '<span class="rwho empty">لا أحد بالداخل — ادخل أنت أوّلاً</span>';
       row.innerHTML = '<span class="rname">' + esc(r.name) + '</span>' +
         (r.fixed ? '' : '<span class="rcode">' + esc(r.code) + '</span>') +
         (r.mine ? '<span class="mine">غرفتك</span>' : '') +
         '<span class="rmeta">' + r.players + '/' + r.max + ' لاعب' +
-        (r.fixed ? '' : ' · ' + esc(r.ownerName)) + '</span>';
+        (r.fixed ? '' : ' · ' + esc(r.ownerName)) + '</span>' + who;
       if (!inIt) {
         const join = U.el('button', 'btn tiny primary', 'دخول');
         SC.input.bindTap(join, () => SC.net.joinRoom(r.code));
         row.appendChild(join);
+      }
+      if (!r.fixed) {
+        /* رابط أي غرفة منشورة — لا غرفتك وحدها */
+        const lnk = U.el('button', 'btn tiny ghost', '🔗');
+        lnk.title = 'انسخ رابط هذه الغرفة';
+        SC.input.bindTap(lnk, () => copyLink(r.code));
+        row.appendChild(lnk);
       }
       if (r.mine && !r.fixed) {
         const del = U.el('button', 'btn tiny danger', 'حذف');
@@ -596,6 +754,15 @@ SC.ui = (function () {
       }
       dom.roomList.appendChild(row);
     });
+  }
+
+  /* نسخ رابط غرفة إلى الحافظة، وإن رفض المتصفّح عرضناه ليُنسخ يدوياً */
+  function copyLink(code) {
+    const link = SC.net.roomLink(code);
+    const done = () => SC.hud.toast('نُسخ الرابط — أرسله لأصدقائك', 'ok', 3000);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(done, () => showLink(link));
+    } else showLink(link);
   }
 
   /* الحذف نهائي ويُخرج من فيها، فنسأل مرّة */
@@ -1045,7 +1212,7 @@ SC.ui = (function () {
     dom.poiName.textContent = poi.name;
     dom.poiSub.textContent = poi.en;
     const enter = dom.poiEnter;
-    const usable = poi.kind === 'dealer' || poi.kind === 'garage';
+    const usable = poi.kind === 'dealer' || poi.kind === 'garage' || poi.kind === 'police';
     enter.textContent = usable ? 'دخول' : 'زيارة';
     enter.classList.toggle('off', !usable);
     el.classList.add('show');
@@ -1057,6 +1224,7 @@ SC.ui = (function () {
     if (!poi) return;
     if (poi.kind === 'dealer') openDealer(poi);
     else if (poi.kind === 'garage') openGarage();
+    else if (poi.kind === 'police') open('licence');
     else SC.hud.toast(poi.icon + ' ' + poi.name + ' — ' + poi.en, '', 2200);
   }
 
@@ -1447,6 +1615,14 @@ SC.ui = (function () {
     row('الاهتزاز', seg('haptics', [['1', 'مُفعّل'], ['0', 'مُطفأ']], null,
       (v) => { SC.settings.haptics = v === '1'; SC.game.persist(); }));
 
+    const rules = U.el('button', 'btn', '📜 اقرأ القواعد والشروط');
+    SC.input.bindTap(rules, () => open('rules'));
+    row('القواعد والشروط', rules, 'قواعد اللعب الجماعي · الموسيقى والحقوق · بياناتك');
+
+    const lic = U.el('button', 'btn', '🪪 رخصة القيادة');
+    SC.input.bindTap(lic, () => open('licence'));
+    row('الرخصة', lic, 'المتبقّي والتجديد');
+
     const reset = U.el('button', 'btn danger', 'مسح البيانات والبدء من جديد');
     SC.input.bindTap(reset, () => {
       if (!confirm('سيتم حذف المال والمركبات والتقدّم. متابعة؟')) return;
@@ -1523,6 +1699,6 @@ SC.ui = (function () {
 
   return { init, open, hideAll, refreshWallet, buildRadioList, closeRadioList, layoutTopbar,
            showPOI, openDealer, openGarage, enterPOI, showResult, showPrompt, tick, buildShop, drawMap,
-           buildMusic, openReport,
+           buildMusic, openReport, buildLicence, licenceChip,
            get current() { return current; } };
 })();

@@ -136,8 +136,10 @@ SC.game = (function () {
     /* الحفظات القديمة كانت مثبّتة على النهار قبل وجود الدورة التلقائية:
        ننقلها مرّة واحدة إلى «تلقائي»، ومن يختار غيره بعدها يبقى اختياره. */
     if (!save.todAuto) { save.todAuto = 1; settings.timeOfDay = 'auto'; }
+    SC.licence.load(save);
   }
   function persist() {
+    SC.licence.store(save);
     U.store.set(SAVE_KEY, Object.assign({}, save, { settings }));
   }
   function addMoney(n) {
@@ -1071,6 +1073,40 @@ SC.game = (function () {
     }
   }
 
+  /* --------------------------- رخصة القيادة ---------------------------- */
+  function tickLicence(dt, car) {
+    if (G.mode === 'menu' || G.mode === 'attract') return;    // لا تنقص في الاستعراض
+    const ev = SC.licence.tick(dt, car.kmh);
+    if (!ev) return;
+    if (ev.event === 'warn') {
+      SC.hud.toast('🪪 رخصتك تنتهي بعد ' + SC.licence.label() +
+                   ' — جدّدها من مركز الشرطة بـ ' + U.money(SC.licence.fee()), 'bad', 5200);
+    } else if (ev.event === 'expired') {
+      SC.hud.banner('🪪 انتهت رخصتك', 'جدّدها من مركز الشرطة 🚓 قبل أن توقفك دورية', 3600);
+      persist();
+    } else if (ev.event === 'caught') {
+      const paid = Math.min(save.money, ev.fine);
+      addMoney(-paid);
+      SC.hud.banner('🚓 أوقفتك الشرطة', 'قيادة برخصة منتهية — غرامة ' + U.money(ev.fine) +
+                    (paid < ev.fine ? ' (دُفع ' + U.money(paid) + ')' : ''), 3400);
+      SC.hud.toast('جدّد رخصتك من مركز الشرطة بـ ' + U.money(SC.licence.fee()) +
+                   ' — الغرامة ضِعف الثمن', 'bad', 5600);
+      SC.audio.ui && SC.audio.ui();
+    }
+  }
+
+  function renewLicence() {
+    const r = SC.licence.renew(save);
+    if (r.ok) {
+      persist();
+      SC.ui && SC.ui.refreshWallet();
+      SC.hud.toast('🪪 جُدّدت رخصتك — ' + SC.licence.label() + ' · −' + U.money(r.paid), 'ok', 4200);
+    } else {
+      SC.hud.toast('لا يكفي المال — التجديد بـ ' + U.money(r.need), 'bad', 3600);
+    }
+    return r;
+  }
+
   /* أقرب مكان في المدينة: يظهر شريط «دخول» عند الاقتراب */
   function checkNearPOI(car) {
     const slow = car.kmh < 42;                    // لا يفتح وأنت مندفع
@@ -1105,7 +1141,10 @@ SC.game = (function () {
 
     if (!G.paused) {
       const inp = SC.input.update(dt, settings);
-      const frozen = SC.missions.state.countdown > 0;
+      /* الرخصة تنقص مع الوقت — وإن انتهت أوقفتك الشرطة وغرّمتك الضِّعف */
+      tickLicence(dt, car);
+      const held = SC.licence.stopped();        // الشرطة ممسكة بالسيارة الآن
+      const frozen = SC.missions.state.countdown > 0 || held;
       car.input = frozen
         ? { throttle: 0, brake: 1, steer: 0, handbrake: 1, boost: 0, wheelie: 0 }
         : { throttle: inp.throttle, brake: inp.brake, steer: inp.steer, handbrake: inp.handbrake,
@@ -1407,6 +1446,7 @@ SC.game = (function () {
     buyCar, selectCar,
     setCamera, cycleCamera, CAM_MODES, CAM_NAMES,
     setTimeOfDay, setTraffic, setQuality, setWaypoint, togglePause, persist, setPeds, startOnlineRace,
+    renewLicence,
     addMoney, addXp, addRep, repMult, setPassenger, shake, snapCamera,
     refreshFreeMarkers, buildMissionMarkers,
     startAttract, stopAttract,
