@@ -273,10 +273,18 @@ SC.ui = (function () {
     SC.input.bindTap(dom.musicAdd, () => openRights());
     SC.input.bindTap(dom.musicStop, () => { SC.mylib.stop(); buildMusic(); });
 
-    /* المنتقي يُفتح فقط بعد الموافقة في نافذة الإقرار */
+    /* المنتقي يفتحه <label for> بنفسه، فلا يعتمد على نافذة JS قد يمنعها
+       المتصفّح؛ ولا يُفعَّل إلا بعد تعليم الإقرار (pointer-events) */
+    dom.rightsAgree.addEventListener('change', () => {
+      dom.rightsOk.classList.toggle('off', !dom.rightsAgree.checked);
+    });
     dom.musicFile.addEventListener('change', () => {
       const f = dom.musicFile.files && dom.musicFile.files[0];
       dom.musicFile.value = '';
+      hideAll(true);
+      dom.screenMusic.classList.add('show');
+      current = 'music';
+      buildMusic();
       if (!f) return;
       SC.mylib.add(f, { confirmed: true, rights: rightsPick })
         .then((rec) => {
@@ -305,16 +313,6 @@ SC.ui = (function () {
 
     /* نافذة إقرار الحقوق */
     SC.input.bindTap(dom.rightsCancel, () => { hideAll(); open('music'); });
-    SC.input.bindTap(dom.rightsOk, () => {
-      if (!dom.rightsAgree.checked) {
-        SC.hud.toast('علّم الإقرار أوّلاً', 'bad', 2600);
-        return;
-      }
-      hideAll(true);
-      dom.screenMusic.classList.add('show');
-      current = 'music';
-      dom.musicFile.click();              // منتقي ملفّات الجهاز — لا روابط
-    });
 
     /* نافذة الإبلاغ */
     SC.input.bindTap(dom.reportCancel, () => { hideAll(); open('music'); });
@@ -332,6 +330,7 @@ SC.ui = (function () {
   function openRights() {
     rightsPick = 'own';
     dom.rightsAgree.checked = false;
+    dom.rightsOk.classList.add('off');          // لا اختيار قبل الإقرار
     dom.rightsOpts.innerHTML = '';
     SC.mylib.RIGHTS.forEach((r) => {
       const b = U.el('button', r.id === rightsPick ? 'on' : '', esc(r.label) +
@@ -1336,8 +1335,9 @@ SC.ui = (function () {
       null, (v) => SC.hud.toast('الكاميرا: ' + SC.game.setCamera(v), '', 1400)),
       'اسحب بإصبعك على الشاشة للنظر حولك، وبإصبعين للتقريب');
 
-    row('وقت اليوم', seg('tod', [['day', 'نهار'], ['sunset', 'غروب'], ['night', 'ليل']],
-      null, (v) => SC.game.setTimeOfDay(v)));
+    row('وقت اليوم', seg('tod', [['auto', 'تلقائي 🕒'], ['day', 'نهار'], ['sunset', 'غروب'], ['night', 'ليل']],
+      null, (v) => SC.game.setTimeOfDay(v)),
+      'تلقائي: الوقت يمضي وحده من النهار إلى الغروب فالليل ثمّ الفجر');
 
     row('الفصل', seg('season', [['summer', 'صيف ☀️'], ['winter', 'شتاء ❄️']],
       null, (v) => SC.game.setSeason(v)), 'الشتاء يكسو المدينة بالثلج');

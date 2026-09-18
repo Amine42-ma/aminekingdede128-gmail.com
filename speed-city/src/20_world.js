@@ -306,10 +306,58 @@ SC.world = (function () {
   }
 
   /* ضبط وقت اليوم: يعيد ضبط السماء، الشمس، الضباب والإضاءة */
-  function setTimeOfDay(name) {
+  /* ===================== دورة الليل والنهار التلقائية =====================
+     الوقت يمضي فعلاً: نمزج بين الحالات الثلاث بدل القفز بينها، فتتدرّج
+     السماء والضباب والشمس من نهار إلى غروب إلى ليل ثم فجر. */
+  const DAY_SECONDS = 480;                       // دورة كاملة ≈ ٨ دقائق
+  const CYCLE = [[0.00, 'day'], [0.40, 'day'], [0.52, 'sunset'], [0.62, 'night'],
+                 [0.88, 'night'], [0.96, 'sunset'], [1.00, 'day']];
+
+  function presetFor(name) {
     const base = PRESETS[name] || PRESETS.day;
     const w = state.season === 'winter' ? WINTER_SKY[name] : null;
-    const p = w ? Object.assign({}, base, w) : base;
+    return w ? Object.assign({}, base, w) : base;
+  }
+  const mixHex = (a, b, k) => {
+    const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255;
+    const br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255;
+    return ((ar + (br - ar) * k) | 0) << 16 | ((ag + (bg - ag) * k) | 0) << 8 | ((ab + (bb - ab) * k) | 0);
+  };
+  function mixPreset(a, b, k) {
+    const out = {};
+    ['cloud', 'top', 'mid', 'bottom', 'sun', 'fog', 'amb']
+      .forEach((key) => { out[key] = mixHex(a[key], b[key], k); });
+    ['cloudAmt', 'sunI', 'hemi', 'fogFar', 'exposure']
+      .forEach((key) => { out[key] = U.lerp(a[key], b[key], k); });
+    out.sunPos = [U.lerp(a.sunPos[0], b.sunPos[0], k),
+                  U.lerp(a.sunPos[1], b.sunPos[1], k),
+                  U.lerp(a.sunPos[2], b.sunPos[2], k)];
+    return out;
+  }
+
+  /* اضبط الساعة (0..1 = يوم كامل) */
+  function setDayTime(t) {
+    state.dayT = ((t % 1) + 1) % 1;
+    let i = 0;
+    while (i < CYCLE.length - 2 && state.dayT > CYCLE[i + 1][0]) i++;
+    const a = CYCLE[i], b = CYCLE[i + 1];
+    const k = U.clamp((state.dayT - a[0]) / Math.max(1e-6, b[0] - a[0]), 0, 1);
+    const name = k < 0.5 ? a[1] : b[1];
+    applyPreset(mixPreset(presetFor(a[1]), presetFor(b[1]), k), name);
+  }
+  function setAutoTime(on) {
+    state.autoTime = !!on;
+    if (on && state.dayT == null) state.dayT = 0.10;          // صباحٌ باكر
+    if (on) setDayTime(state.dayT);
+    return state.autoTime;
+  }
+
+  function setTimeOfDay(name) {
+    state.autoTime = false;
+    return applyPreset(presetFor(name), name);
+  }
+
+  function applyPreset(p, name) {
     state.timeOfDay = name;
     const u = state.sky.material.uniforms;
     u.top.value.setHex(p.top); u.mid.value.setHex(p.mid); u.bottom.value.setHex(p.bottom);
@@ -2267,6 +2315,12 @@ SC.world = (function () {
   }
 
   function update(dt, focus) {
+    /* الوقت يمضي: نُحدّث السماء كل ربع ثانية — المزج كل إطار بلا داعٍ */
+    if (state.autoTime) {
+      state.dayT = (state.dayT || 0) + dt / DAY_SECONDS;
+      state.skyAcc = (state.skyAcc || 0) + dt;
+      if (state.skyAcc > 0.25) { state.skyAcc = 0; setDayTime(state.dayT); }
+    }
     // ظل الشمس يتبع اللاعب لتبقى دقة الظل عالية
     const sun = state.sun;
     if (sun && state.sunDir) {
@@ -2330,7 +2384,8 @@ SC.world = (function () {
   }
 
   return { CFG, TEX, state, build, update, groundHeight, onRoad, inBounds, queryColliders,
-           snapToRoad, nearestSpawn, randomRoadPoint, setTimeOfDay, refreshEnv, canvasTex, PRESETS,
+           snapToRoad, nearestSpawn, randomRoadPoint, setTimeOfDay, setAutoTime, setDayTime,
+           refreshEnv, canvasTex, PRESETS,
            isWater, distToWater, onSand, islandAt, islandById, nearestIsland, bridgeAt, BRIDGES,
            setUnderwater, placeReef, setSeason, pois: () => state.pois, nearestPOI };
 })();

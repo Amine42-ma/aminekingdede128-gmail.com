@@ -112,8 +112,10 @@
       /* أزرار القائمة الرئيسية */
       const play = () => {
         SC.game.stopAttract();            // أوقف سباق الاستعراض وأعد السيارة
-        SC.ui.hideAll();
+        /* رفع hidden قبل hideAll: وجودها هو علامة «ما زلنا في شاشة
+           البداية»، وhideAll يعيد القائمة ما دامت موجودة */
         dom.hud.classList.remove('hidden');
+        SC.ui.hideAll();
         SC.game.start();
         SC.audio.resume();
         SC.hud.toast('استكشف المدينة أو ابدأ مهمّة من العلامات الذهبية', '', 3800);

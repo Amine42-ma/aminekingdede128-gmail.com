@@ -17,6 +17,20 @@ let html = read('dev.html');
 html = html.replace(/<link rel="stylesheet" href="css\/game\.css">/,
   '<style>\n' + read('css/game.css') + '\n</style>');
 
+/* 1ب) صور الواجهة مضمّنة داخل الأنماط (الدواسات) */
+{
+  const seen = new Set();
+  let imgBytes = 0;
+  html = html.replace(/url\((assets\/ui\/[^)"']+)\)/g, (m, file) => {
+    const buf = readFileSync(join(root, file));
+    if (!seen.has(file)) { seen.add(file); imgBytes += buf.length; }
+    const ext = file.split('.').pop().toLowerCase();
+    const mime = ext === 'webp' ? 'image/webp' : ext === 'png' ? 'image/png' : 'image/jpeg';
+    return 'url(data:' + mime + ';base64,' + buf.toString('base64') + ')';
+  });
+  if (imgBytes) console.log('  • صور الواجهة        ' + kb(imgBytes));
+}
+
 /* 2) الشيفرة (المكتبة ثم وحدات اللعبة) */
 html = html.replace(/<script src="([^"]+)"><\/script>/g, (m, src) => {
   const code = read(src);

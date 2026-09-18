@@ -17,7 +17,7 @@ SC.game = (function () {
     quality: 'auto', shadows: true, steerMode: 'buttons', steerSense: 1.0,
     invertTilt: false, sound: true, volume: 0.85, music: 0.45, haptics: true, assist: true,
     lookSense: 1.0, peds: true, micOn: false, autoScale: true,
-    mapRotate: true, timeOfDay: 'day', season: 'summer', traffic: true, camera: 'chase',
+    mapRotate: true, timeOfDay: 'auto', season: 'summer', traffic: true, camera: 'chase',
     engineSound: false
   };
   SC.settings = settings;
@@ -133,6 +133,9 @@ SC.game = (function () {
       Object.assign(settings, s.settings || {});
     }
     SC.cars.order.forEach((id) => { if (!save.upgrades[id]) save.upgrades[id] = { engine: 0, tires: 0, brakes: 0, nitro: 0 }; });
+    /* الحفظات القديمة كانت مثبّتة على النهار قبل وجود الدورة التلقائية:
+       ننقلها مرّة واحدة إلى «تلقائي»، ومن يختار غيره بعدها يبقى اختياره. */
+    if (!save.todAuto) { save.todAuto = 1; settings.timeOfDay = 'auto'; }
   }
   function persist() {
     U.store.set(SAVE_KEY, Object.assign({}, save, { settings }));
@@ -209,7 +212,10 @@ SC.game = (function () {
     await new Promise((r) => setTimeout(r, 30));
     SC.world.build(scene, renderer, q);
     if (settings.season === 'winter') SC.world.setSeason('winter');
-    SC.world.setTimeOfDay(settings.timeOfDay);
+    /* أثناء الدورة التلقائية يتغيّر الوقت باستمرار، فنتابعه لنشعل الأضواء */
+    SC.world.state.onTimeChange = () => { if (G.ready) applyTimeLook(); };
+    if (settings.timeOfDay === 'auto') SC.world.setAutoTime(true);
+    else SC.world.setTimeOfDay(settings.timeOfDay);
     renderer.toneMappingExposure = SC.world.state.exposure;
     scene.fog.far = Math.min(scene.fog.far, q.far);
 
@@ -298,18 +304,69 @@ SC.game = (function () {
   }
 
   /* ------------------------------ المنافسون ----------------------------- */
+  /* المنافسون يقودون **نفس سيارة اللاعب**: نفس الكتلة والتماسك والفرامل،
+     فالسباق عادل ولا يكسب أحد بسيارة أسرع. وسرعتهم مسقوفة بسرعة سيارتك
+     فلا يبتعدون عنك مهما فعلوا. */
+  function rivalPace(skill) {
+    const top = (G.car ? G.car.def.topSpeed : 51);
+    return top * U.clamp(0.74 + skill * 0.20, 0.70, 0.95);   // دائماً أقلّ منك
+  }
+
+  /* خطّ موازٍ للمسار: بدونه يطلب الجميع الخطّ نفسه فيتكدّسون في أوّل
+     منعطف ويقفون — وهو ما كان يحدث فعلاً في السباقات */
+  function lanePath(base, off) {
+    if (!base || !base.length || !off) return base;
+    const n = base.length;
+    return base.map((p, i) => {
+      const q = base[(i + 1) % n];
+      const dx = q.x - p.x, dz = q.z - p.z, L = Math.hypot(dx, dz) || 1;
+      return { x: p.x + (-dz / L) * off, z: p.z + (dx / L) * off };
+    });
+  }
+
   function addRival(path, skill, x, z, yaw, index) {
-    const ids = ['cortina', 'cortina', 'bike', 'van'];
-    const v = new SC.Vehicle(ids[index % ids.length]);
+    const id = (G.car && G.car.id) || 'cortina';
+    const v = new SC.Vehicle(id);
     v.setColor([0xd93a3a, 0x2f6fd0, 0x2fa84f, 0xe0b13a][index % 4]);
     v.place(x, z, yaw);
     v.lightsOn = SC.world.state.isNight;
     G.scene.add(v.root);
-    const ai = new SC.AIDriver(v, { skill, path, targetSpeed: v.def.topSpeed * (0.72 + skill * 0.3) });
+    const lane = [-2.3, 2.3, -1.0, 1.0][index % 4];
+    const ai = new SC.AIDriver(v, { skill, path: lanePath(path, lane),
+                                    targetSpeed: rivalPace(skill) });
     ai.active = false;
+    ai.baseSkill = skill;
     G.rivals.push(v);
     G.rivalAI.push(ai);
     return ai;
+  }
+
+  /* أعِد سائقاً تاه عن مساره إلى أقرب نقطة، وأنقذه إن وقف تماماً.
+     الملاحة لا تتقدّم إلا عن قرب، فمنعطفٌ يقذف السيارة يضيّعها للأبد. */
+  function keepOnPath(ai, dt) {
+    const path = ai.path;
+    if (!path || !path.length) return;
+    const t = path[ai.wp % path.length];
+    const far = Math.hypot(t.x - ai.v.pos.x, t.z - ai.v.pos.z) > 55;
+    /* المقياس هو التقدّم على المسار لا السرعة: سيارة تزحف بـ ١٠ كم/س
+       عالقة في زاوية كانت تفلت من شرط «متوقّفة» فتبقى عالقة للأبد */
+    if (ai.wp !== ai._lastWp) { ai._lastWp = ai.wp; ai.noProg = 0; }
+    else ai.noProg = (ai.noProg || 0) + dt;
+    const stalled = ai.noProg > 4;
+    if (!far && !stalled) return;
+    let best = 0, bd = 1e9;
+    for (let i = 0; i < path.length; i++) {
+      const q = path[i];
+      const d = Math.hypot(q.x - ai.v.pos.x, q.z - ai.v.pos.z);
+      if (d < bd) { bd = d; best = i; }
+    }
+    ai.wp = (best + 1) % path.length;
+    ai.noProg = 0; ai._lastWp = ai.wp;
+    if (stalled) {
+      const a = path[best], b = path[(best + 1) % path.length];
+      ai.v.place(a.x, a.z, Math.atan2(b.x - a.x, b.z - a.z));
+      ai.stuck = 0; ai.reverse = 0;
+    }
   }
   function clearRivals() {
     G.rivals.forEach((v) => G.scene.remove(v.root));
@@ -1130,9 +1187,27 @@ SC.game = (function () {
     save.stats.topSpeed = Math.max(save.stats.topSpeed, Math.round(car.kmh));
 
     const all = [car].concat(G.rivals);
+    const rst = SC.missions.state, rdef = rst && rst.active;
+    const plen = rdef && rdef.path ? rdef.path.length : 0;
+    const mineProg = plen ? (rst.lap || 0) * plen + (G.playerPathIdx || 0) : 0;
     G.rivalAI.forEach((a) => {
-      if (a.active) a.update(h, all);
-      else { a.v.input = { throttle: 0, brake: 1, steer: 0, handbrake: 1, boost: 0 }; a.v.update(h, a.v.input); }
+      if (!a.active) {
+        a.v.input = { throttle: 0, brake: 1, steer: 0, handbrake: 1, boost: 0 };
+        a.v.update(h, a.v.input);
+        return;
+      }
+      keepOnPath(a, h);
+      if (plen) {
+        /* مطّاط لطيف: من ابتعد أمامك يهدأ، ومن تخلّف يلحق — وسقفه
+           دائماً دون سرعتك القصوى فلا يسبقك أحد بسيارة أسرع */
+        const theirs = (a.lap || 0) * plen + a.wp;
+        const gap = (theirs - mineProg) / plen;               // بالدورات
+        const k = U.clamp(1 - gap * 1.6, 0.80, 1.10);
+        const hard = (G.car ? G.car.def.topSpeed : 51) * 0.90;   // سقف لا يُتجاوز
+        a.targetSpeed = Math.min(hard,
+          rivalPace(a.baseSkill == null ? a.skill : a.baseSkill) * k);
+      }
+      a.update(h, all);
     });
 
     if (settings.traffic) SC.traffic.update(h, car, all.concat(SC.traffic.vehicles()));
@@ -1241,14 +1316,29 @@ SC.game = (function () {
   }
   function setTimeOfDay(name) {
     settings.timeOfDay = name;
-    SC.world.setTimeOfDay(name);
-    SC.world.refreshEnv(G.renderer, SC.world.state.pmrem);
+    if (name === 'auto') SC.world.setAutoTime(true);          // الوقت يمضي وحده
+    else SC.world.setTimeOfDay(name);
+    applyTimeLook(true);
+    persist();
+  }
+
+  /* ما يتبع تغيّر الوقت: التعرّض والبيئة وأضواء المركبات.
+     إعادة بناء خريطة البيئة مكلفة، والدورة التلقائية تنادي هذه الدالة
+     كل ربع ثانية — فنحدّها بمرّة كل بضع ثوانٍ حتى لا تتقطّع اللعبة. */
+  function applyTimeLook(force) {
+    if (!G.renderer) return;
+    const now = (G.time || 0);
+    if (force || now - (G.lastEnv == null ? -99 : G.lastEnv) > 5) {
+      G.lastEnv = now;
+      SC.world.refreshEnv(G.renderer, SC.world.state.pmrem);
+    }
     G.renderer.toneMappingExposure = SC.world.state.exposure;
     const night = SC.world.state.isNight;
-    G.car.lightsOn = night;
+    if (night === G.wasNight) return;
+    G.wasNight = night;
+    if (G.car) G.car.lightsOn = night;
     G.rivals.forEach((v) => { v.lightsOn = night; });
     SC.traffic.vehicles().forEach((v) => { v.lightsOn = night; });
-    persist();
   }
   function setTraffic(on) {
     settings.traffic = on;

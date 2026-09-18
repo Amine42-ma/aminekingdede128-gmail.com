@@ -102,12 +102,8 @@
     <div class="pedals">
       <button class="pedal nitro" id="btnBoost"><span>نيترو</span></button>
       <button class="pedal hand" id="btnHand"><span>يد</span></button>
-      <button class="pedal brake" id="btnBrake">
-        <svg viewBox="0 0 24 24"><path d="M4 9 L12 17 L20 9" /></svg>
-      </button>
-      <button class="pedal gas" id="btnGas">
-        <svg viewBox="0 0 24 24"><path d="M4 15 L12 7 L20 15" /><path d="M4 20 L12 12 L20 20" /></svg>
-      </button>
+      <button class="pedal brake img" id="btnBrake" aria-label="الفرامل"></button>
+      <button class="pedal gas img" id="btnGas" aria-label="الغاز"></button>
     </div>
   </div>
 
@@ -313,7 +309,6 @@
 
     <div class="music-actions">
       <button class="btn primary" id="musicAdd">+ إضافة موسيقى من الجهاز</button>
-      <input type="file" id="musicFile" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac" hidden>
       <button class="btn ghost" id="musicStop">■ إيقاف</button>
     </div>
 
@@ -359,8 +354,10 @@
     <div id="rightsOpts" class="rights-opts"></div>
     <label class="rights-check"><input type="checkbox" id="rightsAgree">
       <span>أُقرّ بأنّني مسؤول عن حقوق ما أضيفه، وأنّ اللعبة ليست مصدراً لتنزيل الموسيقى.</span></label>
+    <input type="file" id="musicFile" class="file-hide"
+           accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac">
     <div class="pause-btns">
-      <button class="btn primary xl" id="rightsOk">موافق — اختر الملفّ</button>
+      <label class="btn primary xl off" id="rightsOk" for="musicFile">موافق — اختر الملفّ</label>
       <button class="btn xl" id="rightsCancel">إلغاء</button>
     </div>
   </div>

@@ -456,6 +456,10 @@ SC.Vehicle = (function () {
       ];
       const list = SC.world.queryColliders(this.pos.x, this.pos.z, this.halfLen + 2);
       let hit = 0, nx = 0, nz = 0;
+      /* نجمع الدفع ثم نطبّقه مرّة واحدة بسقف ثابت: تطبيقه فوراً لكل نقطة
+         ولكل حاجز كان يقذف السيارة أمتاراً في إطار واحد حين تنغرز في مبنى. */
+      let px = 0, pz = 0;
+      const fromX = this.pos.x, fromZ = this.pos.z;
 
       for (const col of list) {
         for (const p of pts) {
@@ -465,22 +469,38 @@ SC.Vehicle = (function () {
           let d2 = ddx * ddx + ddz * ddz;
           if (d2 > r * r) continue;
           let d = Math.sqrt(d2);
+          let push;
           if (d < 1e-4) {                        // داخل الصندوق: ادفع لأقرب حافة
             const dl = p.x - col.minX, dr = col.maxX - p.x;
             const db = p.z - col.minZ, dt2 = col.maxZ - p.z;
             const m = Math.min(dl, dr, db, dt2);
             ddx = m === dl ? -1 : m === dr ? 1 : 0;
             ddz = m === db ? -1 : m === dt2 ? 1 : 0;
-            d = 0.001;
+            d = 1; push = Math.min(m + r, r * 1.5);   // عمق حقيقي، بسقف
+          } else {
+            push = r - d;
           }
           const inv = 1 / d;
           const ux = ddx * inv, uz = ddz * inv;
-          const push = (r - d);
-          this.pos.x += ux * push; this.pos.z += uz * push;
+          px += ux * push; pz += uz * push;
           nx += ux; nz += uz; hit++;
         }
       }
       if (!hit) return;
+
+      /* سقف الإزاحة في الإطار الواحد */
+      const pl = Math.hypot(px, pz);
+      const CAP = r * 1.2;
+      if (pl > CAP) { const k = CAP / pl; px *= k; pz *= k; }
+      this.pos.x += px; this.pos.z += pz;
+
+      /* حارس السقوط في البحر: الاصطدام يدفع، ولا يجوز أن يدفع السيارة
+         خارج اليابسة — هناك ارتفاع الأرض هو قاع البحر فتسقط تحت الأرض.
+         الدخول إلى الماء بالقيادة يبقى كما هو (الغرق ميزة، لا خطأ). */
+      if (SC.world.groundHeight(fromX, fromZ) > SC.world.CFG.seaY + 0.5 &&
+          SC.world.groundHeight(this.pos.x, this.pos.z) <= SC.world.CFG.seaY + 0.5) {
+        this.pos.x = fromX; this.pos.z = fromZ;
+      }
       const inv = 1 / Math.hypot(nx, nz) || 0;
       nx *= inv; nz *= inv;
       // تحويل متجه الاصطدام إلى إحداثيات المركبة
