@@ -97,10 +97,17 @@ SC.ui = (function () {
     U.$$('.screen:not(.boot)').forEach((el) => el.classList.remove('show'));
     current = null;
     dom.hud.classList.remove('dim');
-    if (!silent) {
-      SC.game.togglePause(false);
+    if (silent) return;
+    /* لم تبدأ اللعبة بعد (ما زلنا في شاشة البداية): أعِد القائمة بدل ترك
+       الشاشة فارغة بلا زرّ «ابدأ» بينما سباق الاستعراض يدور خلفها */
+    if (dom.hud && dom.hud.classList.contains('hidden')) {
+      dom.screenMenu.classList.add('show');
+      current = 'menu';
       SC.audio.resume();
+      return;                       // ولا نرفع الإيقاف: الاستعراض يعمل موقوفاً
     }
+    SC.game.togglePause(false);
+    SC.audio.resume();
   }
 
   function refreshWallet() {
@@ -1068,7 +1075,8 @@ SC.ui = (function () {
       }
     });
     buildRadioList();
-    SC.audio.refreshCached();
+    /* امسح أي مقطع محفوظ لم يعد ضمن القائمة، ثم افحص الباقي */
+    SC.audio.pruneCache().then(() => SC.audio.refreshCached());
   }
 
   function buildRadioList() {

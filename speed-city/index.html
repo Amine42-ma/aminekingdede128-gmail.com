@@ -10623,21 +10623,19 @@ SC.audio = (function () {
      في الذاكرة. نُشغّلها بعنصر <audio> عادي ونتحكّم بمستواه مباشرةً —
      لا نمرّرها على WebAudio لأن الربط عبر createMediaElementSource يحتاج
      ترويسات CORS، وبدونها يخرج صمتٌ تام بلا أي خطأ ظاهر. */
+  const IA = 'https://ia600601.us.archive.org/31/items/lostinthe-night-1/';
   const RADIO_TRACKS = [
-    { id: 'zero_latency', title: 'Zero Latency',
-      url: 'https://qcucttfkpnpkpfdbnsoq.supabase.co/storage/v1/object/public/Game/Zero+Latency.mp3' },
-    { id: 'lost_velocity', title: 'Lost in the Velocity',
-      url: 'https://qcucttfkpnpkpfdbnsoq.supabase.co/storage/v1/object/public/Game/Lost+in+the+Velocity.mp3' },
-    { id: 'lost_night', title: 'Lost in the Night',
-      url: 'https://qcucttfkpnpkpfdbnsoq.supabase.co/storage/v1/object/public/Game/Lost+in+the+Night.mp3' },
-    { id: 'full_speed', title: 'Full Speed Ahead',
-      url: 'https://qcucttfkpnpkpfdbnsoq.supabase.co/storage/v1/object/public/Game/Full+Speed+Ahead.mp3' }
+    { id: 'ia_full_speed',    title: 'Full Speed Ahead',     url: IA + 'Full%2BSpeed%2BAhead.mp3' },
+    { id: 'ia_lost_night_2',  title: 'Lost in the Night II',  url: IA + 'Lost%2Bin%2Bthe%2BNight%20%281%29.mp3' },
+    { id: 'ia_lost_night',    title: 'Lost in the Night',     url: IA + 'Lost%2Bin%2Bthe%2BNight.mp3' },
+    { id: 'ia_lost_velocity', title: 'Lost in the Velocity',  url: IA + 'Lost%2Bin%2Bthe%2BVelocity.mp3' },
+    { id: 'ia_zero_latency',  title: 'Zero Latency',          url: IA + 'Zero%2BLatency.mp3' }
   ];
 
   /* موسيقى شاشة البداية: مقطع واحد يدور خلف سباق الاستعراض، ويُحفظ
      للعمل دون إنترنت مثل بقيّة المقاطع. */
-  const MENU_TRACK = { id: 'born_for_the_rush', title: 'Born for the Rush', kind: 'url',
-    url: 'https://qcucttfkpnpkpfdbnsoq.supabase.co/storage/v1/object/public/Game/Born+for+the+Rush.mp3' };
+  const MENU_TRACK = { id: 'ia_born_for_the_rush', title: 'Born for the Rush', kind: 'url',
+    url: IA + 'Born%2Bfor%2Bthe%2BRush.mp3' };
 
   /* ----------------------- تخزين الموسيقى للعمل دون إنترنت ---------------
      نحفظ كل مقطع في IndexedDB أوّل مرّة يُشغَّل (أو عند الضغط على «حفظ
@@ -10715,6 +10713,28 @@ SC.audio = (function () {
       });
     };
     return step(0);
+  }
+
+  /* امسح ما لم يعد ضمن القائمة: المقاطع المحذوفة بقيت تعمل دون إنترنت
+     من الذاكرة المحفوظة، فلا بدّ من إزالتها من جهاز اللاعب أيضاً. */
+  function pruneCache() {
+    const keep = new Set(buildStations().filter((s) => s.kind === 'url').map((s) => s.id));
+    keep.add(MENU_TRACK.id);
+    return openDB().then((db) => new Promise((res) => {
+      if (!db) return res(0);
+      try {
+        const store = db.transaction(DB_STORE, 'readwrite').objectStore(DB_STORE);
+        const rq = store.getAllKeys();
+        rq.onsuccess = () => {
+          let n = 0;
+          (rq.result || []).forEach((k) => {
+            if (!keep.has(k)) { store.delete(k); delete radio.cached[k]; n++; }
+          });
+          res(n);
+        };
+        rq.onerror = () => res(0);
+      } catch (e) { res(0); }
+    }));
   }
 
   /* افحص ما هو محفوظ مسبقاً */
@@ -10844,7 +10864,10 @@ SC.audio = (function () {
   function radioSet(id) {
     buildStations();
     const i = radio.stations.findIndex((s) => s.id === id);
-    return playStation(i < 0 ? 1 : i);
+    if (i >= 0) return playStation(i);
+    /* محطّة محفوظة لم تعد موجودة (تغيّرت المقاطع): ابدأ بأوّل مقطع */
+    const first = radio.stations.findIndex((s) => s.kind === 'url');
+    return playStation(first < 0 ? 1 : first);
   }
   function radioStations() { return buildStations(); }
   function radioCurrent() {
@@ -10853,14 +10876,40 @@ SC.audio = (function () {
              failed: !!radio.failed[st.id], cached: !!radio.cached[st.id],
              saving: !!radio.saving[st.id] };
   }
+  /* حالة مفصّلة للتشخيص: هل العنصر يعمل فعلاً ولماذا لا يعمل */
+  function radioState() {
+    const st = currentStation();
+    return { id: st.id, kind: st.kind, on: radio.on, loading: radio.loading,
+             paused: radio.el ? radio.el.paused : null,
+             vol: radio.el ? +radio.el.volume.toFixed(2) : null,
+             target: +radioVolume().toFixed(2), hasSrc: !!(radio.el && radio.el.src),
+             tried: radio.tried || 0, lastErr: radio.lastErr || null };
+  }
   function radioCachedMap() { return radio.cached; }
   function radioSavingMap() { return radio.saving; }
   function radioOnChange(fn) { radio.onChange = fn; }
   function radioPause() { if (radio.el) radio.el.pause(); }
+
+  /* يُستأنف بعد إغلاق أي شاشة. إن رفض المتصفّح التشغيل (سياسة الصوت)
+     ننتظر أوّل لمسة ونعيد المحاولة بدل أن يبقى صامتاً إلى الأبد. */
   function radioResume() {
-    if (radio.el && currentStation().kind === 'url' && radio.on && radioVolume() > 0) {
-      const pr = radio.el.play(); if (pr && pr.catch) pr.catch(() => {});
-    }
+    if (!(radio.el && currentStation().kind === 'url' && radio.on && radioVolume() > 0)) return;
+    radio.tried = (radio.tried || 0) + 1;
+    const pr = radio.el.play();
+    if (pr && pr.catch) pr.catch((e) => {
+      radio.lastErr = (e && e.name) || 'play-failed';
+      radioWaitTap();
+    });
+  }
+  function radioWaitTap() {
+    if (radio.waiting) return;
+    radio.waiting = true;
+    const once = () => {
+      window.removeEventListener('pointerdown', once);
+      radio.waiting = false;
+      radioResume();
+    };
+    window.addEventListener('pointerdown', once, { once: true });
   }
 
   /* ====================== موسيقى شاشة البداية ==========================
@@ -10983,16 +11032,8 @@ SC.audio = (function () {
     }
   }
 
-  /* تمرير الصوت تحت الماء إلى الراديو أيضاً يجري عبر musicBus نفسه */
-  function radioPause() { if (radio.el) radio.el.pause(); }
-  function radioResume() {
-    if (radio.el && currentStation().kind === 'file' && radio.on) {
-      const pr = radio.el.play(); if (pr && pr.catch) pr.catch(() => {});
-    }
-  }
-
   return { init, resume, update, setEnabled, setVolume, setUnderwater, blip, crash, horn, hornBeep, pop,
-           menuPlay, menuStop, menuInfo, MENU_TRACK,
+           menuPlay, menuStop, menuInfo, MENU_TRACK, pruneCache, radioState,
            startMusic, stopMusic, setMusicVolume, setSfxVolume, setEngineSound, music,
            radioNext, radioPrev, radioSet, radioStations, radioCurrent, radioOnChange,
            cacheAll, refreshCached, radioCachedMap, radioSavingMap,
@@ -12574,10 +12615,17 @@ SC.ui = (function () {
     U.$$('.screen:not(.boot)').forEach((el) => el.classList.remove('show'));
     current = null;
     dom.hud.classList.remove('dim');
-    if (!silent) {
-      SC.game.togglePause(false);
+    if (silent) return;
+    /* لم تبدأ اللعبة بعد (ما زلنا في شاشة البداية): أعِد القائمة بدل ترك
+       الشاشة فارغة بلا زرّ «ابدأ» بينما سباق الاستعراض يدور خلفها */
+    if (dom.hud && dom.hud.classList.contains('hidden')) {
+      dom.screenMenu.classList.add('show');
+      current = 'menu';
       SC.audio.resume();
+      return;                       // ولا نرفع الإيقاف: الاستعراض يعمل موقوفاً
     }
+    SC.game.togglePause(false);
+    SC.audio.resume();
   }
 
   function refreshWallet() {
@@ -13545,7 +13593,8 @@ SC.ui = (function () {
       }
     });
     buildRadioList();
-    SC.audio.refreshCached();
+    /* امسح أي مقطع محفوظ لم يعد ضمن القائمة، ثم افحص الباقي */
+    SC.audio.pruneCache().then(() => SC.audio.refreshCached());
   }
 
   function buildRadioList() {
@@ -15253,7 +15302,7 @@ SC.game = (function () {
     if ((settings.music == null ? 0.45 : settings.music) > 0) {
       if (!G.radioStarted) {
         G.radioStarted = true;
-        SC.audio.radioSet(save.radio || 'zero_latency');
+        SC.audio.radioSet(save.radio || 'ia_zero_latency');
       } else SC.audio.radioResume();
     } else SC.audio.stopMusic();
   }

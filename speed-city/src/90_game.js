@@ -1285,7 +1285,7 @@ SC.game = (function () {
     if ((settings.music == null ? 0.45 : settings.music) > 0) {
       if (!G.radioStarted) {
         G.radioStarted = true;
-        SC.audio.radioSet(save.radio || 'zero_latency');
+        SC.audio.radioSet(save.radio || 'ia_zero_latency');
       } else SC.audio.radioResume();
     } else SC.audio.stopMusic();
   }
