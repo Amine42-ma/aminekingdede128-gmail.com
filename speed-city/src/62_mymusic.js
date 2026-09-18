@@ -47,7 +47,10 @@ SC.mylib = (function () {
     onChange: null
   };
 
-  const emit = () => { if (state.onChange) state.onChange(); };
+  const emit = () => {
+    if (SC.audio && SC.audio.refreshStations) SC.audio.refreshStations();
+    if (state.onChange) state.onChange();
+  };
 
   /* ------------------------------ التخزين ------------------------------- */
   let dbPromise = null;
@@ -279,7 +282,10 @@ SC.mylib = (function () {
 
   function clearHeard() { state.heard.length = 0; emit(); }
 
-  return { RIGHTS, REASONS, state, load, add, remove, clearAll,
+  /* الراديو يطلب الملفّ من هنا ليشغّله كمحطّة — يبقى على الجهاز */
+  function blob(id) { return blobGet(id); }
+
+  return { RIGHTS, REASONS, state, load, add, remove, clearAll, blob,
            play, stop, pause, resume, next, setVolume,
            setShare, setShareAll, canShare, report, onNet, clearHeard,
            rightsOf, MAX_SIZE, MAX_TRACKS,

@@ -424,7 +424,25 @@ SC.audio = (function () {
     list.forEach((t) => radio.stations.push({
       id: t.id, title: t.title, url: t.url, kind: 'url', icon: '🎵'
     }));
+    /* مقاطع اللاعب من جهازه تصير محطّات كبقيّة المحطّات */
+    if (SC.mylib && SC.mylib.state.list.length) {
+      SC.mylib.state.list.forEach((rec) => radio.stations.push({
+        id: 'my_' + rec.id, title: rec.title, kind: 'mine', libId: rec.id, icon: '🎧'
+      }));
+    }
     return radio.stations;
+  }
+
+  /* أُضيف مقطع أو حُذف: أعِد بناء القائمة مع إبقاء المحطّة الحالية */
+  function refreshStations() {
+    if (!radio.stations.length) return;
+    const cur = radio.stations[radio.index];
+    radio.stations.length = 0;
+    buildStations();
+    const i = radio.stations.findIndex((s) => s.id === (cur && cur.id));
+    if (i >= 0) radio.index = i;
+    else if (radio.index >= radio.stations.length) radio.index = 1;
+    if (radio.onChange) radio.onChange(currentStation(), radio.index, false);
   }
 
   function ensureRadioEl() {
@@ -449,7 +467,7 @@ SC.audio = (function () {
   /* تعذّر تحميل مقطع (بلا إنترنت مثلاً): علّمه وانتقل لغيره مرّة واحدة */
   function onRadioError() {
     const st = currentStation();
-    if (!st || st.kind !== 'url') return;
+    if (!st || (st.kind !== 'url' && st.kind !== 'mine')) return;
     if (radio.objUrl) { URL.revokeObjectURL(radio.objUrl); radio.objUrl = null; }
     radio.failed[st.id] = true;
     radio.loading = false;
@@ -475,7 +493,7 @@ SC.audio = (function () {
     const st = radio.stations[radio.index];
     const el = ensureRadioEl();
 
-    if (st.kind !== 'url') {
+    if (st.kind !== 'url' && st.kind !== 'mine') {
       radio.token++;
       el.pause();
       el.removeAttribute('src');
@@ -485,6 +503,24 @@ SC.audio = (function () {
     }
     if (st.kind === 'proc') startMusic(); else stopMusic();
     if (st.kind === 'off' && musicBus) musicBus.gain.value = 0;
+
+    /* مقطع من جهاز اللاعب: نأخذ الملفّ من مكتبته ونشغّله بنفس العنصر */
+    if (st.kind === 'mine') {
+      el.volume = radioVolume();
+      radio.loading = true;
+      const myToken = ++radio.token;
+      (SC.mylib ? SC.mylib.blob(st.libId) : Promise.resolve(null)).then((blob) => {
+        if (myToken !== radio.token) return;
+        if (radio.objUrl) { URL.revokeObjectURL(radio.objUrl); radio.objUrl = null; }
+        if (!blob) { radio.loading = false; radio.failed[st.id] = true; radioNext(true); return; }
+        radio.objUrl = URL.createObjectURL(blob);
+        el.src = radio.objUrl;
+        if (radioVolume() > 0) {
+          const pr = el.play();
+          if (pr && pr.catch) pr.catch(() => { radio.loading = false; radioWaitTap(); });
+        } else radio.loading = false;
+      }).catch(() => { radio.loading = false; });
+    }
 
     if (st.kind === 'url') {
       el.volume = radioVolume();
@@ -522,7 +558,7 @@ SC.audio = (function () {
       /* التقدّم التلقائي يتخطّى «مطفأ» و«إذاعة المدينة» والمقاطع المتعذّرة */
       for (let n = 0; n < radio.stations.length; n++, i++) {
         const st = radio.stations[((i % radio.stations.length) + radio.stations.length) % radio.stations.length];
-        if (st.kind === 'url' && !radio.failed[st.id]) break;
+        if ((st.kind === 'url' || st.kind === 'mine') && !radio.failed[st.id]) break;
       }
     }
     return playStation(i, !auto);
@@ -560,7 +596,8 @@ SC.audio = (function () {
   /* يُستأنف بعد إغلاق أي شاشة. إن رفض المتصفّح التشغيل (سياسة الصوت)
      ننتظر أوّل لمسة ونعيد المحاولة بدل أن يبقى صامتاً إلى الأبد. */
   function radioResume() {
-    if (!(radio.el && currentStation().kind === 'url' && radio.on && radioVolume() > 0)) return;
+    const k = currentStation().kind;
+    if (!(radio.el && (k === 'url' || k === 'mine') && radio.on && radioVolume() > 0)) return;
     radio.tried = (radio.tried || 0) + 1;
     const pr = radio.el.play();
     if (pr && pr.catch) pr.catch((e) => {
@@ -700,7 +737,7 @@ SC.audio = (function () {
   }
 
   return { init, resume, update, setEnabled, setVolume, setUnderwater, blip, crash, horn, hornBeep, pop,
-           menuPlay, menuStop, menuInfo, MENU_TRACK, pruneCache, radioState,
+           menuPlay, menuStop, menuInfo, MENU_TRACK, pruneCache, radioState, refreshStations,
            startMusic, stopMusic, setMusicVolume, setSfxVolume, setEngineSound, music,
            radioNext, radioPrev, radioSet, radioStations, radioCurrent, radioOnChange,
            cacheAll, refreshCached, radioCachedMap, radioSavingMap,

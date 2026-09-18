@@ -397,12 +397,18 @@ SC.character = (function () {
       car: () => {
         torso.rotation.set(-0.12, 0, 0);
         headPivot.rotation.set(0.06, 0, 0);
-        legL.hip.rotation.set(-1.32, 0.10, 0.10);
-        legR.hip.rotation.set(-1.36, -0.10, -0.10);
-        legL.knee.rotation.set(1.15, 0, 0);
-        legR.knee.rotation.set(1.22, 0, 0);
-        legL.ankle.rotation.set(0.28, 0, 0);
-        legR.ankle.rotation.set(0.22, 0, 0);
+        /* الفخذ شبه أفقيّ كجلسة سيارة منخفضة: الوضعية السابقة كانت
+           تُدلّي الساقين فتخرج الأقدام من أسفل الهيكل وتُرى تحت العتبة */
+        legL.hip.rotation.set(-1.64, 0.10, 0.10);
+        legR.hip.rotation.set(-1.68, -0.10, -0.10);
+        legL.knee.rotation.set(1.18, 0, 0);
+        legR.knee.rotation.set(1.25, 0, 0);
+        legL.ankle.rotation.set(0.30, 0, 0);
+        legR.ankle.rotation.set(0.24, 0, 0);
+        /* ما دون الركبة مخفيّ داخل السيارة: النماذج بلا حيّز للأقدام،
+           فكانت الأحذية تبرز من أسفل العتبة وتُرى من الخارج. لا أحد يرى
+           داخل حيّز الأقدام أصلاً، وعلى الدرّاجة تبقى الساقان ظاهرتين. */
+        legL.knee.visible = false; legR.knee.visible = false;
         helmet.visible = false; hair.visible = true;
       },
       bike: () => {
@@ -414,6 +420,7 @@ SC.character = (function () {
         legR.knee.rotation.set(1.95, 0, 0);
         legL.ankle.rotation.set(0.40, 0, 0);
         legR.ankle.rotation.set(0.40, 0, 0);
+        legL.knee.visible = true; legR.knee.visible = true;
         helmet.visible = true; hair.visible = false;
       }
     };
