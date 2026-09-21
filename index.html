@@ -15,7 +15,7 @@
 
 <!-- ============================================================
      NEXUS ENGINE — EMPTY CORE ENGINE
-     PART 1/8 · Document head, import map, design system
+     PART 1/10 · Document head, import map, design system
      ------------------------------------------------------------
      THE ENGINE PROVIDES THE TOOLS. THE USER CREATES THE GAME.
      ============================================================ -->
@@ -472,6 +472,39 @@ html[lang=en] .ed-bar,html[lang=en] .ed-find{direction:ltr}
 .console .l.sys{color:#5e6688}
 
 /* ============================================================
+   MULTI-LANGUAGE IDE
+   ============================================================ */
+.ide-wrap{display:flex;flex-direction:column;height:100%;min-height:0;gap:8px}
+.ide-tabs{flex:0 0 auto}
+.ide-toolbar{flex:0 0 auto;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+.ide-toolbar::-webkit-scrollbar{display:none}
+.ide-toolbar .btn{flex:0 0 auto}
+.ide-editor{flex:1 1 auto;min-height:170px;display:flex}
+.ide-panel-wrap{flex:0 0 auto;display:flex;flex-direction:column;gap:6px}
+.ide-seg{flex:0 0 auto}
+.ide-panel{
+  flex:0 0 auto;height:26vh;min-height:88px;max-height:300px;overflow-y:auto;
+  background:#06070e;border:1px solid var(--line);border-radius:var(--r-md);
+  font-family:var(--mono);font-size:11px;line-height:1.6;padding:6px 9px;
+  direction:ltr;text-align:left;
+}
+html.kb-open .ide-panel{height:0;min-height:0;padding:0;border-width:0}
+html.kb-open .ide-toolbar,html.kb-open .ide-seg{display:none}
+.ide-panel .l{padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03);white-space:pre-wrap;word-break:break-word;color:var(--ink-soft)}
+.ide-panel .l.err{color:#ff9aa8}.ide-panel .l.warn{color:#fcd77a}
+.ide-panel .l.ok{color:#8ceec2}.ide-panel .l.sys{color:#5e6688}
+.prob-row{display:flex;gap:9px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;align-items:flex-start}
+.prob-row:active{background:var(--glass)}
+.prob-row .sev{flex:0 0 auto;width:16px;text-align:center;font-weight:800}
+.prob-row.err .sev{color:#ff9aa8}.prob-row.warn .sev{color:#fcd77a}
+.prob-row .ptxt{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.prob-row .ptxt b{font-weight:600;font-size:11.5px;word-break:break-word;white-space:pre-wrap;font-family:var(--mono)}
+.prob-row .ploc{font-size:10px;color:var(--ink-dim)}
+.tc-row{border:1px solid var(--line);border-radius:var(--r-md);padding:12px;margin-bottom:10px;background:var(--panel-2)}
+.tc-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.tc-head b{flex:1;font-size:13.5px}
+
+/* ============================================================
    AI PANEL
    ============================================================ */
 .ai-log{display:flex;flex-direction:column;gap:11px;padding-bottom:6px}
@@ -528,7 +561,7 @@ html[lang=en] .ed-bar,html[lang=en] .ed-find{direction:ltr}
 </head>
 <body>
 <!-- ============================================================
-     PART 2/8 · Shell markup + UI kit
+     PART 2/10 · Shell markup + UI kit
      ============================================================ -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
 <defs>
@@ -655,7 +688,7 @@ html[lang=en] .ed-bar,html[lang=en] .ed-find{direction:ltr}
 
 <script type="module">
 /* ============================================================
-   PART 2/8 · UI KIT — DOM, i18n, sheets, modals, toasts, router
+   PART 2/10 · UI KIT — DOM, i18n, sheets, modals, toasts, router
    ============================================================ */
 const NX = (window.NX = window.NX || {});
 
@@ -953,7 +986,7 @@ Object.assign(NX, { $, $$, el, esc, icon, btn, iconBtn, fmtNum, fmtBytes, timeAg
 </script>
 <script type="module">
 /* ============================================================
-   PART 3/8 · BACKEND — Firebase Storage + Firestore + Auth
+   PART 3/10 · BACKEND — Firebase Storage + Firestore + Auth
    with an explicit, clearly-labelled offline fallback.
    ------------------------------------------------------------
    To go ONLINE: open Settings → Firebase and paste your config,
@@ -1419,7 +1452,7 @@ const Projects = {
    cannot set to an arbitrary number (rule 42)
    ============================================================ */
 const Games = {
-  async publish(project, meta) {
+  async publish(project, meta, build) {
     const u = Backend.user;
     const gameId = project.publishedId || uid('game');
     const prev = await Backend.getDoc('games', gameId);
@@ -1441,10 +1474,26 @@ const Games = {
       searchTokens: buildSearchTokens({ name: meta.title || project.name, tags: [meta.genre || ''], category: meta.genre || '', creatorName: u.name })
     };
     await Backend.setDoc('games', gameId, rec);
-    /* the runnable snapshot: scene graph + scripts, assets stay by reference */
+    /* The runnable snapshot: scene graph + COMPILED artifacts.
+       Assets stay by reference; WASM goes to Storage, never inline. */
+    const art = build && build.artifacts ? build.artifacts : null;
+    const wasmRefs = [];
+    if (art) {
+      for (const w of (art.wasm || [])) {
+        const blob = new Blob([w.bytes], { type: 'application/wasm' });
+        const up = await Backend.upload(`games/${u.uid}/${gameId}/${w.path}`, blob);
+        wasmRefs.push({ path: w.path, storagePath: up.path, url: up.url, bytes: w.bytes.length });
+      }
+    }
     await Backend.setDoc('builds', gameId, {
       gameId, ownerId: u.uid, updatedAt: Date.now(),
-      scene: project.scene, scripts: project.scripts, components: project.components,
+      scene: project.scene,
+      artifacts: art ? { scripts: art.scripts || [], components: art.components || [], ui: art.ui || [], styles: art.styles || [] } : null,
+      wasmRefs,
+      manifest: build ? build.manifest : null,
+      /* kept so builds published before the compiler existed still run */
+      scripts: art ? art.scripts : project.scripts,
+      components: art ? art.components : project.components,
       settings: project.settings, assetRefs: project.assetRefs || []
     });
     project.publishedId = gameId;
@@ -1631,7 +1680,7 @@ NX.FB_CONFIG = FB_CONFIG;
 </script>
 <script type="module">
 /* ============================================================
-   PART 4/8 · ENGINE CORE
+   PART 4/10 · ENGINE CORE
    An empty core: Scene, Camera, Light, Spawn Point and engine
    primitives. No bundled model/game library — everything else
    arrives as a user asset or user code.
@@ -2057,6 +2106,9 @@ class EngineCore {
       this.helpers.add(this.grid);
       this.selBox = new THREE.BoxHelper(undefined, 0x7c5cff);
       this.selBox.visible = false; this.helpers.add(this.selBox);
+      /* everything the editor draws on top of the scene can be switched off */
+      this.view = Object.assign({ grid: true, gizmos: true, outline: true, stats: true }, NX.LS.get('viewOpts', {}));
+      this.applyView();
     }
 
     this.selection = null;
@@ -2098,6 +2150,8 @@ class EngineCore {
     (parent && parent.object3D ? parent.object3D : this.root).add(o);
     this.entities.set(e.id, e);
     if (e.animations && e.animations.length) { e.mixer = new THREE.AnimationMixer(o); }
+    if (this.mode === 'editor' && this.view && this.view.gizmos === false)
+      o.traverse(n => { if (n.userData && n.userData.helper) n.visible = false; });
     this.emit('entityAdded', e);
     this.emit('changed');
     return e;
@@ -2201,6 +2255,21 @@ class EngineCore {
     }
   }
 
+  /* show / hide editor-only decoration (rule: the viewport is the game, not the tooling) */
+  applyView(patch) {
+    if (this.mode !== 'editor') return;
+    if (patch) Object.assign(this.view, patch);
+    NX.LS.set('viewOpts', this.view);
+    if (this.grid) this.grid.visible = this.view.grid !== false;
+    if (this.selBox) this.selBox.visible = this.view.outline !== false && !!this.selection;
+    this.helpers.visible = true;
+    for (const e of this.entities.values()) {
+      if (!e.object3D) continue;
+      e.object3D.traverse(n => { if (n.userData && n.userData.helper) n.visible = this.view.gizmos !== false; });
+    }
+    this.emit('view', this.view);
+  }
+
   getEntity(id) { return this.entities.get(id) || null; }
   entityOf(object3D) {
     let n = object3D;
@@ -2240,7 +2309,7 @@ class EngineCore {
     this.selection = id;
     const e = id ? this.entities.get(id) : null;
     if (this.selBox) {
-      if (e && e.object3D) { this.selBox.setFromObject(e.object3D); this.selBox.visible = true; }
+      if (e && e.object3D && (!this.view || this.view.outline !== false)) { this.selBox.setFromObject(e.object3D); this.selBox.visible = true; }
       else this.selBox.visible = false;
     }
     this.emit('selection', e);
@@ -2294,8 +2363,11 @@ class EngineCore {
       }
       start = { x: ev.clientX, y: ev.clientY };
       const hit = pick(ev.clientX, ev.clientY);
-      const sel = this.selection ? this.entities.get(this.selection) : null;
-      if (hit && sel && hit.e.id === sel.id && this.gizmo) {
+      /* touching any object grabs it straight away — select-then-move is not
+         required, so anything in the scene can be dragged in one gesture */
+      if (hit && this.gizmo && this.directDrag !== false) {
+        if (this.selection !== hit.e.id) this.select(hit.e.id);
+        const sel = hit.e;
         mode = 'drag';
         const o = sel.object3D;
         const camDir = new THREE.Vector3(); this.activeCamera.getWorldDirection(camDir);
@@ -2501,7 +2573,7 @@ NX.OrbitCam = OrbitCam;
 </script>
 <script type="module">
 /* ============================================================
-   PART 5/8 · ENGINE API + SCRIPT RUNTIME
+   PART 5/10 · ENGINE API + SCRIPT RUNTIME
    Gameplay logic belongs to the developer. The engine only
    hands over tools: Engine, Scene, Object, Player, Input,
    Physics, Audio, Camera, UI, Network, Events, Assets, Save,
@@ -3145,6 +3217,22 @@ class Runtime {
         n.appendChild(f); place(n, opts);
         return { el: n, set(v) { f.style.width = clamp(v, 0, 1) * 100 + '%'; }, color(c) { f.style.background = c; }, remove() { n.remove(); } };
       },
+      /* update every [data-bind="name"] element that came from an HTML file */
+      bind(name, value) {
+        const layer = rt._uiLayer;
+        if (!layer) return 0;
+        const nodes = layer.querySelectorAll('[data-bind="' + String(name).replace(/"/g, '') + '"]');
+        nodes.forEach(n => { n.textContent = String(value); });
+        return nodes.length;
+      },
+      /* read a value the player typed into an HTML input */
+      value(name) {
+        const layer = rt._uiLayer;
+        if (!layer) return '';
+        const n = layer.querySelector('[data-field="' + String(name).replace(/"/g, '') + '"]');
+        return n ? (n.value != null ? n.value : n.textContent) : '';
+      },
+      el(selector) { return rt._uiLayer ? rt._uiLayer.querySelector(selector) : null; },
       clear() { rt._uiNodes.forEach(n => n.remove()); rt._uiNodes = []; rt._joysticks = {}; rt._buttons = {}; }
     };
 
@@ -3314,6 +3402,94 @@ ${code}
     this.engine.physicsEnabled = true;
   }
 
+  /* ----------------------------------------------------------
+     Run a compiled build: JS/TS scripts, WASM modules, HTML+CSS.
+     Every artifact here came out of a real compiler pass.
+     ---------------------------------------------------------- */
+  async runBuild(build, opts = {}) {
+    this.build = build;
+    const art = build.artifacts || {};
+    this.project = Object.assign({}, this.project || {}, {
+      scripts: art.scripts || [],
+      components: art.components || []
+    });
+    await this.mountUILayer(art, opts);
+    await this.run();
+    await this.runWasm(art, opts);
+    return this;
+  }
+
+  async mountUILayer(art, opts = {}) {
+    const host = this.uiHost || document.getElementById('player-ui');
+    if (!host) return;
+    if (!(art.ui || []).length && !(art.styles || []).length) return;
+    const layer = document.createElement('div');
+    layer.id = 'game-ui-layer';
+    Object.assign(layer.style, { position: 'absolute', inset: '0', pointerEvents: 'none', overflow: 'hidden' });
+    (art.styles || []).forEach(sheet => {
+      const st = document.createElement('style');
+      st.textContent = sheet.code;
+      layer.appendChild(st);
+    });
+    (art.ui || []).forEach(doc => {
+      const wrap = document.createElement('div');
+      wrap.className = 'game-ui-doc';
+      wrap.dataset.src = doc.path;
+      wrap.style.pointerEvents = 'auto';
+      wrap.innerHTML = doc.code;          // already stripped of scripts and on* handlers
+      layer.appendChild(wrap);
+    });
+    host.appendChild(layer);
+    this._uiLayer = layer;
+    this._uiNodes.push(layer);
+
+    /* declarative HTML → engine wiring (rule 7) */
+    const api = this.api();
+    layer.querySelectorAll('[data-emit]').forEach(n => {
+      const ev = n.getAttribute('data-emit');
+      const val = n.getAttribute('data-value');
+      const type = n.getAttribute('data-on') || 'click';
+      n.addEventListener(type, e => {
+        e.preventDefault();
+        api.Events.emit(ev, val != null ? val : (n.value != null ? n.value : true));
+      });
+    });
+    layer.querySelectorAll('[data-action]').forEach(n => {
+      n.addEventListener('click', () => {
+        const a = n.getAttribute('data-action');
+        if (a === 'stop') this.stop();
+        else api.Events.emit('ui:' + a);
+      });
+    });
+  }
+
+  async runWasm(art, opts = {}) {
+    const mods = art.wasm || [];
+    if (!mods.length) return;
+    this.wasmModules = this.wasmModules || [];
+    for (const m of mods) {
+      const bridge = new NX.EngineBridge(this, { permissions: opts.permissions, onLog: (msg, t) => this.onLog('[' + m.path + '] ' + msg, t) });
+      try {
+        const mod = await NX.WasmModule.instantiate(m.path, m.bytes, bridge, (msg, t) => this.onLog(msg, t));
+        this.wasmModules.push(mod);
+        this.onLog(`WASM ${m.path}: ${Object.keys(mod.exports).filter(k => typeof mod.exports[k] === 'function').join(', ') || '—'}`, 'sys');
+        try { mod.start(); } catch (e) { this.error(e, m.path + ':start'); }
+      } catch (e) {
+        this.error(e, m.path);
+      }
+    }
+    const live = this.wasmModules.filter(m => m.hasUpdate);
+    if (live.length) {
+      const off = this.engine.onUpdate(dt => {
+        for (const m of live) {
+          try { m.update(dt); }
+          catch (e) { this.error(e, m.name + ':update'); const i = live.indexOf(m); if (i >= 0) live.splice(i, 1); }
+        }
+      });
+      this._cleanups.push(off);
+    }
+  }
+
   async _boot(code, label, selfHandle, props) {
     try {
       const make = this.compile(code, label);
@@ -3327,6 +3503,9 @@ ${code}
     if (!this.running) return;
     this.running = false;
     for (const inst of this.instances) { if (inst.destroy) { try { inst.destroy(); } catch (e) { this.error(e); } } }
+    (this.wasmModules || []).forEach(m => { try { m.destroy(); } catch {} });
+    this.wasmModules = [];
+    if (this._uiLayer) { this._uiLayer.remove(); this._uiLayer = null; }
     this._cleanups.forEach(f => { try { f(); } catch {} });
     this._timers.forEach(f => { try { f(); } catch {} });
     this._uiNodes.forEach(n => n.remove());
@@ -3473,7 +3652,7 @@ NX.SHADOWED = SHADOWED;
 </script>
 <script type="module">
 /* ============================================================
-   PART 6/8 · ASSET PIPELINE + PUBLIC ASSET LIBRARY
+   PART 6/10 · ASSET PIPELINE + PUBLIC ASSET LIBRARY
    Users are the source of assets. Nothing here ships with the
    engine — the library is whatever people upload.
    ============================================================ */
@@ -4139,7 +4318,7 @@ NX.ACCEPT = ACCEPT;
 </script>
 <script type="module">
 /* ============================================================
-   PART 7/8 · MOBILE-FIRST STUDIO
+   PART 7/10 · MOBILE-FIRST STUDIO
    The viewport is the centre of gravity. Every panel is a
    temporary sheet that gets out of the way (rules 20-25).
    ============================================================ */
@@ -4286,6 +4465,14 @@ class CodeEditor {
     const show = on == null ? this.find.classList.contains('hide') : on;
     this.find.classList.toggle('hide', !show);
     if (show) this.findInput.focus();
+  }
+  goToLine(n) {
+    const lines = this.ta.value.split('\n');
+    let pos = 0;
+    for (let i = 0; i < Math.min(n - 1, lines.length); i++) pos += lines[i].length + 1;
+    this.ta.focus();
+    this.ta.setSelectionRange(pos, pos + (lines[n - 1] || '').length);
+    this.ensureCaretVisible();
   }
   findNext() {
     const q = this.findInput.value;
@@ -4728,9 +4915,12 @@ const Studio = {
       this.engine = new EngineCore($('#viewport'), { mode: 'editor' });
       this.engine.on('selection', e => this.onSelection(e));
       this.engine.on('changed', () => { this.dirty = true; this.updateHud(); });
+      this.engine.on('view', () => this.updateHud());
       this.bindChrome();
       this.engine.start();
     }
+    NX.migrateProjectFiles(project);
+    this.lastBuild = null;
     await this.engine.load(project.scene || NX.emptyScene());
     this.engine.focusAll();
     this.updateHud();
@@ -4754,7 +4944,7 @@ const Studio = {
     const items = [
       ['layers', T('scene'), () => this.openHierarchy()],
       ['cube', T('assets'), () => this.openAssets()],
-      ['code', T('code'), () => this.openCode()],
+      ['code', T('code'), () => NX.IDE.open(this.project)],
       ['globe', T('world'), () => this.openWorld()],
       ['spark', T('ai'), () => this.openAI()],
       ['grid', T('more'), () => this.openMore()]
@@ -4775,10 +4965,7 @@ const Studio = {
     $('#s-more').onclick = () => this.openMore();
     $('#vt-add').onclick = () => this.openAddObject();
     $('#vt-focus').onclick = () => this.engine.focus();
-    $('#vt-grid').onclick = e => {
-      const g = this.engine.grid; g.visible = !g.visible;
-      e.currentTarget.classList.toggle('on', !g.visible);
-    };
+    $('#vt-grid').onclick = () => this.openViewOptions();
     $('#sel-insp').onclick = () => { const e = this.engine.getEntity(this.engine.selection); if (e) this.openInspector(e); };
     $$('#sel-bar [data-gizmo]').forEach(b => {
       b.onclick = () => {
@@ -4789,9 +4976,45 @@ const Studio = {
     $$('#sel-bar [data-gizmo]')[0].classList.add('on');
   },
 
+  /* what the editor paints over the scene is the user's choice */
+  openViewOptions() {
+    const v = this.engine.view || {};
+    const body = el('div');
+    body.appendChild(el('p', { class: 'tiny', style: { marginBottom: '12px' },
+      text: 'هذه عناصر المحرر فقط ولا تظهر في اللعبة المنشورة. أطفئها متى شئت.' }));
+    const rows = [
+      ['grid', 'شبكة الأرضية · Grid'],
+      ['gizmos', 'مؤشرات الإضاءة والكاميرا ونقطة الظهور · Gizmos'],
+      ['outline', 'إطار التحديد · Selection outline'],
+      ['stats', 'عداد الأداء · Stats']
+    ];
+    rows.forEach(([k, label]) => {
+      const r = el('div', { class: 'switch' }, [el('span', { text: label })]);
+      const tg = el('div', { class: 'tgl' + (v[k] !== false ? ' on' : '') });
+      tg.onclick = () => {
+        const on = !(this.engine.view[k] !== false);
+        this.engine.applyView({ [k]: on });
+        tg.classList.toggle('on', on);
+        this.updateHud();
+      };
+      r.appendChild(tg); body.appendChild(r);
+    });
+    body.appendChild(el('hr', { class: 'sep' }));
+    body.appendChild(btn('إخفاء كل عناصر المحرر', { cls: 'block', icon: 'eye-off', onclick: () => {
+      this.engine.applyView({ grid: false, gizmos: false, outline: false, stats: false });
+      this.updateHud(); Toast.ok('مشهد نظيف — المجسمات فقط'); sheet.close();
+    }}));
+    body.appendChild(btn('إظهار الكل', { cls: 'block ghost', style: { marginTop: '8px' }, icon: 'eye', onclick: () => {
+      this.engine.applyView({ grid: true, gizmos: true, outline: true, stats: true });
+      this.updateHud(); sheet.close();
+    }}));
+    const sheet = Sheet.open({ title: 'عرض المحرر · View', body, id: 'viewopts' });
+  },
+
   updateHud() {
     const s = this.engine.stats;
-    $('#vp-hud').textContent = `${s.entities} obj · ${fmtNum(s.tris)} tris · ${s.calls} calls`;
+    const v = this.engine.view || {};
+    $('#vp-hud').textContent = v.stats === false ? '' : `${s.entities} obj · ${fmtNum(s.tris)} tris · ${s.calls} calls`;
     $('#s-sub').textContent = (this.dirty ? '● ' : '') + (this.project ? this.project.name : '') + ' · ' + (Backend.isOnline() ? 'online' : 'local');
     this.updateEmptyState();
   },
@@ -5047,12 +5270,12 @@ const Studio = {
     const cb = el('div', { class: 'acc-body' });
     const drawComps = () => {
       cb.textContent = '';
-      const scripts = (this.project.scripts || []).filter(s => s.entityId === e.id);
-      scripts.forEach(s => {
+      const attached = (this.project.files || []).filter(f => f.entityId === e.id);
+      attached.forEach(s => {
         const r = el('div', { class: 'comp-row' });
         r.appendChild(icon('code'));
-        r.appendChild(el('b', { text: s.name }));
-        r.appendChild(iconBtn('trash', { onclick: () => { this.project.scripts = this.project.scripts.filter(x => x.id !== s.id); this.dirty = true; drawComps(); } }));
+        r.appendChild(el('b', { text: s.path }));
+        r.appendChild(iconBtn('trash', { onclick: () => { this.project.files = this.project.files.filter(x => x.id !== s.id); this.dirty = true; drawComps(); } }));
         r.onclick = ev => { if (ev.target.closest('.icon-btn')) return; this.openCode(s.id); };
         cb.appendChild(r);
       });
@@ -5113,97 +5336,8 @@ const Studio = {
     return c;
   },
 
-  openCode(scriptId, componentId) {
-    const p = this.project;
-    p.scripts = p.scripts || []; p.components = p.components || [];
-    let current = componentId
-      ? p.components.find(c => c.id === componentId)
-      : (scriptId ? p.scripts.find(s => s.id === scriptId) : p.scripts[0]);
-    if (!current) current = this.newScript(null);
-
-    const body = el('div', { style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: '0' } });
-    const filebar = el('div', { class: 'chips', style: { marginBottom: '8px', flex: '0 0 auto' } });
-    const edHost = el('div', { style: { flex: '1', minHeight: '260px', display: 'flex' } });
-    body.append(filebar, edHost);
-
-    let editor = null;
-    const openFile = rec => {
-      current = rec;
-      if (!editor) {
-        editor = new CodeEditor(edHost, {
-          value: rec.code, name: rec.name,
-          onSave: v => { current.code = v; this.dirty = true; Toast.ok('حُفظ ' + current.name); this.save(true); },
-          onRun: v => { current.code = v; this.dirty = true; this.testScript(current, editor); }
-        });
-        this.editors.main = editor;
-      } else { editor.value = rec.code; editor.setName(rec.name); editor.clearLog(); }
-      drawFiles();
-    };
-    const drawFiles = () => {
-      filebar.textContent = '';
-      p.scripts.forEach(s => {
-        const c = el('button', { class: 'chip' + (current.id === s.id ? ' on' : ''), text: s.name + (s.entityId ? ' ⚲' : ''), onclick: () => { if (editor) current.code = editor.value; openFile(s); } });
-        filebar.appendChild(c);
-      });
-      p.components.forEach(cm => {
-        const c = el('button', { class: 'chip' + (current.id === cm.id ? ' on' : ''), text: '⬚ ' + cm.name, onclick: () => { if (editor) current.code = editor.value; openFile(cm); } });
-        filebar.appendChild(c);
-      });
-      filebar.appendChild(el('button', { class: 'chip', text: '+ سكربت', onclick: () => { if (editor) current.code = editor.value; openFile(this.newScript(null)); } }));
-      filebar.appendChild(el('button', { class: 'chip', text: '+ مكوّن', onclick: async () => { if (editor) current.code = editor.value; const c = await this.newComponent(); } }));
-    };
-    openFile(current);
-
-    const sheet = Sheet.open({
-      title: T('code'), body, full: true, id: 'code',
-      headExtra: [
-        iconBtn('book', { label: 'api', onclick: () => this.openAPIDocs() }),
-        iconBtn('dots', { label: 'options', onclick: () => this.scriptOptions(current, () => { drawFiles(); if (editor) editor.setName(current.name); }, sheet) })
-      ],
-      onClose: () => { if (editor) { current.code = editor.value; this.dirty = true; this.save(true); } }
-    });
-    setTimeout(() => { const s = $('.sheet.in .sheet-body'); if (s) s.style.display = 'flex'; if (s) s.style.flexDirection = 'column'; }, 40);
-  },
-
-  scriptOptions(rec, after, sheet) {
-    const isScript = !!this.project.scripts.find(s => s.id === rec.id);
-    const body = el('div');
-    body.appendChild(btn('إعادة تسمية', { cls: 'block', style: { marginBottom: '8px' }, onclick: async () => {
-      const n = await Modal.prompt('اسم الملف', rec.name);
-      if (n) { rec.name = n; this.dirty = true; after(); }
-      s2.close();
-    }}));
-    if (isScript) {
-      body.appendChild(btn('ربط بكائن محدد', { cls: 'block', style: { marginBottom: '8px' }, onclick: () => {
-        const sel = this.engine.selection;
-        if (!sel) { Toast.err('حدّد كائنًا في المشهد أولًا'); return; }
-        rec.entityId = sel; this.dirty = true;
-        Toast.ok('رُبط بـ ' + this.engine.getEntity(sel).name);
-        after(); s2.close();
-      }}));
-      body.appendChild(btn('فك الارتباط (سكربت عام)', { cls: 'block', style: { marginBottom: '8px' }, onclick: () => { rec.entityId = null; this.dirty = true; after(); s2.close(); } }));
-    }
-    body.appendChild(btn(T('delete'), { cls: 'danger block', onclick: async () => {
-      if (!await Modal.confirm('حذف ' + rec.name + '؟', 'لا يمكن التراجع عن حذف الكود.', T('delete'))) return;
-      this.project.scripts = this.project.scripts.filter(x => x.id !== rec.id);
-      this.project.components = this.project.components.filter(x => x.id !== rec.id);
-      this.dirty = true; s2.close(); sheet.close(); this.openCode();
-    }}));
-    const s2 = Sheet.open({ title: rec.name, body, id: 'scriptopt' });
-  },
-
-  /* quick syntax + smoke test without leaving the editor */
-  testScript(rec, editor) {
-    editor.log('— فحص ' + rec.name, 'sys');
-    const rt = new Runtime(this.engine, { project: this.project, onLog: (m, t) => editor.log(m, t) });
-    try {
-      rt.compile(rec.code, rec.name);
-      editor.log('✓ لا أخطاء في الصياغة', 'ok');
-      editor.log('شغّل اللعبة (▶) لتنفيذه فعليًا داخل المشهد.', 'sys');
-    } catch (e) {
-      editor.log('✗ ' + (e.message || e), 'err');
-    } finally { rt.stop(); }
-  },
+  /* openCode / newScript / newComponent / pickComponent are provided by
+     PART 10 so every language shares one editor and one build pipeline. */
 
   /* ---------------- world ---------------- */
   openWorld() {
@@ -5416,7 +5550,9 @@ const Studio = {
       item('share', 'نشر اللعبة · Publish', () => this.openPublish()),
       item('undo', 'تراجع عن آخر تغيير في المشهد', () => this.undo()),
       item('book', T('apiDocs'), () => this.openAPIDocs()),
-      item('code', 'مدير الكود', () => this.openCode()),
+      item('code', 'الكود ومتعدّد اللغات', () => NX.IDE.open(this.project)),
+      item('box', 'بناء المشروع · BUILD', () => this.buildProject()),
+      item('gear', 'سلاسل الأدوات · Toolchains', () => NX.IDE.openToolchains()),
       item('shield', 'الأمان و قواعد Firebase', () => NX.openSecurityPanel()),
       item('gear', T('settings'), () => NX.openSettings()),
       item('trash', 'تفريغ المشهد', async () => {
@@ -5450,17 +5586,50 @@ const Studio = {
     $('#vp-wrap').appendChild(overlay);
     this._overlay = overlay;
 
-    const logs = [];
-    this.runtime = new Runtime(this.engine, {
-      project: this.project, uiHost: overlay,
-      onLog: (m, t) => { logs.push([m, t]); if (t === 'err') Toast.err(m.split('\n')[0]); if (this.editors.main) this.editors.main.log(m, t); }
-    });
+    const onLog = (m, t) => { if (t === 'err') Toast.err(String(m).split('\n')[0]); if (NX.IDE) NX.IDE.log(m, t); };
+    this.runtime = new Runtime(this.engine, { project: this.project, uiHost: overlay, onLog });
+
+    /* BUILD → RUN. A build that did not succeed never reaches the runtime. */
+    let build = this.lastBuild;
+    const stale = !build || build.projectRev !== this.projectRev();
+    if (stale) build = await this.buildProject({ silent: true });
+    if (!build || !build.ok) {
+      await this.stopPlay();
+      Toast.err('فشل البناء — افتح «الكود ← Problems»');
+      if (NX.IDE) NX.IDE.open(this.project, { panel: 'problems' });
+      return;
+    }
     try {
-      await this.runtime.run();
-      Toast.ok('تشغيل — اضغط ⏹ للعودة للتحرير');
+      await this.runtime.runBuild(build);
+      const n = (build.artifacts.wasm || []).length;
+      Toast.ok('تشغيل' + (n ? ` · ${n} وحدة WASM` : '') + ' — اضغط ⏹ للعودة');
     } catch (e) {
       Toast.err('خطأ عند التشغيل: ' + (e.message || e));
     }
+  },
+
+  /* a cheap revision stamp so we can skip rebuilding an unchanged project */
+  projectRev() {
+    const f = this.project.files || [];
+    return f.length + ':' + f.map(x => x.path + x.code.length).join('|');
+  },
+
+  async buildProject(opts = {}) {
+    const p = this.project;
+    if (!p.files || !p.files.length) NX.migrateProjectFiles(p);
+    const build = await NX.BuildManager.build(p, {
+      onLog: (m, t) => { if (NX.IDE) NX.IDE.log(m, t); },
+      typeCheck: p.settings ? p.settings.typeCheck !== false : true,
+      strict: !!(p.settings && p.settings.strict)
+    });
+    build.projectRev = this.projectRev();
+    this.lastBuild = build;
+    if (NX.IDE) NX.IDE.showBuild(build);
+    if (!opts.silent) {
+      if (build.ok) Toast.ok(`✓ البناء تمّ في ${build.durationMs}ms`);
+      else Toast.err(`✗ ${build.diagnostics.filter(d => d.severity === 'error').length} خطأ`);
+    }
+    return build;
   },
 
   async stopPlay() {
@@ -5538,8 +5707,10 @@ const Studio = {
             const up = await Backend.upload(`games/${Backend.user.uid}/${p.projectId}/cover.webp`, coverBlob);
             coverPath = up.path; coverURL = up.url;
           }
+          const build = await this.buildProject({ silent: true });
+          if (!build || !build.ok) { Toast.err('لا يمكن النشر: البناء فاشل'); if (NX.IDE) NX.IDE.open(p, { panel: 'problems' }); return; }
           const meta = { title: title.value.trim() || p.name, description: desc.value.trim(), genre: genre.value, visibility: vis, cover: coverPath, coverURL };
-          const rec = await Games.publish(p, meta);
+          const rec = await Games.publish(p, meta, build);
           p.publishMeta = { ...meta, coverURL };
           await Projects.save(p);
           Toast.ok('نُشرت اللعبة');
@@ -5560,7 +5731,1779 @@ NX.AI = AI;
 </script>
 <script type="module">
 /* ============================================================
-   PART 8/8 · GAME PLATFORM + BOOT
+   PART 9/10 · BUILD SYSTEM
+   Toolchain Manager · Language Adapters · Build Manager ·
+   Compiler Cache · Engine Bridge (WASM ABI) · Runtime loaders
+   ------------------------------------------------------------
+   HARD RULE: a language is only ever reported as compiled when a
+   real compiler actually ran. When a toolchain is missing the
+   build FAILS with "Compiler unavailable" — never a fake success.
+   ============================================================ */
+const NX = window.NX;
+const { LS, IDB, uid, fmtBytes } = NX;
+
+/* ------------------------------------------------------------
+   LANGUAGES
+   ------------------------------------------------------------ */
+const LANGS = {
+  javascript: { id: 'javascript', name: 'JavaScript', exts: ['js', 'mjs'],        pipeline: 'direct',     target: 'script', toolchain: null },
+  typescript: { id: 'typescript', name: 'TypeScript', exts: ['ts'],               pipeline: 'transpile',  target: 'script', toolchain: 'typescript' },
+  c:          { id: 'c',          name: 'C',          exts: ['c', 'h'],           pipeline: 'compile',    target: 'wasm',   toolchain: 'clang-wasi' },
+  cpp:        { id: 'cpp',        name: 'C++',        exts: ['cpp','cc','cxx','hpp','hh','hxx'], pipeline: 'compile', target: 'wasm', toolchain: 'clang-wasi' },
+  csharp:     { id: 'csharp',     name: 'C#',         exts: ['cs'],               pipeline: 'compile',    target: 'wasm',   toolchain: 'dotnet-wasm' },
+  html:       { id: 'html',       name: 'HTML',       exts: ['html', 'htm'],      pipeline: 'direct',     target: 'ui',     toolchain: null },
+  css:        { id: 'css',        name: 'CSS',        exts: ['css'],              pipeline: 'direct',     target: 'style',  toolchain: null },
+  wasm:       { id: 'wasm',       name: 'WebAssembly',exts: ['wasm'],             pipeline: 'prebuilt',   target: 'wasm',   toolchain: null }
+};
+const extLang = ext => {
+  ext = String(ext || '').toLowerCase();
+  for (const k in LANGS) if (LANGS[k].exts.includes(ext)) return LANGS[k];
+  return null;
+};
+const langOf = path => extLang(String(path).split('.').pop());
+const isHeader = path => ['h', 'hpp', 'hh', 'hxx'].includes(String(path).split('.').pop().toLowerCase());
+
+/* ------------------------------------------------------------
+   COMPILER CACHE — skip work when the source has not changed
+   (rule 20: matters most on a phone)
+   ------------------------------------------------------------ */
+const CompilerCache = {
+  _mem: new Map(),
+  async hash(str) {
+    try {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+    } catch {
+      let h = 5381;
+      for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+      return 'f' + (h >>> 0).toString(16);
+    }
+  },
+  async key(lang, source, options) { return lang + '_' + await this.hash(source + '\u0000' + JSON.stringify(options || {})); },
+  async get(k) {
+    if (this._mem.has(k)) return this._mem.get(k);
+    try { const v = await IDB.get('docs', 'cc/' + k); if (v) { this._mem.set(k, v); return v; } } catch {}
+    return null;
+  },
+  async set(k, v) {
+    this._mem.set(k, v);
+    try { await IDB.put('docs', 'cc/' + k, v); } catch {}
+    return v;
+  },
+  async clear() {
+    this._mem.clear();
+    try {
+      const keys = await IDB.keys('docs');
+      for (const k of keys) if (String(k).startsWith('cc/')) await IDB.del('docs', k);
+    } catch {}
+  }
+};
+
+/* ------------------------------------------------------------
+   TOOLCHAIN MANAGER (rule 25)
+   Installing means: fetch the real compiler, cache it, then prove
+   it works by compiling a probe. Only then is it READY.
+   ------------------------------------------------------------ */
+const Toolchain = {
+  reg: {
+    typescript: {
+      id: 'typescript', name: 'TypeScript Compiler (tsc)', lang: 'typescript', kind: 'transpiler',
+      approxSize: '~9 MB', runsIn: 'Web Worker',
+      defaultURL: 'https://cdn.jsdelivr.net/npm/typescript@5.4.5/lib/typescript.js',
+      note: 'المترجم الرسمي من Microsoft يعمل كاملًا داخل المتصفح.',
+      status: 'not-installed', version: '', error: '', instance: null
+    },
+    'clang-wasi': {
+      id: 'clang-wasi', name: 'C / C++ → WebAssembly', lang: 'c,cpp', kind: 'compiler',
+      approxSize: 'كبير (عشرات الميغابايت)', runsIn: 'WebAssembly',
+      defaultURL: '',
+      note: 'يحتاج حزمة مترجم WASI تطابق عقد Toolchain Provider أدناه. لا توجد حزمة مضمّنة — ضع رابطك.',
+      status: 'unavailable', version: '', error: '', instance: null
+    },
+    'dotnet-wasm': {
+      id: 'dotnet-wasm', name: 'C# → WebAssembly (.NET)', lang: 'csharp', kind: 'compiler',
+      approxSize: 'كبير جدًا (‎30 MB+‎)', runsIn: 'WebAssembly',
+      defaultURL: '',
+      note: 'يحتاج وقت تشغيل .NET WASM مع Roslyn يطابق عقد Toolchain Provider. لا توجد حزمة مضمّنة.',
+      status: 'unavailable', version: '', error: '', instance: null
+    }
+  },
+
+  url(id) { return LS.get('toolchainURL.' + id, '') || (this.reg[id] ? this.reg[id].defaultURL : ''); },
+  setURL(id, u) { LS.set('toolchainURL.' + id, u || ''); const t = this.reg[id]; if (t) { t.status = u ? 'not-installed' : (t.defaultURL ? 'not-installed' : 'unavailable'); t.error = ''; } },
+  get(id) { return this.reg[id] || null; },
+  isReady(id) { const t = this.reg[id]; return !!(t && t.status === 'ready' && t.instance); },
+  statusText(id) {
+    const t = this.reg[id]; if (!t) return 'UNKNOWN';
+    return { 'ready': 'READY', 'installing': 'INSTALLING…', 'not-installed': 'NOT INSTALLED', 'unavailable': 'UNAVAILABLE', 'failed': 'FAILED' }[t.status] || t.status;
+  },
+
+  async install(id, onProgress) {
+    const t = this.reg[id];
+    if (!t) throw new Error('UNKNOWN_TOOLCHAIN:' + id);
+    if (t.status === 'ready') return t;
+    const url = this.url(id);
+    if (!url) { t.status = 'unavailable'; t.error = 'لا يوجد رابط لحزمة المترجم.'; throw new Error('NO_TOOLCHAIN_URL'); }
+    t.status = 'installing'; t.error = '';
+    this._emit();
+    try {
+      let inst;
+      if (id === 'typescript') inst = await this._installTypeScript(url, onProgress);
+      else inst = await this._installProvider(id, url, onProgress);
+      t.instance = inst; t.version = inst.version || ''; t.status = 'ready';
+      this._emit();
+      return t;
+    } catch (e) {
+      t.status = 'failed'; t.error = String(e && e.message || e); t.instance = null;
+      this._emit();
+      throw e;
+    }
+  },
+
+  /* --- the real tsc, cached for offline use, verified by a probe compile --- */
+  async _installTypeScript(url, onProgress) {
+    let src = await this._cachedText('tc/typescript', url, onProgress);
+    const boot = `
+      self.onmessage = function (e) {
+        var m = e.data || {};
+        try {
+          if (m.type === 'ping') { postMessage({ id: m.id, ok: true, version: ts.version }); return; }
+          if (m.type === 'transpile') {
+            var out = ts.transpileModule(m.code, {
+              fileName: m.fileName,
+              reportDiagnostics: true,
+              compilerOptions: {
+                target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None,
+                inlineSourceMap: true, inlineSources: true,
+                removeComments: false, strict: !!m.strict,
+                allowJs: true
+              }
+            });
+            var diags = (out.diagnostics || []).map(function (d) {
+              var line = 0, col = 0;
+              if (d.file && d.start != null) { var p = d.file.getLineAndCharacterOfPosition(d.start); line = p.line + 1; col = p.character + 1; }
+              return { severity: d.category === 1 ? 'error' : 'warning', line: line, column: col,
+                       message: ts.flattenDiagnosticMessageText(d.messageText, ' '), code: d.code };
+            });
+            postMessage({ id: m.id, ok: true, js: out.outputText, diagnostics: diags });
+            return;
+          }
+          if (m.type === 'check') {
+            /* real semantic type checking against the lib files we were given */
+            var files = m.files || {}, libs = m.libs || {};
+            var all = {}; for (var k in files) all[k] = files[k]; for (var k2 in libs) all[k2] = libs[k2];
+            var opts = { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None, strict: !!m.strict,
+                         noEmit: true, skipLibCheck: true, noLib: false, types: [] };
+            var host = {
+              getSourceFile: function (n) { return all[n] != null ? ts.createSourceFile(n, all[n], ts.ScriptTarget.ES2020, true) : undefined; },
+              getDefaultLibFileName: function () { return Object.keys(libs)[0] || 'lib.d.ts'; },
+              writeFile: function () {}, getCurrentDirectory: function () { return '/'; },
+              getDirectories: function () { return []; }, fileExists: function (n) { return all[n] != null; },
+              readFile: function (n) { return all[n]; }, getCanonicalFileName: function (n) { return n; },
+              useCaseSensitiveFileNames: function () { return true; }, getNewLine: function () { return '\\n'; }
+            };
+            /* lib files ride along as roots so ambient types resolve */
+            var prog = ts.createProgram(Object.keys(files).concat(Object.keys(libs)), opts, host);
+            var ds = ts.getPreEmitDiagnostics(prog).map(function (d) {
+              var line = 0, col = 0, file = '';
+              if (d.file) { file = d.file.fileName; if (d.start != null) { var p = d.file.getLineAndCharacterOfPosition(d.start); line = p.line + 1; col = p.character + 1; } }
+              return { severity: d.category === 1 ? 'error' : 'warning', file: file, line: line, column: col,
+                       message: ts.flattenDiagnosticMessageText(d.messageText, ' '), code: d.code };
+            });
+            postMessage({ id: m.id, ok: true, diagnostics: ds });
+            return;
+          }
+          postMessage({ id: m.id, ok: false, error: 'unknown message' });
+        } catch (err) { postMessage({ id: m.id, ok: false, error: String(err && err.message || err) }); }
+      };`;
+    const worker = new Worker(URL.createObjectURL(new Blob([src, '\n;', boot], { type: 'text/javascript' })));
+    src = null;
+    let seq = 0;
+    const pending = new Map();
+    worker.onmessage = e => { const p = pending.get(e.data.id); if (p) { pending.delete(e.data.id); p(e.data); } };
+    worker.onerror = e => { pending.forEach(p => p({ ok: false, error: e.message })); pending.clear(); };
+    const call = (msg, timeout = 45000) => new Promise((res, rej) => {
+      const id = ++seq;
+      const t = setTimeout(() => { pending.delete(id); rej(new Error('TOOLCHAIN_TIMEOUT')); }, timeout);
+      pending.set(id, d => { clearTimeout(t); d.ok ? res(d) : rej(new Error(d.error || 'worker error')); });
+      worker.postMessage(Object.assign({ id }, msg));
+    });
+
+    const ping = await call({ type: 'ping' }, 60000);
+    /* prove it really compiles before claiming READY */
+    const probe = await call({ type: 'transpile', code: 'const probe: number = 1; export {};', fileName: 'probe.ts' });
+    if (!probe.js || !/probe/.test(probe.js)) throw new Error('TOOLCHAIN_VERIFY_FAILED');
+    return { version: ping.version, call, worker, libs: null };
+  },
+
+  /* --- generic provider contract (rules 10, 12, 27) ---
+     The URL must be an ES module with:
+       export default { name, version, async compile({ lang, files, options }) }
+     returning { ok, wasm?: Uint8Array, js?: string, diagnostics: [...], log: [...] }
+     Nothing is assumed about which compiler sits behind it, so any
+     self-hosted WASI/.NET toolchain can be plugged in. */
+  async _installProvider(id, url, onProgress) {
+    onProgress && onProgress(0.05, 'تحميل الحزمة…');
+    const mod = await import(/* @vite-ignore */ url);
+    const provider = mod.default || mod.provider || mod;
+    if (!provider || typeof provider.compile !== 'function')
+      throw new Error('PROVIDER_CONTRACT_MISMATCH: لا توجد دالة compile({lang,files,options})');
+    onProgress && onProgress(0.7, 'التحقق…');
+    if (typeof provider.init === 'function') await provider.init({ onProgress });
+    return { version: provider.version || '', compile: provider.compile.bind(provider), raw: provider };
+  },
+
+  async _cachedText(key, url, onProgress) {
+    const cached = await IDB.get('blobs', key + '@' + url).catch(() => null);
+    if (cached) { onProgress && onProgress(1, 'من الذاكرة المؤقتة'); return typeof cached === 'string' ? cached : await cached.text(); }
+    onProgress && onProgress(0.02, 'تنزيل المترجم…');
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('DOWNLOAD_FAILED_' + r.status);
+    const total = Number(r.headers.get('content-length')) || 0;
+    let text;
+    if (r.body && total) {
+      const reader = r.body.getReader(); const chunks = []; let got = 0;
+      for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); got += value.length; onProgress && onProgress(got / total, fmtBytes(got) + ' / ' + fmtBytes(total)); }
+      const buf = new Uint8Array(got); let off = 0; for (const c of chunks) { buf.set(c, off); off += c.length; }
+      text = new TextDecoder().decode(buf);
+    } else text = await r.text();
+    try { await IDB.put('blobs', key + '@' + url, new Blob([text], { type: 'text/javascript' })); } catch {}
+    return text;
+  },
+
+  /* lib.d.ts files enable real type checking; without them we transpile only */
+  async ensureTSLibs(onLog) {
+    const t = this.reg.typescript;
+    if (!t.instance) return null;
+    if (t.instance.libs) return t.instance.libs;
+    const base = this.url('typescript').replace(/\/[^/]*$/, '/');
+    /* lib.dom is deliberately NOT loaded: user scripts have no DOM, so the
+       type checker should agree with the sandbox rather than contradict it. */
+    const queue = ['lib.es2020.d.ts'];
+    const libs = {};
+    let failed = 0;
+    while (queue.length && Object.keys(libs).length < 40) {
+      const n = queue.shift();
+      if (libs[n]) continue;
+      try {
+        const cachedKey = 'tslib/' + n;
+        let txt = await IDB.get('blobs', cachedKey).catch(() => null);
+        txt = txt ? (typeof txt === 'string' ? txt : await txt.text()) : null;
+        if (!txt) {
+          const r = await fetch(base + n);
+          if (!r.ok) throw new Error(String(r.status));
+          txt = await r.text();
+          await IDB.put('blobs', cachedKey, new Blob([txt])).catch(() => {});
+        }
+        libs[n] = txt;
+        /* follow /// <reference lib="es2019" /> so the graph is complete */
+        const re = /\/\/\/\s*<reference\s+lib="([^"]+)"\s*\/>/g;
+        let m;
+        while ((m = re.exec(txt))) queue.push('lib.' + m[1].toLowerCase() + '.d.ts');
+      } catch (e) { failed++; }
+    }
+    if (!Object.keys(libs).length) {
+      onLog && onLog('تعذّر جلب ملفات lib — سيُكتفى بالترجمة دون فحص الأنواع.', 'warn');
+      return null;
+    }
+    if (failed) onLog && onLog(`${failed} من ملفات lib لم تُجلب — قد ينقص فحص الأنواع.`, 'warn');
+    libs['nexus.engine.d.ts'] = NEXUS_DTS;        // the engine API, typed
+    t.instance.libs = libs;
+    return libs;
+  },
+
+  _cbs: [],
+  onChange(cb) { this._cbs.push(cb); return () => { const i = this._cbs.indexOf(cb); if (i >= 0) this._cbs.splice(i, 1); }; },
+  _emit() { this._cbs.forEach(c => { try { c(); } catch {} }); },
+
+  /* restore any toolchain already cached, without touching the network */
+  async autoRestore() {
+    const url = this.url('typescript');
+    if (!url) return;
+    const cached = await IDB.get('blobs', 'tc/typescript@' + url).catch(() => null);
+    if (cached) { try { await this.install('typescript'); } catch {} }
+  }
+};
+
+/* ============================================================
+   ENGINE BRIDGE — one surface, every language (rule 14)
+   WASM modules receive exactly these host functions and nothing
+   else: no DOM, no network, no storage unless granted.
+   ============================================================ */
+class EngineBridge {
+  constructor(rt, opts = {}) {
+    this.rt = rt;
+    this.engine = rt.engine;
+    this.api = rt.api();
+    this.handles = [null];
+    this.byEntity = new Map();
+    this.uiNodes = [null];
+    this.perms = Object.assign({ storage: true, network: false }, opts.permissions);
+    this.memory = null;
+    this.onLog = opts.onLog || ((m, t) => rt.onLog(m, t));
+  }
+  setMemory(m) { this.memory = m; }
+  _str(ptr, len) {
+    if (!this.memory) return '';
+    try { return new TextDecoder().decode(new Uint8Array(this.memory.buffer, ptr >>> 0, len >>> 0)); } catch { return ''; }
+  }
+  handleFor(entity) {
+    if (!entity) return -1;
+    if (this.byEntity.has(entity.id)) return this.byEntity.get(entity.id);
+    const h = this.handles.length;
+    this.handles.push(entity); this.byEntity.set(entity.id, h);
+    return h;
+  }
+  ent(h) {
+    const e = this.handles[h | 0];
+    return e && this.engine.entities.has(e.id) ? e : null;
+  }
+  obj(h) { const e = this.ent(h); return e && e.object3D ? e.object3D : null; }
+
+  /* the import object handed to every WASM module */
+  imports() {
+    const B = this, A = this.api, E = this.engine;
+    const env = {
+      /* ---- log ---- */
+      engine_log: (p, l) => B.onLog(B._str(p, l), 'log'),
+      engine_warn: (p, l) => B.onLog(B._str(p, l), 'warn'),
+      engine_error: (p, l) => B.onLog(B._str(p, l), 'err'),
+
+      /* ---- time ---- */
+      engine_time_delta: () => E.time.dt,
+      engine_time_elapsed: () => E.time.t,
+      engine_time_frame: () => E.time.frame,
+
+      /* ---- scene ---- */
+      engine_scene_count: () => E.entities.size,
+      engine_scene_find: (p, l) => { const e = E.findByName(B._str(p, l)); return e ? B.handleFor(e) : -1; },
+      engine_scene_find_tag: (p, l) => { const a = E.findByTag(B._str(p, l)); return a.length ? B.handleFor(a[0]) : -1; },
+      engine_scene_create: (sp, sl, x, y, z, sx, sy, sz, color) => {
+        const shape = B._str(sp, sl) || 'box';
+        const e = new NX.Entity({ name: shape + '_' + uid('w').slice(-4), type: 'primitive', props: { shape, color: '#' + (color >>> 0).toString(16).padStart(6, '0') } });
+        const h = B.handles.length;
+        B.handles.push(e); B.byEntity.set(e.id, h);
+        /* build asynchronously, but the handle is valid immediately */
+        E.addEntity({ id: e.id, name: e.name, type: 'primitive', props: e.props, position: [x, y, z], scale: [sx || 1, sy || 1, sz || 1] })
+          .then(real => { B.handles[h] = real; B.byEntity.set(real.id, h); })
+          .catch(err => B.onLog('create failed: ' + err.message, 'err'));
+        return h;
+      },
+      engine_scene_spawn: (p, l, x, y, z) => {
+        const assetId = B._str(p, l);
+        const h = B.handles.length;
+        B.handles.push(null);
+        A.Scene.spawn(assetId, { position: [x, y, z] })
+          .then(go => { B.handles[h] = go._e; B.byEntity.set(go._e.id, h); })
+          .catch(err => B.onLog('spawn failed: ' + err.message, 'err'));
+        return h;
+      },
+      engine_object_destroy: h => { const e = B.ent(h); if (e) E.removeEntity(e.id); },
+      engine_object_valid: h => B.ent(h) ? 1 : 0,
+
+      /* ---- transform ---- */
+      engine_object_set_position: (h, x, y, z) => { const o = B.obj(h); if (o) o.position.set(x, y, z); },
+      engine_object_translate: (h, x, y, z) => { const o = B.obj(h); if (o) { o.position.x += x; o.position.y += y; o.position.z += z; } },
+      engine_object_get_x: h => { const o = B.obj(h); return o ? o.position.x : 0; },
+      engine_object_get_y: h => { const o = B.obj(h); return o ? o.position.y : 0; },
+      engine_object_get_z: h => { const o = B.obj(h); return o ? o.position.z : 0; },
+      engine_object_set_rotation: (h, x, y, z) => { const o = B.obj(h); if (o) o.rotation.set(x, y, z); },
+      engine_object_rotate: (h, x, y, z) => { const o = B.obj(h); if (o) { o.rotation.x += x; o.rotation.y += y; o.rotation.z += z; } },
+      engine_object_get_rot_y: h => { const o = B.obj(h); return o ? o.rotation.y : 0; },
+      engine_object_set_scale: (h, x, y, z) => { const o = B.obj(h); if (o) o.scale.set(x, y, z); },
+      engine_object_set_visible: (h, v) => { const o = B.obj(h); if (o) o.visible = !!v; },
+      engine_object_set_color: (h, rgb) => { const e = B.ent(h); if (e) new NX.GameObject(e, B.rt).setColor('#' + (rgb >>> 0).toString(16).padStart(6, '0')); },
+      engine_object_set_tag: (h, p, l) => { const e = B.ent(h); if (e) e.tag = B._str(p, l); },
+      engine_object_distance: (a, b) => { const oa = B.obj(a), ob = B.obj(b); return oa && ob ? oa.position.distanceTo(ob.position) : -1; },
+      engine_object_look_at: (h, x, y, z) => { const o = B.obj(h); if (o) o.lookAt(NX.THREE ? new NX.THREE.Vector3(x, y, z) : { x, y, z }); },
+      engine_object_play_anim: (h, p, l, loop) => { const e = B.ent(h); if (e) new NX.GameObject(e, B.rt).play(B._str(p, l), { once: !loop }); },
+
+      /* ---- physics ---- */
+      engine_physics_add_body: (h, p, l) => { const e = B.ent(h); if (!e) return 0; E.physics.add(e, { type: B._str(p, l) || 'dynamic' }); E.physicsEnabled = true; return 1; },
+      engine_physics_set_velocity: (h, x, y, z) => { const e = B.ent(h); const b = e && E.physics.get(e.id); if (b) b.velocity.set(x, y, z); },
+      engine_physics_get_vel_x: h => { const e = B.ent(h); const b = e && E.physics.get(e.id); return b ? b.velocity.x : 0; },
+      engine_physics_get_vel_y: h => { const e = B.ent(h); const b = e && E.physics.get(e.id); return b ? b.velocity.y : 0; },
+      engine_physics_get_vel_z: h => { const e = B.ent(h); const b = e && E.physics.get(e.id); return b ? b.velocity.z : 0; },
+      engine_physics_grounded: h => { const e = B.ent(h); const b = e && E.physics.get(e.id); return b && b.grounded ? 1 : 0; },
+      engine_physics_set_gravity: (x, y, z) => E.physics.gravity.set(x, y, z),
+      engine_physics_raycast: (ox, oy, oz, dx, dy, dz, far) => {
+        const T = NX.THREE;
+        const hit = E.physics.raycast(new T.Vector3(ox, oy, oz), new T.Vector3(dx, dy, dz), far || 1000);
+        return hit ? B.handleFor(hit.entity) : -1;
+      },
+
+      /* ---- input ---- */
+      engine_input_axis: (p, l) => A.Input.axis(B._str(p, l)),
+      engine_input_button: (p, l) => A.Input.button(B._str(p, l)) ? 1 : 0,
+      engine_input_key: (p, l) => A.Input.isDown(B._str(p, l)) ? 1 : 0,
+      engine_input_pointer_x: () => A.Input.pointer.x,
+      engine_input_pointer_y: () => A.Input.pointer.y,
+
+      /* ---- camera ---- */
+      engine_camera_follow: (h, ox, oy, oz) => { const e = B.ent(h); if (e) A.Camera.follow(new NX.GameObject(e, B.rt), { offset: [ox, oy, oz] }); },
+      engine_camera_look_at: (x, y, z) => A.Camera.lookAt(new NX.THREE.Vector3(x, y, z)),
+      engine_camera_set_fov: v => A.Camera.setFov(v),
+      engine_camera_shake: (s, t) => A.Camera.shake(s, t),
+
+      /* ---- audio ---- */
+      engine_audio_beep: (f, d, v) => A.Audio.beep(f, d, 'sine', v == null ? 0.2 : v),
+      engine_audio_play: (p, l, vol, loop) => { A.Audio.play(B._str(p, l), { volume: vol, loop: !!loop }).catch(e => B.onLog(e.message, 'warn')); },
+
+      /* ---- ui ---- */
+      engine_ui_text: (p, l, x, y, size) => {
+        const t = A.UI.text(B._str(p, l), { x, y, size: size || 16 });
+        const h = B.uiNodes.length; B.uiNodes.push(t); return h;
+      },
+      engine_ui_set_text: (h, p, l) => { const n = B.uiNodes[h | 0]; if (n) n.set(B._str(p, l)); },
+      engine_ui_button: (lp, ll, idp, idl, x, y) => {
+        const id = B._str(idp, idl);
+        const b = A.UI.button(B._str(lp, ll), null, { id, x, bottom: y });
+        const h = B.uiNodes.length; B.uiNodes.push(b); return h;
+      },
+      engine_ui_joystick: (idp, idl, right) => {
+        const j = A.UI.joystick({ id: B._str(idp, idl) || 'move', side: right ? 'right' : 'left' });
+        const h = B.uiNodes.length; B.uiNodes.push(j); return h;
+      },
+      engine_ui_remove: h => { const n = B.uiNodes[h | 0]; if (n && n.remove) n.remove(); },
+
+      /* ---- events ---- */
+      engine_events_emit: (p, l, v) => { A.Events.emit(B._str(p, l), v); },
+
+      /* ---- save (permission gated) ---- */
+      engine_save_set: (kp, kl, v) => { if (!B.perms.storage) { B.onLog('storage permission denied', 'warn'); return; } A.Save.set(B._str(kp, kl), v); },
+      engine_save_get: (kp, kl) => { if (!B.perms.storage) return 0; const v = A.Save.get(B._str(kp, kl), 0); return typeof v === 'number' ? v : 0; },
+
+      /* ---- math ---- */
+      engine_random: () => Math.random(),
+
+      /* C runtimes emit these; keep them harmless */
+      abort: () => { throw new Error('wasm abort()'); },
+      emscripten_resize_heap: () => 0
+    };
+    /* minimal WASI so WASI-targeted binaries load and can print */
+    const wasi = {
+      proc_exit: code => { if (code) B.onLog('wasm exited with code ' + code, 'warn'); },
+      fd_write: (fd, iovs, count, written) => {
+        if (!B.memory) return 0;
+        const dv = new DataView(B.memory.buffer);
+        let total = 0, out = '';
+        for (let i = 0; i < count; i++) {
+          const ptr = dv.getUint32(iovs + i * 8, true), len = dv.getUint32(iovs + i * 8 + 4, true);
+          out += B._str(ptr, len); total += len;
+        }
+        dv.setUint32(written, total, true);
+        if (out.trim()) B.onLog(out.replace(/\n$/, ''), fd === 2 ? 'err' : 'log');
+        return 0;
+      },
+      fd_close: () => 0, fd_seek: () => 0, fd_read: () => 0,
+      environ_get: () => 0, environ_sizes_get: (c, s) => { if (B.memory) { const dv = new DataView(B.memory.buffer); dv.setUint32(c, 0, true); dv.setUint32(s, 0, true); } return 0; },
+      clock_time_get: (id, prec, out) => { if (B.memory) new DataView(B.memory.buffer).setBigUint64(out, BigInt(Math.round(performance.now() * 1e6)), true); return 0; },
+      random_get: (ptr, len) => { if (B.memory) { const v = new Uint8Array(B.memory.buffer, ptr, len); crypto.getRandomValues(v); } return 0; },
+      args_get: () => 0, args_sizes_get: (c, s) => { if (B.memory) { const dv = new DataView(B.memory.buffer); dv.setUint32(c, 0, true); dv.setUint32(s, 0, true); } return 0; }
+    };
+    return { env, wasi_snapshot_preview1: wasi, wasi_unstable: wasi };
+  }
+}
+
+/* ------------------------------------------------------------
+   WASM MODULE RUNNER
+   ------------------------------------------------------------ */
+class WasmModule {
+  constructor(name, instance, bridge) {
+    this.name = name; this.instance = instance; this.bridge = bridge;
+    this.exports = instance.exports;
+  }
+  static async instantiate(name, bytes, bridge, onLog) {
+    const imports = bridge.imports();
+    let result;
+    try {
+      result = await WebAssembly.instantiate(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes), imports);
+    } catch (e) {
+      /* report exactly which import the module wanted but we do not provide */
+      const m = /Import #\d+ "([^"]+)" "([^"]+)"/.exec(String(e.message || ''));
+      if (m) throw new Error(`WASM_IMPORT_MISSING: الوحدة تطلب ${m[1]}.${m[2]} وهي ليست ضمن Engine Bridge`);
+      throw e;
+    }
+    const instance = result.instance || result;
+    const mem = instance.exports.memory;
+    if (mem) bridge.setMemory(mem);
+    else onLog && onLog(`${name}: الوحدة لا تُصدّر memory — تمرير النصوص لن يعمل`, 'warn');
+    return new WasmModule(name, instance, bridge);
+  }
+  start() {
+    const e = this.exports;
+    if (typeof e._initialize === 'function') e._initialize();
+    if (typeof e.start === 'function') return e.start();
+    if (typeof e.main === 'function') return e.main(0, 0);
+    if (typeof e._start === 'function') return e._start();
+    return null;
+  }
+  update(dt) { const f = this.exports.update; if (typeof f === 'function') f(dt); }
+  destroy() { const f = this.exports.destroy; if (typeof f === 'function') { try { f(); } catch {} } }
+  get hasUpdate() { return typeof this.exports.update === 'function'; }
+}
+
+/* ------------------------------------------------------------
+   HTML / CSS pipeline — real, and scoped so a game cannot
+   repaint the editor around it
+   ------------------------------------------------------------ */
+function scopeCSS(css, scope) {
+  const out = [];
+  let i = 0;
+  css = String(css).replace(/\/\*[\s\S]*?\*\//g, '');
+  const readBlock = () => {
+    let depth = 0, start = i;
+    for (; i < css.length; i++) {
+      if (css[i] === '{') depth++;
+      else if (css[i] === '}') { depth--; if (depth === 0) { i++; return css.slice(start, i); } }
+    }
+    return css.slice(start);
+  };
+  while (i < css.length) {
+    const next = css.indexOf('{', i);
+    if (next < 0) break;
+    const prelude = css.slice(i, next).trim();
+    const block = readBlock();
+    const inner = block.slice(block.indexOf('{') + 1, block.lastIndexOf('}'));
+    if (prelude.startsWith('@')) {
+      if (/^@(media|supports|container|layer)/i.test(prelude)) out.push(prelude + '{' + scopeCSS(inner, scope) + '}');
+      else out.push(prelude + '{' + inner + '}');           // @keyframes / @font-face pass through
+    } else {
+      const sel = prelude.split(',').map(s => {
+        s = s.trim();
+        if (!s) return '';
+        if (/^(html|body|:root)\b/i.test(s)) return scope + s.replace(/^(html|body|:root)/i, '');
+        return scope + ' ' + s;
+      }).filter(Boolean).join(',');
+      out.push(sel + '{' + inner + '}');
+    }
+  }
+  return out.join('\n');
+}
+
+/* HTML becomes UI markup, never a script host. Inline scripts and
+   event attributes are stripped; declarative data-engine-* hooks are
+   what lets HTML talk to the engine (rule 7). */
+function sanitizeGameHTML(html) {
+  const doc = new DOMParser().parseFromString('<div id="__root">' + html + '</div>', 'text/html');
+  const root = doc.getElementById('__root');
+  const removed = [];
+  root.querySelectorAll('script,iframe,object,embed,link[rel=import]').forEach(n => { removed.push(n.tagName.toLowerCase()); n.remove(); });
+  root.querySelectorAll('*').forEach(n => {
+    Array.from(n.attributes).forEach(a => {
+      const an = a.name.toLowerCase();
+      if (an.startsWith('on')) { removed.push(an); n.removeAttribute(a.name); }
+      if ((an === 'href' || an === 'src') && /^\s*javascript:/i.test(a.value)) { removed.push(an + ':javascript'); n.removeAttribute(a.name); }
+    });
+  });
+  return { html: root.innerHTML, removed: Array.from(new Set(removed)) };
+}
+
+/* ------------------------------------------------------------
+   LANGUAGE ADAPTERS (rule 10)
+   Each one owns: extensions, how it builds, and how its errors read.
+   ------------------------------------------------------------ */
+const Adapters = {
+  javascript: {
+    id: 'javascript', lang: LANGS.javascript, needsToolchain: null,
+    async build(file, ctx) {
+      /* JavaScript goes straight to the runtime; we only check it parses */
+      try { new Function(file.code); }
+      catch (e) {
+        const m = /(\d+):(\d+)/.exec(String(e.stack || ''));
+        return { ok: false, diagnostics: [{ severity: 'error', file: file.path, line: m ? +m[1] : 1, column: m ? +m[2] : 1, message: e.message, lang: 'javascript' }] };
+      }
+      return { ok: true, diagnostics: [], artifact: { kind: 'script', path: file.path, code: file.code, role: file.role || 'script', entityId: file.entityId || null, name: file.path } };
+    }
+  },
+
+  typescript: {
+    id: 'typescript', lang: LANGS.typescript, needsToolchain: 'typescript',
+    async build(file, ctx) {
+      const tc = Toolchain.get('typescript');
+      if (!Toolchain.isReady('typescript')) {
+        return { ok: false, unavailable: true, diagnostics: [{
+          severity: 'error', file: file.path, line: 1, column: 1, lang: 'typescript',
+          message: 'Compiler unavailable — مترجم TypeScript غير مثبّت. افتح Toolchains وثبّته (‎~9 MB‎، يُخزَّن للعمل دون اتصال).'
+        }] };
+      }
+      const res = await tc.instance.call({ type: 'transpile', code: file.code, fileName: file.path, strict: !!ctx.strict });
+      const diags = (res.diagnostics || []).map(d => ({ ...d, file: file.path, lang: 'typescript' }));
+      if (diags.some(d => d.severity === 'error')) return { ok: false, diagnostics: diags };
+      return { ok: true, diagnostics: diags, artifact: { kind: 'script', path: file.path.replace(/\.ts$/, '.js'), code: res.js, role: file.role || 'script', entityId: file.entityId || null, name: file.path, sourceMap: true } };
+    }
+  },
+
+  /* C and C++ share one toolchain: sources compile together into one module */
+  native: {
+    id: 'native', needsToolchain: 'clang-wasi',
+    async buildGroup(files, ctx, langId) {
+      const tcId = 'clang-wasi';
+      const sources = files.filter(f => !isHeader(f.path));
+      if (!sources.length) return { ok: true, diagnostics: [], artifacts: [] };
+      if (!Toolchain.isReady(tcId)) {
+        const t = Toolchain.get(tcId);
+        return { ok: false, unavailable: true, diagnostics: sources.map(f => ({
+          severity: 'error', file: f.path, line: 1, column: 1, lang: langId,
+          message: `Compiler unavailable — لا توجد سلسلة أدوات ${langId === 'cpp' ? 'C++' : 'C'} → WebAssembly. ` +
+                   `الحل: (١) ثبّت حزمة مترجم WASI في Toolchains، أو (٢) ترجم محليًا بـ clang/emscripten وأضف ملف ‎.wasm‎ الناتج إلى المشروع. ` +
+                   (t && t.error ? 'آخر خطأ: ' + t.error : '')
+        })) };
+      }
+      const tc = Toolchain.get(tcId);
+      const payload = { lang: langId, files: files.map(f => ({ path: f.path, code: f.code })), options: ctx.nativeOptions || {} };
+      const res = await tc.instance.compile(payload);
+      const diags = (res.diagnostics || []).map(d => ({ severity: d.severity || 'error', file: d.file || sources[0].path, line: d.line || 1, column: d.column || 1, message: d.message, lang: langId }));
+      if (!res.ok || !res.wasm) return { ok: false, diagnostics: diags.length ? diags : [{ severity: 'error', file: sources[0].path, line: 1, column: 1, lang: langId, message: 'فشل الترجمة دون تفاصيل من المترجم.' }], log: res.log };
+      return { ok: true, diagnostics: diags, log: res.log, artifacts: [{ kind: 'wasm', path: (langId === 'cpp' ? 'cpp' : 'c') + '.wasm', bytes: res.wasm, name: langId + ' module', from: sources.map(f => f.path) }] };
+    }
+  },
+
+  csharp: {
+    id: 'csharp', lang: LANGS.csharp, needsToolchain: 'dotnet-wasm',
+    async buildGroup(files, ctx) {
+      if (!Toolchain.isReady('dotnet-wasm')) {
+        const t = Toolchain.get('dotnet-wasm');
+        return { ok: false, unavailable: true, diagnostics: files.map(f => ({
+          severity: 'error', file: f.path, line: 1, column: 1, lang: 'csharp',
+          message: 'Compiler unavailable — لا يوجد وقت تشغيل .NET WebAssembly مثبّت. ' +
+                   'الحل: (١) ضع رابط حزمة ‎.NET WASM‎ في Toolchains، أو (٢) انشر مشروعك بـ ‎dotnet publish‎ وأضف ‎.wasm‎ الناتج إلى المشروع. ' +
+                   (t && t.error ? 'آخر خطأ: ' + t.error : '')
+        })) };
+      }
+      const tc = Toolchain.get('dotnet-wasm');
+      const res = await tc.instance.compile({ lang: 'csharp', files: files.map(f => ({ path: f.path, code: f.code })), options: ctx.dotnetOptions || {} });
+      const diags = (res.diagnostics || []).map(d => ({ severity: d.severity || 'error', file: d.file || files[0].path, line: d.line || 1, column: d.column || 1, message: d.message, lang: 'csharp' }));
+      if (!res.ok || !res.wasm) return { ok: false, diagnostics: diags, log: res.log };
+      return { ok: true, diagnostics: diags, log: res.log, artifacts: [{ kind: 'wasm', path: 'csharp.wasm', bytes: res.wasm, name: 'C# module', from: files.map(f => f.path) }] };
+    }
+  },
+
+  html: {
+    id: 'html', lang: LANGS.html, needsToolchain: null,
+    async build(file) {
+      const { html, removed } = sanitizeGameHTML(file.code);
+      const diags = removed.length ? [{ severity: 'warning', file: file.path, line: 1, column: 1, lang: 'html',
+        message: 'أُزيل للأمان: ' + removed.join(', ') + ' — اربط HTML بالمحرك عبر data-emit / data-bind بدل السكربت المضمّن.' }] : [];
+      return { ok: true, diagnostics: diags, artifact: { kind: 'ui', path: file.path, code: html, name: file.path } };
+    }
+  },
+
+  css: {
+    id: 'css', lang: LANGS.css, needsToolchain: null,
+    async build(file) {
+      const scoped = scopeCSS(file.code, '#game-ui-layer');
+      return { ok: true, diagnostics: [], artifact: { kind: 'style', path: file.path, code: scoped, name: file.path } };
+    }
+  },
+
+  wasm: {
+    id: 'wasm', lang: LANGS.wasm, needsToolchain: null,
+    async build(file) {
+      /* a module compiled ahead of time — validated for real before use */
+      let bytes = file.bytes;
+      if (!bytes && file.dataURL) bytes = new Uint8Array(await (await fetch(file.dataURL)).arrayBuffer());
+      if (!bytes) return { ok: false, diagnostics: [{ severity: 'error', file: file.path, line: 1, column: 1, lang: 'wasm', message: 'ملف WASM فارغ أو غير محمّل.' }] };
+      if (!WebAssembly.validate(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)))
+        return { ok: false, diagnostics: [{ severity: 'error', file: file.path, line: 1, column: 1, lang: 'wasm', message: 'ملف WASM غير صالح (فشل WebAssembly.validate).' }] };
+      return { ok: true, diagnostics: [], artifact: { kind: 'wasm', path: file.path, bytes, name: file.path, prebuilt: true } };
+    }
+  }
+};
+Adapters.c = { id: 'c', lang: LANGS.c, needsToolchain: 'clang-wasi', buildGroup: (f, c) => Adapters.native.buildGroup(f, c, 'c') };
+Adapters.cpp = { id: 'cpp', lang: LANGS.cpp, needsToolchain: 'clang-wasi', buildGroup: (f, c) => Adapters.native.buildGroup(f, c, 'cpp') };
+Adapters.forLang = id => Adapters[id] || null;
+
+/* ============================================================
+   BUILD MANAGER (rule 9)
+   ============================================================ */
+const BuildManager = {
+  async build(project, opts = {}) {
+    const log = [];
+    const t0 = performance.now();
+    const say = (m, type = 'log') => { log.push({ m, type }); opts.onLog && opts.onLog(m, type); };
+    const files = (project.files || []).filter(f => f.enabled !== false);
+    const diagnostics = [];
+    const artifacts = { scripts: [], components: [], wasm: [], ui: [], styles: [] };
+
+    say(`— بدء البناء · ${files.length} ملف`, 'sys');
+    if (!files.length) {
+      say('لا ملفات في المشروع.', 'warn');
+      return { ok: true, artifacts, diagnostics, log, durationMs: 0, empty: true };
+    }
+
+    /* 1. group by language */
+    const groups = new Map();
+    for (const f of files) {
+      const lang = langOf(f.path);
+      if (!lang) { diagnostics.push({ severity: 'warning', file: f.path, line: 1, column: 1, lang: '?', message: 'امتداد غير مدعوم — تم تجاهل الملف.' }); continue; }
+      if (!groups.has(lang.id)) groups.set(lang.id, []);
+      groups.get(lang.id).push(f);
+    }
+    say('اللغات المكتشفة: ' + Array.from(groups.keys()).map(k => LANGS[k].name).join(' · '), 'sys');
+
+    /* 2. toolchain availability, stated before anything claims success */
+    for (const [langId, group] of groups) {
+      const ad = Adapters.forLang(langId);
+      if (ad && ad.needsToolchain) {
+        const ready = Toolchain.isReady(ad.needsToolchain);
+        say(`${LANGS[langId].name}: toolchain ${ad.needsToolchain} → ${ready ? 'READY' : Toolchain.statusText(ad.needsToolchain)}`, ready ? 'ok' : 'warn');
+      }
+    }
+
+    /* 3. compile */
+    let ok = true;
+    for (const [langId, group] of groups) {
+      const ad = Adapters.forLang(langId);
+      if (!ad) continue;
+      try {
+        if (ad.buildGroup) {
+          const key = await CompilerCache.key(langId, group.map(f => f.path + '\u0001' + f.code).join('\u0002'), opts.cacheOptions);
+          let res = opts.noCache ? null : await CompilerCache.get(key);
+          if (res) say(`${LANGS[langId].name}: من الذاكرة المؤقتة (لم يتغيّر المصدر)`, 'sys');
+          else {
+            res = await ad.buildGroup(group, opts);
+            if (res.ok) { const store = { ...res, artifacts: (res.artifacts || []).map(a => ({ ...a, bytes: a.bytes ? Array.from(a.bytes) : null })) }; await CompilerCache.set(key, store); }
+          }
+          const arts = (res.artifacts || []).map(a => ({ ...a, bytes: Array.isArray(a.bytes) ? new Uint8Array(a.bytes) : a.bytes }));
+          (res.diagnostics || []).forEach(d => diagnostics.push(d));
+          (res.log || []).forEach(l => say(String(l), 'sys'));
+          if (!res.ok) { ok = false; say(`${LANGS[langId].name}: فشل`, 'err'); }
+          else { arts.forEach(a => artifacts.wasm.push(a)); say(`${LANGS[langId].name}: ✓ ${arts.length} وحدة WASM`, 'ok'); }
+        } else {
+          let failed = 0;
+          for (const f of group) {
+            const key = await CompilerCache.key(langId, f.code, opts.cacheOptions);
+            let res = opts.noCache ? null : await CompilerCache.get(key);
+            if (!res) {
+              res = await ad.build(f, opts);
+              if (res.ok) await CompilerCache.set(key, res);
+            } else if (res.artifact) {
+              res = { ...res, artifact: { ...res.artifact, role: f.role || res.artifact.role, entityId: f.entityId || null } };
+            }
+            (res.diagnostics || []).forEach(d => diagnostics.push(d));
+            if (!res.ok) { ok = false; failed++; continue; }
+            const a = res.artifact;
+            if (!a) continue;
+            if (a.kind === 'script') (a.role === 'component' ? artifacts.components : artifacts.scripts).push({
+              id: f.id, name: f.path, code: a.code, entityId: a.entityId || null, enabled: true
+            });
+            else if (a.kind === 'wasm') artifacts.wasm.push(a);
+            else if (a.kind === 'ui') artifacts.ui.push(a);
+            else if (a.kind === 'style') artifacts.styles.push(a);
+          }
+          say(`${LANGS[langId].name}: ${group.length - failed}/${group.length} ✓`, failed ? 'err' : 'ok');
+        }
+      } catch (e) {
+        ok = false;
+        diagnostics.push({ severity: 'error', file: group[0].path, line: 1, column: 1, lang: langId, message: 'خطأ داخلي في المحوّل: ' + (e.message || e) });
+        say(`${LANGS[langId].name}: استثناء — ${e.message || e}`, 'err');
+      }
+    }
+
+    /* 4. optional real type checking for TypeScript */
+    if (ok && groups.has('typescript') && opts.typeCheck !== false && Toolchain.isReady('typescript')) {
+      try {
+        const libs = await Toolchain.ensureTSLibs(say);
+        if (libs) {
+          const tsFiles = {};
+          groups.get('typescript').forEach(f => tsFiles[f.path] = f.code);
+          const res = await Toolchain.get('typescript').instance.call({ type: 'check', files: tsFiles, libs, strict: !!opts.strict }, 90000);
+          const errs = (res.diagnostics || []).filter(d => tsFiles[d.file] != null);
+          errs.forEach(d => diagnostics.push({ ...d, lang: 'typescript' }));
+          if (errs.some(d => d.severity === 'error')) { ok = false; say('فحص الأنواع: وُجدت أخطاء', 'err'); }
+          else say('فحص الأنواع: ✓', 'ok');
+        } else say('فحص الأنواع غير متاح (ملفات lib غير محمّلة) — تمّت الترجمة فقط.', 'warn');
+      } catch (e) { say('تعذّر فحص الأنواع: ' + (e.message || e), 'warn'); }
+    }
+
+    const durationMs = Math.round(performance.now() - t0);
+    const manifest = {
+      name: project.name, projectId: project.projectId, builtAt: Date.now(), durationMs,
+      languages: Array.from(groups.keys()),
+      entry: { scripts: artifacts.scripts.map(s => s.name), wasm: artifacts.wasm.map(w => w.path) },
+      engineBridge: '1.0'
+    };
+    const errors = diagnostics.filter(d => d.severity === 'error').length;
+    const warns = diagnostics.filter(d => d.severity === 'warning').length;
+    say(ok ? `✓ اكتمل البناء في ${durationMs}ms — ${warns} تحذير` : `✗ فشل البناء — ${errors} خطأ`, ok ? 'ok' : 'err');
+    return { ok, artifacts, diagnostics, log, manifest, durationMs };
+  },
+
+  /* what a published build carries (rule 15) */
+  artifactList(build) {
+    const out = [];
+    build.artifacts.scripts.forEach(s => out.push({ path: 'build/' + s.name.replace(/\.ts$/, '.js'), type: 'javascript', size: s.code.length }));
+    build.artifacts.components.forEach(s => out.push({ path: 'build/components/' + s.name, type: 'javascript', size: s.code.length }));
+    build.artifacts.wasm.forEach(w => out.push({ path: 'build/' + w.path, type: 'wasm', size: w.bytes ? w.bytes.length : 0 }));
+    build.artifacts.ui.forEach(u => out.push({ path: 'build/' + u.path, type: 'html', size: u.code.length }));
+    build.artifacts.styles.forEach(s => out.push({ path: 'build/' + s.path, type: 'css', size: s.code.length }));
+    out.push({ path: 'build/manifest.json', type: 'json', size: JSON.stringify(build.manifest || {}).length });
+    return out;
+  }
+};
+
+/* ------------------------------------------------------------
+   engine.h — the C/C++ side of the bridge, shipped with the
+   platform so native code has real declarations to call.
+   ------------------------------------------------------------ */
+const ENGINE_H = `/* engine.h — NEXUS Engine Bridge (C / C++)
+   يُترجم إلى WebAssembly ويستورد هذه الدوال من المحرك.
+   clang --target=wasm32 -nostdlib -Wl,--no-entry -Wl,--export-all main.c -o game.wasm */
+#ifndef NEXUS_ENGINE_H
+#define NEXUS_ENGINE_H
+#ifdef __cplusplus
+extern "C" {
+#endif
+#define IMPORT(name) __attribute__((import_module("env"), import_name(#name)))
+#define EXPORT(name) __attribute__((export_name(#name)))
+
+typedef int obj_t;
+typedef int ui_t;
+
+IMPORT(engine_log)                 void  engine_log(const char* p, int len);
+IMPORT(engine_warn)                void  engine_warn(const char* p, int len);
+IMPORT(engine_time_delta)          float engine_time_delta(void);
+IMPORT(engine_time_elapsed)        float engine_time_elapsed(void);
+
+IMPORT(engine_scene_count)         int   engine_scene_count(void);
+IMPORT(engine_scene_find)          obj_t engine_scene_find(const char* p, int len);
+IMPORT(engine_scene_find_tag)      obj_t engine_scene_find_tag(const char* p, int len);
+IMPORT(engine_scene_create)        obj_t engine_scene_create(const char* shape, int slen, float x, float y, float z, float sx, float sy, float sz, int color);
+IMPORT(engine_scene_spawn)         obj_t engine_scene_spawn(const char* assetId, int len, float x, float y, float z);
+IMPORT(engine_object_destroy)      void  engine_object_destroy(obj_t h);
+IMPORT(engine_object_valid)        int   engine_object_valid(obj_t h);
+
+IMPORT(engine_object_set_position) void  engine_object_set_position(obj_t h, float x, float y, float z);
+IMPORT(engine_object_translate)    void  engine_object_translate(obj_t h, float x, float y, float z);
+IMPORT(engine_object_get_x)        float engine_object_get_x(obj_t h);
+IMPORT(engine_object_get_y)        float engine_object_get_y(obj_t h);
+IMPORT(engine_object_get_z)        float engine_object_get_z(obj_t h);
+IMPORT(engine_object_set_rotation) void  engine_object_set_rotation(obj_t h, float x, float y, float z);
+IMPORT(engine_object_rotate)       void  engine_object_rotate(obj_t h, float x, float y, float z);
+IMPORT(engine_object_get_rot_y)    float engine_object_get_rot_y(obj_t h);
+IMPORT(engine_object_set_scale)    void  engine_object_set_scale(obj_t h, float x, float y, float z);
+IMPORT(engine_object_set_visible)  void  engine_object_set_visible(obj_t h, int v);
+IMPORT(engine_object_set_color)    void  engine_object_set_color(obj_t h, int rgb);
+IMPORT(engine_object_set_tag)      void  engine_object_set_tag(obj_t h, const char* p, int len);
+IMPORT(engine_object_distance)     float engine_object_distance(obj_t a, obj_t b);
+IMPORT(engine_object_look_at)      void  engine_object_look_at(obj_t h, float x, float y, float z);
+
+IMPORT(engine_physics_add_body)    int   engine_physics_add_body(obj_t h, const char* type, int len);
+IMPORT(engine_physics_set_velocity)void  engine_physics_set_velocity(obj_t h, float x, float y, float z);
+IMPORT(engine_physics_get_vel_y)   float engine_physics_get_vel_y(obj_t h);
+IMPORT(engine_physics_grounded)    int   engine_physics_grounded(obj_t h);
+IMPORT(engine_physics_set_gravity) void  engine_physics_set_gravity(float x, float y, float z);
+IMPORT(engine_physics_raycast)     obj_t engine_physics_raycast(float ox, float oy, float oz, float dx, float dy, float dz, float far);
+
+IMPORT(engine_input_axis)          float engine_input_axis(const char* p, int len);
+IMPORT(engine_input_button)        int   engine_input_button(const char* p, int len);
+IMPORT(engine_input_key)           int   engine_input_key(const char* p, int len);
+
+IMPORT(engine_camera_follow)       void  engine_camera_follow(obj_t h, float ox, float oy, float oz);
+IMPORT(engine_camera_look_at)      void  engine_camera_look_at(float x, float y, float z);
+IMPORT(engine_camera_shake)        void  engine_camera_shake(float strength, float time);
+
+IMPORT(engine_audio_beep)          void  engine_audio_beep(float freq, float dur, float vol);
+IMPORT(engine_ui_text)             ui_t  engine_ui_text(const char* p, int len, float x, float y, float size);
+IMPORT(engine_ui_set_text)         void  engine_ui_set_text(ui_t h, const char* p, int len);
+IMPORT(engine_ui_button)           ui_t  engine_ui_button(const char* label, int llen, const char* id, int idlen, float x, float y);
+IMPORT(engine_ui_joystick)         ui_t  engine_ui_joystick(const char* id, int idlen, int right);
+IMPORT(engine_events_emit)         void  engine_events_emit(const char* p, int len, float value);
+IMPORT(engine_save_set)            void  engine_save_set(const char* k, int klen, float v);
+IMPORT(engine_save_get)            float engine_save_get(const char* k, int klen);
+IMPORT(engine_random)              float engine_random(void);
+
+/* اختصارات للنصوص الحرفية */
+#define E_LOG(s)      engine_log((s), sizeof(s) - 1)
+#define E_FIND(s)     engine_scene_find((s), sizeof(s) - 1)
+#define E_AXIS(s)     engine_input_axis((s), sizeof(s) - 1)
+#define E_BTN(s)      engine_input_button((s), sizeof(s) - 1)
+#define E_BODY(h, s)  engine_physics_add_body((h), (s), sizeof(s) - 1)
+#define E_EMIT(s, v)  engine_events_emit((s), sizeof(s) - 1, (v))
+
+/* يستدعيها المحرك: */
+/* EXPORT(start)  void start(void); */
+/* EXPORT(update) void update(float dt); */
+
+#ifdef __cplusplus
+}
+#endif
+#endif
+`;
+
+/* ------------------------------------------------------------
+   nexus.engine.d.ts — the Engine API as TypeScript declarations,
+   so type checking helps instead of complaining about globals.
+   ------------------------------------------------------------ */
+const NEXUS_DTS = `
+declare interface Vec3 { x: number; y: number; z: number;
+  set(x: number, y: number, z: number): Vec3; add(v: Vec3): Vec3; clone(): Vec3;
+  distanceTo(v: Vec3): number; normalize(): Vec3; multiplyScalar(n: number): Vec3;
+  sub(v: Vec3): Vec3; setY(y: number): Vec3; lengthSq(): number; length(): number;
+  applyAxisAngle(axis: Vec3, a: number): Vec3; crossVectors(a: Vec3, b: Vec3): Vec3;
+  negate(): Vec3; copy(v: Vec3): Vec3; lerp(v: Vec3, a: number): Vec3; toArray(): number[]; }
+declare interface Euler { x: number; y: number; z: number; set(x: number, y: number, z: number): void; }
+declare interface Body { velocity: Vec3; grounded: boolean; useGravity: boolean; type: string; onCollide: ((o: GameObject, t: boolean) => void) | null; }
+declare interface GameObject {
+  readonly id: string; name: string; tag: string; readonly type: string; readonly exists: boolean;
+  position: Vec3; rotation: Euler; scale: Vec3; visible: boolean; data: any;
+  setPosition(x: number, y: number, z: number): GameObject;
+  setRotation(x: number, y: number, z: number): GameObject;
+  setScale(x: number, y?: number, z?: number): GameObject;
+  translate(x: number, y: number, z: number): GameObject;
+  rotate(x: number, y: number, z: number): GameObject;
+  lookAt(t: GameObject | Vec3): GameObject;
+  distanceTo(t: GameObject | Vec3): number;
+  forward(): Vec3; worldPosition(): Vec3;
+  setColor(hex: string): GameObject; setOpacity(v: number): GameObject;
+  animations(): string[];
+  play(name?: string, opts?: { loop?: boolean; once?: boolean; speed?: number; fade?: number }): any;
+  stopAnimation(): void;
+  addBody(opts?: { type?: 'static' | 'dynamic' | 'character'; shape?: string; radius?: number; height?: number; useGravity?: boolean; trigger?: boolean }): Body;
+  readonly body: Body; readonly velocity: Vec3;
+  onCollide(fn: (other: GameObject, isTrigger: boolean) => void): GameObject;
+  addComponent(name: string, data?: any): any; getComponent(name: string): any;
+  child(name: string): GameObject | null; children(): GameObject[]; destroy(): void;
+}
+declare interface ObjectDef { name?: string; type?: 'primitive' | 'light' | 'camera' | 'spawn' | 'group' | 'model' | 'audio';
+  assetId?: string; tag?: string; props?: any; position?: number[]; rotation?: number[]; scale?: number[]; }
+declare interface UIHandle { el: any; set(v: string | number): void; show(v?: boolean): void; remove(): void; }
+
+declare const Engine: {
+  readonly version: string; readonly isEditor: boolean; readonly running: boolean;
+  log(...a: any[]): void; warn(...a: any[]): void;
+  onUpdate(fn: (dt: number, t: number) => void): () => void;
+  onLateUpdate(fn: (dt: number, t: number) => void): () => void;
+  stop(): void; readonly stats: any; screen(): { width: number; height: number; dpr: number };
+};
+declare const Scene: {
+  find(name: string): GameObject | null; findByTag(tag: string): GameObject[]; all(): GameObject[];
+  readonly count: number;
+  create(def: ObjectDef): Promise<GameObject>;
+  spawn(assetId: string, opts?: { name?: string; tag?: string; position?: number[]; rotation?: number[]; scale?: number[] }): Promise<GameObject>;
+  destroy(o: GameObject): void;
+  raycast(origin: Vec3, dir: Vec3, far?: number): { object: GameObject; point: Vec3; distance: number; normal: Vec3 } | null;
+  setBackground(c: string): void; setFog(c: string | null, near?: number, far?: number): void; setAmbient(v: number): void;
+};
+declare const Player: {
+  readonly object: GameObject | null; speed: number; jumpForce: number;
+  create(opts?: { assetId?: string; name?: string; speed?: number; jump?: number; height?: number; radius?: number; color?: string; gravity?: boolean; position?: number[] }): Promise<GameObject>;
+  setSpeed(v: number): void; move(x: number, z: number): void;
+  moveWithInput(speed?: number): Vec3 | undefined;
+  jump(force?: number): boolean;
+  readonly grounded: boolean; readonly position: Vec3;
+  teleport(x: number, y: number, z: number): void;
+};
+declare const Input: {
+  isDown(k: string): boolean; readonly keys: string[]; readonly pointer: any;
+  axis(name: 'horizontal' | 'vertical' | string): number;
+  joystick(id?: string): { x: number; y: number; active: boolean };
+  button(id: string): boolean;
+  onKey(k: string, cb: (key: string) => void): () => void;
+  onKeyUp(k: string, cb: (key: string) => void): () => void;
+  onTap(cb: (p: any) => void): () => void;
+  pick(px?: number, py?: number): { object: GameObject; point: Vec3; distance: number } | null;
+  vibrate(ms?: number): void;
+};
+declare const Physics: {
+  readonly gravity: Vec3; setGravity(x: number, y: number, z: number): void;
+  addBody(o: GameObject, opts?: any): Body;
+  raycast(origin: Vec3, dir: Vec3, far?: number): any;
+  overlapSphere(center: Vec3, radius: number): GameObject[];
+  enable(on?: boolean): void;
+};
+declare const Camera: {
+  readonly main: GameObject | null; readonly active: any;
+  use(o: GameObject): void; lookAt(t: GameObject | Vec3): void; setFov(v: number): void;
+  follow(target: GameObject, opts?: { offset?: number[]; smooth?: number; lookOffset?: number[]; orbit?: boolean }): () => void;
+  shake(strength?: number, time?: number): void;
+};
+declare const UI: {
+  text(s: string | number, opts?: any): UIHandle;
+  panel(opts?: any): { el: any; add(c: any): any; text(s: string, o?: any): UIHandle; clear(): void; show(v?: boolean): void; remove(): void };
+  button(label: string, onTap?: ((pressed: boolean) => void) | null, opts?: any): UIHandle;
+  joystick(opts?: { id?: string; side?: 'left' | 'right'; bottom?: number }): { el: any; state: any; show(v?: boolean): void; remove(): void };
+  bar(opts?: any): { el: any; set(v: number): void; color(c: string): void; remove(): void };
+  bind(name: string, value: any): number;
+  value(name: string): string;
+  el(selector: string): any;
+  clear(): void;
+};
+declare const Audio: {
+  play(assetId: string, opts?: { loop?: boolean; volume?: number; at?: Vec3 }): Promise<any>;
+  playURL(url: string, opts?: any): Promise<any>;
+  beep(freq?: number, dur?: number, type?: string, vol?: number): void;
+  listenerAt(v: Vec3): void;
+};
+declare const Events: {
+  on(ev: string, cb: (...a: any[]) => void): () => void;
+  once(ev: string, cb: (...a: any[]) => void): () => void;
+  off(ev: string, cb: (...a: any[]) => void): void;
+  emit(ev: string, ...args: any[]): boolean;
+  clear(ev?: string): void;
+};
+declare const Assets: {
+  get(id: string): Promise<any>;
+  search(q: string, opts?: any): Promise<any[]>;
+  url(id: string): Promise<string | null>;
+  list(): string[]; preload(ids: string[]): Promise<any[]>;
+};
+declare const Save: {
+  get(k: string, d?: any): any; set(k: string, v: any): boolean; del(k: string): void;
+  sync(k: string): Promise<boolean>; pull(k: string): Promise<any>;
+};
+declare const Time: {
+  readonly dt: number; readonly elapsed: number; readonly frame: number; readonly scale: number;
+  setScale(v: number): void;
+  after(sec: number, fn: () => void): any; every(sec: number, fn: () => void): any; cancel(t: any): void;
+};
+declare const Mic: {
+  supported(): boolean; permission(): Promise<string>;
+  request(c?: any): Promise<boolean>; start(): Promise<boolean>; stop(): void;
+  mute(): void; unmute(): void; toggle(): boolean; pushToTalk(down: boolean): void;
+  readonly level: number; readonly muted: boolean; onLevel(cb: (v: number) => void): () => void;
+  startRecording(): void; stopRecording(): Promise<Blob | null>; outputStream(): any;
+};
+declare const Network: {
+  readonly online: boolean; readonly uid: string | null;
+  room(id: string, opts?: any): Promise<any>; signal(id: string): Promise<any>;
+};
+declare const Voice: {
+  join(roomId: string, opts?: any): Promise<any>; leave(): void;
+  mute(): void; unmute(): void; readonly muted: boolean;
+};
+declare function V3(x?: number, y?: number, z?: number): Vec3;
+declare const MathUtils: { clamp(v: number, a: number, b: number): number; lerp(a: number, b: number, t: number): number; degToRad(d: number): number; radToDeg(r: number): number; randFloat(a: number, b: number): number; };
+declare const self: GameObject | null;
+declare const props: any;
+`;
+
+NX.LANGS = LANGS;
+NX.langOf = langOf;
+NX.extLang = extLang;
+NX.Toolchain = Toolchain;
+NX.Adapters = Adapters;
+NX.BuildManager = BuildManager;
+NX.CompilerCache = CompilerCache;
+NX.EngineBridge = EngineBridge;
+NX.WasmModule = WasmModule;
+NX.scopeCSS = scopeCSS;
+NX.sanitizeGameHTML = sanitizeGameHTML;
+NX.ENGINE_H = ENGINE_H;
+NX.NEXUS_DTS = NEXUS_DTS;
+</script>
+<script type="module">
+/* ============================================================
+   PART 10/10 · MULTI-LANGUAGE IDE
+   File explorer · tabs · BUILD / RUN / STOP · Problems ·
+   Build log · Toolchain Manager (rules 17, 18, 21, 23, 25)
+   ============================================================ */
+const NX = window.NX;
+const { $, $$, el, btn, iconBtn, icon, esc, Sheet, Modal, Toast, T, LS, uid, fmtBytes, debounce, field, segPick } = NX;
+const { LANGS, langOf, Toolchain, BuildManager, CompilerCache, CodeEditor } = NX;
+
+/* ------------------------------------------------------------
+   PROJECT FILE MODEL — one list, every language (rule 18)
+   ------------------------------------------------------------ */
+function fileRole(path) {
+  const l = langOf(path);
+  if (!l) return 'script';
+  if (l.target === 'ui') return 'ui';
+  if (l.target === 'style') return 'style';
+  if (l.target === 'wasm') return 'module';
+  return 'script';
+}
+function migrateProjectFiles(project) {
+  if (project.files && project.files.length) return project;
+  const files = [];
+  (project.scripts || []).forEach(s => files.push({
+    id: s.id || uid('f'), path: /\.[a-z]+$/i.test(s.name) ? s.name : s.name + '.js',
+    code: s.code, role: 'script', entityId: s.entityId || null, enabled: s.enabled !== false
+  }));
+  (project.components || []).forEach(c => files.push({
+    id: c.id || uid('f'), path: /\.[a-z]+$/i.test(c.name) ? c.name : c.name + '.js',
+    code: c.code, role: 'component', entityId: null, enabled: true
+  }));
+  project.files = files;
+  delete project.scripts; delete project.components;
+  return project;
+}
+/* a component is addressed by its bare file name */
+const componentName = path => String(path).replace(/\.[^.]+$/, '');
+
+/* ------------------------------------------------------------
+   STARTER TEMPLATES — each one really builds for its language
+   ------------------------------------------------------------ */
+const TEMPLATES = {
+  javascript: `// JavaScript — يعمل مباشرة داخل Browser Runtime
+async function start() {
+  const ground = await Scene.create({ name: "Ground", type: "primitive",
+    props: { shape: "plane", color: "#2a3050" }, scale: [40, 1, 40] });
+  ground.addBody({ type: "static" });
+
+  const hero = await Player.create({ speed: 6, position: [0, 2, 0] });
+  UI.joystick({ side: "left" });
+  Camera.follow(hero, { offset: [0, 4, 8] });
+  Engine.log("JavaScript ready");
+}
+
+function update(dt) {
+  Player.moveWithInput();
+}
+`,
+  typescript: `// TypeScript — يُترجَم إلى JavaScript بمترجم tsc الحقيقي قبل التشغيل
+interface Settings {
+  speed: number;
+  jump: number;
+}
+
+const settings: Settings = { speed: 6.5, jump: 9 };
+let score: number = 0;
+let label: { set(v: string): void } | null = null;
+
+async function start(): Promise<void> {
+  const ground = await Scene.create({ name: "Ground", type: "primitive",
+    props: { shape: "plane", color: "#243" }, scale: [40, 1, 40] });
+  ground.addBody({ type: "static" });
+
+  await Player.create({ speed: settings.speed, position: [0, 2, 0] });
+  UI.joystick({ side: "left" });
+  label = UI.text("Score: 0", { x: 16, y: 16, size: 18 });
+
+  Events.on("Scored", (n: number) => {
+    score += n;
+    label?.set("Score: " + score);
+  });
+  Engine.log("TypeScript ready");
+}
+
+function update(dt: number): void {
+  Player.moveWithInput(settings.speed);
+}
+`,
+  c: `/* C → WebAssembly
+   الترجمة محليًا:
+   clang --target=wasm32 -O2 -nostdlib -Wl,--no-entry -Wl,--export-dynamic main.c -o game.wasm
+   ثم أضف game.wasm إلى المشروع، أو ثبّت سلسلة أدوات في Toolchains. */
+#include "engine.h"
+
+static obj_t cube;
+static float t = 0.0f;
+
+EXPORT(start) void start(void) {
+  E_LOG("C module started");
+  cube = engine_scene_create("box", 3, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0x4f7bff);
+}
+
+EXPORT(update) void update(float dt) {
+  t += dt;
+  float h = 1.0f + 0.4f * (t - (int)t);
+  engine_object_set_position(cube, 0.0f, h, 0.0f);
+  engine_object_rotate(cube, 0.0f, dt, 0.0f);
+}
+`,
+  cpp: `// C++ → WebAssembly
+// الترجمة محليًا:
+// clang++ --target=wasm32 -O2 -fno-exceptions -fno-rtti -nostdlib \\
+//   -Wl,--no-entry -Wl,--export-dynamic main.cpp -o game.wasm
+#include "engine.h"
+
+namespace {
+  obj_t player = -1;
+  float elapsed = 0.0f;
+}
+
+extern "C" {
+
+EXPORT(start) void start() {
+  E_LOG("C++ module started");
+  engine_physics_set_gravity(0.0f, -22.0f, 0.0f);
+
+  obj_t ground = engine_scene_create("plane", 5, 0.0f, 0.0f, 0.0f, 40.0f, 1.0f, 40.0f, 0x2a3050);
+  E_BODY(ground, "static");
+
+  player = engine_scene_create("box", 3, 0.0f, 3.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0x7c5cff);
+  E_BODY(player, "character");
+  engine_camera_follow(player, 0.0f, 4.0f, 8.0f);
+}
+
+EXPORT(update) void update(float dt) {
+  elapsed += dt;
+  if (!engine_object_valid(player)) return;
+
+  float h = E_AXIS("horizontal");
+  float v = E_AXIS("vertical");
+  engine_physics_set_velocity(player, h * 6.0f, engine_physics_get_vel_y(player), v * 6.0f);
+
+  if (E_BTN("jump") && engine_physics_grounded(player)) {
+    engine_physics_set_velocity(player, h * 6.0f, 9.0f, v * 6.0f);
+    E_EMIT("Jumped", elapsed);
+  }
+}
+
+}
+`,
+  csharp: `// C# → WebAssembly (.NET)
+// يحتاج وقت تشغيل .NET WASM مثبّتًا من Toolchains،
+// أو انشر محليًا: dotnet publish -c Release ثم أضف ملف .wasm الناتج.
+using System;
+using System.Runtime.InteropServices;
+
+public static class Game
+{
+    [DllImport("env", EntryPoint = "engine_log")]
+    private static extern void EngineLog(IntPtr text, int len);
+
+    [DllImport("env", EntryPoint = "engine_scene_create")]
+    private static extern int SceneCreate(IntPtr shape, int len,
+        float x, float y, float z, float sx, float sy, float sz, int color);
+
+    [DllImport("env", EntryPoint = "engine_object_rotate")]
+    private static extern void ObjectRotate(int handle, float x, float y, float z);
+
+    private static int _cube;
+
+    [UnmanagedCallersOnly(EntryPoint = "start")]
+    public static void Start()
+    {
+        Log("C# module started");
+        _cube = Create("box", 0f, 1f, 0f, 0x22d3ee);
+    }
+
+    [UnmanagedCallersOnly(EntryPoint = "update")]
+    public static void Update(float dt) => ObjectRotate(_cube, 0f, dt, 0f);
+
+    private static void Log(string s)
+    {
+        IntPtr p = Marshal.StringToHGlobalAnsi(s);
+        try { EngineLog(p, s.Length); } finally { Marshal.FreeHGlobal(p); }
+    }
+
+    private static int Create(string shape, float x, float y, float z, int color)
+    {
+        IntPtr p = Marshal.StringToHGlobalAnsi(shape);
+        try { return SceneCreate(p, shape.Length, x, y, z, 1f, 1f, 1f, color); }
+        finally { Marshal.FreeHGlobal(p); }
+    }
+}
+`,
+  html: `<!-- HTML — واجهة اللعبة. لا سكربت مضمّن:
+     الربط بالمحرك يتم عبر data-emit و data-bind و data-field -->
+<div class="hud">
+  <div class="score">النقاط: <span data-bind="score">0</span></div>
+  <div class="health"><i data-bind="healthBar" style="width:100%"></i></div>
+</div>
+
+<div class="shop" data-bind-panel="shop">
+  <h3>المتجر</h3>
+  <button class="buy" data-emit="Buy" data-value="speed">سرعة +  ·  50</button>
+  <button class="buy" data-emit="Buy" data-value="jump">قفز +  ·  80</button>
+  <input class="nick" data-field="playerName" placeholder="اسمك" />
+  <button class="close" data-emit="CloseShop">إغلاق</button>
+</div>
+`,
+  css: `/* CSS — يُقصر تلقائيًا على طبقة واجهة اللعبة فقط
+   حتى لا يؤثر تصميمك على المحرر حوله */
+.hud {
+  position: absolute;
+  top: 14px;
+  inset-inline-start: 14px;
+  font: 700 16px system-ui, sans-serif;
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(0,0,0,.65);
+}
+.health {
+  width: 170px; height: 10px; margin-top: 8px;
+  background: rgba(255,255,255,.2); border-radius: 99px; overflow: hidden;
+}
+.health i { display: block; height: 100%; background: #34d399; transition: width .2s linear; }
+
+.shop {
+  position: absolute; inset-inline: 20px; bottom: 90px;
+  background: rgba(12,14,24,.92); border: 1px solid rgba(255,255,255,.14);
+  border-radius: 16px; padding: 16px; color: #fff; backdrop-filter: blur(10px);
+}
+.shop h3 { margin: 0 0 10px; font-size: 17px; }
+.buy, .close {
+  display: block; width: 100%; margin-bottom: 8px; padding: 12px;
+  border: 0; border-radius: 10px; font: 700 14px system-ui;
+  background: rgba(124,92,255,.35); color: #fff;
+}
+.close { background: rgba(255,255,255,.1); }
+.nick { width: 100%; padding: 11px; margin-bottom: 8px; border-radius: 10px;
+        border: 1px solid rgba(255,255,255,.18); background: rgba(0,0,0,.25); color: #fff; }
+`
+};
+
+/* ------------------------------------------------------------
+   IDE
+   ------------------------------------------------------------ */
+const IDE = {
+  sheet: null, project: null, editor: null, current: null,
+  panel: 'console', logs: [], build: null,
+
+  open(project, opts = {}) {
+    this.project = migrateProjectFiles(project || NX.Studio.project);
+    if (!this.project.files.length) this.addFile('Main.js', TEMPLATES.javascript, { silent: true });
+    if (this.sheet && !this.sheet._closed) { if (opts.panel) this.setPanel(opts.panel); return this.sheet; }
+
+    const body = el('div', { class: 'ide-wrap' });
+
+    /* file tabs */
+    this.tabs = el('div', { class: 'chips ide-tabs' });
+    /* build toolbar */
+    this.toolbar = el('div', { class: 'ide-toolbar' });
+    this.buildBtn = btn('BUILD', { cls: 'sm primary', icon: 'box', onclick: () => this.doBuild() });
+    this.runBtn = btn('RUN', { cls: 'sm ok', icon: 'play', onclick: () => this.doRun() });
+    this.stopBtn = btn('STOP', { cls: 'sm danger', icon: 'stop', onclick: () => this.doStop() });
+    this.langBadge = el('span', { class: 'badge brand', text: '—' });
+    this.toolbar.append(this.buildBtn, this.runBtn, this.stopBtn, el('span', { style: { flex: '1' } }), this.langBadge);
+
+    this.edHost = el('div', { class: 'ide-editor' });
+
+    /* bottom panel */
+    const seg = el('div', { class: 'seg ide-seg' });
+    [['console', 'Console'], ['problems', 'Problems'], ['build', 'Build'], ['tools', 'Toolchains']].forEach(([k, label]) => {
+      const b = el('button', { class: k === this.panel ? 'on' : '', text: label, onclick: e => { segPick(seg, e.target); this.setPanel(k); } });
+      b.dataset.panel = k;
+      seg.appendChild(b);
+    });
+    this.seg = seg;
+    this.panelBody = el('div', { class: 'ide-panel scroll' });
+    const panelWrap = el('div', { class: 'ide-panel-wrap' }, [seg, this.panelBody]);
+
+    body.append(this.tabs, this.toolbar, this.edHost, panelWrap);
+
+    this.sheet = Sheet.open({
+      title: 'الكود · Multi-language', body, full: true, id: 'ide',
+      headExtra: [
+        iconBtn('folder', { label: 'files', onclick: () => this.openFiles() }),
+        iconBtn('gear', { label: 'toolchains', onclick: () => this.openToolchains() })
+      ],
+      onClose: () => { this.flush(); this.sheet = null; this.editor = null; NX.Studio.save(true); }
+    });
+    setTimeout(() => { const b = $('.sheet.in .sheet-body'); if (b) { b.style.display = 'flex'; b.style.flexDirection = 'column'; b.style.padding = '10px 12px'; } }, 40);
+
+    this.openFile(this.project.files[0]);
+    this.setPanel(opts.panel || 'console');
+    this.renderTabs();
+    return this.sheet;
+  },
+
+  flush() { if (this.editor && this.current) this.current.code = this.editor.value; },
+
+  renderTabs() {
+    if (!this.tabs) return;
+    this.tabs.textContent = '';
+    this.project.files.forEach(f => {
+      const lang = langOf(f.path);
+      const c = el('button', {
+        class: 'chip' + (this.current && this.current.id === f.id ? ' on' : ''),
+        onclick: () => { this.flush(); this.openFile(f); }
+      });
+      c.appendChild(el('span', { text: f.path }));
+      if (f.entityId) c.appendChild(el('span', { class: 'tiny', text: ' ⚲' }));
+      if (!lang) c.appendChild(el('span', { class: 'badge warn', text: '?' }));
+      this.tabs.appendChild(c);
+    });
+    this.tabs.appendChild(el('button', { class: 'chip', text: '+ ملف', onclick: () => this.newFile() }));
+  },
+
+  openFile(f) {
+    if (!f) return;
+    this.current = f;
+    const lang = langOf(f.path);
+    if (this.langBadge) this.langBadge.textContent = lang ? lang.name : 'غير مدعوم';
+    if (!this.editor) {
+      this.editor = new CodeEditor(this.edHost, {
+        value: f.code, name: f.path,
+        onSave: v => { f.code = v; NX.Studio.dirty = true; NX.Studio.save(true); Toast.ok('حُفظ ' + f.path); },
+        onRun: v => { f.code = v; this.doBuild(); }
+      });
+      this.editor.console.classList.add('hide');    // the IDE has its own panel
+    } else {
+      this.editor.value = f.code;
+      this.editor.setName(f.path);
+    }
+    this.renderTabs();
+  },
+
+  /* ---------------- files ---------------- */
+  addFile(path, code, opts = {}) {
+    const f = { id: uid('f'), path, code: code == null ? '' : code, role: fileRole(path), entityId: null, enabled: true };
+    this.project = this.project || NX.Studio.project;
+    (this.project.files = this.project.files || []).push(f);
+    NX.Studio.dirty = true;
+    if (!opts.silent) { this.renderTabs(); this.openFile(f); }
+    return f;
+  },
+
+  async newFile() {
+    const body = el('div');
+    const nameIn = el('input', { class: 'input', placeholder: 'Game' });
+    const langSel = el('select', { class: 'select' },
+      ['javascript', 'typescript', 'cpp', 'c', 'csharp', 'html', 'css'].map(k => el('option', { value: k, text: LANGS[k].name })));
+    const roleSel = el('select', { class: 'select' }, [
+      el('option', { value: 'script', text: 'سكربت عام · script' }),
+      el('option', { value: 'component', text: 'مكوّن قابل لإعادة الاستخدام · component' })
+    ]);
+    const roleField = field('النوع', roleSel);
+    langSel.addEventListener('change', () => {
+      const k = langSel.value;
+      roleField.style.display = (k === 'javascript' || k === 'typescript') ? '' : 'none';
+    });
+    body.append(field('الاسم', nameIn), field('اللغة', langSel), roleField);
+    body.appendChild(el('p', { class: 'tiny', text: 'سيُضاف قالب بداية حقيقي للغة المختارة.' }));
+
+    const sheet = Sheet.open({
+      title: 'ملف جديد', body, id: 'newfile',
+      foot: [btn('إنشاء', { cls: 'primary', onclick: () => {
+        const k = langSel.value;
+        const ext = LANGS[k].exts[0];
+        let base = (nameIn.value || 'Game').trim().replace(/[^\w.-]+/g, '_').replace(/\.[^.]*$/, '');
+        if (!base) base = 'Game';
+        const path = base + '.' + ext;
+        if (this.project.files.some(x => x.path === path)) { Toast.err('يوجد ملف بهذا الاسم'); return; }
+        this.flush();
+        /* C/C++ need the bridge header present to compile */
+        if ((k === 'c' || k === 'cpp') && !this.project.files.some(x => x.path === 'engine.h')) {
+          this.addFile('engine.h', NX.ENGINE_H, { silent: true });
+        }
+        const f = this.addFile(path, TEMPLATES[k] || '');
+        if (k === 'javascript' || k === 'typescript') f.role = roleSel.value;
+        sheet.close();
+      }})]
+    });
+    setTimeout(() => nameIn.focus(), 80);
+  },
+
+  openFiles() {
+    this.flush();
+    const body = el('div');
+    const groups = {};
+    this.project.files.forEach(f => {
+      const l = langOf(f.path);
+      const k = l ? l.name : 'غير مدعوم';
+      (groups[k] = groups[k] || []).push(f);
+    });
+    Object.keys(groups).forEach(k => {
+      body.appendChild(el('div', { class: 'ttl', style: { marginTop: '12px' }, text: k }));
+      groups[k].forEach(f => {
+        const r = el('div', { class: 'comp-row' });
+        r.appendChild(icon(langOf(f.path) && langOf(f.path).target === 'wasm' ? 'box' : 'code'));
+        const b = el('b', { text: f.path });
+        if (f.role === 'component') b.appendChild(el('span', { class: 'badge', text: 'component' }));
+        if (f.entityId) {
+          const e = NX.Studio.engine.getEntity(f.entityId);
+          b.appendChild(el('span', { class: 'badge brand', text: '⚲ ' + (e ? e.name : 'مفقود') }));
+        }
+        r.appendChild(b);
+        r.appendChild(iconBtn('dots', { onclick: ev => { ev.stopPropagation(); this.fileMenu(f, () => { sheet.close(); this.openFiles(); }); } }));
+        r.onclick = ev => { if (ev.target.closest('.icon-btn')) return; this.openFile(f); sheet.close(); };
+        body.appendChild(r);
+      });
+    });
+    const sheet = Sheet.open({
+      title: 'ملفات المشروع', body, id: 'files',
+      headExtra: iconBtn('plus', { onclick: () => { sheet.close(); this.newFile(); } }),
+      foot: [
+        btn('استيراد .wasm', { cls: 'ghost', icon: 'upload', onclick: () => { sheet.close(); this.importWasm(); } }),
+        btn('ملف جديد', { cls: 'primary', icon: 'plus', onclick: () => { sheet.close(); this.newFile(); } })
+      ]
+    });
+  },
+
+  fileMenu(f, after) {
+    const body = el('div');
+    const mk = (label, cls, fn) => btn(label, { cls: 'block ' + (cls || ''), style: { marginBottom: '8px' }, onclick: async () => { await fn(); s.close(); after && after(); } });
+    body.appendChild(mk('إعادة تسمية', '', async () => {
+      const n = await Modal.prompt('اسم الملف', f.path);
+      if (n && n !== f.path) { f.path = n; f.role = fileRole(n); NX.Studio.dirty = true; this.renderTabs(); if (this.current === f && this.editor) this.editor.setName(n); }
+    }));
+    const lang = langOf(f.path);
+    if (lang && (lang.id === 'javascript' || lang.id === 'typescript')) {
+      body.appendChild(mk('ربط بالكائن المحدّد', '', () => {
+        const sel = NX.Studio.engine.selection;
+        if (!sel) { Toast.err('حدّد كائنًا في المشهد أولًا'); return; }
+        f.entityId = sel; f.role = 'script'; NX.Studio.dirty = true;
+        Toast.ok('رُبط بـ ' + NX.Studio.engine.getEntity(sel).name);
+      }));
+      body.appendChild(mk('فك الارتباط', '', () => { f.entityId = null; NX.Studio.dirty = true; }));
+      body.appendChild(mk(f.role === 'component' ? 'اجعله سكربتًا' : 'اجعله مكوّنًا', '', () => {
+        f.role = f.role === 'component' ? 'script' : 'component'; NX.Studio.dirty = true;
+      }));
+    }
+    body.appendChild(mk(f.enabled === false ? 'تفعيل' : 'تعطيل في البناء', 'ghost', () => { f.enabled = f.enabled === false; NX.Studio.dirty = true; }));
+    body.appendChild(mk('حذف', 'danger', async () => {
+      if (!await Modal.confirm('حذف ' + f.path + '؟', 'لا يمكن التراجع.', 'حذف')) return;
+      this.project.files = this.project.files.filter(x => x.id !== f.id);
+      if (this.current && this.current.id === f.id) { this.current = null; this.editor = null; this.edHost.textContent = ''; this.openFile(this.project.files[0]); }
+      NX.Studio.dirty = true; this.renderTabs();
+    }));
+    const s = Sheet.open({ title: f.path, body, id: 'filemenu' });
+  },
+
+  /* a module compiled ahead of time with clang/emscripten/dotnet */
+  importWasm() {
+    const inp = el('input', { type: 'file', accept: '.wasm,application/wasm', style: { display: 'none' } });
+    document.body.appendChild(inp);
+    inp.addEventListener('change', async () => {
+      const file = inp.files[0]; inp.remove();
+      if (!file) return;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      if (!WebAssembly.validate(bytes)) { Toast.err('ملف WASM غير صالح'); return; }
+      let exportNames = [];
+      try {
+        const mod = await WebAssembly.compile(bytes);
+        exportNames = WebAssembly.Module.exports(mod).map(e => e.name);
+      } catch {}
+      const f = this.addFile(file.name, '', { silent: true });
+      f.bytes = Array.from(bytes);
+      f.role = 'module';
+      this.renderTabs();
+      Toast.ok(`أُضيف ${file.name} (${fmtBytes(bytes.length)})`);
+      this.log(`WASM مستورد: ${file.name} — exports: ${exportNames.join(', ') || 'لا شيء'}`, 'sys');
+      if (!exportNames.includes('start') && !exportNames.includes('update'))
+        this.log('تنبيه: الوحدة لا تُصدّر start() أو update(float) — لن يستدعيها المحرك.', 'warn');
+    });
+    inp.click();
+  },
+
+  /* ---------------- build / run ---------------- */
+  async doBuild() {
+    this.flush();
+    this.setPanel('build');
+    this.logs = [];
+    this.buildBtn.disabled = true;
+    try {
+      const build = await NX.Studio.buildProject({ silent: false });
+      this.build = build;
+      if (!build.ok) this.setPanel('problems');
+    } finally { this.buildBtn.disabled = false; }
+  },
+  async doRun() {
+    this.flush();
+    await NX.Studio.save(true);
+    this.sheet && this.sheet.close();
+    await NX.Studio.play();
+  },
+  doStop() { NX.Studio.stopPlay(); Toast.show('أُوقف'); },
+
+  log(m, type = 'log') {
+    this.logs.push({ m: String(m), type });
+    if (this.logs.length > 400) this.logs.shift();
+    if (this.panel === 'console' || this.panel === 'build') this.renderPanel();
+  },
+  showBuild(build) { this.build = build; if (this.panel === 'problems' || this.panel === 'build') this.renderPanel(); },
+
+  setPanel(k) {
+    this.panel = k;
+    if (this.seg) Array.from(this.seg.children).forEach(b => b.classList.toggle('on', b.dataset.panel === k));
+    this.renderPanel();
+  },
+
+  renderPanel() {
+    if (!this.panelBody) return;
+    const p = this.panelBody;
+    p.textContent = '';
+    if (this.panel === 'console' || this.panel === 'build') {
+      const rows = this.panel === 'build' ? this.logs.filter(l => l.type !== 'log' || /—|✓|✗/.test(l.m)) : this.logs;
+      if (!rows.length) { p.appendChild(el('div', { class: 'tiny', style: { padding: '10px' }, text: 'لا مخرجات بعد. اضغط BUILD.' })); return; }
+      rows.forEach(l => p.appendChild(el('div', { class: 'l ' + (l.type === 'err' ? 'err' : l.type === 'warn' ? 'warn' : l.type === 'ok' ? 'ok' : l.type === 'sys' ? 'sys' : ''), text: l.m })));
+      p.scrollTop = p.scrollHeight;
+      return;
+    }
+    if (this.panel === 'problems') {
+      const ds = (this.build && this.build.diagnostics) || [];
+      if (!ds.length) { p.appendChild(el('div', { class: 'tiny', style: { padding: '10px' }, text: this.build ? '✓ لا مشاكل.' : 'ابنِ المشروع لعرض المشاكل.' })); return; }
+      ds.forEach(d => {
+        const row = el('div', { class: 'prob-row ' + (d.severity === 'error' ? 'err' : 'warn') });
+        row.appendChild(el('span', { class: 'sev', text: d.severity === 'error' ? '✗' : '!' }));
+        const t = el('div', { class: 'ptxt' });
+        t.appendChild(el('b', { text: d.message }));
+        t.appendChild(el('span', { class: 'ploc', text: `${d.file}:${d.line}:${d.column}${d.lang ? ' · ' + d.lang : ''}` }));
+        row.appendChild(t);
+        row.onclick = () => this.jumpTo(d.file, d.line);
+        p.appendChild(row);
+      });
+      return;
+    }
+    if (this.panel === 'tools') {
+      p.appendChild(this.toolchainList(true));
+    }
+  },
+
+  jumpTo(path, line) {
+    const f = this.project.files.find(x => x.path === path || x.path.replace(/\.ts$/, '.js') === path);
+    if (!f) return;
+    this.flush();
+    this.openFile(f);
+    setTimeout(() => this.editor && this.editor.goToLine(line || 1), 60);
+  },
+
+  /* ---------------- toolchains (rule 25) ---------------- */
+  toolchainList(compact) {
+    const wrap = el('div');
+    Object.keys(Toolchain.reg).forEach(id => {
+      const t = Toolchain.reg[id];
+      const row = el('div', { class: 'tc-row' });
+      const head = el('div', { class: 'tc-head' });
+      head.appendChild(el('b', { text: t.name }));
+      const st = Toolchain.statusText(id);
+      head.appendChild(el('span', { class: 'badge ' + (st === 'READY' ? 'pub' : st === 'FAILED' ? 'warn' : 'priv'), text: st }));
+      row.appendChild(head);
+      row.appendChild(el('p', { class: 'tiny', text: t.note }));
+      row.appendChild(el('p', { class: 'tiny mono', text: `${t.kind} · ${t.approxSize} · ${t.runsIn}` + (t.version ? ' · v' + t.version : '') }));
+      if (t.error) row.appendChild(el('p', { class: 'tiny', style: { color: '#ff9aa8' }, text: t.error }));
+
+      if (!compact) {
+        const urlIn = el('input', { class: 'input', style: { fontSize: '12px', direction: 'ltr' }, value: Toolchain.url(id), placeholder: 'https://… (رابط حزمة المترجم)' });
+        urlIn.addEventListener('change', () => { Toolchain.setURL(id, urlIn.value.trim()); this.renderPanel(); });
+        row.appendChild(el('div', { style: { marginTop: '8px' } }, [urlIn]));
+      }
+      const prog = el('div', { class: 'prog hide' }, [el('i')]);
+      const msg = el('p', { class: 'tiny', style: { marginTop: '4px' } });
+      const act = el('div', { class: 'row', style: { marginTop: '8px' } });
+      if (t.status === 'ready') {
+        act.appendChild(btn('جاهز ✓', { cls: 'sm ok', disabled: true }));
+      } else {
+        const b = btn(Toolchain.url(id) ? 'تثبيت' : 'يحتاج رابطًا', {
+          cls: 'sm primary', disabled: !Toolchain.url(id),
+          onclick: async () => {
+            b.disabled = true; prog.classList.remove('hide');
+            try {
+              await Toolchain.install(id, (p, m) => { prog.firstChild.style.width = Math.round((p || 0) * 100) + '%'; msg.textContent = m || ''; });
+              Toast.ok(t.name + ' جاهز');
+            } catch (e) {
+              msg.textContent = 'فشل: ' + (e.message || e);
+              Toast.err('تعذّر تثبيت ' + t.name);
+            }
+            b.disabled = false;
+            this.renderPanel();
+          }
+        });
+        act.appendChild(b);
+      }
+      if (!compact && Toolchain.url(id)) act.appendChild(btn('مسح الرابط', { cls: 'sm ghost', onclick: () => { Toolchain.setURL(id, ''); this.renderPanel(); } }));
+      row.append(act, prog, msg);
+      wrap.appendChild(row);
+    });
+    return wrap;
+  },
+
+  openToolchains() {
+    const body = el('div');
+    body.appendChild(el('p', { class: 'tiny', style: { marginBottom: '12px', lineHeight: '1.8' },
+      text: 'الحالة هنا حقيقية: «READY» لا تظهر إلا بعد تنزيل المترجم والتحقق منه بترجمة اختبارية فعلية. ' +
+            'ولا يُستخدم أي API خارجي للترجمة إلا إذا وضعت رابطه بنفسك.' }));
+    body.appendChild(this.toolchainList(false));
+    body.appendChild(el('hr', { class: 'sep' }));
+    body.appendChild(el('div', { class: 'ttl', text: 'عقد Toolchain Provider' }));
+    const pre = el('pre', { class: 'mono', style: { background: '#080a12', padding: '11px', borderRadius: '10px', overflowX: 'auto', fontSize: '10.5px', direction: 'ltr', textAlign: 'left' },
+      text: `// أي وحدة ES تطابق هذا العقد تصبح مترجمًا للمنصة:
+export default {
+  name: "my-clang-wasi",
+  version: "1.0.0",
+  async init({ onProgress }) { /* حمّل ما تحتاجه */ },
+  async compile({ lang, files, options }) {
+    // lang: "c" | "cpp" | "csharp"
+    // files: [{ path, code }]
+    return {
+      ok: true,
+      wasm: new Uint8Array(/* الناتج */),
+      diagnostics: [{ severity:"error", file:"main.c", line:12, column:5, message:"..." }],
+      log: ["..."]
+    };
+  }
+};` });
+    body.appendChild(pre);
+    body.appendChild(el('hr', { class: 'sep' }));
+    body.appendChild(btn('مسح ذاكرة الترجمة المؤقتة', { cls: 'block ghost', onclick: async () => { await CompilerCache.clear(); Toast.ok('مُسحت'); } }));
+    Sheet.open({ title: 'Toolchains', body, full: true, id: 'toolchains' });
+  }
+};
+
+/* ------------------------------------------------------------
+   Studio glue: scripts/components now live in project.files
+   ------------------------------------------------------------ */
+NX.migrateProjectFiles = migrateProjectFiles;
+NX.IDE = IDE;
+NX.TEMPLATES = TEMPLATES;
+NX.componentName = componentName;
+NX.fileRole = fileRole;
+
+const S = NX.Studio;
+S.newScript = function (entityId) {
+  migrateProjectFiles(this.project);
+  const n = this.project.files.filter(f => f.role === 'script').length + 1;
+  const f = { id: uid('f'), path: 'Script' + n + '.js', code: NX.SCRIPT_TEMPLATE, role: 'script', entityId: entityId || null, enabled: true };
+  this.project.files.push(f);
+  this.dirty = true;
+  return f;
+};
+S.newComponent = async function () {
+  migrateProjectFiles(this.project);
+  const name = await Modal.prompt('اسم المكوّن', 'MyVehicleController', 'MyInventory');
+  if (!name) return null;
+  const base = name.replace(/\s+/g, '').replace(/\.[^.]*$/, '');
+  const f = {
+    id: uid('f'), path: base + '.js', role: 'component', entityId: null, enabled: true,
+    code: `// مكوّن مخصّص: ${base}\n// props = البيانات التي تمرّرها عند الإضافة\n\nfunction start() {\n  Engine.log("${base} on " + (self ? self.name : "scene"));\n}\n\nfunction update(dt) {\n}\n`
+  };
+  this.project.files.push(f);
+  this.dirty = true;
+  IDE.open(this.project);
+  IDE.openFile(f);
+  return f;
+};
+S.openCode = function (fileId) {
+  IDE.open(this.project);
+  if (fileId) { const f = this.project.files.find(x => x.id === fileId); if (f) IDE.openFile(f); }
+};
+S.pickComponent = function (entity, after) {
+  migrateProjectFiles(this.project);
+  const comps = this.project.files.filter(f => f.role === 'component');
+  const body = el('div');
+  if (!comps.length) body.appendChild(el('p', { class: 'muted', text: 'لم تُنشئ مكوّنات بعد. أنشئ واحدًا من تبويب الكود.' }));
+  comps.forEach(c => {
+    const nm = componentName(c.path);
+    body.appendChild(btn(nm, { cls: 'block', style: { marginBottom: '8px' }, onclick: () => {
+      entity.components.push({ id: uid('c'), type: nm, name: nm, data: {}, enabled: true });
+      this.dirty = true; sheet.close(); after && after();
+    }}));
+  });
+  body.appendChild(btn('+ مكوّن جديد', { cls: 'primary block', onclick: () => { sheet.close(); this.newComponent(); } }));
+  const sheet = Sheet.open({ title: T('addComponent'), body, id: 'pickcomp' });
+};
+
+/* the component lookup inside the runtime addresses components by bare name */
+const _attach = NX.Runtime.prototype.attachComponent;
+NX.Runtime.prototype.attachComponent = function (entity, name, data) {
+  const list = (this.project && this.project.components) || [];
+  const rec = list.find(c => c.name === name || componentName(c.name) === name);
+  if (rec) {
+    const inst = { name, data: data || {}, entity };
+    (entity._compInstances = entity._compInstances || []).push(inst);
+    this._pending.push({ code: rec.code, label: 'component:' + name, entity, props: data || {}, inst });
+    return inst;
+  }
+  return _attach.call(this, entity, name, data);
+};
+const _run = NX.Runtime.prototype.run;
+NX.Runtime.prototype.run = async function () {
+  /* components are matched by bare name, so "MyThing" finds "MyThing.js" */
+  const p = this.project;
+  if (p && p.components) p.components = p.components.map(c => ({ ...c, name: componentName(c.name) }));
+  return _run.call(this);
+};
+
+/* restore a cached toolchain at boot so offline builds keep working (rule 24) */
+Toolchain.autoRestore();
+</script>
+<script type="module">
+/* ============================================================
+   PART 8/10 · GAME PLATFORM + BOOT
    Outside the Studio: Games, Discover, Search, Create,
    My Games, Assets, Profile (rules 40-42).
    ============================================================ */
@@ -5601,12 +7544,22 @@ const Player = {
       if (cam && cam.object3D) { this.engine.activeCamera = cam.object3D; this.engine._resize(); }
 
       this.runtime = new Runtime(this.engine, {
-        project: { projectId: build.gameId, publishedId: build.gameId, scripts: build.scripts || [], components: build.components || [], assetRefs: build.assetRefs || [] },
+        project: { projectId: build.gameId, publishedId: build.gameId, assetRefs: build.assetRefs || [] },
         uiHost: $('#player-ui'),
         trusted: !!mine,
         onLog: (m, t) => { if (t === 'err') console.error('[game]', m); else console.log('[game]', m); }
       });
-      await this.runtime.run();
+      /* a published game ships compiled artifacts; fetch any WASM it references */
+      const art = build.artifacts || { scripts: build.scripts || [], components: build.components || [], ui: [], styles: [], wasm: [] };
+      art.wasm = [];
+      for (const ref of (build.wasmRefs || [])) {
+        $('#p-load-txt').textContent = 'تحميل ' + ref.path + '…';
+        const url = await Backend.fileURL(ref.storagePath, ref.url);
+        if (!url) { console.warn('missing wasm', ref); continue; }
+        const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
+        art.wasm.push({ path: ref.path, bytes });
+      }
+      await this.runtime.runBuild({ artifacts: art, manifest: build.manifest });
       $('#p-load').classList.add('hide');
       Games.recordPlay(game.gameId);
     } catch (e) {
