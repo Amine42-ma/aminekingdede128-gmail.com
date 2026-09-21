@@ -15,7 +15,7 @@
 
 <!-- ============================================================
      NEXUS ENGINE — EMPTY CORE ENGINE
-     PART 1/10 · Document head, import map, design system
+     PART 1/13 · Document head, import map, design system
      ------------------------------------------------------------
      THE ENGINE PROVIDES THE TOOLS. THE USER CREATES THE GAME.
      ============================================================ -->
@@ -472,6 +472,76 @@ html[lang=en] .ed-bar,html[lang=en] .ed-find{direction:ltr}
 .console .l.sys{color:#5e6688}
 
 /* ============================================================
+   BEGINNER MODE · PROJECTS · AI BUILDER
+   ============================================================ */
+.beg-grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.beg-grid.small{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+.beg-card{
+  display:flex;flex-direction:column;align-items:flex-start;gap:5px;
+  padding:14px 13px;border-radius:var(--r-lg);text-align:start;
+  background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+  transition:transform .12s var(--ease),border-color var(--dur),background var(--dur);
+  min-height:96px;
+}
+.beg-card:active{transform:scale(.96)}
+.beg-card.on{border-color:rgba(124,92,255,.55);background:rgba(124,92,255,.14)}
+.beg-card b{font-size:14px;line-height:1.3}
+.beg-card .beg-desc{font-size:11px;color:var(--ink-dim);line-height:1.5}
+.beg-ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--grad);margin-bottom:3px}
+.beg-ic svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2}
+.empty-choices{pointer-events:auto;max-width:330px;text-align:center}
+.empty-choices b{display:block;font-size:17px;margin-bottom:5px}
+.empty-choices p{margin-bottom:14px}
+.empty-row{display:flex;flex-direction:column;gap:8px}
+.wiz-dots{display:flex;gap:6px;justify-content:center;margin-bottom:16px}
+.wiz-dots i{width:7px;height:7px;border-radius:99px;background:var(--line-2)}
+.wiz-dots i.on{background:var(--brand);width:20px}
+.toast-undo{margin-inline-start:8px;padding:5px 11px;border-radius:7px;background:rgba(255,255,255,.14);color:#fff;font-weight:700;font-size:12px}
+.spin.sm{width:15px;height:15px;border-width:2px;margin:0}
+
+.proj-row{display:flex;align-items:center;gap:11px;padding:10px;border-radius:var(--r-md);background:var(--panel-2);border:1px solid var(--line);margin-bottom:9px}
+.proj-row:active{background:var(--glass-2)}
+.proj-thumb{width:56px;height:42px;border-radius:8px;background:#11142a;display:grid;place-items:center;flex:0 0 auto;overflow:hidden;font-size:18px;color:var(--ink-dim)}
+.proj-thumb img{width:100%;height:100%;object-fit:cover}
+.proj-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.proj-info b{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.comp-row.danger-row b{color:#ff9aa8}
+.help-row{margin-bottom:14px}
+.help-row span{display:block;font-size:11.5px;color:var(--ink-dim);font-weight:700;margin-bottom:4px}
+.help-row p{font-size:13.5px;line-height:1.7}
+
+.ai-wrap{display:flex;flex-direction:column;height:100%;min-height:0}
+.ai-status{
+  flex:0 0 auto;display:flex;align-items:center;gap:9px;padding:9px 11px;margin-bottom:9px;
+  background:rgba(124,92,255,.14);border:1px solid rgba(124,92,255,.35);border-radius:var(--r-md);font-size:12.5px;font-weight:600;
+}
+.ai-status span{flex:1;min-width:0}
+.plan-card,.report-card{
+  background:var(--panel-2);border:1px solid var(--line-2);border-radius:var(--r-lg);
+  padding:13px;margin:4px 0;align-self:stretch;
+}
+.plan-card > b,.report-card > b{display:block;font-size:14.5px;margin-bottom:4px}
+.plan-steps{margin-top:10px;display:flex;flex-direction:column;gap:2px}
+.plan-step{display:flex;gap:9px;align-items:flex-start;padding:7px 6px;border-radius:8px}
+.plan-step .dot{flex:0 0 auto;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line-2);display:grid;place-items:center;font-size:10px;font-style:normal;color:var(--ink-dim)}
+.plan-step.ok .dot{border-color:#34d399;color:#34d399}
+.plan-step.err .dot{border-color:#fb7185;color:#fb7185}
+.plan-step.skip .dot{opacity:.5}
+.plan-step b{display:block;font-size:12.5px;font-weight:600}
+.plan-step .tiny{display:block}
+.plan-actions{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap;align-items:center}
+.plan-actions .btn{flex:1;min-width:110px}
+.rep-t{font-size:11.5px;font-weight:700;color:var(--ink-dim);margin:11px 0 5px}
+.rep-t.warn{color:#fcd77a}
+.rep-item{display:flex;gap:7px;align-items:flex-start;width:100%;text-align:start;padding:6px 8px;border-radius:7px;background:var(--glass);font-size:12px;margin-bottom:4px;color:var(--ink-soft);line-height:1.5}
+.rep-item.warn{color:#ffc2a0}
+button.rep-item:active{background:var(--glass-2)}
+.quick-actions{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-bottom:12px}
+.quick-actions .btn{min-height:52px;flex-direction:column;gap:3px;font-size:11.5px;padding:6px}
+.quick-actions .btn svg{width:18px;height:18px}
+html[data-mode="beginner"] .pro-only{display:none!important}
+
+/* ============================================================
    MULTI-LANGUAGE IDE
    ============================================================ */
 .ide-wrap{display:flex;flex-direction:column;height:100%;min-height:0;gap:8px}
@@ -561,7 +631,7 @@ html.kb-open .ide-toolbar,html.kb-open .ide-seg{display:none}
 </head>
 <body>
 <!-- ============================================================
-     PART 2/10 · Shell markup + UI kit
+     PART 2/13 · Shell markup + UI kit
      ============================================================ -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
 <defs>
@@ -688,7 +758,7 @@ html.kb-open .ide-toolbar,html.kb-open .ide-seg{display:none}
 
 <script type="module">
 /* ============================================================
-   PART 2/10 · UI KIT — DOM, i18n, sheets, modals, toasts, router
+   PART 2/13 · UI KIT — DOM, i18n, sheets, modals, toasts, router
    ============================================================ */
 const NX = (window.NX = window.NX || {});
 
@@ -986,7 +1056,7 @@ Object.assign(NX, { $, $$, el, esc, icon, btn, iconBtn, fmtNum, fmtBytes, timeAg
 </script>
 <script type="module">
 /* ============================================================
-   PART 3/10 · BACKEND — Firebase Storage + Firestore + Auth
+   PART 3/13 · BACKEND — Firebase Storage + Firestore + Auth
    with an explicit, clearly-labelled offline fallback.
    ------------------------------------------------------------
    To go ONLINE: open Settings → Firebase and paste your config,
@@ -1680,7 +1750,7 @@ NX.FB_CONFIG = FB_CONFIG;
 </script>
 <script type="module">
 /* ============================================================
-   PART 4/10 · ENGINE CORE
+   PART 4/13 · ENGINE CORE
    An empty core: Scene, Camera, Light, Spawn Point and engine
    primitives. No bundled model/game library — everything else
    arrives as a user asset or user code.
@@ -2573,7 +2643,7 @@ NX.OrbitCam = OrbitCam;
 </script>
 <script type="module">
 /* ============================================================
-   PART 5/10 · ENGINE API + SCRIPT RUNTIME
+   PART 5/13 · ENGINE API + SCRIPT RUNTIME
    Gameplay logic belongs to the developer. The engine only
    hands over tools: Engine, Scene, Object, Player, Input,
    Physics, Audio, Camera, UI, Network, Events, Assets, Save,
@@ -3652,7 +3722,7 @@ NX.SHADOWED = SHADOWED;
 </script>
 <script type="module">
 /* ============================================================
-   PART 6/10 · ASSET PIPELINE + PUBLIC ASSET LIBRARY
+   PART 6/13 · ASSET PIPELINE + PUBLIC ASSET LIBRARY
    Users are the source of assets. Nothing here ships with the
    engine — the library is whatever people upload.
    ============================================================ */
@@ -4318,7 +4388,7 @@ NX.ACCEPT = ACCEPT;
 </script>
 <script type="module">
 /* ============================================================
-   PART 7/10 · MOBILE-FIRST STUDIO
+   PART 7/13 · MOBILE-FIRST STUDIO
    The viewport is the centre of gravity. Every panel is a
    temporary sheet that gets out of the way (rules 20-25).
    ============================================================ */
@@ -4927,6 +4997,94 @@ const Studio = {
     this.updateEmptyState();
     clearInterval(this._autosave);
     this._autosave = setInterval(() => { if (this.dirty && !this.playing) this.save(true); }, 30000);
+    if (!this._modeHook) {
+      this._modeHook = true;
+      window.addEventListener('nx:mode', () => { this.buildTabs(); this.updateEmptyState(); });
+    }
+  },
+
+  /* reload the scene from the project record (after a rollback) */
+  async reloadScene() {
+    NX.migrateProjectFiles(this.project);
+    await this.engine.load(this.project.scene || NX.emptyScene());
+    this.lastBuild = null;
+    this.updateHud();
+  },
+
+  /* run a build briefly and collect what it throws — the assistant's test step */
+  async testRun(build) {
+    const snapshot = JSON.stringify(this.engine.serialize());
+    const errors = [];
+    const overlay = el('div', { style: { position: 'absolute', inset: '0', pointerEvents: 'none', opacity: '0' } });
+    $('#vp-wrap').appendChild(overlay);
+    const rt = new Runtime(this.engine, {
+      project: this.project, uiHost: overlay,
+      onLog: (m, t) => { if (t === 'err') errors.push(String(m).split('\n')[0].slice(0, 160)); }
+    });
+    try {
+      await rt.runBuild(build);
+      await new Promise(r => setTimeout(r, 1200));
+    } catch (e) { errors.push(String(e && e.message || e).slice(0, 160)); }
+    try { rt.stop(); } catch {}
+    overlay.remove();
+    await this.engine.load(JSON.parse(snapshot));
+    return { errors };
+  },
+
+  /* beginner-facing actions for whatever is selected (rule 29) */
+  openQuickActions(e) {
+    const body = el('div');
+    const o = e.object3D;
+    const grid = el('div', { class: 'quick-actions' });
+    const add = (label, ic, fn) => grid.appendChild(btn(label, { cls: '', icon: ic, onclick: () => { fn(); } }));
+
+    if (e.type === 'primitive' || e.type === 'model') {
+      add('لون', 'image', () => {
+        const inp = el('input', { type: 'color', value: e.props.color || '#8b93b8' });
+        inp.addEventListener('input', () => {
+          e.props.color = inp.value;
+          o.traverse(n => { if (n.isMesh && n.material && n.material.color) { n.material = n.material.clone(); n.material.color.set(inp.value); } });
+          this.dirty = true;
+        });
+        Modal.open({ title: 'اللون', body: inp, actions: [{ label: T('close'), cls: 'primary' }] });
+      });
+      add('فيزياء', 'box', () => {
+        const has = e.components.find(c => c.type === 'Rigidbody');
+        if (has) { e.components = e.components.filter(c => c.type !== 'Rigidbody'); Toast.show('أُزيلت الفيزياء'); }
+        else { e.components.push({ id: uid('c'), type: 'Rigidbody', name: 'Rigidbody', data: { type: 'static' }, enabled: true }); Toast.ok('صار جسمًا ثابتًا'); }
+        this.dirty = true;
+      });
+      add('تكرار', 'copy', async () => { this.pushUndo(); await this.engine.duplicate(e.id); this.dirty = true; Toast.ok('كُرّر'); });
+    }
+    if (e.type === 'light') {
+      add('شدة', 'bulb', () => {
+        const r = el('input', { type: 'range', min: 0, max: 8, step: .05, value: e.props.intensity == null ? 1.6 : e.props.intensity, class: 'input' });
+        r.addEventListener('input', () => {
+          e.props.intensity = +r.value;
+          o.intensity = +r.value * (e.props.light === 'point' ? 8 : e.props.light === 'spot' ? 10 : 1);
+          this.dirty = true;
+        });
+        Modal.open({ title: 'شدة الإضاءة', body: r, actions: [{ label: T('close'), cls: 'primary' }] });
+      });
+      add('لون', 'image', () => {
+        const inp = el('input', { type: 'color', value: e.props.color || '#ffffff' });
+        inp.addEventListener('input', () => { e.props.color = inp.value; if (o.color) o.color.set(inp.value); this.dirty = true; });
+        Modal.open({ title: 'لون الإضاءة', body: inp, actions: [{ label: T('close'), cls: 'primary' }] });
+      });
+    }
+    if (e.type === 'camera') {
+      add('اجعلها الرئيسية', 'cam', () => {
+        Array.from(this.engine.entities.values()).forEach(x => { if (x.type === 'camera') x.props.isMain = false; });
+        e.props.isMain = true; this.dirty = true; Toast.ok('صارت الكاميرا الرئيسية');
+      });
+    }
+    add('حذف', 'trash', async () => {
+      if (!await Modal.confirm('حذف ' + e.name + '؟', '', T('delete'))) return;
+      this.pushUndo(); this.engine.removeEntity(e.id); this.dirty = true; this.updateHud(); sheet.close();
+    });
+    body.appendChild(grid);
+    body.appendChild(btn('كل الخصائص', { cls: 'block ghost', icon: 'gear', onclick: () => { sheet.close(); this.openInspector(e); } }));
+    const sheet = Sheet.open({ title: e.name, body, id: 'quickact' });
   },
 
   close() {
@@ -4935,13 +5093,20 @@ const Studio = {
     if (this.dirty) this.save(true);
     Sheet.closeAll();
     NX.Screen.show('platform');
-    window.dispatchEvent(new CustomEvent('nx:platformRefresh'));
+    /* land where the projects are, so a project is never "lost" */
+    NX.Platform.go('create');
   },
 
   buildTabs() {
     const tabs = $('#s-tabs');
-    if (tabs.childElementCount) return;
-    const items = [
+    tabs.textContent = '';
+    const items = NX.Mode.isBeginner() ? [
+      ['plus',  'إضافة',   () => NX.Beginner.openActions()],
+      ['spark', 'المساعد', () => this.openAI()],
+      ['cube',  T('assets'), () => this.openAssets()],
+      ['play',  'تشغيل',   () => this.playing ? this.stopPlay() : this.play()],
+      ['grid',  T('more'), () => this.openMore()]
+    ] : [
       ['layers', T('scene'), () => this.openHierarchy()],
       ['cube', T('assets'), () => this.openAssets()],
       ['code', T('code'), () => NX.IDE.open(this.project)],
@@ -4966,7 +5131,11 @@ const Studio = {
     $('#vt-add').onclick = () => this.openAddObject();
     $('#vt-focus').onclick = () => this.engine.focus();
     $('#vt-grid').onclick = () => this.openViewOptions();
-    $('#sel-insp').onclick = () => { const e = this.engine.getEntity(this.engine.selection); if (e) this.openInspector(e); };
+    $('#sel-insp').onclick = () => {
+      const e = this.engine.getEntity(this.engine.selection);
+      if (!e) return;
+      NX.Mode.isBeginner() ? this.openQuickActions(e) : this.openInspector(e);
+    };
     $$('#sel-bar [data-gizmo]').forEach(b => {
       b.onclick = () => {
         this.engine.gizmo = b.dataset.gizmo;
@@ -5020,7 +5189,23 @@ const Studio = {
   },
   updateEmptyState() {
     const meaningful = Array.from(this.engine.entities.values()).filter(e => e.type === 'model' || e.type === 'primitive').length;
-    $('#vp-empty').classList.toggle('hide', meaningful > 0 || this.playing);
+    const host = $('#vp-empty');
+    host.classList.toggle('hide', meaningful > 0 || this.playing);
+    if (meaningful > 0 || this.playing) { host.dataset.mode = ''; return; }
+    if (NX.Mode.isBeginner()) {
+      if (!host.dataset.mode || host.dataset.mode !== 'beginner') {
+        host.dataset.mode = 'beginner';
+        host.textContent = '';
+        host.appendChild(NX.Beginner.emptyOverlay());
+      }
+    } else if (host.dataset.mode !== 'pro') {
+      host.dataset.mode = 'pro';
+      host.textContent = '';
+      const d = el('div');
+      d.appendChild(el('b', { text: T('emptyTitle') }));
+      d.appendChild(el('p', { text: T('emptyBody') }));
+      host.appendChild(d);
+    }
   },
 
   onSelection(e) {
@@ -5555,6 +5740,13 @@ const Studio = {
       item('gear', 'سلاسل الأدوات · Toolchains', () => NX.IDE.openToolchains()),
       item('shield', 'الأمان و قواعد Firebase', () => NX.openSecurityPanel()),
       item('gear', T('settings'), () => NX.openSettings()),
+      item('folder', 'مشاريعي', () => NX.ProjectManager.open()),
+      item('undo', 'تاريخ المشروع ونقاط الرجوع', () => NX.History.open(this.project, () => this.reloadScene())),
+      item('search', 'الأوامر والبحث', () => NX.Commands.open()),
+      item('grid', NX.Mode.isBeginner() ? 'التبديل إلى وضع المحترف' : 'التبديل إلى وضع المبتدئ', () => {
+        const m = NX.Mode.toggle();
+        Toast.ok(m === 'pro' ? 'وضع المحترف — كل الأدوات ظاهرة' : 'وضع المبتدئ — واجهة مبسّطة');
+      }),
       item('trash', 'تفريغ المشهد', async () => {
         if (!await Modal.confirm('تفريغ المشهد؟', 'تُحذف كل الكائنات وتبقى السكربتات.', 'تفريغ')) return;
         this.pushUndo(); this.engine.clear(); this.dirty = true; this.updateHud();
@@ -5731,7 +5923,7 @@ NX.AI = AI;
 </script>
 <script type="module">
 /* ============================================================
-   PART 9/10 · BUILD SYSTEM
+   PART 9/13 · BUILD SYSTEM
    Toolchain Manager · Language Adapters · Build Manager ·
    Compiler Cache · Engine Bridge (WASM ABI) · Runtime loaders
    ------------------------------------------------------------
@@ -6795,7 +6987,7 @@ NX.NEXUS_DTS = NEXUS_DTS;
 </script>
 <script type="module">
 /* ============================================================
-   PART 10/10 · MULTI-LANGUAGE IDE
+   PART 10/13 · MULTI-LANGUAGE IDE
    File explorer · tabs · BUILD / RUN / STOP · Problems ·
    Build log · Toolchain Manager (rules 17, 18, 21, 23, 25)
    ============================================================ */
@@ -7503,7 +7695,2272 @@ Toolchain.autoRestore();
 </script>
 <script type="module">
 /* ============================================================
-   PART 8/10 · GAME PLATFORM + BOOT
+   PART 11/13 · PROJECT MANAGEMENT · HISTORY · CONTEXT · HELP
+   Projects you can see, reopen, rename, duplicate and delete —
+   plus checkpoints, rollback, a searchable command palette and
+   an in-place help system.
+   ============================================================ */
+const NX = window.NX;
+const { $, $$, el, btn, iconBtn, icon, esc, Sheet, Modal, Toast, T, LS, uid, fmtBytes, fmtNum, timeAgo, debounce, field } = NX;
+const { Backend, Projects, Games, Assets } = NX;
+
+/* ------------------------------------------------------------
+   MODE — beginner vs pro (rule 3). One project, two surfaces.
+   ------------------------------------------------------------ */
+const Mode = {
+  get() { return LS.get('mode', 'beginner'); },
+  set(m) {
+    LS.set('mode', m);
+    document.documentElement.dataset.mode = m;
+    window.dispatchEvent(new CustomEvent('nx:mode', { detail: m }));
+  },
+  isBeginner() { return this.get() === 'beginner'; },
+  isPro() { return this.get() === 'pro'; },
+  toggle() { this.set(this.isBeginner() ? 'pro' : 'beginner'); return this.get(); }
+};
+document.documentElement.dataset.mode = Mode.get();
+
+/* ------------------------------------------------------------
+   HELP (rule 2) — short, useful, on demand
+   ------------------------------------------------------------ */
+const HELP = {
+  physics:   { t: 'الفيزياء', w: 'يجعل الكائن يتفاعل مع الجاذبية والتصادم.', h: 'اختر نوع الجسم: ثابت للأرض والجدران، متحرك للأشياء التي تسقط، شخصية للاعب.', e: 'الأرض = ثابت · الصندوق = متحرك · اللاعب = شخصية' },
+  component: { t: 'المكوّن', w: 'نظام جاهز تضيفه إلى كائن، مثل الصحة أو الحركة أو الذكاء.', h: 'حدّد كائنًا ثم «إضافة مكوّن» واختر واحدًا كتبته أنت.', e: 'MyHealth على اللاعب' },
+  build:     { t: 'البناء', w: 'يجهّز مشروعك ويفحص الأخطاء قبل التشغيل أو النشر.', h: 'اضغط BUILD. إذا ظهرت مشاكل افتح Problems واضغط عليها للانتقال إلى السطر.', e: 'TypeScript تُترجَم هنا فعليًا' },
+  scene:     { t: 'المشهد', w: 'عالم لعبتك: كل ما تراه من مجسمات وإضاءة وكاميرا.', h: 'أضف كائنات من «+» وحرّكها باللمس.', e: 'أرضية + لاعب + كاميرا' },
+  asset:     { t: 'الأصل', w: 'ملف مجسم أو صوت أو صورة يستخدمه مشروعك.', h: 'ارفع ملفك أو خذ أصلًا من المكتبة العامة. مشروعك يحفظ رقم الأصل فقط لا نسخة منه.', e: 'car.glb' },
+  script:    { t: 'السكربت', w: 'كود يحدّد ما تفعله لعبتك.', h: 'start() تعمل مرة واحدة، و update(dt) كل إطار.', e: 'Player.moveWithInput()' },
+  spawn:     { t: 'نقطة الظهور', w: 'المكان الذي يبدأ منه اللاعب.', h: 'حرّكها إلى حيث تريد أن تبدأ اللعبة.', e: '—' },
+  tag:       { t: 'الوسم', w: 'اسم تجميعي يسهّل إيجاد الكائنات من الكود.', h: 'ضع "enemy" على كل الأعداء ثم Scene.findByTag("enemy").', e: 'player · enemy · pickup' },
+  ai:        { t: 'المساعد', w: 'يخطّط وينفّذ ويبني ويختبر ويصلح داخل مشروعك.', h: 'صف ما تريد بلغتك. راجع الخطة ثم نفّذ. كل تغيير له نقطة رجوع.', e: '«اصنع لعبة سباق في مدينة»' },
+  checkpoint:{ t: 'نقطة الرجوع', w: 'نسخة محفوظة من مشروعك قبل تغيير كبير.', h: 'من «تاريخ المشروع» ترجع إلى أي نقطة.', e: 'قبل إضافة Multiplayer' },
+  multiplayer:{ t: 'اللعب الجماعي', w: 'مزامنة اللاعبين عبر الشبكة.', h: 'يحتاج Firebase مضبوطة لتعمل الغرف والإشارات.', e: 'Network.room("race-1")' },
+  build_run: { t: 'تشغيل', w: 'يبني المشروع ثم يشغّله داخل مساحة العرض.', h: 'إن فشل البناء لن يعمل التشغيل، وستظهر المشاكل.', e: '—' }
+};
+function helpSheet(key) {
+  const h = HELP[key];
+  if (!h) return;
+  const body = el('div');
+  const row = (label, text) => { if (!text || text === '—') return; body.appendChild(el('div', { class: 'help-row' }, [el('span', { text: label }), el('p', { text })])); };
+  row('ما هذا؟', h.w);
+  row('كيف أستخدمه؟', h.h);
+  row('مثال', h.e);
+  Sheet.open({ title: h.t, body, id: 'help' });
+}
+/* long-press on a phone, title on a desktop */
+function attachHelp(node, key) {
+  if (!node || !HELP[key]) return node;
+  const h = HELP[key];
+  node.title = h.t + ' — ' + h.w;
+  let timer = null;
+  const down = () => { timer = setTimeout(() => { timer = null; try { navigator.vibrate && navigator.vibrate(12); } catch {} helpSheet(key); }, 480); };
+  const up = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  node.addEventListener('touchstart', down, { passive: true });
+  node.addEventListener('touchend', up); node.addEventListener('touchmove', up);
+  node.addEventListener('mousedown', down); node.addEventListener('mouseup', up); node.addEventListener('mouseleave', up);
+  return node;
+}
+
+/* ------------------------------------------------------------
+   CHECKPOINTS + HISTORY (rules 9, 20, 21)
+   ------------------------------------------------------------ */
+const History = {
+  MAX: 25,
+
+  /* pull the live scene graph into the project record before snapshotting */
+  syncScene(project) {
+    const S = NX.Studio;
+    if (S && S.engine && S.project && S.project.projectId === project.projectId && !S.playing) {
+      project.scene = S.engine.serialize();
+    }
+    return project;
+  },
+
+  snapshot(project) {
+    return {
+      scene: JSON.parse(JSON.stringify(project.scene || {})),
+      files: JSON.parse(JSON.stringify(project.files || [])),
+      settings: JSON.parse(JSON.stringify(project.settings || {})),
+      assetRefs: (project.assetRefs || []).slice(),
+      name: project.name
+    };
+  },
+
+  async create(project, label, meta = {}) {
+    const id = uid('cp');
+    /* the editor holds the authoritative scene while a project is open */
+    this.syncScene(project);
+    const snap = this.snapshot(project);
+    await Backend.setDoc('checkpoints', id, { id, projectId: project.projectId, at: Date.now(), label, meta, snap });
+    project.history = project.history || [];
+    project.history.unshift({ id, at: Date.now(), label, by: meta.by || 'user' });
+    /* keep the list bounded and drop the bodies we no longer index */
+    while (project.history.length > this.MAX) {
+      const old = project.history.pop();
+      Backend.delDoc('checkpoints', old.id).catch(() => {});
+    }
+    await Projects.save(project);
+    return id;
+  },
+
+  async restore(project, checkpointId) {
+    const cp = await Backend.getDoc('checkpoints', checkpointId);
+    if (!cp || !cp.snap) throw new Error('CHECKPOINT_MISSING');
+    /* the state we are leaving becomes a checkpoint too, so restore is undoable */
+    await this.create(project, 'قبل الرجوع إلى: ' + cp.label, { by: 'system' });
+    Object.assign(project, {
+      scene: cp.snap.scene, files: cp.snap.files,
+      settings: cp.snap.settings, assetRefs: cp.snap.assetRefs
+    });
+    if (cp.snap.name) project.name = cp.snap.name;
+    await Projects.save(project);
+    return cp;
+  },
+
+  async remove(project, id) {
+    project.history = (project.history || []).filter(h => h.id !== id);
+    await Backend.delDoc('checkpoints', id);
+    await Projects.save(project);
+  },
+
+  group(at) {
+    const d = new Date(at), now = new Date();
+    const sameDay = (a, b) => a.toDateString() === b.toDateString();
+    if (sameDay(d, now)) return 'اليوم';
+    const y = new Date(now); y.setDate(y.getDate() - 1);
+    if (sameDay(d, y)) return 'أمس';
+    return 'قبل ذلك';
+  },
+
+  open(project, onRestored) {
+    const body = el('div');
+    const draw = () => {
+      body.textContent = '';
+      const hist = project.history || [];
+      if (!hist.length) {
+        body.appendChild(el('div', { class: 'center-note' }, [icon('undo'),
+          el('b', { text: 'لا توجد نقاط رجوع بعد' }),
+          el('p', { class: 'tiny', style: { marginTop: '6px' }, text: 'تُنشأ تلقائيًا قبل كل تغيير كبير، ويمكنك إنشاء واحدة الآن.' })]));
+      } else {
+        let lastGroup = '';
+        hist.forEach(h => {
+          const g = History.group(h.at);
+          if (g !== lastGroup) { lastGroup = g; body.appendChild(el('div', { class: 'ttl', style: { marginTop: '14px' }, text: g })); }
+          const r = el('div', { class: 'comp-row' });
+          r.appendChild(icon(h.by === 'ai' ? 'spark' : 'undo'));
+          const t = el('div', { style: { flex: '1', minWidth: '0' } });
+          t.appendChild(el('b', { text: h.label, style: { display: 'block', fontSize: '12.5px' } }));
+          t.appendChild(el('span', { class: 'tiny', text: new Date(h.at).toLocaleString() + (h.by === 'ai' ? ' · AI' : '') }));
+          r.appendChild(t);
+          r.appendChild(btn('رجوع', { cls: 'sm', onclick: async ev => {
+            ev.stopPropagation();
+            if (!await Modal.confirm('الرجوع إلى هذه النقطة؟', h.label + '\n\nستُحفظ حالتك الحالية كنقطة رجوع أيضًا.', 'رجوع')) return;
+            await History.restore(project, h.id);
+            Toast.ok('رجع المشروع');
+            draw();
+            onRestored && onRestored();
+          }}));
+          body.appendChild(r);
+        });
+      }
+    };
+    draw();
+    Sheet.open({
+      title: 'تاريخ المشروع', body, id: 'history',
+      foot: [btn('إنشاء نقطة رجوع الآن', { cls: 'primary', icon: 'save', onclick: async () => {
+        const label = await Modal.prompt('وصف النقطة', 'نقطة يدوية');
+        if (!label) return;
+        await History.create(project, label);
+        Toast.ok('أُنشئت'); draw();
+      }})]
+    });
+  }
+};
+
+/* ------------------------------------------------------------
+   PROJECT MANAGER (the reported gap: see / reopen / delete)
+   ------------------------------------------------------------ */
+Projects.duplicate = async function (p) {
+  const copy = JSON.parse(JSON.stringify(p));
+  copy.projectId = uid('proj');
+  copy.name = p.name + ' — نسخة';
+  copy.publishedId = null; copy.publishMeta = null; copy.history = [];
+  copy.createdAt = Date.now(); copy.updatedAt = Date.now();
+  await Projects.save(copy);
+  return copy;
+};
+Projects.removeDeep = async function (p) {
+  for (const h of (p.history || [])) await Backend.delDoc('checkpoints', h.id).catch(() => {});
+  if (p.publishedId) { await Games.remove(p.publishedId).catch(() => {}); }
+  await Projects.remove(p.projectId);
+  if (LS.get('lastProject', null) === p.projectId) LS.del('lastProject');
+};
+
+const ProjectManager = {
+  async open() {
+    const body = el('div');
+    const listHost = el('div');
+    const sb = el('div', { class: 'searchbar', style: { marginBottom: '12px' } });
+    sb.appendChild(icon('search'));
+    const q = el('input', { placeholder: 'ابحث في مشاريعك…', type: 'search' });
+    sb.appendChild(q);
+    body.append(sb, listHost);
+    let all = [];
+    const draw = () => {
+      listHost.textContent = '';
+      const term = q.value.trim().toLowerCase();
+      const items = term ? all.filter(p => (p.name || '').toLowerCase().includes(term)) : all;
+      if (!items.length) {
+        listHost.appendChild(el('div', { class: 'center-note' }, [icon('folder'),
+          el('b', { text: all.length ? 'لا نتائج' : 'لا مشاريع بعد' }),
+          el('p', { class: 'tiny', style: { marginTop: '6px' }, text: all.length ? '' : 'اضغط «مشروع جديد» للبدء.' })]));
+        return;
+      }
+      items.forEach(p => listHost.appendChild(this.row(p, () => this.refresh(draw, v => all = v))));
+    };
+    q.addEventListener('input', debounce(draw, 200));
+    await this.refresh(draw, v => all = v);
+    const sheet = Sheet.open({
+      title: 'مشاريعي', body, full: true, id: 'projects',
+      foot: [btn('مشروع جديد', { cls: 'primary', icon: 'plus', onclick: () => { sheet.close(); NX.Platform.newProject(); } })]
+    });
+    return sheet;
+  },
+
+  async refresh(draw, setAll) {
+    const list = Backend.user ? await Projects.list(Backend.user.uid) : [];
+    setAll(list);
+    draw();
+  },
+
+  row(p, after) {
+    const r = el('div', { class: 'proj-row' });
+    const thumb = el('div', { class: 'proj-thumb' });
+    if (p.publishMeta && p.publishMeta.coverURL) thumb.appendChild(el('img', { src: p.publishMeta.coverURL }));
+    else thumb.appendChild(el('span', { text: '⬚' }));
+    const info = el('div', { class: 'proj-info' });
+    info.appendChild(el('b', { text: p.name }));
+    const objs = ((p.scene && p.scene.objects) || []).length;
+    const files = (p.files || []).length;
+    info.appendChild(el('span', { class: 'tiny', text: `${objs} كائن · ${files} ملف · ${timeAgo(p.updatedAt)}` }));
+    if (p.publishedId) info.appendChild(el('span', { class: 'badge pub', text: 'منشور' }));
+    r.append(thumb, info);
+    r.appendChild(iconBtn('dots', { label: 'options', onclick: ev => { ev.stopPropagation(); this.menu(p, after); } }));
+    r.onclick = ev => { if (ev.target.closest('.icon-btn')) return; Sheet.closeAll(); NX.Platform.openProject(p); };
+    return r;
+  },
+
+  menu(p, after) {
+    const body = el('div');
+    const item = (ic, label, fn, cls) => {
+      const b = el('button', { class: 'comp-row' + (cls ? ' ' + cls : ''), style: { width: '100%', textAlign: 'start' },
+        onclick: async () => { const keep = await fn(); if (keep !== false) s.close(); } });
+      b.append(icon(ic), el('b', { text: label }));
+      return b;
+    };
+    body.append(
+      item('play', 'فتح المشروع', () => { Sheet.closeAll(); NX.Platform.openProject(p); }),
+      item('code', 'إعادة تسمية', async () => {
+        const n = await Modal.prompt('اسم المشروع', p.name);
+        if (n) { p.name = n; await Projects.save(p); Toast.ok('حُدّث'); after && after(); }
+      }),
+      item('copy', 'تكرار', async () => {
+        const c = await Projects.duplicate(p);
+        Toast.ok('أُنشئت نسخة: ' + c.name); after && after();
+      }),
+      item('undo', 'تاريخ المشروع ونقاط الرجوع', () => { History.open(p, () => after && after()); }),
+      item('share', p.publishedId ? 'تحديث النشر' : 'نشر', () => {
+        Sheet.closeAll(); NX.Platform.openProject(p);
+        setTimeout(() => NX.Studio.openPublish(), 1400);
+      }),
+      item('trash', 'حذف المشروع', async () => {
+        const ok = await Modal.confirm('حذف «' + p.name + '»؟',
+          'يُحذف المشروع ونقاط الرجوع' + (p.publishedId ? ' واللعبة المنشورة منه' : '') + '. لا يمكن التراجع.\n\nالأصول التي رفعتها تبقى في مكتبتك.', 'حذف نهائي');
+        if (!ok) return;
+        if (NX.Studio.project && NX.Studio.project.projectId === p.projectId) { NX.Studio.project = null; NX.Studio.dirty = false; }
+        await Projects.removeDeep(p);
+        Toast.ok('حُذف المشروع');
+        after && after();
+      }, 'danger-row')
+    );
+    const s = Sheet.open({ title: p.name, body, id: 'projmenu' });
+  }
+};
+
+/* ------------------------------------------------------------
+   PROJECT CONTEXT — what the AI is allowed to see (rules 6, 13, 26, 27)
+   ------------------------------------------------------------ */
+const ProjectContext = {
+  perms() { return LS.get('aiPerms', { scene: true, files: true, assets: true, settings: true, build: true, autoFix: true }); },
+  setPerms(p) { LS.set('aiPerms', p); },
+
+  async snapshot(project, engine, opts = {}) {
+    const perms = this.perms();
+    const ctx = { project: { name: project.name, id: project.projectId, description: project.description || '' } };
+
+    if (perms.scene && engine) {
+      ctx.scene = {
+        objects: Array.from(engine.entities.values()).map(e => ({
+          name: e.name, type: e.type, tag: e.tag || null,
+          assetId: e.assetId || null,
+          position: e.object3D ? e.object3D.position.toArray().map(n => +n.toFixed(2)) : [0, 0, 0],
+          components: (e.components || []).map(c => c.type)
+        })),
+        environment: engine.environment || {}
+      };
+    }
+    if (perms.files) {
+      ctx.files = (project.files || []).map(f => ({
+        path: f.path, role: f.role, lines: String(f.code || '').split('\n').length,
+        attachedTo: f.entityId ? ((engine && engine.getEntity(f.entityId)) || {}).name || null : null,
+        head: String(f.code || '').split('\n').slice(0, 3).join(' ')
+      }));
+    }
+    if (perms.assets) {
+      /* only assets this project already references, plus the user's own — never invented ids */
+      const ids = new Set(project.assetRefs || []);
+      const mine = Backend.user ? await Assets.search({ scope: 'mine', ownerId: Backend.user.uid, limit: 40, sort: 'new' }) : { items: [] };
+      const byId = new Map();
+      for (const id of ids) { const a = await Assets.get(id); if (a) byId.set(id, a); }
+      mine.items.forEach(a => byId.set(a.assetId, a));
+      ctx.assets = Array.from(byId.values()).map(a => ({
+        assetId: a.assetId, name: a.name, kind: a.kind, category: a.category,
+        tags: a.tags, animations: (a.stats && a.stats.animationNames) || [],
+        triangles: a.stats ? a.stats.triangles : null,
+        size: a.stats ? a.stats.size : null,
+        inProject: ids.has(a.assetId)
+      }));
+    }
+    if (perms.settings) ctx.settings = project.settings || {};
+    ctx.memory = project.aiMemory || { systems: [], notes: [], conventions: {} };
+    ctx.backend = { online: Backend.isOnline(), multiplayerAvailable: Backend.isOnline() };
+    ctx.toolchains = Object.keys(NX.Toolchain.reg).reduce((o, k) => { o[k] = NX.Toolchain.statusText(k); return o; }, {});
+    return ctx;
+  },
+
+  /* systems the project already has, so the AI extends instead of duplicating */
+  detectSystems(project) {
+    const out = [];
+    const all = (project.files || []).map(f => f.path + '\n' + f.code).join('\n').toLowerCase();
+    const has = (...w) => w.some(x => all.includes(x));
+    if (has('player.create', 'movewithinput')) out.push('player-controller');
+    if (has('inventory')) out.push('inventory');
+    if (has('quest')) out.push('quests');
+    if (has('health')) out.push('health');
+    if (has('vehicle', 'engine_physics_set_velocity')) out.push('vehicle');
+    if (has('fuel')) out.push('fuel');
+    if (has('shop', 'buy')) out.push('shop');
+    if (has('network.room', 'voice.join')) out.push('multiplayer');
+    if (has('save.set')) out.push('save');
+    if (has('mic.')) out.push('microphone');
+    if (has('enemy')) out.push('enemies');
+    if (has('craft')) out.push('crafting');
+    if (has('day', 'night')) out.push('day-night');
+    return out;
+  },
+
+  remember(project, note) {
+    project.aiMemory = project.aiMemory || { systems: [], notes: [], conventions: {} };
+    project.aiMemory.systems = this.detectSystems(project);
+    if (note) {
+      project.aiMemory.notes.unshift({ at: Date.now(), note });
+      project.aiMemory.notes = project.aiMemory.notes.slice(0, 30);
+    }
+    return project.aiMemory;
+  },
+
+  openPanel(project, engine) {
+    const body = el('div');
+    const perms = this.perms();
+    body.appendChild(el('p', { class: 'tiny', style: { marginBottom: '12px' },
+      text: 'هذا ما يراه المساعد من مشروعك — ولا شيء خارج المشروع. أطفئ ما لا تريد مشاركته.' }));
+    [['scene', 'المشهد والكائنات'], ['files', 'ملفات الكود'], ['assets', 'أصول المشروع'], ['settings', 'إعدادات المشروع'],
+     ['build', 'تشغيل البناء والاختبار'], ['autoFix', 'محاولة إصلاح الأخطاء تلقائيًا']].forEach(([k, label]) => {
+      const r = el('div', { class: 'switch' }, [el('span', { text: label })]);
+      const tg = el('div', { class: 'tgl' + (perms[k] !== false ? ' on' : '') });
+      tg.onclick = () => { perms[k] = !(perms[k] !== false); tg.classList.toggle('on', perms[k]); this.setPerms(perms); };
+      r.appendChild(tg); body.appendChild(r);
+    });
+    body.appendChild(el('hr', { class: 'sep' }));
+    const pre = el('pre', { class: 'mono', style: { background: '#080a12', padding: '11px', borderRadius: '10px', overflowX: 'auto', fontSize: '10.5px', direction: 'ltr', textAlign: 'left', maxHeight: '46vh' }, text: 'جارٍ القراءة…' });
+    body.appendChild(el('div', { class: 'ttl', text: 'اللقطة الحالية' }));
+    body.appendChild(pre);
+    this.snapshot(project, engine).then(s => pre.textContent = JSON.stringify(s, null, 1));
+    Sheet.open({ title: 'ما يراه المساعد', body, full: true, id: 'aictx' });
+  }
+};
+
+/* ------------------------------------------------------------
+   COMMAND PALETTE + PROJECT SEARCH (rules 19, 40)
+   ------------------------------------------------------------ */
+const Commands = {
+  list: [],
+  register(cmds) { this.list.push(...cmds); },
+
+  open() {
+    const body = el('div');
+    const sb = el('div', { class: 'searchbar', style: { marginBottom: '10px' } });
+    sb.appendChild(icon('search'));
+    const q = el('input', { placeholder: 'اكتب أمرًا أو ابحث في المشروع…', type: 'search' });
+    sb.appendChild(q);
+    const res = el('div');
+    body.append(sb, res);
+
+    const draw = async () => {
+      const term = q.value.trim().toLowerCase();
+      res.textContent = '';
+      const cmds = this.list.filter(c => {
+        if (c.when && !c.when()) return false;
+        if (!term) return true;
+        return (c.label + ' ' + (c.keywords || '')).toLowerCase().includes(term);
+      }).slice(0, 12);
+      if (cmds.length) {
+        res.appendChild(el('div', { class: 'ttl', text: 'أوامر' }));
+        cmds.forEach(c => {
+          const r = el('button', { class: 'comp-row', style: { width: '100%', textAlign: 'start' },
+            onclick: () => { sheet.close(); setTimeout(() => c.run(), 120); } });
+          r.append(icon(c.icon || 'chev'), el('b', { text: c.label }));
+          if (c.hint) r.appendChild(el('span', { class: 'tiny', text: c.hint }));
+          res.appendChild(r);
+        });
+      }
+      if (term && term.length > 1) {
+        const hits = await this.search(term);
+        if (hits.length) {
+          res.appendChild(el('div', { class: 'ttl', style: { marginTop: '12px' }, text: 'في المشروع' }));
+          hits.slice(0, 14).forEach(h => {
+            const r = el('button', { class: 'comp-row', style: { width: '100%', textAlign: 'start' },
+              onclick: () => { sheet.close(); setTimeout(() => h.go(), 120); } });
+            r.append(icon(h.icon), el('b', { text: h.label }), el('span', { class: 'badge', text: h.kind }));
+            res.appendChild(r);
+          });
+        }
+      }
+      if (!res.childElementCount) res.appendChild(el('div', { class: 'center-note', text: 'لا نتائج' }));
+    };
+    q.addEventListener('input', debounce(draw, 160));
+    draw();
+    const sheet = Sheet.open({ title: 'الأوامر والبحث', body, full: true, id: 'palette' });
+    setTimeout(() => q.focus(), 180);
+  },
+
+  /* searches objects, files, components, assets — all clickable */
+  async search(term) {
+    const out = [];
+    const S = NX.Studio;
+    if (S && S.project && S.engine) {
+      for (const e of S.engine.entities.values()) {
+        if (e.name.toLowerCase().includes(term) || (e.tag || '').toLowerCase().includes(term))
+          out.push({ kind: 'كائن', icon: 'layers', label: e.name, go: () => { S.engine.select(e.id); S.engine.focus(e); S.openInspector(e); } });
+      }
+      (S.project.files || []).forEach(f => {
+        const inName = f.path.toLowerCase().includes(term);
+        const inCode = String(f.code || '').toLowerCase().includes(term);
+        if (inName || inCode) out.push({
+          kind: inName ? 'ملف' : 'داخل الكود', icon: 'code', label: f.path,
+          go: () => { NX.IDE.open(S.project); NX.IDE.openFile(f); if (inCode && !inName) setTimeout(() => { NX.IDE.editor.findInput.value = term; NX.IDE.editor.toggleFind(true); NX.IDE.editor.findNext(); }, 300); }
+        });
+      });
+    }
+    if (term.length > 2) {
+      try {
+        const r = await Assets.search({ q: term, limit: 6 });
+        r.items.forEach(a => out.push({ kind: 'أصل', icon: 'cube', label: a.name, go: () => NX.openAssetDetails(a, { onAdd: as => S && S.addAsset(as) }) }));
+      } catch {}
+    }
+    return out;
+  }
+};
+
+/* the palette's standing commands */
+Commands.register([
+  { label: 'مشاريعي', icon: 'folder', keywords: 'projects open list حذف مشروع', run: () => ProjectManager.open() },
+  { label: 'مشروع جديد', icon: 'plus', keywords: 'new project create', run: () => NX.Platform.newProject() },
+  { label: 'بناء المشروع · BUILD', icon: 'box', keywords: 'build compile', when: () => !!NX.Studio.project, run: () => NX.Studio.buildProject() },
+  { label: 'تشغيل · PLAY', icon: 'play', keywords: 'run play test', when: () => !!NX.Studio.project, run: () => NX.Studio.play() },
+  { label: 'إيقاف', icon: 'stop', keywords: 'stop', when: () => NX.Studio.playing, run: () => NX.Studio.stopPlay() },
+  { label: 'فتح الكود', icon: 'code', keywords: 'code editor script', when: () => !!NX.Studio.project, run: () => NX.IDE.open(NX.Studio.project) },
+  { label: 'مكتبة الأصول', icon: 'cube', keywords: 'assets library', when: () => !!NX.Studio.project, run: () => NX.Studio.openAssets() },
+  { label: 'إضافة كائن', icon: 'plus', keywords: 'add object light camera', when: () => !!NX.Studio.project, run: () => NX.Studio.openAddObject() },
+  { label: 'شجرة المشهد', icon: 'layers', keywords: 'hierarchy scene', when: () => !!NX.Studio.project, run: () => NX.Studio.openHierarchy() },
+  { label: 'المساعد الذكي', icon: 'spark', keywords: 'ai assistant build for me', when: () => !!NX.Studio.project, run: () => NX.Studio.openAI() },
+  { label: 'تاريخ المشروع', icon: 'undo', keywords: 'history checkpoint rollback', when: () => !!NX.Studio.project, run: () => History.open(NX.Studio.project) },
+  { label: 'عرض المحرر', icon: 'eye', keywords: 'grid gizmos view', when: () => !!NX.Studio.project, run: () => NX.Studio.openViewOptions() },
+  { label: 'إعدادات', icon: 'gear', keywords: 'settings firebase', run: () => NX.openSettings() },
+  { label: 'تبديل وضع المبتدئ/المحترف', icon: 'grid', keywords: 'mode beginner pro', run: () => { const m = Mode.toggle(); Toast.ok(m === 'pro' ? 'وضع المحترف' : 'وضع المبتدئ'); } },
+  { label: 'توثيق الـAPI', icon: 'book', keywords: 'api docs', when: () => !!NX.Studio.project, run: () => NX.Studio.openAPIDocs() },
+  { label: 'Toolchains', icon: 'gear', keywords: 'compiler toolchain typescript', run: () => NX.IDE.openToolchains() }
+]);
+
+window.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); Commands.open(); }
+});
+
+NX.Mode = Mode;
+NX.HELP = HELP;
+NX.helpSheet = helpSheet;
+NX.attachHelp = attachHelp;
+NX.History = History;
+NX.ProjectManager = ProjectManager;
+NX.ProjectContext = ProjectContext;
+NX.Commands = Commands;
+</script>
+<script type="module">
+/* ============================================================
+   PART 12/13 (A) · AI GAME BUILDER — systems, planner, executor
+   The assistant is a PLANNER + BUILDER + EDITOR + TESTER +
+   DEBUGGER, working on the real project with checkpoints,
+   permissions and a STOP button (rules 4-16, 33, 39, 42, 43).
+   ============================================================ */
+const NX = window.NX;
+const { LS, uid, Toast } = NX;
+const { ProjectContext, History } = NX;
+
+/* ------------------------------------------------------------
+   SYSTEM LIBRARY
+   Each system produces real files/objects and declares what it
+   depends on, so systems connect instead of piling up (rule 16).
+   ------------------------------------------------------------ */
+const Systems = {
+  ground: {
+    id: 'ground', title: 'أرضية', needs: [],
+    build: () => ({
+      actions: [
+        { op: 'scene.create', objectType: 'primitive', shape: 'plane', name: 'Ground',
+          position: [0, 0, 0], scale: [120, 1, 120], color: '#2f3a55', tag: 'ground', physics: 'static' }
+      ]
+    })
+  },
+
+  player: {
+    id: 'player', title: 'لاعب يتحرك', needs: ['ground'],
+    build: (ctx, o = {}) => {
+      const asset = pickAsset(ctx, ['Characters'], ['player', 'character', 'human', 'man', 'woman']);
+      return {
+        files: [{
+          path: 'PlayerController.js', role: 'script',
+          code: `// تحكّم اللاعب — حركة نسبة إلى الكاميرا + قفز
+const SPEED = ${o.speed || 6}, JUMP = ${o.jump || 9}, RUN = ${o.run || 10};
+
+async function start() {
+  const hero = await Player.create({
+    ${asset ? `assetId: "${asset.assetId}",` : ''}
+    speed: SPEED, position: [0, 2, 0], height: 1.8
+  });
+  hero.tag = "player";
+  UI.joystick({ id: "move", side: "left" });
+  UI.button("JUMP", p => { if (p) Player.jump(JUMP); }, { id: "jump", right: 18, bottom: 26 });
+  UI.button("RUN",  () => {},                            { id: "run",  right: 18, bottom: 104 });
+  Camera.follow(hero, { offset: [0, 4.5, 8], smooth: 7 });
+  Engine.log("player ready");
+}
+
+function update(dt) {
+  Player.moveWithInput(Input.button("run") ? RUN : SPEED);
+  if (Input.isDown(" ") && Player.grounded) Player.jump(JUMP);
+}`
+        }],
+        note: asset ? 'اللاعب يستخدم الأصل: ' + asset.name : 'اللاعب شكل أوّلي — ارفع مجسم شخصية لاستبداله.'
+      };
+    }
+  },
+
+  hud: {
+    id: 'hud', title: 'واجهة علوية', needs: [],
+    build: () => ({
+      files: [{
+        path: 'HUD.js', role: 'script',
+        code: `// شريط معلومات — يستمع للأحداث بدل أن يفرض منطقًا
+let score = 0, scoreLabel, msgLabel;
+
+function start() {
+  scoreLabel = UI.text("0", { x: 16, y: 16, size: 20 });
+  msgLabel   = UI.text("", { center: true, y: 70, size: 16, color: "#ffd479" });
+  Events.on("Scored", n => { score += (n || 1); scoreLabel.set(String(score)); });
+  Events.on("Message", t => {
+    msgLabel.set(String(t));
+    Time.after(2.2, () => msgLabel.set(""));
+  });
+}`
+      }]
+    })
+  },
+
+  pickups: {
+    id: 'pickups', title: 'موارد قابلة للجمع', needs: ['ground', 'player'],
+    build: (ctx, o = {}) => ({
+      files: [{
+        path: 'Pickups.js', role: 'script',
+        code: `// عناصر تُجمع بالاقتراب — تُطلق ItemCollected
+const COUNT = ${o.count || 14}, RANGE = 1.7, AREA = ${o.area || 45};
+const KINDS = ${JSON.stringify(o.kinds || ['wood', 'stone', 'coin'])};
+const items = [];
+
+async function start() {
+  for (let i = 0; i < COUNT; i++) {
+    const kind = KINDS[i % KINDS.length];
+    const o = await Scene.create({
+      name: "Pickup_" + kind + "_" + i, type: "primitive",
+      props: { shape: "sphere", color: kind === "coin" ? "#fbbf24" : kind === "wood" ? "#a2703f" : "#9aa3bb" },
+      position: [(Math.random() - .5) * AREA, 0.6, (Math.random() - .5) * AREA],
+      scale: [0.5, 0.5, 0.5]
+    });
+    o.tag = "pickup";
+    o.data.kind = kind;
+    items.push(o);
+  }
+}
+
+function update(dt) {
+  const p = Scene.findByTag("player")[0];
+  if (!p) return;
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    if (!it.exists) { items.splice(i, 1); continue; }
+    it.rotate(0, dt * 1.6, 0);
+    if (it.distanceTo(p) < RANGE) {
+      Events.emit("ItemCollected", it.data.kind);
+      Events.emit("Scored", 1);
+      Audio.beep(880, .08);
+      it.destroy();
+      items.splice(i, 1);
+    }
+  }
+}`
+      }]
+    })
+  },
+
+  inventory: {
+    id: 'inventory', title: 'حقيبة', needs: [],
+    build: () => ({
+      files: [{
+        path: 'Inventory.js', role: 'script',
+        code: `// حقيبة مرتبطة بحدث ItemCollected ومحفوظة
+const slots = Save.get("inv", []);
+let panel, open = false;
+
+function start() {
+  panel = UI.panel({ right: 12, y: 60, width: 190 });
+  UI.button("حقيبة", p => { if (p) { open = !open; panel.show(open); redraw(); } }, { id: "bag", right: 16, bottom: 182 });
+  Events.on("ItemCollected", id => add(id, 1));
+  panel.show(false);
+  redraw();
+}
+
+function add(id, n) {
+  const s = slots.find(x => x.id === id);
+  if (s) s.n += n; else slots.push({ id, n });
+  Save.set("inv", slots);
+  Events.emit("InventoryChanged", slots.length);
+  if (open) redraw();
+}
+
+function take(id, n) {
+  const s = slots.find(x => x.id === id);
+  if (!s || s.n < n) return false;
+  s.n -= n;
+  if (s.n <= 0) slots.splice(slots.indexOf(s), 1);
+  Save.set("inv", slots);
+  Events.emit("InventoryChanged", slots.length);
+  if (open) redraw();
+  return true;
+}
+
+function count(id) { const s = slots.find(x => x.id === id); return s ? s.n : 0; }
+
+function redraw() {
+  panel.clear();
+  panel.text("الحقيبة", { size: 15 });
+  if (!slots.length) panel.text("فارغة", { size: 12 });
+  slots.forEach(s => panel.text(s.id + " ×" + s.n, { size: 13 }));
+}
+
+Events.on("InventoryTake", d => take(d.id, d.n));
+Events.on("InventoryQuery", d => Events.emit("InventoryCount", count(d)));`
+      }]
+    })
+  },
+
+  crafting: {
+    id: 'crafting', title: 'تصنيع', needs: ['inventory'],
+    build: (ctx, o = {}) => ({
+      files: [{
+        path: 'Crafting.js', role: 'script',
+        code: `// تصنيع — الوصفات بياناتك، عدّلها كما تشاء
+const RECIPES = ${JSON.stringify(o.recipes || [
+          { out: 'axe', needs: { wood: 3, stone: 2 } },
+          { out: 'shelter', needs: { wood: 8 } }
+        ], null, 2)};
+let panel, open = false;
+
+function start() {
+  panel = UI.panel({ center: true, bottom: 120, width: 260 });
+  panel.show(false);
+  UI.button("تصنيع", p => { if (p) { open = !open; panel.show(open); if (open) redraw(); } }, { id: "craft", right: 16, bottom: 260 });
+}
+
+function redraw() {
+  panel.clear();
+  panel.text("التصنيع", { size: 16 });
+  RECIPES.forEach(r => {
+    const need = Object.keys(r.needs).map(k => k + "×" + r.needs[k]).join("  ");
+    const row = panel.text(r.out + "  —  " + need);
+    row.el.style.cssText += "padding:8px;border-radius:8px;background:rgba(255,255,255,.07);cursor:pointer";
+    row.el.addEventListener("click", () => craft(r));
+  });
+}
+
+function craft(r) {
+  for (const k in r.needs) Events.emit("InventoryTake", { id: k, n: r.needs[k] });
+  Events.emit("ItemCollected", r.out);
+  Events.emit("Message", "صنعت: " + r.out);
+  Audio.beep(660, .12);
+}`
+      }]
+    })
+  },
+
+  health: {
+    id: 'health', title: 'صحة', needs: [],
+    build: (ctx, o = {}) => ({
+      files: [{
+        path: 'Health.js', role: 'script',
+        code: `// صحة اللاعب — يقللها حدث Damage ويعيدها Heal
+const MAX = ${o.max || 100};
+let hp = MAX, bar;
+
+function start() {
+  bar = UI.bar({ x: 16, y: 48, width: 150, color: "#34d399" });
+  Events.on("Damage", n => set(hp - (n || 10)));
+  Events.on("Heal",   n => set(hp + (n || 10)));
+  set(MAX);
+}
+
+function set(v) {
+  hp = MathUtils.clamp(v, 0, MAX);
+  bar.set(hp / MAX);
+  bar.color(hp > MAX * .5 ? "#34d399" : hp > MAX * .25 ? "#fbbf24" : "#fb7185");
+  if (hp <= 0) Events.emit("PlayerDied");
+}
+
+Events.on("PlayerDied", () => {
+  Events.emit("Message", "انتهت اللعبة");
+  Time.after(1.5, () => { Player.teleport(0, 3, 0); set(MAX); });
+});`
+      }]
+    })
+  },
+
+  hunger: {
+    id: 'hunger', title: 'جوع', needs: ['health'],
+    build: (ctx, o = {}) => ({
+      files: [{
+        path: 'Hunger.js', role: 'script',
+        code: `// جوع يتناقص مع الوقت ويؤذي عند الصفر
+const RATE = ${o.rate || 0.9};
+let food = 100, bar, tick = 0;
+
+function start() {
+  bar = UI.bar({ x: 16, y: 66, width: 150, color: "#fbbf24" });
+  Events.on("ItemCollected", id => { if (id === "food" || id === "berry") set(food + 25); });
+  set(100);
+}
+
+function set(v) { food = MathUtils.clamp(v, 0, 100); bar.set(food / 100); }
+
+function update(dt) {
+  set(food - RATE * dt);
+  if (food <= 0) { tick += dt; if (tick > 2) { tick = 0; Events.emit("Damage", 6); } }
+}`
+      }]
+    })
+  },
+
+  enemies: {
+    id: 'enemies', title: 'أعداء', needs: ['ground', 'player'],
+    build: (ctx, o = {}) => {
+      const asset = pickAsset(ctx, ['Characters', 'Animals'], ['enemy', 'zombie', 'monster', 'animal']);
+      return {
+        files: [{
+          path: 'Enemies.js', role: 'script',
+          code: `// أعداء يطاردون اللاعب ضمن مدى الرؤية
+const COUNT = ${o.count || 4}, SIGHT = 18, SPEED = ${o.speed || 3}, ATTACK = 1.8;
+const pool = [];
+
+async function start() {
+  for (let i = 0; i < COUNT; i++) {
+    const e = ${asset
+      ? `await Scene.spawn("${asset.assetId}", { name: "Enemy_" + i, position: [(Math.random() - .5) * 40, 0, (Math.random() - .5) * 40] })`
+      : `await Scene.create({ name: "Enemy_" + i, type: "primitive",
+        props: { shape: "box", color: "#c2410c" },
+        position: [(Math.random() - .5) * 40, 1, (Math.random() - .5) * 40], scale: [0.9, 1.8, 0.9] })`};
+    e.tag = "enemy";
+    e.addBody({ type: "character", shape: "capsule", radius: .5, height: 1.8 });
+    e.data.cooldown = 0;
+    pool.push(e);
+  }
+}
+
+function update(dt) {
+  const p = Scene.findByTag("player")[0];
+  if (!p) return;
+  for (const e of pool) {
+    if (!e.exists) continue;
+    const d = e.distanceTo(p);
+    const body = e.body;
+    if (!body) continue;
+    e.data.cooldown -= dt;
+    if (d < SIGHT && d > ATTACK) {
+      const dir = p.position.clone().sub(e.position).setY(0).normalize();
+      body.velocity.x = dir.x * SPEED;
+      body.velocity.z = dir.z * SPEED;
+      e.rotation.y = Math.atan2(dir.x, dir.z);
+    } else {
+      body.velocity.x = 0; body.velocity.z = 0;
+      if (d <= ATTACK && e.data.cooldown <= 0) {
+        e.data.cooldown = 1.4;
+        Events.emit("Damage", 8);
+        Audio.beep(180, .12, "square");
+      }
+    }
+  }
+}`
+        }],
+        note: asset ? 'الأعداء يستخدمون: ' + asset.name : 'الأعداء أشكال أوّلية — ارفع مجسمًا لاستبدالها.'
+      };
+    }
+  },
+
+  vehicle: {
+    id: 'vehicle', title: 'قيادة مركبة', needs: ['ground'],
+    build: (ctx, o = {}) => {
+      const asset = pickAsset(ctx, ['Vehicles'], ['car', 'vehicle', 'truck', 'bike']);
+      return {
+        files: [{
+          path: 'VehicleController.js', role: 'script',
+          code: `// قيادة: تسارع، فرامل، توجيه، كاميرا متابعة
+const MAX_SPEED = ${o.maxSpeed || 26}, ACCEL = ${o.accel || 15}, BRAKE = 30, TURN = 2.0, DRAG = 0.55;
+let car, speed = 0;
+
+async function start() {
+  car = ${asset
+    ? `await Scene.spawn("${asset.assetId}", { name: "Car", position: [0, 0.6, 0], tag: "vehicle" })`
+    : `await Scene.create({ name: "Car", type: "primitive", props: { shape: "box", color: "#4f7bff" },
+       position: [0, .6, 0], scale: [1.6, .8, 3.4] })`};
+  car.tag = "vehicle";
+  car.addBody({ type: "character", shape: "box" });
+  Physics.enable(true);
+
+  UI.joystick({ id: "move", side: "left" });
+  UI.button("GAS",   () => {}, { id: "gas",   right: 18, bottom: 118 });
+  UI.button("BRAKE", () => {}, { id: "brake", right: 18, bottom: 30 });
+  Camera.follow(car, { offset: [0, 4.2, 10], smooth: 5.5 });
+  Events.emit("VehicleReady", car.name);
+}
+
+function update(dt) {
+  if (!car || !car.exists) return;
+  const throttle = (Input.button("gas") ? 1 : 0) + Math.max(0, Input.axis("vertical"));
+  const brake = (Input.button("brake") ? 1 : 0) + Math.max(0, -Input.axis("vertical"));
+
+  speed += throttle * ACCEL * dt;
+  speed -= brake * BRAKE * dt;
+  speed -= speed * DRAG * dt;
+  speed = MathUtils.clamp(speed, -7, MAX_SPEED);
+
+  const steer = Input.axis("horizontal");
+  car.rotate(0, -steer * TURN * dt * MathUtils.clamp(Math.abs(speed) / 8, 0.12, 1), 0);
+
+  const dir = car.forward();
+  const b = car.body;
+  b.velocity.x = dir.x * speed;
+  b.velocity.z = dir.z * speed;
+  Events.emit("Speed", Math.abs(speed));
+}`
+        }],
+        note: asset ? 'المركبة تستخدم: ' + asset.name : 'المركبة شكل أوّلي — ارفع مجسم سيارة لاستبداله.'
+      };
+    }
+  },
+
+  fuel: {
+    id: 'fuel', title: 'وقود', needs: ['vehicle'],
+    build: (ctx, o = {}) => ({
+      files: [{
+        path: 'FuelSystem.js', role: 'script',
+        code: `// وقود يستهلكه السير ويُملأ عند المحطة
+const TANK = ${o.tank || 100}, BURN = ${o.burn || 1.6};
+let fuel = TANK, bar, empty = false;
+
+function start() {
+  bar = UI.bar({ x: 16, y: 84, width: 150, color: "#22d3ee" });
+  bar.set(1);
+  Events.on("Refuel", n => { fuel = MathUtils.clamp(fuel + (n || TANK), 0, TANK); empty = false; bar.set(fuel / TANK); Events.emit("Message", "تمت التعبئة"); });
+  Events.on("Speed", s => { if (s > 0.5 && !empty) burn(s); });
+}
+
+function burn(s) {
+  fuel = MathUtils.clamp(fuel - BURN * s * Time.dt * 0.05, 0, TANK);
+  bar.set(fuel / TANK);
+  if (fuel <= 0 && !empty) { empty = true; Events.emit("FuelEmpty"); Events.emit("Message", "نفد الوقود"); }
+}
+
+function update(dt) {
+  const car = Scene.findByTag("vehicle")[0];
+  const st  = Scene.findByTag("fuelstation")[0];
+  if (car && st && car.distanceTo(st) < 6 && fuel < TANK * 0.98) Events.emit("Refuel", 40 * dt);
+}`
+      }],
+      actions: [
+        { op: 'scene.create', objectType: 'primitive', shape: 'box', name: 'FuelStation',
+          position: [22, 2, -14], scale: [8, 4, 6], color: '#e0b34a', tag: 'fuelstation', physics: 'static' }
+      ]
+    })
+  },
+
+  shop: {
+    id: 'shop', title: 'متجر', needs: [],
+    build: (ctx, o = {}) => ({
+      files: [{
+        path: 'Shop.js', role: 'script',
+        code: `// متجر — البضائع بياناتك
+const ITEMS = ${JSON.stringify(o.items || [
+          { id: 'speed', name: 'سرعة +', price: 50 },
+          { id: 'fuel', name: 'تعبئة وقود', price: 30 }
+        ], null, 2)};
+let coins = Save.get("coins", 100), panel, label, open = false;
+
+function start() {
+  label = UI.text("🪙 " + coins, { right: 16, y: 16, size: 17 });
+  panel = UI.panel({ center: true, y: 110, width: 280 });
+  panel.show(false);
+  UI.button("متجر", p => { if (p) { open = !open; panel.show(open); if (open) redraw(); } }, { id: "shop", right: 16, bottom: 340 });
+  Events.on("Scored", n => { coins += (n || 1); Save.set("coins", coins); label.set("🪙 " + coins); });
+}
+
+function redraw() {
+  panel.clear();
+  panel.text("المتجر", { size: 17 });
+  ITEMS.forEach(it => {
+    const row = panel.text(it.name + "  —  " + it.price);
+    row.el.style.cssText += "padding:9px;border-radius:9px;background:rgba(124,92,255,.22);cursor:pointer";
+    row.el.addEventListener("click", () => buy(it));
+  });
+}
+
+function buy(it) {
+  if (coins < it.price) { Audio.beep(160, .16, "square"); Events.emit("Message", "لا تكفي العملات"); return; }
+  coins -= it.price; Save.set("coins", coins); label.set("🪙 " + coins);
+  Audio.beep(920, .1);
+  Events.emit("Bought", it.id);
+  if (it.id === "fuel") Events.emit("Refuel", 100);
+  Events.emit("Message", "اشتريت: " + it.name);
+}`
+      }]
+    })
+  },
+
+  quests: {
+    id: 'quests', title: 'مهام', needs: [],
+    build: (ctx, o = {}) => ({
+      files: [{
+        path: 'Quests.js', role: 'script',
+        code: `// مهام تتابع أحداثك
+const QUESTS = ${JSON.stringify(o.quests || [
+          { id: 'collect5', title: 'اجمع ٥ موارد', goal: 5, event: 'ItemCollected' }
+        ], null, 2)};
+const progress = Save.get("quests", {});
+let panel;
+
+function start() {
+  panel = UI.panel({ x: 12, y: 110, width: 230 });
+  QUESTS.forEach(q => {
+    progress[q.id] = progress[q.id] || 0;
+    q.row = panel.text(line(q));
+    Events.on(q.event, () => advance(q));
+  });
+}
+
+function line(q) {
+  const done = progress[q.id] >= q.goal;
+  return (done ? "✔ " : "• ") + q.title + " (" + Math.min(progress[q.id], q.goal) + "/" + q.goal + ")";
+}
+
+function advance(q) {
+  if (progress[q.id] >= q.goal) return;
+  progress[q.id]++;
+  Save.set("quests", progress);
+  q.row.set(line(q));
+  if (progress[q.id] >= q.goal) {
+    Events.emit("QuestCompleted", q.id);
+    Events.emit("Message", "اكتملت المهمة");
+    Audio.beep(1040, .14);
+  }
+}`
+      }]
+    })
+  },
+
+  dayNight: {
+    id: 'dayNight', title: 'ليل ونهار', needs: [],
+    build: (ctx, o = {}) => ({
+      files: [{
+        path: 'DayNight.js', role: 'script',
+        code: `// دورة يوم كاملة تغيّر السماء والإضاءة
+const DAY_LENGTH = ${o.dayLength || 120};
+let t = 0, sun;
+
+function start() {
+  sun = Scene.find("Directional Light") || Scene.all().find(o => o.type === "light");
+}
+
+function update(dt) {
+  t = (t + dt / DAY_LENGTH) % 1;
+  const angle = t * Math.PI * 2;
+  const light = Math.max(0, Math.sin(angle));
+  if (sun && sun.exists) sun.setPosition(Math.cos(angle) * 30, Math.sin(angle) * 30, 12);
+  Scene.setAmbient(0.08 + light * 0.5);
+  const k = Math.round(light * 255);
+  Scene.setBackground("rgb(" + Math.round(8 + k * 0.35) + "," + Math.round(10 + k * 0.45) + "," + Math.round(22 + k * 0.6) + ")");
+  Events.emit("TimeOfDay", t);
+}`
+      }]
+    })
+  },
+
+  save: {
+    id: 'save', title: 'حفظ', needs: [],
+    build: () => ({
+      files: [{
+        path: 'SaveSystem.js', role: 'script',
+        code: `// حفظ واستعادة موضع اللاعب تلقائيًا
+let acc = 0;
+
+function start() {
+  const s = Save.get("state", null);
+  if (s && s.pos) Time.after(0.6, () => Player.teleport(s.pos[0], s.pos[1], s.pos[2]));
+  Events.on("SaveNow", write);
+}
+
+function write() {
+  const p = Player.object;
+  if (!p) return;
+  Save.set("state", { pos: [p.position.x, p.position.y, p.position.z], at: Date.now() });
+  Events.emit("Message", "حُفظ التقدّم");
+}
+
+function update(dt) { acc += dt; if (acc > 20) { acc = 0; write(); } }`
+      }]
+    })
+  },
+
+  multiplayer: {
+    id: 'multiplayer', title: 'لعب جماعي', needs: ['player'], requiresBackend: true,
+    build: (ctx, o = {}) => ({
+      files: [{
+        path: 'Multiplayer.js', role: 'script',
+        code: `// مزامنة لاعبين عبر غرفة — تحتاج Firebase مضبوطة
+const ROOM = "${o.room || 'room-1'}";
+const others = new Map();
+let room = null, acc = 0;
+
+async function start() {
+  if (!Network.online) {
+    Engine.warn("اللعب الجماعي يحتاج Firebase مضبوطة (الإعدادات ← Firebase).");
+    Events.emit("Message", "اللعب الجماعي غير متاح — اضبط Firebase");
+    return;
+  }
+  room = await Network.room(ROOM);
+  room.on("peerState", async p => {
+    if (p.uid === room.me || !p.state || !p.state.pos) return;
+    let o = others.get(p.uid);
+    if (!o) {
+      o = await Scene.create({ name: "Peer_" + p.uid.slice(0, 5), type: "primitive",
+        props: { shape: "capsule", color: "#22d3ee" }, scale: [.6, 1.8, .6] });
+      o.tag = "peer";
+      others.set(p.uid, o);
+    }
+    o.setPosition(p.state.pos[0], p.state.pos[1], p.state.pos[2]);
+  });
+  room.on("peerLeft", uid => { const o = others.get(uid); if (o) { o.destroy(); others.delete(uid); } });
+  Events.emit("Message", "متصل بالغرفة: " + ROOM);
+}
+
+function update(dt) {
+  if (!room) return;
+  acc += dt;
+  if (acc < 0.1) return;             // ~10 تحديثات بالثانية
+  acc = 0;
+  const p = Player.object;
+  if (p) room.setState({ pos: [+p.position.x.toFixed(2), +p.position.y.toFixed(2), +p.position.z.toFixed(2)] });
+}`
+      }]
+    })
+  }
+};
+
+/* ------------------------------------------------------------
+   WORLD BUILDERS (rule 14) — real objects placed in the scene
+   ------------------------------------------------------------ */
+const Worlds = {
+  city(ctx, o = {}) {
+    const acts = [];
+    const blocks = o.blocks || 4, span = 26;
+    const houseAsset = pickAsset(ctx, ['Buildings'], ['house', 'building', 'tower', 'shop']);
+    acts.push({ op: 'scene.create', objectType: 'primitive', shape: 'plane', name: 'Ground',
+      position: [0, 0, 0], scale: [200, 1, 200], color: '#333a4d', tag: 'ground', physics: 'static' });
+    /* roads as a grid */
+    for (let i = -blocks; i <= blocks; i++) {
+      acts.push({ op: 'scene.create', objectType: 'primitive', shape: 'plane', name: 'Road_H' + i,
+        position: [0, 0.02, i * span], scale: [200, 1, 8], color: '#20242f' });
+      acts.push({ op: 'scene.create', objectType: 'primitive', shape: 'plane', name: 'Road_V' + i,
+        position: [i * span, 0.03, 0], scale: [8, 1, 200], color: '#20242f' });
+    }
+    /* buildings between the roads */
+    let n = 0;
+    for (let x = -blocks; x < blocks; x++) {
+      for (let z = -blocks; z < blocks; z++) {
+        if (Math.random() < 0.22) continue;
+        const h = 6 + Math.random() * 22;
+        const px = x * span + span / 2, pz = z * span + span / 2;
+        if (houseAsset && Math.random() < 0.45) {
+          acts.push({ op: 'scene.spawn', assetId: houseAsset.assetId, name: 'Building_' + (n++),
+            position: [px, 0, pz], rotation: [0, Math.round(Math.random() * 4) * Math.PI / 2, 0], tag: 'building' });
+        } else {
+          acts.push({ op: 'scene.create', objectType: 'primitive', shape: 'box', name: 'Building_' + (n++),
+            position: [px, h / 2, pz], scale: [12 + Math.random() * 4, h, 12 + Math.random() * 4],
+            color: ['#3d4560', '#4a5270', '#353c54', '#565f80'][n % 4], tag: 'building', physics: 'static' });
+        }
+      }
+    }
+    acts.push({ op: 'scene.create', objectType: 'light', light: 'directional', name: 'Sun',
+      position: [40, 60, 20], intensity: 2.0, color: '#fff4e0' });
+    acts.push({ op: 'scene.create', objectType: 'spawn', name: 'Spawn Point', position: [0, 0, 12] });
+    return { actions: acts, note: houseAsset ? 'استُخدم الأصل: ' + houseAsset.name : 'المباني أشكال أوّلية — ارفع مجسمات مبانٍ لتحسين المدينة.' };
+  },
+
+  track(ctx, o = {}) {
+    const acts = [];
+    const R = o.radius || 60, seg = 40, width = 14;
+    acts.push({ op: 'scene.create', objectType: 'primitive', shape: 'plane', name: 'Ground',
+      position: [0, 0, 0], scale: [260, 1, 260], color: '#2c4030', tag: 'ground', physics: 'static' });
+    for (let i = 0; i < seg; i++) {
+      const a = (i / seg) * Math.PI * 2;
+      const r = R + Math.sin(a * 3) * 12;
+      acts.push({ op: 'scene.create', objectType: 'primitive', shape: 'box', name: 'Track_' + i,
+        position: [Math.cos(a) * r, 0.05, Math.sin(a) * r],
+        rotation: [0, -a, 0], scale: [width, 0.1, (2 * Math.PI * r) / seg + 3], color: '#2a2e3a' });
+      if (i % 5 === 0) {
+        acts.push({ op: 'scene.create', objectType: 'primitive', shape: 'box', name: 'Checkpoint_' + i,
+          position: [Math.cos(a) * (r + width * 0.8), 1.4, Math.sin(a) * (r + width * 0.8)],
+          scale: [0.6, 3, 0.6], color: '#fbbf24', tag: 'checkpoint' });
+      }
+    }
+    acts.push({ op: 'scene.create', objectType: 'light', light: 'directional', name: 'Sun',
+      position: [30, 50, 20], intensity: 2.1, color: '#ffffff' });
+    acts.push({ op: 'scene.create', objectType: 'spawn', name: 'Spawn Point', position: [R, 0, 0] });
+    return { actions: acts };
+  },
+
+  forest(ctx, o = {}) {
+    const acts = [];
+    const treeAsset = pickAsset(ctx, ['Nature'], ['tree', 'pine', 'plant', 'bush']);
+    const rockAsset = pickAsset(ctx, ['Nature', 'Props'], ['rock', 'stone']);
+    acts.push({ op: 'scene.create', objectType: 'primitive', shape: 'plane', name: 'Ground',
+      position: [0, 0, 0], scale: [160, 1, 160], color: '#33502f', tag: 'ground', physics: 'static' });
+    const n = o.count || 40, area = o.area || 120;
+    for (let i = 0; i < n; i++) {
+      const px = (Math.random() - .5) * area, pz = (Math.random() - .5) * area;
+      if (Math.hypot(px, pz) < 8) continue;
+      if (treeAsset) {
+        acts.push({ op: 'scene.spawn', assetId: treeAsset.assetId, name: 'Tree_' + i,
+          position: [px, 0, pz], rotation: [0, Math.random() * 6.28, 0],
+          scale: [0.8 + Math.random() * 0.5, 0.8 + Math.random() * 0.5, 0.8 + Math.random() * 0.5], tag: 'tree' });
+      } else {
+        const h = 4 + Math.random() * 4;
+        acts.push({ op: 'scene.create', objectType: 'primitive', shape: 'cylinder', name: 'Trunk_' + i,
+          position: [px, h / 2, pz], scale: [0.5, h, 0.5], color: '#6b4a2b', tag: 'tree', physics: 'static' });
+        acts.push({ op: 'scene.create', objectType: 'primitive', shape: 'cone', name: 'Leaves_' + i,
+          position: [px, h + 1.6, pz], scale: [3.4, 4.5, 3.4], color: '#2f6b35' });
+      }
+    }
+    for (let i = 0; i < (o.rocks || 10); i++) {
+      const px = (Math.random() - .5) * area, pz = (Math.random() - .5) * area;
+      if (rockAsset) acts.push({ op: 'scene.spawn', assetId: rockAsset.assetId, name: 'Rock_' + i, position: [px, 0, pz], tag: 'rock' });
+      else acts.push({ op: 'scene.create', objectType: 'primitive', shape: 'sphere', name: 'Rock_' + i,
+        position: [px, 0.5, pz], scale: [1.4, 1, 1.6], color: '#79808f', tag: 'rock', physics: 'static' });
+    }
+    acts.push({ op: 'scene.create', objectType: 'light', light: 'directional', name: 'Sun', position: [25, 45, 18], intensity: 1.9, color: '#ffeccc' });
+    acts.push({ op: 'scene.create', objectType: 'spawn', name: 'Spawn Point', position: [0, 0, 0] });
+    return { actions: acts, note: treeAsset ? 'الأشجار من الأصل: ' + treeAsset.name : 'الأشجار أشكال أوّلية — ارفع مجسم شجرة لتحسين الغابة.' };
+  },
+
+  flatArena(ctx, o = {}) {
+    return { actions: [
+      { op: 'scene.create', objectType: 'primitive', shape: 'plane', name: 'Ground',
+        position: [0, 0, 0], scale: [80, 1, 80], color: '#2f3a55', tag: 'ground', physics: 'static' },
+      { op: 'scene.create', objectType: 'light', light: 'directional', name: 'Sun', position: [20, 40, 15], intensity: 2.0 },
+      { op: 'scene.create', objectType: 'spawn', name: 'Spawn Point', position: [0, 0, 0] }
+    ]};
+  }
+};
+
+/* pick a real asset the project can actually use — never invent an id */
+function pickAsset(ctx, categories, keywords) {
+  const list = (ctx && ctx.assets) || [];
+  if (!list.length) return null;
+  const models = list.filter(a => a.kind === 'model');
+  if (!models.length) return null;
+  const byCat = models.filter(a => categories.includes(a.category));
+  const byTag = models.filter(a => (a.tags || []).some(t => keywords.some(k => String(t).includes(k))) ||
+                                    keywords.some(k => String(a.name).toLowerCase().includes(k)));
+  const scored = [...byCat.filter(a => byTag.includes(a)), ...byTag, ...byCat];
+  return scored[0] || null;
+}
+
+NX.Systems = Systems;
+NX.Worlds = Worlds;
+NX.pickAsset = pickAsset;
+</script>
+<script type="module">
+/* ============================================================
+   PART 12/13 (B) · PLANNER · EXECUTOR · TEST/FIX LOOP · CHECKER
+   ============================================================ */
+const NX = window.NX;
+const { uid, LS } = NX;
+const { Systems, Worlds, ProjectContext, History } = NX;
+
+/* ------------------------------------------------------------
+   PLANNER (rule 5) — turn a description into an ordered plan
+   ------------------------------------------------------------ */
+const RECIPES = {
+  racing:     { world: 'track',  systems: ['vehicle', 'fuel', 'hud', 'save'],                                            title: 'لعبة سباق' },
+  survival:   { world: 'forest', systems: ['player', 'hud', 'pickups', 'inventory', 'crafting', 'health', 'hunger', 'enemies', 'dayNight', 'save', 'quests'], title: 'لعبة بقاء' },
+  shooter:    { world: 'flatArena', systems: ['player', 'hud', 'health', 'enemies', 'save'],                             title: 'لعبة تصويب' },
+  platformer: { world: 'flatArena', systems: ['player', 'hud', 'pickups', 'health', 'save'],                             title: 'لعبة منصات' },
+  rpg:        { world: 'forest', systems: ['player', 'hud', 'inventory', 'quests', 'shop', 'health', 'enemies', 'save'],  title: 'لعبة أدوار' },
+  openworld:  { world: 'city',   systems: ['player', 'vehicle', 'fuel', 'hud', 'shop', 'save'],                          title: 'عالم مفتوح' },
+  sandbox:    { world: 'flatArena', systems: ['player', 'hud'],                                                          title: 'عالم حر' }
+};
+
+const FEATURE_WORDS = [
+  [['سباق', 'سيارات', 'racing', 'race'], 'racing'],
+  [['بقاء', 'survival', 'جزيرة', 'island'], 'survival'],
+  [['تصويب', 'اطلاق', 'shooter', 'fps'], 'shooter'],
+  [['منصات', 'platformer', 'قفز'], 'platformer'],
+  [['ادوار', 'أدوار', 'rpg', 'مغامرة', 'adventure'], 'rpg'],
+  [['عالم مفتوح', 'مدينة', 'open world', 'city'], 'openworld']
+];
+
+const SYSTEM_WORDS = [
+  [['سيارة', 'مركبة', 'قيادة', 'car', 'vehicle', 'drive', 'دراجة', 'bike'], 'vehicle'],
+  [['وقود', 'بنزين', 'fuel', 'gas'], 'fuel'],
+  [['لاعب', 'شخصية', 'player', 'character', 'حركة', 'يمشي'], 'player'],
+  [['حقيبة', 'مخزون', 'inventory'], 'inventory'],
+  [['تصنيع', 'craft'], 'crafting'],
+  [['صحة', 'health', 'hp', 'دم'], 'health'],
+  [['جوع', 'hunger', 'طعام'], 'hunger'],
+  [['عدو', 'أعداء', 'enemy', 'enemies', 'وحوش', 'زومبي'], 'enemies'],
+  [['مهمة', 'مهام', 'quest'], 'quests'],
+  [['متجر', 'shop', 'store', 'شراء'], 'shop'],
+  [['ليل', 'نهار', 'day', 'night'], 'dayNight'],
+  [['حفظ', 'save'], 'save'],
+  [['جمع', 'موارد', 'pickup', 'collect'], 'pickups'],
+  [['واجهة', 'hud', 'ui', 'شريط'], 'hud'],
+  [['جماعي', 'multiplayer', 'اونلاين', 'أونلاين', 'online'], 'multiplayer']
+];
+
+const WORLD_WORDS = [
+  [['مدينة', 'city', 'شوارع', 'شارع'], 'city'],
+  [['حلبة', 'مضمار', 'track', 'سباق'], 'track'],
+  [['غابة', 'جزيرة', 'اشجار', 'أشجار', 'forest', 'island', 'طبيعة'], 'forest'],
+  [['ساحة', 'arena', 'فارغ', 'مسطح'], 'flatArena']
+];
+
+const norm = s => String(s || '').toLowerCase()
+  .replace(/[ً-ٰٟـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
+
+const Planner = {
+  /* build a plan locally — deterministic, real, and aware of what already exists */
+  local(prompt, ctx, project) {
+    const p = norm(prompt);
+    const has = list => list.some(w => p.includes(norm(w)));
+    const existing = new Set(ProjectContext.detectSystems(project));
+    const sceneObjects = (ctx.scene && ctx.scene.objects) || [];
+    const sceneEmpty = sceneObjects.filter(o => ['model', 'primitive'].includes(o.type)).length === 0;
+    /* things that live in the scene rather than in code — never duplicate them */
+    if (sceneObjects.some(o => o.tag === 'ground' || /^ground/i.test(o.name))) existing.add('ground');
+    if (sceneObjects.some(o => o.tag === 'fuelstation')) existing.add('fuelstation');
+
+    let recipeKey = null;
+    for (const [words, key] of FEATURE_WORDS) if (has(words)) { recipeKey = key; break; }
+
+    const wanted = [];
+    for (const [words, sys] of SYSTEM_WORDS) if (has(words)) wanted.push(sys);
+
+    let world = null;
+    for (const [words, w] of WORLD_WORDS) if (has(words)) { world = w; break; }
+
+    let systems, title, summary;
+    const wholeGame = recipeKey || /لعبه|لعبة|game|اصنع لي|ابن لي|ابني/.test(p) && wanted.length > 2;
+
+    if (recipeKey) {
+      const r = RECIPES[recipeKey];
+      systems = r.systems.slice();
+      wanted.forEach(s => { if (!systems.includes(s)) systems.push(s); });
+      world = world || r.world;
+      title = r.title;
+      summary = `خطة لبناء ${r.title} كاملة: عالم + ${systems.length} نظام.`;
+    } else if (wanted.length) {
+      systems = wanted;
+      title = 'إضافة: ' + wanted.map(s => (Systems[s] || {}).title || s).join(' · ');
+      summary = `سأضيف ${wanted.length} نظامًا إلى مشروعك الحالي${existing.size ? ' دون كسر ما هو موجود' : ''}.`;
+    } else if (wholeGame || sceneEmpty) {
+      const r = RECIPES.sandbox;
+      systems = r.systems.slice(); world = world || r.world;
+      title = 'عالم قابل للعب';
+      summary = 'لم أتعرّف على نوع محدّد، فسأبني عالمًا أساسيًا قابلًا للعب تبني عليه.';
+    } else {
+      return null;    // nothing actionable — the caller falls back to a code suggestion
+    }
+
+    /* dependencies first, and never rebuild what the project already has */
+    const ordered = [];
+    const addSys = id => {
+      if (ordered.includes(id) || !Systems[id]) return;
+      (Systems[id].needs || []).forEach(n => { if (n !== 'ground' || !world) addSys(n); });
+      ordered.push(id);
+    };
+    systems.forEach(addSys);
+
+    const skipped = [];
+    const finalSystems = ordered.filter(id => {
+      const already = existing.has(id) || (id === 'player' && existing.has('player-controller'));
+      if (already) { skipped.push(id); return false; }
+      return true;
+    });
+    /* the title must describe what will actually happen, not what was asked */
+    if (!recipeKey && finalSystems.length) {
+      title = 'إضافة: ' + finalSystems.map(x => (Systems[x] || {}).title || x).join(' · ');
+      summary = `سأضيف ${finalSystems.length} نظامًا` + (skipped.length ? ` (${skipped.length} موجود مسبقًا فلن يُعاد بناؤه)` : '') + '.';
+    }
+
+    const steps = [];
+    if (world && sceneEmpty) {
+      steps.push({ id: uid('st'), title: 'بناء العالم (' + world + ')', why: 'أرضية وإضاءة ونقطة ظهور ومعالم.', kind: 'world', world });
+    } else if (world && !sceneEmpty) {
+      skipped.push('world:' + world);
+    }
+    finalSystems.forEach(id => {
+      const S = Systems[id];
+      steps.push({
+        id: uid('st'), title: S.title, why: 'نظام ' + S.title + '.', kind: 'system', system: id,
+        risky: !!S.requiresBackend,
+        blocked: S.requiresBackend && !ctx.backend.online ? 'يحتاج Firebase مضبوطة' : null
+      });
+    });
+    if (!steps.length) return {
+      title: 'موجود بالفعل',
+      summary: 'كل ما طلبته موجود في مشروعك: ' + skipped.join(' · ') + '. لم أغيّر شيئًا.',
+      steps: [], skipped, source: 'local'
+    };
+
+    steps.push({ id: uid('st'), title: 'بناء واختبار', why: 'ترجمة المشروع وتشغيله والتقاط الأخطاء.', kind: 'verify' });
+    return { title, summary, steps, skipped, source: 'local' };
+  },
+
+  /* ask a configured model for a plan in the same shape */
+  async model(prompt, ctx, project) {
+    const cfg = NX.AI.cfg();
+    if (cfg.provider === 'none' || !cfg.apiKey) return null;
+    const sys = `You plan work inside the NEXUS browser game engine and answer ONLY with JSON.
+Available systems (use these ids when they fit): ${Object.keys(Systems).join(', ')}.
+Available worlds: ${Object.keys(Worlds).join(', ')}.
+Return:
+{"title":"...","summary":"short arabic summary","steps":[
+  {"title":"...","why":"...","kind":"world","world":"city"},
+  {"title":"...","why":"...","kind":"system","system":"vehicle"},
+  {"title":"...","why":"...","kind":"custom","files":[{"path":"X.js","role":"script","code":"..."}],
+   "actions":[{"op":"scene.create","objectType":"primitive","shape":"box","name":"X","position":[0,1,0],"scale":[1,1,1],"color":"#fff"}]},
+  {"title":"بناء واختبار","why":"...","kind":"verify"}]}
+Rules: never invent an assetId — only use ids from PROJECT CONTEXT.assets. Prefer existing systems over custom code.
+Do not recreate systems already listed in PROJECT CONTEXT.memory.systems.
+Custom code may only use the engine API (Engine, Scene, Player, Input, Physics, UI, Audio, Events, Time, Save, Camera, Mic, Network).
+PROJECT CONTEXT:
+${JSON.stringify(ctx).slice(0, 12000)}`;
+    try {
+      const raw = cfg.provider === 'anthropic'
+        ? await NX.AI.askAnthropicRaw(sys, prompt, cfg)
+        : await NX.AI.askOpenAIRaw(sys, prompt, cfg);
+      const j = raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1);
+      const plan = JSON.parse(j);
+      if (!plan.steps || !plan.steps.length) return null;
+      plan.steps.forEach(s => s.id = uid('st'));
+      plan.source = 'model';
+      return plan;
+    } catch (e) {
+      console.warn('model plan failed', e);
+      return null;
+    }
+  },
+
+  async make(prompt, ctx, project) {
+    const fromModel = await this.model(prompt, ctx, project);
+    if (fromModel) return fromModel;
+    return this.local(prompt, ctx, project);
+  }
+};
+
+/* ------------------------------------------------------------
+   EXECUTOR (rule 7) — the assistant actually changes the project
+   ------------------------------------------------------------ */
+const Executor = {
+  async apply(action, env) {
+    const { project, engine } = env;
+    switch (action.op) {
+      case 'scene.create': {
+        const def = {
+          name: action.name || 'Object', type: action.objectType || 'primitive',
+          tag: action.tag || '', position: action.position || [0, 0, 0],
+          rotation: action.rotation || [0, 0, 0], scale: action.scale || [1, 1, 1], props: {}
+        };
+        if (def.type === 'primitive') def.props = { shape: action.shape || 'box', color: action.color || '#8b93b8' };
+        if (def.type === 'light') def.props = { light: action.light || 'directional', color: action.color || '#ffffff', intensity: action.intensity == null ? 2 : action.intensity };
+        if (def.type === 'camera') def.props = { fov: action.fov || 62, isMain: action.isMain !== false };
+        const e = await engine.addEntity(def);
+        if (action.physics) e.components.push({ id: uid('c'), type: 'Rigidbody', name: 'Rigidbody', data: { type: action.physics }, enabled: true });
+        return { created: e.name };
+      }
+      case 'scene.spawn': {
+        const asset = await NX.Assets.get(action.assetId);
+        if (!asset) throw new Error('ASSET_NOT_FOUND: ' + action.assetId);   // never fabricate
+        const e = await engine.addEntity({
+          name: action.name || asset.name, type: asset.kind === 'audio' ? 'audio' : 'model',
+          assetId: asset.assetId, tag: action.tag || '',
+          position: action.position || [0, 0, 0], rotation: action.rotation || [0, 0, 0], scale: action.scale || [1, 1, 1]
+        }, { asset });
+        project.assetRefs = project.assetRefs || [];
+        if (!project.assetRefs.includes(asset.assetId)) { project.assetRefs.push(asset.assetId); NX.Assets.bumpUsage(asset.assetId); }
+        if (action.physics) e.components.push({ id: uid('c'), type: 'Rigidbody', name: 'Rigidbody', data: { type: action.physics }, enabled: true });
+        return { spawned: e.name };
+      }
+      case 'scene.delete': {
+        const e = engine.findByName(action.name);
+        if (!e) return { skipped: action.name };
+        engine.removeEntity(e.id);
+        return { deleted: action.name };
+      }
+      case 'scene.transform': {
+        const e = engine.findByName(action.name);
+        if (!e || !e.object3D) return { skipped: action.name };
+        if (action.position) e.object3D.position.fromArray(action.position);
+        if (action.rotation) e.object3D.rotation.fromArray(action.rotation);
+        if (action.scale) e.object3D.scale.fromArray(action.scale);
+        return { moved: action.name };
+      }
+      case 'scene.environment': {
+        engine.applyEnvironment(Object.assign({}, engine.environment, action.env || {}));
+        return { environment: true };
+      }
+      case 'file.create': {
+        NX.migrateProjectFiles(project);
+        let path = action.path;
+        let i = 2;
+        while (project.files.some(f => f.path === path)) path = action.path.replace(/(\.[^.]+)$/, '_' + (i++) + '$1');
+        const f = {
+          id: uid('f'), path, code: action.code || '', role: action.role || NX.fileRole(path),
+          entityId: null, enabled: true
+        };
+        if (action.attachTo) { const e = engine.findByName(action.attachTo); if (e) f.entityId = e.id; }
+        project.files.push(f);
+        return { file: path };
+      }
+      case 'file.edit': {
+        const f = (project.files || []).find(x => x.path === action.path);
+        if (!f) throw new Error('FILE_NOT_FOUND: ' + action.path);
+        if (action.code != null) f.code = action.code;
+        else if (action.find != null) f.code = f.code.split(action.find).join(action.replace || '');
+        return { edited: action.path };
+      }
+      case 'file.delete': {
+        const before = (project.files || []).length;
+        project.files = (project.files || []).filter(f => f.path !== action.path);
+        return { deleted: action.path, changed: before !== project.files.length };
+      }
+      case 'component.add': {
+        const e = engine.findByName(action.object);
+        if (!e) throw new Error('OBJECT_NOT_FOUND: ' + action.object);
+        e.components.push({ id: uid('c'), type: action.component, name: action.component, data: action.data || {}, enabled: true });
+        return { component: action.component };
+      }
+      case 'note': { ProjectContext.remember(project, action.text); return { note: true }; }
+      default: throw new Error('UNKNOWN_ACTION: ' + action.op);
+    }
+  },
+
+  /* expand a planned step into concrete actions */
+  async materialize(step, env) {
+    const { ctx, project } = env;
+    const out = { actions: [], files: [], notes: [] };
+    if (step.kind === 'world') {
+      const w = Worlds[step.world] || Worlds.flatArena;
+      const r = w(ctx, step.options || {});
+      out.actions.push(...(r.actions || []));
+      if (r.note) out.notes.push(r.note);
+    } else if (step.kind === 'system') {
+      const S = Systems[step.system];
+      if (!S) throw new Error('UNKNOWN_SYSTEM: ' + step.system);
+      const r = S.build(ctx, step.options || {});
+      (r.files || []).forEach(f => out.files.push(f));
+      out.actions.push(...(r.actions || []));
+      if (r.note) out.notes.push(r.note);
+    } else if (step.kind === 'custom') {
+      (step.files || []).forEach(f => out.files.push(f));
+      out.actions.push(...(step.actions || []));
+    }
+    (out.files || []).forEach(f => out.actions.unshift({ op: 'file.create', path: f.path, code: f.code, role: f.role, attachTo: f.attachTo }));
+    return out;
+  }
+};
+
+/* ------------------------------------------------------------
+   PROJECT CHECKER (rule 43)
+   ------------------------------------------------------------ */
+const Checker = {
+  async run(project, engine) {
+    NX.migrateProjectFiles(project);
+    const issues = [];
+    const add = (sev, code, msg, fix) => issues.push({ severity: sev, code, message: msg, fix: fix || null });
+    const objs = Array.from(engine.entities.values());
+
+    /* references */
+    for (const f of project.files) {
+      if (f.entityId && !engine.entities.has(f.entityId))
+        add('error', 'file-detached', `«${f.path}» مربوط بكائن غير موجود`, { op: 'detach', path: f.path });
+    }
+    for (const e of objs) {
+      if (e.assetId) {
+        const a = await NX.Assets.get(e.assetId);
+        if (!a) add('error', 'missing-asset', `الكائن «${e.name}» يشير إلى أصل غير موجود (${e.assetId})`, null);
+      }
+      for (const c of (e.components || [])) {
+        if (c.type === 'Rigidbody') continue;
+        if (!project.files.some(f => f.role === 'component' && NX.componentName(f.path) === c.type))
+          add('error', 'missing-component', `المكوّن «${c.type}» على «${e.name}» لا يوجد له ملف`, { op: 'removeComponent', object: e.name, component: c.type });
+      }
+    }
+
+    /* scene sanity */
+    if (!objs.some(e => e.type === 'camera')) add('error', 'no-camera', 'لا توجد كاميرا في المشهد', { op: 'addCamera' });
+    if (!objs.some(e => e.type === 'light')) add('warning', 'no-light', 'لا توجد إضاءة — سيبدو المشهد مظلمًا', { op: 'addLight' });
+    const hasCharacter = project.files.some(f => /Player\.create|type:\s*["']character["']/.test(f.code || ''));
+    const hasStatic = objs.some(e => (e.components || []).some(c => c.type === 'Rigidbody' && c.data.type === 'static')) ||
+                      project.files.some(f => /addBody\(\s*\{\s*type:\s*["']static["']/.test(f.code || ''));
+    if (hasCharacter && !hasStatic) add('error', 'no-ground-body', 'يوجد لاعب بجسم فيزيائي لكن لا توجد أرضية ثابتة — سيسقط اللاعب', { op: 'addGroundBody' });
+
+    /* duplicates + unused */
+    const seen = new Set();
+    project.files.forEach(f => { if (seen.has(f.path)) add('warning', 'dup-file', `اسم ملف مكرّر: ${f.path}`); seen.add(f.path); });
+    const usedAssets = new Set(objs.map(e => e.assetId).filter(Boolean));
+    (project.assetRefs || []).forEach(id => { if (!usedAssets.has(id)) add('info', 'unused-asset', `أصل مرتبط بالمشروع وغير مستخدم في المشهد (${id})`, { op: 'unlinkAsset', assetId: id }); });
+
+    /* compile */
+    const build = await NX.BuildManager.build(project, { onLog: () => {}, typeCheck: false });
+    build.diagnostics.filter(d => d.severity === 'error')
+      .forEach(d => add('error', 'build', `${d.file}:${d.line} — ${d.message}`));
+
+    /* performance */
+    const st = engine.stats;
+    if (st.tris > 900000) add('warning', 'perf-tris', `عدد المثلثات مرتفع (${NX.fmtNum(st.tris)})`);
+    if (objs.length > 600) add('warning', 'perf-objects', `عدد الكائنات مرتفع (${objs.length}) — فكّر في Instancing`);
+    if (st.calls > 400) add('warning', 'perf-calls', `عدد استدعاءات الرسم مرتفع (${st.calls})`);
+
+    return { issues, build };
+  },
+
+  /* only repairs we can make deterministically and safely */
+  async autofix(project, engine, issues) {
+    const fixed = [];
+    for (const it of issues) {
+      const f = it.fix;
+      if (!f) continue;
+      try {
+        if (f.op === 'detach') {
+          const file = project.files.find(x => x.path === f.path);
+          if (file) { file.entityId = null; fixed.push('فُكّ ارتباط ' + f.path); }
+        } else if (f.op === 'removeComponent') {
+          const e = engine.findByName(f.object);
+          if (e) { e.components = e.components.filter(c => c.type !== f.component); fixed.push('أُزيل مكوّن ' + f.component); }
+        } else if (f.op === 'addCamera') {
+          await engine.addEntity({ name: 'Main Camera', type: 'camera', position: [0, 3, 8], rotation: [-0.2, 0, 0], props: { fov: 62, isMain: true } });
+          fixed.push('أُضيفت كاميرا');
+        } else if (f.op === 'addLight') {
+          await engine.addEntity({ name: 'Directional Light', type: 'light', position: [8, 12, 6], props: { light: 'directional', color: '#ffffff', intensity: 2 } });
+          fixed.push('أُضيفت إضاءة');
+        } else if (f.op === 'addGroundBody') {
+          let g = engine.findByName('Ground') || Array.from(engine.entities.values()).find(e => e.tag === 'ground');
+          if (!g) {
+            g = await engine.addEntity({ name: 'Ground', type: 'primitive', tag: 'ground',
+              props: { shape: 'plane', color: '#2f3a55' }, position: [0, 0, 0], scale: [80, 1, 80] });
+          }
+          if (!g.components.some(c => c.type === 'Rigidbody'))
+            g.components.push({ id: uid('c'), type: 'Rigidbody', name: 'Rigidbody', data: { type: 'static' }, enabled: true });
+          fixed.push('أُضيفت أرضية ثابتة');
+        } else if (f.op === 'unlinkAsset') {
+          project.assetRefs = (project.assetRefs || []).filter(id => id !== f.assetId);
+          fixed.push('أُزيل ربط أصل غير مستخدم');
+        }
+      } catch (e) { /* a failed repair is reported, never hidden */ }
+    }
+    return fixed;
+  }
+};
+
+/* ------------------------------------------------------------
+   BUILDER — the autonomous loop with STOP and checkpoints
+   (rules 8, 9, 10, 12, 30, 31)
+   ------------------------------------------------------------ */
+/* scene edits live in the engine; persist them together with the record */
+async function saveAll(env) {
+  if (env.save) return env.save();
+  NX.History.syncScene(env.project);
+  return NX.Projects.save(env.project);
+}
+
+const Builder = {
+  running: false, stopRequested: false, queue: [], current: null,
+  listeners: [],
+
+  on(cb) { this.listeners.push(cb); return () => { const i = this.listeners.indexOf(cb); if (i >= 0) this.listeners.splice(i, 1); }; },
+  emit(ev) { this.listeners.forEach(cb => { try { cb(ev); } catch (e) { console.error(e); } }); },
+
+  level() { return LS.get('aiLevel', 'smart'); },          // ask | smart | auto
+  setLevel(v) { LS.set('aiLevel', v); },
+
+  stop() { this.stopRequested = true; this.emit({ type: 'stopping' }); },
+
+  async runPrompt(prompt, env) {
+    if (this.running) { this.queue.push(prompt); this.emit({ type: 'queued', prompt, queue: this.queue.slice() }); return; }
+    this.running = true; this.stopRequested = false;
+    const report = { prompt, created: [], edited: [], objects: [], notes: [], warnings: [], tests: [], startedAt: Date.now() };
+    try {
+      this.emit({ type: 'phase', phase: 'analyzing', text: 'قراءة المشروع…' });
+      const ctx = await ProjectContext.snapshot(env.project, env.engine);
+      ProjectContext.remember(env.project);
+
+      this.emit({ type: 'phase', phase: 'planning', text: 'وضع الخطة…' });
+      const plan = await Planner.make(prompt, ctx, env.project);
+      if (!plan) { this.emit({ type: 'noplan', prompt }); return null; }
+      if (!plan.steps.length) { this.emit({ type: 'done', report: Object.assign(report, { empty: true, summary: plan.summary }) }); return plan; }
+
+      this.emit({ type: 'plan', plan });
+      const level = this.level();
+      if (level === 'ask') {
+        const ok = await new Promise(res => this.emit({ type: 'approve', plan, resolve: res }));
+        if (!ok) { this.emit({ type: 'cancelled' }); return null; }
+      }
+
+      await History.create(env.project, 'قبل: ' + plan.title, { by: 'ai' });
+      report.checkpoint = true;
+
+      env.ctx = ctx;
+      for (let i = 0; i < plan.steps.length; i++) {
+        if (this.stopRequested) { report.stopped = true; break; }
+        const step = plan.steps[i];
+        this.emit({ type: 'step', index: i, total: plan.steps.length, step, phase: 'editing' });
+
+        if (step.blocked) { report.warnings.push(`${step.title}: ${step.blocked}`); this.emit({ type: 'stepDone', step, skipped: true }); continue; }
+        if (step.kind === 'verify') continue;
+        if (level === 'ask' || (level === 'smart' && step.risky)) {
+          const ok = await new Promise(res => this.emit({ type: 'approveStep', step, resolve: res }));
+          if (!ok) { report.warnings.push('تخطّيت: ' + step.title); continue; }
+        }
+
+        try {
+          const mat = await Executor.materialize(step, env);
+          for (const a of mat.actions) {
+            if (this.stopRequested) break;
+            try {
+              const r = await Executor.apply(a, env);
+              if (r.file) report.created.push(r.file);
+              if (r.created || r.spawned) report.objects.push(r.created || r.spawned);
+              if (r.edited) report.edited.push(r.edited);
+            } catch (e) {
+              report.warnings.push(`${a.op}: ${e.message}`);
+            }
+          }
+          mat.notes.forEach(n => report.notes.push(n));
+          this.emit({ type: 'stepDone', step });
+        } catch (e) {
+          report.warnings.push(`${step.title}: ${e.message}`);
+          this.emit({ type: 'stepDone', step, error: e.message });
+        }
+        await saveAll(env);
+      }
+
+      /* ---- BUILD → TEST → FIX (rule 10) ---- */
+      if (!this.stopRequested && ProjectContext.perms().build) {
+        let rounds = 0;
+        for (;;) {
+          rounds++;
+          this.emit({ type: 'phase', phase: 'building', text: 'بناء المشروع…' });
+          const build = await env.buildProject();
+          report.tests.push({ round: rounds, build: build.ok, errors: build.diagnostics.filter(d => d.severity === 'error').length });
+          if (build.ok) {
+            this.emit({ type: 'phase', phase: 'testing', text: 'تشغيل اختبار…' });
+            const t = await env.testRun(build);
+            report.tests[report.tests.length - 1].runtimeErrors = t.errors.length;
+            if (!t.errors.length) { report.ok = true; break; }
+            report.warnings.push(...t.errors.slice(0, 4));
+          }
+          if (rounds >= 3 || !ProjectContext.perms().autoFix || this.stopRequested) { report.ok = !!build.ok; break; }
+          this.emit({ type: 'phase', phase: 'fixing', text: 'محاولة إصلاح…' });
+          const chk = await Checker.run(env.project, env.engine);
+          const fixed = await Checker.autofix(env.project, env.engine, chk.issues);
+          report.notes.push(...fixed.map(f => 'إصلاح: ' + f));
+          if (!fixed.length) { report.ok = false; report.unfixed = chk.issues.filter(i => i.severity === 'error').map(i => i.message); break; }
+          await saveAll(env);
+        }
+      }
+
+      ProjectContext.remember(env.project, plan.title);
+      await saveAll(env);
+      report.finishedAt = Date.now();
+      report.plan = plan;
+      this.emit({ type: 'done', report });
+      return plan;
+    } catch (e) {
+      report.error = String(e && e.message || e);
+      this.emit({ type: 'failed', report, error: report.error });
+      return null;
+    } finally {
+      this.running = false; this.current = null;
+      if (this.queue.length && !this.stopRequested) {
+        const next = this.queue.shift();
+        this.emit({ type: 'queue', queue: this.queue.slice() });
+        setTimeout(() => this.runPrompt(next, env), 200);
+      }
+    }
+  }
+};
+
+NX.Planner = Planner;
+NX.Executor = Executor;
+NX.Checker = Checker;
+NX.Builder = Builder;
+NX.RECIPES = RECIPES;
+</script>
+<script type="module">
+/* ============================================================
+   PART 13/13 · BEGINNER MODE · WIZARD · AI STUDIO PANEL
+   One project, two surfaces. Beginner Mode hides the vocabulary,
+   not the power — every action it takes is visible and editable
+   in Pro Mode (rules 1, 2, 3, 24, 25, 29, 30, 35, 36, 37).
+   ============================================================ */
+const NX = window.NX;
+const { $, $$, el, btn, iconBtn, icon, Sheet, Modal, Toast, T, LS, uid, fmtNum, timeAgo, debounce, field, segPick } = NX;
+const { Mode, Builder, ProjectContext, History, Checker, attachHelp, helpSheet } = NX;
+
+/* ------------------------------------------------------------
+   BEGINNER ACTIONS (rule 1) — one tap, one outcome, undoable
+   ------------------------------------------------------------ */
+const ACTIONS = [
+  { id: 'world',   icon: 'globe',  title: 'إنشاء عالم',      desc: 'أرضية وسماء وإضاءة جاهزة',        prompt: 'ابنِ لي عالمًا أساسيًا قابلًا للعب', help: 'scene' },
+  { id: 'player',  icon: 'user',   title: 'إضافة لاعب',      desc: 'شخصية تتحرك وتقفز بالعصا',        prompt: 'أضف لاعبًا يتحرك ويقفز', help: 'scene' },
+  { id: 'car',     icon: 'box',    title: 'إضافة سيارة',     desc: 'مركبة تُقاد بتسارع وفرامل',        prompt: 'أضف سيارة يمكن قيادتها' },
+  { id: 'building',icon: 'grid',   title: 'إضافة مبنى',      desc: 'مبنى من أصولك أو شكل أولي',        kind: 'asset', category: 'Buildings' },
+  { id: 'char',    icon: 'user',   title: 'إضافة شخصية',     desc: 'مجسم شخصية من المكتبة',            kind: 'asset', category: 'Characters' },
+  { id: 'enemy',   icon: 'flame',  title: 'إضافة عدو',       desc: 'أعداء يطاردون اللاعب',             prompt: 'أضف أعداء يطاردون اللاعب' },
+  { id: 'quest',   icon: 'check',  title: 'إضافة مهمة',      desc: 'هدف يتتبّع تقدّم اللاعب',           prompt: 'أضف نظام مهام' },
+  { id: 'shop',    icon: 'cube',   title: 'إضافة متجر',      desc: 'شراء بعملات اللعبة',               prompt: 'أضف متجرًا' },
+  { id: 'ui',      icon: 'layers', title: 'إضافة واجهة',     desc: 'نقاط وصحة ورسائل',                 prompt: 'أضف واجهة علوية للنقاط والصحة' },
+  { id: 'audio',   icon: 'music',  title: 'إضافة صوت',       desc: 'ارفع صوتًا أو خذه من المكتبة',      kind: 'asset', category: 'Audio', assetKind: 'audio' },
+  { id: 'mp',      icon: 'share',  title: 'لعب جماعي',       desc: 'مزامنة لاعبين — يحتاج Firebase',    prompt: 'أضف لعبًا جماعيًا', help: 'multiplayer' },
+  { id: 'ask',     icon: 'spark',  title: 'اطلب من AI',      desc: 'صف ما تريد بلغتك',                 kind: 'ai', help: 'ai' }
+];
+
+const Beginner = {
+  openActions() {
+    const body = el('div');
+    body.appendChild(el('p', { class: 'tiny', style: { marginBottom: '12px' },
+      text: 'اضغط أي بطاقة لتنفيذها فورًا. اضغط مطوّلًا لشرحها. كل عملية يمكن التراجع عنها.' }));
+    const grid = el('div', { class: 'beg-grid' });
+    ACTIONS.forEach(a => {
+      const card = el('button', { class: 'beg-card', onclick: () => { sheet.close(); this.run(a); } });
+      card.appendChild(el('span', { class: 'beg-ic' }, [icon(a.icon)]));
+      card.appendChild(el('b', { text: a.title }));
+      card.appendChild(el('span', { class: 'beg-desc', text: a.desc }));
+      attachHelp(card, a.help || 'ai');
+      grid.appendChild(card);
+    });
+    body.appendChild(grid);
+    const sheet = Sheet.open({ title: 'ماذا تريد أن تضيف؟', body, full: true, id: 'begin' });
+  },
+
+  async run(a) {
+    const S = NX.Studio;
+    if (!S.project) return;
+    if (a.kind === 'asset') {
+      NX.openAssetLibrary({
+        onAdd: async asset => { await S.addAsset(asset); this.confirm('أُضيف ' + asset.name); },
+        scope: 'public', title: a.title
+      });
+      return;
+    }
+    if (a.kind === 'ai') { S.openAI(); return; }
+    S.openAI({ autoPrompt: a.prompt });
+  },
+
+  /* visual confirmation + a one-tap undo (rule 1) */
+  confirm(text) {
+    const t = Toast.show(text, 'ok', 5200);
+    const u = el('button', { class: 'toast-undo', text: 'تراجع' });
+    u.onclick = async () => {
+      const p = NX.Studio.project;
+      const last = (p.history || [])[0];
+      if (!last) { Toast.err('لا توجد نقطة رجوع'); return; }
+      await History.restore(p, last.id);
+      await NX.Studio.reloadScene();
+      Toast.ok('تم التراجع');
+      t.remove();
+    };
+    t.appendChild(u);
+  },
+
+  /* what an empty project should say instead of nothing (rule 35) */
+  emptyOverlay() {
+    const wrap = el('div', { class: 'empty-choices' });
+    wrap.appendChild(el('b', { text: 'ماذا تريد أن تصنع؟' }));
+    wrap.appendChild(el('p', { class: 'tiny', text: 'ابدأ بالطريقة التي تناسبك — يمكنك تغييرها لاحقًا.' }));
+    const row = el('div', { class: 'empty-row' });
+    row.appendChild(btn('أريد AI أن يبنيها', { cls: 'primary', icon: 'spark', onclick: () => NX.Studio.openAI({ firstGame: true }) }));
+    row.appendChild(btn('أريد بناءها بنفسي', { cls: '', icon: 'plus', onclick: () => Beginner.openActions() }));
+    row.appendChild(btn('ابدأ من قالب', { cls: 'ghost', icon: 'grid', onclick: () => Beginner.templates() }));
+    wrap.appendChild(row);
+    return wrap;
+  },
+
+  /* templates are starting points, never closed games (rule 22) */
+  templates() {
+    const body = el('div');
+    body.appendChild(el('p', { class: 'tiny', style: { marginBottom: '12px' },
+      text: 'القالب نقطة بداية فقط — كل شيء فيه قابل للتعديل أو الحذف.' }));
+    const grid = el('div', { class: 'beg-grid' });
+    const items = [
+      ['فارغ', 'empty', 'المشهد التقني فقط', 'box'],
+      ['منصات', 'platformer', 'لاعب + جمع + صحة', 'layers'],
+      ['سباق', 'racing', 'حلبة + مركبة + وقود', 'flame'],
+      ['بقاء', 'survival', 'غابة + موارد + تصنيع + أعداء', 'globe'],
+      ['تصويب', 'shooter', 'ساحة + أعداء + صحة', 'flame'],
+      ['أدوار', 'rpg', 'مهام + حقيبة + متجر', 'book'],
+      ['عالم مفتوح', 'openworld', 'مدينة + مركبة + متجر', 'globe']
+    ];
+    items.forEach(([title, key, desc, ic]) => {
+      const c = el('button', { class: 'beg-card', onclick: () => {
+        sheet.close();
+        if (key === 'empty') { Toast.ok('مشهد فارغ جاهز'); return; }
+        NX.Studio.openAI({ autoPrompt: 'ابنِ لي ' + (NX.RECIPES[key] ? NX.RECIPES[key].title : title) });
+      }});
+      c.appendChild(el('span', { class: 'beg-ic' }, [icon(ic)]));
+      c.appendChild(el('b', { text: title }));
+      c.appendChild(el('span', { class: 'beg-desc', text: desc }));
+      grid.appendChild(c);
+    });
+    body.appendChild(grid);
+    const sheet = Sheet.open({ title: 'قوالب البداية', body, full: true, id: 'templates' });
+  },
+
+  /* the create-game wizard (rule 24) */
+  wizard() {
+    const state = { name: '', type: 'sandbox', dim: '3d', platform: 'mobile', ai: true, template: 'empty' };
+    const body = el('div');
+    const stepHost = el('div');
+    let step = 0;
+    const steps = [
+      () => {
+        const wrap = el('div');
+        wrap.appendChild(el('div', { class: 'ttl', text: 'ما اسم لعبتك؟' }));
+        const i = el('input', { class: 'input', value: state.name, placeholder: 'لعبتي الأولى' });
+        i.addEventListener('input', () => state.name = i.value);
+        wrap.appendChild(i);
+        setTimeout(() => i.focus(), 120);
+        return wrap;
+      },
+      () => {
+        const wrap = el('div');
+        wrap.appendChild(el('div', { class: 'ttl', text: 'ما نوعها؟' }));
+        const g = el('div', { class: 'beg-grid small' });
+        [['سباق', 'racing'], ['بقاء', 'survival'], ['منصات', 'platformer'], ['تصويب', 'shooter'],
+         ['أدوار', 'rpg'], ['عالم مفتوح', 'openworld'], ['حر / غير محدّد', 'sandbox']].forEach(([t, k]) => {
+          const c = el('button', { class: 'beg-card' + (state.type === k ? ' on' : ''), text: t,
+            onclick: () => { state.type = k; Array.from(g.children).forEach(x => x.classList.toggle('on', x === c)); } });
+          g.appendChild(c);
+        });
+        wrap.appendChild(g);
+        return wrap;
+      },
+      () => {
+        const wrap = el('div');
+        wrap.appendChild(el('div', { class: 'ttl', text: 'المنظور والجهاز' }));
+        const s1 = el('div', { class: 'seg', style: { marginBottom: '12px' } }, [
+          el('button', { class: 'on', text: '3D كامل', onclick: e => { state.dim = '3d'; segPick(s1, e.target); } }),
+          el('button', { text: 'منظور جانبي 2.5D', onclick: e => { state.dim = '2.5d'; segPick(s1, e.target); } })
+        ]);
+        wrap.append(s1, el('p', { class: 'tiny', style: { marginBottom: '12px' }, text: 'المحرك ثلاثي الأبعاد؛ المنظور الجانبي يثبّت الكاميرا على محور واحد.' }));
+        const s2 = el('div', { class: 'seg' }, [
+          el('button', { class: 'on', text: 'هاتف', onclick: e => { state.platform = 'mobile'; segPick(s2, e.target); } }),
+          el('button', { text: 'كمبيوتر', onclick: e => { state.platform = 'desktop'; segPick(s2, e.target); } }),
+          el('button', { text: 'الاثنان', onclick: e => { state.platform = 'both'; segPick(s2, e.target); } })
+        ]);
+        wrap.appendChild(s2);
+        return wrap;
+      },
+      () => {
+        const wrap = el('div');
+        wrap.appendChild(el('div', { class: 'ttl', text: 'هل تريد أن يبنيها المساعد؟' }));
+        const s = el('div', { class: 'seg' }, [
+          el('button', { class: 'on', text: 'نعم، ابنِ الأساس', onclick: e => { state.ai = true; segPick(s, e.target); } }),
+          el('button', { text: 'لا، سأبني بنفسي', onclick: e => { state.ai = false; segPick(s, e.target); } })
+        ]);
+        wrap.appendChild(s);
+        wrap.appendChild(el('p', { class: 'tiny', style: { marginTop: '10px' },
+          text: 'في الحالتين تستطيع فتح الكود وتعديل كل شيء لاحقًا.' }));
+        return wrap;
+      }
+    ];
+    const dots = el('div', { class: 'wiz-dots' });
+    const draw = () => {
+      stepHost.textContent = '';
+      stepHost.appendChild(steps[step]());
+      dots.textContent = '';
+      steps.forEach((_, i) => dots.appendChild(el('i', { class: i === step ? 'on' : '' })));
+      back.style.visibility = step ? '' : 'hidden';
+      next.querySelector('span').textContent = step === steps.length - 1 ? 'ابدأ' : 'التالي';
+    };
+    const back = btn('السابق', { cls: 'ghost', onclick: () => { if (step > 0) { step--; draw(); } } });
+    const next = btn('التالي', { cls: 'primary', onclick: async () => {
+      if (step < steps.length - 1) { step++; draw(); return; }
+      sheet.close();
+      const p = await NX.Platform.createProject(state.name || 'لعبتي الأولى', {
+        type: state.type, dim: state.dim, platform: state.platform
+      });
+      if (state.ai && state.type !== 'sandbox') {
+        setTimeout(() => NX.Studio.openAI({ autoPrompt: 'ابنِ لي ' + (NX.RECIPES[state.type] ? NX.RECIPES[state.type].title : state.type) }), 900);
+      } else if (state.ai) {
+        setTimeout(() => NX.Studio.openAI({ firstGame: true }), 900);
+      }
+    }});
+    body.append(dots, stepHost);
+    draw();
+    const sheet = Sheet.open({ title: 'إنشاء لعبة', body, id: 'wizard', foot: [back, next] });
+  }
+};
+
+/* ------------------------------------------------------------
+   AI STUDIO PANEL — plan, run, watch, report (rules 11, 25, 30)
+   ------------------------------------------------------------ */
+const AIPanel = {
+  sheet: null, log: null, status: null, input: null, stopBtn: null, unsub: null,
+
+  open(opts = {}) {
+    const S = NX.Studio;
+    if (!S.project) return;
+    if (this.sheet && !this.sheet._closed) { if (opts.autoPrompt) this.send(opts.autoPrompt); return; }
+
+    const body = el('div', { class: 'ai-wrap' });
+    this.log = el('div', { class: 'ai-log scroll' });
+    this.status = el('div', { class: 'ai-status hide' });
+
+    const quick = el('div', { class: 'quick' });
+    const qs = opts.firstGame
+      ? ['اصنع لي لعبة سباق سيارات في مدينة', 'اصنع لي لعبة بقاء في جزيرة', 'اصنع لي لعبة منصات', 'اصنع لي لعبة تصويب']
+      : ['أضف سيارة', 'أضف نظام وقود', 'أضف أعداء', 'أضف متجرًا', 'أضف مهام', 'افحص المشروع', 'حسّن الأداء'];
+    qs.forEach(q => quick.appendChild(el('button', { text: q, onclick: () => this.send(q) })));
+
+    this.input = el('textarea', { placeholder: 'صف ما تريد… مثال: «اصنع لعبة سباق في مدينة فيها شرطة»', rows: 1 });
+    this.input.addEventListener('input', () => { this.input.style.height = 'auto'; this.input.style.height = Math.min(120, this.input.scrollHeight) + 'px'; });
+    this.input.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) this.send(); });
+    const sendBtn = iconBtn('spark', { cls: 'on', label: 'send', onclick: () => this.send() });
+    const row = el('div', { class: 'ai-input' }, [this.input, sendBtn]);
+
+    body.append(this.status, this.log, quick, row);
+
+    this.sheet = Sheet.open({
+      title: 'المساعد', body, full: true, id: 'ai',
+      headExtra: [
+        iconBtn('shield', { label: 'context', onclick: () => ProjectContext.openPanel(S.project, S.engine) }),
+        iconBtn('gear', { label: 'ai settings', onclick: () => this.settings() })
+      ],
+      onClose: () => { if (this.unsub) this.unsub(); this.sheet = null; }
+    });
+    setTimeout(() => { const b = $('.sheet.in .sheet-body'); if (b) { b.style.display = 'flex'; b.style.flexDirection = 'column'; } }, 40);
+
+    this.unsub = Builder.on(ev => this.onEvent(ev));
+    const cfg = NX.AI.cfg();
+    this.say('sys', cfg.provider === 'none'
+      ? 'أعمل الآن بالمخطّط المدمج (بلا اتصال): يفهم الطلبات الشائعة ويبني أنظمة حقيقية. لطلبات حرّة تمامًا صِلْ نموذجًا من ⚙.'
+      : 'متصل بـ ' + cfg.provider + ' · ' + (cfg.model || 'default'));
+    this.say('ai', opts.firstGame
+      ? 'قل لي ما نوع اللعبة التي تريدها وسأخطّط لها وأبنيها وأختبرها. تستطيع إيقافي في أي لحظة، ولكل تغيير نقطة رجوع.'
+      : 'اطلب ما تريد. سأقرأ مشروعك أولًا، ثم أضع خطة، ثم أنفّذ وأبني وأختبر وأصلح.');
+    if (opts.autoPrompt) setTimeout(() => this.send(opts.autoPrompt), 260);
+  },
+
+  say(kind, text) {
+    const m = el('div', { class: 'ai-msg ' + kind, text });
+    this.log.appendChild(m);
+    this.log.scrollTop = this.log.scrollHeight;
+    return m;
+  },
+
+  async send(text) {
+    const S = NX.Studio;
+    const q = (text != null ? text : this.input.value).trim();
+    if (!q) return;
+    this.input.value = ''; this.input.style.height = '';
+    this.say('me', q);
+
+    /* a few requests are handled directly rather than as a build plan */
+    if (/^افحص|فحص المشروع|check/i.test(q)) return this.checkProject();
+    if (/حسّن الأداء|حسن الاداء|optimi/i.test(q)) return this.optimize();
+    if (/أصلح|اصلح|fix/i.test(q) && !/أضف/.test(q)) return this.fixAll();
+
+    if (Builder.running) { this.say('sys', 'أضفت طلبك إلى الطابور.'); }
+    await Builder.runPrompt(q, this.env());
+  },
+
+  env() {
+    const S = NX.Studio;
+    return {
+      project: S.project, engine: S.engine,
+      buildProject: () => S.buildProject({ silent: true }),
+      testRun: b => S.testRun(b),
+      save: () => S.save(true)
+    };
+  },
+
+  onEvent(ev) {
+    if (!this.log) return;
+    const S = NX.Studio;
+    if (ev.type === 'phase') this.setStatus(ev.text, ev.phase);
+    else if (ev.type === 'plan') this.renderPlan(ev.plan);
+    else if (ev.type === 'approve') this.askApprove(ev.plan, ev.resolve);
+    else if (ev.type === 'approveStep') this.askApproveStep(ev.step, ev.resolve);
+    else if (ev.type === 'step') this.setStatus(`(${ev.index + 1}/${ev.total}) ${ev.step.title}`, 'editing');
+    else if (ev.type === 'stepDone') this.tickStep(ev.step, ev.error, ev.skipped);
+    else if (ev.type === 'queued') this.say('sys', 'في الطابور: ' + ev.prompt);
+    else if (ev.type === 'noplan') {
+      this.setStatus(null);
+      this.say('ai', 'لم أفهم هذا كطلب بناء. سأقترح كودًا بدلًا من ذلك.');
+      const res = NX.AI.local(ev.prompt, S.project, S.engine);
+      (res.scripts || []).forEach(s => this.log.appendChild(S.aiPatchCard(s)));
+    }
+    else if (ev.type === 'cancelled') { this.setStatus(null); this.say('sys', 'أُلغيت الخطة.'); }
+    else if (ev.type === 'stopping') this.setStatus('إيقاف…', 'stopping');
+    else if (ev.type === 'done') { this.setStatus(null); this.renderReport(ev.report); }
+    else if (ev.type === 'failed') { this.setStatus(null); this.say('sys', '✗ توقّفت: ' + ev.error); }
+  },
+
+  setStatus(text, phase) {
+    if (!this.status) return;
+    this.status.textContent = '';
+    if (!text) { this.status.classList.add('hide'); return; }
+    this.status.classList.remove('hide');
+    this.status.appendChild(el('div', { class: 'spin sm' }));
+    this.status.appendChild(el('span', { text }));
+    const stop = btn('STOP', { cls: 'sm danger', onclick: () => Builder.stop() });
+    this.status.appendChild(stop);
+  },
+
+  renderPlan(plan) {
+    const card = el('div', { class: 'plan-card' });
+    card.appendChild(el('b', { text: plan.title }));
+    card.appendChild(el('p', { class: 'tiny', text: plan.summary }));
+    if (plan.skipped && plan.skipped.length)
+      card.appendChild(el('p', { class: 'tiny', style: { color: '#fcd77a' }, text: 'موجود مسبقًا (لن يُعاد بناؤه): ' + plan.skipped.join(' · ') }));
+    const ul = el('div', { class: 'plan-steps' });
+    plan.steps.forEach(s => {
+      const r = el('div', { class: 'plan-step', dataset: { step: s.id } });
+      r.appendChild(el('i', { class: 'dot' }));
+      const t = el('div');
+      t.appendChild(el('b', { text: s.title }));
+      t.appendChild(el('span', { class: 'tiny', text: s.blocked ? '⚠ ' + s.blocked : s.why }));
+      r.appendChild(t);
+      ul.appendChild(r);
+    });
+    card.appendChild(ul);
+    card.appendChild(el('p', { class: 'tiny', style: { marginTop: '8px' }, text: plan.source === 'model' ? 'خطة من النموذج المتصل' : 'خطة من المخطّط المدمج' }));
+    this.log.appendChild(card);
+    this.log.scrollTop = this.log.scrollHeight;
+    this.planCard = card;
+  },
+
+  tickStep(step, error, skipped) {
+    if (!this.planCard) return;
+    const r = this.planCard.querySelector(`[data-step="${step.id}"]`);
+    if (!r) return;
+    r.classList.add(error ? 'err' : skipped ? 'skip' : 'ok');
+    r.querySelector('.dot').textContent = error ? '✗' : skipped ? '–' : '✓';
+  },
+
+  askApprove(plan, resolve) {
+    const row = el('div', { class: 'plan-actions' });
+    row.appendChild(btn('نفّذ الخطة', { cls: 'primary', onclick: () => { row.remove(); resolve(true); } }));
+    row.appendChild(btn('إلغاء', { cls: 'ghost', onclick: () => { row.remove(); resolve(false); } }));
+    (this.planCard || this.log).appendChild(row);
+    this.log.scrollTop = this.log.scrollHeight;
+  },
+
+  askApproveStep(step, resolve) {
+    const row = el('div', { class: 'plan-actions' });
+    row.appendChild(el('span', { class: 'tiny', text: step.title + (step.risky ? ' (خطوة مؤثّرة)' : '') }));
+    row.appendChild(btn('موافق', { cls: 'sm primary', onclick: () => { row.remove(); resolve(true); } }));
+    row.appendChild(btn('تخطَّ', { cls: 'sm ghost', onclick: () => { row.remove(); resolve(false); } }));
+    this.log.appendChild(row);
+    this.log.scrollTop = this.log.scrollHeight;
+  },
+
+  /* what was done, in plain language, every item inspectable (rule 11) */
+  renderReport(r) {
+    const S = NX.Studio;
+    const card = el('div', { class: 'report-card' });
+    card.appendChild(el('b', { text: r.stopped ? 'أُوقفت بناءً على طلبك' : r.ok ? 'تمّ' : 'تمّ مع ملاحظات' }));
+    const sec = (title, items, onClick) => {
+      if (!items || !items.length) return;
+      card.appendChild(el('div', { class: 'rep-t', text: title }));
+      items.forEach(x => {
+        const b = el('button', { class: 'rep-item', onclick: onClick ? () => onClick(x) : null });
+        b.appendChild(el('span', { text: '✓' }));
+        b.appendChild(el('span', { text: String(x) }));
+        card.appendChild(b);
+      });
+    };
+    sec('أُنشئت ملفات', r.created, path => { const f = (S.project.files || []).find(x => x.path === path); if (f) { NX.IDE.open(S.project); NX.IDE.openFile(f); } });
+    sec('أُضيفت كائنات', Array.from(new Set(r.objects)).slice(0, 14), name => { const e = S.engine.findByName(name); if (e) { S.engine.select(e.id); S.engine.focus(e); } });
+    sec('تعديلات', r.edited);
+    if (r.tests && r.tests.length) {
+      card.appendChild(el('div', { class: 'rep-t', text: 'الاختبار' }));
+      r.tests.forEach(t => card.appendChild(el('div', { class: 'rep-item', text:
+        `جولة ${t.round}: البناء ${t.build ? '✓' : '✗'}${t.runtimeErrors != null ? ' · أخطاء التشغيل ' + t.runtimeErrors : ''}` })));
+    }
+    if (r.notes && r.notes.length) {
+      card.appendChild(el('div', { class: 'rep-t', text: 'ملاحظات' }));
+      r.notes.forEach(n => card.appendChild(el('div', { class: 'rep-item', text: n })));
+    }
+    if (r.warnings && r.warnings.length) {
+      card.appendChild(el('div', { class: 'rep-t warn', text: 'مشاكل متبقية' }));
+      r.warnings.slice(0, 8).forEach(w => card.appendChild(el('div', { class: 'rep-item warn', text: '⚠ ' + w })));
+    }
+    if (r.unfixed && r.unfixed.length) {
+      card.appendChild(el('div', { class: 'rep-t warn', text: 'لم أستطع إصلاحها' }));
+      r.unfixed.slice(0, 6).forEach(w => card.appendChild(el('div', { class: 'rep-item warn', text: '✗ ' + w })));
+    }
+    const acts = el('div', { class: 'plan-actions' });
+    acts.appendChild(btn('تشغيل', { cls: 'primary sm', icon: 'play', onclick: () => { this.sheet && this.sheet.close(); NX.Studio.play(); } }));
+    acts.appendChild(btn('تراجع عن كل ذلك', { cls: 'danger sm', icon: 'undo', onclick: async () => {
+      const p = NX.Studio.project;
+      const cp = (p.history || []).find(h => h.by === 'ai') || (p.history || [])[0];
+      if (!cp) { Toast.err('لا توجد نقطة رجوع'); return; }
+      if (!await Modal.confirm('التراجع عن عمل المساعد؟', cp.label, 'تراجع')) return;
+      await History.restore(p, cp.id);
+      await NX.Studio.reloadScene();
+      Toast.ok('رجع المشروع');
+    }}));
+    acts.appendChild(btn('التاريخ', { cls: 'ghost sm', onclick: () => History.open(NX.Studio.project, () => NX.Studio.reloadScene()) }));
+    card.appendChild(acts);
+    this.log.appendChild(card);
+    this.log.scrollTop = this.log.scrollHeight;
+  },
+
+  async checkProject() {
+    const S = NX.Studio;
+    this.setStatus('فحص المشروع…', 'checking');
+    const { issues } = await Checker.run(S.project, S.engine);
+    this.setStatus(null);
+    const card = el('div', { class: 'report-card' });
+    card.appendChild(el('b', { text: issues.length ? `وجدت ${issues.length} ملاحظة` : '✓ المشروع سليم' }));
+    issues.forEach(i => card.appendChild(el('div', { class: 'rep-item ' + (i.severity === 'error' ? 'warn' : ''),
+      text: (i.severity === 'error' ? '✗ ' : i.severity === 'warning' ? '⚠ ' : '• ') + i.message })));
+    const fixable = issues.filter(i => i.fix);
+    if (fixable.length) {
+      const acts = el('div', { class: 'plan-actions' });
+      acts.appendChild(btn(`أصلح ${fixable.length} تلقائيًا`, { cls: 'primary sm', onclick: async () => {
+        await History.create(S.project, 'قبل الإصلاح التلقائي', { by: 'ai' });
+        const fixed = await Checker.autofix(S.project, S.engine, fixable);
+        await NX.Projects.save(S.project);
+        this.say('ai', fixed.length ? 'أصلحت:\n' + fixed.map(f => '✓ ' + f).join('\n') : 'لم أستطع إصلاح شيء تلقائيًا.');
+      }}));
+      card.appendChild(acts);
+    }
+    this.log.appendChild(card);
+    this.log.scrollTop = this.log.scrollHeight;
+  },
+
+  async fixAll() { return this.checkProject(); },
+
+  async optimize() {
+    const S = NX.Studio;
+    this.setStatus('تحليل الأداء…', 'checking');
+    const st = S.engine.stats;
+    const objs = Array.from(S.engine.entities.values());
+    const byAsset = {};
+    objs.forEach(o => { if (o.assetId) byAsset[o.assetId] = (byAsset[o.assetId] || 0) + 1; });
+    const repeats = Object.entries(byAsset).filter(([, n]) => n > 8);
+    this.setStatus(null);
+    const card = el('div', { class: 'report-card' });
+    card.appendChild(el('b', { text: 'تقرير الأداء' }));
+    [['الكائنات', objs.length], ['المثلثات', fmtNum(st.tris)], ['استدعاءات الرسم', st.calls],
+     ['الأشكال الهندسية', st.geometries], ['الخامات', st.textures]].forEach(([k, v]) =>
+      card.appendChild(el('div', { class: 'rep-item', text: `${k}: ${v}` })));
+    const tips = [];
+    if (repeats.length) tips.push(`${repeats.length} أصل مكرّر أكثر من ٨ مرات — استخدم Instancing (Engine.instance).`);
+    if (st.calls > 300) tips.push('استدعاءات الرسم مرتفعة — قلّل عدد الخامات المختلفة.');
+    if (st.tris > 600000) tips.push('المثلثات مرتفعة — استخدم مجسمات أخف أو LOD.');
+    if (objs.length > 400) tips.push('عدد الكائنات كبير — ادمج الثابت منها.');
+    if (!tips.length) tips.push('الأداء ضمن الحدود الجيدة — لا حاجة لتغيير الآن.');
+    card.appendChild(el('div', { class: 'rep-t', text: 'اقتراحات' }));
+    tips.forEach(t => card.appendChild(el('div', { class: 'rep-item', text: '• ' + t })));
+    this.log.appendChild(card);
+    this.log.scrollTop = this.log.scrollHeight;
+  },
+
+  settings() {
+    const body = el('div');
+    body.appendChild(el('div', { class: 'ttl', text: 'مستوى الموافقة' }));
+    const lv = Builder.level();
+    const seg = el('div', { class: 'seg', style: { marginBottom: '8px' } });
+    [['ask', 'يسألني قبل كل شيء'], ['smart', 'ذكي'], ['auto', 'مستقل تمامًا']].forEach(([k, label]) => {
+      seg.appendChild(el('button', { class: lv === k ? 'on' : '', text: label, onclick: e => { Builder.setLevel(k); segPick(seg, e.target); } }));
+    });
+    body.appendChild(seg);
+    body.appendChild(el('p', { class: 'tiny', style: { marginBottom: '14px' },
+      text: '«ذكي» ينفّذ التغييرات العادية ويسأل عن المؤثّرة فقط. في كل الأحوال يوجد زر STOP ونقطة رجوع.' }));
+    body.appendChild(btn('ما الذي يراه المساعد؟', { cls: 'block', icon: 'shield', onclick: () => ProjectContext.openPanel(NX.Studio.project, NX.Studio.engine) }));
+    body.appendChild(el('hr', { class: 'sep' }));
+    body.appendChild(btn('وصل نموذج ذكاء اصطناعي', { cls: 'block primary', icon: 'spark', onclick: () => NX.Studio.openAISettings() }));
+    body.appendChild(el('p', { class: 'tiny', style: { marginTop: '8px' },
+      text: 'بدون نموذج متصل يعمل المخطّط المدمج: يفهم الطلبات الشائعة ويبني أنظمة حقيقية، لكنه لا يفهم أي وصف حر.' }));
+    Sheet.open({ title: 'إعدادات المساعد', body, id: 'aiset' });
+  }
+};
+
+/* the assistant panel replaces the old chat-only one, keeping aiPatchCard */
+NX.Studio.openAI = function (opts) { AIPanel.open(opts || {}); };
+NX.Commands.register([
+  { label: 'ماذا أضيف؟ (وضع المبتدئ)', icon: 'plus', keywords: 'beginner add actions', when: () => !!NX.Studio.project, run: () => Beginner.openActions() },
+  { label: 'قوالب البداية', icon: 'grid', keywords: 'template قالب', when: () => !!NX.Studio.project, run: () => Beginner.templates() },
+  { label: 'افحص المشروع', icon: 'shield', keywords: 'check فحص', when: () => !!NX.Studio.project, run: () => { NX.Studio.openAI(); setTimeout(() => AIPanel.checkProject(), 400); } },
+  { label: 'أوقف المساعد', icon: 'stop', keywords: 'stop ai', when: () => NX.Builder.running, run: () => NX.Builder.stop() }
+]);
+
+NX.Beginner = Beginner;
+NX.AIPanel = AIPanel;
+NX.BEGINNER_ACTIONS = ACTIONS;
+</script>
+<script type="module">
+/* ============================================================
+   PART 8/13 · GAME PLATFORM + BOOT
    Outside the Studio: Games, Discover, Search, Create,
    My Games, Assets, Profile (rules 40-42).
    ============================================================ */
@@ -7623,7 +10080,7 @@ const Platform = {
       b.dataset.tab = key;
       tabs.appendChild(b);
     });
-    $('#btn-search').onclick = () => this.openSearch();
+    $('#btn-search').onclick = () => NX.Commands.open();
     $('#btn-settings').onclick = () => openSettings();
     $('#btn-me').onclick = () => this.go('profile');
     $('#p-exit').onclick = () => Player.close();
@@ -7695,6 +10152,19 @@ const Platform = {
     hero.appendChild(arch);
     hero.appendChild(btn('ابدأ مشروعًا فارغًا', { cls: 'primary', icon: 'plus', onclick: () => this.newProject() }));
     host.appendChild(hero);
+
+    /* your own work first — the reported gap was that projects were unreachable */
+    if (Backend.user) {
+      const mine = await Projects.list(Backend.user.uid);
+      if (mine.length) {
+        const head = el('div', { class: 'sec-head' }, [el('h2', { text: 'مشاريعي' })]);
+        head.appendChild(el('button', { text: 'عرض الكل', onclick: () => NX.ProjectManager.open() }));
+        host.appendChild(head);
+        const strip = el('div', { class: 'grid wide' });
+        mine.slice(0, 4).forEach(p => strip.appendChild(this.projectCard(p)));
+        host.appendChild(strip);
+      }
+    }
 
     host.appendChild(el('div', { class: 'sec-head' }, [el('h2', { text: 'الأحدث' })]));
     const g1 = this.loading(host);
@@ -7783,11 +10253,14 @@ const Platform = {
       el('b', { text: p.name }),
       el('span', { class: 'by', text: timeAgo(p.updatedAt) }),
       el('div', { class: 'stats' }, [
-        el('span', { text: objs + ' obj' }),
-        el('span', { text: scripts + ' scripts' }),
-        p.publishedId ? el('span', { text: '● published' }) : null
+        el('span', { text: objs + ' كائن' }),
+        el('span', { text: scripts + ' ملف' }),
+        p.publishedId ? el('span', { text: '● منشور' }) : null
       ])
     ]);
+    const menu = iconBtn('dots', { label: 'options', cls: 'card-menu',
+      onclick: ev => { ev.stopPropagation(); NX.ProjectManager.menu(p, () => this.render()); } });
+    cover.appendChild(menu);
     c.append(cover, meta);
     return c;
   },
@@ -7902,20 +10375,26 @@ const Platform = {
 
   /* ---------------- actions ---------------- */
   async newProject() {
+    if (NX.Mode.isBeginner()) { NX.Beginner.wizard(); return; }
     const name = await Modal.prompt(T('newProject'), 'My Game', 'اسم المشروع');
     if (!name) return;
-    if (!Backend.user) { Toast.err('لا يوجد مستخدم'); return; }
+    await this.createProject(name);
+  },
+
+  async createProject(name, opts = {}) {
+    if (!Backend.user) { Toast.err('لا يوجد مستخدم'); return null; }
     const p = {
       projectId: uid('proj'), ownerId: Backend.user.uid, ownerName: Backend.user.name,
-      name, description: '',
+      name: name || 'لعبتي', description: '',
       scene: NX.emptyScene(),
-      scripts: [], components: [], assetRefs: [],
-      settings: { physics: true },
+      files: [], assetRefs: [], history: [],
+      settings: Object.assign({ physics: true }, opts),
       createdAt: Date.now(), updatedAt: Date.now()
     };
     await Projects.save(p);
-    Toast.ok('أُنشئ عالم فارغ');
-    Studio.open(p);
+    Toast.ok('أُنشئ المشروع');
+    await Studio.open(p);
+    return p;
   },
 
   async openProject(p) {
