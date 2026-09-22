@@ -1,0 +1,12 @@
+# Netlify headers (works for drag-and-drop deploys and Git deploys).
+# index.html is revalidated on every visit, so a new upload (for example
+# one with the Firebase config filled in) reaches every phone at once
+# instead of an old cached copy.
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), microphone=(self), geolocation=()

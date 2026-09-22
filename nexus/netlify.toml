@@ -1,0 +1,19 @@
+# NEXUS on Netlify — static site, no build step, no server code.
+# Git deploy: set "Base directory" to  nexus  in Netlify (or keep this
+# folder at the repo root). Drag-and-drop deploy: drop this whole folder.
+# Headers live in _headers.
+[build]
+  publish = "."
+
+# Optional — only if Google sign-in by REDIRECT fails on some phones
+# (browsers that block third-party storage). Proxy Firebase's auth helper
+# through this site, then set authDomain in the NEXUS_FIREBASE block of
+# index.html to YOUR Netlify domain and add that domain to
+# Authentication → Settings → Authorized domains.
+# Replace YOUR-PROJECT-ID with your Firebase projectId before enabling.
+#
+# [[redirects]]
+#   from = "/__/auth/*"
+#   to = "https://YOUR-PROJECT-ID.firebaseapp.com/__/auth/:splat"
+#   status = 200
+#   force = true
