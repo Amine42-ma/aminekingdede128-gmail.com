@@ -1,0 +1,220 @@
+rules_version = '2';
+// NEXUS — Firestore security rules (one file for the whole platform).
+// Deploy:  firebase deploy --only firestore:rules
+// Ownership, visibility and every counter are enforced HERE, on the
+// server — the browser code is never trusted to police itself.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn()      { return request.auth != null; }
+    function me()            { return request.auth.uid; }
+    function incoming()      { return request.resource.data; }
+    function existing()      { return resource.data; }
+    function isOwner(d)      { return signedIn() && me() == d.ownerId; }
+    function isAuthor(d)     { return signedIn() && me() == d.authorId; }
+    function validVis(v)     { return v in ['public', 'unlisted', 'private']; }
+    function onlyChanged(ks) { return incoming().diff(existing()).affectedKeys().hasOnly(ks); }
+    // a counter may move by exactly 'by', and nothing else in the doc may change
+    function bumped(f, by)   { return incoming()[f] == existing()[f] + by && onlyChanged([f]); }
+
+    // boot-time connectivity probe (read-only, holds no data)
+    match /_nexus/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ---------------------------------------------------------------- assets
+    match /assets/{assetId} {
+      // public + unlisted by id; private only for the owner
+      allow get:  if resource == null || existing().visibility in ['public', 'unlisted'] || isOwner(existing());
+      // discovery lists only public; the owner lists their own
+      allow list: if existing().visibility == 'public' || isOwner(existing());
+      allow create: if signedIn() && incoming().ownerId == me() && incoming().assetId == assetId
+                    && incoming().usageCount == 0 && validVis(incoming().visibility);
+      allow update: if (isOwner(existing()) && incoming().ownerId == existing().ownerId
+                        && incoming().usageCount == existing().usageCount && validVis(incoming().visibility))
+                    || (signedIn() && bumped('usageCount', 1));
+      allow delete: if isOwner(existing());
+    }
+
+    // ---------------------------------------------------------------- projects (always private)
+    match /projects/{projectId} {
+      allow get:    if resource == null || isOwner(existing());
+      allow list:   if isOwner(existing());
+      allow create: if signedIn() && incoming().ownerId == me() && incoming().projectId == projectId;
+      allow update: if isOwner(existing()) && incoming().ownerId == existing().ownerId;
+      allow delete: if resource == null || isOwner(existing());
+    }
+    match /checkpoints/{id} {
+      allow get:    if resource == null || isOwner(existing());
+      allow create: if signedIn() && incoming().ownerId == me();
+      allow update: if isOwner(existing()) && incoming().ownerId == existing().ownerId;
+      allow delete: if resource == null || isOwner(existing());
+    }
+
+    // ---------------------------------------------------------------- published games
+    match /games/{gameId} {
+      allow get:  if resource == null || existing().visibility in ['public', 'unlisted'] || isOwner(existing());
+      allow list: if existing().visibility == 'public' || isOwner(existing());
+      allow create: if signedIn() && incoming().ownerId == me() && incoming().gameId == gameId
+                    && incoming().plays == 0 && incoming().likes == 0 && validVis(incoming().visibility);
+      allow update: if (isOwner(existing()) && incoming().ownerId == existing().ownerId
+                        && incoming().plays == existing().plays && incoming().likes == existing().likes
+                        && validVis(incoming().visibility))
+                    || (signedIn() && bumped('plays', 1))
+                    || (signedIn() && bumped('likes', 1)
+                        && existsAfter(/databases/$(database)/documents/games/$(gameId)/likes/$(request.auth.uid))
+                        && !exists(/databases/$(database)/documents/games/$(gameId)/likes/$(request.auth.uid)))
+                    || (signedIn() && bumped('likes', -1)
+                        && !existsAfter(/databases/$(database)/documents/games/$(gameId)/likes/$(request.auth.uid))
+                        && exists(/databases/$(database)/documents/games/$(gameId)/likes/$(request.auth.uid)));
+      allow delete: if resource == null || isOwner(existing());
+
+      // one marker per (user, session); markers are never overwritten
+      match /plays/{playId} {
+        allow get:    if signedIn() && playId.split('_')[0] == me();
+        allow create: if signedIn() && playId.split('_')[0] == me() && incoming().uid == me();
+      }
+      match /likes/{uid} {
+        allow get:            if signedIn() && me() == uid;
+        allow create, delete: if signedIn() && me() == uid;
+      }
+    }
+    // the runnable snapshot of a game follows the game's visibility
+    match /builds/{gameId} {
+      allow get: if resource == null || isOwner(existing())
+                 || get(/databases/$(database)/documents/games/$(gameId)).data.visibility in ['public', 'unlisted'];
+      allow create: if signedIn() && incoming().ownerId == me()
+                    && get(/databases/$(database)/documents/games/$(gameId)).data.ownerId == me();
+      allow update: if isOwner(existing()) && incoming().ownerId == me();
+      allow delete: if resource == null || isOwner(existing());
+    }
+
+    // ---------------------------------------------------------------- game saves (per player)
+    match /saves/{id} {
+      allow get:    if resource == null || (signedIn() && existing().uid == me());
+      allow create: if signedIn() && incoming().uid == me();
+      allow update: if signedIn() && existing().uid == me() && incoming().uid == me();
+      allow delete: if signedIn() && existing().uid == me();
+    }
+
+    // ---------------------------------------------------------------- multiplayer rooms + WebRTC signalling
+    match /rooms/{roomId} {
+      match /peers/{uid} {
+        allow read: if signedIn();
+        allow create, update, delete: if signedIn() && me() == uid;
+      }
+      match /messages/{mid} {
+        allow read:   if signedIn();
+        allow create: if signedIn() && incoming().from == me();
+      }
+      match /signals/{sid} {
+        allow read:   if signedIn() && existing().to == me();
+        allow create: if signedIn() && incoming().from == me();
+      }
+    }
+
+    // ---------------------------------------------------------------- creator profiles
+    match /users/{uid} {
+      allow read: if true;
+      allow create: if signedIn() && me() == uid && incoming().uid == uid
+                    && incoming().followers == 0 && incoming().following == 0;
+      allow update: if signedIn() && (
+           // the owner edits the profile; 'followers' is never theirs to write,
+           // 'following' only ever moves by one (their own follow action)
+           (me() == uid && incoming().uid == uid
+              && incoming().followers == existing().followers
+              && (incoming().following == existing().following
+                  || incoming().following == existing().following + 1
+                  || incoming().following == existing().following - 1))
+           // someone else's follow / unfollow, in the same batch as the follow doc
+        || (bumped('followers', 1)
+              && existsAfter(/databases/$(database)/documents/follows/$(request.auth.uid + '__' + uid)) && !exists(/databases/$(database)/documents/follows/$(request.auth.uid + '__' + uid)))
+        || (bumped('followers', -1)
+              && !existsAfter(/databases/$(database)/documents/follows/$(request.auth.uid + '__' + uid)) && exists(/databases/$(database)/documents/follows/$(request.auth.uid + '__' + uid))));
+
+      match /notifications/{nid} {
+        allow read, delete: if signedIn() && me() == uid;
+        allow update:       if signedIn() && me() == uid && onlyChanged(['read']);
+        // anyone may notify you, but only as themselves
+        allow create:       if signedIn() && incoming().actorId == me() && incoming().read == false;
+      }
+    }
+    match /follows/{id} {
+      allow read:   if signedIn();
+      allow create: if signedIn() && incoming().followerId == me() && incoming().followedId != me()
+                    && id == me() + '__' + incoming().followedId;
+      allow delete: if signedIn() && existing().followerId == me();
+    }
+
+    // ---------------------------------------------------------------- posts · videos · clips · stories
+    match /posts/{postId} {
+      allow get:  if resource == null || existing().visibility in ['public', 'unlisted'] || isAuthor(existing());
+      allow list: if existing().visibility == 'public' || isAuthor(existing());
+      allow create: if signedIn() && incoming().authorId == me() && incoming().postId == postId
+                    && incoming().likes == 0 && incoming().comments == 0
+                    && incoming().views == 0 && incoming().reports == 0
+                    && validVis(incoming().visibility)
+                    && incoming().kind in ['post', 'video', 'clip', 'story']
+                    && incoming().text.size() <= 2000;
+      allow update: if signedIn() && (
+           (isAuthor(existing()) && incoming().authorId == existing().authorId
+              && incoming().likes == existing().likes && incoming().comments == existing().comments
+              && incoming().views == existing().views && incoming().reports == existing().reports
+              && validVis(incoming().visibility))
+        || (bumped('likes', 1)
+              && existsAfter(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid)) && !exists(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid)))
+        || (bumped('likes', -1)
+              && !existsAfter(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid)) && exists(/databases/$(database)/documents/posts/$(postId)/likes/$(request.auth.uid)))
+        || bumped('comments', 1) || bumped('comments', -1)
+        || bumped('views', 1) || bumped('reports', 1));
+      allow delete: if isAuthor(existing());
+
+      match /likes/{uid} {
+        allow get:            if signedIn() && me() == uid;
+        allow create, delete: if signedIn() && me() == uid;
+      }
+      match /comments/{cid} {
+        // comments are as visible as the post they belong to
+        allow read: if get(/databases/$(database)/documents/posts/$(postId)).data.visibility in ['public', 'unlisted']
+                    || (signedIn() && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == me());
+        allow create: if signedIn() && incoming().authorId == me() && incoming().postId == postId
+                      && incoming().text is string && incoming().text.size() > 0 && incoming().text.size() <= 800;
+        allow delete: if signedIn() && (existing().authorId == me()
+                      || get(/databases/$(database)/documents/posts/$(postId)).data.authorId == me());
+      }
+    }
+
+    // ---------------------------------------------------------------- live (metadata + chat + WebRTC signalling only)
+    match /lives/{liveId} {
+      allow read: if true;
+      allow create: if signedIn() && incoming().hostId == me() && incoming().viewers == 0 && incoming().status == 'live';
+      allow update: if signedIn() && (
+           (me() == existing().hostId && incoming().hostId == existing().hostId && incoming().viewers == existing().viewers)
+        || (bumped('viewers', 1)
+              && existsAfter(/databases/$(database)/documents/lives/$(liveId)/viewers/$(request.auth.uid)) && !exists(/databases/$(database)/documents/lives/$(liveId)/viewers/$(request.auth.uid)))
+        || (bumped('viewers', -1)
+              && !existsAfter(/databases/$(database)/documents/lives/$(liveId)/viewers/$(request.auth.uid)) && exists(/databases/$(database)/documents/lives/$(liveId)/viewers/$(request.auth.uid))));
+      allow delete: if signedIn() && me() == existing().hostId;
+
+      match /viewers/{uid} {
+        allow read: if true;
+        allow create, delete: if signedIn() && me() == uid;
+      }
+      match /chat/{cid} {
+        allow read: if true;
+        allow create: if signedIn() && incoming().uid == me() && incoming().text is string && incoming().text.size() <= 300;
+      }
+      match /signals/{sid} {
+        allow read:   if signedIn() && existing().to == me();
+        allow create: if signedIn() && incoming().from == me();
+      }
+    }
+
+    // ---------------------------------------------------------------- moderation
+    match /reports/{rid} {
+      allow create: if signedIn() && incoming().reporterId == me();
+      allow read, update, delete: if false;   // handled in the console / Admin SDK
+    }
+  }
+}

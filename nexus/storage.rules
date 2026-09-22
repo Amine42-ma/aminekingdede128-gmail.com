@@ -1,0 +1,41 @@
+rules_version = '2';
+// NEXUS — Cloud Storage security rules.
+// Deploy:  firebase deploy --only storage
+// Large files (models, images, audio, video, WASM) live here; Firestore only
+// stores their path + metadata. Private content stays private: reads of
+// someone else's file are checked against the Firestore document it belongs
+// to (cross-service rules — accept the permission prompt when deploying).
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn()       { return request.auth != null; }
+    function owner(userId)    { return signedIn() && request.auth.uid == userId; }
+    function under(mb)        { return request.resource.size < mb * 1024 * 1024; }
+    function typeIs(pattern)  { return request.resource.contentType.matches(pattern); }
+    function docVis(col, id)  { return firestore.get(/databases/(default)/documents/$(col)/$(id)).data.visibility; }
+
+    // user assets: models / images / audio / data — never executable code
+    match /assets/{userId}/{assetId}/{file} {
+      allow read: if owner(userId) || docVis('assets', assetId) != 'private';
+      allow create, update: if owner(userId) && under(64)
+                    && (typeIs('model/.*') || typeIs('image/.*') || typeIs('audio/.*')
+                        || typeIs('application/octet-stream') || typeIs('text/plain') || typeIs('application/json'));
+      allow delete: if owner(userId);
+    }
+
+    // published games: covers + compiled WebAssembly
+    match /games/{userId}/{path=**} {
+      allow read: if true;
+      allow create, update: if owner(userId) && under(16)
+                    && (typeIs('image/.*') || typeIs('application/wasm') || typeIs('application/octet-stream'));
+      allow delete: if owner(userId);
+    }
+
+    // posts · videos · clips · stories
+    match /media/{userId}/{postId}/{file} {
+      allow read: if owner(userId) || docVis('posts', postId) != 'private';
+      allow create, update: if owner(userId) && under(128) && (typeIs('video/.*') || typeIs('image/.*'));
+      allow delete: if owner(userId);
+    }
+  }
+}
