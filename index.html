@@ -15,7 +15,7 @@
 
 <!-- ============================================================
      NEXUS ENGINE — EMPTY CORE ENGINE
-     PART 1/13 · Document head, import map, design system
+     PART 1/15 · Document head, import map, design system
      ------------------------------------------------------------
      THE ENGINE PROVIDES THE TOOLS. THE USER CREATES THE GAME.
      ============================================================ -->
@@ -229,7 +229,13 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:14px 0}
 .sheet-grip::before{content:"";width:40px;height:4px;border-radius:99px;background:var(--line-2)}
 .sheet-head{display:flex;align-items:center;gap:10px;padding:2px 15px 11px;flex:0 0 auto;border-bottom:1px solid var(--line)}
 .sheet-head h3{flex:1;font-size:16px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sheet-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:14px 15px calc(16px + var(--sab))}
+.sheet-body{
+  flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;
+  padding:14px 15px calc(16px + var(--sab));
+}
+.modal-box{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.scroll{overscroll-behavior:contain;touch-action:pan-y}
 .sheet-foot{flex:0 0 auto;padding:11px 15px calc(11px + var(--sab));border-top:1px solid var(--line);display:flex;gap:9px;background:var(--panel)}
 .sheet-foot .btn{flex:1}
 @media (min-width:860px){
@@ -276,7 +282,15 @@ html[data-theme=light] .p-top{background:rgba(255,255,255,.75)}
 .brandmark b{font-size:16px;letter-spacing:.04em;font-family:var(--font-en)}
 .avatar{width:34px;height:34px;border-radius:50%;background:var(--grad);display:grid;place-items:center;font-weight:800;font-size:13px;color:#fff;flex:0 0 auto;overflow:hidden}
 .avatar img{width:100%;height:100%;object-fit:cover}
-#p-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:15px 15px calc(18px + var(--tabh) + var(--sab))}
+/* .p-main MUST be a bounded flex column at every width — without this the
+   body grows past the viewport and the list silently becomes unreachable */
+.p-main{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;min-width:0}
+#p-body{
+  flex:1 1 auto;min-height:0;height:auto;
+  overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;touch-action:pan-y;
+  padding:15px 15px calc(18px + var(--tabh) + var(--sab));
+}
 #p-tabs{
   position:absolute;inset-inline:0;bottom:0;z-index:8;
   display:flex;border-top:1px solid var(--line);
@@ -368,7 +382,7 @@ html[data-theme=light] #p-tabs{background:rgba(255,255,255,.93)}
   direction:ltr;unicode-bidi:isolate;white-space:nowrap}
 html[dir=rtl] #s-back svg,html[dir=rtl] .api-ns summary svg{transform:scaleX(-1)}
 .sel-bar .nm,.tnode .nm small,.gcard .stats{unicode-bidi:isolate}
-.vp-empty{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;text-align:center;padding:24px}
+.vp-empty{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;text-align:center;padding:24px;overflow-y:auto}
 .vp-empty div{max-width:290px}
 .vp-empty b{display:block;font-size:15px;margin-bottom:5px;color:var(--ink-soft)}
 .vp-empty p{font-size:12.5px;color:var(--ink-dim);line-height:1.6}
@@ -471,6 +485,20 @@ html[lang=en] .ed-bar,html[lang=en] .ed-find{direction:ltr}
 .console .l.err{color:#ff9aa8}.console .l.warn{color:#fcd77a}.console .l.ok{color:#8ceec2}
 .console .l.sys{color:#5e6688}
 
+/* pull-to-refresh */
+.ptr{
+  position:absolute;inset-inline:0;top:0;height:0;display:grid;place-items:center;
+  overflow:hidden;color:var(--ink-dim);font-size:12px;pointer-events:none;z-index:3;
+  transition:height .18s var(--ease);
+}
+.ptr.armed{color:var(--ink)}
+.ptr .spin{margin:0;width:18px;height:18px;border-width:2px}
+.list-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.list-head .count{font-size:12px;color:var(--ink-dim);flex:1;min-width:80px}
+.load-row{display:flex;align-items:center;gap:10px;justify-content:center;padding:26px 12px;color:var(--ink-dim);font-size:13px}
+.err-row{text-align:center;padding:26px 14px}
+.err-row p{font-size:13px;color:#ff9aa8;margin-bottom:12px}
+
 /* ============================================================
    BEGINNER MODE · PROJECTS · AI BUILDER
    ============================================================ */
@@ -540,6 +568,78 @@ button.rep-item:active{background:var(--glass-2)}
 .quick-actions .btn{min-height:52px;flex-direction:column;gap:3px;font-size:11.5px;padding:6px}
 .quick-actions .btn svg{width:18px;height:18px}
 html[data-mode="beginner"] .pro-only{display:none!important}
+
+/* ============================================================
+   CREATOR COMMUNITY
+   ============================================================ */
+.feed{display:flex;flex-direction:column;gap:12px}
+.post{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:12px;overflow:hidden}
+.post-head{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.post-head b{font-size:13px;display:block;cursor:pointer}
+.post-head .tiny{display:block}
+.avatar.sm{width:34px;height:34px;font-size:13px;flex:0 0 auto;cursor:pointer}
+.post-text{font-size:14px;line-height:1.65;margin-bottom:9px;white-space:pre-wrap;word-break:break-word}
+.post-media{
+  position:relative;width:100%;aspect-ratio:16/9;border-radius:var(--r-md);overflow:hidden;
+  background:#0a0c14 center/cover no-repeat;cursor:pointer;display:grid;place-items:center;
+}
+.post-media.loaded{background-color:transparent}
+.post-dur{position:absolute;inset-inline-end:8px;bottom:8px;background:rgba(0,0,0,.7);color:#fff;font-size:11px;padding:2px 6px;border-radius:5px;font-family:var(--mono)}
+.post-game{display:inline-flex;align-items:center;gap:6px;margin-top:9px;padding:7px 11px;border-radius:99px;background:rgba(124,92,255,.16);border:1px solid rgba(124,92,255,.32);color:#cdc0ff;font-size:12px;font-weight:700}
+.post-game svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2}
+.post-acts{display:flex;align-items:center;gap:14px;margin-top:11px;padding-top:9px;border-top:1px solid var(--line)}
+.pa{display:inline-flex;align-items:center;gap:5px;color:var(--ink-dim);font-size:12.5px;font-weight:700}
+.pa svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.9}
+.pa.on{color:#fb7185}
+.pa.on svg{fill:#fb7185;stroke:#fb7185}
+.cmt{display:flex;gap:9px;padding:9px 0;border-bottom:1px solid var(--line)}
+.cmt b{font-size:12px;display:block}
+.cmt p{font-size:13.5px;line-height:1.6;margin:2px 0;word-break:break-word}
+.comp-row.unread{background:rgba(124,92,255,.12);border-inline-start:3px solid var(--brand)}
+.badge-dot{position:absolute;top:2px;inset-inline-end:2px;min-width:16px;height:16px;padding:0 4px;border-radius:99px;background:#fb7185;color:#fff;font-size:10px;font-weight:800;font-style:normal;display:grid;place-items:center}
+#btn-notif{position:relative}
+
+/* video player */
+.vp{position:relative;width:100%;background:#000;border-radius:var(--r-md);overflow:hidden}
+.vp video{width:100%;display:block;max-height:70vh;background:#000}
+.vp-ctl{display:flex;align-items:center;gap:8px;padding:7px 9px;background:rgba(10,12,22,.92)}
+.vp-ctl .icon-btn{width:32px;height:32px;background:transparent;border:0}
+.vp-time{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);flex:0 0 auto;direction:ltr}
+.vp-bar{flex:1;height:22px;display:flex;align-items:center;cursor:pointer;touch-action:none}
+.vp-bar::before{content:"";position:absolute;width:0}
+.vp-bar i{display:block;height:4px;width:0;background:var(--grad);border-radius:99px}
+.vp-bar{position:relative;background:linear-gradient(transparent 9px,var(--line-2) 9px,var(--line-2) 13px,transparent 13px)}
+.vp-sp{font-size:11px;font-weight:700;color:var(--ink-soft);padding:3px 7px;border-radius:6px;background:var(--glass)}
+.vp-big{position:absolute;inset:0;margin:auto;width:58px;height:58px;border-radius:50%;background:rgba(0,0,0,.55);display:grid;place-items:center;backdrop-filter:blur(4px)}
+.vp-big svg{width:24px;height:24px;stroke:#fff;fill:#fff}
+.comp-prev{margin-bottom:12px}
+.rec-stage{width:100%;aspect-ratio:16/9;background:#000;border-radius:var(--r-md);display:grid;place-items:center;overflow:hidden}
+.rec-time{text-align:center;font-family:var(--mono);font-size:22px;margin:10px 0;font-weight:700}
+.prof-head{display:flex;gap:13px;align-items:center}
+
+/* live */
+.live-wrap{display:flex;flex-direction:column;min-height:0}
+.live-stage{position:relative;border-radius:var(--r-md);overflow:hidden;background:#000}
+.live-badge{position:absolute;top:9px;inset-inline-start:9px;display:flex;align-items:center;gap:5px;background:rgba(251,113,133,.92);color:#fff;font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:99px}
+.live-badge i{width:6px;height:6px;border-radius:50%;background:#fff;animation:pulse 1.4s infinite}
+.live-badge.ended{background:rgba(120,120,140,.9)}
+@keyframes pulse{50%{opacity:.25}}
+.live-meta{display:flex;flex-direction:column;gap:2px;margin-top:10px}
+.live-meta b{font-size:15px}
+.live-chat{flex:1;min-height:140px;max-height:34vh;overflow-y:auto;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-md);padding:9px;margin-top:10px}
+.lc{display:flex;gap:7px;padding:4px 0;font-size:12.5px;line-height:1.5}
+.lc b{color:#a78bfa;flex:0 0 auto}
+.lc span{word-break:break-word}
+
+/* stories */
+.stories{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding:2px 0 10px}
+.stories::-webkit-scrollbar{display:none}
+.story{flex:0 0 auto;width:64px;text-align:center}
+.story-av{width:60px;height:60px;border-radius:50%;background:var(--panel-2);border:2.5px solid;border-image:var(--grad) 1;display:grid;place-items:center;font-size:20px;font-weight:800;overflow:hidden;margin-bottom:4px}
+.story-av img{width:100%;height:100%;object-fit:cover}
+.story span{font-size:10px;color:var(--ink-dim);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fab{position:absolute;inset-inline-end:16px;bottom:calc(var(--tabh) + var(--sab) + 16px);z-index:7;width:54px;height:54px;border-radius:50%;background:var(--grad);display:grid;place-items:center;box-shadow:0 12px 30px -10px rgba(124,92,255,.9)}
+.fab svg{width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2.2}
 
 /* ============================================================
    MULTI-LANGUAGE IDE
@@ -623,7 +723,7 @@ html.kb-open .ide-toolbar,html.kb-open .ide-seg{display:none}
   #p-tabs{position:static;flex-direction:column;width:210px;border-top:0;border-inline-end:1px solid var(--line);padding-top:10px}
   #p-tabs button{flex:0 0 auto;min-height:46px;flex-direction:row;justify-content:flex-start;gap:12px;padding:0 18px;font-size:13.5px}
   #platform{flex-direction:row}
-  .p-main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .p-main{min-width:0}
   #p-body{padding-bottom:24px}
   .grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
 }
@@ -631,7 +731,7 @@ html.kb-open .ide-toolbar,html.kb-open .ide-seg{display:none}
 </head>
 <body>
 <!-- ============================================================
-     PART 2/13 · Shell markup + UI kit
+     PART 2/15 · Shell markup + UI kit
      ============================================================ -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
 <defs>
@@ -700,6 +800,7 @@ html.kb-open .ide-toolbar,html.kb-open .ide-seg{display:none}
           <b>NEXUS</b>
         </div>
         <button class="icon-btn" id="btn-search" aria-label="search"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg></button>
+        <button class="icon-btn" id="btn-notif" aria-label="notifications"><svg viewBox="0 0 24 24"><use href="#i-heart"/></svg></button>
         <button class="icon-btn" id="btn-settings" aria-label="settings"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
         <button class="avatar" id="btn-me">?</button>
       </header>
@@ -758,7 +859,7 @@ html.kb-open .ide-toolbar,html.kb-open .ide-seg{display:none}
 
 <script type="module">
 /* ============================================================
-   PART 2/13 · UI KIT — DOM, i18n, sheets, modals, toasts, router
+   PART 2/15 · UI KIT — DOM, i18n, sheets, modals, toasts, router
    ============================================================ */
 const NX = (window.NX = window.NX || {});
 
@@ -1056,7 +1157,7 @@ Object.assign(NX, { $, $$, el, esc, icon, btn, iconBtn, fmtNum, fmtBytes, timeAg
 </script>
 <script type="module">
 /* ============================================================
-   PART 3/13 · BACKEND — Firebase Storage + Firestore + Auth
+   PART 3/15 · BACKEND — Firebase Storage + Firestore + Auth
    with an explicit, clearly-labelled offline fallback.
    ------------------------------------------------------------
    To go ONLINE: open Settings → Firebase and paste your config,
@@ -1750,7 +1851,7 @@ NX.FB_CONFIG = FB_CONFIG;
 </script>
 <script type="module">
 /* ============================================================
-   PART 4/13 · ENGINE CORE
+   PART 4/15 · ENGINE CORE
    An empty core: Scene, Camera, Light, Spawn Point and engine
    primitives. No bundled model/game library — everything else
    arrives as a user asset or user code.
@@ -2643,7 +2744,7 @@ NX.OrbitCam = OrbitCam;
 </script>
 <script type="module">
 /* ============================================================
-   PART 5/13 · ENGINE API + SCRIPT RUNTIME
+   PART 5/15 · ENGINE API + SCRIPT RUNTIME
    Gameplay logic belongs to the developer. The engine only
    hands over tools: Engine, Scene, Object, Player, Input,
    Physics, Audio, Camera, UI, Network, Events, Assets, Save,
@@ -3722,7 +3823,7 @@ NX.SHADOWED = SHADOWED;
 </script>
 <script type="module">
 /* ============================================================
-   PART 6/13 · ASSET PIPELINE + PUBLIC ASSET LIBRARY
+   PART 6/15 · ASSET PIPELINE + PUBLIC ASSET LIBRARY
    Users are the source of assets. Nothing here ships with the
    engine — the library is whatever people upload.
    ============================================================ */
@@ -4388,7 +4489,7 @@ NX.ACCEPT = ACCEPT;
 </script>
 <script type="module">
 /* ============================================================
-   PART 7/13 · MOBILE-FIRST STUDIO
+   PART 7/15 · MOBILE-FIRST STUDIO
    The viewport is the centre of gravity. Every panel is a
    temporary sheet that gets out of the way (rules 20-25).
    ============================================================ */
@@ -5094,7 +5195,7 @@ const Studio = {
     Sheet.closeAll();
     NX.Screen.show('platform');
     /* land where the projects are, so a project is never "lost" */
-    NX.Platform.go('create');
+    NX.Platform.go('projects');
   },
 
   buildTabs() {
@@ -5618,7 +5719,6 @@ const Studio = {
       title: 'AI · مساعد', body, full: true, id: 'ai',
       headExtra: iconBtn('gear', { label: 'ai settings', onclick: () => this.openAISettings() })
     });
-    setTimeout(() => { const s = $('.sheet.in .sheet-body'); if (s) { s.style.display = 'flex'; s.style.flexDirection = 'column'; } }, 40);
   },
 
   aiPatchCard(script) {
@@ -5923,7 +6023,7 @@ NX.AI = AI;
 </script>
 <script type="module">
 /* ============================================================
-   PART 9/13 · BUILD SYSTEM
+   PART 9/15 · BUILD SYSTEM
    Toolchain Manager · Language Adapters · Build Manager ·
    Compiler Cache · Engine Bridge (WASM ABI) · Runtime loaders
    ------------------------------------------------------------
@@ -6987,7 +7087,7 @@ NX.NEXUS_DTS = NEXUS_DTS;
 </script>
 <script type="module">
 /* ============================================================
-   PART 10/13 · MULTI-LANGUAGE IDE
+   PART 10/15 · MULTI-LANGUAGE IDE
    File explorer · tabs · BUILD / RUN / STOP · Problems ·
    Build log · Toolchain Manager (rules 17, 18, 21, 23, 25)
    ============================================================ */
@@ -7275,7 +7375,9 @@ const IDE = {
       ],
       onClose: () => { this.flush(); this.sheet = null; this.editor = null; NX.Studio.save(true); }
     });
-    setTimeout(() => { const b = $('.sheet.in .sheet-body'); if (b) { b.style.display = 'flex'; b.style.flexDirection = 'column'; b.style.padding = '10px 12px'; } }, 40);
+    /* style THIS sheet's body, not whichever one happens to be first in the DOM */
+    const sb = this.sheet.body;
+    sb.style.display = 'flex'; sb.style.flexDirection = 'column'; sb.style.padding = '10px 12px';
 
     this.openFile(this.project.files[0]);
     this.setPanel(opts.panel || 'console');
@@ -7695,7 +7797,7 @@ Toolchain.autoRestore();
 </script>
 <script type="module">
 /* ============================================================
-   PART 11/13 · PROJECT MANAGEMENT · HISTORY · CONTEXT · HELP
+   PART 11/15 · PROJECT MANAGEMENT · HISTORY · CONTEXT · HELP
    Projects you can see, reopen, rename, duplicate and delete —
    plus checkpoints, rollback, a searchable command palette and
    an in-place help system.
@@ -8207,7 +8309,7 @@ NX.Commands = Commands;
 </script>
 <script type="module">
 /* ============================================================
-   PART 12/13 (A) · AI GAME BUILDER — systems, planner, executor
+   PART 12/15 (A) · AI GAME BUILDER — systems, planner, executor
    The assistant is a PLANNER + BUILDER + EDITOR + TESTER +
    DEBUGGER, working on the real project with checkpoints,
    permissions and a STOP button (rules 4-16, 33, 39, 42, 43).
@@ -8925,7 +9027,7 @@ NX.pickAsset = pickAsset;
 </script>
 <script type="module">
 /* ============================================================
-   PART 12/13 (B) · PLANNER · EXECUTOR · TEST/FIX LOOP · CHECKER
+   PART 12/15 (B) · PLANNER · EXECUTOR · TEST/FIX LOOP · CHECKER
    ============================================================ */
 const NX = window.NX;
 const { uid, LS } = NX;
@@ -9453,7 +9555,7 @@ NX.RECIPES = RECIPES;
 </script>
 <script type="module">
 /* ============================================================
-   PART 13/13 · BEGINNER MODE · WIZARD · AI STUDIO PANEL
+   PART 13/15 · BEGINNER MODE · WIZARD · AI STUDIO PANEL
    One project, two surfaces. Beginner Mode hides the vocabulary,
    not the power — every action it takes is visible and editable
    in Pro Mode (rules 1, 2, 3, 24, 25, 29, 30, 35, 36, 37).
@@ -9694,7 +9796,8 @@ const AIPanel = {
       ],
       onClose: () => { if (this.unsub) this.unsub(); this.sheet = null; }
     });
-    setTimeout(() => { const b = $('.sheet.in .sheet-body'); if (b) { b.style.display = 'flex'; b.style.flexDirection = 'column'; } }, 40);
+    const sb = this.sheet.body;
+    sb.style.display = 'flex'; sb.style.flexDirection = 'column';
 
     this.unsub = Builder.on(ev => this.onEvent(ev));
     const cfg = NX.AI.cfg();
@@ -9960,7 +10063,1681 @@ NX.BEGINNER_ACTIONS = ACTIONS;
 </script>
 <script type="module">
 /* ============================================================
-   PART 8/13 · GAME PLATFORM + BOOT
+   PART 14/15 · CREATOR COMMUNITY — data layer
+   Built on the SAME Firebase already configured: Firestore for
+   metadata, Storage for media, Auth for identity. New collections
+   only; nothing existing is replaced.
+   ============================================================ */
+const NX = window.NX;
+const { LS, IDB, uid, fmtBytes, Toast } = NX;
+const { Backend } = NX;
+
+/* media limits (rule 34) */
+const LIMITS = {
+  videoBytes: 128 * 1024 * 1024,
+  videoSeconds: 300,
+  imageBytes: 12 * 1024 * 1024,
+  videoTypes: ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska'],
+  imageTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
+  storySeconds: 60,
+  storyTTL: 24 * 60 * 60 * 1000
+};
+
+const requireOnline = () => {
+  if (!Backend.isOnline()) throw new Error('COMMUNITY_REQUIRES_BACKEND');
+  if (!Backend.user) throw new Error('NO_USER');
+};
+
+/* ------------------------------------------------------------
+   MEDIA — thumbnails, duration, recording
+   ------------------------------------------------------------ */
+const Media = {
+  /* grab a real frame out of the video the user picked (rule 35) */
+  async videoInfo(fileOrURL, atSeconds = 1) {
+    const url = typeof fileOrURL === 'string' ? fileOrURL : URL.createObjectURL(fileOrURL);
+    const v = document.createElement('video');
+    v.preload = 'metadata'; v.muted = true; v.playsInline = true; v.src = url;
+    try {
+      await new Promise((res, rej) => {
+        v.onloadedmetadata = res;
+        v.onerror = () => rej(new Error('VIDEO_UNREADABLE'));
+        setTimeout(() => rej(new Error('VIDEO_TIMEOUT')), 20000);
+      });
+      /* MediaRecorder WebM files carry no duration until the element has been
+         seeked past the end — force it, then fall back to 0 */
+      let duration = v.duration;
+      if (!isFinite(duration) || duration <= 0) {
+        duration = await new Promise(res => {
+          let done = false;
+          const finish = d => { if (!done) { done = true; res(d); } };
+          v.addEventListener('timeupdate', function tu() {
+            if (isFinite(v.duration) && v.duration > 0) { v.removeEventListener('timeupdate', tu); finish(v.duration); }
+            else if (v.currentTime > 0) { v.removeEventListener('timeupdate', tu); finish(v.currentTime); }
+          });
+          try { v.currentTime = 1e6; } catch { finish(0); }
+          setTimeout(() => finish(isFinite(v.duration) ? v.duration : 0), 3000);
+        });
+        try { v.currentTime = 0; } catch {}
+      }
+      if (!isFinite(duration) || duration < 0) duration = 0;
+      const seek = Math.min(Math.max(0.1, atSeconds), Math.max(0.1, duration - 0.1));
+      let thumb = null;
+      try {
+        await new Promise((res, rej) => { v.onseeked = res; v.onerror = rej; v.currentTime = seek; setTimeout(res, 4000); });
+        const c = document.createElement('canvas');
+        const W = 640;
+        const scale = v.videoWidth ? Math.min(1, W / v.videoWidth) : 1;
+        c.width = Math.max(2, Math.round((v.videoWidth || 640) * scale));
+        c.height = Math.max(2, Math.round((v.videoHeight || 360) * scale));
+        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+        thumb = await new Promise(r => c.toBlob(r, 'image/webp', 0.82));
+      } catch { thumb = null; }
+      return { duration, width: v.videoWidth, height: v.videoHeight, thumb };
+    } finally {
+      v.src = ''; if (typeof fileOrURL !== 'string') URL.revokeObjectURL(url);
+    }
+  },
+
+  async imageThumb(file, size = 640) {
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, size / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    bmp.close && bmp.close();
+    return new Promise(r => c.toBlob(r, 'image/webp', 0.85));
+  },
+
+  validate(file, kind) {
+    if (kind === 'video') {
+      if (file.size > LIMITS.videoBytes) throw new Error(`الفيديو أكبر من ${fmtBytes(LIMITS.videoBytes)}`);
+      if (file.type && !LIMITS.videoTypes.includes(file.type)) throw new Error('صيغة فيديو غير مدعومة: ' + file.type);
+    } else if (kind === 'image') {
+      if (file.size > LIMITS.imageBytes) throw new Error(`الصورة أكبر من ${fmtBytes(LIMITS.imageBytes)}`);
+      if (file.type && !LIMITS.imageTypes.includes(file.type)) throw new Error('صيغة صورة غير مدعومة: ' + file.type);
+    }
+    return true;
+  },
+
+  /* ---- recording (rule 14) — nothing leaves the device until Publish ---- */
+  recorder: null,
+  supported() { return typeof MediaRecorder !== 'undefined'; },
+  pickMime() {
+    const want = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'];
+    return want.find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || '';
+  },
+  async streamFromCanvas(canvas, fps = 30, withMic = false) {
+    const stream = canvas.captureStream(fps);
+    if (withMic) {
+      try {
+        const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mic.getAudioTracks().forEach(t => stream.addTrack(t));
+      } catch (e) { console.warn('mic denied', e); }
+    }
+    return stream;
+  },
+  async streamFromScreen(withAudio = true) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) throw new Error('SCREEN_CAPTURE_UNSUPPORTED');
+    return navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: withAudio });
+  },
+  async streamFromCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('CAMERA_UNSUPPORTED');
+    return navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true });
+  },
+  start(stream, onTick) {
+    if (!this.supported()) throw new Error('RECORDER_UNSUPPORTED');
+    const mime = this.pickMime();
+    const rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 3500000 } : undefined);
+    const chunks = [];
+    const started = Date.now();
+    let paused = 0, pauseAt = 0;
+    rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    rec.start(1000);
+    const timer = setInterval(() => {
+      if (rec.state === 'recording' && onTick) onTick((Date.now() - started - paused) / 1000);
+    }, 500);
+    this.recorder = {
+      rec, stream, chunks, mime: mime || 'video/webm',
+      pause() { if (rec.state === 'recording') { rec.pause(); pauseAt = Date.now(); } },
+      resume() { if (rec.state === 'paused') { paused += Date.now() - pauseAt; rec.resume(); } },
+      get state() { return rec.state; },
+      stop() {
+        clearInterval(timer);
+        return new Promise(res => {
+          rec.onstop = () => {
+            stream.getTracks().forEach(t => t.stop());
+            res(new Blob(chunks, { type: mime || 'video/webm' }));
+          };
+          if (rec.state !== 'inactive') rec.stop(); else rec.onstop();
+        });
+      },
+      cancel() {
+        clearInterval(timer);
+        try { if (rec.state !== 'inactive') rec.stop(); } catch {}
+        stream.getTracks().forEach(t => t.stop());
+        chunks.length = 0;
+      }
+    };
+    return this.recorder;
+  }
+};
+
+/* ------------------------------------------------------------
+   USER PROFILES (rule 19)
+   ------------------------------------------------------------ */
+const Profiles = {
+  async get(uidStr) {
+    if (!uidStr) return null;
+    const d = await Backend.getDoc('users', uidStr);
+    if (d) return d;
+    if (Backend.user && Backend.user.uid === uidStr) return this.ensure();
+    return { uid: uidStr, name: 'creator', bio: '', followers: 0, following: 0 };
+  },
+  async ensure() {
+    if (!Backend.user) return null;
+    const u = Backend.user;
+    let d = await Backend.getDoc('users', u.uid);
+    if (!d) {
+      d = { uid: u.uid, name: u.name || 'creator', bio: '', photo: u.photo || null,
+            followers: 0, following: 0, posts: 0, games: 0, createdAt: Date.now() };
+      await Backend.setDoc('users', u.uid, d);
+    } else if (d.name !== u.name && u.name) {
+      d.name = u.name; await Backend.setDoc('users', u.uid, d);
+    }
+    return d;
+  },
+  async update(patch) {
+    requireOnline();
+    const cur = await this.ensure();
+    const next = Object.assign({}, cur, patch, { uid: Backend.user.uid, updatedAt: Date.now() });
+    delete next.followers; delete next.following;   // counters are not client-writable
+    await Backend.setDoc('users', Backend.user.uid, next);
+    return next;
+  },
+  async search(q, limit = 20) {
+    const t = String(q || '').trim().toLowerCase();
+    if (!Backend.isOnline()) return [];
+    const { F, db } = Backend.fb;
+    const snap = await F.getDocs(F.query(F.collection(db, 'users'), F.limit(60)));
+    return snap.docs.map(d => d.data()).filter(u => !t || String(u.name || '').toLowerCase().includes(t)).slice(0, limit);
+  }
+};
+
+/* ------------------------------------------------------------
+   FOLLOW (rule 21) — one document per relationship
+   ------------------------------------------------------------ */
+const Follows = {
+  key(a, b) { return a + '__' + b; },
+  async isFollowing(targetUid) {
+    if (!Backend.isOnline() || !Backend.user) return false;
+    const d = await Backend.getDoc('follows', this.key(Backend.user.uid, targetUid));
+    return !!d;
+  },
+  async toggle(targetUid) {
+    requireOnline();
+    if (targetUid === Backend.user.uid) throw new Error('CANNOT_FOLLOW_SELF');
+    const { F, db } = Backend.fb;
+    const id = this.key(Backend.user.uid, targetUid);
+    const on = !(await this.isFollowing(targetUid));
+    if (on) {
+      await F.setDoc(F.doc(db, 'follows', id), { followerId: Backend.user.uid, followedId: targetUid, at: Date.now() });
+      await F.updateDoc(F.doc(db, 'users', targetUid), { followers: F.increment(1) }).catch(() => {});
+      await F.updateDoc(F.doc(db, 'users', Backend.user.uid), { following: F.increment(1) }).catch(() => {});
+      Notifications.push(targetUid, { type: 'follow', actorId: Backend.user.uid, actorName: Backend.user.name });
+    } else {
+      await F.deleteDoc(F.doc(db, 'follows', id));
+      await F.updateDoc(F.doc(db, 'users', targetUid), { followers: F.increment(-1) }).catch(() => {});
+      await F.updateDoc(F.doc(db, 'users', Backend.user.uid), { following: F.increment(-1) }).catch(() => {});
+    }
+    return on;
+  },
+  async following(uidStr) {
+    if (!Backend.isOnline()) return [];
+    const { F, db } = Backend.fb;
+    const snap = await F.getDocs(F.query(F.collection(db, 'follows'), F.where('followerId', '==', uidStr), F.limit(200)));
+    return snap.docs.map(d => d.data().followedId);
+  }
+};
+
+/* ------------------------------------------------------------
+   POSTS · CLIPS · VIDEOS · STORIES (rules 9-13)
+   One collection, one `kind` field — the feed stays simple.
+   ------------------------------------------------------------ */
+const Posts = {
+  KINDS: ['post', 'video', 'clip', 'story'],
+
+  /* upload media to Storage (never base64 into Firestore — rule 13) */
+  async create({ text = '', kind = 'post', file = null, thumbBlob = null, gameId = null, title = '', visibility = 'public', duration = 0, width = 0, height = 0 }, onProgress) {
+    requireOnline();
+    const u = Backend.user;
+    const postId = uid('post');
+    const base = `media/${u.uid}/${postId}`;
+    let storagePath = null, mediaURL = null, thumbPath = null, thumbURL = null, mediaType = null, bytes = 0;
+
+    if (file) {
+      mediaType = (file.type || '').startsWith('video') ? 'video' : 'image';
+      Media.validate(file, mediaType);
+      bytes = file.size;
+      const ext = mediaType === 'video' ? (file.type.includes('mp4') ? 'mp4' : 'webm') : 'jpg';
+      const up = await Backend.upload(`${base}/media.${ext}`, file, p => onProgress && onProgress(p * 0.9, 'uploading'));
+      storagePath = up.path; mediaURL = up.url;
+    }
+    if (thumbBlob) {
+      onProgress && onProgress(0.92, 'processing');
+      const t = await Backend.upload(`${base}/thumb.webp`, thumbBlob);
+      thumbPath = t.path; thumbURL = t.url;
+    }
+    onProgress && onProgress(0.97, 'processing');
+
+    const rec = {
+      postId, authorId: u.uid, authorName: u.name || 'creator',
+      kind, text: String(text).slice(0, 2000), title: String(title).slice(0, 140),
+      gameId: gameId || null,
+      mediaType, storagePath, mediaURL, thumbnail: thumbPath, thumbnailURL: thumbURL,
+      duration: Math.round(duration || 0), width: width || 0, height: height || 0, bytes,
+      visibility: ['public', 'unlisted', 'private'].includes(visibility) ? visibility : 'public',
+      likes: 0, comments: 0, views: 0, reports: 0,
+      createdAt: Date.now(),
+      expiresAt: kind === 'story' ? Date.now() + LIMITS.storyTTL : null,
+      searchTokens: NX.buildSearchTokens({ name: title || text.slice(0, 60), tags: [kind], category: kind, creatorName: u.name })
+    };
+    await Backend.setDoc('posts', postId, rec);
+    await Backend.fb.F.updateDoc(Backend.fb.F.doc(Backend.fb.db, 'users', u.uid), { posts: Backend.fb.F.increment(1) }).catch(() => {});
+    onProgress && onProgress(1, 'published');
+    return rec;
+  },
+
+  async get(id) { return Backend.getDoc('posts', id); },
+
+  /* the feed: newest first, paginated, thumbnails only (rule 37) */
+  async feed({ limit = 12, cursor = null, kind = null, authorId = null, gameId = null, followingOf = null } = {}) {
+    if (!Backend.isOnline()) return { items: [], cursor: null, done: true, offline: true };
+    const { F, db } = Backend.fb;
+    const wheres = [];
+    if (authorId) wheres.push(['authorId', '==', authorId]);
+    else wheres.push(['visibility', '==', 'public']);
+    if (kind) wheres.push(['kind', '==', kind]);
+    if (gameId) wheres.push(['gameId', '==', gameId]);
+    const res = await Backend._query('posts', { wheres, order: ['createdAt', 'desc'], lim: limit, cursor });
+    let items = res.docs;
+    if (res.degraded) {
+      if (authorId) items = items.filter(p => p.authorId === authorId);
+      else items = items.filter(p => p.visibility === 'public');
+      if (kind) items = items.filter(p => p.kind === kind);
+      if (gameId) items = items.filter(p => p.gameId === gameId);
+      items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    }
+    /* expired stories never show */
+    const now = Date.now();
+    items = items.filter(p => !p.expiresAt || p.expiresAt > now);
+    if (followingOf && followingOf.length) items = items.filter(p => followingOf.includes(p.authorId) || p.authorId === (Backend.user || {}).uid);
+    return { items, cursor: res.last, done: !res.last || items.length < limit, degraded: res.degraded };
+  },
+
+  async stories() {
+    const r = await this.feed({ kind: 'story', limit: 30 });
+    const byAuthor = new Map();
+    r.items.forEach(p => { if (!byAuthor.has(p.authorId)) byAuthor.set(p.authorId, []); byAuthor.get(p.authorId).push(p); });
+    return Array.from(byAuthor.entries()).map(([authorId, items]) => ({ authorId, authorName: items[0].authorName, items }));
+  },
+
+  async remove(post) {
+    requireOnline();
+    if (post.authorId !== Backend.user.uid) throw new Error('NOT_OWNER');
+    if (post.storagePath) await Backend.removeFile(post.storagePath);
+    if (post.thumbnail) await Backend.removeFile(post.thumbnail);
+    const { F, db } = Backend.fb;
+    /* drop the children so nothing dangles (rule 27) */
+    try {
+      const cs = await F.getDocs(F.collection(db, 'posts', post.postId, 'comments'));
+      await Promise.all(cs.docs.map(d => F.deleteDoc(d.ref)));
+    } catch {}
+    await Backend.delDoc('posts', post.postId);
+    await F.updateDoc(F.doc(db, 'users', Backend.user.uid), { posts: F.increment(-1) }).catch(() => {});
+  },
+
+  async setVisibility(post, visibility) {
+    requireOnline();
+    if (post.authorId !== Backend.user.uid) throw new Error('NOT_OWNER');
+    await Backend.setDoc('posts', post.postId, Object.assign({}, post, { visibility, updatedAt: Date.now() }));
+  },
+
+  /* one like document per user — the count is derived, not client-authored (rule 22) */
+  async isLiked(postId) {
+    if (!Backend.isOnline() || !Backend.user) return false;
+    const { F, db } = Backend.fb;
+    return (await F.getDoc(F.doc(db, 'posts', postId, 'likes', Backend.user.uid))).exists();
+  },
+  async toggleLike(post) {
+    requireOnline();
+    if (!Rate.allow('like', 1200)) throw new Error('TOO_FAST');
+    const { F, db } = Backend.fb;
+    const ref = F.doc(db, 'posts', post.postId, 'likes', Backend.user.uid);
+    const on = !(await this.isLiked(post.postId));
+    if (on) await F.setDoc(ref, { uid: Backend.user.uid, at: Date.now() });
+    else await F.deleteDoc(ref);
+    await F.updateDoc(F.doc(db, 'posts', post.postId), { likes: F.increment(on ? 1 : -1) });
+    if (on && post.authorId !== Backend.user.uid)
+      Notifications.push(post.authorId, { type: 'like', postId: post.postId, actorId: Backend.user.uid, actorName: Backend.user.name });
+    return on;
+  },
+
+  async comment(post, text, parentId = null) {
+    requireOnline();
+    const t = String(text || '').trim();
+    if (!t) throw new Error('EMPTY');
+    if (t.length > 800) throw new Error('TOO_LONG');
+    if (!Rate.allow('comment', 3000)) throw new Error('TOO_FAST');
+    const { F, db } = Backend.fb;
+    const id = uid('c');
+    const rec = { commentId: id, postId: post.postId, parentId, authorId: Backend.user.uid,
+                  authorName: Backend.user.name || 'creator', text: t, at: Date.now(), likes: 0 };
+    await F.setDoc(F.doc(db, 'posts', post.postId, 'comments', id), rec);
+    await F.updateDoc(F.doc(db, 'posts', post.postId), { comments: F.increment(1) });
+    if (post.authorId !== Backend.user.uid)
+      Notifications.push(post.authorId, { type: 'comment', postId: post.postId, actorId: Backend.user.uid, actorName: Backend.user.name, preview: t.slice(0, 60) });
+    return rec;
+  },
+  async comments(postId, limit = 50) {
+    if (!Backend.isOnline()) return [];
+    const { F, db } = Backend.fb;
+    const snap = await F.getDocs(F.query(F.collection(db, 'posts', postId, 'comments'), F.orderBy('at', 'asc'), F.limit(limit)));
+    return snap.docs.map(d => d.data());
+  },
+  async removeComment(postId, commentId) {
+    requireOnline();
+    const { F, db } = Backend.fb;
+    await F.deleteDoc(F.doc(db, 'posts', postId, 'comments', commentId));
+    await F.updateDoc(F.doc(db, 'posts', postId), { comments: F.increment(-1) }).catch(() => {});
+  },
+
+  /* views move by +1, once per session per post */
+  async view(postId) {
+    if (!Backend.isOnline()) return;
+    const seen = LS.get('viewed', {});
+    if (seen[postId]) return;
+    seen[postId] = 1; LS.set('viewed', seen);
+    const { F, db } = Backend.fb;
+    await F.updateDoc(F.doc(db, 'posts', postId), { views: F.increment(1) }).catch(() => {});
+  },
+
+  async search(q, limit = 24) {
+    const qt = NX.tokenize(q).slice(0, 10);
+    if (!qt.length || !Backend.isOnline()) return [];
+    const r = await Backend._query('posts', { wheres: [['visibility', '==', 'public'], ['searchTokens', 'array-contains-any', qt]], lim: 60 });
+    const items = r.degraded ? r.docs.filter(p => p.visibility === 'public') : r.docs;
+    return items
+      .map(p => ({ p, s: NX.scoreAsset({ name: p.title || p.text, tags: [p.kind], category: p.kind, creatorName: p.authorName, usageCount: p.likes }, q) }))
+      .filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, limit).map(x => x.p);
+  },
+
+  async mediaURL(post) {
+    if (!post || !post.storagePath) return null;
+    return Backend.fileURL(post.storagePath, post.mediaURL);
+  },
+  async thumbURL(post) {
+    if (!post || !post.thumbnail) return null;
+    return Backend.fileURL(post.thumbnail, post.thumbnailURL);
+  }
+};
+
+/* simple client-side throttle; the server rules are the real guard */
+const Rate = {
+  last: {},
+  allow(key, ms) {
+    const now = Date.now();
+    if (this.last[key] && now - this.last[key] < ms) return false;
+    this.last[key] = now; return true;
+  }
+};
+
+/* ------------------------------------------------------------
+   NOTIFICATIONS (rule 23)
+   ------------------------------------------------------------ */
+const Notifications = {
+  async push(toUid, data) {
+    if (!Backend.isOnline() || !toUid) return;
+    try {
+      const { F, db } = Backend.fb;
+      const id = uid('n');
+      await F.setDoc(F.doc(db, 'users', toUid, 'notifications', id),
+        Object.assign({ id, at: Date.now(), read: false }, data));
+    } catch (e) { console.warn('notify failed', e); }
+  },
+  async list(limit = 40) {
+    if (!Backend.isOnline() || !Backend.user) return [];
+    const { F, db } = Backend.fb;
+    const snap = await F.getDocs(F.query(F.collection(db, 'users', Backend.user.uid, 'notifications'), F.orderBy('at', 'desc'), F.limit(limit)));
+    return snap.docs.map(d => d.data());
+  },
+  async unreadCount() {
+    const list = await this.list(50);
+    return list.filter(n => !n.read).length;
+  },
+  async markAllRead() {
+    if (!Backend.isOnline() || !Backend.user) return;
+    const { F, db } = Backend.fb;
+    const snap = await F.getDocs(F.query(F.collection(db, 'users', Backend.user.uid, 'notifications'), F.where('read', '==', false), F.limit(60)));
+    await Promise.all(snap.docs.map(d => F.updateDoc(d.ref, { read: true })));
+  },
+  /* local-only notice for things that happen on this device */
+  local(text) { Toast.ok(text); }
+};
+
+/* ------------------------------------------------------------
+   REPORTS / MODERATION (rule 33)
+   ------------------------------------------------------------ */
+const Reports = {
+  REASONS: [
+    ['spam', 'إزعاج / سبام'],
+    ['harassment', 'تحرّش أو إساءة'],
+    ['copyright', 'شكوى حقوق'],
+    ['inappropriate', 'محتوى غير لائق'],
+    ['other', 'أخرى']
+  ],
+  async submit(target, reason, note = '') {
+    requireOnline();
+    if (!Rate.allow('report', 5000)) throw new Error('TOO_FAST');
+    const id = uid('rep');
+    await Backend.setDoc('reports', id, {
+      id, targetType: target.type, targetId: target.id, targetOwner: target.ownerId || null,
+      reason, note: String(note).slice(0, 500),
+      reporterId: Backend.user.uid, at: Date.now(), status: 'open'
+    });
+    if (target.type === 'post') {
+      const { F, db } = Backend.fb;
+      await F.updateDoc(F.doc(db, 'posts', target.id), { reports: F.increment(1) }).catch(() => {});
+    }
+    return id;
+  }
+};
+
+/* ------------------------------------------------------------
+   LIVE (rules 15-18)
+   An abstraction, so a real streaming provider can be plugged in
+   later without touching the UI. The built-in provider is WebRTC
+   over the signalling that already exists — peer to peer, which
+   is fine for a handful of viewers and NOT a substitute for an
+   SFU/CDN. Video never goes into Firestore.
+   ------------------------------------------------------------ */
+const LiveProvider = {
+  registry: {},
+  register(name, impl) { this.registry[name] = impl; },
+  current() { return this.registry[LS.get('liveProvider', 'webrtc')] || this.registry.webrtc; },
+  names() { return Object.keys(this.registry); },
+  use(name) { if (this.registry[name]) LS.set('liveProvider', name); }
+};
+
+LiveProvider.register('webrtc', {
+  name: 'WebRTC (peer-to-peer)',
+  note: 'يعمل بلا خادم بث، لكنه مناسب لعدد محدود من المشاهدين. للبث الواسع يلزم SFU/CDN.',
+  maxViewers: 6,
+  async host(liveId, stream, { onViewer } = {}) {
+    const net = { signal: null, room: null };
+    const peers = new Map();
+    const ice = { iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }] };
+    const { F, db } = Backend.fb;
+    const me = Backend.user.uid;
+    const col = F.collection(db, 'lives', liveId, 'signals');
+    const since = Date.now();
+    const unsub = F.onSnapshot(F.query(col, F.where('to', '==', me)), async snap => {
+      for (const ch of snap.docChanges()) {
+        if (ch.type !== 'added') continue;
+        const d = ch.doc.data();
+        if (d.at < since) continue;
+        let pc = peers.get(d.from);
+        if (!pc) {
+          pc = new RTCPeerConnection(ice);
+          peers.set(d.from, pc);
+          stream.getTracks().forEach(t => pc.addTrack(t, stream));
+          pc.onicecandidate = e => { if (e.candidate) F.addDoc(col, { from: me, to: d.from, payload: { ice: e.candidate.toJSON() }, at: Date.now() }); };
+          onViewer && onViewer(peers.size);
+        }
+        const pay = d.payload || {};
+        if (pay.sdp) {
+          await pc.setRemoteDescription(new RTCSessionDescription(pay.sdp));
+          if (pay.sdp.type === 'offer') {
+            const ans = await pc.createAnswer();
+            await pc.setLocalDescription(ans);
+            await F.addDoc(col, { from: me, to: d.from, payload: { sdp: { type: ans.type, sdp: ans.sdp } }, at: Date.now() });
+          }
+        } else if (pay.ice) { try { await pc.addIceCandidate(new RTCIceCandidate(pay.ice)); } catch {} }
+      }
+    });
+    return { stop() { unsub(); peers.forEach(p => { try { p.close(); } catch {} }); peers.clear(); }, peers };
+  },
+  async watch(liveId, hostId, { onStream } = {}) {
+    const ice = { iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }] };
+    const { F, db } = Backend.fb;
+    const me = Backend.user.uid;
+    const col = F.collection(db, 'lives', liveId, 'signals');
+    const pc = new RTCPeerConnection(ice);
+    pc.ontrack = e => onStream && onStream(e.streams[0]);
+    pc.onicecandidate = e => { if (e.candidate) F.addDoc(col, { from: me, to: hostId, payload: { ice: e.candidate.toJSON() }, at: Date.now() }); };
+    pc.addTransceiver('video', { direction: 'recvonly' });
+    pc.addTransceiver('audio', { direction: 'recvonly' });
+    const since = Date.now();
+    const unsub = F.onSnapshot(F.query(col, F.where('to', '==', me)), async snap => {
+      for (const ch of snap.docChanges()) {
+        if (ch.type !== 'added') continue;
+        const d = ch.doc.data();
+        if (d.at < since) continue;
+        const pay = d.payload || {};
+        if (pay.sdp) await pc.setRemoteDescription(new RTCSessionDescription(pay.sdp));
+        else if (pay.ice) { try { await pc.addIceCandidate(new RTCIceCandidate(pay.ice)); } catch {} }
+      }
+    });
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await F.addDoc(col, { from: me, to: hostId, payload: { sdp: { type: offer.type, sdp: offer.sdp } }, at: Date.now() });
+    return { stop() { unsub(); try { pc.close(); } catch {} } };
+  }
+});
+
+const Live = {
+  async start({ title, gameId = null, description = '' }, stream, { onViewer } = {}) {
+    requireOnline();
+    const liveId = uid('live');
+    const rec = {
+      liveId, hostId: Backend.user.uid, hostName: Backend.user.name || 'creator',
+      title: String(title || 'بث مباشر').slice(0, 140), description: String(description).slice(0, 500),
+      gameId, status: 'live', provider: LiveProvider.current().name,
+      viewers: 0, likes: 0, startedAt: Date.now(), endedAt: null
+    };
+    await Backend.setDoc('lives', liveId, rec);
+    const session = await LiveProvider.current().host(liveId, stream, { onViewer });
+    this._active = { rec, session, stream };
+    return this._active;
+  },
+  async stop() {
+    if (!this._active) return;
+    const { rec, session, stream } = this._active;
+    try { session.stop(); } catch {}
+    try { stream.getTracks().forEach(t => t.stop()); } catch {}
+    await Backend.setDoc('lives', rec.liveId, Object.assign({}, rec, { status: 'ended', endedAt: Date.now() }));
+    this._active = null;
+  },
+  async list(limit = 20) {
+    if (!Backend.isOnline()) return [];
+    const r = await Backend._query('lives', { wheres: [['status', '==', 'live']], order: ['startedAt', 'desc'], lim: limit });
+    return r.degraded ? r.docs.filter(l => l.status === 'live') : r.docs;
+  },
+  async get(id) { return Backend.getDoc('lives', id); },
+  async join(liveId) {
+    requireOnline();
+    const { F, db } = Backend.fb;
+    await F.setDoc(F.doc(db, 'lives', liveId, 'viewers', Backend.user.uid), { uid: Backend.user.uid, at: Date.now() });
+    await F.updateDoc(F.doc(db, 'lives', liveId), { viewers: F.increment(1) }).catch(() => {});
+  },
+  async leave(liveId) {
+    if (!Backend.isOnline() || !Backend.user) return;
+    const { F, db } = Backend.fb;
+    await F.deleteDoc(F.doc(db, 'lives', liveId, 'viewers', Backend.user.uid)).catch(() => {});
+    await F.updateDoc(F.doc(db, 'lives', liveId), { viewers: F.increment(-1) }).catch(() => {});
+  },
+  /* live chat is text in Firestore — that part it does well */
+  async chat(liveId, text) {
+    requireOnline();
+    if (!Rate.allow('chat', 800)) throw new Error('TOO_FAST');
+    const { F, db } = Backend.fb;
+    await F.addDoc(F.collection(db, 'lives', liveId, 'chat'), {
+      uid: Backend.user.uid, name: Backend.user.name || 'viewer',
+      text: String(text).slice(0, 300), at: Date.now()
+    });
+  },
+  onChat(liveId, cb) {
+    if (!Backend.isOnline()) return () => {};
+    const { F, db } = Backend.fb;
+    return F.onSnapshot(F.query(F.collection(db, 'lives', liveId, 'chat'), F.orderBy('at', 'desc'), F.limit(40)),
+      snap => cb(snap.docs.map(d => d.data()).reverse()));
+  },
+  onLive(liveId, cb) {
+    if (!Backend.isOnline()) return () => {};
+    const { F, db } = Backend.fb;
+    return F.onSnapshot(F.doc(db, 'lives', liveId), d => cb(d.data()));
+  }
+};
+
+/* ------------------------------------------------------------
+   Security rules for the new collections (rule 32) — appended to
+   the existing ruleset, nothing replaced.
+   ------------------------------------------------------------ */
+NX.SECURITY_RULES.community = `// أضف هذه القواعد داخل match /databases/{database}/documents إلى جانب قواعدك الحالية
+function signedIn() { return request.auth != null; }
+function bumped(field, by) {
+  return request.resource.data[field] == resource.data[field] + by
+      && request.resource.data.diff(resource.data).affectedKeys().hasOnly([field]);
+}
+
+match /users/{uid} {
+  allow read: if true;
+  allow create: if signedIn() && request.auth.uid == uid
+                && request.resource.data.followers == 0 && request.resource.data.following == 0;
+  // the owner edits the profile but may never write the counters
+  allow update: if (signedIn() && request.auth.uid == uid
+                    && request.resource.data.followers == resource.data.followers
+                    && request.resource.data.following == resource.data.following)
+                || bumped('followers', 1) || bumped('followers', -1)
+                || bumped('following', 1) || bumped('following', -1);
+
+  match /notifications/{nid} {
+    allow read, update, delete: if signedIn() && request.auth.uid == uid;
+    allow create: if signedIn();          // anyone may notify you; only you may read
+  }
+}
+
+match /follows/{id} {
+  allow read: if signedIn();
+  allow create: if signedIn() && request.resource.data.followerId == request.auth.uid
+                && id == request.auth.uid + '__' + request.resource.data.followedId;
+  allow delete: if signedIn() && resource.data.followerId == request.auth.uid;
+}
+
+match /posts/{postId} {
+  allow read: if resource.data.visibility in ['public','unlisted']
+              || (request.auth != null && request.auth.uid == resource.data.authorId);
+  allow create: if signedIn()
+                && request.resource.data.authorId == request.auth.uid
+                && request.resource.data.likes == 0
+                && request.resource.data.comments == 0
+                && request.resource.data.views == 0
+                && request.resource.data.reports == 0;
+  // the author edits text/visibility; everyone else may only move a counter by one
+  allow update: if (signedIn() && request.auth.uid == resource.data.authorId
+                    && request.resource.data.authorId == resource.data.authorId
+                    && request.resource.data.likes == resource.data.likes
+                    && request.resource.data.comments == resource.data.comments)
+                || bumped('likes', 1) || bumped('likes', -1)
+                || bumped('comments', 1) || bumped('comments', -1)
+                || bumped('views', 1) || bumped('reports', 1);
+  allow delete: if signedIn() && request.auth.uid == resource.data.authorId;
+
+  match /likes/{uid} {
+    allow read: if signedIn() && request.auth.uid == uid;
+    allow create, delete: if signedIn() && request.auth.uid == uid;
+  }
+  match /comments/{cid} {
+    allow read: if true;
+    allow create: if signedIn() && request.resource.data.authorId == request.auth.uid
+                  && request.resource.data.text.size() <= 800;
+    allow delete: if signedIn() && (request.auth.uid == resource.data.authorId
+                  || request.auth.uid == get(/databases/$(database)/documents/posts/$(postId)).data.authorId);
+  }
+}
+
+match /lives/{liveId} {
+  allow read: if true;
+  allow create: if signedIn() && request.resource.data.hostId == request.auth.uid
+                && request.resource.data.viewers == 0;
+  allow update: if (signedIn() && request.auth.uid == resource.data.hostId
+                    && request.resource.data.viewers == resource.data.viewers)
+                || bumped('viewers', 1) || bumped('viewers', -1);
+  allow delete: if signedIn() && request.auth.uid == resource.data.hostId;
+
+  match /viewers/{uid} { allow read: if true; allow create, delete: if signedIn() && request.auth.uid == uid; }
+  match /chat/{cid}    { allow read: if true; allow create: if signedIn() && request.resource.data.uid == request.auth.uid; }
+  match /signals/{sid} { allow read: if signedIn() && resource.data.to == request.auth.uid;
+                         allow create: if signedIn() && request.resource.data.from == request.auth.uid; }
+}
+
+match /reports/{rid} {
+  allow create: if signedIn() && request.resource.data.reporterId == request.auth.uid;
+  allow read, update, delete: if false;   // moderation happens in the console / admin SDK
+}`;
+
+NX.SECURITY_RULES.communityStorage = `// أضف هذا المسار إلى قواعد Storage الحالية
+match /media/{userId}/{postId}/{file} {
+  allow read: if true;
+  allow write: if request.auth != null
+               && request.auth.uid == userId
+               && request.resource.size < 128 * 1024 * 1024
+               && (request.resource.contentType.matches('video/.*')
+                || request.resource.contentType.matches('image/.*'));
+}`;
+
+NX.LIMITS = LIMITS;
+NX.Media = Media;
+NX.Profiles = Profiles;
+NX.Follows = Follows;
+NX.Posts = Posts;
+NX.Notifications = Notifications;
+NX.Reports = Reports;
+NX.Live = Live;
+NX.LiveProvider = LiveProvider;
+NX.Rate = Rate;
+</script>
+<script type="module">
+/* ============================================================
+   PART 15/15 · CREATOR COMMUNITY — interface
+   Feed · composer · video player · recording · profiles ·
+   game pages · notifications · live · creator studio
+   ============================================================ */
+const NX = window.NX;
+const { $, $$, el, btn, iconBtn, icon, esc, Sheet, Modal, Toast, T, LS, uid, fmtNum, fmtBytes, timeAgo, debounce, field, segPick } = NX;
+const { Backend, Posts, Profiles, Follows, Notifications, Reports, Live, LiveProvider, Media, LIMITS, Games } = NX;
+
+const online = () => Backend.isOnline();
+const needOnline = (what = 'هذه الميزة') => {
+  if (online()) return true;
+  Toast.err(what + ' تحتاج اتصالًا و Firebase مضبوطة');
+  return false;
+};
+const fmtDur = s => {
+  s = Math.max(0, Math.round(s || 0));
+  const m = Math.floor(s / 60);
+  return m + ':' + String(s % 60).padStart(2, '0');
+};
+
+/* ------------------------------------------------------------
+   VIDEO PLAYER (rule 36)
+   ------------------------------------------------------------ */
+function videoPlayer(src, opts = {}) {
+  const wrap = el('div', { class: 'vp' });
+  const v = el('video', { playsinline: '', preload: opts.preload || 'metadata', poster: opts.poster || '' });
+  v.src = src;
+  if (opts.loop) v.loop = true;
+  if (opts.muted) { v.muted = true; }
+  wrap.appendChild(v);
+
+  const ctr = el('div', { class: 'vp-ctl' });
+  const play = iconBtn('play', { label: 'play' });
+  const time = el('span', { class: 'vp-time', text: '0:00' });
+  const bar = el('div', { class: 'vp-bar' });
+  const fill = el('i');
+  bar.appendChild(fill);
+  const speed = el('button', { class: 'vp-sp', text: '1×' });
+  const full = iconBtn('grid', { label: 'fullscreen' });
+  const vol = iconBtn('music', { label: 'mute' });
+  ctr.append(play, time, bar, speed, vol, full);
+  wrap.appendChild(ctr);
+
+  const big = el('button', { class: 'vp-big' }, [icon('play')]);
+  wrap.appendChild(big);
+
+  const setIcon = () => {
+    const u = play.querySelector('use');
+    u.setAttribute('href', v.paused ? '#i-play' : '#i-stop');
+    big.classList.toggle('hide', !v.paused);
+  };
+  const toggle = () => { v.paused ? v.play().catch(() => {}) : v.pause(); };
+  play.onclick = toggle; big.onclick = toggle;
+  v.addEventListener('click', toggle);
+  v.addEventListener('play', setIcon);
+  v.addEventListener('pause', setIcon);
+  v.addEventListener('timeupdate', () => {
+    const d = v.duration || 0;
+    fill.style.width = d ? (v.currentTime / d * 100) + '%' : '0%';
+    time.textContent = fmtDur(v.currentTime) + (d ? ' / ' + fmtDur(d) : '');
+  });
+  const seek = e => {
+    const r = bar.getBoundingClientRect();
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+    if (v.duration) v.currentTime = Math.max(0, Math.min(1, x / r.width)) * v.duration;
+  };
+  bar.addEventListener('click', seek);
+  bar.addEventListener('touchstart', seek, { passive: true });
+  bar.addEventListener('touchmove', seek, { passive: true });
+  const SPEEDS = [1, 1.25, 1.5, 2, 0.5];
+  let si = 0;
+  speed.onclick = () => { si = (si + 1) % SPEEDS.length; v.playbackRate = SPEEDS[si]; speed.textContent = SPEEDS[si] + '×'; };
+  vol.onclick = () => { v.muted = !v.muted; vol.style.opacity = v.muted ? '.45' : '1'; };
+  full.onclick = () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else (wrap.requestFullscreen || wrap.webkitRequestFullscreen || (() => {})).call(wrap);
+  };
+  setIcon();
+  return { el: wrap, video: v };
+}
+
+/* ------------------------------------------------------------
+   SHARE (rule 24)
+   ------------------------------------------------------------ */
+async function share(kind, id, title) {
+  const url = location.origin + location.pathname + '#' + kind + '/' + id;
+  const data = { title: title || 'NEXUS', text: title || '', url };
+  if (navigator.share) { try { await navigator.share(data); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  try { await navigator.clipboard.writeText(url); Toast.ok('نُسخ الرابط'); }
+  catch { Modal.open({ title: 'الرابط', body: el('input', { class: 'input', value: url }), actions: [{ label: T('close'), cls: 'primary' }] }); }
+}
+
+/* ------------------------------------------------------------
+   COMPOSER (rules 10, 13, 28, 29)
+   ------------------------------------------------------------ */
+function openComposer(opts = {}) {
+  if (!needOnline('النشر')) return;
+  let file = null, thumb = null, meta = { duration: 0, width: 0, height: 0 };
+  let kind = opts.kind || 'post';
+  let gameId = opts.gameId || null;
+
+  const body = el('div');
+  const ta = el('textarea', { class: 'textarea', placeholder: opts.placeholder || 'بماذا تعمل الآن؟', style: { minHeight: '90px' } });
+  if (opts.text) ta.value = opts.text;
+  body.appendChild(ta);
+
+  const preview = el('div', { class: 'comp-prev hide' });
+  body.appendChild(preview);
+
+  const pickRow = el('div', { class: 'row', style: { marginBottom: '12px' } });
+  const fileInput = el('input', { type: 'file', accept: 'video/*,image/*', style: { display: 'none' } });
+  pickRow.appendChild(btn('صورة / فيديو', { cls: 'sm', icon: 'image', onclick: () => fileInput.click() }));
+  pickRow.appendChild(btn('تسجيل', { cls: 'sm', icon: 'cam', onclick: () => { sheet.close(); openRecorder({ gameId }); } }));
+  body.append(pickRow, fileInput);
+
+  const titleField = field('العنوان (للفيديو)', el('input', { class: 'input', placeholder: 'عنوان المقطع' }));
+  titleField.classList.add('hide');
+  body.appendChild(titleField);
+
+  /* attach one of my published games */
+  const gameSel = el('select', { class: 'select' }, [el('option', { value: '', text: 'بدون لعبة' })]);
+  (async () => {
+    if (!Backend.user) return;
+    const mine = await Games.list({ ownerId: Backend.user.uid, limit: 30 });
+    mine.forEach(g => gameSel.appendChild(el('option', { value: g.gameId, text: g.title })));
+    if (gameId) gameSel.value = gameId;
+  })();
+  gameSel.addEventListener('change', () => gameId = gameSel.value || null);
+  body.appendChild(field('أرفق لعبة', gameSel));
+
+  let visibility = 'public';
+  const visSeg = el('div', { class: 'seg' }, [
+    el('button', { class: 'on', text: 'عام', onclick: e => { visibility = 'public'; segPick(visSeg, e.target); } }),
+    el('button', { text: 'برابط فقط', onclick: e => { visibility = 'unlisted'; segPick(visSeg, e.target); } }),
+    el('button', { text: 'خاص', onclick: e => { visibility = 'private'; segPick(visSeg, e.target); } })
+  ]);
+  body.appendChild(field('من يراه؟', visSeg));
+
+  const storyRow = el('div', { class: 'switch' }, [el('span', { text: 'انشره كقصة (يختفي بعد ٢٤ ساعة)' })]);
+  const storyTg = el('div', { class: 'tgl' });
+  storyTg.onclick = () => { const on = !storyTg.classList.contains('on'); storyTg.classList.toggle('on', on); kind = on ? 'story' : (file && file.type.startsWith('video') ? 'video' : 'post'); };
+  storyRow.appendChild(storyTg);
+  body.appendChild(storyRow);
+
+  const prog = el('div', { class: 'prog hide' }, [el('i')]);
+  const status = el('p', { class: 'tiny', style: { textAlign: 'center', marginTop: '6px' } });
+  body.append(prog, status);
+
+  fileInput.addEventListener('change', async () => {
+    const f = fileInput.files[0];
+    if (!f) return;
+    const isVideo = (f.type || '').startsWith('video');
+    try { Media.validate(f, isVideo ? 'video' : 'image'); }
+    catch (e) { Toast.err(e.message); fileInput.value = ''; return; }
+    status.textContent = 'قراءة الملف…';
+    preview.textContent = ''; preview.classList.remove('hide');
+    if (isVideo) {
+      const info = await Media.videoInfo(f).catch(() => null);
+      if (!info) { Toast.err('تعذّر قراءة الفيديو'); status.textContent = ''; return; }
+      if (info.duration > LIMITS.videoSeconds) { Toast.err(`المدة أطول من ${LIMITS.videoSeconds / 60} دقائق`); status.textContent = ''; return; }
+      meta = info; thumb = info.thumb; file = f; kind = storyTg.classList.contains('on') ? 'story' : 'video';
+      titleField.classList.remove('hide');
+      const pl = videoPlayer(URL.createObjectURL(f), { preload: 'metadata' });
+      preview.appendChild(pl.el);
+      preview.appendChild(el('p', { class: 'tiny', text: `${fmtDur(info.duration)} · ${info.width}×${info.height} · ${fmtBytes(f.size)}` }));
+      const tRow = el('div', { class: 'row', style: { marginTop: '8px' } });
+      tRow.appendChild(btn('اختر صورة مصغّرة من هذه اللحظة', { cls: 'sm ghost', onclick: async () => {
+        const i = await Media.videoInfo(f, pl.video.currentTime || 1);
+        if (i.thumb) { thumb = i.thumb; Toast.ok('حُدّثت الصورة المصغّرة'); }
+      }}));
+      preview.appendChild(tRow);
+    } else {
+      file = f; thumb = await Media.imageThumb(f); kind = storyTg.classList.contains('on') ? 'story' : 'post';
+      preview.appendChild(el('img', { src: URL.createObjectURL(f), style: { width: '100%', borderRadius: '12px' } }));
+    }
+    status.textContent = '';
+  });
+
+  const publish = btn('نشر', { cls: 'primary', icon: 'share', onclick: async () => {
+    const text = ta.value.trim();
+    if (!text && !file) { Toast.err('اكتب شيئًا أو أرفق ملفًا'); return; }
+    publish.disabled = true;
+    prog.classList.remove('hide');
+    try {
+      const rec = await Posts.create({
+        text, kind, file, thumbBlob: thumb, gameId,
+        title: titleField.querySelector('input').value.trim(),
+        visibility, duration: meta.duration, width: meta.width, height: meta.height
+      }, (p, phase) => {
+        prog.firstChild.style.width = Math.round(p * 100) + '%';
+        status.textContent = phase === 'uploading' ? `جارٍ الرفع ${Math.round(p * 100)}%`
+          : phase === 'processing' ? 'معالجة…' : 'تم النشر';
+      });
+      Toast.ok('نُشر');
+      sheet.close();
+      window.dispatchEvent(new CustomEvent('nx:feedRefresh', { detail: rec }));
+    } catch (e) {
+      status.textContent = 'فشل النشر: ' + (e.message || e);
+      const retry = btn('إعادة المحاولة', { cls: 'sm', onclick: () => { status.textContent = ''; retry.remove(); publish.disabled = false; } });
+      status.appendChild(retry);
+      publish.disabled = false;
+    }
+  }});
+
+  const sheet = Sheet.open({ title: opts.title || 'منشور جديد', body, full: true, id: 'composer', foot: [publish] });
+}
+
+/* ------------------------------------------------------------
+   RECORDER (rules 12, 14)
+   ------------------------------------------------------------ */
+function openRecorder(opts = {}) {
+  if (!Media.supported()) { Toast.err('التسجيل غير مدعوم في هذا المتصفح'); return; }
+  let session = null, blob = null, sourceLabel = '';
+  const body = el('div');
+  const stage = el('div', { class: 'rec-stage' });
+  const timeLbl = el('div', { class: 'rec-time', text: '0:00' });
+  body.append(stage, timeLbl);
+
+  const note = el('p', { class: 'tiny', style: { margin: '10px 0' },
+    text: 'التسجيل يبقى على جهازك. لا شيء يُرفع حتى تضغط «نشر».' });
+
+  const sources = el('div', { class: 'row', style: { marginBottom: '10px' } });
+  const mkSource = (label, ic, fn) => sources.appendChild(btn(label, { cls: 'sm', icon: ic, onclick: async () => {
+    try {
+      const stream = await fn();
+      sourceLabel = label;
+      startWith(stream);
+    } catch (e) { Toast.err('تعذّر: ' + (e.message || e)); }
+  }}));
+  const liveCanvas = $('#player').classList.contains('active') ? $('#player-canvas') : ($('#studio').classList.contains('active') ? $('#viewport') : null);
+  if (liveCanvas) mkSource('اللعب', 'play', () => Media.streamFromCanvas(liveCanvas, 30, true));
+  mkSource('الشاشة', 'grid', () => Media.streamFromScreen(true));
+  mkSource('الكاميرا', 'cam', () => Media.streamFromCamera());
+  body.append(sources, note);
+
+  const ctlRow = el('div', { class: 'row' });
+  const pauseBtn = btn('إيقاف مؤقت', { cls: 'sm', disabled: true, onclick: () => {
+    if (!session) return;
+    if (session.state === 'recording') { session.pause(); pauseBtn.querySelector('span').textContent = 'متابعة'; }
+    else { session.resume(); pauseBtn.querySelector('span').textContent = 'إيقاف مؤقت'; }
+  }});
+  const stopBtn = btn('إنهاء', { cls: 'sm danger', disabled: true, onclick: () => finish() });
+  ctlRow.append(pauseBtn, stopBtn);
+  body.appendChild(ctlRow);
+
+  const after = el('div', { class: 'hide', style: { marginTop: '12px' } });
+  body.appendChild(after);
+
+  function startWith(stream) {
+    stage.textContent = '';
+    const prev = el('video', { autoplay: '', muted: '', playsinline: '', style: { width: '100%', borderRadius: '12px', background: '#000' } });
+    prev.srcObject = stream;
+    stage.appendChild(prev);
+    session = Media.start(stream, t => {
+      timeLbl.textContent = fmtDur(t);
+      if (t >= LIMITS.videoSeconds) finish();
+    });
+    pauseBtn.disabled = false; stopBtn.disabled = false;
+    sources.classList.add('hide');
+  }
+
+  async function finish() {
+    if (!session) return;
+    blob = await session.stop();
+    session = null;
+    pauseBtn.disabled = true; stopBtn.disabled = true;
+    stage.textContent = '';
+    const url = URL.createObjectURL(blob);
+    const pl = videoPlayer(url);
+    stage.appendChild(pl.el);
+    after.classList.remove('hide');
+    after.textContent = '';
+    after.appendChild(el('p', { class: 'tiny', text: `${fmtBytes(blob.size)} · ${sourceLabel}` }));
+    const row = el('div', { class: 'row', style: { marginTop: '8px' } });
+    row.appendChild(btn('حفظ على الجهاز', { cls: 'sm ghost', icon: 'save', onclick: () => {
+      const a = document.createElement('a');
+      a.href = url; a.download = 'nexus-clip.webm'; a.click();
+    }}));
+    row.appendChild(btn('إعادة التسجيل', { cls: 'sm', onclick: () => { blob = null; after.classList.add('hide'); stage.textContent = ''; sources.classList.remove('hide'); timeLbl.textContent = '0:00'; } }));
+    after.appendChild(row);
+    after.appendChild(btn('نشر المقطع', { cls: 'primary block', icon: 'share', style: { marginTop: '8px' }, onclick: async () => {
+      const info = await Media.videoInfo(blob).catch(() => ({ duration: 0, thumb: null }));
+      const f = new File([blob], 'clip.webm', { type: blob.type || 'video/webm' });
+      sheet.close();
+      openComposerWithFile(f, info, opts.gameId);
+    }}));
+  }
+
+  const sheet = Sheet.open({
+    title: 'تسجيل مقطع', body, full: true, id: 'recorder',
+    onClose: () => { if (session) session.cancel(); }
+  });
+}
+
+/* hand a recorded file straight into the composer */
+function openComposerWithFile(file, info, gameId) {
+  if (!needOnline('النشر')) return;
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  openComposer({ kind: 'clip', gameId, title: 'نشر المقطع', placeholder: 'اكتب وصفًا للمقطع…' });
+  setTimeout(() => {
+    const inp = document.querySelector('#sheet-root input[type=file]');
+    if (inp) { inp.files = dt.files; inp.dispatchEvent(new Event('change')); }
+  }, 260);
+}
+
+/* ------------------------------------------------------------
+   POST CARD + DETAIL (rules 9, 10, 22, 37)
+   ------------------------------------------------------------ */
+const mediaObserver = new IntersectionObserver(entries => {
+  entries.forEach(async e => {
+    if (!e.isIntersecting) return;
+    mediaObserver.unobserve(e.target);
+    const node = e.target, post = node.__post;
+    if (!post) return;
+    const u = await Posts.thumbURL(post);
+    if (u) { node.style.backgroundImage = `url("${u}")`; node.classList.add('loaded'); }
+  });
+}, { rootMargin: '300px' });
+
+function postCard(post, ctx = {}) {
+  const card = el('div', { class: 'post' });
+  const head = el('div', { class: 'post-head' });
+  const av = el('div', { class: 'avatar sm', text: (post.authorName || '?')[0].toUpperCase() });
+  av.onclick = () => openCreator(post.authorId);
+  const who = el('div', { style: { flex: '1', minWidth: '0' } });
+  const nm = el('b', { text: '@' + (post.authorName || 'creator') });
+  nm.onclick = () => openCreator(post.authorId);
+  who.append(nm, el('span', { class: 'tiny', text: timeAgo(post.createdAt) + (post.kind !== 'post' ? ' · ' + ({ video: 'فيديو', clip: 'مقطع', story: 'قصة' })[post.kind] : '') }));
+  head.append(av, who, iconBtn('dots', { label: 'more', onclick: () => postMenu(post, ctx) }));
+  card.appendChild(head);
+
+  if (post.text) card.appendChild(el('p', { class: 'post-text', text: post.text }));
+
+  if (post.storagePath) {
+    const media = el('div', { class: 'post-media' });
+    media.__post = post;
+    mediaObserver.observe(media);
+    if (post.mediaType === 'video') {
+      media.appendChild(el('span', { class: 'post-dur', text: fmtDur(post.duration) }));
+      const playBtn = el('button', { class: 'vp-big' }, [icon('play')]);
+      media.appendChild(playBtn);
+      /* the real video is only fetched when asked for (rule 37) */
+      const openIt = async () => {
+        const u = await Posts.mediaURL(post);
+        if (!u) { Toast.err('تعذّر تحميل الفيديو'); return; }
+        media.textContent = '';
+        const pl = videoPlayer(u, { preload: 'auto' });
+        media.appendChild(pl.el);
+        pl.video.play().catch(() => {});
+        Posts.view(post.postId);
+      };
+      media.onclick = openIt;
+    } else {
+      media.onclick = async () => {
+        const u = await Posts.mediaURL(post);
+        if (u) Modal.open({ title: '', body: el('img', { src: u, style: { width: '100%', borderRadius: '12px' } }), actions: [{ label: T('close'), cls: 'primary' }] });
+      };
+    }
+    card.appendChild(media);
+  }
+
+  if (post.gameId) {
+    const chip = el('button', { class: 'post-game' });
+    chip.append(icon('cube'), el('span', { text: 'جارٍ…' }));
+    Games.get(post.gameId).then(g => { if (g) { chip.lastChild.textContent = g.title; chip.onclick = () => openGamePage(g); } else chip.remove(); });
+    card.appendChild(chip);
+  }
+
+  const acts = el('div', { class: 'post-acts' });
+  const likeBtn = el('button', { class: 'pa' });
+  likeBtn.append(icon('heart'), el('span', { text: fmtNum(post.likes || 0) }));
+  Posts.isLiked(post.postId).then(on => likeBtn.classList.toggle('on', on));
+  likeBtn.onclick = async () => {
+    if (!needOnline('الإعجاب')) return;
+    try {
+      const on = await Posts.toggleLike(post);
+      post.likes = Math.max(0, (post.likes || 0) + (on ? 1 : -1));
+      likeBtn.classList.toggle('on', on);
+      likeBtn.lastChild.textContent = fmtNum(post.likes);
+    } catch (e) { Toast.err(e.message === 'TOO_FAST' ? 'تمهّل قليلًا' : 'تعذّر'); }
+  };
+  const cBtn = el('button', { class: 'pa' });
+  cBtn.append(icon('book'), el('span', { text: fmtNum(post.comments || 0) }));
+  cBtn.onclick = () => openPost(post);
+  const sBtn = el('button', { class: 'pa' });
+  sBtn.append(icon('share'), el('span', { text: 'مشاركة' }));
+  sBtn.onclick = () => share('post', post.postId, post.title || post.text);
+  acts.append(likeBtn, cBtn, sBtn);
+  if (post.views) acts.appendChild(el('span', { class: 'tiny', style: { marginInlineStart: 'auto' }, text: fmtNum(post.views) + ' مشاهدة' }));
+  card.appendChild(acts);
+  return card;
+}
+
+function postMenu(post, ctx = {}) {
+  const mine = Backend.user && post.authorId === Backend.user.uid;
+  const body = el('div');
+  const item = (ic, label, fn, cls) => {
+    const b = el('button', { class: 'comp-row' + (cls ? ' ' + cls : ''), style: { width: '100%', textAlign: 'start' },
+      onclick: async () => { const r = await fn(); if (r !== false) s.close(); } });
+    b.append(icon(ic), el('b', { text: label }));
+    return b;
+  };
+  body.appendChild(item('share', 'مشاركة', () => share('post', post.postId, post.title || post.text)));
+  if (mine) {
+    body.appendChild(item('eye', 'تغيير من يراه', async () => {
+      const opts = [['public', 'عام'], ['unlisted', 'برابط فقط'], ['private', 'خاص']];
+      const b2 = el('div');
+      opts.forEach(([v, lbl]) => b2.appendChild(btn(lbl + (post.visibility === v ? ' ✓' : ''), { cls: 'block', style: { marginBottom: '8px' },
+        onclick: async () => { await Posts.setVisibility(post, v); post.visibility = v; Toast.ok('حُدّث'); s2.close(); ctx.refresh && ctx.refresh(); } })));
+      const s2 = Sheet.open({ title: 'من يراه؟', body: b2, id: 'vis' });
+    }));
+    body.appendChild(item('trash', 'حذف', async () => {
+      if (!await Modal.confirm('حذف المنشور؟', 'يُحذف الملف والتعليقات معه. لا يمكن التراجع.', 'حذف')) return false;
+      await Posts.remove(post);
+      Toast.ok('حُذف');
+      ctx.refresh && ctx.refresh();
+    }, 'danger-row'));
+  } else {
+    body.appendChild(item('shield', 'إبلاغ', () => openReport({ type: 'post', id: post.postId, ownerId: post.authorId })));
+    body.appendChild(item('user', 'حساب @' + post.authorName, () => openCreator(post.authorId)));
+  }
+  const s = Sheet.open({ title: 'خيارات', body, id: 'postmenu' });
+}
+
+function openReport(target) {
+  if (!needOnline('الإبلاغ')) return;
+  const body = el('div');
+  let reason = 'spam';
+  const seg = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' } });
+  Reports.REASONS.forEach(([v, label], i) => {
+    const b = btn(label, { cls: 'block' + (i === 0 ? ' primary' : ''), onclick: () => {
+      reason = v;
+      Array.from(seg.children).forEach(c => c.className = 'btn block');
+      b.className = 'btn block primary';
+    }});
+    seg.appendChild(b);
+  });
+  const note = el('textarea', { class: 'textarea', placeholder: 'تفاصيل إضافية (اختياري)' });
+  body.append(seg, note);
+  const sheet = Sheet.open({
+    title: 'إبلاغ', body, id: 'report',
+    foot: [btn('إرسال البلاغ', { cls: 'danger', onclick: async () => {
+      try { await Reports.submit(target, reason, note.value); Toast.ok('وصل البلاغ. شكرًا لك.'); sheet.close(); }
+      catch (e) { Toast.err(e.message === 'TOO_FAST' ? 'تمهّل قليلًا' : 'تعذّر الإرسال'); }
+    }})]
+  });
+}
+
+async function openPost(post) {
+  const body = el('div');
+  body.appendChild(postCard(post, {}));
+  body.appendChild(el('hr', { class: 'sep' }));
+  const list = el('div');
+  body.appendChild(list);
+  const draw = async () => {
+    list.textContent = '';
+    const cs = await Posts.comments(post.postId);
+    if (!cs.length) list.appendChild(el('p', { class: 'tiny', style: { textAlign: 'center', padding: '14px' }, text: 'لا تعليقات بعد' }));
+    cs.forEach(c => {
+      const r = el('div', { class: 'cmt' });
+      r.appendChild(el('div', { class: 'avatar sm', text: (c.authorName || '?')[0].toUpperCase() }));
+      const t = el('div', { style: { flex: '1', minWidth: '0' } });
+      t.append(el('b', { text: '@' + c.authorName }), el('p', { text: c.text }), el('span', { class: 'tiny', text: timeAgo(c.at) }));
+      r.appendChild(t);
+      const mine = Backend.user && (c.authorId === Backend.user.uid || post.authorId === Backend.user.uid);
+      if (mine) r.appendChild(iconBtn('trash', { onclick: async () => { await Posts.removeComment(post.postId, c.commentId); post.comments = Math.max(0, post.comments - 1); draw(); } }));
+      list.appendChild(r);
+    });
+  };
+  await draw();
+  const inp = el('input', { class: 'input', placeholder: 'اكتب تعليقًا…' });
+  const sendC = async () => {
+    if (!needOnline('التعليق')) return;
+    try { await Posts.comment(post, inp.value); inp.value = ''; post.comments = (post.comments || 0) + 1; draw(); }
+    catch (e) { Toast.err(e.message === 'TOO_FAST' ? 'تمهّل قليلًا' : e.message === 'EMPTY' ? 'اكتب شيئًا' : 'تعذّر'); }
+  };
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') sendC(); });
+  Sheet.open({ title: 'المنشور', body, full: true, id: 'post',
+    foot: [inp, btn('إرسال', { cls: 'primary', onclick: sendC })] });
+}
+
+/* ------------------------------------------------------------
+   FEED (rules 9, 37)
+   ------------------------------------------------------------ */
+class FeedView {
+  constructor(host, opts = {}) {
+    this.host = host; this.opts = opts;
+    this.state = { items: [], cursor: null, done: false, busy: false, error: null };
+    this.list = el('div', { class: 'feed' });
+    this.more = el('div', { style: { marginTop: '12px' } });
+    host.append(this.list, this.more);
+    this._onRefresh = () => this.reload();
+    window.addEventListener('nx:feedRefresh', this._onRefresh);
+    this.reload();
+  }
+  destroy() { window.removeEventListener('nx:feedRefresh', this._onRefresh); }
+  async reload() { this.state = { items: [], cursor: null, done: false, busy: false, error: null }; await this.load(); }
+  async load() {
+    if (this.state.busy || this.state.done) return;
+    this.state.busy = true;
+    if (!this.state.items.length) {
+      this.list.textContent = '';
+      this.list.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' }), el('span', { text: 'تحميل…' })]));
+    }
+    try {
+      const r = await Posts.feed(Object.assign({ limit: 8, cursor: this.state.cursor }, this.opts.query || {}));
+      if (r.offline) { this.renderOffline(); this.state.busy = false; this.state.done = true; return; }
+      this.state.items.push(...r.items);
+      this.state.cursor = r.cursor; this.state.done = r.done;
+      this.render();
+    } catch (e) {
+      this.state.error = String(e.message || e);
+      this.list.textContent = '';
+      const er = el('div', { class: 'err-row' });
+      er.appendChild(el('p', { text: 'تعذّر تحميل المنشورات: ' + this.state.error }));
+      er.appendChild(btn('إعادة المحاولة', { cls: 'primary', onclick: () => this.reload() }));
+      this.list.appendChild(er);
+    }
+    this.state.busy = false;
+  }
+  renderOffline() {
+    this.list.textContent = '';
+    const d = el('div', { class: 'center-note' });
+    d.appendChild(icon('globe'));
+    d.appendChild(el('b', { text: 'المجتمع يحتاج اتصالًا', style: { display: 'block', color: 'var(--ink-soft)' } }));
+    d.appendChild(el('p', { class: 'tiny', style: { margin: '8px 0 14px' },
+      text: 'المحرّر ومشاريعك المحلية تعمل بلا اتصال. أما المنشورات والفيديو والبث فتحتاج Firebase مضبوطة.' }));
+    d.appendChild(btn('فتح الإعدادات', { cls: 'primary', icon: 'gear', onclick: () => NX.openSettings() }));
+    this.list.appendChild(d);
+  }
+  render() {
+    this.list.textContent = '';
+    if (!this.state.items.length) {
+      const d = el('div', { class: 'center-note' });
+      d.appendChild(icon('compass'));
+      d.appendChild(el('b', { text: 'لا منشورات بعد', style: { display: 'block', color: 'var(--ink-soft)' } }));
+      d.appendChild(el('p', { class: 'tiny', style: { margin: '8px 0 14px' }, text: 'كن أول من يشارك لعبته.' }));
+      d.appendChild(btn('أنشئ منشورًا', { cls: 'primary', icon: 'plus', onclick: () => openComposer() }));
+      this.list.appendChild(d);
+      this.more.textContent = '';
+      return;
+    }
+    const ctx = { refresh: () => this.reload() };
+    this.state.items.forEach(p => this.list.appendChild(postCard(p, ctx)));
+    this.more.textContent = '';
+    if (!this.state.done) this.more.appendChild(btn('المزيد', { cls: 'block ghost', onclick: () => this.load() }));
+  }
+}
+
+/* ------------------------------------------------------------
+   PROFILES + GAME PAGES (rules 19, 20)
+   ------------------------------------------------------------ */
+async function openCreator(uidStr) {
+  const body = el('div');
+  const prof = await Profiles.get(uidStr);
+  const head = el('div', { class: 'prof-head' });
+  const av = el('div', { class: 'avatar', style: { width: '62px', height: '62px', fontSize: '24px' } });
+  if (prof.photo) av.appendChild(el('img', { src: prof.photo })); else av.textContent = (prof.name || '?')[0].toUpperCase();
+  const info = el('div', { style: { flex: '1', minWidth: '0' } });
+  info.append(el('b', { text: '@' + prof.name, style: { fontSize: '17px' } }),
+    el('div', { class: 'tiny', text: `${fmtNum(prof.followers || 0)} متابع · ${fmtNum(prof.following || 0)} يتابع` }));
+  if (prof.bio) info.appendChild(el('p', { class: 'tiny', style: { marginTop: '4px' }, text: prof.bio }));
+  head.append(av, info);
+  body.appendChild(head);
+
+  const isMe = Backend.user && Backend.user.uid === uidStr;
+  const actions = el('div', { class: 'row', style: { margin: '12px 0' } });
+  if (isMe) {
+    actions.appendChild(btn('تعديل الملف', { cls: 'sm', icon: 'gear', onclick: async () => {
+      const nameIn = el('input', { class: 'input', value: prof.name });
+      const bioIn = el('textarea', { class: 'textarea', value: prof.bio || '', placeholder: 'نبذة قصيرة' });
+      const b2 = el('div'); b2.append(field('الاسم', nameIn), field('نبذة', bioIn));
+      const s2 = Sheet.open({ title: 'ملفي', body: b2, id: 'editprof', foot: [btn('حفظ', { cls: 'primary', onclick: async () => {
+        await Backend.auth.setName(nameIn.value.trim() || prof.name);
+        await Profiles.update({ name: nameIn.value.trim() || prof.name, bio: bioIn.value.trim() });
+        Toast.ok('حُدّث'); s2.close(); sheet.close(); openCreator(uidStr);
+      }})] });
+    }}));
+    actions.appendChild(btn('محتواي', { cls: 'sm', icon: 'folder', onclick: () => { sheet.close(); openCreatorStudio(); } }));
+  } else if (online()) {
+    const fBtn = btn('متابعة', { cls: 'sm primary', onclick: async () => {
+      try {
+        const on = await Follows.toggle(uidStr);
+        fBtn.querySelector('span').textContent = on ? 'متابَع ✓' : 'متابعة';
+        fBtn.className = 'btn sm ' + (on ? 'ok' : 'primary');
+      } catch (e) { Toast.err('تعذّر'); }
+    }});
+    Follows.isFollowing(uidStr).then(on => { if (on) { fBtn.querySelector('span').textContent = 'متابَع ✓'; fBtn.className = 'btn sm ok'; } });
+    actions.appendChild(fBtn);
+  }
+  actions.appendChild(btn('مشاركة', { cls: 'sm ghost', icon: 'share', onclick: () => share('creator', uidStr, prof.name) }));
+  body.appendChild(actions);
+
+  const seg = el('div', { class: 'seg', style: { marginBottom: '12px' } });
+  const pane = el('div');
+  const tabs = [
+    ['ألعاب', async () => {
+      const gs = await Games.list({ ownerId: uidStr, limit: 30 });
+      if (!gs.length) return el('div', { class: 'center-note', text: 'لا ألعاب منشورة' });
+      const g = el('div', { class: 'grid' });
+      gs.filter(x => x.visibility === 'public' || isMe).forEach(x => g.appendChild(NX.Platform.gameCard(x)));
+      return g;
+    }],
+    ['فيديو', async () => {
+      const r = await Posts.feed({ authorId: uidStr, kind: 'video', limit: 20 });
+      if (!r.items.length) return el('div', { class: 'center-note', text: 'لا فيديوهات' });
+      const g = el('div', { class: 'feed' });
+      r.items.forEach(p => g.appendChild(postCard(p, {})));
+      return g;
+    }],
+    ['منشورات', async () => {
+      const r = await Posts.feed({ authorId: uidStr, limit: 20 });
+      const items = r.items.filter(p => p.kind === 'post' || p.kind === 'clip');
+      if (!items.length) return el('div', { class: 'center-note', text: 'لا منشورات' });
+      const g = el('div', { class: 'feed' });
+      items.forEach(p => g.appendChild(postCard(p, {})));
+      return g;
+    }]
+  ];
+  tabs.forEach(([label, load], i) => {
+    const b = el('button', { class: i === 0 ? 'on' : '', text: label, onclick: async e => {
+      segPick(seg, e.target);
+      pane.textContent = ''; pane.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' })]));
+      const node = await load();
+      pane.textContent = ''; pane.appendChild(node);
+    }});
+    seg.appendChild(b);
+  });
+  body.append(seg, pane);
+  const sheet = Sheet.open({ title: '@' + prof.name, body, full: true, id: 'creator' });
+  seg.firstChild.click();
+}
+
+async function openGamePage(game) {
+  const body = el('div');
+  if (game.coverURL || game.cover) {
+    const img = el('img', { style: { width: '100%', borderRadius: '14px', marginBottom: '12px' } });
+    Backend.fileURL(game.cover, game.coverURL).then(u => { if (u) img.src = u; });
+    body.appendChild(img);
+  }
+  body.appendChild(el('h3', { text: game.title, style: { fontSize: '18px' } }));
+  const by = el('button', { class: 'tiny', style: { color: 'var(--cyan)', fontWeight: '700', marginBottom: '8px' }, text: '@' + game.creatorName });
+  by.onclick = () => openCreator(game.ownerId);
+  body.appendChild(by);
+  if (game.description) body.appendChild(el('p', { class: 'muted', style: { fontSize: '13.5px' }, text: game.description }));
+
+  const stats = el('div', { class: 'card', style: { margin: '12px 0' } });
+  [['التصنيف', game.genre], ['تشغيل', fmtNum(game.plays || 0)], ['إعجاب', fmtNum(game.likes || 0)],
+   ['نُشرت', timeAgo(game.createdAt)]].forEach(([k, v]) =>
+    stats.appendChild(el('div', { class: 'kv' }, [el('span', { text: k }), el('span', { text: String(v) })])));
+  body.appendChild(stats);
+
+  const row = el('div', { class: 'row', style: { marginBottom: '12px' } });
+  row.appendChild(btn('تشغيل', { cls: 'primary', icon: 'play', onclick: () => { sheet.close(); NX.GamePlayer.open(game); } }));
+  row.appendChild(btn('مشاركة', { cls: 'ghost', icon: 'share', onclick: () => share('game', game.gameId, game.title) }));
+  if (online() && Backend.user && game.ownerId !== Backend.user.uid) {
+    const f = btn('متابعة المنشئ', { cls: 'sm', onclick: async () => {
+      const on = await Follows.toggle(game.ownerId);
+      f.querySelector('span').textContent = on ? 'متابَع ✓' : 'متابعة المنشئ';
+    }});
+    row.appendChild(f);
+  }
+  body.appendChild(row);
+
+  body.appendChild(el('div', { class: 'ttl', text: 'مقاطع ومنشورات عن هذه اللعبة' }));
+  const feedHost = el('div');
+  body.appendChild(feedHost);
+  const fv = new FeedView(feedHost, { query: { gameId: game.gameId, limit: 6 } });
+
+  const sheet = Sheet.open({
+    title: game.title, body, full: true, id: 'gamepage',
+    onClose: () => fv.destroy(),
+    foot: [btn('أنشئ منشورًا عن اللعبة', { cls: 'primary', icon: 'plus', onclick: () => openComposer({ gameId: game.gameId }) })]
+  });
+}
+
+/* ------------------------------------------------------------
+   NOTIFICATIONS (rule 23)
+   ------------------------------------------------------------ */
+async function openNotifications() {
+  if (!needOnline('التنبيهات')) return;
+  const body = el('div');
+  const list = await Notifications.list();
+  if (!list.length) body.appendChild(el('div', { class: 'center-note', text: 'لا تنبيهات' }));
+  const LABEL = {
+    like: n => `@${n.actorName} أعجب بمنشورك`,
+    comment: n => `@${n.actorName} علّق: ${n.preview || ''}`,
+    follow: n => `@${n.actorName} تابعك`,
+    publish: n => `نُشرت لعبتك ${n.title || ''}`,
+    upload: n => `اكتمل رفع ${n.title || 'الملف'}`
+  };
+  list.forEach(n => {
+    const r = el('button', { class: 'comp-row' + (n.read ? '' : ' unread'), style: { width: '100%', textAlign: 'start' } });
+    r.append(icon(n.type === 'follow' ? 'user' : n.type === 'comment' ? 'book' : 'heart'),
+      el('b', { text: (LABEL[n.type] || (() => n.type))(n) }),
+      el('span', { class: 'tiny', text: timeAgo(n.at) }));
+    r.onclick = async () => {
+      if (n.postId) { const p = await Posts.get(n.postId); if (p) { sheet.close(); openPost(p); } }
+      else if (n.actorId) { sheet.close(); openCreator(n.actorId); }
+    };
+    body.appendChild(r);
+  });
+  const sheet = Sheet.open({
+    title: 'التنبيهات', body, full: true, id: 'notifs',
+    foot: list.length ? [btn('تعليم الكل كمقروء', { cls: 'ghost', onclick: async () => { await Notifications.markAllRead(); Toast.ok('تم'); sheet.close(); updateNotifBadge(); } })] : null
+  });
+  Notifications.markAllRead().then(updateNotifBadge);
+}
+
+async function updateNotifBadge() {
+  const btnEl = $('#btn-notif');
+  if (!btnEl) return;
+  if (!online()) { btnEl.classList.add('hide'); return; }
+  btnEl.classList.remove('hide');
+  try {
+    const n = await Notifications.unreadCount();
+    let dot = btnEl.querySelector('.badge-dot');
+    if (n > 0) {
+      if (!dot) { dot = el('i', { class: 'badge-dot' }); btnEl.appendChild(dot); }
+      dot.textContent = n > 9 ? '9+' : String(n);
+    } else if (dot) dot.remove();
+  } catch {}
+}
+
+/* ------------------------------------------------------------
+   LIVE (rules 15-18)
+   ------------------------------------------------------------ */
+function openGoLive(opts = {}) {
+  if (!needOnline('البث المباشر')) return;
+  const prov = LiveProvider.current();
+  const body = el('div');
+  body.appendChild(el('div', { class: 'card', style: { marginBottom: '12px' } }, [
+    el('b', { text: 'مزوّد البث: ' + prov.name }),
+    el('p', { class: 'tiny', style: { marginTop: '6px' }, text: prov.note })
+  ]));
+  const title = el('input', { class: 'input', placeholder: 'عنوان البث' });
+  const desc = el('textarea', { class: 'textarea', placeholder: 'وصف قصير' });
+  const gameSel = el('select', { class: 'select' }, [el('option', { value: '', text: 'بدون لعبة' })]);
+  (async () => {
+    const mine = await Games.list({ ownerId: Backend.user.uid, limit: 30 });
+    mine.forEach(g => gameSel.appendChild(el('option', { value: g.gameId, text: g.title })));
+    if (opts.gameId) gameSel.value = opts.gameId;
+  })();
+  body.append(field('العنوان', title), field('الوصف', desc), field('اللعبة', gameSel));
+
+  let source = 'screen';
+  const seg = el('div', { class: 'seg' }, [
+    el('button', { class: 'on', text: 'الشاشة', onclick: e => { source = 'screen'; segPick(seg, e.target); } }),
+    el('button', { text: 'اللعب', onclick: e => { source = 'game'; segPick(seg, e.target); } }),
+    el('button', { text: 'الكاميرا', onclick: e => { source = 'camera'; segPick(seg, e.target); } })
+  ]);
+  body.appendChild(field('المصدر', seg));
+
+  const sheet = Sheet.open({
+    title: 'بدء بث مباشر', body, id: 'golive',
+    foot: [btn('ابدأ البث', { cls: 'primary', icon: 'flame', onclick: async () => {
+      try {
+        let stream;
+        if (source === 'screen') stream = await Media.streamFromScreen(true);
+        else if (source === 'camera') stream = await Media.streamFromCamera();
+        else {
+          const c = $('#player').classList.contains('active') ? $('#player-canvas') : $('#viewport');
+          stream = await Media.streamFromCanvas(c, 30, true);
+        }
+        const live = await Live.start({ title: title.value.trim() || 'بث مباشر', description: desc.value.trim(), gameId: gameSel.value || null },
+          stream, { onViewer: n => Toast.show('مشاهدون: ' + n) });
+        sheet.close();
+        openLivePage(live.rec, { host: true, stream });
+      } catch (e) { Toast.err('تعذّر البث: ' + (e.message || e)); }
+    }})]
+  });
+}
+
+function openLivePage(live, opts = {}) {
+  const body = el('div', { class: 'live-wrap' });
+  const stage = el('div', { class: 'live-stage' });
+  const v = el('video', { autoplay: '', playsinline: '', muted: opts.host ? '' : null, style: { width: '100%', background: '#000', borderRadius: '12px' } });
+  stage.appendChild(v);
+  const badge = el('div', { class: 'live-badge' }, [el('i'), el('span', { text: 'LIVE' })]);
+  stage.appendChild(badge);
+  body.appendChild(stage);
+
+  const meta = el('div', { class: 'live-meta' });
+  meta.append(el('b', { text: live.title }), el('span', { class: 'tiny', text: '@' + live.hostName }));
+  const viewers = el('span', { class: 'tiny', text: '0 مشاهد' });
+  meta.appendChild(viewers);
+  body.appendChild(meta);
+
+  const row = el('div', { class: 'row', style: { margin: '10px 0' } });
+  row.appendChild(btn('مشاركة', { cls: 'sm ghost', icon: 'share', onclick: () => share('live', live.liveId, live.title) }));
+  if (!opts.host && Backend.user && live.hostId !== Backend.user.uid) {
+    const f = btn('متابعة', { cls: 'sm', onclick: async () => { const on = await Follows.toggle(live.hostId); f.querySelector('span').textContent = on ? 'متابَع ✓' : 'متابعة'; } });
+    row.appendChild(f);
+  }
+  body.appendChild(row);
+
+  const chat = el('div', { class: 'live-chat scroll' });
+  body.appendChild(chat);
+  const inp = el('input', { class: 'input', placeholder: 'اكتب رسالة…' });
+  const sendChat = async () => {
+    if (!inp.value.trim()) return;
+    try { await Live.chat(live.liveId, inp.value); inp.value = ''; }
+    catch (e) { Toast.err(e.message === 'TOO_FAST' ? 'تمهّل' : 'تعذّر'); }
+  };
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+
+  let session = null, unsubChat = null, unsubLive = null;
+  if (opts.host && opts.stream) {
+    v.srcObject = opts.stream;
+  } else {
+    LiveProvider.current().watch(live.liveId, live.hostId, { onStream: s => { v.srcObject = s; } })
+      .then(s => { session = s; Live.join(live.liveId); })
+      .catch(e => Toast.err('تعذّر الاتصال بالبث: ' + (e.message || e)));
+  }
+  unsubChat = Live.onChat(live.liveId, msgs => {
+    chat.textContent = '';
+    msgs.forEach(m => {
+      const r = el('div', { class: 'lc' });
+      r.append(el('b', { text: '@' + m.name }), el('span', { text: m.text }));
+      chat.appendChild(r);
+    });
+    chat.scrollTop = chat.scrollHeight;
+  });
+  unsubLive = Live.onLive(live.liveId, d => {
+    if (!d) return;
+    viewers.textContent = fmtNum(d.viewers || 0) + ' مشاهد';
+    if (d.status === 'ended' && !opts.host) { badge.classList.add('ended'); badge.lastChild.textContent = 'انتهى'; }
+  });
+
+  const foot = [inp, btn('إرسال', { cls: 'primary', onclick: sendChat })];
+  if (opts.host) foot.push(btn('إنهاء البث', { cls: 'danger', onclick: async () => { await Live.stop(); Toast.ok('انتهى البث'); sheet.close(); } }));
+
+  const sheet = Sheet.open({
+    title: opts.host ? 'أنت تبث الآن' : live.title, body, full: true, id: 'live', foot,
+    onClose: () => {
+      if (unsubChat) unsubChat();
+      if (unsubLive) unsubLive();
+      if (session) session.stop();
+      if (!opts.host) Live.leave(live.liveId);
+      if (opts.host) Live.stop();
+    }
+  });
+}
+
+/* ------------------------------------------------------------
+   CREATOR STUDIO — my content (rules 26, 27)
+   ------------------------------------------------------------ */
+async function openCreatorStudio() {
+  if (!needOnline('إدارة المحتوى')) return;
+  const body = el('div');
+  const seg = el('div', { class: 'seg', style: { marginBottom: '12px' } });
+  const pane = el('div');
+  const uidStr = Backend.user.uid;
+
+  const panes = [
+    ['ألعاب', async () => {
+      const gs = await Games.list({ ownerId: uidStr, limit: 40 });
+      if (!gs.length) return el('div', { class: 'center-note', text: 'لا ألعاب منشورة' });
+      const w = el('div');
+      gs.forEach(g => {
+        const r = el('div', { class: 'proj-row' });
+        r.append(el('div', { class: 'proj-thumb' }, [el('span', { text: '◆' })]));
+        const i = el('div', { class: 'proj-info' });
+        i.append(el('b', { text: g.title }), el('span', { class: 'tiny', text: `${fmtNum(g.plays || 0)} تشغيل · ${g.visibility}` }));
+        r.append(i, iconBtn('dots', { onclick: () => {
+          const b2 = el('div');
+          b2.appendChild(btn('فتح صفحة اللعبة', { cls: 'block', style: { marginBottom: '8px' }, onclick: () => { s2.close(); openGamePage(g); } }));
+          b2.appendChild(btn(g.visibility === 'public' ? 'إخفاء (خاص)' : 'نشر (عام)', { cls: 'block', style: { marginBottom: '8px' }, onclick: async () => {
+            g.visibility = g.visibility === 'public' ? 'private' : 'public';
+            await Backend.setDoc('games', g.gameId, g);
+            Toast.ok('حُدّث'); s2.close(); seg.children[0].click();
+          }}));
+          b2.appendChild(btn('حذف اللعبة المنشورة', { cls: 'danger block', onclick: async () => {
+            if (!await Modal.confirm('حذف؟', 'يبقى المشروع محفوظًا.', 'حذف')) return;
+            await Games.remove(g.gameId); Toast.ok('حُذفت'); s2.close(); seg.children[0].click();
+          }}));
+          const s2 = Sheet.open({ title: g.title, body: b2, id: 'gmenu' });
+        }}));
+        w.appendChild(r);
+      });
+      return w;
+    }],
+    ['منشورات', async () => {
+      const r = await Posts.feed({ authorId: uidStr, limit: 40 });
+      if (!r.items.length) return el('div', { class: 'center-note', text: 'لا منشورات' });
+      const w = el('div', { class: 'feed' });
+      r.items.forEach(p => w.appendChild(postCard(p, { refresh: () => seg.children[1].click() })));
+      return w;
+    }],
+    ['بث', async () => {
+      const all = await Live.list(30);
+      const mine = all.filter(l => l.hostId === uidStr);
+      const w = el('div');
+      w.appendChild(btn('بدء بث مباشر', { cls: 'primary block', icon: 'flame', style: { marginBottom: '12px' }, onclick: () => openGoLive() }));
+      if (!mine.length) w.appendChild(el('div', { class: 'center-note', text: 'لا بث نشط' }));
+      mine.forEach(l => {
+        const r = el('div', { class: 'proj-row' });
+        r.append(el('div', { class: 'proj-thumb' }, [el('span', { text: '●' })]));
+        const i = el('div', { class: 'proj-info' });
+        i.append(el('b', { text: l.title }), el('span', { class: 'tiny', text: fmtNum(l.viewers || 0) + ' مشاهد' }));
+        r.append(i, btn('فتح', { cls: 'sm', onclick: () => openLivePage(l, {}) }));
+        w.appendChild(r);
+      });
+      return w;
+    }]
+  ];
+  panes.forEach(([label, load], i) => {
+    seg.appendChild(el('button', { class: i === 0 ? 'on' : '', text: label, onclick: async e => {
+      segPick(seg, e.target);
+      pane.textContent = ''; pane.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' })]));
+      const n = await load();
+      pane.textContent = ''; pane.appendChild(n);
+    }}));
+  });
+  body.append(seg, pane);
+  Sheet.open({ title: 'محتواي', body, full: true, id: 'creatorstudio',
+    foot: [btn('منشور جديد', { cls: 'primary', icon: 'plus', onclick: () => openComposer() })] });
+  seg.firstChild.click();
+}
+
+NX.Community = {
+  openComposer, openRecorder, openPost, openCreator, openGamePage,
+  openNotifications, openGoLive, openLivePage, openCreatorStudio, openReport,
+  postCard, FeedView, videoPlayer, share, updateNotifBadge, fmtDur
+};
+</script>
+<script type="module">
+/* ============================================================
+   PART 8/15 · GAME PLATFORM + BOOT
    Outside the Studio: Games, Discover, Search, Create,
    My Games, Assets, Profile (rules 40-42).
    ============================================================ */
@@ -10017,6 +11794,13 @@ const Player = {
         art.wasm.push({ path: ref.path, bytes });
       }
       await this.runtime.runBuild({ artifacts: art, manifest: build.manifest });
+      /* record a clip straight out of gameplay */
+      if (!$('#p-clip')) {
+        const clip = el('button', { class: 'icon-btn', id: 'p-clip',
+          style: { position: 'absolute', top: 'calc(var(--sat) + 10px)', insetInlineEnd: '62px', zIndex: '5' },
+          onclick: () => NX.Community.openRecorder({ gameId: game.gameId }) }, [icon('cam')]);
+        $('#player-vp').appendChild(clip);
+      }
       $('#p-load').classList.add('hide');
       Games.recordPlay(game.gameId);
     } catch (e) {
@@ -10071,8 +11855,8 @@ const Platform = {
   init() {
     const tabs = $('#p-tabs');
     const items = [
-      ['cube', T('games'), 'games'], ['compass', T('discover'), 'discover'], ['plus', T('create'), 'create'],
-      ['folder', T('mygames'), 'mygames'], ['image', T('assets'), 'assets'], ['user', T('profile'), 'profile']
+      ['cube', 'الرئيسية', 'home'], ['plus', 'إنشاء', 'create'], ['folder', 'مشاريعي', 'projects'],
+      ['compass', 'المجتمع', 'community'], ['user', T('profile'), 'profile']
     ];
     items.forEach(([ic, label, key]) => {
       const b = el('button', { onclick: () => this.go(key) });
@@ -10081,7 +11865,9 @@ const Platform = {
       tabs.appendChild(b);
     });
     $('#btn-search').onclick = () => NX.Commands.open();
+    $('#btn-notif').onclick = () => NX.Community.openNotifications();
     $('#btn-settings').onclick = () => openSettings();
+    NX.Community.updateNotifBadge();
     $('#btn-me').onclick = () => this.go('profile');
     $('#p-exit').onclick = () => Player.close();
     Backend.onAuth(u => {
@@ -10092,9 +11878,43 @@ const Platform = {
       if (this.tab === 'profile' || this.tab === 'mygames') this.render();
     });
     window.addEventListener('nx:platformRefresh', () => this.render());
+    this.installPullToRefresh();
+  },
+
+  installPullToRefresh() {
+    const body = $('#p-body');
+    const ind = el('div', { class: 'ptr' });
+    body.parentElement.style.position = 'relative';
+    body.parentElement.insertBefore(ind, body);
+    let startY = 0, pulling = false;
+    body.addEventListener('touchstart', e => {
+      if (body.scrollTop > 0 || e.touches.length !== 1) { pulling = false; return; }
+      pulling = true; startY = e.touches[0].clientY;
+    }, { passive: true });
+    body.addEventListener('touchmove', e => {
+      if (!pulling) return;
+      const dist = e.touches[0].clientY - startY;
+      if (dist <= 0) { ind.style.height = '0px'; return; }
+      const h = Math.min(64, dist * 0.5);
+      ind.style.height = h + 'px';
+      ind.textContent = h >= 52 ? 'أفلت للتحديث' : 'اسحب للتحديث';
+      ind.classList.toggle('armed', h >= 52);
+    }, { passive: true });
+    const end = async () => {
+      if (!pulling) return;
+      pulling = false;
+      const fire = parseFloat(ind.style.height || '0') >= 52;
+      if (!fire) { ind.style.height = '0px'; return; }
+      ind.textContent = ''; ind.appendChild(el('div', { class: 'spin' }));
+      ind.style.height = '46px';
+      try { await this.render(); } finally { setTimeout(() => { ind.style.height = '0px'; ind.textContent = ''; }, 260); }
+    };
+    body.addEventListener('touchend', end);
+    body.addEventListener('touchcancel', end);
   },
 
   go(tab) {
+    tab = ({ games: 'home', mygames: 'projects', discover: 'community' })[tab] || tab;
     this.tab = tab;
     $$('#p-tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
     NX.Screen.show('platform');
@@ -10102,6 +11922,7 @@ const Platform = {
   },
 
   async render() {
+    if (this._fab) { this._fab.remove(); this._fab = null; }
     const body = $('#p-body');
     if (this._lib && this.tab !== 'assets') { this._lib.destroy(); this._lib = null; }
     body.textContent = '';
@@ -10118,7 +11939,7 @@ const Platform = {
   },
 
   gameCard(g) {
-    const c = el('div', { class: 'gcard', onclick: () => this.openGame(g) });
+    const c = el('div', { class: 'gcard', onclick: () => NX.Community.openGamePage(g) });
     const cover = el('div', { class: 'cover' });
     if (g.coverURL || g.cover) {
       const img = el('img', { alt: g.title });
@@ -10139,8 +11960,119 @@ const Platform = {
     return c;
   },
 
-  /* ---------------- Games ---------------- */
-  async view_games(host) {
+  /* ---------------- Projects (rules 1, 5, 6, 7) ---------------- */
+  async view_projects(host) {
+    host.appendChild(el('h2', { text: 'مشاريعي', style: { fontSize: '20px', marginBottom: '12px' } }));
+    await this.projectsView(host, { full: true });
+  },
+
+  async projectsView(host, opts = {}) {
+    const state = { q: '', sort: LS.get('projSort', 'updated'), items: null, error: null, loading: true };
+    const wrap = el('div');
+    const head = el('div', { class: 'list-head' });
+    const count = el('span', { class: 'count', text: 'تحميل المشاريع…' });
+    const body = el('div');
+    let search = null, sortSel = null;
+
+    if (opts.full) {
+      const sb = el('div', { class: 'searchbar', style: { marginBottom: '10px' } });
+      sb.appendChild(icon('search'));
+      search = el('input', { placeholder: 'ابحث في مشاريعك…', type: 'search' });
+      search.addEventListener('input', debounce(() => { state.q = search.value; draw(); }, 200));
+      sb.appendChild(search);
+      wrap.appendChild(sb);
+      sortSel = el('select', { class: 'select', style: { minHeight: '36px', maxWidth: '190px' } }, [
+        el('option', { value: 'updated', text: 'آخر تعديل' }),
+        el('option', { value: 'name', text: 'الاسم' }),
+        el('option', { value: 'created', text: 'تاريخ الإنشاء' })
+      ]);
+      sortSel.value = state.sort;
+      sortSel.addEventListener('change', () => { state.sort = sortSel.value; LS.set('projSort', state.sort); draw(); });
+      head.append(count, sortSel);
+    } else {
+      head.append(count);
+      head.appendChild(el('button', { text: 'عرض الكل', style: { fontSize: '12.5px', color: 'var(--cyan)', fontWeight: '700' },
+        onclick: () => this.go('projects') }));
+    }
+    wrap.append(head, body);
+    host.appendChild(wrap);
+
+    const load = async () => {
+      state.loading = true; state.error = null; draw();
+      try { state.items = Backend.user ? await Projects.list(Backend.user.uid) : []; }
+      catch (e) { state.error = String(e && e.message || e); state.items = null; }
+      state.loading = false; draw();
+    };
+
+    const draw = () => {
+      body.textContent = '';
+      if (state.loading) {
+        count.textContent = 'تحميل المشاريع…';
+        body.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' }), el('span', { text: 'جارٍ التحميل…' })]));
+        return;
+      }
+      if (state.error) {
+        count.textContent = '';
+        const e = el('div', { class: 'err-row' });
+        e.appendChild(el('p', { text: 'تعذّر تحميل المشاريع: ' + state.error }));
+        e.appendChild(btn('إعادة المحاولة', { cls: 'primary', icon: 'undo', onclick: load }));
+        body.appendChild(e);
+        return;
+      }
+      let items = state.items || [];
+      if (state.q) { const t = state.q.trim().toLowerCase(); items = items.filter(p => (p.name || '').toLowerCase().includes(t)); }
+      if (state.sort === 'name') items = items.slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'ar'));
+      else if (state.sort === 'created') items = items.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      else items = items.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+      if (!state.items.length) {
+        count.textContent = '';
+        const z = el('div', { class: 'center-note' });
+        z.appendChild(icon('folder'));
+        z.appendChild(el('b', { text: 'ليس لديك مشاريع بعد.', style: { display: 'block', fontSize: '15px', color: 'var(--ink-soft)' } }));
+        z.appendChild(el('p', { class: 'tiny', style: { margin: '6px 0 14px' }, text: 'ابدأ من الصفر أو دع المساعد يبنيها لك.' }));
+        const r = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '280px', margin: '0 auto' } });
+        r.appendChild(btn('إنشاء أول لعبة', { cls: 'primary', icon: 'plus', onclick: () => this.newProject() }));
+        r.appendChild(btn('دع AI يبني لعبتك', { cls: '', icon: 'spark', onclick: () => this.aiFirstGame() }));
+        z.appendChild(r);
+        body.appendChild(z);
+        return;
+      }
+      count.textContent = `${items.length} ${items.length === 1 ? 'مشروع' : 'مشروعًا'}` + (state.q ? ` من ${state.items.length}` : '');
+      if (!items.length) { body.appendChild(el('div', { class: 'center-note', text: 'لا نتائج لبحثك' })); return; }
+      const list = opts.full ? el('div') : el('div', { class: 'grid wide' });
+      (opts.full ? items : items.slice(0, 4)).forEach(p => list.appendChild(opts.full ? this.projectRow(p, load) : this.projectCard(p)));
+      body.appendChild(list);
+    };
+
+    await load();
+    return { reload: load };
+  },
+
+  projectRow(p, after) {
+    const r = el('div', { class: 'proj-row' });
+    const thumb = el('div', { class: 'proj-thumb' });
+    if (p.publishMeta && p.publishMeta.coverURL) thumb.appendChild(el('img', { src: p.publishMeta.coverURL }));
+    else thumb.appendChild(el('span', { text: '⬚' }));
+    const info = el('div', { class: 'proj-info' });
+    info.appendChild(el('b', { text: p.name }));
+    const objs = ((p.scene && p.scene.objects) || []).length;
+    info.appendChild(el('span', { class: 'tiny', text: `${objs} كائن · ${(p.files || []).length} ملف · ${timeAgo(p.updatedAt)}` }));
+    if (p.publishedId) info.appendChild(el('span', { class: 'badge pub', text: 'منشور' }));
+    r.append(thumb, info);
+    r.appendChild(iconBtn('dots', { label: 'options',
+      onclick: ev => { ev.stopPropagation(); NX.ProjectManager.menu(p, after || (() => this.render())); } }));
+    r.onclick = ev => { if (ev.target.closest('.icon-btn')) return; this.openProject(p); };
+    return r;
+  },
+
+  aiFirstGame() {
+    if (!Backend.user) { Toast.err('لا يوجد مستخدم'); return; }
+    this.createProject('لعبتي الأولى').then(() => setTimeout(() => Studio.openAI({ firstGame: true }), 800));
+  },
+
+  /* ---------------- Home ---------------- */
+  async view_home(host) {
     const hero = el('div', { class: 'hero' });
     hero.append(
       el('h1', { text: 'محرك فارغ. أنت من يملؤه.' }),
@@ -10150,23 +12082,33 @@ const Platform = {
     ['EMPTY CORE ENGINE', 'USER CODE', 'USER ASSETS', 'PUBLIC LIBRARY', 'AI ASSISTANT', 'FIREBASE', 'GAME PLATFORM']
       .forEach(t => arch.appendChild(el('span', { text: t })));
     hero.appendChild(arch);
-    hero.appendChild(btn('ابدأ مشروعًا فارغًا', { cls: 'primary', icon: 'plus', onclick: () => this.newProject() }));
+    const heroRow = el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } });
+    heroRow.appendChild(btn('إنشاء لعبة', { cls: 'primary', icon: 'plus', onclick: () => this.newProject() }));
+    heroRow.appendChild(btn('دع AI يبنيها', { cls: '', icon: 'spark', onclick: () => this.aiFirstGame() }));
+    hero.appendChild(heroRow);
     host.appendChild(hero);
 
-    /* your own work first — the reported gap was that projects were unreachable */
-    if (Backend.user) {
-      const mine = await Projects.list(Backend.user.uid);
-      if (mine.length) {
-        const head = el('div', { class: 'sec-head' }, [el('h2', { text: 'مشاريعي' })]);
-        head.appendChild(el('button', { text: 'عرض الكل', onclick: () => NX.ProjectManager.open() }));
-        host.appendChild(head);
-        const strip = el('div', { class: 'grid wide' });
-        mine.slice(0, 4).forEach(p => strip.appendChild(this.projectCard(p)));
-        host.appendChild(strip);
+    const lastId = LS.get('lastProject', null);
+    if (lastId && Backend.user) {
+      const last = await Projects.get(lastId);
+      if (last && last.ownerId === Backend.user.uid) {
+        const cont = el('div', { class: 'card', style: { display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px' } });
+        const th = el('div', { class: 'proj-thumb' });
+        if (last.publishMeta && last.publishMeta.coverURL) th.appendChild(el('img', { src: last.publishMeta.coverURL }));
+        else th.appendChild(el('span', { text: '⬚' }));
+        const inf = el('div', { style: { flex: '1', minWidth: '0' } });
+        inf.appendChild(el('div', { class: 'tiny', text: 'أكمل من حيث توقّفت' }));
+        inf.appendChild(el('b', { text: last.name, style: { display: 'block', fontSize: '15px' } }));
+        inf.appendChild(el('span', { class: 'tiny', text: timeAgo(last.updatedAt) }));
+        cont.append(th, inf, btn('فتح', { cls: 'primary sm', icon: 'play', onclick: () => this.openProject(last) }));
+        host.appendChild(cont);
       }
     }
 
-    host.appendChild(el('div', { class: 'sec-head' }, [el('h2', { text: 'الأحدث' })]));
+    host.appendChild(el('div', { class: 'sec-head' }, [el('h2', { text: 'مشاريعي' })]));
+    await this.projectsView(host, { full: false });
+
+    host.appendChild(el('div', { class: 'sec-head' }, [el('h2', { text: 'ألعاب مميّزة' })]));
     const g1 = this.loading(host);
     const recent = await Games.list({ sort: 'new', limit: 12 });
     g1.remove();
@@ -10180,11 +12122,81 @@ const Platform = {
     }
   },
 
-  /* ---------------- Discover ---------------- */
-  async view_discover(host) {
+  /* ---------------- Community (rules 8-11, 25) ---------------- */
+  async view_community(host) {
+    const C = NX.Community;
+    const seg = el('div', { class: 'seg', style: { marginBottom: '12px' } });
+    const pane = el('div');
+    let feed = null;
+    const kill = () => { if (feed) { feed.destroy(); feed = null; } };
+
+    const panes = [
+      ['الجديد', async h => { kill(); feed = new C.FeedView(h, {}); }],
+      ['أتابعهم', async h => {
+        kill();
+        const ids = Backend.user ? await NX.Follows.following(Backend.user.uid) : [];
+        if (!ids.length) {
+          h.appendChild(el('div', { class: 'center-note' }, [icon('user'),
+            el('b', { text: 'لا تتابع أحدًا بعد', style: { display: 'block', color: 'var(--ink-soft)' } }),
+            el('p', { class: 'tiny', style: { marginTop: '6px' }, text: 'تابع صنّاعًا ليظهر جديدهم هنا.' })]));
+          return;
+        }
+        feed = new C.FeedView(h, { query: { followingOf: ids } });
+      }],
+      ['ألعاب', async h => { kill(); await this.discoverGames(h); }],
+      ['بث', async h => {
+        kill();
+        const lives = await NX.Live.list();
+        h.appendChild(btn('ابدأ بثًا', { cls: 'primary block', icon: 'flame', style: { marginBottom: '12px' }, onclick: () => C.openGoLive() }));
+        if (!lives.length) { h.appendChild(el('div', { class: 'center-note', text: 'لا بث مباشر الآن' })); return; }
+        lives.forEach(l => {
+          const r = el('div', { class: 'proj-row', onclick: () => C.openLivePage(l, {}) });
+          r.append(el('div', { class: 'proj-thumb' }, [el('span', { text: '●' })]));
+          const i = el('div', { class: 'proj-info' });
+          i.append(el('b', { text: l.title }), el('span', { class: 'tiny', text: '@' + l.hostName + ' · ' + fmtNum(l.viewers || 0) + ' مشاهد' }));
+          r.appendChild(i);
+          h.appendChild(r);
+        });
+      }]
+    ];
+    panes.forEach(([label, load], i) => {
+      seg.appendChild(el('button', { class: i === 0 ? 'on' : '', text: label, onclick: async e => {
+        segPick(seg, e.target);
+        pane.textContent = '';
+        await load(pane);
+      }}));
+    });
+    host.append(seg, pane);
+
+    /* stories strip */
+    if (Backend.isOnline()) {
+      const strip = el('div', { class: 'stories' });
+      const mine = el('div', { class: 'story', onclick: () => C.openComposer({ kind: 'story', title: 'قصة جديدة' }) });
+      mine.append(el('div', { class: 'story-av', text: '+' }), el('span', { text: 'قصتك' }));
+      strip.appendChild(mine);
+      host.insertBefore(strip, seg);
+      NX.Posts.stories().then(groups => {
+        groups.forEach(g => {
+          const s = el('div', { class: 'story', onclick: () => C.openPost(g.items[0]) });
+          s.append(el('div', { class: 'story-av', text: (g.authorName || '?')[0].toUpperCase() }), el('span', { text: g.authorName }));
+          strip.appendChild(s);
+        });
+      }).catch(() => {});
+    }
+
+    /* compose button that follows the tab */
+    const fab = el('button', { class: 'fab', onclick: () => C.openComposer() }, [icon('plus')]);
+    $('#p-body').parentElement.appendChild(fab);
+    this._fab = fab;
+
+    seg.firstChild.click();
+  },
+
+  /* the old discover body, kept as the Games tab of Community */
+  async discoverGames(host) {
     const sb = el('div', { class: 'searchbar', style: { marginBottom: '14px' } });
     sb.appendChild(icon('search'));
-    const inp = el('input', { placeholder: T('searchGames'), type: 'search' });
+    const inp = el('input', { placeholder: 'ابحث عن ألعاب أو صنّاع…', type: 'search' });
     inp.addEventListener('input', debounce(async () => {
       res.textContent = '';
       const q = inp.value.trim();
@@ -10229,17 +12241,18 @@ const Platform = {
       el('h1', { text: T('newProject') }),
       el('p', { text: 'يبدأ المشروع بمشهد يحتوي فقط على: Scene · Camera · Light · Spawn Point. لا شيء غير ذلك.' })
     );
-    card.appendChild(btn('إنشاء عالم فارغ', { cls: 'primary', icon: 'plus', onclick: () => this.newProject() }));
+    const crow = el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' } });
+    crow.appendChild(btn('إنشاء عالم فارغ', { cls: 'primary', icon: 'plus', onclick: () => this.newProject() }));
+    crow.appendChild(btn('دع AI يبني لعبتك', { cls: '', icon: 'spark', onclick: () => this.aiFirstGame() }));
+    crow.appendChild(btn('ابدأ من قالب', { cls: 'ghost', icon: 'grid', onclick: async () => {
+      if (!NX.Studio.project) await this.createProject('لعبة من قالب');
+      NX.Beginner.templates();
+    }}));
+    card.appendChild(crow);
     host.appendChild(card);
 
-    host.appendChild(el('div', { class: 'sec-head' }, [el('h2', { text: 'مشاريعك' })]));
-    const projects = Backend.user ? await Projects.list(Backend.user.uid) : [];
-    if (!projects.length) host.appendChild(this.emptyNote('لا مشاريع بعد', 'اضغط «إنشاء عالم فارغ» للبدء.'));
-    else {
-      const g = el('div', { class: 'grid wide' });
-      projects.forEach(p => g.appendChild(this.projectCard(p)));
-      host.appendChild(g);
-    }
+    host.appendChild(el('div', { class: 'sec-head' }, [el('h2', { text: 'مشاريعي' })]));
+    await this.projectsView(host, { full: false });
   },
 
   projectCard(p) {
@@ -10334,6 +12347,15 @@ const Platform = {
     st.appendChild(el('div', { class: 'kv' }, [el('span', { text: 'الوضع' }), el('span', { text: Backend.isOnline() ? 'Firebase · online' : 'LOCAL MODE (هذا المتصفح فقط)' })]));
     if (!Backend.isOnline()) st.appendChild(el('p', { class: 'tiny', style: { marginTop: '8px' }, text: 'اضبط Firebase من الإعدادات لتشارك أصولك وألعابك مع بقية المستخدمين. ' + (Backend.reason ? '(' + Backend.reason + ')' : '') }));
     host.appendChild(st);
+
+    if (u) {
+      const links = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' } });
+      links.appendChild(btn('صفحتي العامة', { cls: 'block', icon: 'user', onclick: () => NX.Community.openCreator(u.uid) }));
+      links.appendChild(btn('محتواي (ألعاب · منشورات · بث)', { cls: 'block', icon: 'folder', onclick: () => NX.Community.openCreatorStudio() }));
+      links.appendChild(btn('التنبيهات', { cls: 'block', icon: 'heart', onclick: () => NX.Community.openNotifications() }));
+      links.appendChild(btn('تسجيل مقطع', { cls: 'block', icon: 'cam', onclick: () => NX.Community.openRecorder({}) }));
+      host.appendChild(links);
+    }
 
     if (u) {
       host.appendChild(el('div', { class: 'sec-head' }, [el('h2', { text: 'أصولي' })]));
@@ -10536,6 +12558,8 @@ function openSecurityPanel() {
   body.appendChild(el('p', { class: 'tiny', style: { marginBottom: '8px' }, text: 'الصقها في Firebase Console — العدادات والملكية تُفرض على الخادم لا في المتصفح.' }));
   body.appendChild(mk('Firestore Rules', NX.SECURITY_RULES.firestore));
   body.appendChild(mk('Storage Rules', NX.SECURITY_RULES.storage));
+  body.appendChild(mk('Community — Firestore Rules', NX.SECURITY_RULES.community));
+  body.appendChild(mk('Community — Storage Rules', NX.SECURITY_RULES.communityStorage));
   Sheet.open({ title: 'الأمان', body, full: true, id: 'security' });
 }
 
@@ -10554,7 +12578,7 @@ NX.GamePlayer = Player;
     console.error('backend init failed', e);
   }
   Platform.init();
-  Platform.go('games');
+  Platform.go('home');
   NX.__booted = true;
 
   if (!Backend.isOnline()) {
@@ -10566,7 +12590,15 @@ NX.GamePlayer = Player;
     const h = location.hash.slice(1);
     if (h.startsWith('game/')) {
       const g = await Games.get(h.slice(5));
-      if (g) Platform.openGame(g);
+      if (g) NX.Community.openGamePage(g);
+    } else if (h.startsWith('post/')) {
+      const p = await NX.Posts.get(h.slice(5));
+      if (p) NX.Community.openPost(p);
+    } else if (h.startsWith('creator/')) {
+      NX.Community.openCreator(h.slice(8));
+    } else if (h.startsWith('live/')) {
+      const l = await NX.Live.get(h.slice(5));
+      if (l) NX.Community.openLivePage(l, {});
     } else if (h.startsWith('project/')) {
       const p = await Projects.get(h.slice(8));
       if (p) Studio.open(p);
