@@ -15,7 +15,7 @@
 
 <!-- ============================================================
      NEXUS ENGINE — EMPTY CORE ENGINE
-     PART 1/17 · Document head, import map, design system
+     PART 1/18 · Document head, import map, design system
      ------------------------------------------------------------
      THE ENGINE PROVIDES THE TOOLS. THE USER CREATES THE GAME.
      ============================================================ -->
@@ -585,6 +585,15 @@ button.rep-item:active{background:var(--glass-2)}
 .quick-actions .btn svg{width:18px;height:18px}
 html[data-mode="beginner"] .pro-only{display:none!important}
 
+/* status pill + exported build */
+.status-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:99px;
+  font-size:11px;font-weight:700;background:var(--glass);border:1px solid var(--line);color:var(--ink-soft);flex:0 0 auto}
+.status-pill i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.status-pill.pub{color:#8ceec2;background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.3)}
+.status-pill.priv{color:#fcd77a;background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.3)}
+.status-pill.warn{color:#ff9aa8;background:rgba(251,113,133,.12);border-color:rgba(251,113,133,.32)}
+html[data-exported] #p-tabs,html[data-exported] .p-top,html[data-exported] .fab{display:none!important}
+
 /* ============================================================
    AI CHAT
    ============================================================ */
@@ -781,7 +790,7 @@ html.kb-open .ide-toolbar,html.kb-open .ide-seg{display:none}
 </head>
 <body>
 <!-- ============================================================
-     PART 2/17 · Shell markup + UI kit
+     PART 2/18 · Shell markup + UI kit
      ============================================================ -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
 <defs>
@@ -909,7 +918,7 @@ html.kb-open .ide-toolbar,html.kb-open .ide-seg{display:none}
 
 <script type="module">
 /* ============================================================
-   PART 2/17 · UI KIT — DOM, i18n, sheets, modals, toasts, router
+   PART 2/18 · UI KIT — DOM, i18n, sheets, modals, toasts, router
    ============================================================ */
 const NX = (window.NX = window.NX || {});
 
@@ -1207,7 +1216,7 @@ Object.assign(NX, { $, $$, el, esc, icon, btn, iconBtn, fmtNum, fmtBytes, timeAg
 </script>
 <script type="module">
 /* ============================================================
-   PART 3/17 · BACKEND — Firebase Storage + Firestore + Auth
+   PART 3/18 · BACKEND — Firebase Storage + Firestore + Auth
    with an explicit, clearly-labelled offline fallback.
    ------------------------------------------------------------
    To go ONLINE: open Settings → Firebase and paste your config,
@@ -1924,7 +1933,7 @@ NX.FB_OWNER_CONFIGURED = FB_OWNER_CONFIGURED;
 </script>
 <script type="module">
 /* ============================================================
-   PART 4/17 · ENGINE CORE
+   PART 4/18 · ENGINE CORE
    An empty core: Scene, Camera, Light, Spawn Point and engine
    primitives. No bundled model/game library — everything else
    arrives as a user asset or user code.
@@ -2817,7 +2826,7 @@ NX.OrbitCam = OrbitCam;
 </script>
 <script type="module">
 /* ============================================================
-   PART 5/17 · ENGINE API + SCRIPT RUNTIME
+   PART 5/18 · ENGINE API + SCRIPT RUNTIME
    Gameplay logic belongs to the developer. The engine only
    hands over tools: Engine, Scene, Object, Player, Input,
    Physics, Audio, Camera, UI, Network, Events, Assets, Save,
@@ -3896,7 +3905,7 @@ NX.SHADOWED = SHADOWED;
 </script>
 <script type="module">
 /* ============================================================
-   PART 6/17 · ASSET PIPELINE + PUBLIC ASSET LIBRARY
+   PART 6/18 · ASSET PIPELINE + PUBLIC ASSET LIBRARY
    Users are the source of assets. Nothing here ships with the
    engine — the library is whatever people upload.
    ============================================================ */
@@ -4562,7 +4571,7 @@ NX.ACCEPT = ACCEPT;
 </script>
 <script type="module">
 /* ============================================================
-   PART 7/17 · MOBILE-FIRST STUDIO
+   PART 7/18 · MOBILE-FIRST STUDIO
    The viewport is the centre of gravity. Every panel is a
    temporary sheet that gets out of the way (rules 20-25).
    ============================================================ */
@@ -5299,6 +5308,7 @@ const Studio = {
 
   bindChrome() {
     $('#s-back').onclick = () => this.close();
+    $('#s-name').onclick = () => NX.ProjectHub.open(this.project);
     $('#s-save').onclick = () => this.save();
     $('#s-play').onclick = () => this.playing ? this.stopPlay() : this.play();
     $('#s-more').onclick = () => this.openMore();
@@ -5913,6 +5923,8 @@ const Studio = {
       item('gear', 'سلاسل الأدوات · Toolchains', () => NX.IDE.openToolchains()),
       item('shield', 'الأمان و قواعد Firebase', () => NX.openSecurityPanel()),
       item('gear', T('settings'), () => NX.openSettings()),
+      item('grid', 'لوحة المشروع', () => NX.ProjectHub.open(this.project)),
+      item('save', 'تصدير / استيراد', () => NX.Exporter.open(this.project)),
       item('folder', 'مشاريعي', () => NX.ProjectManager.open()),
       item('undo', 'تاريخ المشروع ونقاط الرجوع', () => NX.History.open(this.project, () => this.reloadScene())),
       item('search', 'الأوامر والبحث', () => NX.Commands.open()),
@@ -6096,7 +6108,7 @@ NX.AI = AI;
 </script>
 <script type="module">
 /* ============================================================
-   PART 9/17 · BUILD SYSTEM
+   PART 9/18 · BUILD SYSTEM
    Toolchain Manager · Language Adapters · Build Manager ·
    Compiler Cache · Engine Bridge (WASM ABI) · Runtime loaders
    ------------------------------------------------------------
@@ -7160,7 +7172,7 @@ NX.NEXUS_DTS = NEXUS_DTS;
 </script>
 <script type="module">
 /* ============================================================
-   PART 10/17 · MULTI-LANGUAGE IDE
+   PART 10/18 · MULTI-LANGUAGE IDE
    File explorer · tabs · BUILD / RUN / STOP · Problems ·
    Build log · Toolchain Manager (rules 17, 18, 21, 23, 25)
    ============================================================ */
@@ -7878,7 +7890,7 @@ Toolchain.autoRestore();
 </script>
 <script type="module">
 /* ============================================================
-   PART 11/17 · PROJECT MANAGEMENT · HISTORY · CONTEXT · HELP
+   PART 11/18 · PROJECT MANAGEMENT · HISTORY · CONTEXT · HELP
    Projects you can see, reopen, rename, duplicate and delete —
    plus checkpoints, rollback, a searchable command palette and
    an in-place help system.
@@ -8390,7 +8402,7 @@ NX.Commands = Commands;
 </script>
 <script type="module">
 /* ============================================================
-   PART 12/17 (A) · AI GAME BUILDER — systems, planner, executor
+   PART 12/18 (A) · AI GAME BUILDER — systems, planner, executor
    The assistant is a PLANNER + BUILDER + EDITOR + TESTER +
    DEBUGGER, working on the real project with checkpoints,
    permissions and a STOP button (rules 4-16, 33, 39, 42, 43).
@@ -9108,7 +9120,7 @@ NX.pickAsset = pickAsset;
 </script>
 <script type="module">
 /* ============================================================
-   PART 12/17 (B) · PLANNER · EXECUTOR · TEST/FIX LOOP · CHECKER
+   PART 12/18 (B) · PLANNER · EXECUTOR · TEST/FIX LOOP · CHECKER
    ============================================================ */
 const NX = window.NX;
 const { uid, LS } = NX;
@@ -9636,7 +9648,7 @@ NX.RECIPES = RECIPES;
 </script>
 <script type="module">
 /* ============================================================
-   PART 13/17 · BEGINNER MODE · WIZARD · AI STUDIO PANEL
+   PART 13/18 · BEGINNER MODE · WIZARD · AI STUDIO PANEL
    One project, two surfaces. Beginner Mode hides the vocabulary,
    not the power — every action it takes is visible and editable
    in Pro Mode (rules 1, 2, 3, 24, 25, 29, 30, 35, 36, 37).
@@ -10171,7 +10183,7 @@ NX.BEGINNER_ACTIONS = ACTIONS;
 </script>
 <script type="module">
 /* ============================================================
-   PART 14/17 · CREATOR COMMUNITY — data layer
+   PART 14/18 · CREATOR COMMUNITY — data layer
    Built on the SAME Firebase already configured: Firestore for
    metadata, Storage for media, Auth for identity. New collections
    only; nothing existing is replaced.
@@ -10916,7 +10928,7 @@ NX.Rate = Rate;
 </script>
 <script type="module">
 /* ============================================================
-   PART 15/17 · CREATOR COMMUNITY — interface
+   PART 15/18 · CREATOR COMMUNITY — interface
    Feed · composer · video player · recording · profiles ·
    game pages · notifications · live · creator studio
    ============================================================ */
@@ -11848,7 +11860,7 @@ NX.Community = {
 </script>
 <script type="module">
 /* ============================================================
-   PART 16/17 · AI PROVIDERS
+   PART 16/18 · AI PROVIDERS
    One adapter per API shape, real connection testing, real model
    listing, streaming, and per-provider settings. Keys live in
    this browser only — never in Firestore, never in the console.
@@ -12254,7 +12266,7 @@ NX.classifyAIError = classify;
 </script>
 <script type="module">
 /* ============================================================
-   PART 17/17 · AI ASSISTANT — chat, voice, context, debugging
+   PART 17/18 · AI ASSISTANT — chat, voice, context, debugging
    ============================================================ */
 const NX = window.NX;
 const { $, $$, el, btn, iconBtn, icon, esc, Sheet, Modal, Toast, T, LS, uid, fmtNum, timeAgo, debounce, field, segPick } = NX;
@@ -13117,7 +13129,470 @@ NX.Studio.openAISettings = openAISettings;
 </script>
 <script type="module">
 /* ============================================================
-   PART 8/17 · GAME PLATFORM + BOOT
+   PART 18/18 · PROJECT HUB · EXPORT / IMPORT · STATUS
+   Closes the two gaps found auditing the build against the
+   NEXUS description: exporting a project, and a project-level
+   place to go (Overview · Editor · Scene · Assets · AI · Build ·
+   Preview · Settings).
+   ============================================================ */
+const NX = window.NX;
+const { $, $$, el, btn, iconBtn, icon, Sheet, Modal, Toast, T, LS, uid, fmtBytes, fmtNum, timeAgo, field } = NX;
+const { Backend, Projects, Games } = NX;
+
+/* ------------------------------------------------------------
+   MINIMAL ZIP WRITER (stored entries — no dependency, no server)
+   ------------------------------------------------------------ */
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(buf) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function dosTime(d = new Date()) {
+  return {
+    time: ((d.getHours() & 31) << 11) | ((d.getMinutes() & 63) << 5) | ((d.getSeconds() / 2) & 31),
+    date: (((d.getFullYear() - 1980) & 127) << 9) | (((d.getMonth() + 1) & 15) << 5) | (d.getDate() & 31)
+  };
+}
+/* entries: [{ name, data: Uint8Array|string }] */
+function zipStore(entries) {
+  const enc = new TextEncoder();
+  const { time, date } = dosTime();
+  const parts = [], central = [];
+  let offset = 0;
+
+  entries.forEach(e => {
+    const name = enc.encode(e.name);
+    const data = typeof e.data === 'string' ? enc.encode(e.data) : e.data;
+    const crc = crc32(data);
+
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true);
+    lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true);   // UTF-8 names
+    lh.setUint16(8, 0, true);                                    // stored
+    lh.setUint16(10, time, true); lh.setUint16(12, date, true);
+    lh.setUint32(14, crc, true);
+    lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true);
+    lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+    parts.push(new Uint8Array(lh.buffer), name, data);
+
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true);
+    ch.setUint16(4, 20, true); ch.setUint16(6, 20, true);
+    ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true);
+    ch.setUint16(12, time, true); ch.setUint16(14, date, true);
+    ch.setUint32(16, crc, true);
+    ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true);
+    ch.setUint16(28, name.length, true);
+    ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), name);
+
+    offset += 30 + name.length + data.length;
+  });
+
+  const cdSize = central.reduce((n, p) => n + p.length, 0);
+  const eo = new DataView(new ArrayBuffer(22));
+  eo.setUint32(0, 0x06054b50, true);
+  eo.setUint16(8, entries.length, true); eo.setUint16(10, entries.length, true);
+  eo.setUint32(12, cdSize, true); eo.setUint32(16, offset, true);
+
+  const all = parts.concat(central, [new Uint8Array(eo.buffer)]);
+  const total = all.reduce((n, p) => n + p.length, 0);
+  const out = new Uint8Array(total);
+  let o = 0;
+  all.forEach(p => { out.set(p, o); o += p.length; });
+  return out;
+}
+
+function download(name, data, type) {
+  const blob = data instanceof Blob ? data : new Blob([data], { type: type || 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  return blob.size;
+}
+
+/* ------------------------------------------------------------
+   EXPORTER
+   ------------------------------------------------------------ */
+const Exporter = {
+  /* resolve real, public URLs for the assets a project references */
+  async assetManifest(project, onLog) {
+    const out = [];
+    for (const id of (project.assetRefs || [])) {
+      const a = await NX.Assets.get(id);
+      if (!a) { onLog && onLog('أصل مفقود: ' + id, 'warn'); continue; }
+      let url = null;
+      try { url = await NX.Assets.url(a); } catch {}
+      out.push({
+        assetId: a.assetId, name: a.name, kind: a.kind, fileType: a.fileType,
+        creator: a.creatorName, license: a.license, visibility: a.visibility,
+        url: url && /^https?:/.test(url) ? url : null,
+        storagePath: a.storagePath
+      });
+    }
+    return out;
+  },
+
+  /* a real, re-importable archive of everything the project is */
+  async archive(project, { onLog } = {}) {
+    const say = (m, t) => onLog && onLog(m, t);
+    say('بناء المشروع…', 'sys');
+    const build = await NX.BuildManager.build(project, { onLog: () => {}, typeCheck: false });
+    if (!build.ok) say('البناء فيه أخطاء — سيُصدَّر المصدر بلا نواتج مترجمة', 'warn');
+
+    say('تجميع الأصول…', 'sys');
+    const assets = await this.assetManifest(project, say);
+    const entries = [];
+    const add = (name, data) => entries.push({ name, data });
+
+    add('project.json', JSON.stringify({
+      projectId: project.projectId, name: project.name, description: project.description || '',
+      createdAt: project.createdAt, updatedAt: project.updatedAt,
+      settings: project.settings || {}, assetRefs: project.assetRefs || [],
+      publishedId: project.publishedId || null,
+      nexusFormat: 1, exportedAt: Date.now()
+    }, null, 2));
+    add('scene.json', JSON.stringify(project.scene || {}, null, 2));
+    add('assets.json', JSON.stringify(assets, null, 2));
+
+    (project.files || []).forEach(f => {
+      if (f.bytes) add('src/' + f.path, new Uint8Array(f.bytes));
+      else add('src/' + f.path, f.code || '');
+    });
+
+    if (build.ok) {
+      (build.artifacts.scripts || []).forEach(s => add('build/' + s.name.replace(/\.ts$/, '.js'), s.code));
+      (build.artifacts.components || []).forEach(s => add('build/components/' + s.name.replace(/\.ts$/, '.js'), s.code));
+      (build.artifacts.ui || []).forEach(u => add('build/' + u.path, u.code));
+      (build.artifacts.styles || []).forEach(s => add('build/' + s.path, s.code));
+      (build.artifacts.wasm || []).forEach(w => add('build/' + w.path, w.bytes));
+      add('build/manifest.json', JSON.stringify(build.manifest || {}, null, 2));
+    }
+
+    add('README.txt', `NEXUS project export — ${project.name}
+صُدّر في ${new Date().toLocaleString()}
+
+project.json   بيانات المشروع وإعداداته
+scene.json     المشهد: الكائنات والإضاءة والكاميرا ونقطة الظهور
+src/           ملفاتك كما كتبتها (js / ts / c / cpp / cs / html / css / wasm)
+build/         نواتج الترجمة (JavaScript و WebAssembly والواجهة)
+assets.json    الأصول المستخدمة: المعرّف والمنشئ والترخيص والرابط العام
+
+الأصول نفسها ليست داخل هذا الملف: المشروع يشير إليها بالمعرّف، ويحمّلها
+من مكتبة NEXUS عند التشغيل. الروابط في assets.json تعمل ما دام الأصل عامًا.
+
+لإعادة الاستيراد: مشاريعي ← استيراد مشروع ← اختر هذا الملف.
+`);
+
+    say('ضغط الأرشيف…', 'sys');
+    const zip = zipStore(entries);
+    const size = download(project.name.replace(/[^\w؀-ۿ-]+/g, '_') + '.nexus.zip', zip, 'application/zip');
+    say(`✓ صُدّر ${entries.length} ملفًا · ${fmtBytes(size)}`, 'ok');
+    return { entries: entries.length, size, build };
+  },
+
+  /* a single .html that boots straight into the game */
+  async standalone(project, { onLog } = {}) {
+    const say = (m, t) => onLog && onLog(m, t);
+    say('بناء المشروع…', 'sys');
+    const build = await NX.BuildManager.build(project, { onLog: () => {}, typeCheck: false });
+    if (!build.ok) { say('✗ لا يمكن التصدير: البناء فاشل', 'err'); throw new Error('BUILD_FAILED'); }
+
+    say('قراءة نواة المحرك…', 'sys');
+    let source;
+    try {
+      const r = await fetch(location.href, { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP_' + r.status);
+      source = await r.text();
+    } catch (e) {
+      say('✗ تعذّر قراءة ملف المحرك (' + (e.message || e) + ')', 'err');
+      throw e;
+    }
+    if (!/PART 1\/18/.test(source) && !/id="viewport"/.test(source)) {
+      say('✗ الملف المقروء لا يبدو ملف NEXUS', 'err');
+      throw new Error('NOT_NEXUS');
+    }
+
+    say('تجميع الأصول…', 'sys');
+    const assets = await this.assetManifest(project, say);
+    const missing = assets.filter(a => !a.url);
+    if (missing.length) say(`${missing.length} أصل بلا رابط عام — لن يظهر في النسخة المصدَّرة`, 'warn');
+
+    const payload = {
+      name: project.name,
+      scene: project.scene,
+      artifacts: {
+        scripts: build.artifacts.scripts || [],
+        components: build.artifacts.components || [],
+        ui: build.artifacts.ui || [],
+        styles: build.artifacts.styles || [],
+        wasm: (build.artifacts.wasm || []).map(w => ({ path: w.path, b64: btoa(String.fromCharCode(...w.bytes)) }))
+      },
+      assets,
+      exportedAt: Date.now()
+    };
+    const boot = `<script>window.NEXUS_BOOT_GAME = ${JSON.stringify(payload).replace(/<\/script/gi, '<\\/script')};<\/script>`;
+    const html = source.replace('</head>', boot + '\n</head>');
+    const size = download(project.name.replace(/[^\w؀-ۿ-]+/g, '_') + '.html', html, 'text/html');
+    say(`✓ صُدّرت نسخة قابلة للتشغيل · ${fmtBytes(size)}`, 'ok');
+    return { size, assets: assets.length, missing: missing.length };
+  },
+
+  /* restore a project from an archive we produced */
+  async importArchive(file) {
+    const buf = new Uint8Array(await file.arrayBuffer());
+    const dec = new TextDecoder();
+    const files = {};
+    /* walk local file headers — everything we write is stored, uncompressed */
+    let i = 0;
+    while (i + 30 <= buf.length) {
+      const sig = buf[i] | (buf[i + 1] << 8) | (buf[i + 2] << 16) | (buf[i + 3] << 24);
+      if (sig !== 0x04034b50) break;
+      const dv = new DataView(buf.buffer, buf.byteOffset + i, 30);
+      const method = dv.getUint16(8, true);
+      const size = dv.getUint32(18, true);
+      const nameLen = dv.getUint16(26, true);
+      const extraLen = dv.getUint16(28, true);
+      const name = dec.decode(buf.subarray(i + 30, i + 30 + nameLen));
+      const start = i + 30 + nameLen + extraLen;
+      if (start + size > buf.length) throw new Error('الأرشيف ناقص أو تالف');
+      if (method !== 0) throw new Error('ضغط غير مدعوم في: ' + name);
+      files[name] = buf.subarray(start, start + size);
+      i = start + size;
+    }
+    if (!files['project.json']) throw new Error('هذا ليس أرشيف NEXUS (لا يوجد project.json)');
+
+    const meta = JSON.parse(dec.decode(files['project.json']));
+    const scene = files['scene.json'] ? JSON.parse(dec.decode(files['scene.json'])) : NX.emptyScene();
+    const srcFiles = [];
+    Object.keys(files).filter(n => n.startsWith('src/')).forEach(n => {
+      const path = n.slice(4);
+      const isBinary = /\.wasm$/i.test(path);
+      srcFiles.push({
+        id: uid('f'), path,
+        code: isBinary ? '' : dec.decode(files[n]),
+        bytes: isBinary ? Array.from(files[n]) : undefined,
+        role: NX.fileRole(path), entityId: null, enabled: true
+      });
+    });
+
+    const p = {
+      projectId: uid('proj'),
+      ownerId: Backend.user ? Backend.user.uid : 'local',
+      ownerName: Backend.user ? Backend.user.name : 'local',
+      name: (meta.name || 'مشروع مستورد') + ' (مستورد)',
+      description: meta.description || '',
+      scene, files: srcFiles,
+      assetRefs: meta.assetRefs || [],
+      settings: meta.settings || { physics: true },
+      history: [],
+      createdAt: Date.now(), updatedAt: Date.now()
+    };
+    await Projects.save(p);
+    return { project: p, files: srcFiles.length, assets: (meta.assetRefs || []).length };
+  },
+
+  open(project) {
+    const body = el('div');
+    const log = el('div', { class: 'ide-panel', style: { height: 'auto', maxHeight: '180px', marginTop: '12px' } });
+    const say = (m, t) => {
+      log.appendChild(el('div', { class: 'l ' + (t === 'err' ? 'err' : t === 'warn' ? 'warn' : t === 'ok' ? 'ok' : 'sys'), text: m }));
+      log.scrollTop = log.scrollHeight;
+    };
+
+    body.appendChild(el('p', { class: 'tiny', style: { marginBottom: '12px' },
+      text: 'التصدير يجري كاملًا في متصفحك. لا شيء يُرفع.' }));
+
+    const card = (title, desc, label, ic, fn) => {
+      const c = el('div', { class: 'card', style: { marginBottom: '10px' } });
+      c.append(el('b', { text: title }), el('p', { class: 'tiny', style: { margin: '5px 0 10px' }, text: desc }));
+      const b = btn(label, { cls: 'primary block', icon: ic, onclick: async () => {
+        b.disabled = true;
+        try { await fn(); } catch (e) { say('✗ ' + (e.message || e), 'err'); }
+        b.disabled = false;
+      }});
+      c.appendChild(b);
+      return c;
+    };
+
+    body.appendChild(card('أرشيف المشروع (.zip)',
+      'كل شيء: المشهد، ملفاتك، نواتج الترجمة، وقائمة الأصول بمعرّفاتها وتراخيصها. قابل لإعادة الاستيراد.',
+      'تصدير أرشيف', 'save', () => this.archive(project, { onLog: say })));
+
+    body.appendChild(card('نسخة قابلة للتشغيل (.html)',
+      'ملف واحد يفتح اللعبة مباشرة بلا NEXUS. يحتاج إنترنت لتحميل الرسوميات والأصول.',
+      'تصدير نسخة قابلة للتشغيل', 'play', () => this.standalone(project, { onLog: say })));
+
+    const importCard = el('div', { class: 'card' });
+    importCard.append(el('b', { text: 'استيراد مشروع' }),
+      el('p', { class: 'tiny', style: { margin: '5px 0 10px' }, text: 'اختر ملف ‎.nexus.zip‎ صُدّر من NEXUS.' }));
+    const inp = el('input', { type: 'file', accept: '.zip,application/zip', style: { display: 'none' } });
+    inp.addEventListener('change', async () => {
+      if (!inp.files[0]) return;
+      say('قراءة الأرشيف…', 'sys');
+      try {
+        const r = await this.importArchive(inp.files[0]);
+        say(`✓ استُورد «${r.project.name}» · ${r.files} ملف · ${r.assets} أصل`, 'ok');
+        Toast.ok('استُورد المشروع');
+        setTimeout(() => { sheet.close(); NX.Platform.openProject(r.project); }, 900);
+      } catch (e) { say('✗ ' + (e.message || e), 'err'); }
+      inp.value = '';
+    });
+    importCard.append(btn('اختيار ملف', { cls: 'block', icon: 'upload', onclick: () => inp.click() }), inp);
+    body.append(importCard, log);
+
+    const sheet = Sheet.open({ title: 'تصدير واستيراد', body, full: true, id: 'export' });
+  }
+};
+
+/* ------------------------------------------------------------
+   PROJECT HUB (rule 32) — one place for everything about a project
+   ------------------------------------------------------------ */
+const ProjectHub = {
+  open(project) {
+    const p = project || NX.Studio.project;
+    if (!p) { Toast.err('افتح مشروعًا أولًا'); return; }
+    const eng = NX.Studio.engine;
+    const body = el('div');
+
+    /* --- Overview --- */
+    const objs = eng ? eng.entities.size : ((p.scene && p.scene.objects) || []).length;
+    const files = (p.files || []).length;
+    const langs = Array.from(new Set((p.files || []).map(f => (NX.langOf(f.path) || {}).name).filter(Boolean)));
+    const ov = el('div', { class: 'card', style: { marginBottom: '14px' } });
+    ov.appendChild(el('b', { text: p.name, style: { fontSize: '16px' } }));
+    ov.appendChild(el('p', { class: 'tiny', style: { marginBottom: '8px' }, text: p.description || 'بلا وصف' }));
+    [['الكائنات', objs], ['الملفات', files], ['اللغات', langs.join(' · ') || '—'],
+     ['الأصول المرتبطة', (p.assetRefs || []).length], ['نقاط الرجوع', (p.history || []).length],
+     ['آخر تعديل', timeAgo(p.updatedAt)], ['الحالة', p.publishedId ? 'منشور' : 'غير منشور']]
+      .forEach(([k, v]) => ov.appendChild(el('div', { class: 'kv' }, [el('span', { text: k }), el('span', { text: String(v) })])));
+    body.appendChild(ov);
+
+    /* --- destinations --- */
+    const grid = el('div', { class: 'beg-grid' });
+    const dest = (title, desc, ic, fn) => {
+      const c = el('button', { class: 'beg-card', onclick: () => { sheet.close(); setTimeout(fn, 120); } });
+      c.appendChild(el('span', { class: 'beg-ic' }, [icon(ic)]));
+      c.appendChild(el('b', { text: title }));
+      c.appendChild(el('span', { class: 'beg-desc', text: desc }));
+      grid.appendChild(c);
+    };
+    dest('المحرّر', 'المشهد ومساحة العمل', 'layers', () => {});
+    dest('الشجرة', 'كل كائنات المشهد', 'grid', () => NX.Studio.openHierarchy());
+    dest('الأصول', 'المكتبة وأصول المشروع', 'cube', () => NX.Studio.openAssets());
+    dest('الكود', 'الملفات ومتعدّد اللغات', 'code', () => NX.IDE.open(p));
+    dest('المساعد', 'محادثة وبناء', 'spark', () => NX.Studio.openAI());
+    dest('البناء', 'ترجمة وفحص الأخطاء', 'box', () => NX.Studio.buildProject());
+    dest('معاينة', 'تشغيل اللعبة', 'play', () => NX.Studio.play());
+    dest('التصدير', 'أرشيف أو نسخة قابلة للتشغيل', 'save', () => Exporter.open(p));
+    dest('الإعدادات', 'العالم والمشروع', 'gear', () => NX.Studio.openWorld());
+    dest('التاريخ', 'نقاط الرجوع', 'undo', () => NX.History.open(p, () => NX.Studio.reloadScene()));
+    body.appendChild(grid);
+
+    const foot = [btn(p.publishedId ? 'تحديث النشر' : 'نشر اللعبة', { cls: 'primary', icon: 'share',
+      onclick: () => { sheet.close(); NX.Studio.openPublish(); } })];
+    const sheet = Sheet.open({ title: 'المشروع', body, full: true, id: 'projecthub', foot });
+  }
+};
+
+/* ------------------------------------------------------------
+   CONNECTION STATUS (rule 33) — one honest pill
+   ------------------------------------------------------------ */
+const Status = {
+  state() {
+    if (!navigator.onLine) return { key: 'offline', label: 'بلا اتصال', cls: 'warn',
+      detail: 'الشبكة مقطوعة. المحرّر ومشاريعك المحلية تعمل، والمزامنة والمجتمع متوقفان حتى يعود الاتصال.' };
+    if (Backend.isOnline()) return { key: 'online', label: 'متصل', cls: 'pub',
+      detail: 'Firebase متصل: مشاريعك وأصولك والمجتمع متزامنة.' };
+    return { key: 'local', label: 'محلي', cls: 'priv',
+      detail: NX.FB_OWNER_CONFIGURED
+        ? 'لم يتم الاتصال بـFirebase' + (Backend.reason ? ': ' + Backend.reason : '') + '. كل شيء محفوظ في هذا المتصفح.'
+        : 'هذه النسخة بلا Firebase مضبوطة. كل شيء محفوظ في هذا المتصفح وحده.' };
+  },
+  install() {
+    const host = $('.p-top');
+    if (!host || $('#status-pill')) return;
+    const pill = el('button', { class: 'status-pill', id: 'status-pill' });
+    host.insertBefore(pill, host.querySelector('#btn-search'));
+    const paint = () => {
+      const s = this.state();
+      pill.textContent = '';
+      pill.className = 'status-pill ' + s.cls;
+      pill.appendChild(el('i'));
+      pill.appendChild(el('span', { text: s.label }));
+      pill.onclick = () => Modal.open({ title: 'حالة الاتصال', body: s.detail, actions: [{ label: T('close'), cls: 'primary' }] });
+    };
+    paint();
+    window.addEventListener('online', paint);
+    window.addEventListener('offline', paint);
+    Backend.onAuth(paint);
+    this.paint = paint;
+  }
+};
+
+/* ------------------------------------------------------------
+   Boot straight into an exported game
+   ------------------------------------------------------------ */
+async function bootExportedGame(payload) {
+  document.documentElement.dataset.exported = '1';
+  NX.Screen.show('player');
+  $('#p-load').classList.remove('hide');
+  $('#p-load-txt').textContent = 'تحميل ' + (payload.name || 'اللعبة') + '…';
+  const exit = $('#p-exit'); if (exit) exit.classList.add('hide');
+  try {
+    const engine = new NX.EngineCore($('#player-canvas'), { mode: 'runtime' });
+    engine.start();
+    await engine.load(payload.scene || { objects: [] });
+    const cam = Array.from(engine.entities.values()).find(e => e.type === 'camera' && e.props.isMain)
+      || Array.from(engine.entities.values()).find(e => e.type === 'camera');
+    if (cam && cam.object3D) { engine.activeCamera = cam.object3D; engine._resize(); }
+
+    const art = payload.artifacts || {};
+    art.wasm = (art.wasm || []).map(w => ({
+      path: w.path,
+      bytes: Uint8Array.from(atob(w.b64), c => c.charCodeAt(0))
+    }));
+    const rt = new NX.Runtime(engine, {
+      project: { projectId: 'exported', assetRefs: (payload.assets || []).map(a => a.assetId) },
+      uiHost: $('#player-ui'),
+      onLog: (m, t) => { if (t === 'err') console.error('[game]', m); }
+    });
+    await rt.runBuild({ artifacts: art });
+    $('#p-load').classList.add('hide');
+  } catch (e) {
+    $('#p-load-txt').textContent = 'تعذّر تشغيل اللعبة: ' + (e.message || e);
+    console.error(e);
+  }
+}
+
+NX.zipStore = zipStore;
+NX.crc32 = crc32;
+NX.download = download;
+NX.Exporter = Exporter;
+NX.ProjectHub = ProjectHub;
+NX.Status = Status;
+NX.bootExportedGame = bootExportedGame;
+
+NX.Commands.register([
+  { label: 'لوحة المشروع', icon: 'grid', keywords: 'hub overview project', when: () => !!NX.Studio.project, run: () => ProjectHub.open() },
+  { label: 'تصدير المشروع', icon: 'save', keywords: 'export zip html تصدير', when: () => !!NX.Studio.project, run: () => Exporter.open(NX.Studio.project) },
+  { label: 'استيراد مشروع', icon: 'upload', keywords: 'import استيراد', run: () => Exporter.open(NX.Studio.project || { name: '—', files: [], scene: NX.emptyScene() }) }
+]);
+</script>
+<script type="module">
+/* ============================================================
+   PART 8/18 · GAME PLATFORM + BOOT
    Outside the Studio: Games, Discover, Search, Create,
    My Games, Assets, Profile (rules 40-42).
    ============================================================ */
@@ -13368,7 +13843,8 @@ const Platform = {
       ]);
       sortSel.value = state.sort;
       sortSel.addEventListener('change', () => { state.sort = sortSel.value; LS.set('projSort', state.sort); draw(); });
-      head.append(count, sortSel);
+      head.append(count, sortSel,
+        iconBtn('upload', { label: 'import', onclick: () => NX.Exporter.open(null) }));
     } else {
       head.append(count);
       head.appendChild(el('button', { text: 'عرض الكل', style: { fontSize: '12.5px', color: 'var(--cyan)', fontWeight: '700' },
@@ -13414,6 +13890,7 @@ const Platform = {
         const r = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '280px', margin: '0 auto' } });
         r.appendChild(btn('إنشاء أول لعبة', { cls: 'primary', icon: 'plus', onclick: () => this.newProject() }));
         r.appendChild(btn('دع AI يبني لعبتك', { cls: '', icon: 'spark', onclick: () => this.aiFirstGame() }));
+        r.appendChild(btn('استيراد مشروع', { cls: 'ghost', icon: 'upload', onclick: () => NX.Exporter.open(null) }));
         z.appendChild(r);
         body.appendChild(z);
         return;
@@ -13967,7 +14444,15 @@ NX.GamePlayer = Player;
   } catch (e) {
     console.error('backend init failed', e);
   }
+  /* an exported single-file build boots straight into its game */
+  if (window.NEXUS_BOOT_GAME) {
+    NX.__booted = true;
+    await NX.bootExportedGame(window.NEXUS_BOOT_GAME);
+    return;
+  }
+
   Platform.init();
+  NX.Status.install();
   Platform.go('home');
   NX.__booted = true;
 
