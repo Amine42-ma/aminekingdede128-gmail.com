@@ -15,7 +15,7 @@
 
 <!-- ============================================================
      NEXUS ENGINE — EMPTY CORE ENGINE
-     PART 1/15 · Document head, import map, design system
+     PART 1/17 · Document head, import map, design system
      ------------------------------------------------------------
      THE ENGINE PROVIDES THE TOOLS. THE USER CREATES THE GAME.
      ============================================================ -->
@@ -539,6 +539,22 @@ html[lang=en] .ed-bar,html[lang=en] .ed-find{direction:ltr}
 .help-row p{font-size:13.5px;line-height:1.7}
 
 .ai-wrap{display:flex;flex-direction:column;height:100%;min-height:0}
+/* a pane nested inside the panel must fill the remaining space, not 100% of
+   the parent — otherwise it overflows and pushes the composer off-screen */
+.ai-wrap .ai-wrap{height:auto;flex:1 1 auto;min-height:0}
+.ai-wrap .ai-input,.ai-wrap .quick,.ai-wrap .chat-bar,.ai-wrap .chat-foot,.ai-wrap .ai-status{flex:0 0 auto}
+.quick{flex:0 0 auto;min-height:36px}
+.ai-log,.chat-log{flex:1 1 auto;min-height:60px}
+/* short viewports (landscape phones): keep the composer reachable by
+   dropping the optional rows rather than pushing the input off-screen */
+@media (max-height:520px){
+  .ai-wrap .quick,.ai-wrap .chat-foot{display:none}
+  .ai-log,.chat-log{min-height:40px}
+  .chat-bar .badge{font-size:10px}
+  .sheet-body{padding-top:8px}
+  .sheet-grip{height:14px}
+  .sheet-head{padding-bottom:7px}
+}
 .ai-status{
   flex:0 0 auto;display:flex;align-items:center;gap:9px;padding:9px 11px;margin-bottom:9px;
   background:rgba(124,92,255,.14);border:1px solid rgba(124,92,255,.35);border-radius:var(--r-md);font-size:12.5px;font-weight:600;
@@ -568,6 +584,40 @@ button.rep-item:active{background:var(--glass-2)}
 .quick-actions .btn{min-height:52px;flex-direction:column;gap:3px;font-size:11.5px;padding:6px}
 .quick-actions .btn svg{width:18px;height:18px}
 html[data-mode="beginner"] .pro-only{display:none!important}
+
+/* ============================================================
+   AI CHAT
+   ============================================================ */
+.chat-bar{display:flex;align-items:center;gap:6px;flex:0 0 auto;margin-bottom:8px}
+.chat-bar .icon-btn{width:36px;height:36px}
+.chat-bar .badge{flex:1;min-width:0;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;padding:6px 8px}
+.chat-log{flex:1 1 auto;min-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:2px 0 6px}
+.chat-msg{max-width:92%;padding:10px 12px;border-radius:var(--r-lg);font-size:13.5px;line-height:1.7;position:relative}
+.chat-msg.user{align-self:flex-end;background:rgba(124,92,255,.2);border:1px solid rgba(124,92,255,.34)}
+.chat-msg.assistant{align-self:flex-start;background:var(--panel-2);border:1px solid var(--line)}
+.chat-msg.err{border-color:rgba(251,113,133,.5);background:rgba(251,113,133,.1)}
+.chat-txt{white-space:pre-wrap;word-break:break-word}
+.chat-txt.typing::after{content:"▍";animation:blink 1s steps(2) infinite;color:var(--brand)}
+@keyframes blink{50%{opacity:0}}
+.chat-acts{display:flex;gap:2px;margin-top:7px;opacity:.6}
+.chat-acts button{width:28px;height:28px;display:grid;place-items:center;border-radius:6px}
+.chat-acts svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.9}
+.chat-acts button:active{background:var(--glass-2)}
+.chat-meta{font-size:10px;color:var(--ink-dim);margin-top:5px;font-family:var(--mono);direction:ltr}
+.chat-foot{flex:0 0 auto;display:flex;gap:8px;margin-top:8px}
+.chat-foot .btn{flex:1}
+.icon-btn.rec{background:rgba(251,113,133,.25);border-color:rgba(251,113,133,.55);color:#ffc2cb;animation:pulse 1.2s infinite}
+.icon-btn.danger{background:rgba(251,113,133,.2);border-color:rgba(251,113,133,.5);color:#ffc2cb}
+.key-eye{position:absolute;inset-inline-end:10px;top:50%;transform:translateY(-50%);font-size:11.5px;font-weight:700;color:var(--cyan);padding:6px}
+.test-ok{background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35);border-radius:var(--r-md);padding:11px}
+.test-ok b{color:#8ceec2;display:block;margin-bottom:4px}
+.test-bad{background:rgba(251,113,133,.1);border:1px solid rgba(251,113,133,.35);border-radius:var(--r-md);padding:11px}
+.test-bad b{color:#ff9aa8;display:block;margin-bottom:4px}
+.ai-mode{flex:0 0 auto;margin-bottom:8px}
+/* keep the composer above the on-screen keyboard (rule 19) */
+html.kb-open .sheet.full{bottom:var(--kb,0px)}
+html.kb-open .sheet:not(.full){transform:translateY(calc(-1 * var(--kb,0px)))}
+html.kb-open .chat-foot,html.kb-open .quick{display:none}
 
 /* ============================================================
    CREATOR COMMUNITY
@@ -731,7 +781,7 @@ html.kb-open .ide-toolbar,html.kb-open .ide-seg{display:none}
 </head>
 <body>
 <!-- ============================================================
-     PART 2/15 · Shell markup + UI kit
+     PART 2/17 · Shell markup + UI kit
      ============================================================ -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
 <defs>
@@ -859,7 +909,7 @@ html.kb-open .ide-toolbar,html.kb-open .ide-seg{display:none}
 
 <script type="module">
 /* ============================================================
-   PART 2/15 · UI KIT — DOM, i18n, sheets, modals, toasts, router
+   PART 2/17 · UI KIT — DOM, i18n, sheets, modals, toasts, router
    ============================================================ */
 const NX = (window.NX = window.NX || {});
 
@@ -1157,7 +1207,7 @@ Object.assign(NX, { $, $$, el, esc, icon, btn, iconBtn, fmtNum, fmtBytes, timeAg
 </script>
 <script type="module">
 /* ============================================================
-   PART 3/15 · BACKEND — Firebase Storage + Firestore + Auth
+   PART 3/17 · BACKEND — Firebase Storage + Firestore + Auth
    with an explicit, clearly-labelled offline fallback.
    ------------------------------------------------------------
    To go ONLINE: open Settings → Firebase and paste your config,
@@ -1166,7 +1216,24 @@ Object.assign(NX, { $, $$, el, esc, icon, btn, iconBtn, fmtNum, fmtBytes, timeAg
 const NX = window.NX;
 const { LS, Toast, uid } = NX;
 
-/* ---- EDIT HERE to ship the platform with your own Firebase ---- */
+/* ============================================================
+   OWNER CONFIGURATION — fill this in ONCE and every visitor is
+   online automatically; nobody is ever asked to configure Firebase.
+   A Firebase *web* config identifies the project, it does not grant
+   access: Authentication plus the Firestore/Storage rules shipped in
+   the Security panel are what protect the data. Never place a server
+   secret (service account, admin key, AI provider key) here.
+   ============================================================ */
+const NEXUS_FIREBASE = {
+  apiKey: '',
+  authDomain: '',
+  projectId: '',
+  storageBucket: '',
+  messagingSenderId: '',
+  appId: ''
+};
+
+/* ---- legacy hook, kept working ---- */
 const FIREBASE_CONFIG_INLINE = null;
 /*  example:
 const FIREBASE_CONFIG_INLINE = {
@@ -1175,7 +1242,12 @@ const FIREBASE_CONFIG_INLINE = {
 };
 */
 
-const FB_CONFIG = FIREBASE_CONFIG_INLINE || LS.get('firebaseConfig', null);
+const validConfig = c => !!(c && c.apiKey && c.projectId);
+/* owner build → user override → local mode */
+const FB_CONFIG = validConfig(NEXUS_FIREBASE) ? NEXUS_FIREBASE
+                : (validConfig(FIREBASE_CONFIG_INLINE) ? FIREBASE_CONFIG_INLINE
+                : LS.get('firebaseConfig', null));
+const FB_OWNER_CONFIGURED = validConfig(NEXUS_FIREBASE) || validConfig(FIREBASE_CONFIG_INLINE);
 
 /* ============================================================
    SEARCH TOKENISATION — shared by writes and queries
@@ -1848,10 +1920,11 @@ NX.scoreAsset = scoreAsset;
 NX.SECURITY_RULES = SECURITY_RULES;
 NX.IDB = IDB;
 NX.FB_CONFIG = FB_CONFIG;
+NX.FB_OWNER_CONFIGURED = FB_OWNER_CONFIGURED;
 </script>
 <script type="module">
 /* ============================================================
-   PART 4/15 · ENGINE CORE
+   PART 4/17 · ENGINE CORE
    An empty core: Scene, Camera, Light, Spawn Point and engine
    primitives. No bundled model/game library — everything else
    arrives as a user asset or user code.
@@ -2744,7 +2817,7 @@ NX.OrbitCam = OrbitCam;
 </script>
 <script type="module">
 /* ============================================================
-   PART 5/15 · ENGINE API + SCRIPT RUNTIME
+   PART 5/17 · ENGINE API + SCRIPT RUNTIME
    Gameplay logic belongs to the developer. The engine only
    hands over tools: Engine, Scene, Object, Player, Input,
    Physics, Audio, Camera, UI, Network, Events, Assets, Save,
@@ -3823,7 +3896,7 @@ NX.SHADOWED = SHADOWED;
 </script>
 <script type="module">
 /* ============================================================
-   PART 6/15 · ASSET PIPELINE + PUBLIC ASSET LIBRARY
+   PART 6/17 · ASSET PIPELINE + PUBLIC ASSET LIBRARY
    Users are the source of assets. Nothing here ships with the
    engine — the library is whatever people upload.
    ============================================================ */
@@ -4489,7 +4562,7 @@ NX.ACCEPT = ACCEPT;
 </script>
 <script type="module">
 /* ============================================================
-   PART 7/15 · MOBILE-FIRST STUDIO
+   PART 7/17 · MOBILE-FIRST STUDIO
    The viewport is the centre of gravity. Every panel is a
    temporary sheet that gets out of the way (rules 20-25).
    ============================================================ */
@@ -6023,7 +6096,7 @@ NX.AI = AI;
 </script>
 <script type="module">
 /* ============================================================
-   PART 9/15 · BUILD SYSTEM
+   PART 9/17 · BUILD SYSTEM
    Toolchain Manager · Language Adapters · Build Manager ·
    Compiler Cache · Engine Bridge (WASM ABI) · Runtime loaders
    ------------------------------------------------------------
@@ -7087,7 +7160,7 @@ NX.NEXUS_DTS = NEXUS_DTS;
 </script>
 <script type="module">
 /* ============================================================
-   PART 10/15 · MULTI-LANGUAGE IDE
+   PART 10/17 · MULTI-LANGUAGE IDE
    File explorer · tabs · BUILD / RUN / STOP · Problems ·
    Build log · Toolchain Manager (rules 17, 18, 21, 23, 25)
    ============================================================ */
@@ -7619,6 +7692,14 @@ const IDE = {
         t.appendChild(el('span', { class: 'ploc', text: `${d.file}:${d.line}:${d.column}${d.lang ? ' · ' + d.lang : ''}` }));
         row.appendChild(t);
         row.onclick = () => this.jumpTo(d.file, d.line);
+        if (d.severity === 'error') {
+          const fix = el('button', { class: 'btn sm ghost', style: { flex: '0 0 auto' }, onclick: ev => {
+            ev.stopPropagation();
+            NX.AIDebug.fix({ kind: 'build', message: `${d.file}:${d.line} — ${d.message}`, stack: '' });
+          }});
+          fix.append(icon('spark'), el('span', { text: 'أصلح' }));
+          row.appendChild(fix);
+        }
         p.appendChild(row);
       });
       return;
@@ -7797,7 +7878,7 @@ Toolchain.autoRestore();
 </script>
 <script type="module">
 /* ============================================================
-   PART 11/15 · PROJECT MANAGEMENT · HISTORY · CONTEXT · HELP
+   PART 11/17 · PROJECT MANAGEMENT · HISTORY · CONTEXT · HELP
    Projects you can see, reopen, rename, duplicate and delete —
    plus checkpoints, rollback, a searchable command palette and
    an in-place help system.
@@ -8309,7 +8390,7 @@ NX.Commands = Commands;
 </script>
 <script type="module">
 /* ============================================================
-   PART 12/15 (A) · AI GAME BUILDER — systems, planner, executor
+   PART 12/17 (A) · AI GAME BUILDER — systems, planner, executor
    The assistant is a PLANNER + BUILDER + EDITOR + TESTER +
    DEBUGGER, working on the real project with checkpoints,
    permissions and a STOP button (rules 4-16, 33, 39, 42, 43).
@@ -9027,7 +9108,7 @@ NX.pickAsset = pickAsset;
 </script>
 <script type="module">
 /* ============================================================
-   PART 12/15 (B) · PLANNER · EXECUTOR · TEST/FIX LOOP · CHECKER
+   PART 12/17 (B) · PLANNER · EXECUTOR · TEST/FIX LOOP · CHECKER
    ============================================================ */
 const NX = window.NX;
 const { uid, LS } = NX;
@@ -9555,7 +9636,7 @@ NX.RECIPES = RECIPES;
 </script>
 <script type="module">
 /* ============================================================
-   PART 13/15 · BEGINNER MODE · WIZARD · AI STUDIO PANEL
+   PART 13/17 · BEGINNER MODE · WIZARD · AI STUDIO PANEL
    One project, two surfaces. Beginner Mode hides the vocabulary,
    not the power — every action it takes is visible and editable
    in Pro Mode (rules 1, 2, 3, 24, 25, 29, 30, 35, 36, 37).
@@ -9771,6 +9852,9 @@ const AIPanel = {
     if (this.sheet && !this.sheet._closed) { if (opts.autoPrompt) this.send(opts.autoPrompt); return; }
 
     const body = el('div', { class: 'ai-wrap' });
+    this.modeSeg = el('div', { class: 'seg ai-mode' });
+    this.buildPane = el('div', { class: 'ai-wrap' });
+    this.chatPane = el('div', { class: 'ai-wrap hide' });
     this.log = el('div', { class: 'ai-log scroll' });
     this.status = el('div', { class: 'ai-status hide' });
 
@@ -9786,12 +9870,22 @@ const AIPanel = {
     const sendBtn = iconBtn('spark', { cls: 'on', label: 'send', onclick: () => this.send() });
     const row = el('div', { class: 'ai-input' }, [this.input, sendBtn]);
 
-    body.append(this.status, this.log, quick, row);
+    this.buildPane.append(this.status, this.log, quick, row);
+
+    ['chat', 'build'].forEach(m => {
+      this.modeSeg.appendChild(el('button', {
+        class: m === 'chat' ? '' : 'on', dataset: { mode: m },
+        text: m === 'chat' ? 'محادثة' : 'بناء',
+        onclick: () => this.setMode(m)
+      }));
+    });
+    body.append(this.modeSeg, this.buildPane, this.chatPane);
 
     this.sheet = Sheet.open({
       title: 'المساعد', body, full: true, id: 'ai',
       headExtra: [
         iconBtn('shield', { label: 'context', onclick: () => ProjectContext.openPanel(S.project, S.engine) }),
+        iconBtn('bulb', { label: 'errors', onclick: () => NX.AIDebug.open() }),
         iconBtn('gear', { label: 'ai settings', onclick: () => this.settings() })
       ],
       onClose: () => { if (this.unsub) this.unsub(); this.sheet = null; }
@@ -9800,6 +9894,8 @@ const AIPanel = {
     sb.style.display = 'flex'; sb.style.flexDirection = 'column';
 
     this.unsub = Builder.on(ev => this.onEvent(ev));
+    /* a free-form question needs a model; building does not */
+    this.setMode(opts.autoPrompt || opts.firstGame || !NX.AIConfig.isReady() ? 'build' : 'chat');
     const cfg = NX.AI.cfg();
     this.say('sys', cfg.provider === 'none'
       ? 'أعمل الآن بالمخطّط المدمج (بلا اتصال): يفهم الطلبات الشائعة ويبني أنظمة حقيقية. لطلبات حرّة تمامًا صِلْ نموذجًا من ⚙.'
@@ -9808,6 +9904,16 @@ const AIPanel = {
       ? 'قل لي ما نوع اللعبة التي تريدها وسأخطّط لها وأبنيها وأختبرها. تستطيع إيقافي في أي لحظة، ولكل تغيير نقطة رجوع.'
       : 'اطلب ما تريد. سأقرأ مشروعك أولًا، ثم أضع خطة، ثم أنفّذ وأبني وأختبر وأصلح.');
     if (opts.autoPrompt) setTimeout(() => this.send(opts.autoPrompt), 260);
+  },
+
+  setMode(m) {
+    this.mode = m;
+    if (!this.modeSeg) return;
+    Array.from(this.modeSeg.children).forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+    this.buildPane.classList.toggle('hide', m !== 'build');
+    this.chatPane.classList.toggle('hide', m !== 'chat');
+    if (m === 'chat' && !this._chatBuilt) { this._chatBuilt = true; NX.Chat.build(this.chatPane); }
+    else if (m === 'chat') { NX.Chat.refreshBadge(); NX.Chat.toBottom(); }
   },
 
   say(kind, text) {
@@ -10041,9 +10147,11 @@ const AIPanel = {
       text: '«ذكي» ينفّذ التغييرات العادية ويسأل عن المؤثّرة فقط. في كل الأحوال يوجد زر STOP ونقطة رجوع.' }));
     body.appendChild(btn('ما الذي يراه المساعد؟', { cls: 'block', icon: 'shield', onclick: () => ProjectContext.openPanel(NX.Studio.project, NX.Studio.engine) }));
     body.appendChild(el('hr', { class: 'sep' }));
-    body.appendChild(btn('وصل نموذج ذكاء اصطناعي', { cls: 'block primary', icon: 'spark', onclick: () => NX.Studio.openAISettings() }));
+    body.appendChild(btn('مزوّدو الذكاء الاصطناعي', { cls: 'block primary', icon: 'spark', onclick: () => NX.openAISettings() }));
     body.appendChild(el('p', { class: 'tiny', style: { marginTop: '8px' },
-      text: 'بدون نموذج متصل يعمل المخطّط المدمج: يفهم الطلبات الشائعة ويبني أنظمة حقيقية، لكنه لا يفهم أي وصف حر.' }));
+      text: 'بدون مزوّد يعمل المخطّط المدمج: يفهم الطلبات الشائعة ويبني أنظمة حقيقية، لكنه لا يفهم أي وصف حر ولا يحاور.' }));
+    body.appendChild(el('hr', { class: 'sep' }));
+    body.appendChild(btn('سجلّ الأخطاء والتشخيص', { cls: 'block', icon: 'shield', onclick: () => NX.AIDebug.open() }));
     Sheet.open({ title: 'إعدادات المساعد', body, id: 'aiset' });
   }
 };
@@ -10063,7 +10171,7 @@ NX.BEGINNER_ACTIONS = ACTIONS;
 </script>
 <script type="module">
 /* ============================================================
-   PART 14/15 · CREATOR COMMUNITY — data layer
+   PART 14/17 · CREATOR COMMUNITY — data layer
    Built on the SAME Firebase already configured: Firestore for
    metadata, Storage for media, Auth for identity. New collections
    only; nothing existing is replaced.
@@ -10808,7 +10916,7 @@ NX.Rate = Rate;
 </script>
 <script type="module">
 /* ============================================================
-   PART 15/15 · CREATOR COMMUNITY — interface
+   PART 15/17 · CREATOR COMMUNITY — interface
    Feed · composer · video player · recording · profiles ·
    game pages · notifications · live · creator studio
    ============================================================ */
@@ -10923,7 +11031,10 @@ function openComposer(opts = {}) {
   pickRow.appendChild(btn('تسجيل', { cls: 'sm', icon: 'cam', onclick: () => { sheet.close(); openRecorder({ gameId }); } }));
   body.append(pickRow, fileInput);
 
-  const titleField = field('العنوان (للفيديو)', el('input', { class: 'input', placeholder: 'عنوان المقطع' }));
+  const titleInput = el('input', { class: 'input', placeholder: 'عنوان المقطع' });
+  const titleField = field('العنوان (للفيديو)', titleInput);
+  if (NX.AIConfig && NX.AIConfig.isReady())
+    pickRow.appendChild(NX.AICreator.attach(ta, 'postText', () => ta.value || 'لعبتي الجديدة في NEXUS'));
   titleField.classList.add('hide');
   body.appendChild(titleField);
 
@@ -11737,7 +11848,1276 @@ NX.Community = {
 </script>
 <script type="module">
 /* ============================================================
-   PART 8/15 · GAME PLATFORM + BOOT
+   PART 16/17 · AI PROVIDERS
+   One adapter per API shape, real connection testing, real model
+   listing, streaming, and per-provider settings. Keys live in
+   this browser only — never in Firestore, never in the console.
+   ============================================================ */
+const NX = window.NX;
+const { LS, uid, Toast } = NX;
+
+/* ------------------------------------------------------------
+   PROVIDER REGISTRY (rules 4, 5, 8)
+   ------------------------------------------------------------ */
+const PROVIDERS = {
+  groq: {
+    id: 'groq', name: 'Groq', shape: 'openai', badge: 'Groq',
+    baseURL: 'https://api.groq.com/openai/v1',
+    defaultModel: 'llama-3.3-70b-versatile',
+    canListModels: true, keyURL: 'https://console.groq.com/keys',
+    note: 'سريع جدًا. المفتاح مجاني من لوحة Groq.'
+  },
+  openai: {
+    id: 'openai', name: 'OpenAI', shape: 'openai', badge: 'OpenAI',
+    baseURL: 'https://api.openai.com/v1',
+    defaultModel: 'gpt-4o-mini',
+    canListModels: true, keyURL: 'https://platform.openai.com/api-keys'
+  },
+  anthropic: {
+    id: 'anthropic', name: 'Anthropic', shape: 'anthropic', badge: 'Claude',
+    baseURL: 'https://api.anthropic.com',
+    defaultModel: 'claude-sonnet-5',
+    canListModels: true, keyURL: 'https://console.anthropic.com/settings/keys',
+    note: 'يحتاج ترويسة الوصول المباشر من المتصفح؛ وهي مضافة تلقائيًا.'
+  },
+  gemini: {
+    id: 'gemini', name: 'Google Gemini', shape: 'gemini', badge: 'Gemini',
+    baseURL: 'https://generativelanguage.googleapis.com/v1beta',
+    defaultModel: 'gemini-2.0-flash',
+    canListModels: true, keyURL: 'https://aistudio.google.com/apikey'
+  },
+  openrouter: {
+    id: 'openrouter', name: 'OpenRouter', shape: 'openai', badge: 'OpenRouter',
+    baseURL: 'https://openrouter.ai/api/v1',
+    defaultModel: 'openai/gpt-4o-mini',
+    canListModels: true, keyURL: 'https://openrouter.ai/keys',
+    extraHeaders: () => ({ 'HTTP-Referer': location.origin, 'X-Title': 'NEXUS' })
+  },
+  local: {
+    id: 'local', name: 'نموذج محلي (Ollama / LM Studio)', shape: 'openai', badge: 'Local',
+    baseURL: 'http://localhost:11434/v1',
+    defaultModel: 'llama3.1',
+    canListModels: true, needsKey: false,
+    note: 'يعمل بلا إنترنت إذا كان الخادم يعمل على جهازك ويسمح بـCORS.'
+  },
+  custom: {
+    id: 'custom', name: 'مزوّد مخصّص', shape: 'openai', badge: 'Custom',
+    baseURL: '', defaultModel: '', canListModels: true, custom: true,
+    note: 'أي API متوافق مع صيغة Chat Completions.'
+  }
+};
+
+/* ------------------------------------------------------------
+   SETTINGS — stored per provider so switching keeps each key
+   ------------------------------------------------------------ */
+const AIConfig = {
+  all() { return LS.get('ai.providers', {}); },
+  get(id) {
+    const p = PROVIDERS[id];
+    const saved = this.all()[id] || {};
+    return {
+      id,
+      apiKey: saved.apiKey || '',
+      model: saved.model || (p ? p.defaultModel : ''),
+      baseURL: saved.baseURL || (p ? p.baseURL : ''),
+      name: saved.name || (p ? p.name : id),
+      authType: saved.authType || 'bearer',
+      temperature: saved.temperature == null ? 0.4 : saved.temperature,
+      maxTokens: saved.maxTokens || 4000,
+      systemPrompt: saved.systemPrompt || '',
+      models: saved.models || []
+    };
+  },
+  set(id, patch) {
+    const all = this.all();
+    all[id] = Object.assign({}, all[id] || {}, patch);
+    LS.set('ai.providers', all);
+    return this.get(id);
+  },
+  active() { return LS.get('ai.active', 'none'); },
+  setActive(id) { LS.set('ai.active', id); window.dispatchEvent(new CustomEvent('nx:aiProvider', { detail: id })); },
+  isReady() {
+    const id = this.active();
+    if (id === 'none' || !PROVIDERS[id]) return false;
+    const c = this.get(id);
+    if (PROVIDERS[id].needsKey === false) return !!c.baseURL;
+    return !!(c.apiKey && c.baseURL);
+  },
+  current() {
+    const id = this.active();
+    return PROVIDERS[id] ? { provider: PROVIDERS[id], cfg: this.get(id) } : null;
+  },
+  /* never show a stored key in full (rule 33) */
+  mask(k) {
+    if (!k) return '';
+    if (k.length <= 8) return '••••••••';
+    return k.slice(0, 4) + '••••••••••••' + k.slice(-4);
+  }
+};
+
+/* ------------------------------------------------------------
+   ERROR CLASSIFICATION (rule 6) — say what actually went wrong
+   ------------------------------------------------------------ */
+function classify(err, status, bodyText) {
+  const body = String(bodyText || '').slice(0, 400);
+  const low = body.toLowerCase();
+  if (err && /Failed to fetch|NetworkError|Load failed/i.test(String(err.message || err))) {
+    return { code: 'network', title: 'تعذّر الوصول إلى الخادم',
+      detail: 'إما أن الشبكة مقطوعة، أو أن المزوّد يمنع الطلبات من المتصفح (CORS). جرّب مزوّدًا آخر أو وسيطًا (proxy) خاصًا بك.' };
+  }
+  if (err && err.name === 'AbortError') return { code: 'aborted', title: 'أُلغي الطلب', detail: '' };
+  if (status === 401) return { code: 'key', title: 'مفتاح API غير صالح', detail: 'تحقّق من المفتاح ومن أنه لهذا المزوّد تحديدًا.' };
+  if (status === 403) {
+    if (/cors|origin/.test(low)) return { code: 'cors', title: 'المزوّد يرفض الطلب من المتصفح', detail: 'CORS محظور. هذا المزوّد يحتاج طلبًا من خادم.' };
+    return { code: 'forbidden', title: 'الوصول مرفوض', detail: body || 'المفتاح لا يملك صلاحية لهذا الطلب.' };
+  }
+  if (status === 404) {
+    if (/model/.test(low)) return { code: 'model', title: 'النموذج غير موجود', detail: body };
+    return { code: 'url', title: 'المسار غير صحيح', detail: 'تأكّد من Base URL. يجب أن ينتهي عادةً بـ /v1' };
+  }
+  if (status === 400) {
+    if (/model/.test(low)) return { code: 'model', title: 'النموذج غير صالح', detail: body };
+    return { code: 'request', title: 'طلب غير مقبول', detail: body };
+  }
+  if (status === 429) return { code: 'rate', title: 'تجاوزت حدّ الاستخدام', detail: 'انتظر قليلًا ثم أعد المحاولة.' };
+  if (status === 413) return { code: 'size', title: 'الطلب كبير جدًا', detail: 'قلّل السياق أو Max Tokens.' };
+  if (status >= 500) return { code: 'provider', title: 'خطأ من المزوّد (' + status + ')', detail: body };
+  return { code: 'unknown', title: 'خطأ غير متوقّع' + (status ? ' (' + status + ')' : ''), detail: body || String(err && err.message || err || '') };
+}
+
+/* ------------------------------------------------------------
+   ADAPTERS — one per API shape
+   ------------------------------------------------------------ */
+function headersFor(provider, cfg) {
+  const h = { 'content-type': 'application/json' };
+  if (provider.shape === 'anthropic') {
+    h['x-api-key'] = cfg.apiKey;
+    h['anthropic-version'] = '2023-06-01';
+    h['anthropic-dangerous-direct-browser-access'] = 'true';
+  } else if (provider.shape === 'gemini') {
+    /* key goes in the query string */
+  } else if (cfg.apiKey) {
+    h[cfg.authType === 'x-api-key' ? 'x-api-key' : 'authorization'] =
+      cfg.authType === 'x-api-key' ? cfg.apiKey : 'Bearer ' + cfg.apiKey;
+  }
+  if (provider.extraHeaders) Object.assign(h, provider.extraHeaders());
+  return h;
+}
+
+const Adapters = {
+  /* --- OpenAI-compatible: Groq, OpenAI, OpenRouter, local, custom --- */
+  openai: {
+    url(provider, cfg, path) { return String(cfg.baseURL || provider.baseURL).replace(/\/$/, '') + path; },
+    body(cfg, messages, system, stream) {
+      const msgs = system ? [{ role: 'system', content: system }, ...messages] : messages;
+      const b = { model: cfg.model, messages: msgs, stream: !!stream };
+      if (cfg.temperature != null) b.temperature = cfg.temperature;
+      if (cfg.maxTokens) b.max_tokens = cfg.maxTokens;
+      return b;
+    },
+    async models(provider, cfg) {
+      const r = await fetch(this.url(provider, cfg, '/models'), { headers: headersFor(provider, cfg) });
+      if (!r.ok) throw Object.assign(new Error('models'), { status: r.status, body: await r.text() });
+      const j = await r.json();
+      return (j.data || j.models || []).map(m => m.id || m.name).filter(Boolean).sort();
+    },
+    parseDelta(json) {
+      const c = json.choices && json.choices[0];
+      return (c && c.delta && c.delta.content) || '';
+    },
+    parseFull(json) {
+      const c = json.choices && json.choices[0];
+      return (c && c.message && c.message.content) || '';
+    },
+    usage(json) { return json.usage ? { in: json.usage.prompt_tokens, out: json.usage.completion_tokens } : null; }
+  },
+
+  /* --- Anthropic Messages API --- */
+  anthropic: {
+    url(provider, cfg, path) { return String(cfg.baseURL || provider.baseURL).replace(/\/$/, '') + path; },
+    body(cfg, messages, system, stream) {
+      const b = { model: cfg.model, max_tokens: cfg.maxTokens || 4000, stream: !!stream,
+        messages: messages.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })) };
+      if (system) b.system = system;
+      if (cfg.temperature != null) b.temperature = cfg.temperature;
+      return b;
+    },
+    async models(provider, cfg) {
+      const r = await fetch(this.url(provider, cfg, '/v1/models'), { headers: headersFor(provider, cfg) });
+      if (!r.ok) throw Object.assign(new Error('models'), { status: r.status, body: await r.text() });
+      const j = await r.json();
+      return (j.data || []).map(m => m.id).filter(Boolean);
+    },
+    parseDelta(json) {
+      if (json.type === 'content_block_delta' && json.delta && json.delta.text) return json.delta.text;
+      return '';
+    },
+    parseFull(json) { return (json.content || []).map(b => b.text || '').join(''); },
+    usage(json) { return json.usage ? { in: json.usage.input_tokens, out: json.usage.output_tokens } : null; }
+  },
+
+  /* --- Google Gemini --- */
+  gemini: {
+    url(provider, cfg, path) { return String(cfg.baseURL || provider.baseURL).replace(/\/$/, '') + path; },
+    body(cfg, messages, system) {
+      const b = {
+        contents: messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
+        generationConfig: { temperature: cfg.temperature, maxOutputTokens: cfg.maxTokens }
+      };
+      if (system) b.systemInstruction = { parts: [{ text: system }] };
+      return b;
+    },
+    async models(provider, cfg) {
+      const r = await fetch(this.url(provider, cfg, '/models?key=' + encodeURIComponent(cfg.apiKey)));
+      if (!r.ok) throw Object.assign(new Error('models'), { status: r.status, body: await r.text() });
+      const j = await r.json();
+      return (j.models || []).map(m => String(m.name).replace(/^models\//, ''))
+        .filter(n => !/embedding|aqa/i.test(n));
+    },
+    parseDelta(json) {
+      const c = json.candidates && json.candidates[0];
+      return (c && c.content && c.content.parts || []).map(p => p.text || '').join('');
+    },
+    parseFull(json) { return this.parseDelta(json); },
+    usage(json) { return json.usageMetadata ? { in: json.usageMetadata.promptTokenCount, out: json.usageMetadata.candidatesTokenCount } : null; }
+  }
+};
+
+/* ------------------------------------------------------------
+   THE CLIENT — chat, streaming, models, test
+   ------------------------------------------------------------ */
+const AIClient = {
+  _controller: null,
+
+  ready() { return AIConfig.isReady(); },
+  info() {
+    const cur = AIConfig.current();
+    if (!cur) return null;
+    return { provider: cur.provider.name, badge: cur.provider.badge, model: cur.cfg.model, id: cur.provider.id };
+  },
+  abort() { if (this._controller) { this._controller.abort(); this._controller = null; } },
+
+  endpoint(provider, cfg, stream) {
+    const A = Adapters[provider.shape];
+    if (provider.shape === 'gemini') {
+      const m = encodeURIComponent(cfg.model);
+      const op = stream ? 'streamGenerateContent?alt=sse&' : 'generateContent?';
+      return A.url(provider, cfg, `/models/${m}:${op}key=${encodeURIComponent(cfg.apiKey)}`);
+    }
+    if (provider.shape === 'anthropic') return A.url(provider, cfg, '/v1/messages');
+    return A.url(provider, cfg, '/chat/completions');
+  },
+
+  /* messages: [{role:'user'|'assistant', content}] */
+  async chat(messages, { system = '', onDelta = null, signal = null, stream = true } = {}) {
+    const cur = AIConfig.current();
+    if (!cur) throw Object.assign(new Error('NO_PROVIDER'), { info: { code: 'none', title: 'لم تختر مزوّد AI', detail: 'افتح إعدادات المساعد واختر مزوّدًا.' } });
+    const { provider, cfg } = cur;
+    if (!cfg.model) throw Object.assign(new Error('NO_MODEL'), { info: { code: 'model', title: 'لم تختر نموذجًا', detail: '' } });
+    const A = Adapters[provider.shape];
+    const useStream = stream && !!onDelta;
+    const ctrl = new AbortController();
+    this._controller = ctrl;
+    const sig = signal || ctrl.signal;
+
+    let res;
+    try {
+      res = await fetch(this.endpoint(provider, cfg, useStream), {
+        method: 'POST',
+        headers: headersFor(provider, cfg),
+        body: JSON.stringify(A.body(cfg, messages, system || cfg.systemPrompt || '', useStream)),
+        signal: sig
+      });
+    } catch (e) {
+      this._controller = null;
+      throw Object.assign(new Error('FETCH_FAILED'), { info: classify(e, 0, '') });
+    }
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      this._controller = null;
+      throw Object.assign(new Error('HTTP_' + res.status), { info: classify(null, res.status, body), status: res.status });
+    }
+
+    let text = '', usage = null;
+    if (useStream && res.body) {
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop();
+          for (const line of lines) {
+            const t = line.trim();
+            if (!t.startsWith('data:')) continue;
+            const payload = t.slice(5).trim();
+            if (!payload || payload === '[DONE]') continue;
+            let j; try { j = JSON.parse(payload); } catch { continue; }
+            const piece = A.parseDelta(j);
+            if (piece) { text += piece; onDelta(piece, text); }
+            const u = A.usage(j); if (u) usage = u;
+          }
+        }
+      } catch (e) {
+        this._controller = null;
+        if (e.name === 'AbortError') return { text, usage, aborted: true, model: cfg.model };
+        throw Object.assign(new Error('STREAM_FAILED'), { info: classify(e, 0, '') });
+      }
+    } else {
+      const j = await res.json();
+      text = A.parseFull(j);
+      usage = A.usage(j);
+      if (onDelta && text) onDelta(text, text);
+    }
+    this._controller = null;
+    return { text, usage, model: cfg.model, provider: provider.name };
+  },
+
+  async listModels(id) {
+    const provider = PROVIDERS[id || AIConfig.active()];
+    if (!provider) throw new Error('NO_PROVIDER');
+    const cfg = AIConfig.get(provider.id);
+    const A = Adapters[provider.shape];
+    try {
+      const list = await A.models(provider, cfg);
+      AIConfig.set(provider.id, { models: list });
+      return list;
+    } catch (e) {
+      throw Object.assign(new Error('MODELS_FAILED'), { info: classify(e, e.status, e.body) });
+    }
+  },
+
+  /* a real round-trip, not a saved key (rule 6) */
+  async test(id) {
+    const provider = PROVIDERS[id || AIConfig.active()];
+    if (!provider) return { ok: false, info: { title: 'لا يوجد مزوّد' } };
+    const cfg = AIConfig.get(provider.id);
+    if (provider.needsKey !== false && !cfg.apiKey) return { ok: false, info: { code: 'key', title: 'أدخل مفتاح API أولًا', detail: '' } };
+    if (!cfg.baseURL) return { ok: false, info: { code: 'url', title: 'أدخل Base URL', detail: '' } };
+    if (!cfg.model) return { ok: false, info: { code: 'model', title: 'اختر نموذجًا', detail: '' } };
+    const prev = AIConfig.active();
+    AIConfig.setActive(provider.id);
+    const t0 = performance.now();
+    try {
+      const r = await this.chat([{ role: 'user', content: 'Reply with the single word: OK' }], { stream: false, system: 'You are a connection test. Reply with one word.' });
+      const ms = Math.round(performance.now() - t0);
+      if (prev !== provider.id) AIConfig.setActive(prev);
+      const said = (r.text || '').trim().slice(0, 40);
+      return { ok: true, latency: ms, model: r.model, provider: r.provider, reply: said, usage: r.usage };
+    } catch (e) {
+      if (prev !== provider.id) AIConfig.setActive(prev);
+      return { ok: false, info: e.info || { title: String(e.message || e) }, latency: Math.round(performance.now() - t0) };
+    }
+  }
+};
+
+/* ------------------------------------------------------------
+   Keep the old AI.ask surface working, now backed by providers.
+   This also repairs Planner.model(), which called askOpenAIRaw /
+   askAnthropicRaw — functions that never existed, so the
+   model-backed planner silently fell back to the offline one.
+   ------------------------------------------------------------ */
+const legacy = NX.AI;
+legacy.cfg = function () {
+  const cur = AIConfig.current();
+  if (!cur) return { provider: 'none', apiKey: '', model: '', baseURL: '' };
+  return { provider: cur.provider.id, apiKey: cur.cfg.apiKey, model: cur.cfg.model, baseURL: cur.cfg.baseURL };
+};
+legacy.setCfg = function (c) {
+  if (!c || !c.provider || c.provider === 'none') { AIConfig.setActive('none'); return; }
+  const id = PROVIDERS[c.provider] ? c.provider : 'custom';
+  AIConfig.set(id, { apiKey: c.apiKey || '', model: c.model || '', baseURL: c.baseURL || (PROVIDERS[id] || {}).baseURL || '' });
+  AIConfig.setActive(id);
+};
+legacy.isReady = () => AIConfig.isReady();
+/* raw system+prompt call — what the planner actually needs */
+legacy.raw = async function (system, prompt, opts = {}) {
+  const r = await AIClient.chat([{ role: 'user', content: prompt }], { system, stream: false, ...opts });
+  return r.text;
+};
+legacy.askOpenAIRaw = (system, prompt) => legacy.raw(system, prompt);
+legacy.askAnthropicRaw = (system, prompt) => legacy.raw(system, prompt);
+legacy.ask = async function (prompt, project, engine) {
+  if (!AIConfig.isReady()) return legacy.local(prompt, project, engine);
+  const text = await legacy.raw(legacy.systemPrompt(project, engine), prompt);
+  return legacy.parse(text, 'model');
+};
+
+NX.PROVIDERS = PROVIDERS;
+NX.AIConfig = AIConfig;
+NX.AIClient = AIClient;
+NX.AIAdapters = Adapters;
+NX.classifyAIError = classify;
+</script>
+<script type="module">
+/* ============================================================
+   PART 17/17 · AI ASSISTANT — chat, voice, context, debugging
+   ============================================================ */
+const NX = window.NX;
+const { $, $$, el, btn, iconBtn, icon, esc, Sheet, Modal, Toast, T, LS, uid, fmtNum, timeAgo, debounce, field, segPick } = NX;
+const { AIClient, AIConfig, PROVIDERS, Backend, ProjectContext, Builder, History } = NX;
+
+/* ------------------------------------------------------------
+   PROJECT INDEX + CONTEXT SELECTION (rules 22-25)
+   Only what the question needs is sent, never the whole project.
+   ------------------------------------------------------------ */
+const ProjectIndex = {
+  _cache: new Map(),
+
+  symbolsOf(code) {
+    const out = new Set();
+    const src = String(code || '');
+    const re = /(?:function\s+([A-Za-z_$][\w$]*)|class\s+([A-Za-z_$][\w$]*)|(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=)/g;
+    let m;
+    while ((m = re.exec(src)) && out.size < 60) out.add(m[1] || m[2] || m[3]);
+    return Array.from(out);
+  },
+
+  build(project, engine) {
+    NX.migrateProjectFiles(project);
+    const files = (project.files || []).map(f => ({
+      path: f.path, role: f.role, entityId: f.entityId || null,
+      lines: String(f.code || '').split('\n').length,
+      chars: String(f.code || '').length,
+      symbols: this.symbolsOf(f.code)
+    }));
+    const objects = engine ? Array.from(engine.entities.values()).map(e => ({
+      name: e.name, type: e.type, tag: e.tag || null, assetId: e.assetId || null
+    })) : [];
+    const index = {
+      projectId: project.projectId, name: project.name,
+      files, objects, updatedAt: Date.now(),
+      systems: ProjectContext.detectSystems(project)
+    };
+    this._cache.set(project.projectId, index);
+    return index;
+  },
+
+  get(project, engine) {
+    const c = this._cache.get(project.projectId);
+    const rev = (project.files || []).length + ':' + (project.files || []).map(f => f.chars || (f.code || '').length).join(',');
+    if (c && c._rev === rev) return c;
+    const i = this.build(project, engine);
+    i._rev = rev;
+    return i;
+  },
+
+  /* pick the files that actually relate to the question */
+  select(query, project, engine, budget = 7000) {
+    const index = this.get(project, engine);
+    const q = NX.tokenize(query).concat(String(query).toLowerCase().split(/[^a-z0-9_]+/i).filter(Boolean));
+    const scored = index.files.map(f => {
+      let s = 0;
+      const hay = (f.path + ' ' + f.symbols.join(' ')).toLowerCase();
+      q.forEach(t => { if (t.length > 2 && hay.includes(t)) s += hay.indexOf(t) === 0 ? 6 : 3; });
+      if (f.entityId) s += 1;
+      return { f, s };
+    }).sort((a, b) => b.s - a.s);
+
+    const chosen = [];
+    let used = 0;
+    /* when anything actually matches, send only the matches; when nothing
+       matches, fall back to the two most recently touched files */
+    const anyMatch = scored.length && scored[0].s > 0;
+    const pool = anyMatch ? scored.filter(x => x.s > 0) : scored.slice(0, 2);
+    for (const { f, s } of pool) {
+      const src = (project.files.find(x => x.path === f.path) || {}).code || '';
+      if (used + src.length > budget) {
+        if (!chosen.length) chosen.push({ path: f.path, code: src.slice(0, budget) + '\n/* … مقتطع */' });
+        break;
+      }
+      chosen.push({ path: f.path, code: src });
+      used += src.length;
+      if (chosen.length >= 5) break;
+    }
+    return {
+      index: {
+        project: index.name,
+        systems: index.systems,
+        files: index.files.map(f => `${f.path} (${f.role}, ${f.lines} سطر)${f.symbols.length ? ' → ' + f.symbols.slice(0, 8).join(', ') : ''}`),
+        objects: index.objects.slice(0, 40).map(o => `${o.name} [${o.type}${o.tag ? ', tag=' + o.tag : ''}${o.assetId ? ', asset=' + o.assetId : ''}]`)
+      },
+      files: chosen,
+      chars: used
+    };
+  },
+
+  /* assets the project can actually use — ids are real (rules 10, 25, 31) */
+  async assetBrief(project, limit = 24) {
+    const ids = new Set(project.assetRefs || []);
+    const out = [];
+    for (const id of ids) {
+      const a = await NX.Assets.get(id);
+      if (a) out.push(a);
+      if (out.length >= limit) break;
+    }
+    if (out.length < limit && Backend.user) {
+      const mine = await NX.Assets.search({ scope: 'mine', ownerId: Backend.user.uid, limit: limit - out.length, sort: 'new' });
+      mine.items.forEach(a => { if (!ids.has(a.assetId)) out.push(a); });
+    }
+    return out.map(a => ({
+      assetId: a.assetId, name: a.name, kind: a.kind, category: a.category,
+      format: a.fileType, tags: a.tags,
+      triangles: a.stats ? a.stats.triangles : null,
+      animations: (a.stats && a.stats.animationNames) || [],
+      inProject: ids.has(a.assetId)
+    }));
+  }
+};
+
+/* ------------------------------------------------------------
+   ERROR LOG — what "Fix with AI" reads (rules 14, 15)
+   ------------------------------------------------------------ */
+const ErrorLog = {
+  items: [],
+  max: 60,
+  push(kind, message, stack) {
+    const m = String(message || '').slice(0, 800);
+    const last = this.items[0];
+    if (last && last.message === m) { last.count++; return; }
+    this.items.unshift({ kind, message: m, stack: String(stack || '').slice(0, 900), at: Date.now(), count: 1 });
+    if (this.items.length > this.max) this.items.pop();
+    window.dispatchEvent(new CustomEvent('nx:errorLogged'));
+  },
+  clear() { this.items = []; },
+  install() {
+    if (this._on) return;
+    this._on = true;
+    window.addEventListener('error', e => this.push('js', e.message, e.error && e.error.stack));
+    window.addEventListener('unhandledrejection', e => {
+      const r = e.reason;
+      this.push('promise', (r && r.message) || String(r), r && r.stack);
+    });
+    const orig = console.error.bind(console);
+    console.error = (...a) => {
+      try { this.push('console', a.map(x => (x && x.message) || (typeof x === 'object' ? JSON.stringify(x).slice(0, 300) : String(x))).join(' '), a.find(x => x && x.stack) ? a.find(x => x && x.stack).stack : ''); } catch {}
+      orig(...a);
+    };
+  }
+};
+ErrorLog.install();
+
+/* ------------------------------------------------------------
+   VOICE (rules 16-18)
+   ------------------------------------------------------------ */
+const VoiceIO = {
+  get SR() { return window.SpeechRecognition || window.webkitSpeechRecognition || null; },
+  sttSupported() { return !!this.SR; },
+  ttsSupported() { return typeof speechSynthesis !== 'undefined'; },
+  _rec: null, _speaking: false,
+
+  listen({ lang = 'ar-SA', onPartial, onFinal, onError, onEnd } = {}) {
+    if (!this.sttSupported()) { onError && onError('التعرّف على الكلام غير مدعوم في هذا المتصفح. اكتب طلبك بدل ذلك.'); return null; }
+    const r = new this.SR();
+    r.lang = lang; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
+    let finalText = '';
+    r.onresult = e => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalText += t; else interim += t;
+      }
+      onPartial && onPartial(finalText + interim);
+    };
+    r.onerror = e => {
+      const map = { 'not-allowed': 'رُفض إذن الميكروفون', 'no-speech': 'لم أسمع شيئًا', 'audio-capture': 'لا يوجد ميكروفون', 'network': 'تعذّر الوصول لخدمة التعرّف' };
+      onError && onError(map[e.error] || ('خطأ: ' + e.error));
+    };
+    r.onend = () => { this._rec = null; onEnd && onEnd(); if (finalText.trim()) onFinal && onFinal(finalText.trim()); };
+    try { r.start(); } catch (e) { onError && onError('تعذّر بدء الاستماع'); return null; }
+    this._rec = r;
+    return { stop() { try { r.stop(); } catch {} } };
+  },
+  stopListening() { if (this._rec) { try { this._rec.stop(); } catch {} this._rec = null; } },
+
+  speak(text, { lang = 'ar-SA', rate = 1, onEnd } = {}) {
+    if (!this.ttsSupported()) { Toast.err('قراءة النص غير مدعومة في هذا المتصفح'); return false; }
+    this.stopSpeak();
+    const clean = String(text).replace(/```[\s\S]*?```/g, ' كتلة كود ').replace(/[*_#>`]/g, '').slice(0, 3000);
+    const u = new SpeechSynthesisUtterance(clean);
+    u.lang = lang; u.rate = rate;
+    u.onend = () => { this._speaking = false; onEnd && onEnd(); };
+    u.onerror = () => { this._speaking = false; onEnd && onEnd(); };
+    this._speaking = true;
+    speechSynthesis.speak(u);
+    return true;
+  },
+  stopSpeak() { if (this.ttsSupported()) { try { speechSynthesis.cancel(); } catch {} } this._speaking = false; },
+  pause() { if (this.ttsSupported()) speechSynthesis.pause(); },
+  resume() { if (this.ttsSupported()) speechSynthesis.resume(); },
+  get speaking() { return this._speaking; }
+};
+
+/* ------------------------------------------------------------
+   CHAT STORE — one thread list per project (rule 21)
+   ------------------------------------------------------------ */
+const ChatStore = {
+  key(projectId) { return 'chats.' + projectId; },
+  list(projectId) { return LS.get(this.key(projectId), []); },
+  save(projectId, chats) { LS.set(this.key(projectId), chats.slice(0, 40)); },
+  create(projectId, title) {
+    const chats = this.list(projectId);
+    const c = { id: uid('chat'), title: title || 'محادثة جديدة', createdAt: Date.now(), updatedAt: Date.now(), messages: [] };
+    chats.unshift(c);
+    this.save(projectId, chats);
+    return c;
+  },
+  get(projectId, id) { return this.list(projectId).find(c => c.id === id) || null; },
+  update(projectId, chat) {
+    const chats = this.list(projectId);
+    const i = chats.findIndex(c => c.id === chat.id);
+    chat.updatedAt = Date.now();
+    if (i >= 0) chats[i] = chat; else chats.unshift(chat);
+    this.save(projectId, chats);
+  },
+  remove(projectId, id) { this.save(projectId, this.list(projectId).filter(c => c.id !== id)); },
+  rename(projectId, id, title) {
+    const chats = this.list(projectId);
+    const c = chats.find(x => x.id === id);
+    if (c) { c.title = title; this.save(projectId, chats); }
+  }
+};
+
+/* ------------------------------------------------------------
+   AI SETTINGS (rules 6, 7, 32, 33)
+   ------------------------------------------------------------ */
+function openAISettings() {
+  const body = el('div');
+  let current = AIConfig.active();
+  if (!PROVIDERS[current]) current = 'groq';
+
+  body.appendChild(el('div', { class: 'ttl', text: 'المزوّد' }));
+  const grid = el('div', { class: 'beg-grid small', style: { marginBottom: '14px' } });
+  const pane = el('div');
+
+  const drawProvider = () => {
+    Array.from(grid.children).forEach(c => c.classList.toggle('on', c.dataset.pid === current));
+    pane.textContent = '';
+    const P = PROVIDERS[current];
+    const cfg = AIConfig.get(current);
+
+    if (P.note) pane.appendChild(el('p', { class: 'tiny', style: { marginBottom: '10px' }, text: P.note }));
+
+    if (P.custom) {
+      const nameIn = el('input', { class: 'input', value: cfg.name === P.name ? '' : cfg.name, placeholder: 'اسم المزوّد' });
+      nameIn.addEventListener('change', () => AIConfig.set(current, { name: nameIn.value.trim() }));
+      pane.appendChild(field('الاسم', nameIn));
+    }
+
+    const urlIn = el('input', { class: 'input', value: cfg.baseURL, placeholder: 'https://api.example.com/v1', style: { direction: 'ltr' } });
+    urlIn.addEventListener('change', () => AIConfig.set(current, { baseURL: urlIn.value.trim() }));
+    pane.appendChild(field('Base URL', urlIn));
+
+    if (P.needsKey !== false) {
+      const keyWrap = el('div', { style: { position: 'relative' } });
+      const keyIn = el('input', { class: 'input', type: 'password', value: cfg.apiKey, placeholder: 'sk-…', style: { direction: 'ltr', paddingInlineEnd: '54px' } });
+      keyIn.addEventListener('change', () => AIConfig.set(current, { apiKey: keyIn.value.trim() }));
+      const eye = el('button', { class: 'key-eye', text: 'إظهار', onclick: () => {
+        const show = keyIn.type === 'password';
+        keyIn.type = show ? 'text' : 'password';
+        eye.textContent = show ? 'إخفاء' : 'إظهار';
+      }});
+      keyWrap.append(keyIn, eye);
+      const f = field('API Key', keyWrap);
+      if (cfg.apiKey) f.appendChild(el('p', { class: 'tiny', style: { marginTop: '5px' }, text: 'المحفوظ: ' + AIConfig.mask(cfg.apiKey) + ' — يبقى في هذا المتصفح فقط ولا يُرسل إلى خوادمنا.' }));
+      if (P.keyURL) f.appendChild(el('a', { href: P.keyURL, target: '_blank', rel: 'noopener', class: 'tiny', text: 'الحصول على مفتاح ↗' }));
+      pane.appendChild(f);
+
+      const authSel = el('select', { class: 'select' }, [
+        el('option', { value: 'bearer', text: 'Authorization: Bearer' }),
+        el('option', { value: 'x-api-key', text: 'x-api-key' })
+      ]);
+      authSel.value = cfg.authType;
+      authSel.addEventListener('change', () => AIConfig.set(current, { authType: authSel.value }));
+      if (P.custom) pane.appendChild(field('نوع المصادقة', authSel));
+    }
+
+    /* model: a real list when the provider offers one (rule 7) */
+    const modelWrap = el('div');
+    const modelIn = el('input', { class: 'input', value: cfg.model, placeholder: P.defaultModel || 'model-id', style: { direction: 'ltr' } });
+    modelIn.addEventListener('change', () => AIConfig.set(current, { model: modelIn.value.trim() }));
+    modelWrap.appendChild(modelIn);
+    const modelList = el('div', { class: 'chips', style: { marginTop: '8px' } });
+    const drawModels = list => {
+      modelList.textContent = '';
+      (list || []).slice(0, 40).forEach(m => modelList.appendChild(el('button', {
+        class: 'chip' + (m === modelIn.value ? ' on' : ''), text: m,
+        onclick: () => { modelIn.value = m; AIConfig.set(current, { model: m }); drawModels(list); }
+      })));
+    };
+    drawModels(cfg.models);
+    modelWrap.appendChild(modelList);
+    if (P.canListModels) {
+      const rBtn = btn('تحديث قائمة النماذج', { cls: 'sm ghost', icon: 'undo', style: { marginTop: '8px' }, onclick: async () => {
+        rBtn.disabled = true;
+        const old = rBtn.querySelector('span').textContent;
+        rBtn.querySelector('span').textContent = 'جارٍ الجلب…';
+        try {
+          const list = await AIClient.listModels(current);
+          drawModels(list);
+          Toast.ok(list.length + ' نموذجًا');
+        } catch (e) {
+          const i = e.info || {};
+          Toast.err(i.title || 'تعذّر جلب النماذج');
+          modelList.appendChild(el('p', { class: 'tiny', style: { color: '#ff9aa8' }, text: (i.title || '') + ' ' + (i.detail || '') }));
+        }
+        rBtn.querySelector('span').textContent = old;
+        rBtn.disabled = false;
+      }});
+      modelWrap.appendChild(rBtn);
+    }
+    pane.appendChild(field('النموذج', modelWrap));
+
+    const adv = el('details', { class: 'acc' });
+    adv.appendChild(el('summary', { text: 'إعدادات متقدّمة' }));
+    const ab = el('div', { class: 'acc-body' });
+    const temp = el('input', { type: 'range', min: 0, max: 1, step: 0.05, value: cfg.temperature, class: 'input' });
+    const tempLbl = el('span', { class: 'tiny', text: 'Temperature: ' + cfg.temperature });
+    temp.addEventListener('input', () => { tempLbl.textContent = 'Temperature: ' + temp.value; AIConfig.set(current, { temperature: +temp.value }); });
+    ab.append(tempLbl, temp);
+    const mt = el('input', { class: 'input', type: 'number', value: cfg.maxTokens, min: 256, max: 32000 });
+    mt.addEventListener('change', () => AIConfig.set(current, { maxTokens: +mt.value || 4000 }));
+    ab.appendChild(field('Max Tokens', mt));
+    const sp = el('textarea', { class: 'textarea', value: cfg.systemPrompt, placeholder: 'تعليمات ثابتة تُضاف لكل محادثة (اختياري)' });
+    sp.addEventListener('change', () => AIConfig.set(current, { systemPrompt: sp.value }));
+    ab.appendChild(field('System Prompt', sp));
+    adv.appendChild(ab);
+    pane.appendChild(adv);
+
+    /* Test Connection — a real round-trip (rule 6) */
+    const result = el('div', { style: { marginTop: '10px' } });
+    const testBtn = btn('اختبار الاتصال', { cls: 'primary block', icon: 'check', onclick: async () => {
+      testBtn.disabled = true;
+      result.textContent = '';
+      result.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' }), el('span', { text: 'جارٍ الاختبار…' })]));
+      const r = await AIClient.test(current);
+      result.textContent = '';
+      if (r.ok) {
+        const ok = el('div', { class: 'test-ok' });
+        ok.appendChild(el('b', { text: '✓ الاتصال ناجح' }));
+        ok.appendChild(el('div', { class: 'tiny', text: `المزوّد: ${r.provider} · النموذج: ${r.model} · الزمن: ${r.latency}ms` }));
+        if (r.reply) ok.appendChild(el('div', { class: 'tiny', text: 'ردّ الاختبار: ' + r.reply }));
+        if (r.usage) ok.appendChild(el('div', { class: 'tiny', text: `Tokens: ${r.usage.in || 0} → ${r.usage.out || 0}` }));
+        result.appendChild(ok);
+        AIConfig.setActive(current);
+        Toast.ok('المزوّد جاهز');
+      } else {
+        const i = r.info || {};
+        const bad = el('div', { class: 'test-bad' });
+        bad.appendChild(el('b', { text: '✕ فشل الاتصال' }));
+        bad.appendChild(el('div', { class: 'tiny', text: 'السبب: ' + (i.title || 'غير معروف') }));
+        if (i.detail) bad.appendChild(el('div', { class: 'tiny', text: i.detail }));
+        const HINT = {
+          key: 'افتح لوحة المزوّد وأنشئ مفتاحًا جديدًا، وتأكّد أنك نسخته كاملًا.',
+          model: 'اضغط «تحديث قائمة النماذج» واختر واحدًا من القائمة.',
+          url: 'تأكّد أن Base URL ينتهي بـ /v1 لمعظم المزوّدين.',
+          cors: 'هذا المزوّد لا يسمح بالطلبات من المتصفح. استخدم مزوّدًا آخر أو وسيطًا خاصًا بك.',
+          network: 'تحقّق من الاتصال. إن كان المزوّد محليًا فشغّله وفعّل CORS.',
+          rate: 'انتظر دقيقة ثم أعد الاختبار.'
+        };
+        if (HINT[i.code]) bad.appendChild(el('div', { class: 'tiny', style: { marginTop: '6px' }, text: '💡 ' + HINT[i.code] }));
+        result.appendChild(bad);
+      }
+      testBtn.disabled = false;
+    }});
+    pane.append(testBtn, result);
+
+    const useBtn = btn('استخدام هذا المزوّد', { cls: 'block', style: { marginTop: '8px' }, onclick: () => {
+      AIConfig.setActive(current);
+      Toast.ok('المزوّد النشط: ' + P.name);
+      window.dispatchEvent(new CustomEvent('nx:aiProvider'));
+    }});
+    pane.appendChild(useBtn);
+  };
+
+  Object.values(PROVIDERS).forEach(P => {
+    const c = el('button', { class: 'beg-card', dataset: { pid: P.id }, onclick: () => { current = P.id; drawProvider(); } });
+    c.appendChild(el('b', { text: P.name }));
+    const cfg = AIConfig.get(P.id);
+    c.appendChild(el('span', { class: 'beg-desc', text: cfg.apiKey || P.needsKey === false ? '● مُهيّأ' : 'غير مُهيّأ' }));
+    grid.appendChild(c);
+  });
+  body.append(grid, pane);
+
+  body.appendChild(el('hr', { class: 'sep' }));
+  const offRow = el('div', { class: 'switch' }, [el('span', { text: 'إيقاف المزوّد (استخدام المخطّط المدمج فقط)' })]);
+  const offTg = el('div', { class: 'tgl' + (AIConfig.active() === 'none' ? ' on' : '') });
+  offTg.onclick = () => { const on = AIConfig.active() !== 'none'; AIConfig.setActive(on ? 'none' : current); offTg.classList.toggle('on', on); };
+  offRow.appendChild(offTg);
+  body.appendChild(offRow);
+  body.appendChild(el('p', { class: 'tiny', text: 'المفاتيح تُحفظ في متصفحك فقط، ولا تُرسل إلى Firestore ولا تُطبع في الـConsole. للمنصات العامة استخدم وسيطًا (proxy) من خادمك بدل توزيع مفتاح.' }));
+
+  drawProvider();
+  Sheet.open({ title: 'إعدادات المساعد', body, full: true, id: 'aisettings' });
+}
+
+/* ------------------------------------------------------------
+   CHAT UI (rules 3, 19, 20, 27, 28, 29, 34)
+   ------------------------------------------------------------ */
+const Chat = {
+  chat: null, streaming: false, aborter: null, voiceMode: false, listening: false,
+
+  project() { return NX.Studio.project; },
+
+  ensure() {
+    const p = this.project();
+    if (!p) return null;
+    if (this.chat && this.chat.projectId === p.projectId) return this.chat;
+    const list = ChatStore.list(p.projectId);
+    this.chat = list[0] || ChatStore.create(p.projectId);
+    this.chat.projectId = p.projectId;
+    return this.chat;
+  },
+
+  build(host) {
+    this.host = host;
+    host.textContent = '';
+    const bar = el('div', { class: 'chat-bar' });
+    this.badge = el('span', { class: 'badge brand', text: '—' });
+    bar.append(
+      iconBtn('book', { label: 'history', onclick: () => this.openHistory() }),
+      iconBtn('plus', { label: 'new chat', onclick: () => this.newChat() }),
+      this.badge,
+      iconBtn('trash', { label: 'clear', onclick: () => this.clear() }),
+      iconBtn('gear', { label: 'ai settings', onclick: () => openAISettings() })
+    );
+    this.log = el('div', { class: 'chat-log scroll' });
+    this.chips = el('div', { class: 'quick' });
+    ['ما الذي بنيته حتى الآن؟', 'اشرح لي هذا المشروع', 'أضف سيارة إلى اللعبة', 'لماذا لا يتحرك اللاعب؟', 'حسّن الأداء', 'اكتب وصفًا للعبتي']
+      .forEach(q => this.chips.appendChild(el('button', { text: q, onclick: () => this.send(q) })));
+
+    this.input = el('textarea', { placeholder: 'اسأل أو اطلب…', rows: 1 });
+    this.input.addEventListener('input', () => {
+      this.input.style.height = 'auto';
+      this.input.style.height = Math.min(120, this.input.scrollHeight) + 'px';
+    });
+    this.input.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) this.send(); });
+    this.input.addEventListener('focus', () => setTimeout(() => this.toBottom(), 320));
+
+    this.micBtn = iconBtn('mic', { label: 'voice', onclick: () => this.toggleMic() });
+    this.sendBtn = iconBtn('spark', { cls: 'on', label: 'send', onclick: () => this.streaming ? this.stop() : this.send() });
+    const row = el('div', { class: 'ai-input' }, [this.micBtn, this.input, this.sendBtn]);
+
+    this.voiceBtn = btn('وضع الصوت', { cls: 'sm ghost', icon: 'music', onclick: () => this.toggleVoiceMode() });
+    const foot = el('div', { class: 'chat-foot' }, [this.voiceBtn]);
+
+    host.append(bar, this.log, this.chips, row, foot);
+    this.refreshBadge();
+    this.render();
+    window.addEventListener('nx:aiProvider', () => this.refreshBadge());
+  },
+
+  refreshBadge() {
+    if (!this.badge) return;
+    const info = AIClient.info();
+    const ready = AIConfig.isReady();
+    this.badge.textContent = ready ? `${info.badge} · ${info.model}` : 'بلا مزوّد';
+    this.badge.className = 'badge ' + (ready ? 'pub' : 'warn');
+    this.badge.onclick = () => openAISettings();
+  },
+
+  toBottom() { if (this.log) this.log.scrollTop = this.log.scrollHeight; },
+
+  render() {
+    const c = this.ensure();
+    this.log.textContent = '';
+    if (!c || !c.messages.length) {
+      const z = el('div', { class: 'center-note' });
+      z.appendChild(icon('spark'));
+      z.appendChild(el('b', { text: AIConfig.isReady() ? 'اسأل عن مشروعك' : 'لم تصل مزوّدًا بعد', style: { display: 'block', color: 'var(--ink-soft)' } }));
+      z.appendChild(el('p', { class: 'tiny', style: { margin: '8px 0 12px' },
+        text: AIConfig.isReady()
+          ? 'المساعد يقرأ ملفاتك وكائناتك وأصولك — ويرسل ما يخصّ سؤالك فقط.'
+          : 'يمكنك استخدام «بناء» بالمخطّط المدمج بلا مزوّد، أما المحادثة الحرّة فتحتاج نموذجًا.' }));
+      if (!AIConfig.isReady()) z.appendChild(btn('اختر مزوّدًا', { cls: 'primary', icon: 'gear', onclick: () => openAISettings() }));
+      this.log.appendChild(z);
+      return;
+    }
+    c.messages.forEach(m => this.log.appendChild(this.bubble(m)));
+    this.toBottom();
+  },
+
+  bubble(m) {
+    const b = el('div', { class: 'chat-msg ' + m.role + (m.error ? ' err' : '') });
+    const txt = el('div', { class: 'chat-txt' });
+    txt.textContent = m.content || '';
+    b.appendChild(txt);
+    const acts = el('div', { class: 'chat-acts' });
+    const mk = (label, ic, fn) => { const x = el('button', { title: label }); x.appendChild(icon(ic)); x.onclick = fn; acts.appendChild(x); };
+    mk('نسخ', 'copy', async () => { try { await navigator.clipboard.writeText(m.content); Toast.ok('نُسخ'); } catch { Toast.err('تعذّر النسخ'); } });
+    if (m.role === 'assistant') {
+      mk('قراءة', 'music', () => { VoiceIO.speaking ? VoiceIO.stopSpeak() : VoiceIO.speak(m.content); });
+      mk('إعادة', 'undo', () => this.retry(m));
+      if (/```/.test(m.content || '')) mk('تطبيق الكود', 'code', () => this.applyCode(m));
+    }
+    mk('حذف', 'trash', () => this.deleteMsg(m));
+    b.appendChild(acts);
+    if (m.usage) b.appendChild(el('div', { class: 'chat-meta', text: `${m.model || ''} · ${m.usage.in || 0}→${m.usage.out || 0} tokens` }));
+    return b;
+  },
+
+  push(role, content, extra = {}) {
+    const c = this.ensure();
+    const m = Object.assign({ id: uid('m'), role, content, at: Date.now() }, extra);
+    c.messages.push(m);
+    if (c.messages.length === 1 && role === 'user') c.title = content.slice(0, 40);
+    ChatStore.update(c.projectId, c);
+    return m;
+  },
+
+  deleteMsg(m) {
+    const c = this.ensure();
+    c.messages = c.messages.filter(x => x.id !== m.id);
+    ChatStore.update(c.projectId, c);
+    this.render();
+  },
+
+  clear() {
+    Modal.confirm('مسح المحادثة؟', 'تُحذف كل الرسائل في هذه المحادثة.', 'مسح').then(ok => {
+      if (!ok) return;
+      const c = this.ensure();
+      c.messages = [];
+      ChatStore.update(c.projectId, c);
+      this.render();
+    });
+  },
+
+  newChat() {
+    const p = this.project();
+    this.chat = ChatStore.create(p.projectId);
+    this.chat.projectId = p.projectId;
+    this.render();
+  },
+
+  openHistory() {
+    const p = this.project();
+    const body = el('div');
+    const draw = () => {
+      body.textContent = '';
+      const list = ChatStore.list(p.projectId);
+      if (!list.length) body.appendChild(el('div', { class: 'center-note', text: 'لا محادثات' }));
+      list.forEach(c => {
+        const r = el('div', { class: 'comp-row' });
+        r.appendChild(icon('book'));
+        const t = el('div', { style: { flex: '1', minWidth: '0' } });
+        t.append(el('b', { text: c.title, style: { display: 'block', fontSize: '12.5px' } }),
+          el('span', { class: 'tiny', text: `${c.messages.length} رسالة · ${timeAgo(c.updatedAt)}` }));
+        r.appendChild(t);
+        r.appendChild(iconBtn('code', { label: 'rename', onclick: async ev => {
+          ev.stopPropagation();
+          const n = await Modal.prompt('اسم المحادثة', c.title);
+          if (n) { ChatStore.rename(p.projectId, c.id, n); draw(); }
+        }}));
+        r.appendChild(iconBtn('trash', { onclick: ev => {
+          ev.stopPropagation();
+          ChatStore.remove(p.projectId, c.id);
+          if (this.chat && this.chat.id === c.id) this.chat = null;
+          draw(); this.render();
+        }}));
+        r.onclick = ev => {
+          if (ev.target.closest('.icon-btn')) return;
+          this.chat = Object.assign({}, c, { projectId: p.projectId });
+          this.render(); sheet.close();
+        };
+        body.appendChild(r);
+      });
+    };
+    draw();
+    const sheet = Sheet.open({ title: 'محادثات هذا المشروع', body, id: 'chathist',
+      foot: [btn('محادثة جديدة', { cls: 'primary', icon: 'plus', onclick: () => { this.newChat(); sheet.close(); } })] });
+  },
+
+  /* ---- context assembly (rules 9, 10, 22-25, 31) ---- */
+  async systemFor(question) {
+    const p = this.project();
+    const eng = NX.Studio.engine;
+    const sel = ProjectIndex.select(question, p, eng);
+    const assets = await ProjectIndex.assetBrief(p);
+    const errs = ErrorLog.items.slice(0, 3).map(e => `${e.kind}: ${e.message}`);
+    const api = NX.API_DOCS.map(d => d.ns + ': ' + d.m.map(m => m[0]).join(' | ')).join('\n');
+    return `أنت مساعد داخل محرك ألعاب اسمه NEXUS يعمل في المتصفح. أجب بالعربية بإيجاز ووضوح.
+
+قواعد صارمة:
+- استخدم فقط واجهات المحرك المذكورة أدناه. لا تخترع دوال أو مكوّنات أو معرّفات أصول.
+- إذا احتاج الطلب أصلًا غير موجود في قائمة الأصول، قل ذلك بدل اختراع معرّف.
+- إذا لم تكن الوظيفة موجودة في المحرك، قل إنها غير متاحة واقترح بديلًا متوافقًا.
+- عند كتابة كود، اكتبه في كتلة \`\`\`js مع أول سطر تعليق باسم الملف مثل: // File: Thing.js
+
+واجهات المحرك:
+${api}
+
+فهرس المشروع:
+المشروع: ${sel.index.project}
+الأنظمة الموجودة: ${sel.index.systems.join(', ') || 'لا شيء'}
+الملفات:
+${sel.index.files.join('\n') || 'لا ملفات'}
+كائنات المشهد:
+${sel.index.objects.join('\n') || 'لا كائنات'}
+الأصول المتاحة (استخدم هذه المعرّفات فقط):
+${assets.length ? assets.map(a => `${a.assetId} — ${a.name} [${a.kind}/${a.category}${a.animations.length ? ', حركات: ' + a.animations.join('/') : ''}]`).join('\n') : 'لا أصول مرفوعة'}
+${errs.length ? '\nآخر الأخطاء:\n' + errs.join('\n') : ''}
+
+الملفات ذات الصلة بسؤال المستخدم:
+${sel.files.map(f => `--- ${f.path} ---\n${f.code}`).join('\n\n') || '(لا شيء)'}`;
+  },
+
+  async send(text) {
+    const q = (text != null ? text : this.input.value).trim();
+    if (!q || this.streaming) return;
+    if (!this.project()) { Toast.err('افتح مشروعًا أولًا'); return; }
+    this.input.value = ''; this.input.style.height = '';
+
+    /* build requests go to the builder, which actually edits the project */
+    if (/^(اصنع|ابن|ابنِ|أنشئ|أضف|اضف)\b/.test(q) && !/كيف|لماذا|ما هو|اشرح/.test(q)) {
+      this.push('user', q);
+      this.render();
+      const m = this.push('assistant', 'هذا طلب بناء — سأنفّذه في تبويب «بناء».');
+      this.render();
+      NX.AIPanel.setMode('build');
+      NX.AIPanel.send(q);
+      return;
+    }
+
+    if (!AIConfig.isReady()) {
+      this.push('user', q);
+      this.push('assistant', 'المحادثة الحرّة تحتاج مزوّد AI. افتح ⚙ واختر مزوّدًا واختبر الاتصال.\n\nأما «بناء» فيعمل بلا مزوّد عبر المخطّط المدمج.', { error: true });
+      this.render();
+      return;
+    }
+
+    this.push('user', q);
+    this.render();
+    const assistant = this.push('assistant', '');
+    const node = this.log.lastElementChild;
+    const txt = node ? node.querySelector('.chat-txt') : null;
+    if (txt) txt.classList.add('typing');
+    this.setStreaming(true);
+
+    try {
+      const system = await this.systemFor(q);
+      const c = this.ensure();
+      const history = c.messages.filter(m => m.content && !m.error).slice(-10, -1)
+        .map(m => ({ role: m.role, content: m.content }));
+      const r = await AIClient.chat(history.concat([{ role: 'user', content: q }]), {
+        system,
+        onDelta: (piece, full) => { assistant.content = full; if (txt) { txt.textContent = full; this.toBottom(); } }
+      });
+      assistant.content = r.text || assistant.content || '(بلا رد)';
+      assistant.usage = r.usage; assistant.model = r.model;
+      if (txt) txt.classList.remove('typing');
+      ChatStore.update(this.ensure().projectId, this.ensure());
+      this.render();
+      if (this.voiceMode && assistant.content) VoiceIO.speak(assistant.content, { onEnd: () => { if (this.voiceMode) this.toggleMic(true); } });
+    } catch (e) {
+      const i = e.info || {};
+      assistant.content = '✕ ' + (i.title || String(e.message || e)) + (i.detail ? '\n' + i.detail : '');
+      assistant.error = true;
+      ChatStore.update(this.ensure().projectId, this.ensure());
+      this.render();
+      const last = this.log.lastElementChild;
+      if (last) {
+        const rb = btn('إعادة المحاولة', { cls: 'sm', icon: 'undo', onclick: () => { this.deleteMsg(assistant); this.send(q); } });
+        last.appendChild(rb);
+        if (i.code === 'key' || i.code === 'model' || i.code === 'url')
+          last.appendChild(btn('فتح الإعدادات', { cls: 'sm ghost', icon: 'gear', onclick: () => openAISettings() }));
+      }
+    }
+    this.setStreaming(false);
+  },
+
+  retry(m) {
+    const c = this.ensure();
+    const i = c.messages.indexOf(m);
+    const prevUser = c.messages.slice(0, i).reverse().find(x => x.role === 'user');
+    if (!prevUser) { Toast.err('لا يوجد سؤال لإعادته'); return; }
+    c.messages = c.messages.slice(0, i);
+    ChatStore.update(c.projectId, c);
+    this.render();
+    this.send(prevUser.content);
+  },
+
+  setStreaming(on) {
+    this.streaming = on;
+    if (!this.sendBtn) return;
+    this.sendBtn.querySelector('use').setAttribute('href', on ? '#i-stop' : '#i-spark');
+    this.sendBtn.classList.toggle('danger', on);
+  },
+  stop() { AIClient.abort(); this.setStreaming(false); Toast.show('أُوقف التوليد'); },
+
+  /* pull ```js blocks out of a reply and add them as project files */
+  applyCode(m) {
+    const blocks = [];
+    const re = /```(?:js|javascript|ts|typescript)?\s*\n([\s\S]*?)```/g;
+    let x;
+    while ((x = re.exec(m.content))) blocks.push(x[1].trim());
+    if (!blocks.length) { Toast.err('لا يوجد كود في هذه الرسالة'); return; }
+    const body = el('div');
+    const picks = blocks.map((code, i) => {
+      const nameM = code.match(/^\/\/\s*File:\s*(.+)$/m);
+      const path = (nameM ? nameM[1].trim() : 'AIScript' + (i + 1) + '.js').replace(/[^\w.\-]/g, '');
+      const card = el('div', { class: 'ai-patch' });
+      const head = el('div', { class: 'ph' });
+      head.append(icon('code'), el('b', { text: path }));
+      const pre = el('pre');
+      pre.innerHTML = NX.highlight(code);
+      card.append(head, pre);
+      body.appendChild(card);
+      return { path, code };
+    });
+    const sheet = Sheet.open({
+      title: 'تطبيق الكود', body, full: true, id: 'applycode',
+      foot: [btn('إضافة إلى المشروع', { cls: 'primary', icon: 'plus', onclick: async () => {
+        const p = this.project();
+        await History.create(p, 'قبل تطبيق كود من المحادثة', { by: 'ai' });
+        NX.migrateProjectFiles(p);
+        picks.forEach(({ path, code }) => {
+          let final = path;
+          let n = 2;
+          while (p.files.some(f => f.path === final)) final = path.replace(/(\.[^.]+)$/, '_' + (n++) + '$1');
+          p.files.push({ id: uid('f'), path: final, code, role: NX.fileRole(final), entityId: null, enabled: true });
+        });
+        await NX.Studio.save(true);
+        Toast.ok(picks.length + ' ملف أُضيف');
+        sheet.close();
+        NX.Studio.buildProject({ silent: false });
+      }})]
+    });
+  },
+
+  /* ---- voice ---- */
+  toggleMic(force) {
+    if (this.listening && !force) { VoiceIO.stopListening(); this.setListening(false); return; }
+    if (!VoiceIO.sttSupported()) { Toast.err('التعرّف على الكلام غير مدعوم هنا — اكتب طلبك'); return; }
+    this.setListening(true);
+    VoiceIO.listen({
+      lang: NX.i18n.lang === 'ar' ? 'ar-SA' : 'en-US',
+      onPartial: t => { this.input.value = t; },
+      onFinal: t => { this.input.value = t; this.setListening(false); if (this.voiceMode) this.send(); },
+      onError: msg => { Toast.err(msg); this.setListening(false); },
+      onEnd: () => this.setListening(false)
+    });
+  },
+  setListening(on) {
+    this.listening = on;
+    if (this.micBtn) this.micBtn.classList.toggle('rec', on);
+    if (this.input) this.input.placeholder = on ? 'أستمع…' : 'اسأل أو اطلب…';
+  },
+  toggleVoiceMode() {
+    this.voiceMode = !this.voiceMode;
+    this.voiceBtn.className = 'btn sm ' + (this.voiceMode ? 'ok' : 'ghost');
+    this.voiceBtn.querySelector('span').textContent = this.voiceMode ? 'وضع الصوت: يعمل — اضغط للخروج' : 'وضع الصوت';
+    if (this.voiceMode) {
+      if (!VoiceIO.sttSupported()) { Toast.err('الوضع الصوتي يحتاج دعم التعرّف على الكلام'); this.toggleVoiceMode(); return; }
+      Toast.ok('تحدّث الآن');
+      this.toggleMic(true);
+    } else { VoiceIO.stopListening(); VoiceIO.stopSpeak(); this.setListening(false); }
+  }
+};
+
+/* ------------------------------------------------------------
+   AI DEBUGGER (rules 14, 15, 30)
+   ------------------------------------------------------------ */
+const AIDebug = {
+  open() {
+    const body = el('div');
+    const draw = () => {
+      body.textContent = '';
+      if (!ErrorLog.items.length) {
+        body.appendChild(el('div', { class: 'center-note', text: '✓ لا أخطاء مسجّلة' }));
+        return;
+      }
+      ErrorLog.items.forEach(e => {
+        const card = el('div', { class: 'card', style: { marginBottom: '10px' } });
+        card.appendChild(el('b', { text: e.message, style: { fontSize: '12.5px', display: 'block', wordBreak: 'break-word' } }));
+        card.appendChild(el('div', { class: 'tiny', text: `${e.kind} · ${timeAgo(e.at)}${e.count > 1 ? ' · تكرّر ' + e.count : ''}` }));
+        if (e.stack) {
+          const d = el('details', { class: 'acc', style: { marginTop: '8px' } });
+          d.appendChild(el('summary', { text: 'التفاصيل' }));
+          d.appendChild(el('pre', { class: 'mono', style: { padding: '9px', fontSize: '10px', overflowX: 'auto', direction: 'ltr', textAlign: 'left' }, text: e.stack }));
+          card.appendChild(d);
+        }
+        const row = el('div', { class: 'row', style: { marginTop: '8px' } });
+        row.appendChild(btn('أصلح بالذكاء', { cls: 'sm primary', icon: 'spark', onclick: () => this.fix(e) }));
+        row.appendChild(btn('نسخ', { cls: 'sm ghost', icon: 'copy', onclick: () => navigator.clipboard.writeText(e.message + '\n' + e.stack).then(() => Toast.ok('نُسخ')) }));
+        card.appendChild(row);
+        body.appendChild(card);
+      });
+    };
+    draw();
+    Sheet.open({ title: 'الأخطاء والتشخيص', body, full: true, id: 'aidebug',
+      foot: [btn('مسح السجل', { cls: 'ghost', onclick: () => { ErrorLog.clear(); draw(); } })] });
+  },
+
+  async fix(e) {
+    if (!NX.Studio.project) { Toast.err('افتح مشروعًا'); return; }
+    if (!AIConfig.isReady()) {
+      /* without a model we still run the deterministic checker (rule 30) */
+      Toast.show('لا يوجد مزوّد — سأشغّل الفاحص المدمج');
+      NX.Studio.openAI();
+      setTimeout(() => NX.AIPanel.checkProject(), 400);
+      return;
+    }
+    NX.Studio.openAI();
+    NX.AIPanel.setMode('chat');
+    setTimeout(() => Chat.send(
+      `حدث هذا الخطأ في مشروعي:\n${e.message}\n\n${e.stack ? 'التتبّع:\n' + e.stack.slice(0, 500) : ''}\n\nما السبب وكيف أصلحه؟ إن كان الإصلاح في ملف، اكتب الملف كاملًا في كتلة كود مع // File: اسم_الملف`
+    ), 500);
+  }
+};
+
+/* ------------------------------------------------------------
+   AI HELPERS FOR CREATORS (rule 37) — نص مقترح، والنشر بيدك
+   ------------------------------------------------------------ */
+const AICreator = {
+  async suggest(kind, subject) {
+    if (!AIConfig.isReady()) throw Object.assign(new Error('NO_PROVIDER'), { info: { title: 'يحتاج مزوّد AI' } });
+    const prompts = {
+      gameDescription: `اكتب وصفًا جذّابًا وقصيرًا (٣٠-٦٠ كلمة) بالعربية للعبة اسمها "${subject.title}" من نوع ${subject.genre || 'غير محدّد'}. أعد النص فقط.`,
+      gameTitle: `اقترح ٥ عناوين قصيرة وجذّابة بالعربية للعبة عن: ${subject}. سطر لكل عنوان بلا ترقيم.`,
+      tags: `اقترح ٨ وسوم قصيرة (كلمة واحدة لكل وسم) للعبة: ${subject.title} — ${subject.description || ''}. افصل بفواصل.`,
+      postText: `اكتب منشورًا قصيرًا بالعربية (سطران) يعلن عن: ${subject}. بلا وسوم كثيرة.`,
+      clipDescription: `اكتب وصفًا من سطر واحد بالعربية لمقطع من لعبة: ${subject}.`,
+      thumbnailPrompt: `اكتب وصفًا بصريًا بالإنجليزية لصورة غلاف للعبة: ${subject}. جملة واحدة.`
+    };
+    const r = await AIClient.chat([{ role: 'user', content: prompts[kind] || String(subject) }],
+      { system: 'أنت كاتب محتوى للألعاب. أجب بالمحتوى المطلوب فقط بلا مقدمات.', stream: false });
+    return (r.text || '').trim();
+  },
+
+  /* attach a "suggest with AI" button to any text field */
+  attach(inputEl, kind, subjectFn) {
+    const b = btn('اقترح بالذكاء', { cls: 'sm ghost', icon: 'spark', onclick: async () => {
+      b.disabled = true;
+      const old = b.querySelector('span').textContent;
+      b.querySelector('span').textContent = 'جارٍ…';
+      try {
+        const t = await this.suggest(kind, subjectFn());
+        if (t) { inputEl.value = t; inputEl.dispatchEvent(new Event('input')); Toast.ok('اقتراح جاهز — عدّله كما تشاء'); }
+      } catch (e) { Toast.err((e.info && e.info.title) || 'تعذّر'); }
+      b.querySelector('span').textContent = old;
+      b.disabled = false;
+    }});
+    return b;
+  }
+};
+
+NX.ProjectIndex = ProjectIndex;
+NX.ErrorLog = ErrorLog;
+NX.VoiceIO = VoiceIO;
+NX.ChatStore = ChatStore;
+NX.Chat = Chat;
+NX.AIDebug = AIDebug;
+NX.AICreator = AICreator;
+NX.openAISettings = openAISettings;
+/* the old entry point now opens the new settings */
+NX.Studio.openAISettings = openAISettings;
+</script>
+<script type="module">
+/* ============================================================
+   PART 8/17 · GAME PLATFORM + BOOT
    Outside the Studio: Games, Discover, Search, Create,
    My Games, Assets, Profile (rules 40-42).
    ============================================================ */
@@ -12504,16 +13884,24 @@ function openSettings() {
   ]);
   body.appendChild(themeSeg);
 
-  body.appendChild(el('div', { class: 'ttl', text: 'Firebase' }));
+  body.appendChild(el('div', { class: 'ttl', text: 'الاتصال' }));
   const status = el('p', { class: 'tiny', style: { marginBottom: '8px' },
-    text: Backend.isOnline() ? '● متصل — المكتبة العامة والألعاب مشتركة بين المستخدمين'
-      : '○ وضع محلي — كل شيء داخل هذا المتصفح فقط' + (Backend.reason ? ' (' + Backend.reason + ')' : '') });
+    text: Backend.isOnline() ? '● متصل — مشاريعك وأصولك ومجتمعك متزامنة'
+      : '○ يعمل محليًا — كل شيء محفوظ في هذا المتصفح' + (Backend.reason && NX.LS.get('ownerMode', false) ? ' (' + Backend.reason + ')' : '') });
   body.appendChild(status);
+  const ownerWrap = el('details', { class: 'acc' });
+  ownerWrap.appendChild(el('summary', { text: 'إعدادات المالك (متقدّم)' }));
+  const ownerBody = el('div', { class: 'acc-body' });
+  ownerBody.appendChild(el('p', { class: 'tiny', style: { marginBottom: '8px' },
+    text: NX.FB_OWNER_CONFIGURED
+      ? 'هذه النسخة مضبوطة مسبقًا من مالك المنصة. الإعداد أدناه يتجاوزه على هذا الجهاز فقط.'
+      : 'ألصق إعداد Firebase هنا، أو ضعه مرة واحدة في NEXUS_FIREBASE أعلى الملف ليعمل لكل الزوّار بلا إعداد.' }));
+  body.appendChild(ownerWrap);
   const cfgArea = el('textarea', { class: 'textarea', style: { fontFamily: 'var(--mono)', fontSize: '11.5px', minHeight: '150px', direction: 'ltr', textAlign: 'left' },
     placeholder: '{\n  "apiKey": "…",\n  "authDomain": "…",\n  "projectId": "…",\n  "storageBucket": "…",\n  "appId": "…"\n}',
     value: NX.FB_CONFIG ? JSON.stringify(NX.FB_CONFIG, null, 2) : '' });
-  body.appendChild(cfgArea);
-  body.appendChild(btn('حفظ وإعادة التشغيل', { cls: 'primary block', style: { marginTop: '8px' }, onclick: () => {
+  ownerBody.appendChild(cfgArea);
+  ownerBody.appendChild(btn('حفظ وإعادة التشغيل', { cls: 'primary block', style: { marginTop: '8px' }, onclick: () => {
     const raw = cfgArea.value.trim();
     if (!raw) { LS.del('firebaseConfig'); location.reload(); return; }
     try {
@@ -12523,11 +13911,13 @@ function openSettings() {
       location.reload();
     } catch (e) { Toast.err('JSON غير صالح: ' + e.message); }
   }}));
-  body.appendChild(el('p', { class: 'tiny', style: { marginTop: '6px' }, text: 'انشر قواعد الأمان قبل الاستخدام العام — افتح لوحة الأمان أدناه.' }));
+  ownerBody.appendChild(el('p', { class: 'tiny', style: { marginTop: '6px' }, text: 'انشر قواعد الأمان قبل الاستخدام العام — افتح لوحة الأمان أدناه.' }));
+  ownerWrap.appendChild(ownerBody);
 
   body.appendChild(el('hr', { class: 'sep' }));
   body.appendChild(btn('الأمان وقواعد Firebase', { cls: 'block', icon: 'shield', onclick: () => openSecurityPanel() }));
-  body.appendChild(btn('إعدادات مساعد AI', { cls: 'block', icon: 'spark', style: { marginTop: '8px' }, onclick: () => NX.Studio.openAISettings() }));
+  body.appendChild(btn('مزوّدو الذكاء الاصطناعي', { cls: 'block', icon: 'spark', style: { marginTop: '8px' }, onclick: () => NX.openAISettings() }));
+  body.appendChild(btn('سجلّ الأخطاء والتشخيص', { cls: 'block', icon: 'shield', style: { marginTop: '8px' }, onclick: () => NX.AIDebug.open() }));
   body.appendChild(btn('مسح ذاكرة الأصول المؤقتة', { cls: 'block ghost', style: { marginTop: '8px' }, onclick: () => { NX.AssetCache.clear(); Toast.ok('مُسحت'); } }));
 
   body.appendChild(el('hr', { class: 'sep' }));
@@ -12581,8 +13971,11 @@ NX.GamePlayer = Player;
   Platform.go('home');
   NX.__booted = true;
 
-  if (!Backend.isOnline()) {
-    setTimeout(() => Toast.show('وضع محلي — اضبط Firebase من الإعدادات للمشاركة', '', 5200), 900);
+  /* no Firebase nag for visitors: when the owner has configured it they are
+     simply online, and when they have not, the offline notices appear only
+     where a network feature is actually used. */
+  if (!Backend.isOnline() && !NX.FB_OWNER_CONFIGURED && NX.LS.get('ownerMode', false)) {
+    setTimeout(() => Toast.show('وضع محلي — أعدادات المالك في الإعدادات', '', 4200), 900);
   }
 
   /* deep links: #game/<id> · #project/<id> */
