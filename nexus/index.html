@@ -1430,7 +1430,7 @@ function describeFirebaseError(e) {
     'bucket-not-found': 'لا توجد حاوية Storage بهذا الاسم — تحقّق من storageBucket أو فعّل Storage في المشروع',
     'storage-not-enabled': 'Storage غير مفعّل في مشروع Firebase — رفع الصور والفيديو والملفات يحتاجه (Firebase Console ← Storage ← Get started)',
     'drive-disabled': 'Google Drive API غير مفعّل في مشروع Google Cloud الخاص بـ Firebase (Google Cloud Console ← APIs & Services ← Library ← Google Drive API ← Enable)',
-    'drive-key-blocked': 'مفتاح apiKey لا يسمح بـ Google Drive API (Google Cloud Console ← Credentials ← المفتاح ← API restrictions ← أضف Google Drive API)',
+    'drive-key-blocked': 'مفتاح apiKey في index.html لا يسمح بـ Google Drive API، فلن يستطيع أحد تنزيل الملفات. الحل: Google Cloud Console ← APIs & Services ← Credentials ← المفتاح (Browser key) ← API restrictions ← أضف Google Drive API ← Save',
     'drive-auth': 'انتهت صلاحية إذن Google Drive — اضغط الرفع مرة أخرى وسجّل الدخول بـ Google',
     'drive-no-token': 'الرفع إلى Google Drive يحتاج تسجيل الدخول بـ Google — أكمل تسجيل الدخول ثم أعد الرفع',
     'drive-popup-blocked': 'المتصفح منع نافذة Google — اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد الرفع',
@@ -1665,7 +1665,13 @@ const Drive = {
   /* resumable upload (the multipart kind is limited to 5 MB — models are
      often bigger), with progress, a cancel handle and a 90 s start watchdog */
   async upload(path, file, onProgress, opts = {}) {
+    /* can visitors download what is about to be uploaded? (Drive API on, key
+       allowed) — asked alongside the sign-in so the Google popup still opens
+       straight from the button press */
+    const ready = this.ready();
     let token = await this.ensureToken();
+    const r = await ready;
+    if (!r.ok && /drive-(disabled|key-blocked)/.test(r.code)) throw driveErr(r.code);
     const name = (file.name || path.split('/').pop() || 'file').slice(0, 200);
     const ext = (name.split('.').pop() || path.split('.').pop() || '').toLowerCase();
     const type = file.type || DRIVE_TYPES[ext] || 'application/octet-stream';
@@ -1712,6 +1718,14 @@ const Drive = {
     const t = this.token();
     if (!t || !id) return;
     await this._call(DRIVE_API + '/files/' + encodeURIComponent(id), t, { method: 'DELETE' }).catch(() => {});
+  },
+  /* cached once it says yes; a "no" is asked again next time */
+  _ready: null,
+  async ready() {
+    if (this._ready) return this._ready;
+    const r = await this.check();
+    if (r.ok) this._ready = r;
+    return r;
   },
   /* can this project serve Drive files to visitors? (API enabled + key allowed) */
   async check() {
