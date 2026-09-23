@@ -1438,6 +1438,7 @@ function describeFirebaseError(e) {
     'drive-full': 'مساحة Google Drive الخاصة بك ممتلئة',
     'drive-share-blocked': 'حساب Google هذا لا يسمح بمشاركة الملفات للعامة (حساب مؤسسة/مدرسة؟) — استعمل حساب Gmail شخصيًا',
     'drive-failed': 'تعذّر الرفع إلى Google Drive',
+    'user-mismatch': 'اخترت حساب Google غير الحساب المرتبط بحسابك في NEXUS',
     'upload-stalled': 'توقف الرفع: لم يصل أي جزء من الملف إلى Firebase خلال 90 ثانية — الشبكة ضعيفة أو مقطوعة. أعد المحاولة.',
     'no-default-bucket': 'لم يُضبط storageBucket في إعداد Firebase',
     'project-not-found': 'مشروع Storage غير موجود — فعّل Storage في Firebase Console',
@@ -1592,14 +1593,49 @@ const Drive = {
     const u = Backend.fb && Backend.fb.auth.currentUser;
     return t && u && t.uid === u.uid && t.exp > Date.now() + 60000 ? t.token : null;
   },
-  rememberCredential(cred, uid) {
+  rememberCredential(cred, uid, email) {
     if (!cred || !cred.accessToken || !uid) return;
-    this._mem = { token: cred.accessToken, uid, exp: Date.now() + 55 * 60000 };
+    this._mem = { token: cred.accessToken, uid, email: email || '', exp: Date.now() + 55 * 60000 };
     try { sessionStorage.setItem('nx.driveToken', JSON.stringify(this._mem)); } catch {}
   },
   remember(result) {
     if (!result || !Backend.fb) return;
-    this.rememberCredential(Backend.fb.A.GoogleAuthProvider.credentialFromResult(result), result.user && result.user.uid);
+    const u = result.user, g = u && u.providerData.find(x => x.providerId === 'google.com');
+    this.rememberCredential(Backend.fb.A.GoogleAuthProvider.credentialFromResult(result), u && u.uid, (g && g.email) || (u && u.email));
+  },
+  /* the Google account whose Drive the current token writes to */
+  account() {
+    let t = this._mem;
+    if (!t) { try { t = JSON.parse(sessionStorage.getItem('nx.driveToken') || 'null'); } catch {} }
+    return (t && t.email) || '';
+  },
+  /* A separate sign-in used ONLY to get Drive permission. It never touches
+     the NEXUS session, so any Google account can be picked: the files go
+     to that account's Drive and the NEXUS account stays as it is.
+     (Re-authenticating the NEXUS session instead fails with
+     "auth/user-mismatch" as soon as another Google account is picked.)
+     Created ahead of the upload so the popup opens straight from the tap. */
+  warm() {
+    if (this._auth || !Backend.fb || FILE_HOST !== 'drive') return this._auth;
+    const { A, appMod } = Backend.fb;
+    try {
+      this._app = appMod.initializeApp(FB_CONFIG, 'nexus-drive');
+      this._auth = A.initializeAuth(this._app, { persistence: A.inMemoryPersistence, popupRedirectResolver: A.browserPopupRedirectResolver });
+      if (EMULATORS) A.connectAuthEmulator(this._auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    } catch (e) { console.warn('[nexus] drive sign-in unavailable', e && e.message); }
+    return this._auth;
+  },
+  async _tokenPopup(hint) {
+    const { A } = Backend.fb;
+    const auth2 = this.warm();
+    if (!auth2) throw driveErr('drive-no-token');
+    const p = this.provider();
+    p.setCustomParameters(hint ? { login_hint: hint, prompt: 'select_account' } : { prompt: 'select_account' });
+    const r = await A.signInWithPopup(auth2, p);
+    const g = r.user.providerData.find(x => x.providerId === 'google.com');
+    const cred = A.GoogleAuthProvider.credentialFromResult(r);
+    A.signOut(auth2).catch(() => {});
+    return { cred, email: (g && g.email) || r.user.email || '' };
   },
   forget() { this._mem = null; try { sessionStorage.removeItem('nx.driveToken'); } catch {} },
   provider() {
@@ -1612,15 +1648,18 @@ const Drive = {
   async ensureToken() {
     const have = this.token();
     if (have) return have;
-    const { A, auth } = Backend.fb;
+    const { auth } = Backend.fb;
     const u = auth.currentUser;
     try {
-      if (u && u.providerData.some(x => x.providerId === 'google.com')) this.remember(await A.reauthenticateWithPopup(u, this.provider()));
-      else if (!u || u.isAnonymous) await Backend.auth.signInGoogle();
+      /* a visitor without an account: signing in with Google makes it one
+         (same uid, projects kept) and brings the Drive permission with it */
+      if (!u || u.isAnonymous) await Backend.auth.signInGoogle();
       else {
-        /* an email account: Google is added to it (same uid, same projects) */
-        try { this.remember(await A.linkWithPopup(u, this.provider())); Backend._refreshUser(); }
-        catch (e) { if (e.code === 'auth/credential-already-in-use') throw driveErr('drive-account-in-use'); throw e; }
+        /* an account already: only the Drive permission is asked for, with
+           the linked Google account suggested — any account is accepted */
+        const linked = u.providerData.find(x => x.providerId === 'google.com');
+        const got = await this._tokenPopup((linked && linked.email) || u.email || '');
+        this.rememberCredential(got.cred, u.uid, got.email);
       }
     } catch (e) {
       if (/popup-closed-by-user|cancelled-popup-request/.test(e.code || '')) throw driveErr('canceled', 'CANCELED');
@@ -1649,7 +1688,7 @@ const Drive = {
   },
   /* one "NEXUS" folder in the user's Drive keeps the files together */
   async folder(token) {
-    const uidKey = 'driveFolder.' + ((Backend.user && Backend.user.uid) || '');
+    const uidKey = 'driveFolder.' + (this.account() || (Backend.user && Backend.user.uid) || '');
     const cached = LS.get(uidKey, null);
     if (cached) return cached;
     try {
@@ -1678,9 +1717,17 @@ const Drive = {
     const parent = await this.folder(token);
     const meta = { name, mimeType: type, appProperties: { nexusPath: path.slice(0, 120) } };
     if (parent) meta.parents = [parent];
-    const start = await this._call(DRIVE_UPLOAD + '?uploadType=resumable&fields=id', token, { method: 'POST',
+    const startSession = () => this._call(DRIVE_UPLOAD + '?uploadType=resumable&fields=id', token, { method: 'POST',
       headers: { 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Type': type, 'X-Upload-Content-Length': String(file.size || 0) },
       body: JSON.stringify(meta) });
+    let start;
+    try { start = await startSession(); }
+    catch (e) {
+      if (!(meta.parents && e.code === 'drive-failed' && /HTTP 404/.test(e.message))) throw e;
+      LS.del('driveFolder.' + (this.account() || (Backend.user && Backend.user.uid) || ''));
+      delete meta.parents;
+      start = await startSession();
+    }
     const uploadId = start.headers.get('X-GUploader-UploadID');
     const session = start.headers.get('Location') || (uploadId && DRIVE_UPLOAD + '?uploadType=resumable&fields=id&upload_id=' + encodeURIComponent(uploadId));
     if (!session) throw driveErr('drive-failed', 'NO_UPLOAD_SESSION');
@@ -2043,7 +2090,12 @@ const Backend = {
             catch (e) {
               if (e.code !== 'auth/credential-already-in-use') throw e;
               const cred = A.GoogleAuthProvider.credentialFromError(e);
-              if (cred) { const r = await A.signInWithCredential(auth, cred); Drive.rememberCredential(cred, r.user.uid); return r.user; }
+              if (cred) {
+                const r = await A.signInWithCredential(auth, cred);
+                const g = r.user.providerData.find(x => x.providerId === 'google.com');
+                Drive.rememberCredential(cred, r.user.uid, (g && g.email) || r.user.email);
+                return r.user;
+              }
             }
           }
           const r = await A.signInWithPopup(auth, p);
@@ -5393,6 +5445,7 @@ async function prepareFile(file) {
 
 function openUploadSheet(onDone) {
   let prepared = null, preview = null, thumbOverride = null;
+  NX.Drive && NX.Drive.warm();
 
   const body = el('div');
   const dropZone = el('div', { class: 'drop' });
@@ -7221,6 +7274,7 @@ const Studio = {
   },
 
   openPublish() {
+    NX.Drive && NX.Drive.warm();   // a cover image goes to Drive
     const p = this.project;
     const prev = p.publishMeta || {};
     const body = el('div');
@@ -12601,6 +12655,7 @@ async function share(kind, id, title) {
    COMPOSER (rules 10, 13, 28, 29)
    ------------------------------------------------------------ */
 function openComposer(opts = {}) {
+  NX.Drive && NX.Drive.warm();
   if (!needOnline('النشر')) return;
   let file = null, thumb = null, meta = { duration: 0, width: 0, height: 0 };
   let kind = opts.kind || 'post';
