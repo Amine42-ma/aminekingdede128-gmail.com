@@ -43,8 +43,9 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
+  /* the page itself — also for a shared game link (…/game/<id>) */
   if (req.mode === 'navigate' && url.origin === SCOPE.origin &&
-      (url.pathname === SCOPE.pathname || url.pathname === SCOPE.pathname + 'index.html')) {
+      (url.pathname === SCOPE.pathname || url.pathname === SCOPE.pathname + 'index.html' || url.pathname.startsWith(SCOPE.pathname + 'game/'))) {
     e.respondWith(page(req, e));
     return;
   }

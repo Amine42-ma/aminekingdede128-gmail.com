@@ -23,6 +23,17 @@ service firebase.storage {
       allow delete: if owner(userId);
     }
 
+    // a game's showcase (GAME MEDIA): cover, banner, background, screenshots
+    // up to 12 MB each, the gameplay video up to 128 MB. Same readers as below.
+    match /games/{userId}/{gameId}/showcase/{file} {
+      allow read: if owner(userId)
+                  || (firestore.exists(/databases/(default)/documents/games/$(gameId))
+                      && docVis('games', gameId) != 'private');
+      allow create, update: if owner(userId)
+                    && ((typeIs('image/.*') && under(12)) || (typeIs('video/.*') && under(128)));
+      allow delete: if owner(userId);
+    }
+
     // published games: cover, compiled WebAssembly, large build snapshots.
     // Readable by others only while the game record is not private.
     match /games/{userId}/{gameId}/{rest=**} {

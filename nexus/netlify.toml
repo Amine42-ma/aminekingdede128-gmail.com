@@ -5,6 +5,13 @@
 [build]
   publish = "."
 
+# A shared game link — https://YOUR-SITE.netlify.app/game/<gameId> — opens
+# the game's showcase page (the page turns it into its own #game/<id> route).
+[[redirects]]
+  from = "/game/*"
+  to = "/index.html"
+  status = 200
+
 # Optional — only if Google sign-in by REDIRECT fails on some phones
 # (browsers that block third-party storage). Proxy Firebase's auth helper
 # through this site, then set authDomain in the NEXUS_FIREBASE block of

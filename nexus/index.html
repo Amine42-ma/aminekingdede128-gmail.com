@@ -2,6 +2,14 @@
 <html lang="ar" dir="rtl" translate="no">
 <head>
 <meta charset="utf-8">
+<script>
+/* a pretty game link (…/game/<id>, sent to this page by netlify.toml)
+   becomes the app's own route (…/#game/<id>) before anything relative loads */
+(function () {
+  var m = /^(.*\/)game\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname);
+  if (m) history.replaceState(null, '', m[1] + location.search + '#game/' + m[2]);
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <meta name="google" content="notranslate">
@@ -865,6 +873,140 @@ html.kb-open .ide-toolbar,html.kb-open .ide-seg{display:none}
   #p-body{padding-bottom:24px}
   .grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
 }
+/* ---------- GAME SHOWCASE — the store page a game link opens first ---------- */
+.sheet.showcase{background:#05060d;padding-top:0;overflow:hidden}
+.sheet.showcase>.sheet-grip,.sheet.showcase>.sheet-head{display:none}
+.sheet.showcase>.sheet-body{padding:0;position:relative;z-index:1;background:transparent}
+@media (min-width:860px){.sheet.showcase.full{width:100vw;inset-inline:0;border:0}}
+.sc-bg{position:absolute;inset:0;z-index:0;background:#05060d center/cover no-repeat;transform:scale(1.02);transition:opacity .5s}
+.sc-bg.soft{filter:blur(26px) saturate(1.25);transform:scale(1.18);opacity:.8}
+.sc-dim{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(5,6,13,calc(var(--dim,.55) * .5)) 0%,rgba(5,6,13,var(--dim,.55)) 34%,rgba(5,6,13,calc(.45 + var(--dim,.55) * .5)) 100%)}
+.sc{--ink:#eef0ff;--ink-soft:#c9cde6;--ink-dim:#9aa1c2;color:var(--ink);min-height:100%}
+.sc-top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;padding:calc(var(--sat) + 8px) 12px 8px;transition:background .25s}
+.sc-top.solid{background:rgba(6,7,15,.86);backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.08)}
+.sc-top b{flex:1;min-width:0;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;transition:opacity .25s}
+.sc-top.solid b{opacity:1}
+.sc-ib{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:rgba(10,12,24,.55);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(10px);color:#fff;flex:0 0 auto}
+.sc-ib svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sc-ib.on{background:rgba(251,113,133,.35);border-color:rgba(251,113,133,.6)}
+.sc-wrap{max-width:1140px;margin:0 auto;padding:0 16px calc(110px + var(--sab))}
+.sc-badge{display:inline-flex;gap:6px;align-items:center;font-size:12px;font-weight:700;padding:6px 12px;border-radius:99px;background:rgba(251,191,36,.18);border:1px solid rgba(251,191,36,.45);color:#fde68a;margin:4px 0 10px}
+.sc-banner{position:relative;height:clamp(150px,36vw,320px);margin:-58px -16px 0;overflow:hidden}
+.sc-banner img{width:100%;height:100%;object-fit:cover;display:block}
+.sc-banner::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,6,13,.15) 30%,rgba(5,6,13,.92))}
+.sc-hero-in{display:flex;flex-direction:column;gap:16px;position:relative}
+.sc-banner+.sc-hero-in{margin-top:-84px}
+.sc-cover{width:100%;aspect-ratio:16/9;border-radius:18px;overflow:hidden;background:linear-gradient(135deg,rgba(124,92,255,.35),rgba(34,211,238,.18));box-shadow:0 26px 60px -22px rgba(0,0,0,.95);border:1px solid rgba(255,255,255,.14);display:grid;place-items:center}
+.sc-cover img{width:100%;height:100%;object-fit:cover;display:block}
+.sc-cover .ph{font-size:46px;opacity:.5}
+.sc-title{font-size:clamp(27px,7vw,46px);font-weight:800;line-height:1.12;letter-spacing:-.02em;text-shadow:0 2px 20px rgba(0,0,0,.65);overflow-wrap:anywhere}
+.sc-tagline{font-size:15.5px;color:var(--ink-soft);line-height:1.65;margin-top:8px}
+.sc-dev{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:13.5px;color:var(--ink-soft)}
+.sc-dev button{color:#7fe7f7;font-weight:800}
+.sc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.sc-chip{font-size:12px;padding:5px 11px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#e4e7fb}
+.sc-follow{margin-inline-start:6px;font-size:12px;font-weight:800;padding:4px 11px;border-radius:99px;background:rgba(34,211,238,.16);border:1px solid rgba(34,211,238,.45);color:#9befff}
+.sc-chip.genre{background:rgba(124,92,255,.28);border-color:rgba(124,92,255,.55);font-weight:700}
+.sc-cta{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.sc-play{flex:1 1 210px;min-height:58px;border-radius:16px;font-size:18px;font-weight:800;letter-spacing:.05em;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 18px 42px -14px rgba(124,92,255,.95);transition:transform .15s var(--ease)}
+.sc-play:active,.sc-watch:active{transform:scale(.97)}
+.sc-play svg,.sc-watch svg{width:22px;height:22px;fill:currentColor;stroke:none}
+.sc-watch{flex:1 1 170px;min-height:58px;border-radius:16px;font-size:15px;font-weight:800;letter-spacing:.04em;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(8px);color:#fff;display:flex;align-items:center;justify-content:center;gap:9px}
+.sc-stats{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px;font-size:12.5px;color:var(--ink-soft)}
+.sc-stats span{display:inline-flex;align-items:center;gap:5px}
+@media (min-width:860px){
+  .sc-hero-in{flex-direction:row;align-items:flex-end;gap:30px;padding-top:12px}
+  .sc-cover{flex:0 0 min(47%,540px)}
+  .sc-head{flex:1;min-width:0;padding-bottom:4px}
+}
+.sc-sec{margin-top:24px;padding:18px 16px;border-radius:20px;background:rgba(10,12,24,.64);border:1px solid rgba(255,255,255,.09);backdrop-filter:blur(12px)}
+.sc-h{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+.sc-h b{font-family:var(--font-en);font-size:13px;font-weight:700;letter-spacing:.18em;color:#fff}
+.sc-h span{font-size:12px;color:var(--ink-dim)}
+.sc-video{position:relative;display:block;width:100%;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#000}
+.sc-video img{width:100%;height:100%;object-fit:cover;display:block;opacity:.92}
+.sc-video .pl{position:absolute;inset:0;display:grid;place-items:center;background:radial-gradient(circle,rgba(0,0,0,.05),rgba(0,0,0,.45))}
+.sc-video .pl i{width:78px;height:78px;border-radius:50%;background:rgba(255,255,255,.2);backdrop-filter:blur(8px);display:grid;place-items:center;border:1px solid rgba(255,255,255,.4)}
+.sc-video .pl svg{width:32px;height:32px;fill:#fff;stroke:none;margin-inline-start:4px}
+.sc-video .dur{position:absolute;bottom:10px;inset-inline-end:10px;font:600 12px var(--mono);background:rgba(0,0,0,.7);padding:3px 8px;border-radius:8px;direction:ltr;color:#fff}
+.sc-gallery{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 8px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+.sc-gallery button{flex:0 0 80%;max-width:460px;aspect-ratio:16/9;border-radius:12px;overflow:hidden;scroll-snap-align:start;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);position:relative}
+@media (min-width:860px){.sc-gallery button{flex-basis:calc(33.33% - 7px)}}
+.sc-gallery img{width:100%;height:100%;object-fit:cover;display:block}
+.sc-gallery .n{position:absolute;bottom:6px;inset-inline-start:6px;font:600 10.5px var(--mono);background:rgba(0,0,0,.6);padding:2px 7px;border-radius:99px;color:#fff}
+.sc-desc{white-space:pre-line;line-height:1.9;font-size:14.5px;color:#e3e6f7;overflow-wrap:anywhere}
+.sc-desc.clamp{max-height:10.5em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent)}
+.sc-more{margin-top:8px;font-size:13px;font-weight:800;color:#7fe7f7}
+.sc-info{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px}
+.sc-info div{padding:11px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);min-width:0}
+.sc-info span{display:block;font-size:11px;color:var(--ink-dim);margin-bottom:2px}
+.sc-info b{font-size:14px;overflow-wrap:anywhere}
+.sc-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:24px}
+.sc-actions button{min-height:56px;border-radius:14px;background:rgba(10,12,24,.6);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(10px);font-weight:800;font-size:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#fff}
+.sc-actions button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sc-actions button small{font:700 10px var(--font-en);letter-spacing:.14em;color:var(--ink-dim)}
+.sc-actions button.on{background:rgba(251,113,133,.24);border-color:rgba(251,113,133,.55)}
+.sc-owner{margin-top:18px;padding:14px;border-radius:16px;border:1px dashed rgba(124,92,255,.6);background:rgba(124,92,255,.12);display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.sc-owner p{flex:1 1 200px;font-size:12.5px;color:var(--ink-soft)}
+.sc-sticky{position:absolute;inset-inline:0;bottom:0;z-index:6;display:flex;align-items:center;gap:10px;padding:10px 14px calc(10px + var(--sab));background:rgba(7,8,16,.92);backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,.1);transform:translateY(115%);transition:transform .32s var(--ease)}
+.sc-sticky.in{transform:none}
+.sc-sticky img{width:46px;height:46px;border-radius:10px;object-fit:cover;background:rgba(255,255,255,.08)}
+.sc-sticky b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14.5px}
+.sc-sticky .sc-play{flex:0 0 auto;min-height:48px;padding:0 24px;font-size:15px}
+/* image viewer and video viewer (Modal-based: the phone's back button closes them first) */
+.modal.lb-modal{padding:0}
+.modal-box.lb-box{width:100%;height:100%;max-height:none;border-radius:0;border:0;padding:0;background:#000;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.lb-track{flex:1;display:flex;direction:ltr;min-height:0;touch-action:pan-y;transition:transform .34s var(--ease);will-change:transform}
+.lb-slide{flex:0 0 100%;display:grid;place-items:center;padding:calc(var(--sat) + 58px) 8px calc(var(--sab) + 70px);min-width:0}
+.lb-slide img{max-width:100%;max-height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none;border-radius:6px}
+.lb-bar{position:absolute;top:0;inset-inline:0;display:flex;align-items:center;gap:8px;padding:calc(var(--sat) + 10px) 12px 12px;background:linear-gradient(rgba(0,0,0,.75),transparent);z-index:2}
+.lb-count{flex:1;font:600 13px var(--mono);direction:ltr;text-align:center;color:#fff}
+.lb-nav{position:absolute;top:50%;margin-top:-26px;z-index:2;width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.14);display:grid;place-items:center;color:#fff}
+.lb-nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2}
+.lb-nav.prev{left:12px}.lb-nav.next{right:12px}
+.lb-nav.prev svg{transform:scaleX(-1)}
+@media (hover:none){.lb-nav{display:none}}
+.lb-thumbs{position:absolute;bottom:0;inset-inline:0;display:flex;gap:6px;justify-content:center;padding:10px 10px calc(var(--sab) + 12px);background:linear-gradient(transparent,rgba(0,0,0,.8));direction:ltr;overflow-x:auto}
+.lb-thumbs button{flex:0 0 auto;width:54px;height:34px;border-radius:6px;overflow:hidden;opacity:.5;border:2px solid transparent}
+.lb-thumbs button.on{opacity:1;border-color:#fff}
+.lb-thumbs img{width:100%;height:100%;object-fit:cover}
+.modal-box.vbox{width:min(1100px,100%);max-height:none;padding:0;background:#000;border-radius:16px;overflow:hidden;position:relative}
+.vbox .vb-head{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#07080f}
+.vbox .vb-head b{flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vbox .vp{border-radius:0}
+.vbox .vp video{max-height:78dvh}
+.vp-unmute{position:absolute;top:12px;inset-inline-start:12px;z-index:3;padding:8px 14px;border-radius:99px;background:rgba(0,0,0,.72);color:#fff;font-weight:800;font-size:13px;border:1px solid rgba(255,255,255,.3)}
+.vp-vol{width:74px;accent-color:var(--brand);flex:0 0 auto}
+@media (max-width:420px){.vp-vol{width:52px}.vp-sp{display:none}}
+.vp-ctl{direction:ltr}
+.vp-bar b{position:absolute;left:0;top:9px;height:4px;width:0;background:rgba(255,255,255,.28);border-radius:99px;pointer-events:none}
+.vp-bar i{position:relative;z-index:1}
+/* GAME MEDIA — the owner's media manager */
+.gm-state{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.gm-slot{padding:12px;border-radius:14px;background:var(--panel-2);border:1px solid var(--line);margin-bottom:10px}
+.gm-row{display:flex;gap:12px;align-items:center}
+.gm-thumb{flex:0 0 104px;height:62px;border-radius:10px;overflow:hidden;background:var(--glass-2);display:grid;place-items:center;color:var(--ink-dim);font-size:11px;text-align:center;position:relative}
+.gm-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.gm-thumb .dur{position:absolute;bottom:3px;inset-inline-end:3px;font:600 10px var(--mono);background:rgba(0,0,0,.7);color:#fff;padding:1px 5px;border-radius:5px;direction:ltr}
+.gm-info{flex:1;min-width:0}
+.gm-info b{display:block;font-size:14px}
+.gm-info span{display:block;font-size:11.5px;color:var(--ink-dim);line-height:1.5}
+.gm-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.gm-acts .btn{min-height:36px;padding:0 11px;font-size:12px}
+.gm-prog{height:6px;border-radius:99px;background:var(--glass-2);overflow:hidden;margin-top:8px}
+.gm-prog i{display:block;height:100%;width:0;background:var(--grad);transition:width .2s}
+.gm-msg{font-size:11.5px;margin-top:5px;color:var(--ink-soft);white-space:pre-line}
+.gm-shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.gm-shot{border-radius:12px;overflow:hidden;background:var(--panel-2);border:1px solid var(--line)}
+.gm-shot .im{aspect-ratio:16/9;position:relative;background:var(--glass-2)}
+.gm-shot .im img{width:100%;height:100%;object-fit:cover;display:block}
+.gm-shot .main{position:absolute;top:6px;inset-inline-start:6px;font-size:10.5px;background:var(--grad);padding:2px 8px;border-radius:99px;color:#fff;font-weight:800}
+.gm-shot .ops{display:flex;flex-wrap:wrap;gap:4px;padding:7px}
+.gm-shot .ops button{font-size:11px;padding:5px 8px;border-radius:7px;background:var(--glass-2);border:1px solid var(--line)}
+.gm-order{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:11px;background:var(--panel-2);border:1px solid var(--line);margin-bottom:6px;font-size:13px}
+.gm-order b{flex:1}
+.gm-order button{width:34px;height:30px;border-radius:8px;background:var(--glass-2)}
 </style>
 </head>
 <body>
@@ -887,6 +1029,9 @@ html.kb-open .ide-toolbar,html.kb-open .ide-seg{display:none}
 <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
 <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5 19 12 7 19.5v-15Z"/></symbol>
 <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><rect x="6.5" y="5" width="3.8" height="14" rx="1.2"/><rect x="13.7" y="5" width="3.8" height="14" rx="1.2"/></symbol>
+<symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.6 7.6 0 0 1 0 11"/></symbol>
+<symbol id="i-full" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
 <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></symbol>
 <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6 18 18M18 6 6 18"/></symbol>
 <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></symbol>
@@ -1015,6 +1160,7 @@ function el(tag, attrs, kids) {
     else if (k === 'style' && typeof v === 'object') Object.assign(n.style, v);
     else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
     else if (k === 'dataset') Object.assign(n.dataset, v);
+    else if (k === 'value' && tag === 'textarea') n.value = v;   // a textarea shows its value property, never the attribute
     else n.setAttribute(k, v === true ? '' : v);
   }
   if (kids != null) (Array.isArray(kids) ? kids : [kids]).forEach(c => {
@@ -2745,6 +2891,46 @@ function findLocalURLs(value, path = 'snapshot', out = []) {
 }
 const coded = (code, message) => Object.assign(new Error(message || code), { code });
 
+/* the link people share: …/game/<id> on Netlify (netlify.toml sends it to
+   this page, which opens the game's showcase), the #game/<id> route elsewhere */
+function gameLink(id) {
+  if (/\.netlify\.app$/i.test(location.hostname) || window.NEXUS_PRETTY_LINKS)
+    return location.origin + location.pathname.replace(/[^/]*$/, '') + 'game/' + encodeURIComponent(id);
+  return location.origin + location.pathname + '#game/' + encodeURIComponent(id);
+}
+
+/* the showcase (store page) as it may be stored: references to files in the
+   project's storage only — never a device-local address, never file bytes */
+const SHOWCASE_SECTIONS = ['video', 'screenshots', 'description', 'info'];
+function cleanShowcase(sc) {
+  if (!sc || typeof sc !== 'object') return null;
+  const media = m => {
+    if (!m || typeof m !== 'object' || !m.path || typeof m.path !== 'string') return null;
+    if (LOCAL_URL.test(m.path) || (m.url && LOCAL_URL.test(m.url))) return null;
+    /* a download URL is kept (https; the local emulator's http on this machine) — no lookup on every visit */
+    const o = { path: m.path.slice(0, 300), url: m.url && /^(https:\/\/|http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/)/.test(m.url) ? String(m.url).slice(0, 2000) : null };
+    ['w', 'h', 'bytes', 'duration'].forEach(k => { if (Number.isFinite(+m[k]) && +m[k] > 0) o[k] = +m[k]; });
+    if (m.type) o.type = String(m.type).slice(0, 60);
+    if (m.assetId) o.assetId = String(m.assetId).slice(0, 80);
+    if (m.name) o.name = String(m.name).slice(0, 120);
+    if (m.thumb) o.thumb = media(m.thumb);
+    if (m.poster) o.poster = media(m.poster);
+    return o;
+  };
+  const out = {
+    v: 1,
+    tagline: String(sc.tagline || '').slice(0, 160),
+    tags: (Array.isArray(sc.tags) ? sc.tags : []).map(t => String(t).trim().slice(0, 32)).filter(Boolean).slice(0, 12),
+    bgDim: Number.isFinite(+sc.bgDim) ? Math.min(0.9, Math.max(0, +sc.bgDim)) : 0.55,
+    sections: (Array.isArray(sc.sections) ? sc.sections : []).filter(s => SHOWCASE_SECTIONS.includes(s)),
+    cover: media(sc.cover), thumbnail: media(sc.thumbnail), banner: media(sc.banner), background: media(sc.background), video: media(sc.video),
+    screenshots: (Array.isArray(sc.screenshots) ? sc.screenshots : []).map(s => { const m = media(s); if (m) m.id = String(s.id || '').slice(0, 40); return m; }).filter(Boolean).slice(0, 12),
+    main: sc.main ? String(sc.main).slice(0, 40) : null
+  };
+  SHOWCASE_SECTIONS.forEach(s => { if (!out.sections.includes(s)) out.sections.push(s); });
+  return out;
+}
+
 const Games = {
   _publishing: false,
 
@@ -2778,8 +2964,9 @@ const Games = {
     this._publishing = true;
     const warnings = [];
     try {
-      /* one project → one game: re-publishing UPDATES the same record */
-      let gameId = project.publishedId || null, prev = null;
+      /* one project → one game: re-publishing UPDATES the same record (the
+         showcase media were uploaded under the id the game is born with) */
+      let gameId = project.publishedId || project.showcaseId || null, prev = null;
       if (gameId) {
         try { prev = await Backend.getDocFromServer('games', gameId); }
         catch (e) { if (e && e.code === 'permission-denied') gameId = null; else throw e; }
@@ -2810,9 +2997,13 @@ const Games = {
         wasmRefs.push({ path: w.path, storagePath: up.path, url: up.url, bytes: bytes.length });
       }
 
-      let cover = meta.cover || (prev && prev.cover) || null;
-      let coverURL = meta.coverURL || (prev && prev.coverURL) || null;
-      if (opts.coverBlob) {
+      /* the showcase (GAME MEDIA): its cover is the card's cover; a captured
+         frame is only used when the owner has not chosen one */
+      const sc = cleanShowcase(project.showcase);
+      const scCover = sc && sc.cover, scThumb = sc && (sc.thumbnail || (sc.cover && sc.cover.thumb));
+      let cover = (scCover && scCover.path) || meta.cover || (prev && prev.cover) || null;
+      let coverURL = (scCover && scCover.path ? scCover.url : null) || meta.coverURL || (prev && prev.coverURL) || null;
+      if (opts.coverBlob && !scCover) {
         try { const up = await Backend.upload(`${base}/cover.webp`, opts.coverBlob); cover = up.path; coverURL = up.url; }
         catch (e) { warnings.push('لم يُرفع الغلاف: ' + describeFirebaseError(e) + ' — نُشرت اللعبة بدون غلاف جديد.'); }
       }
@@ -2837,10 +3028,12 @@ const Games = {
         title, description: String(meta.description || '').slice(0, 2000),
         genre: meta.genre || 'Other', icon: meta.icon || null,
         cover, coverURL, visibility,
+        thumb: scThumb ? scThumb.path : null, thumbURL: scThumb ? scThumb.url : null,
+        showcase: sc,
         updatedAt: now, publishedAt: now,
         version: ((prev && prev.version) || 0) + 1,
         assetCount: usedIds.length, hasCode: code > 0,
-        searchTokens: buildSearchTokens({ name: title, tags: [meta.genre || ''].concat(meta.tags || []), category: meta.genre || '', creatorName: u.name })
+        searchTokens: buildSearchTokens({ name: title, tags: [meta.genre || ''].concat(meta.tags || [], (sc && sc.tags) || []), category: meta.genre || '', creatorName: u.name })
       };
 
       const { F, db } = Backend.fb;
@@ -2868,8 +3061,29 @@ const Games = {
       project.publishMeta = { title, description: rec.description, genre: rec.genre, visibility, cover, coverURL };
       try { await Projects.save(project); }
       catch (e) { warnings.push('نُشرت اللعبة، لكن تعذّر حفظ المشروع: ' + describeFirebaseError(e)); }
-      return Object.assign({}, g, { verified: true, warnings, link: location.origin + location.pathname + '#game/' + gameId });
+      return Object.assign({}, g, { verified: true, warnings, link: gameLink(gameId) });
     } finally { this._publishing = false; }
+  },
+
+  /* the owner changed the showcase after publishing: the game record gets
+     the same media at once, so every phone shows the new page (the rules
+     let only the owner write the record) */
+  async syncShowcase(project) {
+    const u = Backend.user;
+    if (!project || !project.publishedId || !Backend.isOnline() || !u) return false;
+    const g = await Backend.getDocFromServer('games', project.publishedId).catch(() => null);
+    if (!g || g.ownerId !== u.uid) return false;
+    const sc = cleanShowcase(project.showcase);
+    const th = sc && (sc.thumbnail || (sc.cover && sc.cover.thumb));
+    const patch = { showcase: sc, thumb: th ? th.path : null, thumbURL: th ? th.url : null, updatedAt: Date.now() };
+    if (sc && sc.cover) { patch.cover = sc.cover.path; patch.coverURL = sc.cover.url || null; }
+    else if (g.showcase && g.showcase.cover && g.cover === g.showcase.cover.path) { patch.cover = null; patch.coverURL = null; }
+    const pm = project.publishMeta || {};
+    const desc = pm.description != null ? pm.description : project.description;
+    if (desc != null) patch.description = String(desc).slice(0, 2000);
+    patch.searchTokens = buildSearchTokens({ name: g.title, tags: [g.genre || ''].concat((sc && sc.tags) || []), category: g.genre || '', creatorName: g.creatorName });
+    await Backend.serverWrite(Backend.fb.F.updateDoc(Backend.fb.F.doc(Backend.fb.db, 'games', g.gameId), patch));
+    return true;
   },
   async get(id) {
     try { return await Backend.getDoc('games', id); }
@@ -3286,6 +3500,17 @@ service firebase.storage {
       allow delete: if owner(userId);
     }
 
+    // a game's showcase (GAME MEDIA): cover, banner, background, screenshots
+    // up to 12 MB each, the gameplay video up to 128 MB. Same readers as below.
+    match /games/{userId}/{gameId}/showcase/{file} {
+      allow read: if owner(userId)
+                  || (firestore.exists(/databases/(default)/documents/games/$(gameId))
+                      && docVis('games', gameId) != 'private');
+      allow create, update: if owner(userId)
+                    && ((typeIs('image/.*') && under(12)) || (typeIs('video/.*') && under(128)));
+      allow delete: if owner(userId);
+    }
+
     // published games: cover, compiled WebAssembly, large build snapshots.
     // Readable by others only while the game record is not private.
     match /games/{userId}/{gameId}/{rest=**} {
@@ -3320,6 +3545,8 @@ NX.Backend = Backend;
 NX.Assets = Assets;
 NX.Projects = Projects;
 NX.Games = Games;
+NX.gameLink = gameLink;
+NX.cleanShowcase = cleanShowcase;
 NX.tokenize = tokenize;
 NX.buildSearchTokens = buildSearchTokens;
 NX.scoreAsset = scoreAsset;
@@ -7352,6 +7579,7 @@ const Studio = {
       item('save', 'حفظ المشروع', () => this.save()),
       item('play', 'تشغيل تجريبي', () => this.play()),
       item('share', 'نشر اللعبة · Publish', () => this.openPublish()),
+      item('image', 'وسائط اللعبة · GAME MEDIA', () => NX.GameMedia.open(this.project)),
       item('undo', 'تراجع عن آخر تغيير في المشهد', () => this.undo()),
       item('book', T('apiDocs'), () => this.openAPIDocs()),
       item('code', 'الكود ومتعدّد اللغات', () => NX.IDE.open(this.project)),
@@ -7491,12 +7719,23 @@ const Studio = {
     genre.value = prev.genre || 'Other';
     body.append(NX.field('اسم اللعبة', title), NX.field(T('description'), desc), NX.field('التصنيف', genre));
 
+    /* the store page people see before they play (GAME MEDIA) */
+    const sc = p.showcase || {}, shots = (sc.screenshots || []).length;
+    const scCard = el('div', { class: 'card', style: { marginBottom: '12px' } }, [
+      el('b', { text: 'صفحة العرض · Game Showcase' }),
+      el('p', { class: 'tiny', style: { margin: '4px 0 8px' }, text: [['غلاف', sc.cover], ['خلفية', sc.background], ['فيديو', sc.video], ['لقطات ' + shots, shots]].map(([k, v]) => (v ? '✓ ' : '✗ ') + k).join(' · ') + ' — يراها اللاعب قبل دخول اللعبة.' })]);
+    scCard.append(el('div', { class: 'row', style: { flexWrap: 'wrap' } }, [
+      btn('وسائط اللعبة · GAME MEDIA', { cls: 'sm', icon: 'image', onclick: () => { sheet.close(); NX.GameMedia.open(p); } }),
+      btn('معاينة', { cls: 'sm ghost', icon: 'eye', onclick: () => { sheet.close(); NX.GameMedia.preview(p); } })]));
+    body.appendChild(scCard);
+
     let coverBlob = null, iconBlob = null;
     const shot = el('div', { class: 'row', style: { marginBottom: '12px' } });
     const coverImg = el('img', { style: { width: '92px', height: '58px', objectFit: 'cover', borderRadius: '8px', background: '#11142a' } });
-    if (prev.coverURL) coverImg.src = prev.coverURL;
+    if (sc.cover) Backend.fileURL(sc.cover.path, sc.cover.url).then(u => { if (u) coverImg.src = u; });
+    else if (prev.coverURL) coverImg.src = prev.coverURL;
     shot.append(coverImg, el('div', { style: { flex: '1' } }, [
-      el('div', { class: 'tiny', text: 'الغلاف يُلتقط من مساحة العرض الحالية' }),
+      el('div', { class: 'tiny', text: sc.cover ? 'الغلاف من «وسائط اللعبة» — الالتقاط لا يُستعمل ما دام موجودًا' : 'الغلاف يُلتقط من مساحة العرض الحالية' }),
       btn('التقاط الآن', { cls: 'sm', onclick: async () => {
         this.engine.renderer.render(this.engine.scene, this.engine.activeCamera);
         coverBlob = await new Promise(r => this.engine.canvas.toBlob(r, 'image/webp', 0.85));
@@ -7611,6 +7850,7 @@ const Studio = {
     body.appendChild(link);
     Modal.open({ title: 'تم النشر', body, actions: [
       { label: 'نسخ الرابط', cls: 'ghost', onclick: async () => { try { await navigator.clipboard.writeText(rec.link); Toast.ok('نُسخ الرابط'); } catch { link.select(); } } },
+      { label: 'صفحة اللعبة', cls: 'ghost', onclick: () => { NX.Community.openGamePage(rec); } },
       { label: T('close'), cls: 'primary' }
     ]});
   }
@@ -12866,9 +13106,15 @@ function videoPlayer(src, opts = {}) {
   const fill = el('i');
   bar.appendChild(fill);
   const speed = el('button', { class: 'vp-sp', text: '1×' });
-  const full = iconBtn('grid', { label: 'fullscreen' });
-  const vol = iconBtn('music', { label: 'mute' });
-  ctr.append(play, time, bar, speed, vol, full);
+  const full = iconBtn('full', { label: 'fullscreen' });
+  const vol = iconBtn('vol', { label: 'mute' });
+  /* volume slider (opts.volume) and how much is already downloaded */
+  const volR = opts.volume ? el('input', { type: 'range', class: 'vp-vol', min: '0', max: '1', step: '0.05', value: '1', 'aria-label': 'volume' }) : null;
+  const buf = el('b');
+  bar.insertBefore(buf, fill);
+  ctr.append(play, time, bar, speed, vol);
+  if (volR) ctr.appendChild(volR);
+  ctr.appendChild(full);
   wrap.appendChild(ctr);
 
   const big = el('button', { class: 'vp-big' }, [icon('play')]);
@@ -12876,7 +13122,7 @@ function videoPlayer(src, opts = {}) {
 
   const setIcon = () => {
     const u = play.querySelector('use');
-    u.setAttribute('href', v.paused ? '#i-play' : '#i-stop');
+    u.setAttribute('href', v.paused ? '#i-play' : '#i-pause');
     big.classList.toggle('hide', !v.paused);
   };
   const toggle = () => { v.paused ? v.play().catch(() => {}) : v.pause(); };
@@ -12884,15 +13130,17 @@ function videoPlayer(src, opts = {}) {
   v.addEventListener('click', toggle);
   v.addEventListener('play', setIcon);
   v.addEventListener('pause', setIcon);
+  /* a recorded WebM has no duration in its header: the one measured at upload stands in */
+  const dur = () => (isFinite(v.duration) && v.duration > 0 ? v.duration : (opts.duration || 0));
   v.addEventListener('timeupdate', () => {
-    const d = v.duration || 0;
-    fill.style.width = d ? (v.currentTime / d * 100) + '%' : '0%';
+    const d = dur();
+    fill.style.width = d ? Math.min(100, v.currentTime / d * 100) + '%' : '0%';
     time.textContent = fmtDur(v.currentTime) + (d ? ' / ' + fmtDur(d) : '');
   });
   const seek = e => {
     const r = bar.getBoundingClientRect();
     const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
-    if (v.duration) v.currentTime = Math.max(0, Math.min(1, x / r.width)) * v.duration;
+    if (dur()) v.currentTime = Math.max(0, Math.min(1, x / r.width)) * dur();
   };
   bar.addEventListener('click', seek);
   bar.addEventListener('touchstart', seek, { passive: true });
@@ -12900,11 +13148,41 @@ function videoPlayer(src, opts = {}) {
   const SPEEDS = [1, 1.25, 1.5, 2, 0.5];
   let si = 0;
   speed.onclick = () => { si = (si + 1) % SPEEDS.length; v.playbackRate = SPEEDS[si]; speed.textContent = SPEEDS[si] + '×'; };
-  vol.onclick = () => { v.muted = !v.muted; vol.style.opacity = v.muted ? '.45' : '1'; };
-  full.onclick = () => {
-    if (document.fullscreenElement) document.exitFullscreen();
-    else (wrap.requestFullscreen || wrap.webkitRequestFullscreen || (() => {})).call(wrap);
+  v.addEventListener('progress', () => { try { const d = dur(); if (d && v.buffered.length) buf.style.width = Math.min(100, v.buffered.end(v.buffered.length - 1) / d * 100) + '%'; } catch {} });
+  /* started muted (a page never plays sound by itself): one tap for sound */
+  let unm = null;
+  const paintVol = () => {
+    vol.style.opacity = v.muted || v.volume === 0 ? '.45' : '1';
+    if (volR) volR.value = v.muted ? 0 : v.volume;
+    if (unm && !v.muted) { unm.remove(); unm = null; }
   };
+  if (opts.muted && opts.volume) {
+    unm = el('button', { class: 'vp-unmute', text: '🔇 اضغط لتشغيل الصوت', onclick: e => { e.stopPropagation(); v.muted = false; if (v.volume === 0) v.volume = 1; paintVol(); } });
+    wrap.appendChild(unm);
+  }
+  vol.onclick = () => { v.muted = !v.muted; if (!v.muted && v.volume === 0) v.volume = 1; paintVol(); };
+  if (volR) volR.addEventListener('input', () => { v.volume = +volR.value; v.muted = +volR.value === 0; paintVol(); });
+  v.addEventListener('volumechange', paintVol);
+  full.onclick = () => {
+    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    const req = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+    if (req) req.call(wrap);
+    else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();   // iPhone: only the video itself goes fullscreen
+  };
+  /* keyboard on a computer: space · ← → · m · f */
+  if (opts.volume) {
+    const onKey = e => {
+      if (!wrap.isConnected) { document.removeEventListener('keydown', onKey); return; }
+      if (/INPUT|TEXTAREA/.test((e.target && e.target.tagName) || '') && e.target !== volR) return;
+      if (e.key === ' ') { e.preventDefault(); toggle(); }
+      else if (e.key === 'ArrowRight') v.currentTime = Math.min(dur() || v.currentTime + 5, v.currentTime + 5);
+      else if (e.key === 'ArrowLeft') v.currentTime = Math.max(0, v.currentTime - 5);
+      else if (e.key === 'm' || e.key === 'M') vol.onclick();
+      else if (e.key === 'f' || e.key === 'F') full.onclick();
+    };
+    document.addEventListener('keydown', onKey);
+  }
+  paintVol();
   setIcon();
   return { el: wrap, video: v };
 }
@@ -12913,7 +13191,7 @@ function videoPlayer(src, opts = {}) {
    SHARE (rule 24)
    ------------------------------------------------------------ */
 async function share(kind, id, title) {
-  const url = location.origin + location.pathname + '#' + kind + '/' + id;
+  const url = kind === 'game' && NX.gameLink ? NX.gameLink(id) : location.origin + location.pathname + '#' + kind + '/' + id;
   const data = { title: title || 'NEXUS', text: title || '', url };
   if (navigator.share) { try { await navigator.share(data); return; } catch (e) { if (e.name === 'AbortError') return; } }
   try { await navigator.clipboard.writeText(url); Toast.ok('نُسخ الرابط'); }
@@ -13417,7 +13695,7 @@ class FeedView {
       d.appendChild(icon('compass'));
       d.appendChild(el('b', { text: 'لا منشورات بعد', style: { display: 'block', color: 'var(--ink-soft)' } }));
       d.appendChild(el('p', { class: 'tiny', style: { margin: '8px 0 14px' }, text: 'كن أول من يشارك لعبته.' }));
-      d.appendChild(btn('أنشئ منشورًا', { cls: 'primary', icon: 'plus', onclick: () => openComposer() }));
+      if (this.opts.emptyAction !== false) d.appendChild(btn('أنشئ منشورًا', { cls: 'primary', icon: 'plus', onclick: () => openComposer((this.opts.query && this.opts.query.gameId) ? { gameId: this.opts.query.gameId } : {}) }));
       this.list.appendChild(d);
       this.more.textContent = '';
       return;
@@ -13512,62 +13790,688 @@ async function openCreator(uidStr) {
   seg.firstChild.click();
 }
 
-async function openGamePage(game) {
-  const body = el('div');
-  if (game.coverURL || game.cover) {
-    const img = el('img', { style: { width: '100%', borderRadius: '14px', marginBottom: '12px' } });
-    Backend.fileURL(game.cover, game.coverURL).then(u => { if (u) img.src = u; });
-    body.appendChild(img);
-  }
-  body.appendChild(el('h3', { text: game.title, style: { fontSize: '18px' } }));
-  const by = el('button', { class: 'tiny', style: { color: 'var(--cyan)', fontWeight: '700', marginBottom: '8px' }, text: '@' + game.creatorName });
-  by.onclick = () => openCreator(game.ownerId);
-  body.appendChild(by);
-  if (game.description) body.appendChild(el('p', { class: 'muted', style: { fontSize: '13.5px' }, text: game.description }));
-
-  const stats = el('div', { class: 'card', style: { margin: '12px 0' } });
-  [['التصنيف', game.genre], ['تشغيل', fmtNum(game.plays || 0)], ['إعجاب', fmtNum(game.likes || 0)],
-   ['نُشرت', timeAgo(game.createdAt)]].forEach(([k, v]) =>
-    stats.appendChild(el('div', { class: 'kv' }, [el('span', { text: k }), el('span', { text: String(v) })])));
-  body.appendChild(stats);
-
-  const row = el('div', { class: 'row', style: { marginBottom: '12px', flexWrap: 'wrap' } });
-  row.appendChild(btn('تشغيل', { cls: 'primary', icon: 'play', onclick: () => { sheet.close(); NX.GamePlayer.open(game); } }));
-  const likeBtn = btn('♡ إعجاب', { cls: 'ghost', onclick: async () => {
-    if (!needOnline('الإعجاب')) return;
-    try {
-      const on = await Games.toggleLike(game.gameId);
-      game.likes = Math.max(0, (game.likes || 0) + (on ? 1 : -1));
-      likeBtn.querySelector('span').textContent = (on ? '♥ ' : '♡ ') + fmtNum(game.likes);
-      likeBtn.className = 'btn ' + (on ? 'ok' : 'ghost');
-    } catch (e) { if (!NX.handleAuthError(e)) Toast.err('تعذّر: ' + NX.describeFirebaseError(e)); }
-  }});
-  likeBtn.querySelector('span').textContent = '♡ ' + fmtNum(game.likes || 0);
-  if (online()) Games.isLiked(game.gameId).then(on => { if (on) { likeBtn.querySelector('span').textContent = '♥ ' + fmtNum(game.likes || 0); likeBtn.className = 'btn ok'; } }).catch(() => {});
-  row.appendChild(likeBtn);
-  row.appendChild(btn('مشاركة', { cls: 'ghost', icon: 'share', onclick: () => share('game', game.gameId, game.title) }));
-  if (online() && Backend.user && game.ownerId !== Backend.user.uid) {
-    const f = btn('متابعة المنشئ', { cls: 'sm', onclick: async () => {
-      try {
-        const on = await Follows.toggle(game.ownerId);
-        f.querySelector('span').textContent = on ? 'متابَع ✓' : 'متابعة المنشئ';
-      } catch (e) { if (!NX.handleAuthError(e)) Toast.err('تعذّر: ' + NX.describeFirebaseError(e)); }
-    }});
-    row.appendChild(f);
-  }
-  body.appendChild(row);
-
-  body.appendChild(el('div', { class: 'ttl', text: 'مقاطع ومنشورات عن هذه اللعبة' }));
-  const feedHost = el('div');
-  body.appendChild(feedHost);
-  const fv = new FeedView(feedHost, { query: { gameId: game.gameId, limit: 6 } });
-
-  const sheet = Sheet.open({
-    title: game.title, body, full: true, id: 'gamepage',
-    onClose: () => fv.destroy(),
-    foot: [btn('أنشئ منشورًا عن اللعبة', { cls: 'primary', icon: 'plus', onclick: () => openComposer({ gameId: game.gameId }) })]
-  });
+/* ============================================================
+   GAME SHOWCASE — what a game link opens first: a store-style page
+   (background · hero with cover, title, short description, developer,
+   genre, tags · PLAY · gameplay video · screenshots · description ·
+   information · share · favorite · report), then PLAY enters the game.
+   Everything shown comes from the game record in Firestore and the
+   files in the project's own storage — the same on every phone.
+   ============================================================ */
+const SC_SECTION = { video: ['GAMEPLAY', 'فيديو اللعب'], screenshots: ['SCREENSHOTS', 'لقطات من اللعبة'], description: ['DESCRIPTION', 'عن اللعبة'], info: ['GAME INFORMATION', 'معلومات اللعبة'] };
+const GENRE_AR = { Action: 'أكشن', Adventure: 'مغامرة', Racing: 'سباق', Puzzle: 'ألغاز', Simulation: 'محاكاة', RPG: 'تقمّص أدوار', Sandbox: 'عالم مفتوح', Other: 'أخرى' };
+const scOf = g => {
+  const sc = Object.assign({ tags: [], screenshots: [], sections: [], bgDim: 0.55 }, (g && g.showcase) || {});
+  ['video', 'screenshots', 'description', 'info'].forEach(s => { if (!sc.sections.includes(s)) sc.sections.push(s); });
+  return sc;
+};
+/* each file's address is looked up once per visit, not on every render */
+const _mediaURLs = new Map();
+const mediaURL = m => {
+  if (!m || !m.path) return Promise.resolve(null);
+  if (m.url) return Promise.resolve(m.url);
+  if (!_mediaURLs.has(m.path)) _mediaURLs.set(m.path, Backend.fileURL(m.path, null).then(u => { if (!u) _mediaURLs.delete(m.path); return u; }, () => { _mediaURLs.delete(m.path); return null; }));
+  return _mediaURLs.get(m.path);
+};
+/* images load only when they come near the screen */
+function lazyImg(m, alt) {
+  const img = el('img', { alt: alt || '', loading: 'lazy', decoding: 'async' });
+  if (m) mediaURL(m).then(u => { if (u) img.src = u; });
+  return img;
 }
+/* the screenshots in the owner's order, the main one first */
+function orderedShots(sc) {
+  const list = (sc.screenshots || []).slice();
+  const i = list.findIndex(s => s.id && s.id === sc.main);
+  if (i > 0) list.unshift(list.splice(i, 1)[0]);
+  return list;
+}
+function svgIcon(name) { return icon(name); }
+
+/* ---------- image viewer: big image, swipe between images ---------- */
+function openLightbox(items, start = 0, opts = {}) {
+  if (!items || !items.length) return;
+  let i = Math.max(0, Math.min(items.length - 1, start));
+  const box = el('div', { style: { position: 'absolute', inset: '0', display: 'flex', flexDirection: 'column' } });
+  const track = el('div', { class: 'lb-track' });
+  const slides = items.map(m => { const img = el('img', { alt: opts.title || '', draggable: 'false' }); const s = el('div', { class: 'lb-slide' }, [img]); track.appendChild(s); return { m, img, loaded: false }; });
+  const count = el('span', { class: 'lb-count' });
+  const close = el('button', { class: 'sc-ib', 'aria-label': 'close' }, [svgIcon('x')]);
+  const bar = el('div', { class: 'lb-bar' }, [close, count, el('span', { style: { width: '42px' } })]);
+  const prev = el('button', { class: 'lb-nav prev', 'aria-label': 'previous' }, [svgIcon('chev')]);
+  const next = el('button', { class: 'lb-nav next', 'aria-label': 'next' }, [svgIcon('chev')]);
+  const thumbs = el('div', { class: 'lb-thumbs' });
+  const tb = items.map((m, k) => { const b = el('button', { onclick: () => go(k) }, [lazyImg(m.thumb || m)]); thumbs.appendChild(b); return b; });
+  box.append(track, bar, prev, next);
+  if (items.length > 1) box.appendChild(thumbs); else { prev.remove(); next.remove(); }
+  const load = k => { const s = slides[k]; if (!s || s.loaded) return; s.loaded = true; mediaURL(s.m).then(u => { if (u) s.img.src = u; }); };
+  const go = k => {
+    i = Math.max(0, Math.min(items.length - 1, k));
+    track.style.transform = `translateX(${-i * 100}%)`;
+    count.textContent = (i + 1) + ' / ' + items.length;
+    load(i); load(i + 1); load(i - 1);          // only this image and its neighbours
+    tb.forEach((b, k2) => b.classList.toggle('on', k2 === i));
+    if (tb[i]) tb[i].scrollIntoView({ block: 'nearest', inline: 'center' });
+    if (NX.GameMedia) NX.GameMedia.lastImage = Object.assign({ name: (opts.title || '') + ' #' + (i + 1) }, items[i]);
+  };
+  prev.onclick = () => go(i - 1); next.onclick = () => go(i + 1);
+  /* swipe: the track follows the finger, then settles on the next image */
+  let x0 = null, dx = 0;
+  track.addEventListener('pointerdown', e => { x0 = e.clientX; dx = 0; track.style.transition = 'none'; });
+  track.addEventListener('pointermove', e => { if (x0 == null) return; dx = e.clientX - x0; track.style.transform = `translateX(calc(${-i * 100}% + ${dx}px))`; });
+  const end = () => { if (x0 == null) return; x0 = null; track.style.transition = ''; if (dx < -50) go(i + 1); else if (dx > 50) go(i - 1); else go(i); };
+  track.addEventListener('pointerup', end); track.addEventListener('pointercancel', end); track.addEventListener('pointerleave', end);
+  const onKey = e => { if (e.key === 'ArrowRight') go(i + 1); else if (e.key === 'ArrowLeft') go(i - 1); else if (e.key === 'Escape') h.close(); };
+  document.addEventListener('keydown', onKey);
+  const h = Modal.open({ body: box });
+  h.box.classList.add('lb-box'); h.box.parentElement.classList.add('lb-modal');
+  const _close = h.close; h.close = () => { document.removeEventListener('keydown', onKey); _close(); };
+  close.onclick = () => h.close();
+  go(i);
+  return h;
+}
+
+/* ---------- gameplay video: the player opens muted, sound is one tap ---------- */
+async function openVideo(video, title) {
+  const src = await mediaURL(video);
+  if (!src) { Toast.err('تعذّر الوصول إلى ملف الفيديو'); return; }
+  const poster = video.poster ? await mediaURL(video.poster) : '';
+  const vp = videoPlayer(src, { poster, preload: 'auto', muted: true, volume: true, duration: video.duration || 0 });
+  const box = el('div');
+  const x = el('button', { class: 'sc-ib', 'aria-label': 'close' }, [svgIcon('x')]);
+  box.append(el('div', { class: 'vb-head' }, [el('b', { text: (title || '') + ' — GAMEPLAY' }), x]), vp.el);
+  const h = Modal.open({ body: box });
+  h.box.classList.add('vbox'); h.box.parentElement.classList.add('lb-modal');
+  const _close = h.close; h.close = () => { try { vp.video.pause(); vp.video.removeAttribute('src'); vp.video.load(); } catch {} if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); _close(); };
+  x.onclick = () => h.close();
+  /* autoplay without sound only — the sound starts when the viewer asks */
+  vp.video.play().catch(() => {});
+  return h;
+}
+
+/* ---------- the page ---------- */
+async function openGamePage(game, opts = {}) {
+  if (!game) return;
+  const sc = scOf(game);
+  const preview = !!(opts.preview || game.preview);
+  const mine = !!(Backend.user && game.ownerId === Backend.user.uid);
+  const root = el('div', { class: 'sc' });
+  const bg = el('div', { class: 'sc-bg' }), dim = el('div', { class: 'sc-dim' });
+  dim.style.setProperty('--dim', String(sc.bgDim == null ? 0.55 : sc.bgDim));
+  /* the owner's page background; without one, a soft blur of the art */
+  const coverM = sc.cover || (game.cover ? { path: game.cover, url: game.coverURL } : null);
+  const bgM = sc.background || sc.banner || coverM;
+  if (!sc.background) bg.classList.add('soft');
+  if (bgM) mediaURL(bgM).then(u => { if (u) bg.style.backgroundImage = `url("${u.replace(/"/g, '%22')}")`; });
+
+  /* top bar */
+  const top = el('div', { class: 'sc-top' });
+  const back = el('button', { class: 'sc-ib', 'aria-label': 'back', onclick: () => sheet.close() }, [svgIcon('back')]);
+  const topShare = el('button', { class: 'sc-ib', 'aria-label': 'share', onclick: () => doShare() }, [svgIcon('share')]);
+  const topFav = el('button', { class: 'sc-ib', 'aria-label': 'favorite', onclick: () => doFav() }, [svgIcon('heart')]);
+  top.append(back, el('b', { text: game.title }), topShare, topFav);
+  root.appendChild(top);
+  const wrap = el('div', { class: 'sc-wrap' });
+  root.appendChild(wrap);
+  if (preview) wrap.appendChild(el('div', { class: 'sc-badge', text: '👁 معاينة — هكذا سيرى الناس صفحة لعبتك' + (game.gameId ? '' : ' (لم تُنشر بعد)') }));
+
+  /* HERO */
+  const hero = el('section', { class: 'sc-hero' });
+  if (sc.banner) hero.appendChild(el('div', { class: 'sc-banner' }, [lazyImg(sc.banner, game.title)]));
+  const heroIn = el('div', { class: 'sc-hero-in' });
+  const cov = el('div', { class: 'sc-cover' });
+  if (coverM) { const im = lazyImg(coverM, game.title); im.loading = 'eager'; cov.appendChild(im); } else cov.appendChild(el('div', { class: 'ph', text: '◆' }));
+  const head = el('div', { class: 'sc-head' });
+  head.appendChild(el('h1', { class: 'sc-title', text: game.title }));
+  const tagline = sc.tagline || String(game.description || '').split(/(?<=[.!؟?])\s|\n/)[0].slice(0, 160);
+  if (tagline) head.appendChild(el('p', { class: 'sc-tagline', text: tagline }));
+  const dev = el('div', { class: 'sc-dev' }, [el('span', { text: 'المطوّر' })]);
+  const devBtn = el('button', { text: '@' + (game.creatorName || 'creator') });
+  if (!preview && game.ownerId) devBtn.onclick = () => openCreator(game.ownerId);
+  dev.appendChild(devBtn);
+  if (!preview && !mine && online() && Backend.user && !Backend.user.anon && game.ownerId) {
+    const fol = el('button', { class: 'sc-follow', text: '+ متابعة' });
+    fol.onclick = async () => {
+      try { const on = await Follows.toggle(game.ownerId); fol.textContent = on ? '✓ متابَع' : '+ متابعة'; }
+      catch (e) { if (!NX.handleAuthError(e)) Toast.err('تعذّر: ' + NX.describeFirebaseError(e)); }
+    };
+    Follows.isFollowing(game.ownerId).then(on => { if (on) fol.textContent = '✓ متابَع'; }).catch(() => {});
+    dev.appendChild(fol);
+  }
+  head.appendChild(dev);
+  const chips = el('div', { class: 'sc-chips' });
+  if (game.genre) chips.appendChild(el('span', { class: 'sc-chip genre', text: GENRE_AR[game.genre] || game.genre }));
+  (sc.tags || []).forEach(t => chips.appendChild(el('span', { class: 'sc-chip', text: '#' + t })));
+  if (chips.children.length) head.appendChild(chips);
+  const play = () => {
+    if (preview) { sheet.close(); if (NX.Studio.project && NX.Studio.project.projectId === game.projectId) NX.Studio.play(); else Toast.show('المعاينة: افتح المشروع لتجربة اللعب'); return; }
+    sheet.close();
+    /* after the game, the player comes back to this page */
+    NX.GamePlayer.returnTo = () => openGamePage(game);
+    NX.GamePlayer.open(game);
+  };
+  const playBtn = el('button', { class: 'sc-play', onclick: play }, [svgIcon('play'), el('span', { text: 'PLAY GAME' })]);
+  const cta = el('div', { class: 'sc-cta' }, [playBtn]);
+  if (sc.video) cta.appendChild(el('button', { class: 'sc-watch', onclick: () => openVideo(sc.video, game.title) }, [svgIcon('play'), el('span', { text: 'WATCH GAMEPLAY' })]));
+  head.appendChild(cta);
+  const stats = el('div', { class: 'sc-stats' });
+  const likesSpan = el('span', { text: '♥ ' + fmtNum(game.likes || 0) });
+  stats.append(el('span', { text: '▶ ' + fmtNum(game.plays || 0) + ' تشغيل' }), likesSpan);
+  if (game.version) stats.appendChild(el('span', { text: 'الإصدار ' + game.version }));
+  head.appendChild(stats);
+  heroIn.append(cov, head);
+  hero.appendChild(heroIn);
+  wrap.appendChild(hero);
+
+  /* the sections, in the owner's order */
+  const sec = (key, content) => {
+    const [en, ar] = SC_SECTION[key];
+    const s = el('section', { class: 'sc-sec', dataset: { sec: key } }, [el('div', { class: 'sc-h' }, [el('b', { text: en }), el('span', { text: ar })])]);
+    s.appendChild(content);
+    return s;
+  };
+  const shots = orderedShots(sc);
+  const infoRows = [['المطوّر', '@' + (game.creatorName || '—')], ['التصنيف', GENRE_AR[game.genre] || game.genre || '—'],
+    ['الإصدار', String(game.version || 1)], ['تاريخ النشر', game.createdAt ? new Date(game.createdAt).toLocaleDateString('ar') : '—'],
+    ['آخر تحديث', game.updatedAt ? timeAgo(game.updatedAt) : '—'], ['مرات اللعب', fmtNum(game.plays || 0)],
+    ['الإعجابات', fmtNum(game.likes || 0)], ['يحتوي كودًا', game.hasCode ? 'نعم' : 'لا'], ['عدد الأصول', String(game.assetCount || 0)]];
+  for (const key of sc.sections) {
+    if (key === 'video' && sc.video) {
+      const v = el('button', { class: 'sc-video', 'aria-label': 'play gameplay video', onclick: () => openVideo(sc.video, game.title) });
+      if (sc.video.poster) v.appendChild(lazyImg(sc.video.poster, 'gameplay'));
+      v.appendChild(el('div', { class: 'pl' }, [el('i', {}, [svgIcon('play')])]));
+      if (sc.video.duration) v.appendChild(el('span', { class: 'dur', text: fmtDur(sc.video.duration) }));
+      wrap.appendChild(sec('video', v));
+    } else if (key === 'screenshots' && shots.length) {
+      const g = el('div', { class: 'sc-gallery' });
+      shots.forEach((m, k) => g.appendChild(el('button', { 'aria-label': 'screenshot ' + (k + 1), onclick: () => openLightbox(shots, k, { title: game.title }) }, [lazyImg(m.thumb || m, game.title + ' ' + (k + 1)), el('span', { class: 'n', text: (k + 1) + '/' + shots.length })])));
+      wrap.appendChild(sec('screenshots', g));
+    } else if (key === 'description' && game.description) {
+      const d = el('div', { class: 'sc-desc', text: game.description });
+      const box = el('div', {}, [d]);
+      if (game.description.length > 420) {
+        d.classList.add('clamp');
+        const more = el('button', { class: 'sc-more', text: 'اقرأ المزيد', onclick: () => { const c = d.classList.toggle('clamp'); more.textContent = c ? 'اقرأ المزيد' : 'عرض أقل'; } });
+        box.appendChild(more);
+      }
+      wrap.appendChild(sec('description', box));
+    } else if (key === 'info') {
+      const info = el('div', { class: 'sc-info' });
+      infoRows.forEach(([k, v]) => info.appendChild(el('div', {}, [el('span', { text: k }), el('b', { text: v })])));
+      if ((sc.tags || []).length) info.appendChild(el('div', { style: { gridColumn: '1 / -1' } }, [el('span', { text: 'الوسوم' }), el('b', { text: sc.tags.map(t => '#' + t).join('  ') })]));
+      wrap.appendChild(sec('info', info));
+    }
+  }
+
+  /* SHARE · FAVORITE · REPORT */
+  const doShare = () => { if (preview && !game.gameId) { Toast.show('انشر اللعبة أولًا ليصير لها رابط'); return; } share('game', game.gameId, game.title); };
+  const favBtn = el('button', { onclick: () => doFav() }, [svgIcon('heart'), el('span', { text: 'مفضلة' }), el('small', { text: 'FAVORITE' })]);
+  let faved = false;
+  const paintFav = () => { favBtn.classList.toggle('on', faved); topFav.classList.toggle('on', faved); likesSpan.textContent = '♥ ' + fmtNum(game.likes || 0); };
+  const doFav = async () => {
+    if (preview) { Toast.show('المعاينة: الإعجاب يعمل في صفحة اللعبة المنشورة'); return; }
+    if (!needOnline('المفضلة')) return;
+    if (!Backend.user) { NX.promptSignIn && NX.promptSignIn('المفضلة تحتاج تسجيل الدخول.'); return; }
+    try {
+      faved = await Games.toggleLike(game.gameId);
+      game.likes = Math.max(0, (game.likes || 0) + (faved ? 1 : -1));
+      paintFav();
+      Toast.ok(faved ? 'أُضيفت إلى المفضلة ♥' : 'أُزيلت من المفضلة');
+    } catch (e) { if (!NX.handleAuthError(e)) Toast.err('تعذّر: ' + NX.describeFirebaseError(e)); }
+  };
+  if (!preview && online() && Backend.user) Games.isLiked(game.gameId).then(on => { faved = !!on; paintFav(); }).catch(() => {});
+  const reportBtn = el('button', { onclick: () => {
+    if (preview) { Toast.show('المعاينة'); return; }
+    if (mine) { Toast.show('هذه لعبتك'); return; }
+    if (!needOnline('الإبلاغ')) return;
+    openReport({ type: 'game', id: game.gameId, ownerId: game.ownerId });
+  } }, [svgIcon('shield'), el('span', { text: 'إبلاغ' }), el('small', { text: 'REPORT' })]);
+  wrap.appendChild(el('div', { class: 'sc-actions' }, [
+    el('button', { onclick: doShare }, [svgIcon('share'), el('span', { text: 'مشاركة' }), el('small', { text: 'SHARE' })]), favBtn, reportBtn]));
+
+  /* the owner (and only the owner) manages the media from here */
+  if (mine || preview) {
+    const ow = el('div', { class: 'sc-owner' }, [el('p', { text: preview ? 'هذه معاينة. عدّل الغلاف والخلفية والفيديو واللقطات من «وسائط اللعبة».' : 'هذه لعبتك — الزوار يرون هذه الصفحة. عدّل وسائطها من «وسائط اللعبة».' })]);
+    ow.appendChild(btn('✎ وسائط اللعبة · GAME MEDIA', { cls: 'primary sm', onclick: async () => {
+      const p = (NX.Studio.project && NX.Studio.project.projectId === game.projectId) ? NX.Studio.project : await NX.Projects.get(game.projectId).catch(() => null);
+      if (!p) { Toast.err('تعذّر فتح المشروع'); return; }
+      sheet.close(); NX.GameMedia.open(p);
+    } }));
+    wrap.appendChild(ow);
+  }
+  if (!preview) {
+    /* the community's clips and posts about the game (unchanged) */
+    const posts = el('section', { class: 'sc-sec' }, [el('div', { class: 'sc-h' }, [el('b', { text: 'COMMUNITY' }), el('span', { text: 'مقاطع ومنشورات عن هذه اللعبة' })])]);
+    const feedHost = el('div');
+    posts.append(feedHost, btn('أنشئ منشورًا عن اللعبة', { cls: 'sm', icon: 'plus', style: { marginTop: '10px' }, onclick: () => openComposer({ gameId: game.gameId }) }));
+    wrap.appendChild(posts);
+    var fv = new FeedView(feedHost, { query: { gameId: game.gameId, limit: 6 }, emptyAction: false });
+  }
+
+  /* a PLAY bar that stays at hand once the hero has scrolled away */
+  const sticky = el('div', { class: 'sc-sticky' });
+  const stImg = el('img', { alt: '' });
+  if (coverM) mediaURL((sc.thumbnail || (sc.cover && sc.cover.thumb)) || coverM).then(u => { if (u) stImg.src = u; });
+  sticky.append(stImg, el('b', { text: game.title }), el('button', { class: 'sc-play', onclick: play }, [svgIcon('play'), el('span', { text: 'PLAY' })]));
+
+  const sheet = Sheet.open({ title: game.title, body: root, full: true, id: 'gamepage', onClose: () => { if (fv) fv.destroy(); if (io) io.disconnect(); } });
+  sheet.el.classList.add('showcase');
+  sheet.el.prepend(bg, dim);
+  sheet.el.appendChild(sticky);
+  const scroller = sheet.body;
+  scroller.addEventListener('scroll', () => top.classList.toggle('solid', scroller.scrollTop > 40), { passive: true });
+  const io = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => sticky.classList.toggle('in', !e.isIntersecting)), { root: scroller }) : null;
+  if (io) io.observe(playBtn);
+  return sheet;
+}
+
+/* ============================================================
+   GAME MEDIA — the owner's media for the showcase: cover, thumbnail,
+   banner, page background, gameplay video, screenshots, and their
+   order. Files go to the project's own storage (Firebase Storage or
+   Google Drive) with a progress bar; images are compressed first, a
+   video gets a poster frame. The references are kept on the project
+   and, once published, on the game record too.
+   ============================================================ */
+const IMG_ROLES = {
+  cover: { label: 'صورة الغلاف · Cover', max: 1920, note: 'في بطاقة اللعبة وأعلى صفحة العرض (16:9 أفضل)' },
+  thumbnail: { label: 'الصورة المصغّرة · Thumbnail', max: 640, note: 'لبطاقات القوائم — تُصنع من الغلاف تلقائيًا إن لم ترفعها' },
+  banner: { label: 'البانر · Banner Image', max: 2400, note: 'شريط عريض في أعلى الصفحة' },
+  background: { label: 'خلفية الصفحة · Page Background', max: 2400, note: 'أي صورة تريدها، مستقلة عن الغلاف — يُوضع فوقها ظل ليبقى النص واضحًا' }
+};
+const SHOTS_MAX = 12;
+const IMG_IN_MAX = 30 * 1024 * 1024;           // what may be picked (it is compressed before upload)
+const IMG_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+const extOf = t => ({ 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov', 'video/x-matroska': 'mkv' })[baseType(t)] || 'bin';
+const baseType = t => String(t || '').split(';')[0].trim().toLowerCase();
+
+/* a big photo becomes a web-sized WebP (JPEG where the browser cannot write WebP) */
+async function compressImage(file, max, quality = 0.86) {
+  if (/gif/i.test(file.type)) return { blob: file, same: true };    // an animated GIF stays as it is
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const w = Math.max(1, Math.round(bmp.width * k)), h = Math.max(1, Math.round(bmp.height * k));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  c.getContext('2d').drawImage(bmp, 0, 0, w, h);
+  bmp.close && bmp.close();
+  let blob = await new Promise(r => c.toBlob(r, 'image/webp', quality));
+  if (!blob || baseType(blob.type) !== 'image/webp') blob = await new Promise(r => c.toBlob(r, 'image/jpeg', quality));
+  if (k === 1 && blob.size >= file.size && /jpeg|webp|png/.test(file.type)) return { blob: file, w, h, same: true };
+  return { blob, w, h };
+}
+const pickFiles = (accept, multiple = false) => new Promise(res => {
+  const inp = el('input', { type: 'file', accept });
+  if (multiple) inp.multiple = true;
+  inp.onchange = () => res(Array.from(inp.files || []));
+  inp.click();
+});
+
+const GameMedia = {
+  lastImage: null,   // «this image» for the assistant: the last image the owner looked at
+
+  /* the id the game is (or will be) published under: the media folder */
+  sid(p) { if (!p.publishedId && !p.showcaseId) p.showcaseId = uid('game'); return p.publishedId || p.showcaseId; },
+  sc(p) {
+    p.showcase = Object.assign({ v: 1, tagline: '', tags: [], bgDim: 0.55, sections: ['video', 'screenshots', 'description', 'info'], screenshots: [], main: null }, p.showcase || {});
+    return p.showcase;
+  },
+  mine(p) { return !!(p && Backend.user && (p.ownerId === Backend.user.uid || !p.ownerId || p.ownerId === 'local')); },
+  ready(what) {
+    if (!needOnline(what || 'رفع وسائط اللعبة')) return false;
+    if (!Backend.user) { NX.promptSignIn && NX.promptSignIn('وسائط اللعبة تُحفظ في حسابك — سجّل الدخول.'); return false; }
+    return true;
+  },
+
+  /* save the project, then the published page (if any) — every phone sees the same */
+  async commit(p) {
+    let saved;
+    if (NX.Studio.project && NX.Studio.project.projectId === p.projectId) saved = await NX.Studio.save(true);
+    else { await NX.Projects.save(p); saved = true; }
+    let synced = false, err = null;
+    if (p.publishedId) { try { synced = await Games.syncShowcase(p); } catch (e) { err = e; } }
+    return { saved: !!saved, synced, err };
+  },
+
+  /* one file into the project's storage */
+  async put(p, role, blob, onProgress) {
+    const path = `games/${Backend.user.uid}/${this.sid(p)}/showcase/${role}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.${extOf(blob.type)}`;
+    const up = await Backend.upload(path, blob, onProgress);
+    return { path: up.path, url: up.url || null, bytes: blob.size, type: baseType(blob.type) };
+  },
+  /* a file is removed only when nothing in the showcase points at it any more
+     (a screenshot may also be the cover) and it is not someone's asset */
+  refs(sc, path) {
+    let n = 0;
+    const see = m => { if (!m) return; if (m.path === path) n++; if (m.thumb && m.thumb.path === path) n++; if (m.poster && m.poster.path === path) n++; };
+    ['cover', 'thumbnail', 'banner', 'background', 'video'].forEach(k => see(sc[k]));
+    (sc.screenshots || []).forEach(see);
+    return n;
+  },
+  async drop(p, ...media) {
+    const sc = this.sc(p);
+    for (const m of media) {
+      if (!m || m.assetId) continue;
+      for (const f of [m, m.thumb, m.poster]) if (f && f.path && !this.refs(sc, f.path)) await Backend.removeFile(f.path).catch(() => {});
+    }
+  },
+
+  /* an image picked from the device: checked, compressed, its size shown, uploaded */
+  async prepareImage(file, max) {
+    if (file.type && !IMG_TYPES.includes(baseType(file.type))) throw new Error('صيغة صورة غير مدعومة: ' + file.type + ' — استعمل PNG أو JPEG أو WebP أو GIF');
+    if (file.size > IMG_IN_MAX) throw new Error('الصورة أكبر من ' + fmtBytes(IMG_IN_MAX));
+    const c = await compressImage(file, max);
+    if (c.blob.size > LIMITS.imageBytes) throw new Error('الصورة بعد الضغط أكبر من ' + fmtBytes(LIMITS.imageBytes));
+    return c;
+  },
+  async setImage(p, role, file, onProgress, { confirmSize = true } = {}) {
+    const R = IMG_ROLES[role];
+    const c = await this.prepareImage(file, R.max);
+    if (confirmSize && !(await this.confirmSize(file, c.blob))) return null;
+    const m = Object.assign(await this.put(p, role, c.blob, f => onProgress && onProgress(role === 'cover' ? f * 0.85 : f)), { w: c.w, h: c.h, name: file.name || role });
+    if (role === 'cover') m.thumb = await this.put(p, 'thumb', (await compressImage(c.blob, 480, 0.8)).blob, f => onProgress && onProgress(0.85 + f * 0.15));
+    const sc = this.sc(p), old = sc[role];
+    sc[role] = m;
+    const r = await this.commit(p);
+    await this.drop(p, old);
+    return Object.assign({ media: m }, r);
+  },
+  /* an image that is already stored (a screenshot, an image asset): no new upload */
+  async useImage(p, role, media) {
+    const sc = this.sc(p), old = sc[role];
+    const m = { path: media.path, url: media.url || null, w: media.w, h: media.h, bytes: media.bytes, name: media.name };
+    if (media.assetId) m.assetId = media.assetId;
+    if (role === 'cover') m.thumb = media.thumb || null;
+    sc[role] = m;
+    const r = await this.commit(p);
+    await this.drop(p, old);
+    return Object.assign({ media: m }, r);
+  },
+  async remove(p, role) {
+    const sc = this.sc(p), old = sc[role];
+    if (!old) return null;
+    sc[role] = null;
+    const r = await this.commit(p);
+    await this.drop(p, old);
+    return r;
+  },
+
+  /* gameplay video: type, size and length checked, a poster frame taken */
+  async setVideo(p, file, onProgress, { confirmSize = true } = {}) {
+    Media.validate(file, 'video');
+    const info = await Media.videoInfo(file, 1.5).catch(() => ({ duration: 0, width: 0, height: 0, thumb: null }));
+    if (info.duration > LIMITS.videoSeconds * 2) throw new Error('الفيديو أطول من ' + Math.round(LIMITS.videoSeconds * 2 / 60) + ' دقائق');
+    if (confirmSize && !(await this.confirmSize(file, file, info))) return null;
+    const m = Object.assign(await this.put(p, 'video', file, f => onProgress && onProgress(f * 0.95)), { duration: info.duration || 0, w: info.width || 0, h: info.height || 0, name: file.name || 'gameplay' });
+    if (info.thumb) m.poster = await this.put(p, 'poster', info.thumb, f => onProgress && onProgress(0.95 + f * 0.05));
+    const sc = this.sc(p), old = sc.video;
+    sc.video = m;
+    const r = await this.commit(p);
+    await this.drop(p, old);
+    return Object.assign({ media: m }, r);
+  },
+  removeVideo(p) { return this.remove(p, 'video'); },
+
+  async addShots(p, files, onProgress, { confirmSize = true } = {}) {
+    const sc = this.sc(p);
+    const room = SHOTS_MAX - sc.screenshots.length;
+    if (room <= 0) throw new Error('الحد ' + SHOTS_MAX + ' لقطة — احذف واحدة أولًا');
+    const list = files.slice(0, room);
+    const prepared = [];
+    for (const f of list) prepared.push({ f, c: await this.prepareImage(f, 1920) });
+    if (confirmSize && !(await this.confirmSize(null, null, null, prepared))) return null;
+    const added = [];
+    for (let k = 0; k < prepared.length; k++) {
+      const { f, c } = prepared[k];
+      const step = x => onProgress && onProgress((k + x) / prepared.length, k + 1, prepared.length);
+      const m = Object.assign(await this.put(p, 'shot', c.blob, x => step(x * 0.85)), { w: c.w, h: c.h, name: f.name || 'screenshot' });
+      m.thumb = await this.put(p, 'shot-thumb', (await compressImage(c.blob, 480, 0.8)).blob, x => step(0.85 + x * 0.15));
+      m.id = uid('shot');
+      sc.screenshots.push(m); added.push(m);
+    }
+    if (!sc.main && sc.screenshots.length) sc.main = sc.screenshots[0].id;
+    const r = await this.commit(p);
+    return Object.assign({ added, skipped: files.length - list.length }, r);
+  },
+  async removeShot(p, id) {
+    const sc = this.sc(p);
+    const i = sc.screenshots.findIndex(s => s.id === id);
+    if (i < 0) return null;
+    const [old] = sc.screenshots.splice(i, 1);
+    if (sc.main === id) sc.main = sc.screenshots[0] ? sc.screenshots[0].id : null;
+    const r = await this.commit(p);
+    await this.drop(p, old);
+    return r;
+  },
+  async moveShot(p, id, d) {
+    const sc = this.sc(p), a = sc.screenshots, i = a.findIndex(s => s.id === id), j = i + d;
+    if (i < 0 || j < 0 || j >= a.length) return null;
+    [a[i], a[j]] = [a[j], a[i]];
+    return this.commit(p);
+  },
+  async setMain(p, id) { this.sc(p).main = id; return this.commit(p); },
+  async setSections(p, order) { this.sc(p).sections = order; return this.commit(p); },
+  async setText(p, { tagline, tags, description, bgDim } = {}) {
+    const sc = this.sc(p);
+    if (tagline != null) sc.tagline = String(tagline).slice(0, 160);
+    if (tags != null) sc.tags = (Array.isArray(tags) ? tags : String(tags).split(/[,،#\n]+/)).map(t => String(t).trim().replace(/^#/, '').slice(0, 32)).filter(Boolean).slice(0, 12);
+    if (bgDim != null) sc.bgDim = Math.min(0.9, Math.max(0, +bgDim));
+    if (description != null) {
+      p.description = String(description).slice(0, 2000);
+      if (p.publishMeta) p.publishMeta.description = p.description;
+    }
+    return this.commit(p);
+  },
+
+  /* the size is shown before anything is uploaded */
+  confirmSize(file, blob, info, many) {
+    const lines = [];
+    if (many) {
+      many.forEach(({ f, c }) => lines.push(`• ${f.name || 'صورة'} — ${fmtBytes(f.size)}` + (c.same ? '' : ` ← ${fmtBytes(c.blob.size)} بعد الضغط`) + (c.w ? ` · ${c.w}×${c.h}` : '')));
+    } else if (info) {
+      lines.push(`${file.name || 'فيديو'} — ${fmtBytes(file.size)}` + (info.duration ? ` · ${fmtDur(info.duration)}` : '') + (info.width ? ` · ${info.width}×${info.height}` : ''));
+      lines.push('يُرفع كما هو، وتُلتقط منه صورة معاينة.');
+    } else {
+      lines.push(`${file.name || 'صورة'} — ${fmtBytes(file.size)}` + (blob === file ? '' : ` ← ${fmtBytes(blob.size)} بعد الضغط`));
+    }
+    lines.push('', 'الوجهة: ' + (NX.FILE_HOST === 'drive' ? 'Google Drive الخاص بك' : 'Firebase Storage') + ' — تبقى مرتبطة بالمشروع وتظهر على كل الأجهزة.');
+    return new Promise(res => Modal.open({ title: 'رفع؟', body: el('p', { class: 'muted', style: { whiteSpace: 'pre-line', lineHeight: '1.8', fontSize: '13px' }, text: lines.join('\n') }),
+      actions: [{ label: T('cancel'), cls: 'ghost', onclick: () => res(false) }, { label: 'رفع', cls: 'primary', onclick: () => res(true) }] }));
+  },
+
+  /* what the showcase looks like to a visitor, before (or after) publishing */
+  previewGame(p) {
+    const pm = p.publishMeta || {};
+    return { preview: true, gameId: p.publishedId || null, projectId: p.projectId, ownerId: (Backend.user && Backend.user.uid) || p.ownerId,
+      title: pm.title || p.name, description: pm.description != null ? pm.description : (p.description || ''), genre: pm.genre || 'Other',
+      creatorName: (Backend.user && Backend.user.name) || 'creator', cover: pm.cover || null, coverURL: pm.coverURL || null,
+      showcase: NX.cleanShowcase(this.sc(p)), plays: 0, likes: 0, version: null, hasCode: (p.files || []).length > 0, assetCount: (p.assetRefs || []).length };
+  },
+  preview(p) { return openGamePage(this.previewGame(p), { preview: true }); },
+
+  /* ---------------- the manager (Project → GAME MEDIA) ---------------- */
+  open(p) {
+    if (!p) { Toast.err('افتح مشروعًا أولًا'); return; }
+    if (!this.mine(p)) { Toast.err('وسائط اللعبة يعدّلها صاحبها فقط'); return; }
+    const body = el('div');
+    const draw = () => {
+      const sc = this.sc(p);
+      body.textContent = '';
+      /* where it lives, what visitors see */
+      const st = el('div', { class: 'card', style: { marginBottom: '12px', fontSize: '12.5px', lineHeight: '1.7' } });
+      st.appendChild(el('div', { text: (p.publishedId ? '🟢 منشورة — كل تغيير هنا يظهر فورًا في صفحة اللعبة على كل الأجهزة.' : '🟠 لم تُنشر بعد — الوسائط محفوظة في المشروع وتظهر عند النشر.') }));
+      st.appendChild(el('div', { class: 'tiny', text: 'التخزين: ' + (NX.FILE_HOST === 'drive' ? 'Google Drive (ملفاتك، مشاركة للقراءة)' : 'Firebase Storage') + ' · الزوار يشاهدون فقط، وأنت وحدك تعدّل.' }));
+      body.appendChild(st);
+      const top = el('div', { class: 'gm-state' });
+      top.appendChild(btn('👁 معاينة الصفحة · Preview', { cls: 'primary sm', onclick: () => { sheet.close(); this.preview(p); } }));
+      if (p.publishedId) top.appendChild(btn('🔗 نسخ رابط اللعبة', { cls: 'sm ghost', onclick: () => share('game', p.publishedId, p.name) }));
+      body.appendChild(top);
+
+      /* texts */
+      body.appendChild(el('div', { class: 'ttl', text: 'النصوص' }));
+      const tl = el('input', { class: 'input', value: sc.tagline || '', maxlength: '160', placeholder: 'جملة واحدة تجذب اللاعب' });
+      const tg = el('input', { class: 'input', value: (sc.tags || []).join('، '), placeholder: 'سباق، مدينة، سيارات' });
+      const ds = el('textarea', { class: 'textarea', value: (p.publishMeta && p.publishMeta.description != null ? p.publishMeta.description : p.description) || '', placeholder: 'ما هي اللعبة؟ كيف تُلعب؟ ما الذي يميّزها؟', style: { minHeight: '110px' } });
+      body.append(field('وصف مختصر · Short Description', tl), field('الوسوم · Tags (افصل بفاصلة)', tg), field('الوصف · Description', ds));
+      body.appendChild(btn('حفظ النصوص', { cls: 'sm', icon: 'save', onclick: async e => {
+        const b = e.currentTarget; b.disabled = true;
+        try { const r = await this.setText(p, { tagline: tl.value, tags: tg.value, description: ds.value }); Toast.ok(r.synced ? 'حُفظت وظهرت في صفحة اللعبة' : 'حُفظت'); }
+        catch (err) { Toast.err('تعذّر الحفظ: ' + NX.describeFirebaseError(err)); }
+        b.disabled = false;
+      } }));
+
+      /* the images */
+      body.appendChild(el('div', { class: 'ttl', style: { marginTop: '18px' }, text: 'الصور' }));
+      Object.keys(IMG_ROLES).forEach(role => body.appendChild(this.slot(p, role, draw)));
+      /* the page background's shade: the text stays readable over any picture */
+      const dimIn = el('input', { type: 'range', min: '0', max: '0.9', step: '0.05', value: String(sc.bgDim == null ? 0.55 : sc.bgDim), class: 'input' });
+      const dimL = el('span', { class: 'tiny', text: 'قوة الظل فوق الخلفية: ' + Math.round((sc.bgDim == null ? 0.55 : sc.bgDim) * 100) + '%' });
+      dimIn.addEventListener('input', () => { dimL.textContent = 'قوة الظل فوق الخلفية: ' + Math.round(dimIn.value * 100) + '%'; });
+      dimIn.addEventListener('change', () => this.setText(p, { bgDim: dimIn.value }).catch(() => {}));
+      body.append(dimL, dimIn);
+
+      /* the video */
+      body.appendChild(el('div', { class: 'ttl', style: { marginTop: '18px' }, text: 'فيديو اللعب · Gameplay Video' }));
+      body.appendChild(this.videoSlot(p, draw));
+
+      /* the screenshots */
+      body.appendChild(el('div', { class: 'ttl', style: { marginTop: '18px' }, text: `لقطات الشاشة · Screenshots (${sc.screenshots.length}/${SHOTS_MAX})` }));
+      body.appendChild(this.shotsGrid(p, draw));
+
+      /* the order of the page */
+      body.appendChild(el('div', { class: 'ttl', style: { marginTop: '18px' }, text: 'ترتيب أقسام الصفحة' }));
+      sc.sections.forEach((s, i) => {
+        const r = el('div', { class: 'gm-order' }, [el('b', { text: SC_SECTION[s][0] + ' · ' + SC_SECTION[s][1] })]);
+        const mv = d => async () => { const o = sc.sections.slice(); const j = i + d; if (j < 0 || j >= o.length) return; [o[i], o[j]] = [o[j], o[i]]; await this.setSections(p, o); draw(); };
+        r.append(el('button', { text: '↑', 'aria-label': 'up', onclick: mv(-1) }), el('button', { text: '↓', 'aria-label': 'down', onclick: mv(1) }));
+        body.appendChild(r);
+      });
+    };
+    const sheet = Sheet.open({ title: 'وسائط اللعبة · GAME MEDIA', body, full: true, id: 'gamemedia' });
+    draw();
+    return sheet;
+  },
+
+  /* a progress line inside a slot */
+  progress(host) {
+    const bar = el('div', { class: 'gm-prog' }, [el('i')]), msg = el('div', { class: 'gm-msg' });
+    host.append(bar, msg);
+    return { set: (f, text) => { bar.firstChild.style.width = Math.round(Math.max(0, Math.min(1, f)) * 100) + '%'; if (text) msg.textContent = text; }, done: () => { bar.remove(); msg.remove(); } };
+  },
+  async run(host, label, job, draw) {
+    const pr = this.progress(host);
+    pr.set(0, label + '…');
+    try {
+      const r = await job((f, a, b) => pr.set(f, label + ' ' + Math.round(f * 100) + '%' + (a ? ` (${a}/${b})` : '')));
+      pr.done();
+      if (r) Toast.ok(r.synced ? 'تمّ — وظهر في صفحة اللعبة' : r.err ? 'حُفظ في المشروع، وتعذّر تحديث صفحة اللعبة: ' + NX.describeFirebaseError(r.err) : 'تمّ');
+      draw();
+    } catch (e) {
+      pr.set(0, '✕ ' + (e.message && !/^[A-Z_]+$/.test(e.message) ? e.message : NX.describeFirebaseError(e)));
+      if (!NX.handleAuthError(e)) console.warn('[game media]', e);
+    }
+  },
+
+  slot(p, role, draw) {
+    const sc = this.sc(p), m = sc[role], R = IMG_ROLES[role];
+    const box = el('div', { class: 'gm-slot', dataset: { role } });
+    const th = el('div', { class: 'gm-thumb' });
+    if (m) th.appendChild(lazyImg(m.thumb || m, R.label)); else th.textContent = role === 'thumbnail' && sc.cover ? 'من الغلاف' : 'لا يوجد';
+    const info = el('div', { class: 'gm-info' }, [el('b', { text: R.label }), el('span', { text: m ? [m.w && m.h ? m.w + '×' + m.h : '', m.bytes ? fmtBytes(m.bytes) : '', m.assetId ? 'من أصولك' : ''].filter(Boolean).join(' · ') || '✓' : R.note })]);
+    box.appendChild(el('div', { class: 'gm-row' }, [th, info]));
+    const acts = el('div', { class: 'gm-acts' });
+    const isBg = role === 'background';
+    const up = async () => {
+      if (!this.ready()) return;
+      const [f] = await pickFiles('image/png,image/jpeg,image/webp,image/gif');
+      if (f) this.run(box, 'أرفع', prog => this.setImage(p, role, f, prog), draw);
+    };
+    acts.appendChild(btn(m ? (isBg ? 'تغيير الخلفية · Change Background' : 'استبدال · Replace') : (isBg ? 'رفع خلفية · Upload Background' : 'رفع · Upload'), { cls: 'sm primary', icon: 'upload', onclick: up }));
+    acts.appendChild(btn('من أصولي', { cls: 'sm ghost', icon: 'image', onclick: () => this.pickAsset(p, role, draw) }));
+    if (m) {
+      acts.appendChild(btn(isBg ? 'معاينة · Preview' : 'معاينة', { cls: 'sm ghost', icon: 'eye', onclick: () => { if (isBg) { this.preview(p); } else { this.lastImage = Object.assign({ name: R.label }, m); openLightbox([m], 0, { title: R.label }); } } }));
+      acts.appendChild(btn(isBg ? 'إزالة الخلفية · Remove Background' : 'حذف · Delete', { cls: 'sm danger', icon: 'trash', onclick: async () => {
+        if (!(await Modal.confirm('حذف ' + R.label + '؟', 'تُزال من صفحة اللعبة' + (p.publishedId ? ' المنشورة أيضًا' : '') + '.', 'حذف'))) return;
+        this.run(box, 'أحذف', () => this.remove(p, role), draw);
+      } }));
+    }
+    box.appendChild(acts);
+    return box;
+  },
+
+  videoSlot(p, draw) {
+    const v = this.sc(p).video;
+    const box = el('div', { class: 'gm-slot', dataset: { role: 'video' } });
+    const th = el('div', { class: 'gm-thumb' });
+    if (v && v.poster) th.appendChild(lazyImg(v.poster, 'gameplay')); else th.textContent = v ? '🎬' : 'لا يوجد';
+    if (v && v.duration) th.appendChild(el('span', { class: 'dur', text: fmtDur(v.duration) }));
+    box.appendChild(el('div', { class: 'gm-row' }, [th, el('div', { class: 'gm-info' }, [el('b', { text: 'فيديو اللعب' }),
+      el('span', { text: v ? [v.w ? v.w + '×' + v.h : '', v.bytes ? fmtBytes(v.bytes) : '', v.duration ? fmtDur(v.duration) : ''].filter(Boolean).join(' · ') : `MP4 أو WebM — حتى ${fmtBytes(LIMITS.videoBytes)} و ${Math.round(LIMITS.videoSeconds * 2 / 60)} دقائق` })])]));
+    const acts = el('div', { class: 'gm-acts' });
+    acts.appendChild(btn(v ? 'تغيير الفيديو · Change Video' : 'رفع فيديو · Upload Gameplay Video', { cls: 'sm primary', icon: 'upload', onclick: async () => {
+      if (!this.ready()) return;
+      const [f] = await pickFiles('video/mp4,video/webm,video/quicktime');
+      if (f) this.run(box, 'أرفع الفيديو', prog => this.setVideo(p, f, prog), draw);
+    } }));
+    if (v) {
+      acts.appendChild(btn('معاينة الفيديو · Preview Video', { cls: 'sm ghost', icon: 'play', onclick: () => openVideo(v, p.name) }));
+      acts.appendChild(btn('حذف الفيديو · Remove Video', { cls: 'sm danger', icon: 'trash', onclick: async () => {
+        if (!(await Modal.confirm('حذف فيديو اللعب؟', 'يُزال من صفحة اللعبة' + (p.publishedId ? ' المنشورة أيضًا' : '') + '.', 'حذف'))) return;
+        this.run(box, 'أحذف', () => this.removeVideo(p), draw);
+      } }));
+    }
+    box.appendChild(acts);
+    return box;
+  },
+
+  shotsGrid(p, draw) {
+    const sc = this.sc(p);
+    const wrap = el('div');
+    const grid = el('div', { class: 'gm-shots' });
+    const list = sc.screenshots;
+    list.forEach((s, i) => {
+      const card = el('div', { class: 'gm-shot', dataset: { shot: s.id } });
+      const im = el('div', { class: 'im' }, [lazyImg(s.thumb || s, 'screenshot ' + (i + 1))]);
+      if (sc.main === s.id) im.appendChild(el('span', { class: 'main', text: '★ الرئيسية' }));
+      const ops = el('div', { class: 'ops' });
+      const op = (t, fn, title) => ops.appendChild(el('button', { text: t, title: title || t, onclick: fn }));
+      op('👁', () => { this.lastImage = Object.assign({ name: 'لقطة ' + (i + 1) }, s); openLightbox(orderedShots(sc), orderedShots(sc).indexOf(s), { title: p.name }); }, 'معاينة · Preview');
+      if (sc.main !== s.id) op('★', () => this.run(wrap, 'أحفظ', () => this.setMain(p, s.id), draw), 'اللقطة الرئيسية · Main Screenshot');
+      op('غلاف', () => this.run(wrap, 'أجعلها الغلاف', () => this.useImage(p, 'cover', s), draw), 'Set as Cover');
+      op('خلفية', () => this.run(wrap, 'أجعلها الخلفية', () => this.useImage(p, 'background', s), draw), 'Set as Background');
+      if (i > 0) op('◀', () => this.run(wrap, 'أرتّب', () => this.moveShot(p, s.id, -1), draw), 'قبل');
+      if (i < list.length - 1) op('▶', () => this.run(wrap, 'أرتّب', () => this.moveShot(p, s.id, 1), draw), 'بعد');
+      op('🗑', async () => { if (await Modal.confirm('حذف اللقطة؟', '', 'حذف')) this.run(wrap, 'أحذف', () => this.removeShot(p, s.id), draw); }, 'حذف · Delete');
+      card.append(im, ops);
+      grid.appendChild(card);
+    });
+    wrap.appendChild(grid);
+    if (list.length < SHOTS_MAX) wrap.appendChild(btn('إضافة لقطات · Add Screenshots', { cls: 'sm primary', icon: 'plus', style: { marginTop: '10px' }, onclick: async () => {
+      if (!this.ready()) return;
+      const files = await pickFiles('image/png,image/jpeg,image/webp,image/gif', true);
+      if (files.length) this.run(wrap, 'أرفع اللقطات', prog => this.addShots(p, files, prog), draw);
+    } }));
+    return wrap;
+  },
+
+  /* an image asset the owner already uploaded — no second upload */
+  async pickAsset(p, role, draw) {
+    if (!this.ready('أصولك')) return;
+    const me = Backend.user.uid;
+    const items = ((await NX.Assets.search({ scope: 'mine', ownerId: me, kind: 'image', limit: 40, sort: 'new' }).catch(() => ({ items: [] }))).items || []).filter(a => a.storagePath);
+    const body = el('div');
+    if (!items.length) body.appendChild(el('p', { class: 'muted', text: 'لا توجد صور في أصولك بعد — ارفعها من «الأصول ← UPLOAD» أو ارفع هنا مباشرة.' }));
+    const g = el('div', { class: 'gm-shots' });
+    items.forEach(a => g.appendChild(el('button', { class: 'gm-shot', style: { textAlign: 'start' }, onclick: async () => {
+      h.close();
+      const m = { path: a.storagePath, url: a.downloadURL || null, assetId: a.assetId, name: a.name, w: a.stats && a.stats.width, h: a.stats && a.stats.height, bytes: a.fileSize || (a.stats && a.stats.size) };
+      if (a.thumbnail) m.thumb = { path: a.thumbnail, url: a.thumbnailURL || null };
+      const host = document.querySelector(`.gm-slot[data-role="${role}"]`) || document.body;
+      this.run(host, 'أستخدم «' + a.name + '»', () => this.useImage(p, role, m), draw);
+    } }, [el('div', { class: 'im' }, [lazyImg(a.thumbnail ? { path: a.thumbnail, url: a.thumbnailURL } : { path: a.storagePath, url: a.downloadURL }, a.name)]), el('div', { class: 'ops', text: a.name })])));
+    body.appendChild(g);
+    const h = Modal.open({ title: 'اختر صورة لـ ' + IMG_ROLES[role].label, body, actions: [{ label: T('cancel'), cls: 'ghost' }] });
+  }
+};
 
 /* ------------------------------------------------------------
    NOTIFICATIONS (rule 23)
@@ -13859,6 +14763,8 @@ NX.Community = {
   openNotifications, openGoLive, openLivePage, openCreatorStudio, openReport,
   postCard, FeedView, videoPlayer, share, updateNotifBadge, fmtDur
 };
+NX.GameMedia = GameMedia;
+NX.Showcase = { open: openGamePage, openLightbox, openVideo, preview: p => GameMedia.preview(p) };
 </script>
 <script type="module">
 /* ============================================================
@@ -16809,11 +17715,11 @@ const GameOps = {
    4. place everything with real bounding boxes as ONE undo step,
       write the control script, save, run a play test, report.
    ============================================================ */
-const GAME_VERBS = ['اصنع', 'ابن', 'ابني', 'انشئ', 'اعمل', 'سوي', 'صمم', 'جهز', 'make', 'build', 'create', 'design', 'generate'];
+const GAME_VERBS = ['اصنع', 'ابن', 'ابني', 'انشئ', 'اعمل', 'سوي', 'صمم', 'جهز', 'make', 'build', 'create', 'design', 'generate'].map(norm);   /* the same normalisation as the text (أنشئ → انشي) */
 const GENRES = [
   { id: 'driving', label: 'لعبة قيادة', w: ['قياده', 'سياقه', 'سباق', 'سيارات', 'سياره', 'drive', 'driving', 'racing', 'race', 'car', 'cars'] },
   { id: 'walker', label: 'لعبة استكشاف بشخصية', w: ['لاعب', 'شخصيه', 'مشي', 'مغامره', 'استكشاف', 'player', 'character', 'walk', 'walking', 'adventure', 'explore', 'platformer'] }
-];
+].map(g => Object.assign(g, { w: g.w.map(norm) }));
 const LAYOUT_WORDS = {
   center: ['منتصف', 'وسط', 'middle', 'center', 'centre'],
   sides: ['جانبين', 'جانبي', 'جانبان', 'طول', 'both', 'sides', 'along'],
@@ -16823,6 +17729,7 @@ const LAYOUT_WORDS = {
   front: ['امام', 'قدام', 'front'], behind: ['خلف', 'وراء', 'behind'],
   left: ['يسار', 'left'], right: ['يمين', 'right'], beside: ['جانب', 'قرب', 'جوار', 'beside', 'next', 'near']
 };
+Object.keys(LAYOUT_WORDS).forEach(k => { LAYOUT_WORDS[k] = LAYOUT_WORDS[k].map(norm); });
 const RELATION_AR = { center: 'في المنتصف', sides: 'على الجانبين', around: 'حول', start: 'عند نقطة البداية', end: 'عند النهاية', front: 'أمام', behind: 'خلف', left: 'يسار', right: 'يمين', beside: 'بجانب' };
 /* concept → the stored asset type it corresponds to */
 const CONCEPT_TYPE = { car: 'vehicle', truck: 'vehicle', bus: 'vehicle', bike: 'vehicle', plane: 'vehicle', boat: 'vehicle', building: 'building', house: 'building', shop: 'building',
@@ -17265,14 +18172,14 @@ Agent.answer = async function (planId, key, value) {
    connected model, or here without one) and never turned into a build;
    only a request with an action verb changes the project.
    ============================================================ */
-const TALK_GREET = ['سلام', 'السلام', 'مرحبا', 'مرحبتين', 'اهلا', 'اهلين', 'هلا', 'هاي', 'هلو', 'صباح', 'مساء', 'تحياتي', 'hi', 'hello', 'hey', 'salam', 'bonjour', 'salut'];
-const TALK_THANKS = ['شكرا', 'مشكور', 'تسلم', 'يعطيك', 'thanks', 'thank', 'thx', 'merci'];
-const TALK_BYE = ['باي', 'وداعا', 'bye', 'goodbye'];
-const ASK_WORDS = ['كيف', 'لماذا', 'ليش', 'ليه', 'ماذا', 'ما', 'وش', 'شو', 'ايش', 'متى', 'اين', 'وين', 'من', 'كم', 'هل', 'اشرح', 'what', 'how', 'why', 'when', 'where', 'who', 'which', 'explain', 'is', 'are', 'does', 'tell'];
-const POLITE = ['من', 'فضلك', 'لو', 'سمحت', 'رجاء', 'رجاءا', 'ممكن', 'يمكنك', 'تستطيع', 'تقدر', 'اريد', 'ابغي', 'ابي', 'بدي', 'عايز', 'ان', 'please', 'pls', 'plz', 'can', 'could', 'would', 'you', 'i', 'want', 'to', 'يا', 'صديقي', 'حبيبي', 'اخي', 'هل'];
+const TALK_GREET = ['سلام', 'السلام', 'مرحبا', 'مرحبتين', 'اهلا', 'اهلين', 'هلا', 'هاي', 'هلو', 'صباح', 'مساء', 'تحياتي', 'hi', 'hello', 'hey', 'salam', 'bonjour', 'salut'].map(norm);
+const TALK_THANKS = ['شكرا', 'مشكور', 'تسلم', 'يعطيك', 'thanks', 'thank', 'thx', 'merci'].map(norm);
+const TALK_BYE = ['باي', 'وداعا', 'bye', 'goodbye'].map(norm);
+const ASK_WORDS = ['كيف', 'لماذا', 'ليش', 'ليه', 'ماذا', 'ما', 'وش', 'شو', 'ايش', 'متى', 'اين', 'وين', 'من', 'كم', 'هل', 'اشرح', 'what', 'how', 'why', 'when', 'where', 'who', 'which', 'explain', 'is', 'are', 'does', 'tell'].map(norm);
+const POLITE = ['من', 'فضلك', 'لو', 'سمحت', 'رجاء', 'رجاءا', 'ممكن', 'يمكنك', 'تستطيع', 'تقدر', 'اريد', 'ابغي', 'ابي', 'بدي', 'عايز', 'ان', 'please', 'pls', 'plz', 'can', 'could', 'would', 'you', 'i', 'want', 'to', 'يا', 'صديقي', 'حبيبي', 'اخي', 'هل'].map(norm);
 const ACT_VERBS = GAME_VERBS.concat(['اضف', 'ضع', 'حط', 'غير', 'عدل', 'اجعل', 'خلي', 'احذف', 'امسح', 'ازل', 'حرك', 'انقل', 'كبر', 'صغر', 'لون', 'لف', 'دور', 'استبدل', 'انسخ', 'اصلح', 'حسن', 'افحص', 'حلل', 'شغل', 'زد', 'قلل', 'تراجع', 'اكتب', 'برمج',
   'تضيف', 'تضع', 'تغير', 'تصنع', 'تبني', 'تحذف', 'تنشئ', 'تعمل', 'تسوي', 'تصمم', 'تكتب', 'تصلح', 'اضافه', 'انشاء', 'صنع', 'بناء',
-  'add', 'put', 'place', 'change', 'edit', 'set', 'remove', 'delete', 'move', 'scale', 'rotate', 'turn', 'replace', 'copy', 'duplicate', 'fix', 'improve', 'optimize', 'analyze', 'write', 'code', 'undo', 'redo', 'spawn', 'paint', 'color']);
+  'add', 'put', 'place', 'change', 'edit', 'set', 'remove', 'delete', 'move', 'scale', 'rotate', 'turn', 'replace', 'copy', 'duplicate', 'fix', 'improve', 'optimize', 'analyze', 'write', 'code', 'undo', 'redo', 'spawn', 'paint', 'color']).map(norm);
 function intentOf(text) {
   const ws = words(text);
   if (!ws.length) return 'talk';
@@ -17291,7 +18198,7 @@ const Intent = {
   of: intentOf,
   /* 'act' → the agent / the builder · 'talk' | 'ask' → a conversation */
   route(text) {
-    if (REDO_RE.test(text)) return 'act';
+    if (REDO_RE.test(text) || showcaseIntent(text)) return 'act';
     const det = parse(text);
     /* read from the project itself: «ماذا يوجد في المشهد؟» · «حلل لعبتي» · «تراجع» · «أصلح الخطأ» */
     if (det && det.kind !== 'scene' && det.kind !== 'code') return 'act';
@@ -17592,6 +18499,263 @@ Agent.answer = async function (planId, key, value) {
 };
 NX.Intent = Intent;
 NX.ModelActions = ModelActions;
+
+/* ============================================================
+   SHOWCASE AI — the assistant prepares the game's store page: a
+   professional description, a short one, tags, the best cover image,
+   the page background. It proposes; nothing is replaced or removed
+   before APPLY, and the previous version can be restored.
+   Images are chosen from their real records (proportions, resolution,
+   name, tags) — the assistant does not claim to see what is in them.
+   ============================================================ */
+const SCW = {
+  short: ['قصير', 'قصيره', 'مختصر', 'مختصره', 'short', 'tagline', 'brief'],
+  desc: ['وصف', 'الوصف', 'description', 'describe'],
+  tags: ['tags', 'tag', 'تاغات', 'تاجات', 'تاغ', 'وسوم', 'وسم', 'هاشتاغ', 'هاشتاج', 'hashtags'],
+  cover: ['غلاف', 'cover'],
+  bg: ['خلفيه', 'background'],
+  page: ['صفحه', 'العرض', 'page', 'showcase', 'store'],
+  image: ['صوره', 'صور', 'image', 'picture', 'photo', 'لقطه', 'screenshot'],
+  scene: ['مشهد', 'scene', 'سماء', 'sky', 'لون', 'color', 'colour'],
+  verbs: ['اكتب', 'انشئ', 'ولد', 'حسن', 'اعد', 'جهز', 'اقترح', 'اختر', 'استخدم', 'اجعل', 'ضع', 'غير', 'حط', 'خلي',
+    'write', 'generate', 'create', 'improve', 'rewrite', 'make', 'suggest', 'pick', 'choose', 'use', 'set', 'select', 'give']
+};
+Object.keys(SCW).forEach(k => { SCW[k] = SCW[k].map(norm); });   /* the same normalisation as the text (أنشئ → انشي) */
+function showcaseIntent(text) {
+  if (!NX.Studio || !NX.Studio.project || !NX.GameMedia) return null;
+  const ws = words(text);
+  const has = l => ws.some(w => stems(w).some(s => l.includes(s)));
+  if (!has(SCW.verbs)) return null;
+  if (has(SCW.tags)) return 'tags';
+  if (has(SCW.bg) && (has(SCW.page) || has(SCW.image)) && !has(SCW.scene)) return 'background';
+  if (has(SCW.cover) && !has(SCW.scene)) return 'cover';
+  if (has(SCW.desc)) return has(SCW.short) ? 'tagline' : 'description';
+  return null;
+}
+const SC_GENRE_AR = { Action: 'أكشن', Adventure: 'مغامرة', Racing: 'سباق', Puzzle: 'ألغاز', Simulation: 'محاكاة', RPG: 'تقمّص أدوار', Sandbox: 'عالم مفتوح', Other: '' };
+const TYPE_TAG = { vehicle: 'سيارات', building: 'مدينة', road: 'طرق', tree: 'طبيعة', plant: 'طبيعة', character: 'شخصيات', animal: 'حيوانات', weapon: 'أسلحة', environment: 'استكشاف' };
+
+/* what is really in the project — the only thing the text may talk about */
+async function gameFacts(p) {
+  const eng = NX.Studio.engine;
+  const idx = eng ? await sceneIndex(eng) : [];
+  const types = {};
+  idx.forEach(x => { if (x.a) { const t = NX.assetTypeOf(x.a); if (t && t.type) types[t.type] = (types[t.type] || 0) + 1; } });
+  const sel = ProjectIndex.select('', p, eng);
+  const pm = p.publishMeta || {}, sc = NX.GameMedia.sc(p);
+  const files = (p.files || []).map(f => f.path);
+  const controls = files.some(f => /Driving/i.test(f)) ? 'driving: joystick + GAS/BRAKE on phones, W/S A/D on a keyboard'
+    : files.some(f => /Player/i.test(f)) ? 'a character: joystick and jump on phones, WASD + space on a keyboard' : null;
+  return {
+    title: pm.title || p.name, genre: pm.genre || 'Other', creator: (Backend.user && Backend.user.name) || '',
+    currentDescription: (pm.description != null ? pm.description : p.description) || '', currentTagline: sc.tagline || '', currentTags: sc.tags || [],
+    systems: sel.index.systems || [], scriptFiles: files.slice(0, 20), controls,
+    sceneObjects: idx.length, placedAssetTypes: types,
+    mediaOnPage: { video: !!sc.video, screenshots: (sc.screenshots || []).length, cover: !!sc.cover }
+  };
+}
+/* without a model: a short, honest draft from the same facts */
+function draftFrom(f, kind) {
+  const g = SC_GENRE_AR[f.genre] || '';
+  const things = Object.entries(f.placedAssetTypes).sort((a, b) => b[1] - a[1]).map(([t]) => (NX.ASSET_TYPES[t] || {}).ar).filter(Boolean).slice(0, 4);
+  if (kind === 'tagline') return `«${f.title}» — لعبة ${g ? g + ' ' : ''}ثلاثية الأبعاد تُلعب مباشرة من المتصفح.`;
+  if (kind === 'tags') return Array.from(new Set([g, ...Object.keys(f.placedAssetTypes).map(t => TYPE_TAG[t]).filter(Boolean), f.controls && /driving/.test(f.controls) ? 'قيادة' : '', 'ثلاثي الأبعاد', 'متصفح'].filter(Boolean))).slice(0, 8);
+  const lines = [`«${f.title}» لعبة ${g ? g + ' ' : ''}ثلاثية الأبعاد صُنعت في NEXUS وتعمل مباشرة من المتصفح على الهاتف والكمبيوتر.`];
+  if (things.length) lines.push(`في عالمها ${f.sceneObjects} عنصرًا، منها: ${things.join('، ')}.`);
+  if (f.systems.length) lines.push('فيها: ' + f.systems.slice(0, 6).join('، ') + '.');
+  if (f.controls) lines.push(/driving/.test(f.controls) ? 'التحكم: عصا تحكم وزرّا GAS و BRAKE على الهاتف، أو W/S و A/D على لوحة المفاتيح.' : 'التحكم: عصا تحكم وزر قفز على الهاتف، أو WASD والمسافة على لوحة المفاتيح.');
+  lines.push('اضغط PLAY وابدأ.');
+  return lines.join('\n\n');
+}
+async function writeWithModel(kind, facts, userText) {
+  const lang = /[؀-ۿ]/.test(userText) ? 'Arabic' : 'English';
+  const task = {
+    description: `A professional store-page description: 2 to 4 short paragraphs — what the game is, what the player does, what makes it fun, the controls. At most 900 characters, no headings, no markdown, at most two emojis. Reply with the text only.`,
+    tagline: `One catchy sentence for the top of the page, at most 110 characters. Reply with the sentence only.`,
+    tags: `5 to 8 short tags (one or two words each) that describe the game for search. Reply ONLY with a JSON array of strings.`
+  }[kind];
+  const system = `You write the store page of a small 3D browser game made with the NEXUS engine. Write in ${lang}. Use ONLY the facts given: never invent features, modes, levels, multiplayer, a story, characters or rewards that are not in the facts. ${task}`;
+  const raw = (await NX.AI.raw(system, 'FACTS:\n' + JSON.stringify(facts, null, 1) + '\n\nREQUEST: ' + userText)).trim();
+  if (kind === 'tags') {
+    const j = JSON.parse(raw.slice(raw.indexOf('['), raw.lastIndexOf(']') + 1));
+    return j.map(t => String(t).replace(/^#/, '').trim()).filter(Boolean).slice(0, 8);
+  }
+  return raw.replace(/^["«]|["»]$/g, '').replace(/^#+\s.*\n/gm, '').trim().slice(0, kind === 'tagline' ? 160 : 2000);
+}
+
+/* the images the owner already has: the page's screenshots, banner,
+   background, and their image assets — ranked by what the records say */
+async function imageCandidates(p) {
+  const sc = NX.GameMedia.sc(p), me = Backend.user && Backend.user.uid;
+  const out = [];
+  (sc.screenshots || []).forEach((s, i) => out.push({ media: s, name: s.name || 'لقطة ' + (i + 1), source: 'لقطة من صفحة العرض', w: s.w, h: s.h, shot: true, main: sc.main === s.id }));
+  ['banner', 'background', 'cover'].forEach(r => { if (sc[r]) out.push({ media: sc[r], name: sc[r].name || r, source: r === 'cover' ? 'الغلاف الحالي' : r === 'banner' ? 'البانر' : 'خلفية الصفحة', w: sc[r].w, h: sc[r].h, role: r }); });
+  if (me && NX.ProjectContext.perms().assets) {
+    const r = await Assets.search({ scope: 'mine', ownerId: me, kind: 'image', limit: 40, sort: 'new' }).catch(() => ({ items: [] }));
+    (r.items || []).filter(a => a.storagePath).forEach(a => out.push({
+      media: { path: a.storagePath, url: a.downloadURL || null, assetId: a.assetId, name: a.name, w: a.stats && a.stats.width, h: a.stats && a.stats.height, thumb: a.thumbnail ? { path: a.thumbnail, url: a.thumbnailURL || null } : null },
+      name: a.name, source: 'من أصولك', w: a.stats && a.stats.width, h: a.stats && a.stats.height, tags: a.tags || [] }));
+  }
+  return out;
+}
+function rankImage(c, title, forRole) {
+  let s = 0; const why = [];
+  const w = +c.w || 0, h = +c.h || 0;
+  if (w && h) {
+    const want = forRole === 'background' ? 16 / 9 : 16 / 9, d = Math.abs(Math.log((w / h) / want));
+    s += Math.max(0, 30 - d * 45);
+    if (d < 0.15) why.push('عرضية قريبة من 16:9'); else if (w < h) { s -= 12; why.push('طولية'); }
+    if (w >= 1600) { s += 18; why.push('دقة عالية ' + w + '×' + h); } else if (w >= 1000) { s += 10; why.push(w + '×' + h); } else if (w < 600) { s -= 18; why.push('دقة منخفضة ' + w + '×' + h); }
+  }
+  const nm = norm(c.name + ' ' + (c.tags || []).join(' '));
+  if (/cover|key ?art|poster|hero|title|banner|thumbnail|غلاف|بوستر|واجهه/.test(nm)) { s += 25; why.push('الاسم/الوسوم تدل على غلاف'); }
+  if (c.shot || /screen|shot|gameplay|لقطه/.test(nm)) { s += 12; why.push('لقطة من اللعبة'); }
+  if (/texture|normal|rough|albedo|diffuse|pattern|seamless|tile|icon|logo|mask|sprite|نسيج/.test(nm)) { s -= 35; why.push('يبدو نسيجًا أو أيقونة'); }
+  const tw = words(title).filter(x => x.length > 2);
+  if (tw.some(x => nm.includes(x))) { s += 8; why.push('يحمل اسم اللعبة'); }
+  if (c.main) { s += 6; why.push('اللقطة الرئيسية'); }
+  if (c.role === forRole) s -= 100;   // already that
+  return { score: Math.round(s), why };
+}
+
+const ShowcaseAI = {
+  async handle(kind, text, ui) {
+    const S = NX.Studio, p = S.project;
+    if (!p) { ui.say('افتح مشروع اللعبة أولًا — صفحة العرض جزء منه.'); return; }
+    if (!NX.GameMedia.mine(p)) { ui.say('صفحة العرض يعدّلها صاحب اللعبة فقط.'); return; }
+    if (kind === 'cover' || kind === 'background') return this.image(kind, text, ui, p);
+    ui.busy(kind === 'tags' ? 'أقترح وسومًا من بيانات لعبتك…' : 'أكتب من بيانات لعبتك…');
+    let value, byModel = false, err = null;
+    try {
+      const facts = await gameFacts(p);
+      if (AIConfig.isReady()) { try { value = await writeWithModel(kind, facts, text); byModel = true; } catch (e) { err = e; } }
+      if (value == null || (Array.isArray(value) ? !value.length : !String(value).trim())) value = draftFrom(facts, kind);
+    } finally { ui.busy(null); }
+    const sc = NX.GameMedia.sc(p), pm = p.publishMeta || {};
+    const current = kind === 'tags' ? (sc.tags || []).join('، ') : kind === 'tagline' ? sc.tagline : ((pm.description != null ? pm.description : p.description) || '');
+    const shown = Array.isArray(value) ? value.map(t => '#' + t).join('  ') : value;
+    const label = { description: 'الوصف', tagline: 'الوصف المختصر', tags: 'الوسوم' }[kind];
+    const L = { description: ['الوصف الحالي', 'لا يوجد وصف حاليًا — سيُضاف.'], tagline: ['الوصف المختصر الحالي', 'لا يوجد وصف مختصر حاليًا — سيُضاف.'], tags: ['الوسوم الحالية', 'لا توجد وسوم حاليًا — ستُضاف.'] }[kind];
+    const plan = { id: uid('plan'), showcaseEdit: true, kind, value, ui, p, done: false };
+    this.plans.set(plan.id, plan);
+    Agent.plans.set(plan.id, plan);
+    const lines = [shown, '',
+      current ? `⚠ سيستبدل ${L[0]}: «${String(current).slice(0, 140)}${String(current).length > 140 ? '…' : ''}» — يمكنك استرجاعه بعد التطبيق.` : L[1],
+      byModel ? '✎ كتبه النموذج المتصل من بيانات مشروعك فقط.' : '✎ مسودة من بيانات مشروعك (بدون نموذج ذكاء اصطناعي' + (err ? ' — تعذّر الاتصال بالنموذج' : '') + ') — عدّلها كما تريد.'];
+    ui.say(`هذا ${label} المقترح لصفحة لعبتك — لن يتغيّر شيء قبل APPLY:`, [{ type: 'preview', title: label + ' · صفحة العرض', planId: plan.id, lines }]);
+  },
+
+  async image(kind, text, ui, p) {
+    const role = kind;               // 'cover' | 'background'
+    const label = role === 'cover' ? 'صورة الغلاف' : 'خلفية صفحة العرض';
+    const sc = NX.GameMedia.sc(p);
+    const ws = words(text);
+    const self = ws.some(w => ['هذه', 'هذي', 'هاذي', 'this', 'that', 'تلك'].includes(w));
+    let pick = null, why = [], alternatives = [];
+    const last = NX.GameMedia.lastImage;
+    if (self && last && last.path) { pick = { media: last, name: last.name || 'الصورة التي فتحتها', source: 'آخر صورة فتحتها' }; why = ['قلت «هذه الصورة» — آخر صورة فتحتها']; }
+    else {
+      ui.busy('أبحث في صورك…');
+      let cands;
+      try { cands = await imageCandidates(p); } finally { ui.busy(null); }
+      /* a name in the request: «اجعل صورة المدينة خلفية» */
+      const named = cands.filter(c => words(c.name).some(w => w.length > 2 && ws.some(x => stems(x).includes(w))));
+      const pool = named.length ? named : cands;
+      const ranked = pool.map(c => Object.assign({}, c, rankImage(c, p.name, role))).filter(c => c.score > -60).sort((a, b) => b.score - a.score);
+      if (!ranked.length) { ui.say(`لا توجد لديك صور أستعملها ${role === 'cover' ? 'غلافًا' : 'خلفية'} — ارفع لقطات من «وسائط اللعبة» أو صورًا من «الأصول ← UPLOAD»، ثم أعد الطلب. لا أخترع صورًا.`); return; }
+      if (self && !last) {
+        /* «this image» with nothing opened: the owner chooses */
+        const plan = { id: uid('plan'), showcasePick: true, role, ui, p, options: ranked.slice(0, 6), done: false };
+        this.plans.set(plan.id, plan); Agent.plans.set(plan.id, plan);
+        ui.say(`أيّ صورة تقصد؟ اختيارك يجعلها ${label}` + (sc[role] ? ' (بدل الحالية)' : '') + ':',
+          [{ type: 'question', planId: plan.id, key: 'pick', options: plan.options.map((c, i) => ({ label: c.name + ' — ' + c.source, value: String(i) })) }]);
+        return;
+      }
+      pick = ranked[0]; why = pick.why; alternatives = ranked.slice(1, 4);
+    }
+    const plan = { id: uid('plan'), showcaseImage: true, role, media: pick.media, name: pick.name, ui, p, done: false };
+    this.plans.set(plan.id, plan); Agent.plans.set(plan.id, plan);
+    const lines = [`«${pick.name}» — ${pick.source}`, 'لماذا: ' + (why.join('، ') || 'أفضل ما وجدت'),
+      alternatives.length ? 'بدائل: ' + alternatives.map(a => '«' + a.name + '»').join('، ') : '',
+      sc[role] ? `⚠ سيستبدل ${label} الحالية — يمكنك استرجاعها بعد التطبيق.` : `لا توجد ${role === 'cover' ? 'صورة غلاف' : 'خلفية للصفحة'} حاليًا — ستُضاف.`,
+      'اخترتها من بيانات الصورة (الأبعاد والاسم والوسوم)، لا من رؤية محتواها.'].filter(Boolean);
+    ui.say(`هذه ${label} المقترحة — لن يتغيّر شيء قبل APPLY:`, [{ type: 'preview', title: label, planId: plan.id, image: pick.media.thumb || pick.media, lines }]);
+  },
+
+  plans: new Map(),
+  before(p) { return { showcase: JSON.parse(JSON.stringify(NX.GameMedia.sc(p))), description: p.description, pmDescription: p.publishMeta ? p.publishMeta.description : undefined }; },
+  async apply(plan) {
+    const p = plan.p, before = this.before(p);
+    let r, what;
+    if (plan.showcaseEdit) {
+      const patch = plan.kind === 'tags' ? { tags: plan.value } : plan.kind === 'tagline' ? { tagline: plan.value } : { description: plan.value };
+      r = await NX.GameMedia.setText(p, patch);
+      what = { description: 'الوصف', tagline: 'الوصف المختصر', tags: 'الوسوم' }[plan.kind];
+    } else {
+      /* the old file stays in storage, so «استرجاع» can bring it back */
+      const sc = NX.GameMedia.sc(p);
+      const m = Object.assign({}, plan.media);
+      if (plan.role === 'cover' && !m.thumb) m.thumb = null;
+      sc[plan.role] = { path: m.path, url: m.url || null, w: m.w, h: m.h, name: plan.name, assetId: m.assetId, thumb: plan.role === 'cover' ? (m.thumb || null) : undefined };
+      r = await NX.GameMedia.commit(p);
+      what = plan.role === 'cover' ? 'صورة الغلاف' : 'خلفية الصفحة';
+    }
+    const rid = uid('plan');
+    this.plans.set(rid, { restore: true, p, before, ui: plan.ui });
+    plan.ui.say(`✓ حُدّث ${what}` + (r.synced ? ' — وظهر في صفحة اللعبة المنشورة.' : p.publishedId ? '.' : ' — يظهر في صفحة اللعبة عند النشر.'),
+      [{ type: 'result', title: 'صفحة العرض', lines: [what + ': ' + (plan.showcaseEdit ? (Array.isArray(plan.value) ? plan.value.map(t => '#' + t).join(' ') : String(plan.value).slice(0, 160)) : '«' + plan.name + '»')], showcase: true, restorePlan: rid }]);
+  },
+  async restore(rid, ui) {
+    const x = this.plans.get(rid);
+    if (!x || x.done) { Toast.show('لا يوجد ما أسترجعه'); return; }
+    x.done = true;
+    const p = x.p;
+    p.showcase = x.before.showcase;
+    p.description = x.before.description;
+    if (p.publishMeta && x.before.pmDescription !== undefined) p.publishMeta.description = x.before.pmDescription;
+    const r = await NX.GameMedia.commit(p);
+    ui.say('↩ استرجعت صفحة العرض كما كانت' + (r.synced ? ' — وفي الصفحة المنشورة أيضًا.' : '.'));
+  }
+};
+const _answer3 = Agent.answer;
+Agent.answer = async function (planId, key, value) {
+  const plan = ShowcaseAI.plans.get(planId);
+  if (plan && (plan.showcaseEdit || plan.showcaseImage) && key === '__apply') {
+    if (plan.done) { Toast.show('انتهت صلاحية هذا الطلب — أرسله من جديد'); return; }
+    plan.done = true;
+    if (value === 'yes') {
+      try { await ShowcaseAI.apply(plan); }
+      catch (e) { console.error(e); plan.ui.say('✕ تعذّر التطبيق: ' + NX.describeFirebaseError(e), [], { error: true }); }
+    } else plan.ui.say('أُلغي — صفحة العرض لم تتغيّر.');
+    return;
+  }
+  if (plan && plan.showcasePick && key === 'pick') {
+    if (plan.done) return;
+    plan.done = true;
+    const c = plan.options[+value];
+    if (!c) return;
+    try { await ShowcaseAI.apply({ showcaseImage: true, role: plan.role, media: c.media, name: c.name, ui: plan.ui, p: plan.p }); }
+    catch (e) { console.error(e); plan.ui.say('✕ تعذّر التطبيق: ' + NX.describeFirebaseError(e), [], { error: true }); }
+    return;
+  }
+  return _answer3.call(this, planId, key, value);
+};
+const _claims3 = Agent.claims;
+Agent.claims = function (text) {
+  if (showcaseIntent(text)) return true;
+  return _claims3.call(this, text);
+};
+const _handle3 = Agent.handle;
+Agent.handle = async function (text, ui) {
+  const k = showcaseIntent(text);
+  if (k) {
+    try { await ShowcaseAI.handle(k, text, ui); }
+    catch (e) { console.error(e); ui.say('✕ توقّفت: ' + ((e && e.message) || e), [], { error: true }); }
+    return true;
+  }
+  return _handle3.call(this, text, ui);
+};
+NX.ShowcaseAI = ShowcaseAI;
 
 NX.GameOps = GameOps;
 NX.GameComposer = GameComposer;
@@ -17952,6 +19116,11 @@ function renderCard(card, ui) {
     })));
     box.appendChild(acts);
   } else if (card.type === 'preview') {
+    if (card.image) {
+      const im = el('img', { alt: '', loading: 'lazy', style: { width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '10px', marginBottom: '8px', background: 'var(--glass-2)' } });
+      Backend.fileURL(card.image.path, card.image.url).then(u => { if (u) im.src = u; }).catch(() => {});
+      box.appendChild(im);
+    }
     box.appendChild(el('div', { class: 'ac-list', text: (card.lines || []).join('\n') }));
     const acts = el('div', { class: 'ac-acts' });
     if (card.state) acts.appendChild(el('span', { class: 'tiny', text: card.state === 'yes' ? '✓ طُبّق' : '✕ أُلغي' }));
@@ -17976,6 +19145,8 @@ function renderCard(card, ui) {
     const acts = el('div', { class: 'ac-acts' });
     if (card.undoable && !card.undone) acts.appendChild(actionBtn('↩ تراجع', 'danger', async () => { await Agent.undo(ui); card.undone = true; refresh(); }));
     if (card.undoable && card.undone) acts.appendChild(actionBtn('↪ إعادة', 'primary', async () => { await Agent.redo(ui); card.undone = false; refresh(); }));
+    if (card.restorePlan && !card.restored) acts.appendChild(actionBtn('↩ استرجاع السابق', 'danger', async () => { card.restored = true; refresh(); await NX.ShowcaseAI.restore(card.restorePlan, ui); }));
+    if (card.showcase && NX.Studio.project) acts.appendChild(actionBtn('👁 معاينة صفحة العرض', 'ghost', () => { if (NX.AIPanel.sheet) NX.AIPanel.sheet.close(); NX.GameMedia.preview(NX.Studio.project); }));
     if (card.ids && card.ids.length) acts.appendChild(actionBtn('حدّد في المشهد', 'ghost', async () => {
       const e = S.engine && S.engine.getEntity(card.ids.find(id => S.engine.entities.has(id)));
       if (!e) { Toast.show('العنصر لم يعد موجودًا'); return; }
@@ -18472,6 +19643,7 @@ const ProjectHub = {
     dest('البناء', 'ترجمة وفحص الأخطاء', 'box', () => NX.Studio.buildProject());
     dest('معاينة', 'تشغيل اللعبة', 'play', () => NX.Studio.play());
     dest('التصدير', 'أرشيف أو نسخة قابلة للتشغيل', 'save', () => Exporter.open(p));
+    dest('وسائط اللعبة', 'الغلاف والخلفية والفيديو واللقطات · GAME MEDIA', 'image', () => NX.GameMedia.open(p));
     dest('الإعدادات', 'العالم والمشروع', 'gear', () => NX.Studio.openWorld());
     dest('التاريخ', 'نقاط الرجوع', 'undo', () => NX.History.open(p, () => NX.Studio.reloadScene()));
     body.appendChild(grid);
@@ -18597,6 +19769,7 @@ const { Backend, Assets, Projects, Games, EngineCore, Runtime, Studio } = NX;
    ============================================================ */
 const Player = {
   engine: null, runtime: null, gameId: null,
+  returnTo: null,   // the showcase the game was started from: shown again on exit
 
   /* the code a build will run, whatever format it was published in */
   codeOf(build) {
@@ -18705,6 +19878,9 @@ const Player = {
     if (this.engine) { this.engine.stop(); this.engine.clear(); }
     $('#player-ui').textContent = '';
     NX.Screen.show('platform');
+    /* back to the game's page, the way the player came in */
+    const back = this.returnTo; this.returnTo = null;
+    if (back) setTimeout(back, 60);
   }
 };
 
@@ -18841,9 +20017,10 @@ const Platform = {
   gameCard(g) {
     const c = el('div', { class: 'gcard', onclick: () => NX.Community.openGamePage(g) });
     const cover = el('div', { class: 'cover' });
-    if (g.coverURL || g.cover) {
-      const img = el('img', { alt: g.title });
-      Backend.fileURL(g.cover, g.coverURL).then(u => { if (u) img.src = u; });
+    if (g.thumb || g.coverURL || g.cover) {
+      /* the small thumbnail when the game has one — lists stay light */
+      const img = el('img', { alt: g.title, loading: 'lazy', decoding: 'async' });
+      (g.thumb ? Backend.fileURL(g.thumb, g.thumbURL) : Backend.fileURL(g.cover, g.coverURL)).then(u => { if (u) img.src = u; });
       cover.appendChild(img);
     } else cover.appendChild(el('div', { class: 'ph', text: '◆' }));
     const meta = el('div', { class: 'meta' }, [
