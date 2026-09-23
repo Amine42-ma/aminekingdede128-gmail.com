@@ -46,6 +46,21 @@
 8. **Authentication → Settings → Authorized domains**: أضف `YOUR-SITE.netlify.app` (مطلوب لتسجيل الدخول بـ Google).
 9. **Netlify**: اسحب مجلد `nexus` كاملًا إلى Netlify Drop، أو اربط المستودع واجعل *Base directory* = `nexus`. الموقع يعمل عبر HTTPS تلقائيًا.
 
+## تخزين الملفات على Google Drive (بدون خطة Blaze)
+
+المجسمات وملفات MP3 والصور والأغلفة والفيديو تُرفع إلى **Google Drive الخاص بمن يرفعها**، داخل مجلد اسمه «NEXUS». كل ملف يُشارَك «لأي شخص لديه الرابط»، ويحفظ Firestore رابطه فقط. الإعداد في أعلى `index.html`: `window.NEXUS_FILES = "drive"` (أو `"firebase"` لاستعمال Firebase Storage).
+
+- NEXUS يطلب صلاحية `drive.file` فقط: يرى الملفات التي أنشأها هو، ولا يرى بقية ملفات Drive.
+- الرفع يحتاج تسجيل الدخول بـ Google. إذن Google يدوم ساعة، وبعدها تظهر نافذة Google عند الرفع التالي.
+- إذا حذف صاحب الملف ملفه من Drive، يختفي من NEXUS.
+
+**الإعداد مرة واحدة (Google Cloud Console، المشروع `jknbb-n`، رقم المشروع 711797656698):**
+1. APIs & Services ← Library ← **Google Drive API** ← **Enable**.
+2. APIs & Services ← Credentials ← المفتاح الذي يبدأ بـ `AIzaSyDYrd1…`: إن كان «Restrict key» فأضف **Google Drive API** إلى القائمة ← Save.
+3. OAuth consent screen / Google Auth Platform ← Audience ← **Publish app** (In production). بدون هذا لا يستطيع تسجيل الدخول إلا «مستخدمو الاختبار». `drive.file` صلاحية غير حساسة، فلا تحتاج مراجعة من Google.
+4. Firebase ← Authentication ← Settings ← Authorized domains ← أضف نطاق Netlify.
+5. افتح ⚙ ← التشخيص: يجب أن يظهر `Storage: Google Drive ✓`.
+
 ## السرعة والعمل بدون إنترنت
 
 - الزيارة الأولى تتصل بـ Firebase قبل الفتح. الزيارات التالية تفتح فورًا، والتحقق من الخادم يجري في الخلفية.

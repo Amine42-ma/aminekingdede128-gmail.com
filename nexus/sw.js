@@ -7,7 +7,7 @@
 const V = 'v1';
 const SHELL = 'nexus-shell-' + V;   // index.html
 const LIBS = 'nexus-libs-' + V;     // three.js, Firebase SDK, fonts — versioned URLs, never change
-const MEDIA = 'nexus-media-' + V;   // Storage files: models, textures, sounds, covers, snapshots
+const MEDIA = 'nexus-media-' + V;   // game files (Firebase Storage or Google Drive): models, textures, sounds, covers, snapshots
 const KEEP = [SHELL, LIBS, MEDIA];
 const MEDIA_MAX = 400;              // entries kept; the oldest go first
 
@@ -50,7 +50,9 @@ self.addEventListener('fetch', e => {
   }
   if (LIB_RE.test(req.url)) { e.respondWith(cacheFirst(req)); return; }
   if (FONT_CSS_RE.test(req.url)) { e.respondWith(staleWhileRevalidate(req, e)); return; }
-  if (url.hostname === 'firebasestorage.googleapis.com' && url.searchParams.get('alt') === 'media' && !req.headers.has('range')) {
+  const storageFile = url.hostname === 'firebasestorage.googleapis.com';
+  const driveFile = url.hostname === 'www.googleapis.com' && /^\/drive\/v3\/files\/[^/]+$/.test(url.pathname);
+  if ((storageFile || driveFile) && url.searchParams.get('alt') === 'media' && !req.headers.has('range')) {
     e.respondWith(media(req, e));
     return;
   }
@@ -93,7 +95,7 @@ async function staleWhileRevalidate(req, e) {
   return net;
 }
 
-/* game files from Storage: always the current file when online (a
+/* game files (Storage / Drive): always the current file when online (a
    republished game may reuse a path), the saved copy when offline */
 async function media(req, e) {
   const cache = await caches.open(MEDIA);

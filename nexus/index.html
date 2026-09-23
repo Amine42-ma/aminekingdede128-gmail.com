@@ -49,6 +49,13 @@ window.NEXUS_FIREBASE = {
   appId: "1:711797656698:web:d890c05d879ace506cffc3"
 };
 /* NEXUS_FIREBASE:END */
+
+/* Where uploaded files (models, sounds, images, covers, videos) are kept:
+   "drive"    — the uploader's own Google Drive (Google sign-in; free).
+                Needs the Google Drive API enabled in the same Google
+                Cloud project, and the apiKey above allowed to call it.
+   "firebase" — Firebase Storage (needs the Blaze plan). */
+window.NEXUS_FILES = "drive";
 </script>
 
 <!-- ============================================================
@@ -1422,6 +1429,15 @@ function describeFirebaseError(e) {
     'unauthorized': 'Firebase Storage متصل، لكن قواعد storage.rules تمنع هذه العملية',
     'bucket-not-found': 'لا توجد حاوية Storage بهذا الاسم — تحقّق من storageBucket أو فعّل Storage في المشروع',
     'storage-not-enabled': 'Storage غير مفعّل في مشروع Firebase — رفع الصور والفيديو والملفات يحتاجه (Firebase Console ← Storage ← Get started)',
+    'drive-disabled': 'Google Drive API غير مفعّل في مشروع Google Cloud الخاص بـ Firebase (Google Cloud Console ← APIs & Services ← Library ← Google Drive API ← Enable)',
+    'drive-key-blocked': 'مفتاح apiKey لا يسمح بـ Google Drive API (Google Cloud Console ← Credentials ← المفتاح ← API restrictions ← أضف Google Drive API)',
+    'drive-auth': 'انتهت صلاحية إذن Google Drive — اضغط الرفع مرة أخرى وسجّل الدخول بـ Google',
+    'drive-no-token': 'الرفع إلى Google Drive يحتاج تسجيل الدخول بـ Google — أكمل تسجيل الدخول ثم أعد الرفع',
+    'drive-popup-blocked': 'المتصفح منع نافذة Google — اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد الرفع',
+    'drive-account-in-use': 'حساب Google هذا مرتبط بحساب آخر في NEXUS — سجّل الخروج ثم ادخل بـ Google مباشرة',
+    'drive-full': 'مساحة Google Drive الخاصة بك ممتلئة',
+    'drive-share-blocked': 'حساب Google هذا لا يسمح بمشاركة الملفات للعامة (حساب مؤسسة/مدرسة؟) — استعمل حساب Gmail شخصيًا',
+    'drive-failed': 'تعذّر الرفع إلى Google Drive',
     'upload-stalled': 'توقف الرفع: لم يصل أي جزء من الملف إلى Firebase خلال 90 ثانية — الشبكة ضعيفة أو مقطوعة. أعد المحاولة.',
     'no-default-bucket': 'لم يُضبط storageBucket في إعداد Firebase',
     'project-not-found': 'مشروع Storage غير موجود — فعّل Storage في Firebase Console',
@@ -1548,6 +1564,165 @@ async function localURL(path) {
 /* ============================================================
    BACKEND
    ============================================================ */
+/* ============================================================
+   GOOGLE DRIVE FILE HOST
+   Each file goes to the uploader's OWN Google Drive (folder "NEXUS").
+   Scope drive.file: NEXUS can only see the files it created — never the
+   rest of the user's Drive. Every file is shared "anyone with the link:
+   reader" and read back by everyone through the Drive API, which answers
+   browsers with CORS (the lh3.googleusercontent.com/d/ link serves images
+   only — not models or sounds). Firestore keeps only "drive:<id>" + URL.
+   ============================================================ */
+const FILE_HOST = window.NEXUS_FILES === 'firebase' ? 'firebase' : 'drive';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const DRIVE_API = 'https://www.googleapis.com/drive/v3';
+const DRIVE_UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
+const DRIVE_TYPES = { glb: 'model/gltf-binary', gltf: 'model/gltf+json', obj: 'text/plain', fbx: 'application/octet-stream',
+  mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp',
+  gif: 'image/gif', mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', json: 'application/json', txt: 'text/plain' };
+const driveErr = (code, msg) => Object.assign(new Error(msg || code), { code });
+const Drive = {
+  /* Google's access token lives one hour and Firebase does not renew it:
+     it is kept for this tab only (never in localStorage), with its
+     expiry, and asked for again when it runs out */
+  _mem: null,
+  token() {
+    let t = this._mem;
+    if (!t) { try { t = JSON.parse(sessionStorage.getItem('nx.driveToken') || 'null'); } catch {} }
+    const u = Backend.fb && Backend.fb.auth.currentUser;
+    return t && u && t.uid === u.uid && t.exp > Date.now() + 60000 ? t.token : null;
+  },
+  rememberCredential(cred, uid) {
+    if (!cred || !cred.accessToken || !uid) return;
+    this._mem = { token: cred.accessToken, uid, exp: Date.now() + 55 * 60000 };
+    try { sessionStorage.setItem('nx.driveToken', JSON.stringify(this._mem)); } catch {}
+  },
+  remember(result) {
+    if (!result || !Backend.fb) return;
+    this.rememberCredential(Backend.fb.A.GoogleAuthProvider.credentialFromResult(result), result.user && result.user.uid);
+  },
+  forget() { this._mem = null; try { sessionStorage.removeItem('nx.driveToken'); } catch {} },
+  provider() {
+    const p = new Backend.fb.A.GoogleAuthProvider();
+    if (FILE_HOST === 'drive') p.addScope(DRIVE_SCOPE);
+    return p;
+  },
+  /* a token for the signed-in user — asks Google (a popup) only when none
+     is valid. Called from the upload button, so the popup is allowed. */
+  async ensureToken() {
+    const have = this.token();
+    if (have) return have;
+    const { A, auth } = Backend.fb;
+    const u = auth.currentUser;
+    try {
+      if (u && u.providerData.some(x => x.providerId === 'google.com')) this.remember(await A.reauthenticateWithPopup(u, this.provider()));
+      else if (!u || u.isAnonymous) await Backend.auth.signInGoogle();
+      else {
+        /* an email account: Google is added to it (same uid, same projects) */
+        try { this.remember(await A.linkWithPopup(u, this.provider())); Backend._refreshUser(); }
+        catch (e) { if (e.code === 'auth/credential-already-in-use') throw driveErr('drive-account-in-use'); throw e; }
+      }
+    } catch (e) {
+      if (/popup-closed-by-user|cancelled-popup-request/.test(e.code || '')) throw driveErr('canceled', 'CANCELED');
+      if (/popup-blocked/.test(e.code || '')) throw driveErr('drive-popup-blocked');
+      throw e;
+    }
+    const t = this.token();
+    if (!t) throw driveErr('drive-no-token');
+    return t;
+  },
+  url(id) { return DRIVE_API + '/files/' + encodeURIComponent(id) + '?alt=media&key=' + encodeURIComponent((FB_CONFIG && FB_CONFIG.apiKey) || ''); },
+  async _fail(r) {
+    let body = null; try { body = await r.json(); } catch {}
+    const err = (body && body.error) || {};
+    const reasons = JSON.stringify(err).toLowerCase();
+    if (r.status === 401) { this.forget(); return driveErr('drive-auth'); }
+    if (/service_disabled|accessnotconfigured|has not been used/.test(reasons)) return driveErr('drive-disabled');
+    if (/api_key_service_blocked|are blocked/.test(reasons)) return driveErr('drive-key-blocked');
+    if (/storagequotaexceeded|quota/.test(reasons)) return driveErr('drive-full');
+    return driveErr('drive-failed', 'HTTP ' + r.status + ' ' + String(err.message || '').slice(0, 120));
+  },
+  async _call(url, token, init = {}) {
+    const r = await fetch(url, Object.assign({}, init, { headers: Object.assign({ Authorization: 'Bearer ' + token }, init.headers || {}) }));
+    if (!r.ok) throw await this._fail(r);
+    return r;
+  },
+  /* one "NEXUS" folder in the user's Drive keeps the files together */
+  async folder(token) {
+    const uidKey = 'driveFolder.' + ((Backend.user && Backend.user.uid) || '');
+    const cached = LS.get(uidKey, null);
+    if (cached) return cached;
+    try {
+      const q = encodeURIComponent("name='NEXUS' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+      const found = await (await this._call(DRIVE_API + '/files?q=' + q + '&fields=files(id)&pageSize=1', token)).json();
+      let id = found.files && found.files[0] && found.files[0].id;
+      if (!id) id = (await (await this._call(DRIVE_API + '/files?fields=id', token, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'NEXUS', mimeType: 'application/vnd.google-apps.folder' }) })).json()).id;
+      if (id) LS.set(uidKey, id);
+      return id || null;
+    } catch (e) { if (/drive-(auth|disabled|key-blocked)/.test(e.code)) throw e; return null; }
+  },
+  /* resumable upload (the multipart kind is limited to 5 MB — models are
+     often bigger), with progress, a cancel handle and a 90 s start watchdog */
+  async upload(path, file, onProgress, opts = {}) {
+    let token = await this.ensureToken();
+    const name = (file.name || path.split('/').pop() || 'file').slice(0, 200);
+    const ext = (name.split('.').pop() || path.split('.').pop() || '').toLowerCase();
+    const type = file.type || DRIVE_TYPES[ext] || 'application/octet-stream';
+    const parent = await this.folder(token);
+    const meta = { name, mimeType: type, appProperties: { nexusPath: path.slice(0, 120) } };
+    if (parent) meta.parents = [parent];
+    const start = await this._call(DRIVE_UPLOAD + '?uploadType=resumable&fields=id', token, { method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Type': type, 'X-Upload-Content-Length': String(file.size || 0) },
+      body: JSON.stringify(meta) });
+    const uploadId = start.headers.get('X-GUploader-UploadID');
+    const session = start.headers.get('Location') || (uploadId && DRIVE_UPLOAD + '?uploadType=resumable&fields=id&upload_id=' + encodeURIComponent(uploadId));
+    if (!session) throw driveErr('drive-failed', 'NO_UPLOAD_SESSION');
+    const created = await new Promise((res, rej) => {
+      const x = new XMLHttpRequest();
+      let moved = false, stalled = false;
+      const watchdog = setTimeout(() => { if (!moved) { stalled = true; x.abort(); } }, 90000);
+      x.open('PUT', session);
+      x.setRequestHeader('Content-Type', type);
+      x.upload.onprogress = e => { if (e.loaded > 0) moved = true; onProgress && onProgress(e.loaded / Math.max(1, e.total || file.size || 1), e.loaded, e.total || file.size); };
+      x.onload = () => {
+        clearTimeout(watchdog);
+        if (x.status === 200 || x.status === 201) { try { res(JSON.parse(x.responseText)); } catch { rej(driveErr('drive-failed', 'BAD_RESPONSE')); } }
+        else rej(driveErr(x.status === 403 && /quota/i.test(x.responseText) ? 'drive-full' : 'drive-failed', 'HTTP ' + x.status));
+      };
+      x.onerror = () => { clearTimeout(watchdog); rej(driveErr('network-request-failed')); };
+      x.onabort = () => { clearTimeout(watchdog); rej(stalled ? driveErr('upload-stalled') : driveErr('canceled', 'CANCELED')); };
+      opts.onTask && opts.onTask({ cancel: () => x.abort(), pause: () => {}, resume: () => {} });
+      x.send(file);
+    });
+    if (!created || !created.id) throw driveErr('drive-failed', 'NO_FILE_ID');
+    /* everything in NEXUS is public: anyone with the link can read it */
+    try {
+      await this._call(DRIVE_API + '/files/' + encodeURIComponent(created.id) + '/permissions?fields=id', token, { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: 'reader', type: 'anyone' }) });
+    } catch (e) {
+      this._call(DRIVE_API + '/files/' + encodeURIComponent(created.id), token, { method: 'DELETE' }).catch(() => {});
+      throw e.code === 'drive-failed' ? driveErr('drive-share-blocked') : e;
+    }
+    onProgress && onProgress(1, file.size || 0, file.size || 0);
+    return { path: 'drive:' + created.id, url: this.url(created.id), driveId: created.id };
+  },
+  /* only with a token already in hand — deleting never opens a popup */
+  async remove(id) {
+    const t = this.token();
+    if (!t || !id) return;
+    await this._call(DRIVE_API + '/files/' + encodeURIComponent(id), t, { method: 'DELETE' }).catch(() => {});
+  },
+  /* can this project serve Drive files to visitors? (API enabled + key allowed) */
+  async check() {
+    try {
+      const r = await withTimeout(fetch(DRIVE_API + '/files/nexus-probe?fields=id&key=' + encodeURIComponent((FB_CONFIG && FB_CONFIG.apiKey) || ''), { cache: 'no-store' }), 12000);
+      if (r.status === 404) return { ok: true };
+      throw await this._fail(r);
+    } catch (e) { return { ok: false, code: e.code || 'network-request-failed' }; }
+  }
+};
+
 const Backend = {
   mode: 'local',            // 'firebase' | 'local'
   /* the honest three-way state shown everywhere:
@@ -1655,7 +1830,7 @@ const Backend = {
          then: the call loads Google's sign-in helper over the network */
       if (LS.get('authRedirect', 0) > Date.now() - 15 * 60000) {
         LS.del('authRedirect');
-        try { await gate(withTimeout(A.getRedirectResult(auth), 8000)); } catch (e) { if (e && e.code && e.code !== 'timeout') console.warn('[nexus] redirect sign-in:', e.code); }
+        try { Drive.remember(await gate(withTimeout(A.getRedirectResult(auth), 8000))); } catch (e) { if (e && e.code && e.code !== 'timeout') console.warn('[nexus] redirect sign-in:', e.code); }
       }
       if (auth.authStateReady) await gate(withTimeout(auth.authStateReady(), 10000).catch(() => {}));
 
@@ -1817,8 +1992,8 @@ const Backend = {
             const rec = await Assets.create({
               name: asset.name, description: asset.description, category: asset.category, tags: asset.tags,
               fileType: asset.fileType, kind: asset.kind, license: asset.license, visibility: asset.visibility,
-              stats: asset.stats, ext: String(asset.storagePath || '').split('.').pop()
-            }, new File([blob], asset.name + '.' + String(asset.storagePath || 'bin').split('.').pop(), { type: blob.type || 'application/octet-stream' }), thumb);
+              stats: asset.stats, ext: asset.fileType || String(asset.storagePath || '').split('.').pop()
+            }, new File([blob], asset.name + '.' + (asset.fileType || String(asset.storagePath || 'bin').split('.').pop()), { type: blob.type || 'application/octet-stream' }), thumb);
             remap.set(asset.assetId, rec.assetId);
           } catch (e) { console.warn('carry asset failed', asset.assetId, e); }
         }
@@ -1843,19 +2018,23 @@ const Backend = {
     async signInGoogle() {
       if (!Backend.isOnline()) throw new Error('LOCAL_MODE');
       const { A, auth } = Backend.fb;
-      const p = new A.GoogleAuthProvider();
+      /* with the Drive file host, Google sign-in also asks for drive.file
+         (only the files NEXUS itself creates) */
+      const p = Drive.provider();
       return this._carryAnonymousProjects(async () => {
         const cur = auth.currentUser;
         try {
           if (cur && cur.isAnonymous) {
-            try { const linked = (await A.linkWithPopup(cur, p)).user; Backend._refreshUser(); return linked; }
+            try { const r = await A.linkWithPopup(cur, p); Drive.remember(r); Backend._refreshUser(); return r.user; }
             catch (e) {
               if (e.code !== 'auth/credential-already-in-use') throw e;
               const cred = A.GoogleAuthProvider.credentialFromError(e);
-              if (cred) return (await A.signInWithCredential(auth, cred)).user;
+              if (cred) { const r = await A.signInWithCredential(auth, cred); Drive.rememberCredential(cred, r.user.uid); return r.user; }
             }
           }
-          return (await A.signInWithPopup(auth, p)).user;
+          const r = await A.signInWithPopup(auth, p);
+          Drive.remember(r);
+          return r.user;
         } catch (e) {
           /* Android in-app browsers block popups — the redirect flow works there */
           if (this._redirectFallback(e.code)) { LS.set('authRedirect', Date.now()); await A.signInWithRedirect(auth, p); return null; }
@@ -1909,6 +2088,7 @@ const Backend = {
   async upload(path, file, onProgress, opts = {}) {
     if (this.isOnline()) {
       if (!this.user) throw Object.assign(new Error('SIGN_IN_REQUIRED'), { code: 'sign-in-required' });
+      if (FILE_HOST === 'drive') return Drive.upload(path, file, onProgress, opts);
       if (!(await this.storageReady())) throw Object.assign(new Error('STORAGE_NOT_ENABLED'), { code: 'storage-not-enabled' });
       const { S, storage } = this.fb;
       const ref = S.ref(storage, path);
@@ -1956,6 +2136,7 @@ const Backend = {
   },
   async fileURL(path, cachedURL) {
     if (!path) return null;
+    if (String(path).startsWith('drive:')) return cachedURL || Drive.url(String(path).slice(6));
     if (this.isOnline()) {
       if (cachedURL) return cachedURL;
       try { return await this.fb.S.getDownloadURL(this.fb.S.ref(this.fb.storage, path)); } catch { return null; }
@@ -1964,6 +2145,7 @@ const Backend = {
   },
   async removeFile(path) {
     if (!path) return;
+    if (String(path).startsWith('drive:')) { await Drive.remove(String(path).slice(6)); return; }
     if (this.isOnline()) { try { await this.fb.S.deleteObject(this.fb.S.ref(this.fb.storage, path)); } catch {} }
     else { await IDB.del('blobs', path); const u = blobURLCache.get(path); if (u) { URL.revokeObjectURL(u); blobURLCache.delete(path); } }
   },
@@ -2198,7 +2380,7 @@ const Assets = {
       description: meta.description || '',
       category: meta.category || 'Other',
       tags: (meta.tags || []).map(t => String(t).trim().toLowerCase()).filter(Boolean).slice(0, 24),
-      storagePath,
+      storagePath: up.path || storagePath,   // "drive:<id>" when the file went to Google Drive
       downloadURL: up.url || null,
       thumbnail: thumbPath,
       thumbnailURL: thumbURL,
@@ -2988,6 +3170,8 @@ NX.EMULATORS = EMULATORS;
 NX.packSnapshot = snap => packProject(snap);
 NX.unpackSnapshot = snap => unpackProject(snap);
 NX.describeFirebaseError = describeFirebaseError;
+NX.Drive = Drive;
+NX.FILE_HOST = FILE_HOST;
 </script>
 <script type="module">
 /* ============================================================
@@ -17943,9 +18127,15 @@ async function openDiagnostics() {
       }
     } catch (e) { rLast('تعذّر الفحص: ' + code(e), 'warn'); }
     if (visitor) visitor.close();
-    /* 5. Storage bucket + rules */
+    /* 5. where files live: Google Drive (API enabled + key allowed), or the Storage bucket + rules */
     let storageOk = false;
-    try { await S.getMetadata(S.ref(storage, '_nexus/probe.txt')); rSt('AVAILABLE', 'ok'); storageOk = true; }
+    if (NX.FILE_HOST === 'drive') {
+      const d = await NX.Drive.check();
+      storageOk = d.ok;
+      rSt(d.ok ? 'Google Drive ✓ — Drive API مفعّل والمفتاح يسمح بتنزيل الملفات العامة\nالرفع يطلب تسجيل الدخول بـ Google مرة كل ساعة'
+        : 'Google Drive ✗ — ' + NX.describeFirebaseError({ code: d.code }), d.ok ? 'ok' : 'bad');
+    }
+    else try { await S.getMetadata(S.ref(storage, '_nexus/probe.txt')); rSt('AVAILABLE', 'ok'); storageOk = true; }
     catch (e) {
       const c = code(e);
       if (c === 'object-not-found') { rSt('AVAILABLE — الحاوية تجيب ✓', 'ok'); storageOk = true; }
@@ -17965,9 +18155,10 @@ async function openDiagnostics() {
         try {
           const res = await fetch(url, { signal: ctl.signal, cache: 'no-store' });
           ctl.abort();
-          rCors(res.ok ? 'OK ✓ — ملفات Storage تُنزَّل من هذا النطاق' : 'HTTP ' + res.status, res.ok ? 'ok' : 'bad');
+          rCors(res.ok ? 'OK ✓ — الملفات تُنزَّل من هذا النطاق' : 'HTTP ' + res.status, res.ok ? 'ok' : 'bad');
         } catch (e) {
-          rCors('✗ المتصفح منع التنزيل — على الأرجح CORS غير مضبوط على حاوية Storage.\nنفّذ: gsutil cors set cors.json gs://' + ((NX.FB_CONFIG || {}).storageBucket || 'BUCKET') + '\nبدونه لا تُحمَّل المجسمات والأصوات على الأجهزة الأخرى.', 'bad');
+          if (String(url).startsWith('https://www.googleapis.com/drive/')) rCors('✗ تعذّر تنزيل الملف من Google Drive (الشبكة، أو الملف حُذف من Drive صاحبه)', 'bad');
+          else rCors('✗ المتصفح منع التنزيل — على الأرجح CORS غير مضبوط على حاوية Storage.\nنفّذ: gsutil cors set cors.json gs://' + ((NX.FB_CONFIG || {}).storageBucket || 'BUCKET') + '\nبدونه لا تُحمَّل المجسمات والأصوات على الأجهزة الأخرى.', 'bad');
         }
       }
     } catch (e) { rCors('تعذّر الفحص: ' + code(e), 'warn'); }
