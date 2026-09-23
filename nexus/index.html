@@ -10838,10 +10838,12 @@ Rules:
 ${api}
 PROJECT CONTEXT:
 ${JSON.stringify(ctx).slice(0, 14000)}`;
-    const raw = await NX.AI.raw(sys, prompt);
-    let plan = null;
-    try { plan = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch {}
-    if (!plan || !Array.isArray(plan.steps) || !plan.steps.length) throw new Error('ردّ النموذج لم يكن خطة صالحة');
+    const read = raw => { try { return JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1).replace(/,\s*([\]}])/g, '$1')); } catch { return null; } };
+    const valid = pl => pl && Array.isArray(pl.steps) && pl.steps.length;
+    let plan = read(await NX.AI.raw(sys, prompt));
+    /* smaller models sometimes answer in prose or break the JSON: asked once more, strictly */
+    if (!valid(plan)) plan = read(await NX.AI.raw(sys, prompt + '\n\nReply with ONLY the JSON object described above — no prose, no markdown fences.'));
+    if (!valid(plan)) throw new Error('ردّ النموذج لم يكن خطة صالحة');
     plan.steps = plan.steps.filter(st => ['world', 'system', 'custom', 'verify'].includes(st.kind));
     plan.steps.forEach(st => st.id = uid('st'));
     if (!plan.steps.some(st => st.kind === 'verify')) plan.steps.push({ id: uid('st'), title: 'بناء واختبار', why: 'ترجمة المشروع وتشغيله والتقاط الأخطاء.', kind: 'verify' });
@@ -11761,6 +11763,19 @@ const AIPanel = {
     sb.style.display = 'flex'; sb.style.flexDirection = 'column';
 
     this.unsub = Builder.on(ev => this.onEvent(ev));
+    /* a model connected (or switched) while the panel is open: say so */
+    this._prov = NX.AIConfig.isReady() ? NX.AIConfig.active() + '/' + NX.AIConfig.get(NX.AIConfig.active()).model : null;
+    const onProv = () => setTimeout(() => {
+      if (!this.sheet || !this.log) return;
+      const now = NX.AIConfig.isReady() ? NX.AIConfig.active() + '/' + NX.AIConfig.get(NX.AIConfig.active()).model : null;
+      if (now === this._prov) return;
+      this._prov = now;
+      const i = NX.AIClient.info();
+      this.say('sys', now ? `✓ متصل الآن بـ ${i.provider} · ${i.model} — المحادثة تفهم مشروعك وملفاتك وتستطيع تعديله (بمعاينة قبل التطبيق).` : 'المزوّد مطفأ — يعمل «المخطّط المدمج» فقط.');
+    }, 80);
+    window.addEventListener('nx:aiProvider', onProv);
+    const unsubBuilder = this.unsub;
+    this.unsub = () => { unsubBuilder(); window.removeEventListener('nx:aiProvider', onProv); };
     /* a free-form question needs a model; building does not */
     this.setMode(opts.autoPrompt || opts.firstGame || !NX.AIConfig.isReady() ? 'build' : 'chat');
     const info = NX.AIClient.info();
@@ -11790,11 +11805,22 @@ const AIPanel = {
     return m;
   },
 
-  async send(text) {
+  async send(text, opts = {}) {
     const S = NX.Studio;
     const q = (text != null ? text : this.input.value).trim();
     if (!q) return;
     this.input.value = ''; this.input.style.height = '';
+
+    /* a greeting or a question is a conversation, never a build: the
+       connected model answers it in «محادثة»; without one, a short honest reply */
+    const route = opts.forceAct || !NX.Intent ? 'act' : NX.Intent.route(q);
+    if (route !== 'act') {
+      if (NX.AIConfig.isReady()) { this.setMode('chat'); return NX.Chat.send(q); }
+      this.say('me', q);
+      const m = this.say('ai', NX.Intent.localReply(q, route));
+      m.appendChild(el('div', { style: { marginTop: '8px' } }, [btn('⚙ ربط نموذج ذكاء اصطناعي', { cls: 'sm', onclick: () => NX.openAISettings() })]));
+      return;
+    }
     this.say('me', q);
 
     /* scene / asset / analysis / undo requests: the agent acts on the scene */
@@ -13853,7 +13879,14 @@ const PROVIDERS = {
     baseURL: 'https://api.groq.com/openai/v1',
     defaultModel: 'llama-3.3-70b-versatile',
     canListModels: true, keyURL: 'https://console.groq.com/keys',
-    note: 'سريع جدًا. المفتاح مجاني من لوحة Groq.'
+    note: 'سريع جدًا. المفتاح مجاني من لوحة Groq ويبدأ بـ gsk_.'
+  },
+  xai: {
+    id: 'xai', name: 'xAI Grok', shape: 'openai', badge: 'Grok',
+    baseURL: 'https://api.x.ai/v1',
+    defaultModel: 'grok-3-mini',
+    canListModels: true, keyURL: 'https://console.x.ai',
+    note: 'نماذج Grok من xAI. المفتاح يبدأ بـ xai-.'
   },
   openai: {
     id: 'openai', name: 'OpenAI', shape: 'openai', badge: 'OpenAI',
@@ -13894,6 +13927,35 @@ const PROVIDERS = {
     note: 'أي API متوافق مع صيغة Chat Completions.'
   }
 };
+
+/* a pasted key says whose it is */
+function providerForKey(k) {
+  k = String(k || '').trim();
+  if (/^gsk_/.test(k)) return 'groq';
+  if (/^xai-/.test(k)) return 'xai';
+  if (/^sk-ant-/.test(k)) return 'anthropic';
+  if (/^sk-or-/.test(k)) return 'openrouter';
+  if (/^AIza/.test(k)) return 'gemini';
+  if (/^sk-/.test(k)) return 'openai';
+  return null;
+}
+/* a good chat model from the provider's REAL list: the default when it is
+   there, else the first match in order of preference, else the first chat model */
+const MODEL_PREF = {
+  groq: [/^llama-3\.3-70b/, /gpt-oss-120b/, /llama-4-maverick/, /kimi-k2/, /qwen3?-32b/, /llama-4-scout/, /70b/, /gpt-oss-20b/],
+  xai: [/^grok-4(?!.*(image|vision))/, /^grok-3(?!.*mini)/, /^grok-3-mini/, /^grok(?!.*(image|vision))/],
+  openai: [/^gpt-4o-mini$/, /^gpt-4\.1-mini/, /^gpt-5-mini/, /^gpt-4o$/, /^gpt-4\.1$/],
+  anthropic: [/sonnet/, /opus/, /haiku/],
+  gemini: [/flash(?!.*(image|tts|live|thinking))/, /pro(?!.*(image|tts))/],
+  openrouter: [/gpt-4o-mini/, /llama-3\.3-70b/, /claude.*sonnet/]
+};
+function pickModel(id, list) {
+  const P = PROVIDERS[id] || {};
+  const ok = (list || []).filter(m => !/image|vision|tts|whisper|embed|guard|audio|transcribe|search/i.test(m));
+  if (P.defaultModel && ok.includes(P.defaultModel)) return P.defaultModel;
+  for (const re of MODEL_PREF[id] || []) { const m = ok.find(x => re.test(x)); if (m) return m; }
+  return ok[0] || null;
+}
 
 /* ------------------------------------------------------------
    SETTINGS — stored per provider so switching keeps each key
@@ -13977,6 +14039,8 @@ function classify(err, status, bodyText) {
     if (status === 404) return { code: 'url', title: 'المسار غير صحيح', detail: 'تأكّد من Base URL. يجب أن ينتهي عادةً بـ /v1' + (said ? '\n' + said : '') };
     return { code: 'request', title: 'طلب غير مقبول', detail: said };
   }
+  if ((status === 413 || status === 429) && /tokens per minute|\btpm\b|request too large/.test(low))
+    return { code: 'size', title: 'الطلب أكبر من حدّ المزوّد في الدقيقة (TPM)', detail: (said ? said + '\n' : '') + 'الخطة المجانية تسمح بعدد محدود من الرموز في الدقيقة. جرّب نموذجًا حدّه أكبر (مثل llama-3.3-70b-versatile في Groq)، أو ابدأ محادثة جديدة، أو انتظر دقيقة.' };
   if (status === 429) return { code: 'rate', title: 'تجاوزت حدّ الاستخدام (Rate Limit)', detail: said || 'انتظر قليلًا ثم أعد المحاولة.' };
   if (status === 413) return { code: 'size', title: 'الطلب كبير جدًا', detail: said || 'قلّل السياق أو Max Tokens.' };
   if (status >= 500) return { code: 'provider', title: 'خطأ من المزوّد (' + status + ')', detail: said };
@@ -14129,10 +14193,10 @@ const AIClient = {
   },
 
   /* messages: [{role:'user'|'assistant', content}] */
-  async chat(messages, { system = '', onDelta = null, signal = null, stream = true } = {}) {
+  async chat(messages, { system = '', onDelta = null, signal = null, stream = true, _cfg = null, _tries = 0 } = {}) {
     const cur = AIConfig.current();
     if (!cur) throw Object.assign(new Error('NO_PROVIDER'), { info: { code: 'none', title: 'لم تختر مزوّد AI', detail: 'افتح إعدادات المساعد واختر مزوّدًا.' } });
-    const { provider, cfg } = cur;
+    const provider = cur.provider, cfg = Object.assign({}, cur.cfg, _cfg || {});
     if (!cfg.model) throw Object.assign(new Error('NO_MODEL'), { info: { code: 'model', title: 'لم تختر نموذجًا', detail: '' } });
     const A = Adapters[provider.shape];
     const useStream = stream && !!onDelta;
@@ -14164,7 +14228,12 @@ const AIClient = {
       clearTimeout(idle);
       const body = await res.text().catch(() => '');
       this._controller = null;
-      throw Object.assign(new Error('HTTP_' + res.status), { info: classify(null, res.status, body), status: res.status });
+      const info = classify(null, res.status, body);
+      /* a model that is gone, a request over the per-minute budget, a short
+         rate limit: fixed here once instead of failing the user */
+      const again = _tries < 2 && !sig.aborted ? await this.recover(provider, cfg, res.status, body, info) : null;
+      if (again) return this.chat(messages, { system, onDelta, signal, stream, _cfg: Object.assign({}, _cfg || {}, again), _tries: _tries + 1 });
+      throw Object.assign(new Error('HTTP_' + res.status), { info, status: res.status });
     }
 
     let text = '', usage = null, stop = null;
@@ -14215,8 +14284,66 @@ const AIClient = {
       if (onDelta && text) onDelta(text, text);
     }
     this._controller = null; clearTimeout(idle);
+    /* reasoning models (qwen3, deepseek-r1 …) may put their thinking in the text */
+    text = text.replace(/<think>[\s\S]*?<\/think>\s*/g, '').replace(/^[\s\S]*?<\/think>\s*/, '');
     if (stop === 'refusal' && !text) throw Object.assign(new Error('REFUSAL'), { info: { code: 'refusal', title: 'رفض النموذج هذا الطلب', detail: 'أعد صياغة الطلب.' } });
     return { text, usage, model: cfg.model, provider: provider.name, stop, truncated: /^(length|max_tokens|MAX_TOKENS)$/.test(stop || '') };
+  },
+
+  /* returns config overrides for one more try, or null */
+  async recover(provider, cfg, status, body, info) {
+    const text = String(body || '');
+    /* over the per-minute token budget (Groq free tier: «Limit 12000, Requested 15234»):
+       the same request with room for a shorter answer */
+    const lim = /limit\D{0,4}(\d+)\D{1,20}requested\D{0,4}(\d+)/i.exec(text);
+    if ((status === 413 || status === 429) && lim && /token/i.test(text)) {
+      const L = +lim[1], R = +lim[2], asked = cfg.maxTokens || 4000;
+      const room = L - Math.max(0, R - asked) - 64;
+      return room >= 300 && room < asked ? { maxTokens: room } : null;
+    }
+    /* a short rate limit: wait as the provider says, then once more */
+    const wait = /try again in\s*([\d.]+)\s*(ms|s)\b/i.exec(text);
+    if (status === 429 && wait) {
+      const ms = wait[2] === 'ms' ? +wait[1] : +wait[1] * 1000;
+      if (ms <= 20000) { await new Promise(r => setTimeout(r, ms + 300)); return {}; }
+      return null;
+    }
+    /* the chosen model is retired or unknown: the provider's own list decides */
+    if (info.code === 'model' && provider.canListModels && /decommission|deprecat|not.?found|does not exist|no longer|unknown|invalid model|not supported|not available|no access/i.test(text)) {
+      try {
+        const list = await this.listModels(provider.id);
+        const pick = pickModel(provider.id, Array.from(list).filter(m => m !== cfg.model));
+        if (pick) {
+          AIConfig.set(provider.id, { model: pick });
+          Toast.show('النموذج «' + cfg.model + '» غير متاح عند ' + provider.name + ' — انتقلت إلى «' + pick + '»', '', 5000);
+          window.dispatchEvent(new CustomEvent('nx:aiProvider', { detail: provider.id }));
+          return { model: pick };
+        }
+      } catch {}
+    }
+    return null;
+  },
+
+  /* paste a key → it works: the key checked with the provider's real model
+     list, a model that exists chosen, a real round-trip, then made active */
+  async autoSetup(id) {
+    const P = PROVIDERS[id];
+    if (!P) return { ok: false, info: { title: 'لا يوجد مزوّد' } };
+    const cfg = AIConfig.get(id);
+    if (P.needsKey !== false && !cfg.apiKey) return { ok: false, info: { code: 'key', title: 'أدخل مفتاح API أولًا', detail: '' } };
+    let fixed = null;
+    if (P.canListModels && cfg.baseURL) {
+      try {
+        const list = await this.listModels(id);
+        if (list.length && !list.includes(cfg.model)) { fixed = pickModel(id, list); if (fixed) AIConfig.set(id, { model: fixed }); }
+      } catch (e) {
+        const i = e.info || {};
+        if (['key', 'network', 'cors', 'forbidden'].includes(i.code)) return { ok: false, info: i };
+      }
+    }
+    const t = await this.test(id);
+    if (t.ok) AIConfig.setActive(id);
+    return Object.assign(t, { fixedModel: fixed });
   },
 
   async listModels(id) {
@@ -14288,6 +14415,8 @@ legacy.ask = async function (prompt, project, engine) {
 };
 
 NX.PROVIDERS = PROVIDERS;
+NX.providerForKey = providerForKey;
+NX.pickModel = pickModel;
 NX.AIConfig = AIConfig;
 NX.AIClient = AIClient;
 NX.AIAdapters = Adapters;
@@ -14540,7 +14669,7 @@ function openAISettings() {
   const grid = el('div', { class: 'beg-grid small', style: { marginBottom: '14px' } });
   const pane = el('div');
 
-  const drawProvider = () => {
+  const drawProvider = (autoRun = false) => {
     Array.from(grid.children).forEach(c => c.classList.toggle('on', c.dataset.pid === current));
     pane.textContent = '';
     const P = PROVIDERS[current];
@@ -14571,8 +14700,25 @@ function openAISettings() {
 
     if (P.needsKey !== false) {
       const keyWrap = el('div', { style: { position: 'relative' } });
-      keyIn = el('input', { class: 'input', type: 'password', value: cfg.apiKey, placeholder: current === 'groq' ? 'gsk_…' : 'sk-…', style: { direction: 'ltr', paddingInlineEnd: '54px' }, autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false' });
-      keyIn.addEventListener('change', commit);
+      keyIn = el('input', { class: 'input', type: 'password', value: cfg.apiKey, placeholder: current === 'groq' ? 'gsk_…' : current === 'xai' ? 'xai-…' : 'sk-…', style: { direction: 'ltr', paddingInlineEnd: '54px' }, autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false' });
+      /* a pasted key is set up at once: whose key it is, a model that
+         exists, a real test — then it is the active provider */
+      keyIn.addEventListener('change', () => {
+        const k = keyIn.value.trim();
+        const owner = NX.providerForKey(k);
+        if (owner && owner !== current && PROVIDERS[owner] && !P.custom) {
+          if (AIConfig.get(current).apiKey === k) AIConfig.set(current, { apiKey: '' });
+          AIConfig.set(owner, { apiKey: k });
+          Toast.show('هذا مفتاح ' + PROVIDERS[owner].name + ' — وضعته هناك');
+          current = owner;
+          paintGrid();
+          drawProvider(true);
+          return;
+        }
+        commit();
+        paintGrid();
+        if (k) runSetup();
+      });
       const eye = el('button', { class: 'key-eye', text: 'إظهار', onclick: () => {
         const show = keyIn.type === 'password';
         keyIn.type = show ? 'text' : 'password';
@@ -14667,23 +14813,27 @@ function openAISettings() {
     adv.appendChild(ab);
     pane.appendChild(adv);
 
-    /* Test Connection — a real round-trip (rule 6) */
+    /* Test Connection — a real round-trip (rule 6), with the model fixed
+       from the provider's real list when the chosen one does not exist */
     const result = el('div', { style: { marginTop: '10px' } });
-    const testBtn = btn('اختبار الاتصال', { cls: 'primary block', icon: 'check', onclick: async () => {
+    const runSetup = async () => {
       commit();
       testBtn.disabled = true;
       result.textContent = '';
-      result.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' }), el('span', { text: 'جارٍ الاختبار…' })]));
-      const r = await AIClient.test(current);
+      result.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' }), el('span', { text: 'أتحقق من المفتاح وأختار نموذجًا وأختبر الاتصال…' })]));
+      const r = await AIClient.autoSetup(current);
       result.textContent = '';
+      if (r.fixedModel) { modelIn.value = r.fixedModel; drawModels(AIConfig.get(current).models); }
       if (r.ok) {
         const ok = el('div', { class: 'test-ok' });
-        ok.appendChild(el('b', { text: '✓ الاتصال ناجح' }));
+        ok.appendChild(el('b', { text: '✓ الاتصال ناجح — المساعد يستعمل ' + P.name + ' الآن' }));
         ok.appendChild(el('div', { class: 'tiny', text: `المزوّد: ${r.provider} · النموذج: ${r.model} · الزمن: ${r.latency}ms` }));
+        if (r.fixedModel) ok.appendChild(el('div', { class: 'tiny', text: 'اخترت «' + r.fixedModel + '» من قائمة نماذج المزوّد الحقيقية.' }));
         if (r.reply) ok.appendChild(el('div', { class: 'tiny', text: 'ردّ الاختبار: ' + r.reply }));
         if (r.usage) ok.appendChild(el('div', { class: 'tiny', text: `Tokens: ${r.usage.in || 0} → ${r.usage.out || 0}` }));
         result.appendChild(ok);
         AIConfig.setActive(current);
+        paintGrid();
         Toast.ok('المزوّد جاهز');
       } else {
         const i = r.info || {};
@@ -14704,26 +14854,30 @@ function openAISettings() {
         result.appendChild(bad);
       }
       testBtn.disabled = false;
-    }});
+    };
+    const testBtn = btn('اختبار الاتصال', { cls: 'primary block', icon: 'check', onclick: runSetup });
     pane.append(testBtn, result);
 
     const useBtn = btn('استخدام هذا المزوّد', { cls: 'block', style: { marginTop: '8px' }, onclick: () => {
       commit();
       if (P.needsKey !== false && !AIConfig.get(current).apiKey) { Toast.err('أدخل مفتاح API أولًا'); return; }
-      AIConfig.setActive(current);
-      Toast.ok('المزوّد النشط: ' + P.name);
-      window.dispatchEvent(new CustomEvent('nx:aiProvider'));
+      runSetup();
     }});
     pane.appendChild(useBtn);
+    if (autoRun) runSetup();
   };
 
-  Object.values(PROVIDERS).forEach(P => {
-    const c = el('button', { class: 'beg-card', dataset: { pid: P.id }, onclick: () => { current = P.id; drawProvider(); } });
-    c.appendChild(el('b', { text: P.name }));
-    const cfg = AIConfig.get(P.id);
-    c.appendChild(el('span', { class: 'beg-desc', text: cfg.apiKey || P.needsKey === false ? '● مُهيّأ' : 'غير مُهيّأ' }));
-    grid.appendChild(c);
-  });
+  const paintGrid = () => {
+    grid.textContent = '';
+    Object.values(PROVIDERS).forEach(P => {
+      const c = el('button', { class: 'beg-card' + (P.id === current ? ' on' : ''), dataset: { pid: P.id }, onclick: () => { current = P.id; drawProvider(); } });
+      c.appendChild(el('b', { text: P.name }));
+      const cfg = AIConfig.get(P.id);
+      c.appendChild(el('span', { class: 'beg-desc', text: AIConfig.active() === P.id && AIConfig.isReady() ? '✓ نشط' : cfg.apiKey || P.needsKey === false ? '● مُهيّأ' : 'غير مُهيّأ' }));
+      grid.appendChild(c);
+    });
+  };
+  paintGrid();
   body.append(grid, pane);
 
   body.appendChild(el('hr', { class: 'sep' }));
@@ -14921,29 +15075,28 @@ const Chat = {
     const p = this.project();
     const eng = NX.Studio.engine;
     const sel = ProjectIndex.select(question, p, eng);
-    const assets = await ProjectIndex.assetBrief(p);
     const errs = ErrorLog.items.slice(0, 3).map(e => `${e.kind}: ${e.message}`);
     const api = NX.API_DOCS.map(d => d.ns + ': ' + d.m.map(m => m[0]).join(' | ')).join('\n');
-    return `أنت مساعد داخل محرك ألعاب اسمه NEXUS يعمل في المتصفح. أجب بالعربية بإيجاز ووضوح.
+    /* the user's files (A1…An, metadata only) and the scene, as the model may act on them */
+    const acts = NX.ModelActions ? await NX.ModelActions.context().catch(() => '') : '';
+    return `أنت مساعد ذكي داخل محرك الألعاب NEXUS (يعمل في المتصفح)، وشريك صاحب المشروع في صنع لعبته.
+- أجب بلغة المستخدم (غالبًا العربية) بأسلوب ودود وواضح ومختصر. التحية تُردّ بتحية، والسؤال يُجاب عنه — بلا كود وبلا تعديلات ما لم يطلبها.
+- افهم مشروعه قبل الرد: كائنات المشهد، ملفات الكود، وملفاته المرفوعة (نوعها وأبعادها) أدناه — واستعمل ملفاته هو أولًا.
+- عندما يطلب شيئًا في لعبته، نفّذ أقوى ما يمكن فعلًا بأوامر NEXUS أدناه — لا تكتفِ بالشرح.
+- لا تخترع دوالًا أو ملفات أو كائنات أو أصولًا غير موجودة؛ إن نقص شيء فقل ذلك واقترح بديلًا متوافقًا.
+- الكود: JavaScript بواجهات المحرك أدناه فقط. إن طلب كودًا ليقرأه فاكتبه في كتلة \`\`\`js؛ وإن طلب تعديل لعبته فاستعمل CREATE_SCRIPT أو UPDATE_SCRIPT.
 
-قواعد صارمة:
-- استخدم فقط واجهات المحرك المذكورة أدناه. لا تخترع دوال أو مكوّنات أو معرّفات أصول.
-- إذا احتاج الطلب أصلًا غير موجود في قائمة الأصول، قل ذلك بدل اختراع معرّف.
-- إذا لم تكن الوظيفة موجودة في المحرك، قل إنها غير متاحة واقترح بديلًا متوافقًا.
-- عند كتابة كود، اكتبه في كتلة \`\`\`js مع أول سطر تعليق باسم الملف مثل: // File: Thing.js
+${NX.ModelActions ? NX.ModelActions.protocol : ''}
 
 واجهات المحرك:
 ${api}
 
-فهرس المشروع:
 المشروع: ${sel.index.project}
 الأنظمة الموجودة: ${sel.index.systems.join(', ') || 'لا شيء'}
-الملفات:
+ملفات الكود:
 ${sel.index.files.join('\n') || 'لا ملفات'}
-كائنات المشهد:
-${sel.index.objects.join('\n') || 'لا كائنات'}
-الأصول المتاحة (استخدم هذه المعرّفات فقط):
-${assets.length ? assets.map(a => `${a.assetId} — ${a.name} [${a.kind}/${a.category}${a.animations.length ? ', حركات: ' + a.animations.join('/') : ''}]`).join('\n') : 'لا أصول مرفوعة'}
+
+${acts}
 ${errs.length ? '\nآخر الأخطاء:\n' + errs.join('\n') : ''}
 
 الملفات ذات الصلة بسؤال المستخدم:
@@ -14956,40 +15109,43 @@ ${sel.files.map(f => `--- ${f.path} ---\n${f.code}`).join('\n\n') || '(لا شي
     if (!this.project()) { Toast.err('افتح مشروعًا أولًا'); return; }
     this.input.value = ''; this.input.style.height = '';
 
+    /* talk or act? a greeting or a question is answered, never built */
+    const route = NX.Intent ? NX.Intent.route(q) : 'act';
+    let pushed = false;
+
     /* scene / asset / analysis / undo / code-edit requests are ACTIONS: the
        agent performs them on the real project (PART 17B) — works with or
        without an AI provider */
-    if (NX.Agent && NX.Agent.claims(q)) {
+    if (route === 'act' && NX.Agent && NX.Agent.claims(q)) {
       this.push('user', q);
       this.render();
+      pushed = true;
       this.setStreaming(true);
       let ok = false;
       try { ok = await NX.Agent.handle(q, NX.Agent.chatUI()); }
       finally { this.setStreaming(false); }
-      if (!ok) { this.push('assistant', 'لم أفهم المطلوب كأمر على المشروع. جرّب مثلًا: «أضف سيارة بجانب المبنى» أو «اجعلها أكبر» أو «حلل لعبتي».'); this.render(); }
-      return;
+      if (ok) return;
     }
 
     /* build requests go to the builder, which actually edits the project.
        (\b does not work after Arabic letters in JS regex — use whitespace) */
-    if (/^(اصنع|إصنع|ابن|ابنِ|ابني|أنشئ|انشئ|أضف|اضف|build|make|add|create)(\s|$)/i.test(q) && !/كيف|لماذا|ما هو|ماذا|اشرح|how|why|what|explain/i.test(q)) {
-      this.push('user', q);
-      this.render();
-      const m = this.push('assistant', 'هذا طلب بناء — سأنفّذه في تبويب «بناء».');
+    if (route === 'act' && /^(اصنع|إصنع|ابن|ابنِ|ابني|أنشئ|انشئ|أضف|اضف|build|make|add|create)(\s|$)/i.test(q) && !/كيف|لماذا|ما هو|ماذا|اشرح|how|why|what|explain/i.test(q)) {
+      if (!pushed) { this.push('user', q); this.render(); }
+      this.push('assistant', 'هذا طلب بناء — سأنفّذه في تبويب «بناء».');
       this.render();
       NX.AIPanel.setMode('build');
-      NX.AIPanel.send(q);
+      NX.AIPanel.send(q, { forceAct: true });
       return;
     }
 
     if (!AIConfig.isReady()) {
-      this.push('user', q);
-      this.push('assistant', 'المحادثة الحرّة تحتاج مزوّد AI. افتح ⚙ واختر مزوّدًا واختبر الاتصال.\n\nأما «بناء» فيعمل بلا مزوّد عبر المخطّط المدمج.', { error: true });
+      if (!pushed) this.push('user', q);
+      this.push('assistant', NX.Intent ? NX.Intent.localReply(q, route === 'act' ? 'talk' : route) : 'المحادثة الحرّة تحتاج مزوّد AI. افتح ⚙ واختر مزوّدًا.');
       this.render();
       return;
     }
 
-    this.push('user', q);
+    if (!pushed) this.push('user', q);
     this.render();
     const assistant = this.push('assistant', '');
     this.render();
@@ -15009,10 +15165,15 @@ ${sel.files.map(f => `--- ${f.path} ---\n${f.code}`).join('\n\n') || '(لا شي
         system,
         onDelta: (piece, full) => {
           assistant.content = full;
-          if (txt) { if (!firstToken) { firstToken = true; txt.style.opacity = ''; } txt.textContent = full; this.toBottom(); }
+          if (txt) { if (!firstToken) { firstToken = true; txt.style.opacity = ''; } txt.textContent = full.replace(/```[ \t]*nexus-actions[\s\S]*$/i, '⏳ أجهّز التعديلات…'); this.toBottom(); }
         }
       });
       assistant.content = r.text || assistant.content || (r.aborted ? '' : '(ردّ فارغ من النموذج)');
+      /* the model asked to change the project: every operation checked → preview → APPLY */
+      if (NX.ModelActions && !r.aborted) {
+        const act = await NX.ModelActions.propose(assistant.content, NX.Agent.chatUI(), q);
+        if (act) { assistant.content = act.text; assistant.cards = act.cards; }
+      }
       if (r.aborted) assistant.content += (assistant.content ? '\n\n' : '') + '⏹ أُوقف التوليد.';
       else if (r.truncated) assistant.content += '\n\n… (توقّف عند حدّ Max Tokens — ارفعه من الإعدادات أو اطلب المتابعة)';
       assistant.usage = r.usage; assistant.model = r.model;
@@ -15259,7 +15420,7 @@ const norm = s => String(s == null ? '' : s).toLowerCase()
   .replace(/[ً-ٰٟـ]/g, '')
   .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي')
   .replace(/[٠-٩]/g, d => AR_DIGITS.indexOf(d)).replace(/[۰-۹]/g, d => FA_DIGITS.indexOf(d))
-  .replace(/[٫]/g, '.').replace(/[،؛]/g, ',').replace(/×/g, 'x');
+  .replace(/[٫]/g, '.').replace(/[،؛]/g, ',').replace(/؟/g, '?').replace(/×/g, 'x');
 const words = s => norm(s).split(/[^a-z0-9؀-ۿ.%°]+/).filter(Boolean);
 /* strip Arabic clitics: و/ف (and) · ب/ل/ك (preposition) · ال (the) */
 function stems(w) {
@@ -16677,6 +16838,19 @@ const GameComposer = {
     const has = list => ws.some(w => stems(w).some(s => list.includes(s)));
     return has(GAME_VERBS) && has(['لعبه', 'game']);
   },
+  /* a game made of THINGS (a layout, the user's files, a genre it lays
+     out, or named objects) — anything else («لعبة منصات», «لعبة تصويب»)
+     is the recipe builder's */
+  asksLayout(text) { const ws = words(text); return Object.values(LAYOUT_WORDS).some(l => ws.some(w => stems(w).some(s => l.includes(s)))); },
+  mentionsFiles(text) {
+    const ws = words(text);
+    return ws.some(w => stems(w).some(s => ['ملفاتي', 'ملفات', 'ملف', 'اصولي', 'اصول', 'مجسماتي', 'مجسمات', 'رفعت', 'رفعتها', 'رفعته', 'رفعتهم', 'uploaded', 'files', 'assets', 'models'].includes(s)));
+  },
+  claims(text) {
+    if (!this.isRequest(text)) return false;
+    const ws = words(text);
+    return this.asksLayout(text) || this.mentionsFiles(text) || GENRES.some(g => ws.some(w => stems(w).some(s => g.w.includes(s)))) || this.parse(text).items.length > 0;
+  },
 
   /* the built-in reader: genre + one item per clause (what · where · relative to what · how many) */
   parse(text) {
@@ -16816,6 +16990,9 @@ ${assets.slice(0, 40).map(x => `ASSET: name=${x.name} · type=${x.type} · size=
         if (!it.pick) missing.push(it.concept);
       }
     } finally { ui.busy(null); }
+    /* «اصنع لي لعبة سباق» with none of the user's own files fitting: the
+       recipe builder makes a fuller game (systems, rules, HUD) */
+    if (!this.asksLayout(text) && !this.mentionsFiles(text) && !items.some(it => it.pick && it.pick.scope !== 'public')) return false;
     /* a road can be drawn without a file; anything else missing is skipped, and said */
     items = items.filter(it => it.pick || it.concept.id === 'road');
     if (!items.some(it => it.pick)) {
@@ -17044,17 +17221,22 @@ function update(dt) {
 const REDO_RE = /^\s*(redo|أعد|اعد|إعادة|اعاده|استرجع)(\s+(التغيير|الخطوة|الخطوه|آخر تغيير|اخر تغيير|ما تراجعت عنه))?\s*[.!؟?]*\s*$/i;
 const _claims = Agent.claims;
 Agent.claims = function (text) {
-  if (GameComposer.isRequest(text) || REDO_RE.test(text)) return true;
+  if (GameComposer.claims(text) || REDO_RE.test(text)) return true;
+  /* «اصنع لي لعبة منصات»: a whole game, not a search for a file called «لعبة منصات» */
+  if (GameComposer.isRequest(text)) return false;
   return _claims.call(this, text);
 };
 const _handle2 = Agent.handle;
 Agent.handle = async function (text, ui) {
   if (REDO_RE.test(text) && !GameComposer.isRequest(text)) { await this.redo(ui); return true; }
-  if (GameComposer.isRequest(text)) {
-    try { await GameComposer.start(text, ui); }
+  if (GameComposer.claims(text)) {
+    let done = true;
+    try { done = await GameComposer.start(text, ui); }
     catch (e) { console.error(e); ui.say('✕ توقّفت: ' + ((e && e.message) || e), [], { error: true }); }
-    return true;
+    if (done !== false) return true;
+    return false;          // the recipe builder takes it
   }
+  if (GameComposer.isRequest(text)) return false;
   return _handle2.call(this, text, ui);
 };
 Agent.redo = async function (ui) {
@@ -17077,6 +17259,340 @@ Agent.answer = async function (planId, key, value) {
   }
   return _answer.call(this, planId, key, value);
 };
+
+/* ============================================================
+   INTENT — talk or act? A greeting or a question is answered (by the
+   connected model, or here without one) and never turned into a build;
+   only a request with an action verb changes the project.
+   ============================================================ */
+const TALK_GREET = ['سلام', 'السلام', 'مرحبا', 'مرحبتين', 'اهلا', 'اهلين', 'هلا', 'هاي', 'هلو', 'صباح', 'مساء', 'تحياتي', 'hi', 'hello', 'hey', 'salam', 'bonjour', 'salut'];
+const TALK_THANKS = ['شكرا', 'مشكور', 'تسلم', 'يعطيك', 'thanks', 'thank', 'thx', 'merci'];
+const TALK_BYE = ['باي', 'وداعا', 'bye', 'goodbye'];
+const ASK_WORDS = ['كيف', 'لماذا', 'ليش', 'ليه', 'ماذا', 'ما', 'وش', 'شو', 'ايش', 'متى', 'اين', 'وين', 'من', 'كم', 'هل', 'اشرح', 'what', 'how', 'why', 'when', 'where', 'who', 'which', 'explain', 'is', 'are', 'does', 'tell'];
+const POLITE = ['من', 'فضلك', 'لو', 'سمحت', 'رجاء', 'رجاءا', 'ممكن', 'يمكنك', 'تستطيع', 'تقدر', 'اريد', 'ابغي', 'ابي', 'بدي', 'عايز', 'ان', 'please', 'pls', 'plz', 'can', 'could', 'would', 'you', 'i', 'want', 'to', 'يا', 'صديقي', 'حبيبي', 'اخي', 'هل'];
+const ACT_VERBS = GAME_VERBS.concat(['اضف', 'ضع', 'حط', 'غير', 'عدل', 'اجعل', 'خلي', 'احذف', 'امسح', 'ازل', 'حرك', 'انقل', 'كبر', 'صغر', 'لون', 'لف', 'دور', 'استبدل', 'انسخ', 'اصلح', 'حسن', 'افحص', 'حلل', 'شغل', 'زد', 'قلل', 'تراجع', 'اكتب', 'برمج',
+  'تضيف', 'تضع', 'تغير', 'تصنع', 'تبني', 'تحذف', 'تنشئ', 'تعمل', 'تسوي', 'تصمم', 'تكتب', 'تصلح', 'اضافه', 'انشاء', 'صنع', 'بناء',
+  'add', 'put', 'place', 'change', 'edit', 'set', 'remove', 'delete', 'move', 'scale', 'rotate', 'turn', 'replace', 'copy', 'duplicate', 'fix', 'improve', 'optimize', 'analyze', 'write', 'code', 'undo', 'redo', 'spawn', 'paint', 'color']);
+function intentOf(text) {
+  const ws = words(text);
+  if (!ws.length) return 'talk';
+  const has = (w, list) => stems(w).some(s => list.includes(s));
+  const firstVerb = ws.findIndex(w => has(w, ACT_VERBS) || !!detectVerb(w));
+  /* «من فضلك أضف…» · «هل يمكنك أن تضيف…» · «can you add…» are requests */
+  let i = 0; while (i < ws.length - 1 && has(ws[i], POLITE)) i++;
+  if (i > 0 && firstVerb >= i && firstVerb <= i + 2) return 'act';
+  if (firstVerb === 0) return 'act';
+  const first = ws[0];
+  if (has(first, TALK_GREET) || has(first, TALK_THANKS) || has(first, TALK_BYE)) return firstVerb > 0 ? 'act' : 'talk';
+  if (has(first, ASK_WORDS) || /[?؟]\s*$/.test(text)) return 'ask';
+  return firstVerb >= 0 ? 'act' : 'talk';
+}
+const Intent = {
+  of: intentOf,
+  /* 'act' → the agent / the builder · 'talk' | 'ask' → a conversation */
+  route(text) {
+    if (REDO_RE.test(text)) return 'act';
+    const det = parse(text);
+    /* read from the project itself: «ماذا يوجد في المشهد؟» · «حلل لعبتي» · «تراجع» · «أصلح الخطأ» */
+    if (det && det.kind !== 'scene' && det.kind !== 'code') return 'act';
+    const k = intentOf(text);
+    if (k === 'act') return 'act';
+    /* no model to talk to: «هل تستطيع إضافة سيارة؟» is still done */
+    if (k === 'ask' && det && !AIConfig.isReady()) return 'act';
+    return k;
+  },
+  /* the answer without a model — honest about what it is */
+  localReply(text, kind) {
+    const ws = words(text);
+    const has = list => ws.some(w => stems(w).some(s => list.includes(s)));
+    const help = ['ما أستطيع فعله الآن (بدون نموذج ذكاء اصطناعي):',
+      '• «اصنع لي لعبة قيادة: الطريق في المنتصف، المنازل على الجانبين، والسيارة في البداية» — من ملفاتك',
+      '• «أضف سيارة بجانب المبنى» · «اجعلها أكبر» · «احذف الشجرة»',
+      '• «ماذا يوجد في المشهد؟» · «حلل لعبتي» · «تراجع» · «أعد»',
+      'للمحادثة الحرة وفهم أعمق لملفاتك: ⚙ ← الصق مفتاح API (Groq مجاني ويبدأ بـ gsk_، أو Grok ويبدأ بـ xai-) — يُضبط ويُختبر وحده.'].join('\n');
+    if (has(['سلام', 'السلام', 'salam'])) return 'وعليكم السلام ورحمة الله 👋 أنا مساعد NEXUS.\n\n' + help;
+    if (has(TALK_GREET)) return 'أهلًا بك 👋 أنا مساعد NEXUS.\n\n' + help;
+    if (has(TALK_THANKS)) return 'العفو! 🙂 أنا هنا متى احتجتني.';
+    if (has(TALK_BYE)) return 'مع السلامة! 👋 مشروعك محفوظ.';
+    if (has(['حالك', 'احوالك', 'اخبارك'])) return 'بخير والحمد لله، شكرًا لسؤالك 🙂 كيف أساعدك في لعبتك؟\n\n' + help;
+    if (has(['انت', 'انتم']) && has(['من', 'ما', 'شو', 'وش', 'who', 'what'])) return 'أنا مساعد NEXUS داخل محرك الألعاب: أبني وأعدّل مشروعك المفتوح من ملفاتك.\n\n' + help;
+    if (kind === 'ask') return 'هذا سؤال يحتاج نموذج ذكاء اصطناعي ليجيب عنه بفهم حقيقي — المساعد يعمل الآن بدون نموذج، ولن أخمّن.\n\n' + help;
+    return 'لم أفهم هذا كطلب على مشروعك — ولن أبني شيئًا لم تطلبه.\n\n' + help;
+  }
+};
+
+/* ============================================================
+   MODEL ACTIONS — with a connected model the chat can also DO things.
+   The model sees metadata only (scene objects, code file names, the
+   user's files as A1…An with type and size — never ids, links, files
+   or tokens) and may append one ```nexus-actions block. NEXUS checks
+   every operation, shows a preview, and applies it only after APPLY —
+   as one undo step, through GameOps (the builder's own checks).
+   ============================================================ */
+const MA_OPS = ['ADD_ASSET', 'CREATE_OBJECT', 'MOVE_OBJECT', 'ROTATE_OBJECT', 'SCALE_OBJECT', 'SET_PROPERTY', 'DELETE_OBJECT', 'CREATE_SCRIPT', 'UPDATE_SCRIPT', 'BUILD_GAME', 'PLAY_TEST'];
+const MA_RELATIONS = ['beside', 'front', 'behind', 'left', 'right', 'around', 'on'];
+const MA_REL_AR = { beside: 'بجانب', front: 'أمام', behind: 'خلف', left: 'يسار', right: 'يمين', around: 'حول', on: 'فوق' };
+const MA_PROTOCOL = `ACTING ON THE PROJECT
+Only when the user asks you to add, place, move, resize, rotate, recolor, rename, delete, script, fix or build something: say in one or two sentences what you will do, then append ONE block exactly like this:
+\`\`\`nexus-actions
+[{"op":"ADD_ASSET","asset":"A1","near":"House","relation":"beside"}]
+\`\`\`
+Operations (a JSON array, at most 30):
+- ADD_ASSET {asset:"A1" (from YOUR FILES) or search:"tree" (NEXUS picks the best real file: the user's files first, then the public library), count?:1-20, position?:[x,y,z], near?:"object name", relation?: beside|front|behind|left|right|around|on, rotationY?: degrees, scale?: number, name?}
+- CREATE_OBJECT {shape: box|sphere|cylinder|cone|plane, name, position:[x,y,z], scale:[x,y,z], color:"#rrggbb"}
+- MOVE_OBJECT {object:"name", position:[x,y,z]} · ROTATE_OBJECT {object, rotationY: degrees} · SCALE_OBJECT {object, scale: absolute uniform scale, 1 = original}
+- SET_PROPERTY {object, key: name|tag|visible|color, value} · DELETE_OBJECT {object}
+- CREATE_SCRIPT {path:"Name.js", code, attachTo?:"object name"} · UPDATE_SCRIPT {path, code: the whole new file} — engine API only (start(), update(dt)); never window, document, fetch, storage, eval or imports
+- BUILD_GAME {request:"…"} — a whole new game or a big system; the NEXUS builder plans and builds it
+- PLAY_TEST {}
+Rules: use only the A-handles and object names listed below — never invent ids, links, files or objects; if something is missing, say so. y is up, 1 unit = 1 metre, the ground is y=0. The user sees a preview and presses APPLY; it is one undo step. Never write a block for a greeting, a question or an explanation.`;
+
+const ModelActions = {
+  protocol: MA_PROTOCOL,
+  handles: new Map(),
+
+  /* what the model is told about the project — metadata only */
+  async context() {
+    const S = NX.Studio, eng = S.engine;
+    this.handles = new Map();
+    const mine = await GameComposer.usableAssets().catch(() => []);
+    const files = mine.slice(0, 40).map((x, i) => {
+      const h = 'A' + (i + 1); this.handles.set(h, x.a.assetId);
+      const tags = (x.a.tags || []).slice(0, 6);
+      return `${h}: «${x.a.name}» · ${x.a.kind}${x.type ? ' · type=' + x.type : ''}${x.size ? ' · ' + x.size + ' m' : ''} · ${x.scope === 'project' ? 'in this project' : 'your file'}`
+        + (x.a.description ? ' · ' + String(x.a.description).slice(0, 80).replace(/\s+/g, ' ') : '') + (tags.length ? ' · #' + tags.join(' #') : '');
+    });
+    const idx = eng ? await sceneIndex(eng) : [];
+    const objs = idx.filter(x => x.e.type !== 'camera').slice(0, 60).map(x => {
+      const c = x.box.getCenter(new THREE.Vector3()), s = x.box.getSize(new THREE.Vector3()), k = x.e.object3D ? x.e.object3D.scale.x : 1;
+      return `«${x.e.name}» ${x.e.type}${x.a ? ' (file «' + x.a.name + '»)' : ''}${x.e.tag ? ' tag=' + x.e.tag : ''} at [${c.x.toFixed(1)}, ${x.box.min.y.toFixed(1)}, ${c.z.toFixed(1)}] size ${s.x.toFixed(1)}×${s.y.toFixed(1)}×${s.z.toFixed(1)}${Math.abs(k - 1) > 0.01 ? ' scale ' + k.toFixed(2) : ''}`;
+    });
+    const off = !NX.ProjectContext.perms().assets;
+    return `YOUR FILES (the user's uploaded files — metadata only):
+${off ? '(the user turned off «use my project assets»: use search, which then looks in the public library only)' : files.join('\n') || '(none uploaded yet — ADD_ASSET with search can still use the public library)'}
+
+SCENE OBJECTS (${idx.length}):
+${objs.join('\n') || '(empty scene)'}${idx.length > 60 ? '\n…' : ''}`;
+  },
+
+  /* the reply → { text, ops } — ops is null when the model did not ask to act */
+  extract(reply) {
+    const s = String(reply || '');
+    let at = s.search(/```[ \t]*nexus-actions/i);
+    if (at < 0) { const j = s.search(/```[ \t]*json/i); if (j >= 0 && /"op"\s*:/.test(s.slice(j))) at = j; }
+    if (at < 0) return { text: s, ops: null };
+    const rest = s.slice(at);
+    const m = /^```[^\n]*\n?([\s\S]*?)(```|$)/.exec(rest);
+    const text = (s.slice(0, at) + rest.slice(m[0].length)).trim();
+    let data;
+    try { data = JSON.parse(m[1].trim().replace(/,\s*([\]}])/g, '$1')); }
+    catch (e) { return { text, ops: [], problems: ['أوامر النموذج لم تكن JSON صالحًا (ربما انقطع الرد)'] }; }
+    if (data && !Array.isArray(data)) data = data.actions || data.ops || [data];
+    return { text, ops: (data || []).filter(o => o && typeof o === 'object').slice(0, 30) };
+  },
+
+  /* every operation checked before the preview */
+  async check(ops) {
+    const eng = NX.Studio.engine;
+    const ok = [], bad = [];
+    const created = new Set();
+    const exists = n => n != null && (!!eng.findByName(String(n)) || created.has(String(n)));
+    for (const raw of ops) {
+      const o = Object.assign({}, raw);
+      o.op = String(o.op || '').toUpperCase().replace(/^REMOVE_OBJECT$/, 'DELETE_OBJECT');
+      try {
+        if (!MA_OPS.includes(o.op)) throw new Error('عملية غير مسموحة');
+        if (['MOVE_OBJECT', 'ROTATE_OBJECT', 'SCALE_OBJECT', 'SET_PROPERTY', 'DELETE_OBJECT'].includes(o.op) && !exists(o.object)) throw new Error('لا يوجد كائن باسم «' + (o.object || '?') + '»');
+        switch (o.op) {
+          case 'ADD_ASSET': {
+            if (o.asset) {
+              o.assetId = this.handles.get(String(o.asset).trim());
+              if (!o.assetId) throw new Error('الملف ' + o.asset + ' ليس في قائمة ملفاتك');
+              const a = await Assets.get(o.assetId).catch(() => null);
+              o.label = a ? a.name : String(o.asset);
+            } else if (o.search) { o.search = String(o.search).slice(0, 60); o.label = o.search; }
+            else throw new Error('بلا ملف ولا بحث');
+            o.count = Math.max(1, Math.min(20, parseInt(o.count, 10) || 1));
+            if (o.position != null && !finite3(o.position)) throw new Error('موضع غير صالح');
+            if (o.near != null && !exists(o.near)) throw new Error('لا يوجد كائن باسم «' + o.near + '»');
+            if (o.relation && !MA_RELATIONS.includes(o.relation)) o.relation = 'beside';
+            if (o.scale != null && !(+o.scale > 0.001 && +o.scale < 1000)) throw new Error('حجم غير صالح');
+            if (o.name) created.add(String(o.name));
+            break;
+          }
+          case 'CREATE_OBJECT':
+            o.shape = o.shape || 'box';
+            if (!SHAPES.has(o.shape)) throw new Error('شكل غير مسموح: ' + o.shape);
+            if (o.position != null && !finite3(o.position)) throw new Error('موضع غير صالح');
+            if (o.scale != null && !finite3(o.scale, 2000)) throw new Error('حجم غير صالح');
+            if (o.color != null && !/^#[0-9a-f]{6}$/i.test(String(o.color))) delete o.color;
+            o.name = String(o.name || 'Object').slice(0, 60); created.add(o.name);
+            break;
+          case 'MOVE_OBJECT': if (!finite3(o.position)) throw new Error('موضع غير صالح'); break;
+          case 'ROTATE_OBJECT': if (!Number.isFinite(+o.rotationY)) throw new Error('زاوية غير صالحة'); break;
+          case 'SCALE_OBJECT': if (!(+o.scale > 0.001 && +o.scale < 1000)) throw new Error('حجم غير صالح'); break;
+          case 'SET_PROPERTY': if (!SETTABLE.has(o.key)) throw new Error('خاصية غير مسموحة: ' + o.key); if (o.key === 'name') created.add(String(o.value)); break;
+          case 'CREATE_SCRIPT': case 'UPDATE_SCRIPT': {
+            o.path = String(o.path || '');
+            if (!/^[\w\-/]{1,80}\.(m?js|ts)$/.test(o.path) || o.path.includes('..')) throw new Error('مسار ملف غير صالح: ' + o.path);
+            if (typeof o.code !== 'string' || !o.code.trim()) throw new Error('كود فارغ');
+            const bad2 = aiCodeViolations(o.code);
+            if (bad2.length) throw new Error('الكود يتجاوز واجهة اللعبة: ' + bad2.join('، '));
+            if (o.attachTo != null && !exists(o.attachTo)) delete o.attachTo;
+            break;
+          }
+          case 'BUILD_GAME': o.request = String(o.request || '').slice(0, 400); if (!o.request.trim()) throw new Error('طلب بناء فارغ'); break;
+        }
+        ok.push(o);
+      } catch (e) { bad.push((raw.op || '?') + ': ' + e.message); }
+    }
+    return { ok, bad };
+  },
+
+  describe(o) {
+    const v3 = p => '[' + p.map(v => (+v).toFixed(1)).join(', ') + ']';
+    switch (o.op) {
+      case 'ADD_ASSET': return `➕ ${o.count > 1 ? o.count + '× ' : ''}«${o.label}»${o.asset ? '' : ' (أبحث في ملفاتك ثم المكتبة العامة)'}`
+        + (o.near ? ` ${MA_REL_AR[o.relation] || 'بجانب'} «${o.near}»` : o.position ? ' عند ' + v3(o.position) : ' في مركز العرض') + (o.scale ? ' ×' + (+o.scale) : '');
+      case 'CREATE_OBJECT': return `⬜ شكل ${o.shape} «${o.name}»${o.position ? ' عند ' + v3(o.position) : ''}${o.color ? ' ' + o.color : ''}`;
+      case 'MOVE_OBJECT': return `↔ حرّك «${o.object}» إلى ${v3(o.position)}`;
+      case 'ROTATE_OBJECT': return `⟳ لفّ «${o.object}» إلى ${Math.round(+o.rotationY)}°`;
+      case 'SCALE_OBJECT': return `⤢ حجم «${o.object}» = ${+o.scale}`;
+      case 'SET_PROPERTY': return `✎ «${o.object}» · ${o.key} = ${JSON.stringify(o.value)}`;
+      case 'DELETE_OBJECT': return `🗑 احذف «${o.object}»`;
+      case 'CREATE_SCRIPT': return `📜 ملف جديد ${o.path} (${o.code.split('\n').length} سطر)${o.attachTo ? ' على «' + o.attachTo + '»' : ''}`;
+      case 'UPDATE_SCRIPT': return `📜 تعديل ${o.path} (${o.code.split('\n').length} سطر)`;
+      case 'BUILD_GAME': return `🏗 بناء عبر باني NEXUS: «${o.request}»`;
+      case 'PLAY_TEST': return '▶ تشغيل تجريبي';
+    }
+    return o.op;
+  },
+
+  /* a model reply → the text to show + a preview card (or null) */
+  async propose(reply, ui, question) {
+    const x = this.extract(reply);
+    if (!x.ops) return null;
+    const { ok, bad } = await this.check(x.ops);
+    const problems = (x.problems || []).concat(bad);
+    if (!ok.length) return { text: x.text || 'لم أستطع تحويل الطلب إلى تعديلات صالحة.', cards: [{ type: 'list', title: 'لم أنفّذ شيئًا — أوامر غير صالحة', lines: problems.map(b => '✗ ' + b) }] };
+    const plan = { id: uid('plan'), modelOps: true, ops: ok, ui, text: question, done: false };
+    Agent.plans.set(plan.id, plan);
+    const lines = ok.map(o => this.describe(o)).concat(problems.map(b => '✗ رُفض: ' + b));
+    lines.push('كل ذلك خطوة تراجع واحدة، ويُحفظ المشروع بعده.');
+    return { text: x.text || 'هذه التعديلات التي أقترحها:', cards: [{ type: 'preview', title: 'معاينة قبل التطبيق', planId: plan.id, lines }] };
+  },
+
+  async execute(plan) {
+    const S = NX.Studio, eng = S.engine, p = S.project, ui = plan.ui;
+    if (S.playing) { ui.say('أوقف التشغيل ⏹ أولًا.'); plan.done = false; return; }
+    plan.done = true;
+    const me = Backend.user && Backend.user.uid;
+    const scripts = plan.ops.some(o => /SCRIPT$/.test(o.op));
+    S.pushUndo('AI: ' + String(plan.text || '').slice(0, 60), { by: 'ai', files: scripts });
+    const lines = [], errors = [], used = new Map(), touched = [], builds = [];
+    let wantTest = scripts;
+    const ent = n => eng.findByName(String(n));
+    ui.busy('أنفّذ التعديلات…');
+    try {
+      for (const o of plan.ops) {
+        try {
+          switch (o.op) {
+            case 'ADD_ASSET': {
+              let a = null, scope = 'mine', concept = null;
+              const c = o.search ? words(o.search).map(detectConcept).find(Boolean) : null;
+              if (c) concept = c.concept;
+              if (o.assetId) a = await GameOps.usableAsset(o.assetId);
+              else {
+                const pick = concept ? await GameComposer.choose(concept, await GameComposer.usableAssets()) : null;
+                if (pick) { a = pick.a; scope = pick.scope; }
+                else {
+                  const allowMine = NX.ProjectContext.perms().assets;
+                  const r = await findAssets({ concept: null, adjs: [], query: words(o.search) }, { source: allowMine ? 'any' : 'public' });
+                  const top = r.items.find(x => allowMine || x.a.ownerId !== me);
+                  if (top) { a = top.a; scope = top.scope; }
+                }
+                if (!a) throw new Error('لم أجد ملفًا لـ«' + o.search + '» في ملفاتك ولا في المكتبة العامة — لم أخترع واحدًا');
+              }
+              if (!concept) { const t = NX.assetTypeOf(a); concept = CONCEPTS.find(k => CONCEPT_TYPE[k.id] && CONCEPT_TYPE[k.id] === (t && t.type)) || null; }
+              const index = await sceneIndex(eng);
+              const near = o.near ? ent(o.near) : null;
+              for (let i = 0; i < o.count; i++) {
+                const r = await GameOps.run('ADD_ASSET', { assetId: a.assetId, name: o.name || a.name, rotationY: Number.isFinite(+o.rotationY) ? +o.rotationY * Math.PI / 180 : undefined });
+                const e = r.entity; touched.push(e.id);
+                autoScale(e, concept);
+                if (o.scale) { e.object3D.scale.multiplyScalar(+o.scale); e.object3D.updateMatrixWorld(true); }
+                if (o.position) setBoxBottomCenter(e, +o.position[0], +o.position[1], +o.position[2]);
+                else placeRelative(eng, index, e, { targetBox: near ? boxOf(near) : null, relation: near ? (o.relation || 'beside') : 'beside', slot: i, slots: o.count });
+                index.push({ e, a, box: boxOf(e), ground: false, concepts: new Set(), words: new Set() });
+              }
+              const u = used.get(a.assetId) || { assetId: a.assetId, name: a.name, count: 0, creatorName: a.creatorName || '', mine: a.ownerId === me };
+              u.count += o.count; used.set(a.assetId, u);
+              lines.push(`➕ «${a.name}»${o.count > 1 ? ' ×' + o.count : ''}` + (near ? ` ${MA_REL_AR[o.relation] || 'بجانب'} «${near.name}»` : '') + (scope === 'public' ? ' — من المكتبة العامة @' + (a.creatorName || '') : ''));
+              break;
+            }
+            case 'CREATE_OBJECT': {
+              const r = await GameOps.run('CREATE_OBJECT', { type: 'primitive', shape: o.shape, name: o.name, position: o.position, scale: o.scale, color: o.color });
+              if (r.entity) touched.push(r.entity.id);
+              lines.push(`⬜ «${r.entity ? r.entity.name : o.name}» (${o.shape})`);
+              break;
+            }
+            case 'MOVE_OBJECT': { const r = await GameOps.run('MOVE_OBJECT', { name: o.object, position: o.position }); touched.push(r.entity.id); lines.push(`↔ «${o.object}» ← [${o.position.map(v => (+v).toFixed(1)).join(', ')}]`); break; }
+            case 'ROTATE_OBJECT': { const r = await GameOps.run('ROTATE_OBJECT', { name: o.object, rotationY: +o.rotationY * Math.PI / 180 }); touched.push(r.entity.id); lines.push(`⟳ «${o.object}» ${Math.round(+o.rotationY)}°`); break; }
+            case 'SCALE_OBJECT': { const r = await GameOps.run('SCALE_OBJECT', { name: o.object, scale: +o.scale }); touched.push(r.entity.id); lines.push(`⤢ «${o.object}» = ${+o.scale}`); break; }
+            case 'SET_PROPERTY': { const r = await GameOps.run('SET_PROPERTY', { name: o.object, key: o.key, value: o.value }); touched.push(r.entity.id); lines.push(`✎ «${o.object}» · ${o.key}`); break; }
+            case 'DELETE_OBJECT': { const r = await GameOps.run('DELETE_OBJECT', { name: o.object }); lines.push(`🗑 حُذف «${r.removed}»`); break; }
+            case 'CREATE_SCRIPT': case 'UPDATE_SCRIPT': {
+              const r = await GameOps.run(o.op, { path: o.path, code: o.code, attachTo: o.attachTo });
+              lines.push(`📜 ${r.updated ? 'حُدّث' : 'أُنشئ'} ${r.file}` + (r.warnings && r.warnings.length ? ' — ⚠ ' + r.warnings.slice(0, 2).map(w => w.message || w).join(' · ') : ''));
+              break;
+            }
+            case 'BUILD_GAME': builds.push(o.request); break;
+            case 'PLAY_TEST': wantTest = true; break;
+          }
+        } catch (e) { errors.push(this.describe(o) + ' — ' + ((e && e.message) || e)); }
+      }
+    } finally { ui.busy(null); }
+    S.dirty = true; S.updateHud();
+    const saved = lines.length ? await S.save(true) : false;
+    if (wantTest && lines.length) {
+      ui.busy('تشغيل تجريبي…');
+      let t = null;
+      try { t = await GameOps.run('PLAY_TEST'); } catch (e) { t = { ok: false, errors: [String(e.message || e)] }; }
+      finally { ui.busy(null); }
+      lines.push(t.ok ? '▶ تشغيل تجريبي: نجح البناء والتشغيل بلا أخطاء' : '▶ تشغيل تجريبي: ' + (t.stage === 'build' ? 'فشل البناء' : 'أخطاء أثناء التشغيل') + ' — ' + t.errors.slice(0, 3).join(' · ') + ' — اكتب «أصلح الخطأ»');
+    }
+    Memory.touch(p.projectId, touched.slice(-20));
+    if (lines.length || errors.length) {
+      const where = !lines.length ? '' : saved ? (Backend.isOnline() ? ' ✓ حُفظ في Firebase' : ' ✓ حُفظ على هذا الجهاز') : ' ⚠ لم يُحفظ — اضغط حفظ';
+      ui.say((errors.length ? (lines.length ? 'تمّ جزئيًا.' : 'لم يُنفّذ شيء.') : 'تمّ.') + where, [{ type: 'result', title: errors.length ? 'نُفّذ مع مشاكل' : 'ما الذي فعلته',
+        undoable: lines.length > 0, canPlay: lines.length > 0, lines: lines.concat(errors.map(x => '✗ ' + x)), ids: touched.filter(id => eng.entities.has(id)), used: Array.from(used.values()) }]);
+    }
+    /* a whole game: the NEXUS builder plans, builds and tests it (its own checkpoint) */
+    for (const req of builds) {
+      ui.say('🏗 أبدأ البناء: «' + req + '» — تابع التقدّم في تبويب «بناء».');
+      NX.AIPanel.setMode('build');
+      NX.AIPanel.say('me', req);
+      await NX.Builder.runPrompt(req, NX.AIPanel.env());
+    }
+    return { lines, errors, used: Array.from(used.values()) };
+  }
+};
+const _answer2 = Agent.answer;
+Agent.answer = async function (planId, key, value) {
+  const plan = this.plans.get(planId);
+  if (plan && plan.modelOps && key === '__apply') {
+    if (plan.done) { Toast.show('انتهت صلاحية هذا الطلب — أرسله من جديد'); return; }
+    if (value === 'yes') {
+      try { await ModelActions.execute(plan); }
+      catch (e) { console.error(e); plan.ui.say('✕ توقّف التنفيذ: ' + ((e && e.message) || e), [], { error: true }); }
+    } else { plan.done = true; plan.ui.say('أُلغي — لم يتغيّر شيء في المشروع.'); }
+    return;
+  }
+  return _answer2.call(this, planId, key, value);
+};
+NX.Intent = Intent;
+NX.ModelActions = ModelActions;
+
 NX.GameOps = GameOps;
 NX.GameComposer = GameComposer;
 
