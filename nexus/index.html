@@ -1629,7 +1629,15 @@ const Backend = {
         F.connectFirestoreEmulator(db, '127.0.0.1', 8080);
         S.connectStorageEmulator(storage, '127.0.0.1', 9199);
       }
-      this.fb = { app, auth, db, storage, A, F, S, appMod };
+      /* a query filter on `undefined` (e.g. no signed-in user) makes the SDK
+         fail its own internal assertion and stop answering for the rest of the
+         page's life ("INTERNAL ASSERTION FAILED: Unexpected state") — refuse
+         it here with a clear error instead */
+      const Fsafe = Object.assign({}, F, { where: (field, op, value) => {
+        if (value === undefined) throw Object.assign(new Error('لا توجد جلسة دخول — لا يمكن البحث بـ ' + field + ' فارغ'), { code: 'unauthenticated' });
+        return F.where(field, op, value);
+      } });
+      this.fb = { app, auth, db, storage, A, F: Fsafe, S, appMod };
 
       /* a Google sign-in that used the redirect flow comes back here */
       try { await gate(withTimeout(A.getRedirectResult(auth), 8000)); } catch (e) { if (e && e.code === 'skipped') throw e; if (e && e.code && e.code !== 'timeout') console.warn('[nexus] redirect sign-in:', e.code); }
@@ -1640,7 +1648,7 @@ const Backend = {
         try { await gate(withTimeout(A.signInAnonymously(auth), 12000)); }
         catch (e) {
           const c = String(e.code || '');
-          if (/invalid-api-key|api-key-not-valid|network-request-failed|timeout|skipped|unauthorized-domain|internal-error/.test(c)) throw e;
+          if (/invalid-api-key|api-key-not-valid|network-request-failed|timeout|skipped|unauthorized-domain|internal-error|configuration-not-found/.test(c)) throw e;
           this.warning = describeFirebaseError(e) + ' — التصفح يعمل، والكتابة تحتاج تسجيل الدخول.';
         }
       }
@@ -1689,7 +1697,7 @@ const Backend = {
 
   async _initLocalUser() {
     let u = LS.get('localUser', null);
-    if (!u) { u = { uid: uid('local'), name: 'creator_' + Math.random().toString(36).slice(2, 6), local: true }; LS.set('localUser', u); }
+    if (!u || !u.uid) { u = { uid: uid('local'), name: (u && u.name) || 'creator_' + Math.random().toString(36).slice(2, 6), local: true }; LS.set('localUser', u); }
     this.user = u;
     this._emitAuth();
   },
@@ -1813,10 +1821,14 @@ const Backend = {
       await Backend.fb.A.sendPasswordResetEmail(Backend.fb.auth, email);
     },
     async setName(name) {
-      if (Backend.isOnline() && Backend.fb.auth.currentUser) {
+      if (Backend.isOnline()) {
+        /* no session → no user to rename (an object without a uid here used
+           to reach Firestore queries and break the client) */
+        if (!Backend.fb.auth.currentUser) throw Object.assign(new Error('NO_USER'), { code: 'unauthenticated' });
         await Backend.fb.A.updateProfile(Backend.fb.auth.currentUser, { displayName: name });
         Backend.user = { ...Backend.user, name };
       } else {
+        if (!Backend.user || !Backend.user.uid) await Backend._initLocalUser();
         Backend.user = { ...Backend.user, name };
         LS.set('localUser', Backend.user);
       }
@@ -17263,7 +17275,7 @@ const Platform = {
   },
 
   aiFirstGame() {
-    if (!Backend.user) { Toast.err('لا يوجد مستخدم'); return; }
+    if (!Backend.user) { Toast.err('لا توجد جلسة دخول — ' + (Backend.warning || 'سجّل الدخول أولًا')); return; }
     this.createProject('لعبتي الأولى').then(() => setTimeout(() => Studio.openAI({ firstGame: true }), 800));
   },
 
@@ -17533,7 +17545,9 @@ const Platform = {
     const row = el('div', { class: 'row', style: { marginBottom: '14px' } });
     row.appendChild(btn('تغيير الاسم', { cls: 'sm', onclick: async () => {
       const n = await Modal.prompt('اسم العرض', u ? u.name : '');
-      if (n) { await Backend.auth.setName(n); Toast.ok('حُدّث'); this.render(); }
+      if (!n) return;
+      try { await Backend.auth.setName(n); Toast.ok('حُدّث'); this.render(); }
+      catch (e) { Toast.err('تغيير الاسم يحتاج جلسة دخول — ' + (Backend.warning || 'سجّل الدخول أولًا')); }
     }}));
     if (Backend.isOnline()) {
       if (!Backend.hasAccount()) row.appendChild(btn(T('signIn'), { cls: 'sm primary', icon: 'user', onclick: () => promptSignIn() }));
@@ -17612,7 +17626,7 @@ const Platform = {
   },
 
   async createProject(name, opts = {}) {
-    if (!Backend.user) { Toast.err('لا يوجد مستخدم'); return null; }
+    if (!Backend.user) { Toast.err('لا توجد جلسة دخول — ' + (Backend.warning || 'سجّل الدخول أولًا')); return null; }
     const p = {
       projectId: uid('proj'), ownerId: Backend.user.uid, ownerName: Backend.user.name,
       name: name || 'لعبتي', description: '',
