@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" translate="no">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
+<meta name="google" content="notranslate">
 <meta name="theme-color" content="#07080f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1421,6 +1422,7 @@ function describeFirebaseError(e) {
     'unauthorized': 'Firebase Storage متصل، لكن قواعد storage.rules تمنع هذه العملية',
     'bucket-not-found': 'لا توجد حاوية Storage بهذا الاسم — تحقّق من storageBucket أو فعّل Storage في المشروع',
     'storage-not-enabled': 'Storage غير مفعّل في مشروع Firebase — رفع الصور والفيديو والملفات يحتاجه (Firebase Console ← Storage ← Get started)',
+    'upload-stalled': 'توقف الرفع: لم يصل أي جزء من الملف إلى Firebase خلال 90 ثانية — الشبكة ضعيفة أو مقطوعة. أعد المحاولة.',
     'no-default-bucket': 'لم يُضبط storageBucket في إعداد Firebase',
     'project-not-found': 'مشروع Storage غير موجود — فعّل Storage في Firebase Console',
     'quota-exceeded': 'تجاوزت حصة Storage في المشروع',
@@ -1630,6 +1632,10 @@ const Backend = {
         db = F.initializeFirestore(app, { ignoreUndefinedProperties: true });
       }
       const storage = S.getStorage(app);
+      /* a dead connection ends an upload after 3 minutes (SDK default: 10,
+         retried silently) */
+      storage.maxUploadRetryTime = 3 * 60000;
+      storage.maxOperationRetryTime = 60000;
       if (EMULATORS) {
         A.connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
         F.connectFirestoreEmulator(db, '127.0.0.1', 8080);
@@ -1903,27 +1909,50 @@ const Backend = {
   async upload(path, file, onProgress, opts = {}) {
     if (this.isOnline()) {
       if (!this.user) throw Object.assign(new Error('SIGN_IN_REQUIRED'), { code: 'sign-in-required' });
+      if (!(await this.storageReady())) throw Object.assign(new Error('STORAGE_NOT_ENABLED'), { code: 'storage-not-enabled' });
       const { S, storage } = this.fb;
       const ref = S.ref(storage, path);
       const task = S.uploadBytesResumable(ref, file, { contentType: file.type || 'application/octet-stream' });
       opts.onTask && opts.onTask({ cancel: () => task.cancel(), pause: () => task.pause(), resume: () => task.resume() });
+      /* the first bytes must get through within 90 s — otherwise the
+         connection is not carrying the upload and waiting longer only
+         leaves the screen at «جارٍ الرفع…» */
+      let moved = false, stalled = false;
+      const watchdog = setTimeout(() => { if (!moved) { stalled = true; task.cancel(); } }, 90000);
       await new Promise((res, rej) => {
         task.on('state_changed',
-          s => onProgress && onProgress(s.bytesTransferred / Math.max(1, s.totalBytes), s.bytesTransferred, s.totalBytes),
+          s => { if (s.bytesTransferred > 0) moved = true; onProgress && onProgress(s.bytesTransferred / Math.max(1, s.totalBytes), s.bytesTransferred, s.totalBytes); },
           e => {
+            clearTimeout(watchdog);
+            if (stalled) { rej(Object.assign(new Error('UPLOAD_STALLED'), { code: 'upload-stalled' })); return; }
             /* the project has no Storage bucket: the server answers 404 and the
                SDK only says "unknown" */
             const st = e && (e.status_ || (e.customData && e.customData.status));
-            if (e && (e.code === 'storage/bucket-not-found' || e.code === 'storage/project-not-found' || (e.code === 'storage/unknown' && st === 404)))
+            if (e && (e.code === 'storage/bucket-not-found' || e.code === 'storage/project-not-found' || (e.code === 'storage/unknown' && st === 404))) {
+              this._storageOK = false;
               rej(Object.assign(new Error('STORAGE_NOT_ENABLED'), { code: 'storage-not-enabled' }));
+            }
             else rej(e);
-          }, res);
+          }, () => { clearTimeout(watchdog); res(); });
       });
       return { path, url: await S.getDownloadURL(ref) };
     }
     await IDB.put('blobs', path, file);
     onProgress && onProgress(1, file.size || 0, file.size || 0);
     return { path, url: null };
+  },
+  /* does the project have a Storage bucket at all? A missing bucket
+     answers 404 to one small request — asked before an upload, instead of
+     letting the upload itself fail (or hang on a weak connection) */
+  async storageReady() {
+    if (this._storageOK === true || EMULATORS) return true;
+    const bucket = FB_CONFIG && FB_CONFIG.storageBucket;
+    if (!bucket) return false;
+    try {
+      const r = await withTimeout(fetch('https://firebasestorage.googleapis.com/v0/b/' + encodeURIComponent(bucket) + '/o?maxResults=1', { cache: 'no-store' }), 15000);
+      this._storageOK = r.status !== 404;
+      return this._storageOK;
+    } catch { return true; /* no answer: let the upload itself report */ }
   },
   async fileURL(path, cachedURL) {
     if (!path) return null;
