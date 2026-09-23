@@ -11,7 +11,9 @@
 <meta name="description" content="محرك ألعاب ثلاثي الأبعاد يبدأ فارغًا. المستخدمون يرفعون الأصول، ويكتبون الكود، ويصنعون اللعبة. المحرك يوفّر الأدوات فقط.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- fonts load beside the page instead of holding back its first paint -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
 
 <!-- ============================================================
      ███  OWNER FIREBASE CONFIG — THE ONE AND ONLY PLACE  ███
@@ -67,6 +69,12 @@ window.NEXUS_FIREBASE = {
   }
 }
 </script>
+<!-- start every library download at once instead of one after another -->
+<link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js">
 
 <style>
 /* ============================================================
@@ -1402,7 +1410,6 @@ function describeFirebaseError(e) {
     'network-request-failed': 'تعذّر الوصول إلى خوادم Firebase (الشبكة)',
     'unavailable': 'Firestore غير متاح الآن (الشبكة أو الخادم)',
     'timeout': 'انتهت مهلة الاتصال بـ Firebase',
-    'skipped': 'تابعت بدون اتصال — اضغط «إعادة محاولة الاتصال» للاتصال بـ Firebase',
     'failed-precondition': 'قاعدة بيانات Firestore غير مُنشأة في هذا المشروع',
     'not-found': 'قاعدة بيانات Firestore غير موجودة في هذا المشروع',
     'unauthorized-domain': 'هذا النطاق غير مضاف في Authentication → Authorized domains',
@@ -1598,13 +1605,11 @@ const Backend = {
     this.configSource = resolved.source;
     this.projectId = FB_CONFIG.projectId;
     let app = null;
-    /* the whole connection gets ONE time budget (and the loading screen a
-       «continue without connecting» button) — a slow network must never
-       leave the page blank and unresponsive */
+    /* the whole connection gets ONE time budget — a slow network must
+       never leave the page blank and unresponsive */
     let giveUp;
     const abort = new Promise((_, rej) => { giveUp = code => rej(Object.assign(new Error(code), { code })); });
     abort.catch(() => {});
-    this.abortConnect = code => giveUp(code || 'skipped');
     const budget = setTimeout(() => giveUp('timeout'), 25000);
     const gate = p => Promise.race([p, abort]);
     try {
@@ -1640,16 +1645,32 @@ const Backend = {
       } });
       this.fb = { app, auth, db, storage, A, F: Fsafe, S, appMod };
 
-      /* a Google sign-in that used the redirect flow comes back here */
-      try { await gate(withTimeout(A.getRedirectResult(auth), 8000)); } catch (e) { if (e && e.code === 'skipped') throw e; if (e && e.code && e.code !== 'timeout') console.warn('[nexus] redirect sign-in:', e.code); }
+      /* a Google sign-in that used the redirect flow comes back here — only
+         then: the call loads Google's sign-in helper over the network */
+      if (LS.get('authRedirect', 0) > Date.now() - 15 * 60000) {
+        LS.del('authRedirect');
+        try { await gate(withTimeout(A.getRedirectResult(auth), 8000)); } catch (e) { if (e && e.code && e.code !== 'timeout') console.warn('[nexus] redirect sign-in:', e.code); }
+      }
       if (auth.authStateReady) await gate(withTimeout(auth.authStateReady(), 10000).catch(() => {}));
+
+      /* a returning visitor: the session is restored from this device, so
+         NEXUS opens at once and the server check runs in the background.
+         This is also what lets NEXUS open with no internet at all — what
+         was already seen comes from Firestore's cache on this phone. */
+      if (auth.currentUser) {
+        clearTimeout(budget);
+        this._goOnline(auth, A);
+        this.status = navigator.onLine ? 'online' : 'offline';
+        this.probeServer();
+        return this;
+      }
       /* browsing needs no prompt: an anonymous session is enough until an
          action really requires an account */
       if (!auth.currentUser) {
         try { await gate(withTimeout(A.signInAnonymously(auth), 12000)); }
         catch (e) {
           const c = String(e.code || '');
-          if (/invalid-api-key|api-key-not-valid|network-request-failed|timeout|skipped|unauthorized-domain|internal-error|configuration-not-found/.test(c)) throw e;
+          if (/invalid-api-key|api-key-not-valid|network-request-failed|timeout|unauthorized-domain|internal-error|configuration-not-found/.test(c)) throw e;
           this.warning = describeFirebaseError(e) + ' — التصفح يعمل، والكتابة تحتاج تسجيل الدخول.';
         }
       }
@@ -1668,16 +1689,7 @@ const Backend = {
       }
 
       clearTimeout(budget);
-      if (!STORAGE_OK) this.warning = this.warning || 'المتصفح يمنع التخزين في هذا الملف (مفتوح من ذاكرة الهاتف) — تسجيل الدخول لا يبقى بعد الإغلاق. افتح NEXUS من رابط Netlify.';
-      this.user = this._mapUser(auth.currentUser);
-      this.mode = 'firebase';
-      this.status = 'online';
-      this.errorCode = null;
-      this.reason = '';
-      A.onAuthStateChanged(auth, u => {
-        this.user = this._mapUser(u);
-        this._emitAuth();
-      });
+      this._goOnline(auth, A);
       return this;
     } catch (e) {
       clearTimeout(budget);
@@ -1693,6 +1705,50 @@ const Backend = {
       this.reason = describeFirebaseError(e) + (STORAGE_OK ? '' : ' · المتصفح يمنع التخزين في هذا الملف (مفتوح من ذاكرة الهاتف): العمل يبقى حتى إغلاق الصفحة فقط — افتح NEXUS من رابط Netlify.');
       await this._initLocalUser();
       return this;
+    }
+  },
+
+  _goOnline(auth, A) {
+    if (!STORAGE_OK) this.warning = this.warning || 'المتصفح يمنع التخزين في هذا الملف (مفتوح من ذاكرة الهاتف) — تسجيل الدخول لا يبقى بعد الإغلاق. افتح NEXUS من رابط Netlify.';
+    this.user = this._mapUser(auth.currentUser);
+    this.mode = 'firebase';
+    this.status = 'online';
+    this.errorCode = null;
+    this.reason = '';
+    A.onAuthStateChanged(auth, u => {
+      this.user = this._mapUser(u);
+      this._emitAuth();
+    });
+    /* losing / regaining the network only changes the status: Firestore
+       serves its cache meanwhile and sends queued edits when it returns */
+    window.addEventListener('offline', () => { this.status = 'offline'; NX.Status && NX.Status.paint && NX.Status.paint(); });
+    window.addEventListener('online', () => this.probeServer());
+  },
+
+  /* one round-trip to the Firestore server, in the background: tells
+     "online" from "no internet" (and from rules that refuse NEXUS) */
+  async probeServer() {
+    if (!this.fb || this._probing) return;
+    this._probing = true;
+    const { F, db } = this.fb;
+    try {
+      await withTimeout(F.getDocFromServer(F.doc(db, '_nexus', 'status')), 12000);
+      this.status = 'online';
+    } catch (e) {
+      const c = String((e && e.code) || '').replace(/^firestore\//, '');
+      if (c === 'permission-denied') {
+        this.status = 'online';
+        this.rulesBlocked = true;
+        this.warning = this.warning || 'Firebase متصل، لكن قواعد الأمان المنشورة ليست قواعد NEXUS — انشر firestore.rules من المستودع وإلا سيفشل الحفظ والنشر.';
+      } else if (!navigator.onLine || /unavailable|timeout|deadline-exceeded|network/.test(c)) {
+        this.status = 'offline';
+      } else {
+        this.status = 'online';
+        this.warning = describeFirebaseError(e);
+      }
+    } finally {
+      this._probing = false;
+      NX.Status && NX.Status.paint && NX.Status.paint();
     }
   },
 
@@ -1796,7 +1852,7 @@ const Backend = {
           return (await A.signInWithPopup(auth, p)).user;
         } catch (e) {
           /* Android in-app browsers block popups — the redirect flow works there */
-          if (this._redirectFallback(e.code)) { await A.signInWithRedirect(auth, p); return null; }
+          if (this._redirectFallback(e.code)) { LS.set('authRedirect', Date.now()); await A.signInWithRedirect(auth, p); return null; }
           throw e;
         }
       });
@@ -16779,8 +16835,8 @@ const ProjectHub = {
    ------------------------------------------------------------ */
 const Status = {
   state() {
-    if (Backend.isOnline() && !navigator.onLine) return { key: 'offline', label: 'بلا شبكة', cls: 'warn',
-      detail: 'الشبكة مقطوعة. ما حُمِّل يبقى متاحًا، والتعديلات تُحفظ في طابور Firestore وتُرسل تلقائيًا عند عودة الاتصال.' };
+    if (Backend.isOnline() && (!navigator.onLine || Backend.status === 'offline')) return { key: 'offline', label: 'بلا إنترنت', cls: 'warn',
+      detail: 'لا يوجد اتصال بالإنترنت الآن.\nالألعاب والمشاريع التي فتحتها من قبل تعمل بدون إنترنت، وتعديلاتك تُحفظ على هذا الجهاز وتُرسل تلقائيًا عند عودة الاتصال.\nالنشر ورفع الملفات يحتاجان إنترنت.' };
     const pid = Backend.projectId || '—';
     const shortPid = pid.length > 18 ? pid.slice(0, 16) + '…' : pid;
     if (Backend.isOnline()) return { key: 'online', label: 'Firebase Online' + (Backend.warning ? ' ⚠' : ''), cls: 'pub',
@@ -17797,8 +17853,9 @@ async function openDiagnostics() {
   /* service worker: NEXUS does not use one — any found is stale */
   try {
     const regs = navigator.serviceWorker ? await navigator.serviceWorker.getRegistrations() : [];
-    rSw(regs.length ? regs.length + ' مسجّل (قديم — NEXUS لا يستخدم Service Worker)' : 'لا يوجد ✓ — لا نسخة قديمة مخزّنة', regs.length ? 'warn' : 'ok');
-    if (regs.length) actions.appendChild(btn('إزالة Service Worker القديم', { cls: 'block', onclick: async () => { await NX.clearStaleServiceWorkers(); Toast.ok('أُزيل — أعد تحميل الصفحة'); } }));
+    const own = regs.filter(isNexusWorker), foreign = regs.length - own.length;
+    rSw(foreign ? foreign + ' قديم مسجّل (ليس من NEXUS)' : own.length ? 'نشط ✓ — NEXUS والألعاب التي فتحتها تعمل بدون إنترنت' : 'غير نشط — العمل بدون إنترنت يحتاج رفع sw.js بجانب index.html', foreign ? 'warn' : own.length ? 'ok' : 'warn');
+    if (foreign) actions.appendChild(btn('إزالة Service Worker القديم', { cls: 'block', onclick: async () => { await NX.clearStaleServiceWorkers(); Toast.ok('أُزيل — أعد تحميل الصفحة'); } }));
   } catch { rSw('غير مدعوم', 'warn'); }
 
   /* LOCAL leftovers waiting to be synced */
@@ -18068,38 +18125,50 @@ async function offerLocalMigration() {
    older deployment and could keep serving a stale index.html (with an old
    or empty Firebase config), so it is removed. Cache Storage is not used
    by NEXUS either — anything there is left over from that worker. */
+const isNexusWorker = r => /\/sw\.js$/.test(((r.active || r.waiting || r.installing) || {}).scriptURL || '');
 async function clearStaleServiceWorkers() {
   let n = 0;
   try {
     if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
       const regs = await navigator.serviceWorker.getRegistrations();
-      for (const r of regs) { if (await r.unregister()) n++; }
+      for (const r of regs) { if (!isNexusWorker(r) && await r.unregister()) n++; }
     }
-    if (n && window.caches && caches.keys) { for (const k of await caches.keys()) await caches.delete(k); }
+    if (n && window.caches && caches.keys) { for (const k of await caches.keys()) if (!k.startsWith('nexus-')) await caches.delete(k); }
   } catch (e) { console.warn('[nexus] service worker cleanup', e); }
   if (n) console.warn('[nexus] removed ' + n + ' stale service worker(s) — reload to be sure the newest index.html is used');
   return n;
 }
 NX.clearStaleServiceWorkers = clearStaleServiceWorkers;
 
+/* OFFLINE SUPPORT — sw.js (next to index.html) keeps NEXUS, its libraries
+   and the files of games already opened on this phone, so NEXUS opens fast
+   and games that need no internet play without it. index.html is still
+   fetched fresh whenever the network answers quickly (see sw.js). */
+async function registerOfflineSupport() {
+  if (!('serviceWorker' in navigator)) return;
+  if (!(location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname))) return;
+  try {
+    const reg = await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.ready;
+    /* what this first visit already downloaded, before the worker existed */
+    const urls = [...new Set(performance.getEntriesByType('resource').map(e => e.name)
+      .filter(u => /^https:\/\/(cdn\.jsdelivr\.net\/npm\/three@|www\.gstatic\.com\/firebasejs\/|fonts\.(googleapis|gstatic)\.com\/)/.test(u)))];
+    const w = reg.active || navigator.serviceWorker.controller;
+    if (w) w.postMessage({ type: 'cache', urls });
+  } catch (e) { console.warn('[nexus] offline support unavailable:', e && e.message); }
+}
+NX.registerOfflineSupport = registerOfflineSupport;
+
 (async function boot() {
   NX.__booting = true;
   const staleSW = clearStaleServiceWorkers();
   const msg = document.getElementById('boot-msg');
   if (msg && (NX.FB_OWNER_CONFIGURED || NX.EMULATORS)) msg.textContent = 'الاتصال بـ Firebase…';
-  const skip = setTimeout(() => {
-    if (!msg || !Backend.abortConnect) return;
-    const b = document.createElement('button');
-    b.className = 'btn sm ghost'; b.style.marginTop = '14px'; b.textContent = 'المتابعة بدون اتصال';
-    b.onclick = () => Backend.abortConnect('skipped');
-    msg.after(b);
-  }, 6000);
   try {
     await Backend.init();
   } catch (e) {
     console.error('backend init failed', e);
   }
-  clearTimeout(skip);
   const stuck = document.getElementById('nx-boot-fail');
   if (stuck) stuck.remove();
   staleSW.then(n => { if (n && NX.__booted) Toast.show('أُزيلت نسخة قديمة مخزّنة من الموقع — أعد تحميل الصفحة للتأكد من أحدث إصدار', '', 7000); });
@@ -18114,6 +18183,7 @@ NX.clearStaleServiceWorkers = clearStaleServiceWorkers;
   NX.Status.install();
   Platform.go('home');
   NX.__booted = true;
+  registerOfflineSupport();
 
   /* visitors are never asked to configure Firebase. Online: the profile
      document exists so others can follow / find this creator. Local: the
