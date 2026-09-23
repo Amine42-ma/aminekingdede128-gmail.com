@@ -38,12 +38,12 @@
 <script>
 /* NEXUS_FIREBASE:BEGIN */
 window.NEXUS_FIREBASE = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyDYrd1oddQN4Mi0VyVowDJCLwcjf21TxZ8",
+  authDomain: "jknbb-n.firebaseapp.com",
+  projectId: "jknbb-n",
+  storageBucket: "jknbb-n.firebasestorage.app",
+  messagingSenderId: "711797656698",
+  appId: "1:711797656698:web:d890c05d879ace506cffc3"
 };
 /* NEXUS_FIREBASE:END */
 </script>
@@ -1400,6 +1400,7 @@ function describeFirebaseError(e) {
     'unauthorized-domain': 'هذا النطاق غير مضاف في Authentication → Authorized domains',
     'operation-not-allowed': 'الدخول المجهول غير مفعّل في Authentication',
     'admin-restricted-operation': 'الدخول المجهول غير مفعّل في Authentication',
+    'configuration-not-found': 'Authentication غير مفعّل في مشروع Firebase — افتح Authentication واضغط Get started ثم فعّل طرق الدخول',
     'permission-denied': 'Firebase متصل، لكن قواعد الأمان تمنع هذه العملية (انشر firestore.rules من المستودع)',
     'unauthenticated': 'العملية تحتاج جلسة دخول',
     'unauthorized': 'Firebase Storage متصل، لكن قواعد storage.rules تمنع هذه العملية',
@@ -17673,7 +17674,8 @@ function authMessage(e) {
     'email-already-in-use': 'البريد مستخدم — اختر «تسجيل الدخول»', 'weak-password': 'كلمة المرور ضعيفة',
     'too-many-requests': 'محاولات كثيرة — انتظر قليلًا', 'network-request-failed': 'تعذّر الاتصال بالشبكة',
     'popup-closed-by-user': 'أُغلقت نافذة Google', 'operation-not-allowed': 'طريقة الدخول هذه غير مفعّلة في المشروع',
-    'unauthorized-domain': 'هذا النطاق غير مضاف في Authorized domains', 'credential-already-in-use': 'هذا الحساب مرتبط بمستخدم آخر'
+    'unauthorized-domain': 'هذا النطاق غير مضاف في Authorized domains', 'credential-already-in-use': 'هذا الحساب مرتبط بمستخدم آخر',
+    'configuration-not-found': 'تسجيل الدخول غير مفعّل بعد في مشروع Firebase (Authentication ← Get started)'
   })[c] || (c || String(e && e.message || e));
 }
 function promptSignIn(reason, after) {

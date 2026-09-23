@@ -22,7 +22,7 @@
 2. **Firestore Database → Create database** (Production mode).
 3. **Storage → Get started**. (المشاريع الجديدة تحتاج خطة **Blaze** لإنشاء حاوية Storage؛ الاستخدام الصغير يبقى ضمن الحصة المجانية. بدون Storage يعمل النشر، لكن لا يمكن رفع المجسمات والأغلفة.)
 4. **Project settings → General → Your apps → Web app (</>)** → انسخ `firebaseConfig`.
-5. ضع القيم في أعلى `index.html` داخل الكتلة:
+5. ✅ **تم** — إعداد المشروع `jknbb-n` مضمّن في أعلى `index.html` داخل الكتلة (لتغييره لاحقًا عدّل نفس الكتلة):
    ```js
    /* NEXUS_FIREBASE:BEGIN */
    window.NEXUS_FIREBASE = { apiKey: "…", authDomain: "…", projectId: "…", storageBucket: "…", messagingSenderId: "…", appId: "…" };
@@ -34,13 +34,13 @@
    ```bash
    npm i -g firebase-tools
    firebase login
-   firebase use YOUR-PROJECT-ID
+   firebase use jknbb-n
    firebase deploy --only firestore:rules,firestore:indexes,storage
    ```
    (عند نشر storage.rules سيطلب الإذن للقواعد المتقاطعة مع Firestore — وافق.)
 7. **CORS لحاوية Storage**: عدّل `cors.json` وضع رابط موقعك بدل `https://YOUR-SITE.netlify.app`، ثم في Google Cloud Shell:
    ```bash
-   gsutil cors set cors.json gs://YOUR-BUCKET
+   gsutil cors set cors.json gs://jknbb-n.firebasestorage.app
    ```
 8. **Authentication → Settings → Authorized domains**: أضف `YOUR-SITE.netlify.app` (مطلوب لتسجيل الدخول بـ Google).
 9. **Netlify**: اسحب مجلد `nexus` كاملًا إلى Netlify Drop، أو اربط المستودع واجعل *Base directory* = `nexus`. الموقع يعمل عبر HTTPS تلقائيًا.
