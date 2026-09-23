@@ -926,7 +926,7 @@ html.kb-open .ide-toolbar,html.kb-open .ide-seg{display:none}
         <button class="icon-btn" id="btn-settings" aria-label="settings"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
         <button class="avatar" id="btn-me">?</button>
       </header>
-      <main id="p-body" class="scroll"></main>
+      <main id="p-body" class="scroll"><div id="boot-wait" style="padding:70px 10px;text-align:center;color:#a0a7c8;font-size:13.5px;line-height:1.8"><div class="spin"></div><b style="color:#e9ecff">جارٍ تشغيل NEXUS…</b><div id="boot-msg">تحميل المحرك</div></div></main>
     </div>
   </section>
 
@@ -1317,6 +1317,13 @@ Object.assign(NX, { $, $$, el, esc, icon, btn, iconBtn, fmtNum, fmtBytes, timeAg
 const NX = window.NX;
 const { LS, Toast, uid } = NX;
 
+/* can this page keep data at all? A file opened from phone storage
+   (content://) gets an origin the browser refuses storage to. */
+const STORAGE_OK = (() => {
+  try { localStorage.setItem('nx.__t', '1'); localStorage.removeItem('nx.__t'); return !!window.indexedDB; }
+  catch { return false; }
+})();
+
 /* ============================================================
    OWNER FIREBASE CONFIGURATION — THE single source of truth is the
    `window.NEXUS_FIREBASE` block at the very top of this file (search
@@ -1395,6 +1402,7 @@ function describeFirebaseError(e) {
     'network-request-failed': 'تعذّر الوصول إلى خوادم Firebase (الشبكة)',
     'unavailable': 'Firestore غير متاح الآن (الشبكة أو الخادم)',
     'timeout': 'انتهت مهلة الاتصال بـ Firebase',
+    'skipped': 'تابعت بدون اتصال — اضغط «إعادة محاولة الاتصال» للاتصال بـ Firebase',
     'failed-precondition': 'قاعدة بيانات Firestore غير مُنشأة في هذا المشروع',
     'not-found': 'قاعدة بيانات Firestore غير موجودة في هذا المشروع',
     'unauthorized-domain': 'هذا النطاق غير مضاف في Authentication → Authorized domains',
@@ -1416,6 +1424,7 @@ function describeFirebaseError(e) {
     'publish-not-confirmed': 'لم يؤكّد الخادم استلام النشر (الشبكة بطيئة أو مقطوعة)',
     'app-deleted': 'أُغلق تطبيق Firebase'
   };
+  if (!map[code] && /dynamically imported module|Importing a module script failed|error loading dynamically/i.test(msg)) return 'تعذّر تحميل مكتبة Firebase من الشبكة (الاتصال ضعيف أو مقطوع)';
   return map[code] || (code ? code + ' — ' + msg.slice(0, 160) : msg.slice(0, 200)) || 'خطأ غير معروف';
 }
 
@@ -1472,9 +1481,16 @@ function scoreAsset(a, qRaw) {
    ============================================================ */
 const IDB = (() => {
   let dbp = null;
+  /* memory fallback: data lives until the page is closed */
+  const mem = { docs: new Map(), blobs: new Map() };
+  const memStore = m => ({
+    put: (v, k) => ({ result: (m.set(k, v), k) }), get: k => ({ result: m.get(k) }),
+    delete: k => ({ result: (m.delete(k), undefined) }),
+    getAll: () => ({ result: [...m.values()] }), getAllKeys: () => ({ result: [...m.keys()] })
+  });
   function open() {
     if (dbp) return dbp;
-    dbp = new Promise((res, rej) => {
+    dbp = Promise.race([new Promise((res, rej) => {
       const r = indexedDB.open('nexus-engine', 1);
       r.onupgradeneeded = () => {
         const d = r.result;
@@ -1483,11 +1499,12 @@ const IDB = (() => {
       };
       r.onsuccess = () => res(r.result);
       r.onerror = () => rej(r.error);
-    });
+    }), new Promise(res => setTimeout(() => res(null), 5000))]).catch(e => { console.warn('[nexus] IndexedDB unavailable — keeping data in memory', e && e.name); return null; });
     return dbp;
   }
   async function tx(store, mode, fn) {
     const db = await open();
+    if (!db) { const out = fn(memStore(mem[store])); return out && typeof out === 'object' && 'result' in out ? out.result : out; }
     return new Promise((res, rej) => {
       const t = db.transaction(store, mode);
       const s = t.objectStore(store);
@@ -1580,10 +1597,19 @@ const Backend = {
     this.configSource = resolved.source;
     this.projectId = FB_CONFIG.projectId;
     let app = null;
+    /* the whole connection gets ONE time budget (and the loading screen a
+       «continue without connecting» button) — a slow network must never
+       leave the page blank and unresponsive */
+    let giveUp;
+    const abort = new Promise((_, rej) => { giveUp = code => rej(Object.assign(new Error(code), { code })); });
+    abort.catch(() => {});
+    this.abortConnect = code => giveUp(code || 'skipped');
+    const budget = setTimeout(() => giveUp('timeout'), 25000);
+    const gate = p => Promise.race([p, abort]);
     try {
-      const [appMod, A, F, S] = await Promise.all([
+      const [appMod, A, F, S] = await gate(Promise.all([
         import('firebase/app'), import('firebase/auth'), import('firebase/firestore'), import('firebase/storage')
-      ]);
+      ]));
       app = appMod.initializeApp(FB_CONFIG);
       const auth = A.getAuth(app);
       let db;
@@ -1591,7 +1617,7 @@ const Backend = {
          never make a whole save fail. The persistent cache keeps reads
          available and queues writes if the connection drops mid-session. */
       try {
-        db = F.initializeFirestore(app, EMULATORS
+        db = F.initializeFirestore(app, EMULATORS || !STORAGE_OK
           ? { ignoreUndefinedProperties: true }
           : { ignoreUndefinedProperties: true, localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) });
       } catch (e) {
@@ -1606,15 +1632,15 @@ const Backend = {
       this.fb = { app, auth, db, storage, A, F, S, appMod };
 
       /* a Google sign-in that used the redirect flow comes back here */
-      try { await withTimeout(A.getRedirectResult(auth), 8000); } catch (e) { if (e && e.code && e.code !== 'timeout') console.warn('[nexus] redirect sign-in:', e.code); }
-      if (auth.authStateReady) await withTimeout(auth.authStateReady(), 10000).catch(() => {});
+      try { await gate(withTimeout(A.getRedirectResult(auth), 8000)); } catch (e) { if (e && e.code === 'skipped') throw e; if (e && e.code && e.code !== 'timeout') console.warn('[nexus] redirect sign-in:', e.code); }
+      if (auth.authStateReady) await gate(withTimeout(auth.authStateReady(), 10000).catch(() => {}));
       /* browsing needs no prompt: an anonymous session is enough until an
          action really requires an account */
       if (!auth.currentUser) {
-        try { await withTimeout(A.signInAnonymously(auth), 12000); }
+        try { await gate(withTimeout(A.signInAnonymously(auth), 12000)); }
         catch (e) {
           const c = String(e.code || '');
-          if (/invalid-api-key|api-key-not-valid|network-request-failed|timeout|unauthorized-domain|internal-error/.test(c)) throw e;
+          if (/invalid-api-key|api-key-not-valid|network-request-failed|timeout|skipped|unauthorized-domain|internal-error/.test(c)) throw e;
           this.warning = describeFirebaseError(e) + ' — التصفح يعمل، والكتابة تحتاج تسجيل الدخول.';
         }
       }
@@ -1623,7 +1649,7 @@ const Backend = {
          rules refused this probe — so that is ONLINE with a warning, never
          a reason to drop to LOCAL. Unreachable / no database is an error. */
       try {
-        await withTimeout(F.getDocFromServer(F.doc(db, '_nexus', 'status')), 12000);
+        await gate(withTimeout(F.getDocFromServer(F.doc(db, '_nexus', 'status')), 12000));
       } catch (e) {
         if (e && e.code === 'permission-denied') {
           this.rulesBlocked = true;
@@ -1632,6 +1658,8 @@ const Backend = {
         else throw e;
       }
 
+      clearTimeout(budget);
+      if (!STORAGE_OK) this.warning = this.warning || 'المتصفح يمنع التخزين في هذا الملف (مفتوح من ذاكرة الهاتف) — تسجيل الدخول لا يبقى بعد الإغلاق. افتح NEXUS من رابط Netlify.';
       this.user = this._mapUser(auth.currentUser);
       this.mode = 'firebase';
       this.status = 'online';
@@ -1643,6 +1671,7 @@ const Backend = {
       });
       return this;
     } catch (e) {
+      clearTimeout(budget);
       console.warn('[nexus] Firebase connection failed, using LOCAL fallback:', e && (e.code || e.message));
       /* deleteApp() can wait forever on a half-initialised auth instance —
          never let it block the fallback (it used to freeze the boot) */
@@ -1652,7 +1681,7 @@ const Backend = {
       this.mode = 'local';
       this.status = 'error';
       this.errorCode = String((e && e.code) || (e && e.message) || 'unknown');
-      this.reason = describeFirebaseError(e);
+      this.reason = describeFirebaseError(e) + (STORAGE_OK ? '' : ' · المتصفح يمنع التخزين في هذا الملف (مفتوح من ذاكرة الهاتف): العمل يبقى حتى إغلاق الصفحة فقط — افتح NEXUS من رابط Netlify.');
       await this._initLocalUser();
       return this;
     }
@@ -2488,7 +2517,9 @@ const Games = {
   /* one play per (user, session) — the counter only ever moves by +1 */
   async recordPlay(gameId) {
     const u = Backend.user; if (!u) return;
-    const sid = (sessionStorage.getItem('nx.sid') || (() => { const s = uid('s'); sessionStorage.setItem('nx.sid', s); return s; })());
+    let sid;
+    try { sid = sessionStorage.getItem('nx.sid') || (() => { const s = uid('s'); sessionStorage.setItem('nx.sid', s); return s; })(); }
+    catch { sid = NX.__sid || (NX.__sid = uid('s')); }
     const key = `${u.uid}_${sid}`;
     try {
       if (Backend.isOnline()) {
@@ -18052,12 +18083,25 @@ async function clearStaleServiceWorkers() {
 NX.clearStaleServiceWorkers = clearStaleServiceWorkers;
 
 (async function boot() {
+  NX.__booting = true;
   const staleSW = clearStaleServiceWorkers();
+  const msg = document.getElementById('boot-msg');
+  if (msg && (NX.FB_OWNER_CONFIGURED || NX.EMULATORS)) msg.textContent = 'الاتصال بـ Firebase…';
+  const skip = setTimeout(() => {
+    if (!msg || !Backend.abortConnect) return;
+    const b = document.createElement('button');
+    b.className = 'btn sm ghost'; b.style.marginTop = '14px'; b.textContent = 'المتابعة بدون اتصال';
+    b.onclick = () => Backend.abortConnect('skipped');
+    msg.after(b);
+  }, 6000);
   try {
     await Backend.init();
   } catch (e) {
     console.error('backend init failed', e);
   }
+  clearTimeout(skip);
+  const stuck = document.getElementById('nx-boot-fail');
+  if (stuck) stuck.remove();
   staleSW.then(n => { if (n && NX.__booted) Toast.show('أُزيلت نسخة قديمة مخزّنة من الموقع — أعد تحميل الصفحة للتأكد من أحدث إصدار', '', 7000); });
   /* an exported single-file build boots straight into its game */
   if (window.NEXUS_BOOT_GAME) {
@@ -18131,8 +18175,10 @@ NX.clearStaleServiceWorkers = clearStaleServiceWorkers;
 /* Plain script: if the module graph never ran (CDN blocked, no ES-module
    support), say so instead of showing a blank screen. */
 setTimeout(function () {
-  if (window.NX && window.NX.__booted) return;
+  /* booting = the modules ran and NEXUS is still connecting; not a failure */
+  if (window.NX && (window.NX.__booted || window.NX.__booting)) return;
   var d = document.createElement('div');
+  d.id = 'nx-boot-fail';
   d.style.cssText = 'position:fixed;inset:0;z-index:999;background:#07080f;color:#e9ecff;display:grid;place-items:center;padding:24px;text-align:center;font-family:system-ui,sans-serif';
   d.innerHTML = '<div style="max-width:420px"><h2 style="margin:0 0 10px">تعذّر تحميل المحرك</h2>' +
     '<p style="color:#a0a7c8;font-size:14px;line-height:1.7">لم تُحمَّل وحدات Three.js من الشبكة. تأكد من الاتصال، ثم أعد التحميل.<br>' +
