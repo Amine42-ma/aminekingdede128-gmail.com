@@ -1413,6 +1413,7 @@ function describeFirebaseError(e) {
     'unauthenticated': 'العملية تحتاج جلسة دخول',
     'unauthorized': 'Firebase Storage متصل، لكن قواعد storage.rules تمنع هذه العملية',
     'bucket-not-found': 'لا توجد حاوية Storage بهذا الاسم — تحقّق من storageBucket أو فعّل Storage في المشروع',
+    'storage-not-enabled': 'Storage غير مفعّل في مشروع Firebase — رفع الصور والفيديو والملفات يحتاجه (Firebase Console ← Storage ← Get started)',
     'no-default-bucket': 'لم يُضبط storageBucket في إعداد Firebase',
     'project-not-found': 'مشروع Storage غير موجود — فعّل Storage في Firebase Console',
     'quota-exceeded': 'تجاوزت حصة Storage في المشروع',
@@ -1853,7 +1854,14 @@ const Backend = {
       await new Promise((res, rej) => {
         task.on('state_changed',
           s => onProgress && onProgress(s.bytesTransferred / Math.max(1, s.totalBytes), s.bytesTransferred, s.totalBytes),
-          rej, res);
+          e => {
+            /* the project has no Storage bucket: the server answers 404 and the
+               SDK only says "unknown" */
+            const st = e && (e.status_ || (e.customData && e.customData.status));
+            if (e && (e.code === 'storage/bucket-not-found' || e.code === 'storage/project-not-found' || (e.code === 'storage/unknown' && st === 404)))
+              rej(Object.assign(new Error('STORAGE_NOT_ENABLED'), { code: 'storage-not-enabled' }));
+            else rej(e);
+          }, res);
       });
       return { path, url: await S.getDownloadURL(ref) };
     }
@@ -2113,7 +2121,7 @@ const Assets = {
       kind: meta.kind || 'data',
       bytes: file.size || 0,
       license: meta.license || 'Original',
-      visibility: ['public', 'unlisted', 'private'].includes(meta.visibility) ? meta.visibility : 'private',
+      visibility: ['public', 'unlisted', 'private'].includes(meta.visibility) ? meta.visibility : 'public',
       stats: meta.stats || null,             // auto-extracted metadata (rule 16)
       createdAt: now, updatedAt: now,
       usageCount: 0,
@@ -5182,13 +5190,8 @@ function openUploadSheet(onDone) {
     const licHint = el('p', { class: 'tiny', style: { marginTop: '5px' }, text: '«عام» يعني متاحًا داخل مكتبة المنصة وفق شروطها — ولا يعني تنازلك عن حقوقك (rule 12)' });
     const fLic = field(T('license'), el('div', {}, [licSel, licHint]));
 
-    let vis = 'public';
-    const visSeg = el('div', { class: 'seg' }, [
-      el('button', { class: 'on', text: T('public') + ' · PUBLIC', onclick: e => { vis = 'public'; segPick(visSeg, e.target); } }),
-      el('button', { text: 'برابط · UNLISTED', onclick: e => { vis = 'unlisted'; segPick(visSeg, e.target); } }),
-      el('button', { text: T('private') + ' · PRIVATE', onclick: e => { vis = 'private'; segPick(visSeg, e.target); } })
-    ]);
-    const fVis = field(T('visibility'), visSeg);
+    /* every upload is public — it goes to the public library */
+    const vis = 'public';
 
     const thumbRow = el('div', { class: 'row', style: { marginBottom: '12px' } });
     const thumbImg = el('img', { src: prepared.thumb ? URL.createObjectURL(prepared.thumb) : '', style: { width: '54px', height: '54px', borderRadius: '10px', objectFit: 'cover', flex: '0 0 auto' } });
@@ -5226,7 +5229,7 @@ function openUploadSheet(onDone) {
           ext: prepared.ext,
           stats: prepared.stats
         }, prepared.file, thumbOverride || prepared.thumb, p => { prog.firstChild.style.width = Math.round(p * 100) + '%'; });
-        Toast.ok(vis === 'public' ? 'تم النشر في المكتبة العامة' : vis === 'unlisted' ? 'حُفظ — متاح لمن يملك المعرّف' : 'تم الحفظ في أصولك الخاصة');
+        Toast.ok('تم النشر في المكتبة العامة');
         sheet.close();
         onDone && onDone(rec);
         window.dispatchEvent(new CustomEvent('nx:assetUploaded', { detail: rec }));
@@ -5240,7 +5243,7 @@ function openUploadSheet(onDone) {
     };
     const uploadBtn = btn('UPLOAD', { cls: 'primary block', icon: 'upload', onclick: doUpload });
 
-    form.append(fName, fDesc, fCat, fTags, fLic, fVis, thumbRow, uploadBtn, prog, status);
+    form.append(fName, fDesc, fCat, fTags, fLic, thumbRow, uploadBtn, prog, status);
     if (!Backend.isOnline()) form.appendChild(el('p', { class: 'tiny', style: { marginTop: '10px', textAlign: 'center' }, text: 'وضع محلي (' + (Backend.reason || 'بلا اتصال') + '): سيُحفظ الأصل في هذا المتصفح، ويمكن نقله إلى السحابة عند نجاح الاتصال.' }));
   }
 }
@@ -5361,12 +5364,11 @@ async function openAssetDetails(asset, { onAdd } = {}) {
   const mine = Backend.user && asset.ownerId === Backend.user.uid;
   const foot = [];
   if (onAdd) foot.push(btn('ADD TO SCENE', { cls: 'primary', icon: 'plus', onclick: async () => { await onAdd(asset); sheet.close(); } }));
-  if (mine) {
-    foot.push(btn(asset.visibility === 'public' ? 'اجعله خاصًا' : 'اجعله عامًا', {
+  if (mine && asset.visibility !== 'public') {
+    foot.push(btn('اجعله عامًا', {
       cls: 'ghost', onclick: async () => {
-        const next = asset.visibility === 'public' ? 'private' : 'public';
-        await Assets.update(asset.assetId, { visibility: next });
-        asset.visibility = next; Toast.ok(next === 'public' ? 'صار في المكتبة العامة' : 'صار خاصًا');
+        await Assets.update(asset.assetId, { visibility: 'public' });
+        asset.visibility = 'public'; Toast.ok('صار في المكتبة العامة');
         sheet.close();
       }
     }));
@@ -6961,13 +6963,8 @@ const Studio = {
     ]));
     body.appendChild(shot);
 
-    let vis = prev.visibility || 'public';
-    const seg = el('div', { class: 'seg' }, [
-      el('button', { class: vis === 'public' ? 'on' : '', text: 'عام · PUBLIC', onclick: e => { vis = 'public'; segPick(seg, e.target); } }),
-      el('button', { class: vis === 'unlisted' ? 'on' : '', text: 'برابط · UNLISTED', onclick: e => { vis = 'unlisted'; segPick(seg, e.target); } }),
-      el('button', { class: vis === 'private' ? 'on' : '', text: 'خاص · PRIVATE', onclick: e => { vis = 'private'; segPick(seg, e.target); } })
-    ]);
-    body.appendChild(NX.field(T('visibility'), seg));
+    /* every published game is public */
+    const vis = 'public';
     body.appendChild(el('p', { class: 'tiny', text: 'يُنشر المشهد والكود المترجَم إلى Firebase — الأصول تبقى في Storage وتُحمَّل بالمعرّف على أي جهاز.' }));
     /* where this will go, stated before the button is pressed */
     body.appendChild(el('div', { class: 'card', style: { marginTop: '10px', fontSize: '12.5px', lineHeight: '1.7' },
@@ -12359,13 +12356,8 @@ function openComposer(opts = {}) {
   gameSel.addEventListener('change', () => gameId = gameSel.value || null);
   body.appendChild(field('أرفق لعبة', gameSel));
 
-  let visibility = 'public';
-  const visSeg = el('div', { class: 'seg' }, [
-    el('button', { class: 'on', text: 'عام', onclick: e => { visibility = 'public'; segPick(visSeg, e.target); } }),
-    el('button', { text: 'برابط فقط', onclick: e => { visibility = 'unlisted'; segPick(visSeg, e.target); } }),
-    el('button', { text: 'خاص', onclick: e => { visibility = 'private'; segPick(visSeg, e.target); } })
-  ]);
-  body.appendChild(field('من يراه؟', visSeg));
+  /* every post is public */
+  const visibility = 'public';
 
   const storyRow = el('div', { class: 'switch' }, [el('span', { text: 'انشره كقصة (يختفي بعد ٢٤ ساعة)' })]);
   const storyTg = el('div', { class: 'tgl' });
@@ -12442,7 +12434,7 @@ function openComposer(opts = {}) {
         status.textContent = phase === 'uploading' ? `جارٍ الرفع ${Math.round(p / 0.9 * 100)}%` + (total ? ` · ${fmtBytes(sent)} / ${fmtBytes(total)}` : '')
           : phase === 'processing' ? 'معالجة…' : 'تم النشر';
       }, { onTask: t => { uploadTask = t; } });
-      Toast.ok(visibility === 'public' ? 'نُشر للجميع' : visibility === 'unlisted' ? 'نُشر — يظهر بالرابط فقط' : 'حُفظ كخاص');
+      Toast.ok('نُشر للجميع');
       sheet.close();
       window.dispatchEvent(new CustomEvent('nx:feedRefresh', { detail: rec }));
     } catch (e) {
@@ -12660,12 +12652,8 @@ function postMenu(post, ctx = {}) {
   };
   body.appendChild(item('share', 'مشاركة', () => share('post', post.postId, post.title || post.text)));
   if (mine) {
-    body.appendChild(item('eye', 'تغيير من يراه', async () => {
-      const opts = [['public', 'عام'], ['unlisted', 'برابط فقط'], ['private', 'خاص']];
-      const b2 = el('div');
-      opts.forEach(([v, lbl]) => b2.appendChild(btn(lbl + (post.visibility === v ? ' ✓' : ''), { cls: 'block', style: { marginBottom: '8px' },
-        onclick: async () => { await Posts.setVisibility(post, v); post.visibility = v; Toast.ok('حُدّث'); s2.close(); ctx.refresh && ctx.refresh(); } })));
-      const s2 = Sheet.open({ title: 'من يراه؟', body: b2, id: 'vis' });
+    if (post.visibility !== 'public') body.appendChild(item('eye', 'اجعله عامًا', async () => {
+      await Posts.setVisibility(post, 'public'); post.visibility = 'public'; Toast.ok('صار عامًا'); ctx.refresh && ctx.refresh();
     }));
     body.appendChild(item('trash', 'حذف', async () => {
       if (!await Modal.confirm('حذف المنشور؟', 'يُحذف الملف والتعليقات معه. لا يمكن التراجع.', 'حذف')) return false;
@@ -13180,12 +13168,10 @@ async function openCreatorStudio() {
         r.append(i, iconBtn('dots', { onclick: () => {
           const b2 = el('div');
           b2.appendChild(btn('فتح صفحة اللعبة', { cls: 'block', style: { marginBottom: '8px' }, onclick: () => { s2.close(); openGamePage(g); } }));
-          [['public', 'عام — يظهر في الاستكشاف'], ['unlisted', 'برابط فقط'], ['private', 'خاص — لي وحدي']].forEach(([v, label]) => {
-            b2.appendChild(btn(label + (g.visibility === v ? ' ✓' : ''), { cls: 'block', style: { marginBottom: '8px' }, onclick: async () => {
-              try { await Games.setVisibility(g.gameId, v); Toast.ok('حُدّث'); s2.close(); seg.children[0].click(); }
-              catch (e) { Toast.err('تعذّر: ' + NX.describeFirebaseError(e)); }
-            }}));
-          });
+          if (g.visibility !== 'public') b2.appendChild(btn('اجعلها عامة — تظهر في الاستكشاف', { cls: 'block', style: { marginBottom: '8px' }, onclick: async () => {
+            try { await Games.setVisibility(g.gameId, 'public'); Toast.ok('صارت عامة'); s2.close(); seg.children[0].click(); }
+            catch (e) { Toast.err('تعذّر: ' + NX.describeFirebaseError(e)); }
+          }}));
           b2.appendChild(btn('حذف اللعبة المنشورة', { cls: 'danger block', onclick: async () => {
             if (!await Modal.confirm('حذف؟', 'يبقى المشروع محفوظًا.', 'حذف')) return;
             await Games.remove(g.gameId); Toast.ok('حُذفت'); s2.close(); seg.children[0].click();
