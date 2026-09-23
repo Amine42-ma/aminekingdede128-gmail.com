@@ -1477,6 +1477,76 @@ function buildSearchTokens(meta) {
   base.forEach(t => { for (let i = 2; i < Math.min(t.length, 11); i++) out.add(t.slice(0, i)); });
   return Array.from(out).slice(0, 220);
 }
+/* ============================================================
+   ASSET TYPE — what a file most likely IS, read from what the file
+   really contains: its name and tags, the names of its parts (meshes,
+   nodes, materials), its skeleton, and its real dimensions. It is NOT
+   a visual understanding of the model, and the record says which clue
+   decided (typeSource), so the assistant can say so honestly.
+   ============================================================ */
+const ASSET_TYPES = {
+  vehicle:     { ar: 'مركبة', cat: 'Vehicles',    w: ['car', 'truck', 'bus', 'bike', 'bicycle', 'motorbike', 'motorcycle', 'vehicle', 'van', 'taxi', 'police', 'jeep', 'tractor', 'kart', 'wheel', 'tire', 'tyre', 'sedan', 'suv', 'سياره', 'سيارة', 'شاحنه', 'حافله', 'دراجه', 'مركبه'] },
+  building:    { ar: 'مبنى', cat: 'Buildings',    w: ['house', 'home', 'building', 'tower', 'shop', 'store', 'hut', 'cabin', 'villa', 'apartment', 'office', 'roof', 'chimney', 'garage', 'barn', 'church', 'mosque', 'walls', 'منزل', 'بيت', 'مبنى', 'مبني', 'عماره', 'برج', 'متجر'] },
+  road:        { ar: 'طريق', cat: 'Environment',  w: ['road', 'street', 'highway', 'asphalt', 'lane', 'lanemark', 'crosswalk', 'sidewalk', 'roadway', 'bridge', 'طريق', 'شارع'] },
+  tree:        { ar: 'شجرة', cat: 'Nature',       w: ['tree', 'pine', 'palm', 'oak', 'birch', 'trunk', 'leaves', 'leaf', 'foliage', 'branch', 'canopy', 'شجره', 'شجرة', 'نخله'] },
+  plant:       { ar: 'نبات', cat: 'Nature',       w: ['bush', 'shrub', 'grass', 'flower', 'plant', 'hedge', 'fern', 'زهره', 'نبات'] },
+  rock:        { ar: 'صخرة', cat: 'Nature',       w: ['rock', 'stone', 'boulder', 'cliff', 'صخره', 'حجر'] },
+  character:   { ar: 'شخصية', cat: 'Characters',  w: ['player', 'character', 'human', 'man', 'woman', 'person', 'npc', 'hero', 'avatar', 'hips', 'spine', 'soldier', 'zombie', 'لاعب', 'شخصيه', 'رجل'] },
+  animal:      { ar: 'حيوان', cat: 'Animals',     w: ['dog', 'cat', 'horse', 'cow', 'sheep', 'bird', 'fish', 'animal', 'wolf', 'bear', 'حيوان'] },
+  weapon:      { ar: 'سلاح', cat: 'Weapons',      w: ['gun', 'pistol', 'rifle', 'sword', 'knife', 'weapon', 'bow', 'axe', 'سلاح'] },
+  furniture:   { ar: 'أثاث', cat: 'Furniture',    w: ['chair', 'table', 'sofa', 'couch', 'bed', 'desk', 'shelf', 'lamp', 'كرسي', 'طاوله'] },
+  prop:        { ar: 'غرض', cat: 'Props',         w: ['box', 'crate', 'barrel', 'sign', 'coin', 'chest', 'bottle', 'fence', 'bench', 'lamppost', 'streetlight'] },
+  environment: { ar: 'بيئة', cat: 'Environment',  w: ['terrain', 'ground', 'floor', 'sky', 'skybox', 'water', 'mountain', 'island', 'landscape', 'ارض'] },
+  sound:       { ar: 'صوت', cat: 'Audio',         w: [] },
+  image:       { ar: 'صورة', cat: 'Other',        w: [] },
+  script:      { ar: 'كود', cat: 'Other',         w: [] },
+  data:        { ar: 'بيانات', cat: 'Other',      w: [] }
+};
+const TYPE_SOURCE_AR = { name: 'من اسم الملف أو وسومه', parts: 'من أسماء أجزاء المجسم', skeleton: 'من الهيكل العظمي', shape: 'من أبعاده', category: 'من التصنيف', kind: 'من نوع الملف', default: 'لم يتضح — افتراضي' };
+/* words of a name: "PoliceCar_01" → police, car */
+function nameWords(x) {
+  return String(x || '').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z\u0600-\u06ff]+/).filter(w => w.length >= 2);
+}
+function inferAssetType({ name = '', tags = [], parts = [], category = '', size = null, kind = 'model', ext = '', skinned = false } = {}) {
+  if (kind === 'audio') return { type: 'sound', source: 'kind' };
+  if (kind === 'image') return { type: 'image', source: 'kind' };
+  if (kind === 'data' || kind === 'text') return { type: /^(m?js|ts)$/.test(ext) ? 'script' : 'data', source: 'kind' };
+  const own = nameWords(name).concat((tags || []).flatMap(nameWords));
+  const inner = (parts || []).flatMap(nameWords);
+  const hit = (ws, lex) => ws.filter(t => lex.includes(t) || lex.some(l => l.length >= 4 && t.length >= 4 && (t.startsWith(l) || l.startsWith(t)))).length;
+  let best = null;
+  for (const [type, T] of Object.entries(ASSET_TYPES)) {
+    if (!T.w.length) continue;
+    const byName = hit(own, T.w), byParts = Math.min(3, hit(inner, T.w));
+    const score = byName * 3 + byParts;
+    if (score && (!best || score > best.score)) best = { type, score, source: byName ? 'name' : 'parts' };
+  }
+  if (best) return { type: best.type, source: best.source };
+  if (skinned) return { type: 'character', source: 'skeleton' };
+  const fromCat = Object.entries(ASSET_TYPES).find(([, T]) => T.cat === category && !['Props', 'Other', 'Environment'].includes(category));
+  if (fromCat) return { type: fromCat[0], source: 'category' };
+  if (Array.isArray(size) && size.length === 3) {
+    const [x, y, z] = size.map(Number), long = Math.max(x, z), short = Math.max(0.01, Math.min(x, z));
+    if (y < 0.08 * long && long / short >= 3) return { type: 'road', source: 'shape' };
+    if (y < 0.05 * long) return { type: 'environment', source: 'shape' };
+  }
+  return { type: 'prop', source: 'default' };
+}
+/* searchable words the file itself provides (never invented) */
+function autoTagsFor({ name = '', parts = [], type = '' } = {}) {
+  const lex = new Set(Object.values(ASSET_TYPES).flatMap(T => T.w));
+  const out = new Set(nameWords(name).filter(w => !/^(glb|gltf|obj|fbx|model|mesh|final|new|copy|untitled)$/.test(w)));
+  (parts || []).flatMap(nameWords).forEach(w => { if (lex.has(w)) out.add(w); });
+  if (type && !['sound', 'image', 'script', 'data'].includes(type)) out.add(type);
+  return Array.from(out).slice(0, 12);
+}
+/* an older record without a stored type: inferred from what it has */
+function assetTypeOf(a) {
+  if (!a) return null;
+  if (a.assetType) return { type: a.assetType, source: a.typeSource || 'name' };
+  return inferAssetType({ name: a.name, tags: a.tags, category: a.category, size: a.stats && a.stats.size, kind: a.kind, ext: a.fileType, skinned: !!(a.stats && a.stats.skinned) });
+}
+
 /* Relevance is computed from the record's real fields — nothing invented. */
 function scoreAsset(a, qRaw) {
   const q = String(qRaw || '').trim().toLowerCase();
@@ -2438,14 +2508,22 @@ const Assets = {
       thumbPath = t.path; thumbURL = t.url;
     }
     const now = Date.now();
+    const typed = meta.assetType ? { type: meta.assetType, source: meta.typeSource || 'name' }
+      : inferAssetType({ name: meta.name || file.name, tags: meta.tags, category: meta.category, size: meta.stats && meta.stats.size, kind: meta.kind, ext, skinned: !!(meta.stats && meta.stats.skinned) });
+    const tagSet = new Set((meta.tags || []).concat(meta.autoTags || []).map(t => String(t).trim().toLowerCase()).filter(Boolean));
     const rec = {
       assetId: id,
       ownerId: u.uid,
       creatorName: u.name || 'creator',
       name: meta.name || file.name,
-      description: meta.description || '',
+      description: meta.description || meta.autoDescription || '',
       category: meta.category || 'Other',
-      tags: (meta.tags || []).map(t => String(t).trim().toLowerCase()).filter(Boolean).slice(0, 24),
+      tags: Array.from(tagSet).slice(0, 24),
+      assetType: typed.type,                          // vehicle / building / road / tree / character / sound …
+      typeSource: typed.source,                       // which real clue decided it (see TYPE_SOURCE_AR)
+      processing: 'ready',                            // analysed, stored, usable in projects
+      usable: true,
+      projectId: meta.projectId || null,              // the project it was uploaded from, if any
       storagePath: up.path || storagePath,   // "drive:<id>" when the file went to Google Drive
       downloadURL: up.url || null,
       thumbnail: thumbPath,
@@ -3255,6 +3333,11 @@ NX.EMULATORS = EMULATORS;
 NX.packSnapshot = snap => packProject(snap);
 NX.unpackSnapshot = snap => unpackProject(snap);
 NX.describeFirebaseError = describeFirebaseError;
+NX.inferAssetType = inferAssetType;
+NX.autoTagsFor = autoTagsFor;
+NX.assetTypeOf = assetTypeOf;
+NX.ASSET_TYPES = ASSET_TYPES;
+NX.TYPE_SOURCE_AR = TYPE_SOURCE_AR;
 NX.Drive = Drive;
 NX.FILE_HOST = FILE_HOST;
 </script>
@@ -5440,6 +5523,13 @@ async function prepareFile(file) {
     out.object = object;
     out.stats = Loaders.analyze(object, animations);
     out.animations = animations;
+    /* the names the file gives its parts (meshes, nodes, materials) */
+    const parts = new Set();
+    object.traverse(n => {
+      if (n.name) parts.add(n.name);
+      const m = n.material; (Array.isArray(m) ? m : m ? [m] : []).forEach(x => { if (x && x.name) parts.add(x.name); });
+    });
+    out.parts = Array.from(parts).slice(0, 60);
     out.thumb = await Thumbs.fromObject(object);
     object.removeFromParent();
   } else if (kind === 'image') {
@@ -5585,8 +5675,15 @@ function openUploadSheet(onDone) {
     const fDesc = field(T('description'), el('textarea', { class: 'textarea', placeholder: 'وصف مختصر…' }));
     const catSel = el('select', { class: 'select' }, Assets.categories.map(c => el('option', { value: c, text: c })));
     catSel.value = guessCategory(baseName, prepared.kind);
-    const fCat = field(T('category'), catSel);
-    const tagInput = el('input', { class: 'input', placeholder: 'car, vehicle, sports, racing' });
+    /* what the file most likely is — from its name, part names, skeleton and size */
+    const typed = NX.inferAssetType({ name: baseName, parts: prepared.parts, category: catSel.value === 'Props' ? '' : catSel.value,
+      size: prepared.stats && prepared.stats.size, kind: prepared.kind, ext: prepared.ext, skinned: !!(prepared.stats && prepared.stats.skinned) });
+    const TY = NX.ASSET_TYPES[typed.type] || {};
+    if (catSel.value === 'Props' && TY.cat && Assets.categories.includes(TY.cat) && typed.source !== 'default') catSel.value = TY.cat;
+    const fCat = field(T('category'), el('div', {}, [catSel,
+      el('p', { class: 'tiny', style: { marginTop: '5px' }, text: 'النوع: ' + (TY.ar || typed.type) + ' — ' + NX.TYPE_SOURCE_AR[typed.source] + '. المساعد يستعمل هذا ليختار الأصل المناسب.' })]));
+    const tagInput = el('input', { class: 'input', placeholder: 'car, vehicle, sports, racing',
+      value: NX.autoTagsFor({ name: baseName, parts: prepared.parts, type: typed.type }).join(', ') });
     const tagHint = el('p', { class: 'tiny', style: { marginTop: '5px' }, text: 'افصل بفاصلة — الوسوم هي ما يجعل الأصل قابلًا للبحث (rule 15)' });
     const fTags = field(T('tags'), el('div', {}, [tagInput, tagHint]));
     const licSel = el('select', { class: 'select' }, Assets.licenses.map(c => el('option', { value: c, text: c })));
@@ -5619,6 +5716,15 @@ function openUploadSheet(onDone) {
       prog.classList.remove('hide');
       uploadBtn.disabled = true;
       status.textContent = 'جارٍ الرفع…';
+      const finalTags = tagInput.value.split(/[,،]/).map(s => s.trim()).filter(Boolean);
+      const st = prepared.stats || {};
+      const typedNow = NX.inferAssetType({ name, tags: finalTags, parts: prepared.parts, category: catSel.value === 'Props' ? '' : catSel.value,
+        size: st.size, kind: prepared.kind, ext: prepared.ext, skinned: !!st.skinned });
+      const TYN = NX.ASSET_TYPES[typedNow.type] || {};
+      const autoDescription = [TYN.ar || typedNow.type, String(prepared.ext || '').toUpperCase(),
+        st.size ? st.size.map(v => (+v).toFixed(1)).join('×') + ' م' : '', st.meshes ? st.meshes + ' أجزاء' : '',
+        st.animations ? st.animations + ' حركات' : '', st.duration ? st.duration + ' ث' : '', st.width ? st.width + '×' + st.height : ''].filter(Boolean).join(' · ');
+      const studioOpen = NX.Studio && NX.Studio.project && document.getElementById('studio').classList.contains('active');
       try {
         const same = prepared.hash ? await Assets.findByHash(prepared.hash).catch(() => null) : null;
         if (same) {
@@ -5632,7 +5738,9 @@ function openUploadSheet(onDone) {
           name,
           description: fDesc.querySelector('textarea').value.trim(),
           category: catSel.value,
-          tags: tagInput.value.split(/[,،]/).map(s => s.trim()).filter(Boolean),
+          tags: finalTags,
+          assetType: typedNow.type, typeSource: typedNow.source, autoDescription,
+          projectId: studioOpen ? NX.Studio.project.projectId : null,
           license: licSel.value,
           visibility: vis,
           kind: prepared.kind,
@@ -5674,7 +5782,7 @@ function guessCategory(name, kind) {
   const n = String(name).toLowerCase();
   const map = [[/car|truck|bike|vehicle|moto|bus|plane|boat/, 'Vehicles'], [/house|build|tower|shop|wall/, 'Buildings'],
     [/char|player|human|person|man|woman|npc/, 'Characters'], [/dog|cat|bird|fish|animal|horse/, 'Animals'],
-    [/tree|rock|grass|plant|nature|stone/, 'Nature'], [/chair|table|sofa|bed|lamp|desk/, 'Furniture'],
+    [/tree|rock|grass|plant|nature|stone/, 'Nature'], [/road|street|highway|sidewalk|bridge|terrain|ground/, 'Environment'], [/chair|table|sofa|bed|lamp|desk/, 'Furniture'],
     [/gun|sword|weapon|rifle|blade/, 'Weapons'], [/ui|icon|button/, 'UI']];
   for (const [re, c] of map) if (re.test(n)) return c;
   return 'Props';
@@ -6530,9 +6638,11 @@ function update(dt) {
    ============================================================ */
 const Studio = {
   project: null, engine: null, runtime: null, playing: false,
-  dirty: false, undoStack: [], _autosave: null, editors: {},
+  dirty: false, undoStack: [], redoStack: [], _autosave: null, editors: {},
 
   async open(project) {
+    /* undo / redo belong to one project: never restore another project's scene */
+    if (!this.project || this.project.projectId !== project.projectId) { this.undoStack = []; this.redoStack = []; }
     this.project = project;
     NX.Screen.show('studio');
     $('#s-name').firstChild.textContent = project.name;
@@ -6776,15 +6886,27 @@ const Studio = {
 
   /* one undo stack for the editor AND the AI: every entry is the scene as it
      was, plus the asset links (and the code, when the change touched code) */
-  pushUndo(label, opts = {}) {
-    if (!this.engine || !this.project) return;
-    this.undoStack.push({
-      label: label || 'تعديل المشهد', at: Date.now(), by: opts.by || 'user',
+  _state(label, by, withFiles) {
+    return {
+      label: label || 'تعديل المشهد', at: Date.now(), by: by || 'user',
       scene: JSON.stringify(this.engine.serialize()),
       assetRefs: (this.project.assetRefs || []).slice(),
-      files: opts.files ? JSON.stringify(this.project.files || []) : null
-    });
+      files: withFiles ? JSON.stringify(this.project.files || []) : null
+    };
+  },
+  pushUndo(label, opts = {}) {
+    if (!this.engine || !this.project) return;
+    this.undoStack.push(this._state(label, opts.by, opts.files));
     if (this.undoStack.length > 30) this.undoStack.shift();
+    this.redoStack = [];              // a new change ends the redo history
+  },
+  peekRedo() { return this.redoStack[this.redoStack.length - 1] || null; },
+  async _restore(entry) {
+    await this.engine.load(JSON.parse(entry.scene));
+    if (entry.assetRefs) this.project.assetRefs = entry.assetRefs.slice();
+    if (entry.files) { this.project.files = JSON.parse(entry.files); this.lastBuild = null; }
+    this.dirty = true; this.updateHud();
+    return this.save(true);
   },
   peekUndo() { const s = this.undoStack[this.undoStack.length - 1]; return s ? (typeof s === 'string' ? { label: 'تعديل المشهد' } : s) : null; },
   async undo() {
@@ -6792,12 +6914,19 @@ const Studio = {
     const s = this.undoStack.pop();
     if (!s) { Toast.show('لا يوجد تراجع'); return null; }
     const entry = typeof s === 'string' ? { scene: s, label: 'تعديل المشهد' } : s;
-    await this.engine.load(JSON.parse(entry.scene));
-    if (entry.assetRefs) this.project.assetRefs = entry.assetRefs.slice();
-    if (entry.files) { this.project.files = JSON.parse(entry.files); this.lastBuild = null; }
-    this.dirty = true; this.updateHud();
-    const saved = await this.save(true);
+    /* what is on screen now becomes the redo step */
+    this.redoStack.push(this._state(entry.label, entry.by, !!entry.files));
+    const saved = await this._restore(entry);
     Toast.ok('تم التراجع: ' + entry.label + (saved ? '' : ' (لم يُحفظ بعد)'));
+    return Object.assign({ saved }, entry);
+  },
+  async redo() {
+    if (this.playing) { Toast.err('أوقف التشغيل أولًا ثم أعد'); return null; }
+    const entry = this.redoStack.pop();
+    if (!entry) { Toast.show('لا يوجد ما يُعاد'); return null; }
+    this.undoStack.push(this._state(entry.label, entry.by, !!entry.files));
+    const saved = await this._restore(entry);
+    Toast.ok('أُعيد: ' + entry.label + (saved ? '' : ' (لم يُحفظ بعد)'));
     return Object.assign({ saved }, entry);
   },
 
@@ -9640,6 +9769,7 @@ const ProjectContext = {
       mine.items.forEach(a => byId.set(a.assetId, a));
       ctx.assets = Array.from(byId.values()).map(a => ({
         assetId: a.assetId, name: a.name, kind: a.kind, category: a.category,
+        type: NX.assetTypeOf ? (NX.assetTypeOf(a) || {}).type : null, description: String(a.description || '').slice(0, 140),
         tags: a.tags, animations: (a.stats && a.stats.animationNames) || [],
         triangles: a.stats ? a.stats.triangles : null,
         size: a.stats ? a.stats.size : null,
@@ -11603,7 +11733,20 @@ const AIPanel = {
         onclick: () => this.setMode(m)
       }));
     });
-    body.append(this.modeSeg, this.buildPane, this.chatPane);
+    /* which of the user's files the assistant may use — on by default, one tap to turn off */
+    const assetsRow = el('div', { style: { display: 'flex', gap: '6px', alignItems: 'center', margin: '0 0 8px', flexWrap: 'wrap' } });
+    const assetsChip = el('button', { class: 'chip' });
+    const assetsInfo = el('span', { class: 'tiny' });
+    const paintAssets = () => {
+      const on = ProjectContext.perms().assets;
+      assetsChip.className = 'chip' + (on ? ' on' : '');
+      assetsChip.textContent = (on ? '✓ ' : '') + 'استخدم أصول مشروعي';
+      assetsInfo.textContent = on ? 'المساعد يبحث في ملفات مشروعك وملفاتك أولًا، ثم المكتبة العامة' : 'المساعد لا يستعمل ملفاتك — المكتبة العامة فقط';
+    };
+    assetsChip.onclick = () => { const pr = ProjectContext.perms(); pr.assets = !pr.assets; ProjectContext.setPerms(pr); paintAssets(); };
+    assetsRow.append(assetsChip, el('button', { class: 'chip', text: 'ما الذي يراه؟', onclick: () => this.showUsableAssets() }), assetsInfo);
+    paintAssets();
+    body.append(this.modeSeg, assetsRow, this.buildPane, this.chatPane);
 
     this.sheet = Sheet.open({
       title: 'المساعد', body, full: true, id: 'ai',
@@ -11667,6 +11810,29 @@ const AIPanel = {
 
     if (Builder.running) { this.say('sys', 'أضفت طلبك إلى الطابور.'); }
     await Builder.runPrompt(q, this.env());
+  },
+
+  /* the files the assistant may use right now — name, type (and how it was
+     read), size, where it comes from; tap one to open it */
+  async showUsableAssets() {
+    const body = el('div');
+    body.appendChild(el('p', { class: 'tiny', style: { marginBottom: '10px', lineHeight: '1.7' },
+      text: 'هذه هي الملفات التي يستطيع المساعد استعمالها في هذا المشروع. يرى بياناتها فقط (الاسم والنوع والأبعاد) — ويُحمَّل الملف نفسه عندما يضعه في المشهد. ملفات Google Drive الأخرى وملفات الآخرين الخاصة لا يراها أبدًا.' }));
+    const list = el('div', { text: 'جارٍ القراءة…' });
+    body.appendChild(list);
+    Sheet.open({ title: 'أصول يستطيع المساعد استعمالها', body, id: 'ai-assets' });
+    const items = NX.GameComposer ? await NX.GameComposer.usableAssets() : [];
+    list.textContent = '';
+    if (!ProjectContext.perms().assets) list.appendChild(el('p', { class: 'muted', text: '«استخدم أصول مشروعي» مطفأ — المساعد يبحث في المكتبة العامة فقط.' }));
+    else if (!items.length) list.appendChild(el('p', { class: 'muted', text: 'لا توجد ملفات بعد — ارفع مجسماتك وأصواتك من «الأصول ← UPLOAD».' }));
+    items.forEach(x => {
+      const T = (NX.ASSET_TYPES || {})[x.type] || {};
+      list.appendChild(el('button', { class: 'comp-row', style: { width: '100%', textAlign: 'start', display: 'block', marginBottom: '6px' },
+        onclick: () => NX.openAssetDetails(x.a, {}) }, [
+        el('b', { text: x.a.name }),
+        el('div', { class: 'tiny', text: (T.ar || x.type || '—') + ' (' + ((NX.TYPE_SOURCE_AR || {})[x.typeSource] || '') + ')' + (x.size ? ' · ' + x.size + ' م' : '') + ' · ' + (x.scope === 'project' ? 'في المشروع' : 'ملفاتي') })
+      ]));
+    });
   },
 
   env() {
@@ -15482,6 +15648,12 @@ function rankAsset(a, q, scope) {
     else if ((m = part(tagW, terms))) { s += 12; relevant = true; reasons.push('وسم قريب #' + m); }
     if (q.concept.cat && cat === q.concept.cat.toLowerCase()) { s += 18; reasons.push('التصنيف ' + a.category); }
     if ((m = exact(descW, terms))) { s += 8; relevant = true; reasons.push('الوصف يذكر «' + m + '»'); }
+    /* the type read from the file at upload (name, part names, skeleton, size) */
+    const wantType = CONCEPT_TYPE[q.concept.id], got = NX.assetTypeOf ? NX.assetTypeOf(a) : null;
+    if (wantType && got && got.type === wantType) {
+      s += relevant ? 8 : 20; relevant = true;
+      reasons.push('النوع: ' + ((NX.ASSET_TYPES[wantType] || {}).ar || wantType) + ' (' + (NX.TYPE_SOURCE_AR[got.source] || got.source) + ')');
+    }
     /* a record that clearly IS something else in the same category */
     if (!relevant) {
       const other = CONCEPTS.find(c => c !== q.concept && c.cat === q.concept.cat && exact(nameW.concat(tagW), conceptTerms(c)));
@@ -16315,6 +16487,599 @@ Agent.handle = async function (text, ui) {
   return _handle.call(this, text, ui);
 };
 
+/* ============================================================
+   GAME OPERATIONS — the only way the game builder (and a connected
+   model) changes a project. Each operation is checked before it
+   runs: the asset must exist and be usable by this user (never
+   someone's private file, never an invented id), numbers must be
+   sane, scripts must pass the code validator and run inside the
+   project's sandboxed runtime. Nothing here evaluates code on the
+   page, and nothing here can read tokens or credentials.
+   ============================================================ */
+const OP_NAMES = ['CREATE_SCENE', 'CREATE_OBJECT', 'ADD_ASSET', 'MOVE_OBJECT', 'ROTATE_OBJECT', 'SCALE_OBJECT', 'SET_PROPERTY',
+  'REMOVE_OBJECT', 'DELETE_OBJECT', 'CREATE_SCRIPT', 'UPDATE_SCRIPT', 'PLAY_TEST', 'UNDO', 'REDO'];
+const SHAPES = new Set(['box', 'plane', 'sphere', 'cylinder', 'cone']);
+const SETTABLE = new Set(['name', 'tag', 'visible', 'color']);
+const finite3 = (v, lim = 5000) => Array.isArray(v) && v.length === 3 && v.every(n => Number.isFinite(+n) && Math.abs(+n) <= lim);
+/* code written through these operations (by the assistant or a model)
+   may use the game API only. The runtime's name shadowing is a guard-rail,
+   not a wall — so anything reaching for the page, the network, browser
+   storage, dynamic code or the platform's own data is refused here,
+   before it ever reaches the project. (The user's own hand-written code
+   is not limited by this.) */
+const AI_CODE_POLICY = [
+  [/\b(window|document|globalThis|top|parent|frames|opener|location|navigator)\b/, 'الوصول إلى الصفحة'],
+  [/\b(fetch|XMLHttpRequest|WebSocket|EventSource|Worker|SharedWorker|importScripts|sendBeacon)\b/, 'اتصال بالشبكة'],
+  [/\b(localStorage|sessionStorage|indexedDB|caches|cookie)\b/, 'تخزين المتصفح'],
+  [/\beval\b|\bFunction\b|\bconstructor\b|__proto__|\bimport\s*\(|\bReflect\b|\bProxy\b/, 'تنفيذ كود ديناميكي'],
+  [/\b(NX|firebase|Backend|Drive|accessToken|apiKey|idToken)\b/, 'بيانات المنصة أو مفاتيحها'],
+  /* obj["na"+"me"] — a property reached through text can hide any of the above */
+  [/\[\s*""/, 'وصول إلى خاصية عبر نص']
+];
+function aiCodeViolations(code) {
+  /* strings and comments do not count */
+  const bare = String(code || '').replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+    .replace(/`(?:\\.|[^`\\])*`|'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"/g, '""');
+  return AI_CODE_POLICY.filter(([re]) => re.test(bare)).map(([re, why]) => why + ' (' + (bare.match(re) || [''])[0] + ')');
+}
+const GameOps = {
+  names: OP_NAMES,
+  env() { return NX.AIPanel.env(); },
+  entity(ref) {
+    const eng = NX.Studio.engine;
+    if (!ref) return null;
+    return (ref.id && eng.getEntity(ref.id)) || (ref.name && eng.findByName(ref.name)) || null;
+  },
+  uniqueName(base) {
+    const eng = NX.Studio.engine;
+    let name = base, n = 2;
+    while (eng.findByName(name)) name = base + ' ' + (n++);
+    return name;
+  },
+  /* an asset this user may use: exists, and public or their own */
+  async usableAsset(assetId) {
+    if (typeof assetId !== 'string' || !assetId) throw new Error('معرّف الأصل مفقود');
+    const a = await Assets.get(assetId).catch(() => null);
+    if (!a) throw new Error('الأصل غير موجود أو غير متاح لك: ' + assetId);
+    const me = Backend.user && Backend.user.uid;
+    if (a.visibility === 'private' && a.ownerId !== me) throw new Error('أصل خاص لمستخدم آخر — لا يُستعمل');
+    if (!['model', 'audio'].includes(a.kind)) throw new Error('«' + a.name + '» ليس مجسمًا أو صوتًا');
+    return a;
+  },
+  async run(op, args = {}) {
+    if (!OP_NAMES.includes(op)) throw new Error('عملية غير معروفة: ' + op);
+    const S = NX.Studio, eng = S.engine, p = S.project;
+    if (!p || !eng) throw new Error('لا يوجد مشروع مفتوح');
+    switch (op) {
+      case 'ADD_ASSET': {
+        const a = await this.usableAsset(args.assetId);
+        if (args.position && !finite3(args.position)) throw new Error('موضع غير صالح');
+        const e = await eng.addEntity({ name: this.uniqueName(args.name || a.name), type: a.kind === 'audio' ? 'audio' : 'model', assetId: a.assetId,
+          tag: String(args.tag || '').slice(0, 40), position: args.position || [0, 0, 0] }, { asset: a });
+        const ud = e.object3D.userData;
+        if (ud.missing || ud.loadError) { eng.removeEntity(e.id); throw new Error(ud.missing ? `«${a.name}» غير متاح` : `تعذّر تنزيل «${a.name}»: ${ud.loadError}`); }
+        if (Number.isFinite(args.rotationY)) e.object3D.rotation.y = args.rotationY;
+        e.object3D.updateMatrixWorld(true);
+        Agent.linkAsset(p, a);
+        return { entity: e, asset: a };
+      }
+      case 'CREATE_OBJECT': {
+        const type = args.type || 'primitive';
+        if (!['primitive', 'light', 'spawn'].includes(type)) throw new Error('نوع كائن غير مسموح: ' + type);
+        if (type === 'primitive' && !SHAPES.has(args.shape || 'box')) throw new Error('شكل غير مسموح: ' + args.shape);
+        if (args.position && !finite3(args.position)) throw new Error('موضع غير صالح');
+        if (args.scale && !finite3(args.scale, 2000)) throw new Error('حجم غير صالح');
+        const name = this.uniqueName(args.name || 'Object');
+        await NX.Executor.apply({ op: 'scene.create', objectType: type, shape: args.shape, name, position: args.position, scale: args.scale,
+          color: args.color, tag: args.tag, physics: args.physics, light: args.light, intensity: args.intensity }, this.env());
+        return { entity: eng.findByName(name) };
+      }
+      case 'MOVE_OBJECT': case 'ROTATE_OBJECT': case 'SCALE_OBJECT': {
+        const e = this.entity(args);
+        if (!e || !e.object3D) throw new Error('الكائن غير موجود');
+        if (op === 'MOVE_OBJECT') { if (!finite3(args.position)) throw new Error('موضع غير صالح'); e.object3D.position.fromArray(args.position.map(Number)); }
+        if (op === 'ROTATE_OBJECT') { const y = +args.rotationY; if (!Number.isFinite(y)) throw new Error('زاوية غير صالحة'); e.object3D.rotation.y = y; }
+        if (op === 'SCALE_OBJECT') { const k = +args.scale; if (!(k > 0.001 && k < 1000)) throw new Error('حجم غير صالح'); e.object3D.scale.setScalar(k); }
+        e.object3D.updateMatrixWorld(true);
+        return { entity: e };
+      }
+      case 'SET_PROPERTY': {
+        const e = this.entity(args);
+        if (!e) throw new Error('الكائن غير موجود');
+        if (!SETTABLE.has(args.key)) throw new Error('خاصية غير مسموحة: ' + args.key);
+        if (args.key === 'name') e.name = this.uniqueName(String(args.value).slice(0, 60));
+        if (args.key === 'tag') e.tag = String(args.value).slice(0, 40);
+        if (args.key === 'visible') e.object3D.visible = !!args.value;
+        if (args.key === 'color') {
+          if (e.type !== 'primitive' || !/^#[0-9a-f]{6}$/i.test(String(args.value))) throw new Error('اللون للأشكال الأولية فقط وبصيغة #rrggbb');
+          e.props.color = args.value; e.object3D.traverse(n => { if (n.isMesh && n.material && n.material.color) n.material.color.set(args.value); });
+        }
+        return { entity: e };
+      }
+      case 'REMOVE_OBJECT': case 'DELETE_OBJECT': {
+        const e = this.entity(args);
+        if (!e) throw new Error('الكائن غير موجود');
+        (p.files || []).forEach(f => { if (f.entityId === e.id) f.entityId = null; });
+        eng.removeEntity(e.id);
+        return { removed: e.name };
+      }
+      case 'CREATE_SCRIPT': case 'UPDATE_SCRIPT': {
+        const path = String(args.path || '');
+        if (!/^[\w\-/]{1,80}\.(m?js|ts)$/.test(path) || path.includes('..')) throw new Error('مسار ملف غير صالح: ' + path);
+        const bad = aiCodeViolations(args.code);
+        if (bad.length) throw new Error('كود المساعد يستعمل واجهة اللعبة فقط — رُفض: ' + bad.join('، '));
+        const vctx = NX.Validator.context(p, eng);
+        const check = await NX.Validator.checkCode(String(args.code || ''), Object.assign({ path }, vctx));
+        if (!check.ok) throw new Error('الكود لم يجتز الفحص: ' + check.errors.map(x => 'سطر ' + x.line + ': ' + x.message).join(' · '));
+        const exists = (p.files || []).some(f => f.path === path);
+        if (op === 'UPDATE_SCRIPT' || exists) await NX.Executor.apply({ op: 'file.edit', path, code: args.code }, this.env());
+        else await NX.Executor.apply({ op: 'file.create', path, code: args.code, role: 'script', attachTo: args.attachTo }, this.env());
+        S.lastBuild = null;
+        return { file: path, updated: exists, warnings: check.warnings || [] };
+      }
+      case 'CREATE_SCENE': {
+        /* an empty scene for a new game — camera and lights stay */
+        const keep = new Set(['camera', 'light']);
+        Array.from(eng.entities.values()).filter(e => !keep.has(e.type)).forEach(e => eng.removeEntity(e.id));
+        return { cleared: true };
+      }
+      case 'PLAY_TEST': {
+        const env = this.env();
+        const build = await env.buildProject();
+        const errs = build.ok ? [] : build.diagnostics.filter(d => d.severity === 'error').map(d => (d.file ? d.file + ':' + d.line + ' ' : '') + d.message);
+        if (!build.ok) return { ok: false, stage: 'build', errors: errs };
+        const t = await env.testRun(build);
+        return { ok: !t.errors.length, stage: 'run', errors: t.errors };
+      }
+      case 'UNDO': return { entry: await S.undo() };
+      case 'REDO': return { entry: await S.redo() };
+    }
+  }
+};
+
+/* ============================================================
+   GAME COMPOSER — «اصنع لي لعبة قيادة… الطريق في المنتصف، المنازل
+   على الجانبين، الأشجار حول الطريق، والسيارة في نقطة البداية».
+   1. understand the request (built-in parser; a connected model may
+      help, but only with names and relations — never ids);
+   2. search the user's project + own assets first, then the public
+      library, ranking by the real metadata (type, name, tags, size);
+   3. preview what will be used and where → APPLY / CANCEL;
+   4. place everything with real bounding boxes as ONE undo step,
+      write the control script, save, run a play test, report.
+   ============================================================ */
+const GAME_VERBS = ['اصنع', 'ابن', 'ابني', 'انشئ', 'اعمل', 'سوي', 'صمم', 'جهز', 'make', 'build', 'create', 'design', 'generate'];
+const GENRES = [
+  { id: 'driving', label: 'لعبة قيادة', w: ['قياده', 'سياقه', 'سباق', 'سيارات', 'سياره', 'drive', 'driving', 'racing', 'race', 'car', 'cars'] },
+  { id: 'walker', label: 'لعبة استكشاف بشخصية', w: ['لاعب', 'شخصيه', 'مشي', 'مغامره', 'استكشاف', 'player', 'character', 'walk', 'walking', 'adventure', 'explore', 'platformer'] }
+];
+const LAYOUT_WORDS = {
+  center: ['منتصف', 'وسط', 'middle', 'center', 'centre'],
+  sides: ['جانبين', 'جانبي', 'جانبان', 'طول', 'both', 'sides', 'along'],
+  around: ['حول', 'حوالين', 'محيط', 'around', 'surrounding'],
+  start: ['بدايه', 'انطلاق', 'start', 'beginning', 'spawn'],
+  end: ['نهايه', 'اخر', 'end', 'finish'],
+  front: ['امام', 'قدام', 'front'], behind: ['خلف', 'وراء', 'behind'],
+  left: ['يسار', 'left'], right: ['يمين', 'right'], beside: ['جانب', 'قرب', 'جوار', 'beside', 'next', 'near']
+};
+const RELATION_AR = { center: 'في المنتصف', sides: 'على الجانبين', around: 'حول', start: 'عند نقطة البداية', end: 'عند النهاية', front: 'أمام', behind: 'خلف', left: 'يسار', right: 'يمين', beside: 'بجانب' };
+/* concept → the stored asset type it corresponds to */
+const CONCEPT_TYPE = { car: 'vehicle', truck: 'vehicle', bus: 'vehicle', bike: 'vehicle', plane: 'vehicle', boat: 'vehicle', building: 'building', house: 'building', shop: 'building',
+  road: 'road', tree: 'tree', plant: 'plant', rock: 'rock', character: 'character', player: 'character', enemy: 'character', animal: 'animal', weapon: 'weapon',
+  chair: 'furniture', table: 'furniture', bench: 'furniture', lamp: 'prop', box: 'prop', sign: 'prop', fence: 'prop', coin: 'prop' };
+const DEFAULT_COUNT = { house: 6, building: 6, shop: 4, tree: 10, plant: 10, rock: 6, lamp: 6, fence: 6 };
+/* a small seeded random so the same request lays out the same way */
+function seeded(seed) { let t = seed >>> 0; return () => { t += 0x6D2B79F5; let r = Math.imul(t ^ (t >>> 15), 1 | t); r ^= r + Math.imul(r ^ (r >>> 7), 61 | r); return ((r ^ (r >>> 14)) >>> 0) / 4294967296; }; }
+
+const GameComposer = {
+  isRequest(text) {
+    const ws = words(text);
+    const has = list => ws.some(w => stems(w).some(s => list.includes(s)));
+    return has(GAME_VERBS) && has(['لعبه', 'game']);
+  },
+
+  /* the built-in reader: genre + one item per clause (what · where · relative to what · how many) */
+  parse(text) {
+    const ws = words(text);
+    const has = list => ws.some(w => stems(w).some(s => list.includes(s)));
+    const genre = GENRES.find(g => has(g.w)) || null;
+    const items = [];
+    const relOf = w => { for (const [r, list] of Object.entries(LAYOUT_WORDS)) if (stems(w).some(s => list.includes(s))) return r; return null; };
+    const parts = String(text).split(/[.،,؛;:!\n]+|\s+ثم\s+|\s+then\s+/i).map(x => x.trim()).filter(Boolean);
+    for (const part of parts) {
+      /* «الطريق في المنتصف والصخور حول الطريق»: a new «و…» thing after one
+         already placed starts its own item */
+      const ws = words(part), segs = []; let seg = null;
+      ws.forEach((w, i) => {
+        const c = detectConcept(w), thing = c && !c.concept.noAsset;
+        const and = (/^و/.test(w) && detectConcept(w.slice(1))) || (i > 0 && (ws[i - 1] === 'و' || ws[i - 1] === 'and'));
+        if (thing && and && seg && seg.concepts.length && seg.relation) seg = null;
+        if (!seg) { seg = { concepts: [], relation: null, count: null, words: [] }; segs.push(seg); }
+        seg.words.push(w);
+        if (thing && !seg.concepts.includes(c.concept)) seg.concepts.push(c.concept);
+        if (!seg.relation) seg.relation = relOf(w);
+        const n = detectNum(w); if (n != null && seg.count == null) seg.count = n;
+      });
+      for (const s of segs) if (s.concepts.length) items.push({ concept: s.concepts[0], relation: s.relation, target: s.concepts[1] || null, count: s.count, clause: s.words.join(' ') });
+    }
+    /* «لعبة سيارات في مدينة» names things but places none: the genre's layout is used */
+    return { genre, items, explicit: items.some(i => i.relation) };
+  },
+
+  /* a connected model may read the request — it returns names and
+     relations only; the assets are still chosen here from real records */
+  async modelParse(text, assets) {
+    const system = `You read a request to build a small 3D game from the user's uploaded files and answer ONLY with JSON:
+{"genre":"driving|walker|null","items":[{"concept":"one of: ${CONCEPTS.filter(c => !c.noAsset).map(c => c.id).join('|')}","relation":"center|sides|around|start|end|front|behind|left|right|beside|null","target":"a concept id or null","count":null}]}
+Use only concepts the user asked for or that the genre clearly needs. Never output asset ids.
+AVAILABLE ASSETS (metadata only):
+${assets.slice(0, 40).map(x => `ASSET: name=${x.name} · type=${x.type} · size=${x.size || '?'} · source=${x.scope}`).join('\n')}`;
+    const raw = await NX.AI.raw(system, text);
+    const j = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+    const byId = id => CONCEPTS.find(c => c.id === id && !c.noAsset) || null;
+    const items = (j.items || []).map(it => ({ concept: byId(it.concept), relation: RELATION_AR[it.relation] ? it.relation : null, target: byId(it.target), count: Number.isFinite(+it.count) && +it.count > 0 ? Math.min(40, +it.count) : null, clause: it.concept }))
+      .filter(it => it.concept);
+    return { genre: GENRES.find(g => g.id === j.genre) || null, items, explicit: items.some(i => i.relation), byModel: true };
+  },
+
+  /* the assets the assistant may use, with their metadata — shown to the
+     user (and, as metadata only, to a connected model) */
+  async usableAssets() {
+    const p = NX.Studio.project, me = Backend.user && Backend.user.uid;
+    const allowMine = NX.ProjectContext.perms().assets;
+    const out = new Map();
+    const add = (a, scope) => {
+      if (!a || out.has(a.assetId) || a.kind !== 'model' && a.kind !== 'audio') return;
+      if (a.visibility === 'private' && a.ownerId !== me) return;
+      const t = NX.assetTypeOf(a) || {};
+      out.set(a.assetId, { a, scope, type: t.type, typeSource: t.source, size: a.stats && a.stats.size ? a.stats.size.map(v => (+v).toFixed(1)).join('×') : null });
+    };
+    if (allowMine) {
+      for (const id of (p.assetRefs || [])) add(await Assets.get(id).catch(() => null), 'project');
+      if (me) (await Assets.search({ scope: 'mine', ownerId: me, limit: 60, sort: 'new' }).catch(() => ({ items: [] }))).items.forEach(a => add(a, 'mine'));
+    }
+    return Array.from(out.values());
+  },
+
+  /* the best real asset for one concept: project + mine first, then public */
+  async choose(concept, mineList) {
+    const q = { concept, adjs: [] };
+    const local = mineList.map(x => Object.assign({ a: x.a, scope: x.scope }, rankAsset(x.a, q, 'mine')))
+      .filter(x => x.relevant && x.a.kind === (concept.kind || 'model')).sort((x, y) => y.score - x.score);
+    if (local.length) return Object.assign({ alternatives: local.slice(1, 4) }, local[0]);
+    const pub = await findAssets(q, { source: 'public', limit: 6 }).catch(() => ({ items: [] }));
+    /* «استخدم أصول مشروعي» off: the user's own files stay out, even the public ones */
+    const me = Backend.user && Backend.user.uid;
+    const items = NX.ProjectContext.perms().assets ? pub.items : pub.items.filter(x => x.a.ownerId !== me);
+    if (items.length) return Object.assign({ alternatives: items.slice(1, 4) }, items[0]);
+    return null;
+  },
+
+  async start(text, ui) {
+    const S = NX.Studio;
+    if (!S.project || !S.engine) { ui.say('افتح مشروعًا أولًا — المساعد يبني داخل المشروع المفتوح.'); return; }
+    if (S.playing) { ui.say('أوقف التشغيل ⏹ أولًا.'); return; }
+    ui.busy('أقرأ طلبك وأبحث في أصولك…');
+    let mine, parsed;
+    try {
+      mine = await this.usableAssets();
+      parsed = this.parse(text);
+      if (AIConfig.isReady()) {
+        try { const m = await this.modelParse(text, mine.map(x => ({ name: x.a.name, type: x.type, size: x.size, scope: x.scope }))); if (m.items.length || m.genre) parsed = Object.assign({}, parsed, m, { items: m.items.length ? m.items : parsed.items, explicit: m.items.length ? m.explicit : parsed.explicit }); }
+        catch (e) { /* the built-in reading stays */ }
+      }
+    } finally { ui.busy(null); }
+
+    const byConcept = new Map();
+    const genre = parsed.genre || (parsed.items.some(i => ['car', 'truck', 'bus', 'bike'].includes(i.concept.id)) ? GENRES[0] : parsed.items.some(i => ['player', 'character'].includes(i.concept.id)) ? GENRES[1] : null);
+    let items = parsed.items.slice();
+    const C = id => CONCEPTS.find(c => c.id === id);
+    /* nothing laid out explicitly: a layout that fits the genre, from what the user HAS */
+    if (!parsed.explicit) {
+      /* the things the user named keep their word (and count) and get the
+         layout's place; things the layout has no place for are still added */
+      const wanted = items; items = [];
+      const wants = t => wanted.some(w => CONCEPT_TYPE[w.concept.id] === t);
+      const hasType = t => mine.some(x => x.type === t) || wants(t);
+      if (genre && genre.id === 'driving') {
+        items.push({ concept: C('road'), relation: 'center', auto: true });
+        if (hasType('building')) items.push({ concept: C('house'), relation: 'sides', auto: true });
+        if (hasType('tree')) items.push({ concept: C('tree'), relation: 'around', target: C('road'), auto: true });
+        items.push({ concept: C('car'), relation: 'start', auto: true });
+      } else {
+        if (hasType('road')) items.push({ concept: C('road'), relation: 'center', auto: true });
+        if (hasType('building')) items.push({ concept: C('house'), relation: 'sides', auto: true });
+        if (hasType('tree')) items.push({ concept: C('tree'), relation: 'around', auto: true });
+        if (hasType('character')) items.push({ concept: C('player'), relation: 'start', auto: true });
+      }
+      for (const w of wanted) {
+        const same = items.find(i => i.concept.id === w.concept.id || (CONCEPT_TYPE[i.concept.id] && CONCEPT_TYPE[i.concept.id] === CONCEPT_TYPE[w.concept.id]));
+        if (same) { same.concept = w.concept; if (w.count) same.count = w.count; same.auto = false; }
+        else items.push(w);
+      }
+    }
+    if (genre && genre.id === 'driving' && !items.some(i => ['car', 'truck', 'bus', 'bike'].includes(i.concept.id))) items.push({ concept: C('car'), relation: 'start', auto: true });
+    if (genre && genre.id === 'driving' && !items.some(i => i.concept.id === 'road')) items.unshift({ concept: C('road'), relation: 'center', auto: true });
+    if (!items.length) {
+      ui.say('لم أجد في طلبك ما أبنيه، ولا في أصولك ما يكفي لتخطيط تلقائي. مثال: «اصنع لي لعبة قيادة: الطريق في المنتصف، المنازل على الجانبين، الأشجار حول الطريق، والسيارة في نقطة البداية».');
+      return;
+    }
+    /* the road goes first — everything else is placed relative to it */
+    items.sort((a, b) => (a.concept.id === 'road' ? 0 : 1) - (b.concept.id === 'road' ? 0 : 1));
+
+    ui.busy('أختار الأصول المناسبة من ملفاتك…');
+    const missing = [];
+    try {
+      for (const it of items) {
+        if (!byConcept.has(it.concept.id)) byConcept.set(it.concept.id, await this.choose(it.concept, mine));
+        it.pick = byConcept.get(it.concept.id);
+        if (!it.pick) missing.push(it.concept);
+      }
+    } finally { ui.busy(null); }
+    /* a road can be drawn without a file; anything else missing is skipped, and said */
+    items = items.filter(it => it.pick || it.concept.id === 'road');
+    if (!items.some(it => it.pick)) {
+      ui.say('لم أجد أي أصل مناسب في ملفاتك ولا في المكتبة العامة لهذا الطلب: ' + missing.map(c => c.label).join('، ') + '. ارفع المجسمات من «الأصول ← UPLOAD» ثم أعد الطلب — لا أخترع أصولًا.');
+      return;
+    }
+    const usedIds = new Set(items.filter(i => i.pick).map(i => i.pick.a.assetId));
+    const unused = mine.filter(x => x.a.kind === 'model' && !usedIds.has(x.a.assetId));
+
+    const plan = { id: uid('plan'), game: true, text, ui, items, genre, missing, unused, byModel: !!parsed.byModel, done: false };
+    Agent.plans.set(plan.id, plan);
+    const picks = items.filter(i => i.pick), pubN = picks.filter(i => i.pick.scope === 'public').length;
+    const from = pubN === 0 ? 'من أصولك' : pubN === picks.length ? 'من المكتبة العامة' : 'من أصولك والمكتبة العامة';
+    const lines = [(genre ? '🎮 ' + genre.label : '🎮 مشهد لعبة') + (parsed.byModel ? ' — فهمت الطلب عبر النموذج، واخترت الأصول من سجلاتها الحقيقية' : ' — ' + from)];
+    items.forEach(it => {
+      const n = it.count || DEFAULT_COUNT[it.concept.id] || 1;
+      const rel = it.relation ? RELATION_AR[it.relation] + (it.target && ['around', 'front', 'behind', 'left', 'right', 'beside'].includes(it.relation) ? ' ' + it.target.label : '') : 'في مكان مناسب';
+      if (it.pick) {
+        const a = it.pick.a, t = NX.assetTypeOf(a) || {};
+        lines.push(`• ${it.concept.label}: «${a.name}»${n > 1 ? ' ×' + n : ''} (${it.pick.scope === 'public' ? 'المكتبة العامة @' + (a.creatorName || '') : 'ملفاتك'} · ${(NX.ASSET_TYPES[t.type] || {}).ar || t.type}${a.stats && a.stats.size ? ' · ' + a.stats.size.map(v => (+v).toFixed(1)).join('×') + ' م' : ''}) — ${rel}`);
+      } else lines.push(`• ${it.concept.label}: شكل أوّلي (لا يوجد أصل ${it.concept.label} في ملفاتك) — ${rel}`);
+    });
+    lines.push('• أرضية وإضاءة ونقطة ظهور — إن لم تكن موجودة');
+    if (genre && genre.id === 'driving') lines.push('• كود: DrivingController.js — تسارع وفرامل وتوجيه، وكاميرا تتبع السيارة');
+    if (genre && genre.id === 'walker') lines.push('• كود: PlayerController.js — حركة الشخصية وقفز وكاميرا');
+    const skipped = missing.filter(c => c.id !== 'road');
+    if (skipped.length) lines.push('✗ لم أجد أصلًا لـ: ' + skipped.map(c => c.label).join('، ') + ' — تخطّيته (ارفع ملفًا له ثم اطلب إضافته)');
+    if (unused.length) lines.push('لم أستخدم: ' + unused.slice(0, 6).map(x => '«' + x.a.name + '»').join('، ') + ' — لم يطلبها الوصف');
+    lines.push('كل ذلك خطوة تراجع واحدة، ويُحفظ المشروع بعده.');
+    ui.say('هذه خطة البناء من ملفاتك — راجعها ثم طبّق:', [{ type: 'preview', title: 'معاينة قبل التطبيق', planId: plan.id, lines }]);
+  },
+
+  async execute(plan) {
+    const S = NX.Studio, eng = S.engine, p = S.project;
+    if (S.playing) { plan.ui.say('أوقف التشغيل أولًا.'); return; }
+    plan.done = true;
+    S.pushUndo('AI: ' + plan.text.slice(0, 60), { by: 'ai', files: true });
+    const lines = [], errors = [], used = new Map(), touched = [];
+    const rand = seeded(p.projectId.length * 7919 + plan.text.length);
+    const index0 = await sceneIndex(eng);
+    const ground0 = index0.find(x => x.ground && x.e.tag !== 'road');
+    const baseY = ground0 ? ground0.box.max.y : 0;
+    const note = (a, n = 1) => { const u = used.get(a.assetId) || { assetId: a.assetId, name: a.name, count: 0, creatorName: a.creatorName || '', mine: a.ownerId === (Backend.user && Backend.user.uid) }; u.count += n; used.set(a.assetId, u); };
+    const run = async (op, args) => { const r = await GameOps.run(op, args); if (r && r.entity) touched.push(r.entity.id); return r; };
+    const others = () => Array.from(eng.entities.values()).filter(e => e.object3D && ['model', 'primitive'].includes(e.type) && e.tag !== 'ground').map(e => ({ id: e.id, box: boxOf(e) }));
+    const free = (e, exclude) => { const b = boxOf(e); return !others().some(o => o.id !== e.id && !(exclude && exclude.has(o.id)) && b.intersectsBox(o.box.clone().expandByScalar(-0.05))); };
+    const standOn = (e, y) => { const b = boxOf(e); e.object3D.position.y += y - b.min.y; e.object3D.updateMatrixWorld(true); };
+    const centerAt = (e, x, z) => { const b = boxOf(e), c = b.getCenter(new THREE.Vector3()); e.object3D.position.x += x - c.x; e.object3D.position.z += z - c.z; e.object3D.updateMatrixWorld(true); };
+    let axis = null;                  // the road: runs along Z, centred on x = 0
+    let sideDepth = 0;                // how far the houses reach from the road edge
+    plan.ui.busy('أبني المشهد من ملفاتك…');
+    try {
+      for (const it of plan.items) {
+        const cid = it.concept.id, a = it.pick && it.pick.a;
+        const n = Math.max(1, Math.min(40, it.count || DEFAULT_COUNT[cid] || 1));
+        try {
+          if (cid === 'road') {
+            if (a) {
+              const r = await run('ADD_ASSET', { assetId: a.assetId, name: a.name, tag: 'road' });
+              const e = r.entity; note(a);
+              let sz = boxOf(e).getSize(new THREE.Vector3());
+              if (sz.x > sz.z) { e.object3D.rotation.y += Math.PI / 2; e.object3D.updateMatrixWorld(true); sz = boxOf(e).getSize(new THREE.Vector3()); }
+              const tiles = sz.z < 30 ? Math.min(6, Math.ceil(60 / Math.max(1, sz.z))) : 1;
+              const len = sz.z * tiles;
+              centerAt(e, 0, -len / 2 + sz.z / 2); standOn(e, baseY);
+              for (let k = 1; k < tiles; k++) {
+                const c = await run('ADD_ASSET', { assetId: a.assetId, name: a.name, tag: 'road' }); note(a);
+                c.entity.object3D.rotation.y = e.object3D.rotation.y; c.entity.object3D.updateMatrixWorld(true);
+                centerAt(c.entity, 0, -len / 2 + sz.z * (k + 0.5)); standOn(c.entity, baseY);
+              }
+              axis = { w: sz.x, len, z0: -len / 2, z1: len / 2, top: boxOf(e).max.y };
+              lines.push(`🛣 «${a.name}» في المنتصف${tiles > 1 ? ' ×' + tiles + ' قطع متتالية' : ''} — طول ${len.toFixed(0)} م، عرض ${sz.x.toFixed(1)} م`);
+            } else {
+              const r = await run('CREATE_OBJECT', { type: 'primitive', shape: 'box', name: 'Road', position: [0, baseY + 0.05, 0], scale: [8, 0.1, 60], color: '#2b2d33', tag: 'road' });
+              axis = { w: 8, len: 60, z0: -30, z1: 30, top: baseY + 0.1 };
+              lines.push('🛣 طريق شكل أوّلي 8×60 م في المنتصف (لا يوجد أصل طريق في ملفاتك)');
+              if (!r.entity) throw new Error('لم يُنشأ الطريق');
+            }
+            continue;
+          }
+          if (!a) continue;
+          if (it.relation === 'sides') {
+            const perSide = Math.max(1, Math.ceil(n / 2));
+            const len = axis ? axis.len : 40, z0 = axis ? axis.z0 : -20, halfW = axis ? axis.w / 2 : 0;
+            let placed = 0;
+            for (const side of [-1, 1]) for (let k = 0; k < perSide && placed < n; k++) {
+              const r = await run('ADD_ASSET', { assetId: a.assetId, name: a.name, tag: cid, rotationY: side < 0 ? Math.PI / 2 : -Math.PI / 2 });
+              const e = r.entity; note(a); autoScale(e, it.concept);
+              const half = boxOf(e).getSize(new THREE.Vector3()).x / 2;
+              let x = side * (halfW + 2.5 + half);
+              const z = z0 + (k + 0.5) * len / perSide;
+              centerAt(e, x, z); standOn(e, baseY);
+              for (let t = 0; t < 6 && !free(e); t++) { x += side * 2; centerAt(e, x, z); }
+              sideDepth = Math.max(sideDepth, half * 2 + 2.5);
+              placed++;
+            }
+            lines.push(`🏠 «${a.name}» ×${placed} على جانبي ${axis ? 'الطريق' : 'المحور'}، واجهاتها نحو ${axis ? 'الطريق' : 'الوسط'}`);
+            continue;
+          }
+          if (it.relation === 'around' && (!it.target || it.target.id === 'road') && axis) {
+            const perSide = Math.max(1, Math.ceil(n / 2));
+            let placed = 0;
+            for (const side of [-1, 1]) for (let k = 0; k < perSide && placed < n; k++) {
+              const r = await run('ADD_ASSET', { assetId: a.assetId, name: a.name, tag: cid, rotationY: rand() * Math.PI * 2 });
+              const e = r.entity; note(a); autoScale(e, it.concept);
+              const half = boxOf(e).getSize(new THREE.Vector3()).x / 2;
+              let x = side * (axis.w / 2 + 2 + (sideDepth ? sideDepth + 2 : 0) + half + rand() * 2);
+              const z = axis.z0 + (k + 0.25 + rand() * 0.5) * axis.len / perSide;
+              centerAt(e, x, z); standOn(e, baseY);
+              for (let t = 0; t < 6 && !free(e); t++) { x += side * 2.5; centerAt(e, x, z); }
+              placed++;
+            }
+            lines.push(`🌳 «${a.name}» ×${placed} حول الطريق (على الجانبين${sideDepth ? '، خلف المنازل' : ''})`);
+            continue;
+          }
+          if (it.relation === 'start' || it.relation === 'end') {
+            const r = await run('ADD_ASSET', { assetId: a.assetId, name: a.name, tag: ['car', 'truck', 'bus', 'bike'].includes(cid) ? 'vehicle' : (it.concept.tag || cid), rotationY: 0 });
+            const e = r.entity; note(a); autoScale(e, it.concept);
+            const sz = boxOf(e).getSize(new THREE.Vector3());
+            const z = axis ? (it.relation === 'start' ? axis.z0 + sz.z / 2 + 3 : axis.z1 - sz.z / 2 - 3) : 0;
+            const x = axis && ['car', 'truck', 'bus', 'bike'].includes(cid) ? -axis.w / 4 : axis ? axis.w / 2 + 1.5 : 0;
+            centerAt(e, x, z); standOn(e, axis ? axis.top : baseY);
+            lines.push(`${['car', 'truck', 'bus', 'bike'].includes(cid) ? '🚗' : '🧍'} «${a.name}» ${RELATION_AR[it.relation]}${axis ? ' على الطريق، باتجاهه' : ''} ${fmtV(e.object3D.position)}`);
+            it.entity = e;
+            continue;
+          }
+          /* center, or a relation to something already there */
+          const targetE = it.target ? Array.from(eng.entities.values()).find(x => x.tag === it.target.id || x.tag === (it.target.tag || '') || (x.assetName || x.name || '').toLowerCase().includes(it.target.id)) : null;
+          for (let k = 0; k < n; k++) {
+            const r = await run('ADD_ASSET', { assetId: a.assetId, name: a.name, tag: it.concept.tag || cid });
+            const e = r.entity; note(a); autoScale(e, it.concept);
+            if (it.relation === 'center' && !targetE) { centerAt(e, 0, 0); standOn(e, axis ? axis.top : baseY); }
+            else placeRelative(eng, await sceneIndex(eng), e, { targetBox: targetE ? boxOf(targetE) : null, relation: it.relation && RELATIONS.some(x => x.id === it.relation) ? it.relation : 'beside', slot: k, slots: n, exclude: new Set() });
+          }
+          lines.push(`+ «${a.name}»${n > 1 ? ' ×' + n : ''} ${it.relation ? RELATION_AR[it.relation] : ''}${targetE ? ' ' + targetE.name : ''}`);
+        } catch (e) { errors.push(it.concept.label + ': ' + ((e && e.message) || e)); }
+      }
+
+      /* the world around it */
+      const idx = await sceneIndex(eng);
+      if (!idx.some(x => x.ground && x.e.tag !== 'road')) {
+        const size = Math.max(90, (axis ? axis.len : 40) + 70);
+        await run('CREATE_OBJECT', { type: 'primitive', shape: 'plane', name: 'Ground', position: [0, 0, 0], scale: [size, 1, size], color: '#3a4a36', tag: 'ground', physics: 'static' });
+        lines.push(`⬜ أرضية ${size}×${size} م`);
+      }
+      if (!Array.from(eng.entities.values()).some(e => e.type === 'light')) { await run('CREATE_OBJECT', { type: 'light', light: 'directional', name: 'Sun', position: [30, 50, 20], intensity: 2 }); lines.push('☀ إضاءة'); }
+      const hero = plan.items.find(i => i.entity);
+      const spawnAt = hero ? hero.entity.object3D.position.toArray() : [0, 0, axis ? axis.z0 + 5 : 0];
+      const spawn = Array.from(eng.entities.values()).find(e => e.type === 'spawn');
+      if (spawn) spawn.object3D.position.fromArray(spawnAt); else await run('CREATE_OBJECT', { type: 'spawn', name: 'Spawn Point', position: spawnAt });
+
+      /* the code that makes it a game */
+      const car = plan.items.find(i => i.entity && ['car', 'truck', 'bus', 'bike'].includes(i.concept.id));
+      if (plan.genre && plan.genre.id === 'driving' && car) {
+        const r = await run('CREATE_SCRIPT', { path: 'DrivingController.js', code: drivingCode(car.entity.name) });
+        lines.push(`📜 ${r.updated ? 'حُدّث' : 'أُنشئ'} DrivingController.js — يقود «${car.entity.name}»: عصا تحكم + GAS/BRAKE أو W/S و A/D، وكاميرا تتبعها`);
+      } else if (plan.genre && plan.genre.id === 'driving') {
+        errors.push('لا توجد سيارة في المشهد — لم أكتب كود القيادة');
+      } else if (plan.genre && plan.genre.id === 'walker') {
+        const pl = plan.items.find(i => ['player', 'character'].includes(i.concept.id) && i.pick);
+        const mat = NX.Systems.player.build({ assets: pl ? [pl.pick.a] : [] });
+        const f = mat.files[0];
+        const r = await run('CREATE_SCRIPT', { path: f.path, code: f.code });
+        lines.push(`📜 ${r.updated ? 'حُدّث' : 'أُنشئ'} ${f.path}` + (mat.note ? ' — ' + mat.note : ''));
+      }
+    } finally { plan.ui.busy(null); }
+
+    eng.focusAll();
+    S.dirty = true; S.updateHud();
+    const saved = await S.save(true);
+    /* play test: build + run briefly, collecting real errors */
+    plan.ui.busy('تشغيل تجريبي…');
+    let test = null;
+    try { test = await GameOps.run('PLAY_TEST'); } catch (e) { test = { ok: false, errors: [String(e.message || e)] }; }
+    finally { plan.ui.busy(null); }
+    lines.push(test.ok ? '▶ تشغيل تجريبي: نجح البناء والتشغيل بلا أخطاء' : '▶ تشغيل تجريبي: ' + (test.stage === 'build' ? 'فشل البناء' : 'أخطاء أثناء التشغيل') + ' — ' + test.errors.slice(0, 3).join(' · '));
+    Memory.touch(p.projectId, touched.slice(-20));
+    const where = saved ? (Backend.isOnline() ? '✓ حُفظ في Firebase' : '✓ حُفظ على هذا الجهاز') : '⚠ لم يُحفظ — اضغط حفظ';
+    plan.ui.say((errors.length ? 'تمّ جزئيًا. ' : 'تمّ. ') + where, [{ type: 'result', title: errors.length ? 'نُفّذ مع مشاكل' : 'ما الذي بنيته', undoable: true, canPlay: true,
+      lines: lines.concat(errors.map(x => '✗ ' + x)), ids: touched.filter(id => eng.entities.has(id)), used: Array.from(used.values()) }]);
+    return { lines, errors, used: Array.from(used.values()), test, saved };
+  }
+};
+
+/* the car the builder placed, driven with its own front (+Z, as glTF
+   models face) — NEXUS's forward() is the object's −Z */
+function drivingCode(carName) {
+  const n = JSON.stringify(carName);
+  return `// قيادة ${carName} — كتبه المساعد من أصولك (يمكنك تعديله)
+const MAX_SPEED = 24, ACCEL = 14, BRAKE = 28, TURN = 1.9, DRAG = 0.6;
+const FRONT = -1;           // مجسمات glTF تتجه نحو +Z، و forward() هو -Z
+let car, speed = 0;
+
+function start() {
+  car = Scene.find(${n});
+  if (!car) { Engine.log("لم أجد السيارة ${carName.replace(/"/g, '')}"); return; }
+  car.tag = "vehicle";
+  car.addBody({ type: "character", shape: "box" });
+  Physics.enable(true);
+  UI.joystick({ id: "move", side: "left" });
+  UI.button("GAS",   () => {}, { id: "gas",   right: 18, bottom: 118 });
+  UI.button("BRAKE", () => {}, { id: "brake", right: 18, bottom: 30 });
+  Camera.follow(car, { offset: [0, 4.2, -10], smooth: 5.5 });
+  Events.emit("VehicleReady", car.name);
+}
+
+function update(dt) {
+  if (!car || !car.exists) return;
+  const throttle = (Input.button("gas") ? 1 : 0) + Math.max(0, Input.axis("vertical"));
+  const brake = (Input.button("brake") ? 1 : 0) + Math.max(0, -Input.axis("vertical"));
+  speed += throttle * ACCEL * dt;
+  speed -= brake * BRAKE * dt;
+  speed -= speed * DRAG * dt;
+  speed = MathUtils.clamp(speed, -7, MAX_SPEED);
+  const steer = Input.axis("horizontal");
+  car.rotate(0, -steer * TURN * dt * MathUtils.clamp(Math.abs(speed) / 8, 0.12, 1), 0);
+  const dir = car.forward();
+  const b = car.body;
+  b.velocity.x = dir.x * FRONT * speed;
+  b.velocity.z = dir.z * FRONT * speed;
+  Events.emit("Speed", Math.abs(speed));
+}`;
+}
+
+/* route: «اصنع لي لعبة …» → the composer; «أعد» → redo */
+const REDO_RE = /^\s*(redo|أعد|اعد|إعادة|اعاده|استرجع)(\s+(التغيير|الخطوة|الخطوه|آخر تغيير|اخر تغيير|ما تراجعت عنه))?\s*[.!؟?]*\s*$/i;
+const _claims = Agent.claims;
+Agent.claims = function (text) {
+  if (GameComposer.isRequest(text) || REDO_RE.test(text)) return true;
+  return _claims.call(this, text);
+};
+const _handle2 = Agent.handle;
+Agent.handle = async function (text, ui) {
+  if (REDO_RE.test(text) && !GameComposer.isRequest(text)) { await this.redo(ui); return true; }
+  if (GameComposer.isRequest(text)) {
+    try { await GameComposer.start(text, ui); }
+    catch (e) { console.error(e); ui.say('✕ توقّفت: ' + ((e && e.message) || e), [], { error: true }); }
+    return true;
+  }
+  return _handle2.call(this, text, ui);
+};
+Agent.redo = async function (ui) {
+  const S = this.studio();
+  if (!S.peekRedo || !S.peekRedo()) { ui.say('لا يوجد تغيير تراجعت عنه لأعيده.'); return; }
+  const r = await S.redo();
+  if (!r) { ui.say('لم تتم الإعادة.'); return; }
+  ui.say('↪ أعدت: ' + r.label + (r.saved ? ' — وحُفظ المشروع.' : ' — ⚠ لم يُحفظ بعد.'));
+};
+const _answer = Agent.answer;
+Agent.answer = async function (planId, key, value) {
+  const plan = this.plans.get(planId);
+  if (plan && plan.game && key === '__apply') {
+    if (plan.done) { Toast.show('انتهت صلاحية هذا الطلب — أرسله من جديد'); return; }
+    if (value === 'yes') {
+      try { await GameComposer.execute(plan); }
+      catch (e) { console.error(e); plan.ui.say('✕ توقّف البناء: ' + ((e && e.message) || e), [], { error: true }); }
+    } else { plan.done = true; plan.ui.say('أُلغي — لم يتغيّر شيء في المشروع.'); }
+    return;
+  }
+  return _answer.call(this, planId, key, value);
+};
+NX.GameOps = GameOps;
+NX.GameComposer = GameComposer;
+
 /* ------------------------------------------------------------
    GAME ANALYZER — PROBLEMS / WARNINGS / SUGGESTIONS, each one read
    from the project, the engine, the build, the validator or the
@@ -16681,8 +17446,20 @@ function renderCard(card, ui) {
     box.appendChild(acts);
   } else if (card.type === 'result' || card.type === 'list' || card.type === 'runtime') {
     box.appendChild(el('div', { class: 'ac-list', text: (card.lines || []).join('\n') }));
+    if (card.used && card.used.length) {
+      const chips = el('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', marginTop: '8px' } });
+      chips.appendChild(el('span', { class: 'tiny', text: 'استخدمت:' }));
+      card.used.forEach(u => chips.appendChild(el('button', { class: 'chip', text: u.name + (u.count > 1 ? ' ×' + u.count : '') + (u.mine ? '' : ' · @' + (u.creatorName || '')),
+        onclick: async () => {
+          const a = await Assets.get(u.assetId).catch(() => null);
+          if (!a) { Toast.err('الأصل لم يعد متاحًا'); return; }
+          NX.openAssetDetails(a, {});
+        } })));
+      box.appendChild(chips);
+    }
     const acts = el('div', { class: 'ac-acts' });
     if (card.undoable && !card.undone) acts.appendChild(actionBtn('↩ تراجع', 'danger', async () => { await Agent.undo(ui); card.undone = true; refresh(); }));
+    if (card.undoable && card.undone) acts.appendChild(actionBtn('↪ إعادة', 'primary', async () => { await Agent.redo(ui); card.undone = false; refresh(); }));
     if (card.ids && card.ids.length) acts.appendChild(actionBtn('حدّد في المشهد', 'ghost', async () => {
       const e = S.engine && S.engine.getEntity(card.ids.find(id => S.engine.entities.has(id)));
       if (!e) { Toast.show('العنصر لم يعد موجودًا'); return; }
