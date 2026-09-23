@@ -1,0 +1,17 @@
+{
+  "name": "nexus-model-compress",
+  "private": true,
+  "description": "Builds nexus/lib/model-compress.js — the in-browser .glb compressor NEXUS loads when a model is uploaded.",
+  "scripts": {
+    "build": "esbuild src.js --bundle --format=esm --platform=browser --target=es2020 --minify --external:node:fs --external:node:path --legal-comments=eof --outfile=../../nexus/lib/model-compress.js"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "4.5.0",
+    "@gltf-transform/extensions": "4.5.0",
+    "@gltf-transform/functions": "4.5.0",
+    "meshoptimizer": "0.22.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

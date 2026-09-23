@@ -2454,6 +2454,8 @@ const Assets = {
       kind: meta.kind || 'data',
       bytes: file.size || 0,
       license: meta.license || 'Original',
+      hash: meta.hash || null,                       // SHA-256 of the original file — duplicates are recognised
+      originalBytes: meta.originalBytes || null,     // size before compression
       visibility: ['public', 'unlisted', 'private'].includes(meta.visibility) ? meta.visibility : 'public',
       stats: meta.stats || null,             // auto-extracted metadata (rule 16)
       createdAt: now, updatedAt: now,
@@ -2530,8 +2532,25 @@ const Assets = {
       if (sort === 'usage') items.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0));
       else items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     }
+    /* the same file uploaded more than once (two accounts, or before
+       duplicates were caught at upload) shows ONCE in the public library:
+       the earliest upload stands for all. "My assets" still lists every
+       copy so its owner can delete it. */
+    if (scope !== 'mine') {
+      const key = a => a.hash || [String(a.name || '').trim().toLowerCase(), a.originalBytes || a.bytes || 0, a.fileType || ''].join('|');
+      const first = new Map();
+      for (const a of items) { const k = key(a), f = first.get(k); if (!f || (a.createdAt || 0) < (f.createdAt || 0)) first.set(k, a); }
+      items = items.filter(a => first.get(key(a)) === a);
+    }
     const page = items.slice(0, limit);
     return { items: page, cursor: nextCursor, done: !nextCursor || page.length < limit, degraded, total: items.length };
+  },
+
+  /* the public copy of an identical file, if one exists */
+  async findByHash(hash) {
+    if (!hash || !Backend.isOnline()) return null;
+    const r = await Backend._query('assets', { wheres: [['visibility', '==', 'public'], ['hash', '==', hash]], lim: 1, degradeLimit: 300 });
+    return r.docs.find(a => a.hash === hash && a.visibility === 'public') || null;
   },
 
   /* usage counters move by +1 only, from a real add-to-scene action (rule 5) */
@@ -3263,6 +3282,8 @@ const Loaders = {
         import('three/addons/loaders/DRACOLoader.js')
       ]);
       const l = new GLTFLoader();
+      /* models made smaller at upload use EXT_meshopt_compression */
+      try { l.setMeshoptDecoder((await import('three/addons/libs/meshopt_decoder.module.js')).MeshoptDecoder); } catch {}
       try {
         const d = new DRACOLoader();
         d.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/libs/draco/');
@@ -5443,6 +5464,40 @@ async function prepareFile(file) {
   return out;
 }
 
+/* the fingerprint of a file's content: the same file uploaded again (by
+   anyone) is recognised and the public copy is reused instead */
+async function fileHash(file) {
+  try {
+    const d = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+    return Array.from(new Uint8Array(d), b => b.toString(16).padStart(2, '0')).join('');
+  } catch { return null; }
+}
+/* a big .glb is made smaller before upload (lib/model-compress.js, loaded
+   only here): geometry compressed with meshopt, textures above 1024 px
+   scaled down to WebP. The result must load back correctly, otherwise the
+   original file is uploaded unchanged. */
+let _compressor = null;
+async function compressGLB(file) {
+  try {
+    if (!_compressor) _compressor = import(new URL('lib/model-compress.js', location.href).href);
+    const { compressModel } = await _compressor;
+    const { bytes, report } = await Promise.race([
+      compressModel(await file.arrayBuffer(), { maxTexture: 1024, quality: 0.85 }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('COMPRESS_TIMEOUT')), 60000))
+    ]);
+    if (!bytes || bytes.byteLength >= file.size * 0.9) return null;                    // not worth it
+    const loader = await Loaders.gltf();
+    const check = await loader.parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+    let meshes = 0; check.scene.traverse(o => { if (o.isMesh) meshes++; });
+    if (!meshes) return null;
+    return { file: new File([bytes], file.name, { type: 'model/gltf-binary' }), report };
+  } catch (e) {
+    console.warn('[nexus] model left uncompressed:', e && e.message);
+    _compressor = null;
+    return null;
+  }
+}
+
 function openUploadSheet(onDone) {
   let prepared = null, preview = null, thumbOverride = null;
   NX.Drive && NX.Drive.warm();
@@ -5474,6 +5529,13 @@ function openUploadSheet(onDone) {
     stage.appendChild(el('div', { class: 'center-note', html: '<div class="spin"></div><div class="muted">تحليل الملف…</div>' }));
     try {
       prepared = await prepareFile(file);
+      prepared.hash = await fileHash(file);
+      prepared.originalBytes = file.size;
+      if (prepared.kind === 'model' && String(prepared.ext).toLowerCase() === 'glb' && file.size > 512 * 1024) {
+        const note = stage.querySelector('.muted'); if (note) note.textContent = 'تصغير حجم المجسم…';
+        const c = await compressGLB(prepared.file || file);
+        if (c) { prepared.file = c.file; prepared.compressed = c.report; }
+      }
     } catch (e) {
       stage.textContent = '';
       const msg = String(e && e.message || e);
@@ -5496,6 +5558,11 @@ function openUploadSheet(onDone) {
       preview.show(prepared.object);
     } else if (prepared.thumb) {
       box.appendChild(el('img', { src: URL.createObjectURL(prepared.thumb), style: { width: '100%', height: '100%', objectFit: 'contain' } }));
+    }
+    if (prepared.compressed) {
+      const c = prepared.compressed, pct = Math.round((1 - c.after / c.before) * 100);
+      stage.appendChild(el('div', { class: 'card', style: { margin: '8px 0', fontSize: '12.5px', lineHeight: '1.7' },
+        text: '📦 صُغّر المجسم تلقائيًا: ' + fmtBytes(c.before) + ' ← ' + fmtBytes(c.after) + ' (أصغر بـ ' + pct + '%) — الشكل نفسه، تحميل أسرع ومساحة أقل' }));
     }
     if (prepared.kind === 'audio') {
       const a = el('audio', { controls: true, src: URL.createObjectURL(prepared.file), style: { width: '100%', marginTop: '8px' } });
@@ -5553,6 +5620,14 @@ function openUploadSheet(onDone) {
       uploadBtn.disabled = true;
       status.textContent = 'جارٍ الرفع…';
       try {
+        const same = prepared.hash ? await Assets.findByHash(prepared.hash).catch(() => null) : null;
+        if (same) {
+          Toast.ok('هذا الملف موجود بالفعل في المكتبة العامة («' + same.name + '») — لم يُرفع مرة ثانية');
+          sheet.close();
+          onDone && onDone(same);
+          window.dispatchEvent(new CustomEvent('nx:assetUploaded', { detail: same }));
+          return;
+        }
         const rec = await Assets.create({
           name,
           description: fDesc.querySelector('textarea').value.trim(),
@@ -5563,7 +5638,9 @@ function openUploadSheet(onDone) {
           kind: prepared.kind,
           fileType: prepared.ext,
           ext: prepared.ext,
-          stats: prepared.stats
+          stats: prepared.stats,
+          hash: prepared.hash,
+          originalBytes: prepared.originalBytes
         }, prepared.file, thumbOverride || prepared.thumb, p => { prog.firstChild.style.width = Math.round(p * 100) + '%'; });
         Toast.ok('تم النشر في المكتبة العامة');
         sheet.close();
