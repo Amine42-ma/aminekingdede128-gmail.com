@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <script>
+/* inside the sandbox frame that runs other people's game code (PART 23):
+   an opaque origin — no access to this site's storage, session or keys */
+window.NX_SANDBOX = location.hash === '#nx-sandbox' && window.parent !== window;
 /* a pretty game link (…/game/<id>, sent to this page by netlify.toml)
    becomes the app's own route (…/#game/<id>) before anything relative loads */
 (function () {
@@ -1098,6 +1101,41 @@ html.kb-open .ide-toolbar,html.kb-open .ide-seg{display:none}
 .l10n-row .input.missing{border-color:rgba(251,191,36,.55)}
 .l10n-x{margin-inline-start:6px;font-size:11px;opacity:.7}
 /* /NX-CSS:21 */
+/* NX-CSS:22 */
+/* ---------- leaderboards · spectator · replays · analytics ---------- */
+.sc-gs{display:flex;flex-direction:column;gap:10px;margin:14px 0}
+.lb-box{border:1px solid var(--line-2);border-radius:var(--r-lg);padding:12px 14px;background:linear-gradient(140deg,rgba(124,92,255,.12),rgba(34,211,238,.05)),var(--panel)}
+.lb-box h3{font-size:15px;margin-bottom:8px}
+.lb-row{display:flex;align-items:center;gap:10px;padding:7px 4px;border-bottom:1px solid var(--line);font-size:13.5px}
+.lb-row:last-child{border-bottom:0}
+.lb-row b{flex:0 0 28px;text-align:center}
+.lb-row span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-row .lb-score{flex:0 0 auto;font:800 14px var(--font-en)}
+.lb-row.me{background:rgba(124,92,255,.14);border-radius:8px}
+.spec-hud{position:absolute;top:calc(var(--sat) + 10px);left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center;pointer-events:auto;z-index:6;
+  padding:5px 8px 5px 12px;border-radius:99px;background:rgba(10,12,22,.8);color:#fff;font-size:12px;font-weight:700;border:1px solid var(--line-2)}
+.rp-wrap{position:relative;display:flex;flex-direction:column;height:100%;min-height:60vh;margin:-4px -4px 0}
+.rp-canvas{flex:1;width:100%;min-height:50vh;border-radius:12px;background:#0b0d16;touch-action:none}
+.rp-bar{display:flex;align-items:center;gap:8px;padding:10px 2px;flex-wrap:wrap}
+.rp-range{flex:1 1 160px}
+.rp-time{font:700 12px var(--font-en);color:var(--ink-soft);min-width:84px;text-align:center}
+.an-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:14px}
+.an-kpi{border:1px solid var(--line);border-radius:var(--r-md);padding:10px;background:var(--glass);display:flex;flex-direction:column;gap:2px}
+.an-kpi b{font:800 18px var(--font-en)}
+.an-kpi span{font-size:11.5px;color:var(--ink-soft)}
+.an-chart{display:flex;align-items:flex-end;gap:4px;height:120px;padding:6px 0 18px;margin-bottom:10px}
+.an-bar{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;position:relative}
+.an-bar i{display:block;width:100%;border-radius:4px 4px 0 0;background:var(--grad)}
+.an-bar small{position:absolute;bottom:-16px;font-size:9px;color:var(--ink-dim)}
+/* /NX-CSS:22 */
+/* NX-CSS:23 */
+/* ---------- script sandbox ---------- */
+.sb-host{position:absolute;inset:0;z-index:4;background:#05060c}
+.sb-frame{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#05060c;z-index:3}
+.sb-frame.hide{display:none}
+.sb-offscreen{position:fixed;left:-10000px;top:0;width:360px;height:640px;overflow:hidden;pointer-events:none}
+html[data-sandbox] #p-exit,html[data-sandbox] #p-clip,html[data-sandbox] #p-replay{display:none!important}
+/* /NX-CSS:23 */
 </style>
 </head>
 <body>
@@ -3142,6 +3180,7 @@ const Games = {
         updatedAt: now, publishedAt: now,
         version: ((prev && prev.version) || 0) + 1,
         assetCount: usedIds.length, hasCode: code > 0,
+        leaderboard: NX.Leaderboards ? NX.Leaderboards.clean(project.settings && project.settings.leaderboard) : null,
         searchTokens: buildSearchTokens({ name: title, tags: [meta.genre || ''].concat(meta.tags || [], (sc && sc.tags) || []), category: meta.genre || '', creatorName: u.name })
       };
 
@@ -5048,11 +5087,13 @@ const Mic = {
 function makeNetwork(rt) {
   const Backend = NX.Backend;
   return {
-    get online() { return Backend.isOnline(); },
+    get online() { return NX.SandboxNet ? true : Backend.isOnline(); },
     get uid() { return Backend.user ? Backend.user.uid : null; },
 
     /* A room = presence docs + an append-only message stream. */
     async room(roomId, opts = {}) {
+      /* inside the sandbox the page has no connection of its own: the host relays */
+      if (NX.SandboxNet) return NX.SandboxNet.room(roomId, opts, rt);
       if (!Backend.isOnline()) throw new Error('NETWORK_REQUIRES_BACKEND: rooms need the platform cloud connection (currently LOCAL mode).');
       const { F, db } = Backend.fb;
       const me = Backend.user.uid;
@@ -5100,6 +5141,7 @@ function makeNetwork(rt) {
     /* WebRTC signalling over the same backend — the missing piece that
        real voice/multiplayer needs. No backend, no voice: stated plainly. */
     async signal(roomId) {
+      if (NX.SandboxNet) return NX.SandboxNet.signal(roomId, rt);
       if (!Backend.isOnline()) throw new Error('SIGNALING_REQUIRES_BACKEND');
       const { F, db } = Backend.fb;
       const me = Backend.user.uid;
@@ -13791,7 +13833,9 @@ function openRecorder(opts = {}) {
     } catch (e) { Toast.err('تعذّر: ' + (e.message || e)); }
   }}));
   const liveCanvas = $('#player').classList.contains('active') ? $('#player-canvas') : ($('#studio').classList.contains('active') ? $('#viewport') : null);
-  if (liveCanvas) mkSource('اللعب', 'play', () => Media.streamFromCanvas(liveCanvas, 30, true));
+  const remote = NX.SandboxHost && NX.SandboxHost.visible();
+  if (remote) mkSource('اللعب', 'play', async () => ({ __remote: remote }));
+  else if (liveCanvas) mkSource('اللعب', 'play', () => Media.streamFromCanvas(liveCanvas, 30, true));
   mkSource('الشاشة', 'grid', () => Media.streamFromScreen(true));
   mkSource('الكاميرا', 'cam', () => Media.streamFromCamera());
   body.append(sources, note);
@@ -13811,6 +13855,16 @@ function openRecorder(opts = {}) {
 
   function startWith(stream) {
     stage.textContent = '';
+    if (stream && stream.__remote) {
+      stage.appendChild(el('div', { class: 'center-note', text: '⏺ يُسجَّل اللعب من داخل صندوق اللعبة الآمن (Sandbox)' }));
+      session = stream.__remote.clipSession(t => {
+        timeLbl.textContent = fmtDur(t);
+        if (t >= LIMITS.videoSeconds) finish();
+      });
+      pauseBtn.disabled = false; stopBtn.disabled = false;
+      sources.classList.add('hide');
+      return;
+    }
     const prev = el('video', { autoplay: '', muted: '', playsinline: '', style: { width: '100%', borderRadius: '12px', background: '#000' } });
     prev.srcObject = stream;
     stage.appendChild(prev);
@@ -14431,6 +14485,15 @@ async function openGamePage(game, opts = {}) {
     }
   }
 
+  /* leaderboard · live matches to watch · my replays (game services) */
+  if (!preview && game.gameId && NX.GameServices) {
+    const gs = el('div', { class: 'sc-gs' });
+    wrap.appendChild(gs);
+    NX.Leaderboards.section(game, gs);
+    NX.Spectate.section(game, gs);
+    if (online() && Backend.user) gs.appendChild(btn('🎞 إعاداتي في هذه اللعبة', { cls: 'sm ghost', onclick: () => NX.Replays.open({ gameId: game.gameId }) }));
+  }
+
   /* SHARE · FAVORITE · REPORT */
   const doShare = () => { if (preview && !game.gameId) { Toast.show('انشر اللعبة أولًا ليصير لها رابط'); return; } share('game', game.gameId, game.title); };
   const favBtn = el('button', { onclick: () => doFav() }, [svgIcon('heart'), el('span', { text: 'مفضلة' }), el('small', { text: 'FAVORITE' })]);
@@ -14465,6 +14528,7 @@ async function openGamePage(game, opts = {}) {
       if (!p) { Toast.err('تعذّر فتح المشروع'); return; }
       sheet.close(); NX.GameMedia.open(p);
     } }));
+    if (!preview && game.gameId && NX.Analytics) ow.appendChild(btn('📊 التحليلات · Analytics', { cls: 'sm', onclick: () => NX.Analytics.open({ publishedId: game.gameId }) }));
     wrap.appendChild(ow);
   }
   if (!preview) {
@@ -15848,8 +15912,10 @@ NX.pickModel = pickModel;
 NX.AIConfig = AIConfig;
 NX.AIClient = AIClient;
 /* the free AI: asked at start, and again whenever the player signs in or out */
-FreeAI.probe().then(() => FreeAI.adopt());
-if (NX.Backend && NX.Backend.onAuth) NX.Backend.onAuth(() => FreeAI.probe().then(() => FreeAI.adopt()));
+if (!window.NX_SANDBOX) {
+  FreeAI.probe().then(() => FreeAI.adopt());
+  if (NX.Backend && NX.Backend.onAuth) NX.Backend.onAuth(() => FreeAI.probe().then(() => FreeAI.adopt()));
+}
 NX.AIAdapters = Adapters;
 NX.classifyAIError = classify;
 </script>
@@ -19411,6 +19477,7 @@ const GameAnalyzer = {
 const RuntimeInfo = {
   async snapshot() {
     const S = NX.Studio;
+    if (S.playing && S._sb) return S._sb.call('runtime.snapshot').catch(() => null);
     if (!S.playing || !S.runtime) return null;
     const eng = S.engine, rt = S.runtime;
     const f0 = eng.time.frame, t0 = performance.now();
@@ -22713,6 +22780,1134 @@ NX.Playtest = Playtest;
 NX.Localization = Localization;
 </script>
 <!-- /NX-PART:21 -->
+<!-- NX-PART:22 -->
+<script type="module">
+/* ============================================================
+   PART 22 · GAME SERVICES — leaderboards (checked by the server),
+   analytics (anonymous), multiplayer replays (size and length
+   capped) and spectator mode (watch without playing).
+   The "services" object is what a running game talks to; the
+   same interface is served over the sandbox bridge (PART 23).
+   ============================================================ */
+const NX = window.NX;
+const { $, el, btn, iconBtn, icon, Sheet, Modal, Toast, LS, timeAgo, debounce, uid } = NX;
+const { Backend, Team } = NX;
+const THREE = NX.THREE;
+const fbErr = e => e && e.code === 'permission-denied' ? 'رفض الخادم هذا الطلب' : NX.describeFirebaseError(e);
+const tsMillis = a => a && a.toMillis ? a.toMillis() : (a || 0);
+
+/* ================================================================ LEADERBOARDS */
+const Leaderboards = {
+  clean(c) {
+    if (!c || !c.enabled) return null;
+    const order = c.order === 'asc' ? 'asc' : 'desc';
+    return { enabled: true, order, label: String(c.label || (order === 'asc' ? 'الوقت' : 'النقاط')).slice(0, 30),
+      max: Math.max(1, Math.min(1e9, Math.round(+c.max || 100000))), perSecond: Math.max(0.1, Math.min(1e6, +c.perSecond || 100)),
+      min: Math.max(0, Math.min(1e6, +c.min || 0)) };
+  },
+  /* the owner sets it in the Studio; publishing (or «apply now») puts it on the game */
+  configure(p) {
+    if (!Team.isOwner(p)) { Toast.err('إعداد لوحة الصدارة للمالك فقط'); return; }
+    p.settings = p.settings || {};
+    const c = Object.assign({ enabled: false, order: 'desc', label: 'النقاط', max: 100000, perSecond: 100, min: 0 }, p.settings.leaderboard || {});
+    const body = el('div');
+    const on = el('div', { class: 'tgl' + (c.enabled ? ' on' : '') }); on.onclick = () => on.classList.toggle('on');
+    const order = el('select', { class: 'select' }, [el('option', { value: 'desc', text: 'نقاط — الأعلى أفضل' }), el('option', { value: 'asc', text: 'وقت — الأقل أفضل (سباق)' })]);
+    order.value = c.order;
+    const label = el('input', { class: 'input', value: c.label });
+    const max = el('input', { class: 'input', type: 'number', min: 1, value: c.max });
+    const rate = el('input', { class: 'input', type: 'number', min: 0.1, step: 0.1, value: c.perSecond });
+    const min = el('input', { class: 'input', type: 'number', min: 0, step: 0.1, value: c.min });
+    const pts = el('div', {}, [NX.field('أقصى نتيجة ممكنة', max), NX.field('أقصى نقاط في الثانية من اللعب', rate)]);
+    const tim = el('div', {}, [NX.field('أقل زمن ممكن للإنهاء (ثوانٍ)', min)]);
+    const flip = () => { pts.style.display = order.value === 'desc' ? '' : 'none'; tim.style.display = order.value === 'asc' ? '' : 'none'; };
+    order.onchange = flip; flip();
+    body.append(el('div', { class: 'switch' }, [el('span', { text: 'تفعيل لوحة الصدارة' }), on]), NX.field('النوع', order), NX.field('اسم النتيجة', label), pts, tim,
+      el('p', { class: 'tiny', text: 'الخادم (قواعد Firebase) يتحقق من كل نتيجة: لا تُقبل نتيجة أعلى من الحد، ولا أسرع مما يسمح به زمن الجلسة الحقيقي. اللاعب لا يستطيع كتابة نتيجة غيره ولا تعديلها يدويًا. هذه حماية قوية لكنها ليست محاكاة كاملة للعبة على الخادم.' }),
+      el('p', { class: 'tiny', text: 'في اللعبة: await Leaderboard.submit(score) · await Leaderboard.top(10)' }));
+    const s = Sheet.open({ title: '🏆 لوحة الصدارة · Leaderboard', body, id: 'lb-config', foot: [btn('حفظ', { cls: 'primary', onclick: async () => {
+      p.settings.leaderboard = { enabled: on.classList.contains('on'), order: order.value, label: label.value.trim() || 'النقاط', max: +max.value, perSecond: +rate.value, min: +min.value };
+      NX.Studio.dirty = true; await NX.Studio.save(true);
+      if (p.publishedId) {
+        try { await Backend.updateDoc('games', p.publishedId, { leaderboard: this.clean(p.settings.leaderboard), updatedAt: Date.now() }); Toast.ok('حُفظ وطُبّق على اللعبة المنشورة'); }
+        catch (e) { Toast.err('حُفظ في المشروع؛ تعذّر تطبيقه على اللعبة المنشورة: ' + fbErr(e)); }
+      } else Toast.ok('حُفظ — يُطبَّق عند النشر');
+      s.close();
+    } })] });
+  },
+  async top(gameId, n = 10, order = 'desc') {
+    const { F, db } = Backend.fb;
+    const s = await F.getDocs(F.query(F.collection(db, 'games', gameId, 'scores'), F.orderBy('score', order === 'asc' ? 'asc' : 'desc'), F.limit(Math.min(100, n))));
+    return s.docs.map((d, i) => Object.assign({ rank: i + 1, me: d.id === (Backend.user && Backend.user.uid) }, d.data()));
+  },
+  /* the store page's board */
+  async section(game, host) {
+    const lb = game.leaderboard;
+    if (!lb || !lb.enabled || !Backend.isOnline()) return;
+    const box = el('div', { class: 'lb-box' }, [el('h3', { text: '🏆 لوحة الصدارة · ' + (lb.label || '') })]);
+    host.appendChild(box);
+    try {
+      const rows = await this.top(game.gameId, 10, lb.order);
+      if (!rows.length) box.appendChild(el('p', { class: 'tiny', text: 'لا نتائج بعد — كن الأول!' }));
+      rows.forEach(r => box.appendChild(el('div', { class: 'lb-row' + (r.me ? ' me' : '') }, [
+        el('b', { text: ['🥇', '🥈', '🥉'][r.rank - 1] || String(r.rank) }), el('span', { text: r.me ? 'أنت' : r.name }), el('span', { class: 'lb-score', text: fmtScore(r.score, lb) })])));
+    } catch (e) { box.appendChild(el('p', { class: 'tiny', text: fbErr(e) })); }
+  }
+};
+const fmtScore = (v, lb) => lb && lb.order === 'asc' ? (+v).toFixed(2) + ' ث' : NX.fmtNum ? NX.fmtNum(v) : String(v);
+
+/* ================================================================ HOST-SIDE SESSION
+   One running copy of a published game (or of a project in the Studio).
+   Everything that reaches Firestore goes through here. */
+const deviceClass = () => { const w = Math.min(screen.width, screen.height); return matchMedia('(pointer:coarse)').matches ? (w >= 700 ? 'tablet' : 'mobile') : 'desktop'; };
+const anonPid = () => { let p = LS.get('anonPlayer', null); if (!p) { p = 'p_' + Math.random().toString(36).slice(2, 12); LS.set('anonPlayer', p); } return p; };
+const cleanErr = s => String(s || '').replace(/https?:\/\/\S+/g, '[link]').replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[email]').slice(0, 120);
+
+const GameServices = {
+  current: null,
+  /* ctx: { game, build, mode: 'play' | 'spectate' | 'studio', projectId, playtest } */
+  session(ctx) {
+    const game = ctx.game || null;
+    const gameId = game && game.gameId;
+    const lb = game && game.leaderboard && game.leaderboard.enabled ? game.leaderboard : null;
+    const published = ctx.mode === 'play' && !!gameId;
+    const t0 = Date.now();
+    const st = { errors: 0, samples: [], fps: [], mp: false, loadMs: 0, rooms: new Map(), ended: false };
+    const liveId = uid('lv');
+    let beat = null;
+    const svc = {
+      mode: ctx.mode, gameId, lb, published, projectId: ctx.projectId || (game && game.projectId) || null,
+      user() { return Backend.user ? { uid: Backend.user.uid, name: Backend.user.name } : null; },
+      async start() {
+        if (!Backend.isOnline() || !Backend.user) return;
+        const { F, db } = Backend.fb;
+        if (published && lb) await F.setDoc(F.doc(db, 'games', gameId, 'lbSessions', Backend.user.uid), { startedAt: F.serverTimestamp() }).catch(e => console.warn('[lb] session', e && e.code));
+        if (published) {
+          const hb = () => F.setDoc(F.doc(db, 'games', gameId, 'live', liveId), { at: F.serverTimestamp() }).catch(() => {});
+          hb(); beat = setInterval(hb, 30000);
+        }
+      },
+      loaded() { st.loadMs = Date.now() - t0; },
+      report(r) {
+        if (!r) return;
+        if (r.error) { st.errors++; if (st.samples.length < 3) { const c = cleanErr(r.error); if (!st.samples.includes(c)) st.samples.push(c); } }
+        if (r.fps) st.fps.push(Math.max(0, Math.min(240, +r.fps)));
+        if (r.mp) st.mp = true;
+      },
+      /* ---- leaderboard ---- */
+      async lbSubmit(score) {
+        if (!published) return { ok: false, reason: 'editor', message: 'لوحة الصدارة تعمل في اللعبة المنشورة فقط (ليس داخل الاستوديو)' };
+        if (!lb) return { ok: false, reason: 'disabled', message: 'لوحة الصدارة غير مفعّلة لهذه اللعبة' };
+        const v = +score;
+        if (!Number.isFinite(v) || v < 0) return { ok: false, reason: 'invalid' };
+        const { F, db } = Backend.fb;
+        const ref = F.doc(db, 'games', gameId, 'scores', Backend.user.uid);
+        try {
+          await F.setDoc(ref, { uid: Backend.user.uid, name: String(Backend.user.name || 'لاعب').slice(0, 40), score: v, at: F.serverTimestamp() });
+          return { ok: true, best: v };
+        } catch (e) {
+          if (e && e.code === 'permission-denied') {
+            const cur = await F.getDoc(ref).then(s => s.exists() ? s.data().score : null).catch(() => null);
+            const worse = cur != null && (lb.order === 'asc' ? v >= cur : v <= cur);
+            return { ok: false, reason: worse ? 'not-better' : 'refused', best: cur, message: worse ? 'نتيجتك السابقة أفضل' : 'رفض الخادم النتيجة (أعلى من الممكن في زمن الجلسة)' };
+          }
+          return { ok: false, reason: 'error', message: fbErr(e) };
+        }
+      },
+      async lbTop(n = 10) { if (!gameId || !lb) return []; return (await Leaderboards.top(gameId, n, lb.order)).map(r => ({ rank: r.rank, name: r.name, score: r.score, me: r.me })); },
+      async lbMine() {
+        if (!gameId || !lb || !Backend.user) return null;
+        const { F, db } = Backend.fb;
+        const s = await F.getDoc(F.doc(db, 'games', gameId, 'scores', Backend.user.uid));
+        return s.exists() ? s.data().score : null;
+      },
+      /* ---- spectators can find the rooms that are being played ---- */
+      roomBeat(name, players) {
+        if (!published || !gameId || ctx.mode !== 'play') return;
+        st.mp = true;
+        const last = st.rooms.get(name);
+        if (last && Date.now() - last.at < 20000 && last.players === players) return;
+        st.rooms.set(name, { at: Date.now(), players });
+        const { F, db } = Backend.fb;
+        const n = String(name).replace(/[^\w.-]/g, '_').slice(0, 60);
+        F.setDoc(F.doc(db, 'games', gameId, 'rooms', n), { name: n, players: Math.max(0, Math.min(64, players | 0)), at: F.serverTimestamp() }).catch(() => {});
+      },
+      /* ---- replays ---- */
+      async replaySave(meta, data) {
+        if (!Backend.isOnline() || !Backend.user) throw new Error('الإعادة تحتاج اتصالًا وحسابًا');
+        if (typeof data !== 'string' || data.length > 900000) throw new Error('الإعادة أكبر من الحد المسموح (900 KB)');
+        const { F, db } = Backend.fb;
+        const id = uid('rp');
+        await F.setDoc(F.doc(db, 'replays', id), {
+          replayId: id, ownerId: Backend.user.uid, ownerName: String(Backend.user.name || '').slice(0, 60),
+          gameId: gameId || null, projectId: ctx.playtest ? ctx.projectId : null, title: String(meta.title || 'Replay').slice(0, 80),
+          visibility: 'private', duration: Math.min(300, +meta.duration || 0), frames: meta.frames | 0, bytes: data.length, data, at: Date.now()
+        });
+        return id;
+      },
+      async end() {
+        if (st.ended) return; st.ended = true;
+        clearInterval(beat);
+        if (!published || !Backend.isOnline() || !Backend.user) return;
+        const { F, db } = Backend.fb;
+        F.deleteDoc(F.doc(db, 'games', gameId, 'live', liveId)).catch(() => {});
+        const dur = Math.round((Date.now() - t0) / 1000);
+        if (dur < 2) return;
+        const fps = st.fps.length ? Math.round(st.fps.reduce((a, b) => a + b, 0) / st.fps.length) : null;
+        await F.addDoc(F.collection(db, 'games', gameId, 'analytics'), {
+          at: F.serverTimestamp(), day: new Date().toISOString().slice(0, 10), dur: Math.min(21600, dur),
+          errors: Math.min(100000, st.errors), errorSamples: st.samples, fps, loadMs: st.loadMs || null,
+          device: deviceClass(), mp: st.mp, pid: anonPid(), v: 1
+        }).catch(e => console.warn('[analytics]', e && e.code));
+      }
+    };
+    return svc;
+  }
+};
+
+/* ================================================================ RUNTIME SIDE
+   What the game's scripts see. Works the same in the page and inside the
+   sandbox (there, rt.services is the bridge). */
+const RTp = NX.Runtime.prototype;
+const _api = RTp.api;
+RTp.api = function () {
+  const a = _api.call(this);
+  if (a.Leaderboard) return a;
+  const rt = this;
+  const svc = () => rt.services || null;
+  a.Leaderboard = {
+    get enabled() { return !!(svc() && svc().lb); },
+    async submit(score) {
+      if (!svc()) return { ok: false, reason: 'editor', message: 'لوحة الصدارة تعمل في اللعبة المنشورة فقط' };
+      const r = await svc().lbSubmit(score);
+      if (!r.ok && r.message) rt.warn('[Leaderboard] ' + r.message);
+      return r;
+    },
+    async top(n = 10) { return svc() ? svc().lbTop(n) : []; },
+    async best() { return svc() ? svc().lbMine() : null; }
+  };
+  /* spectators get a read-only network; players tell spectators which rooms are live */
+  const net = a.Network;
+  if (net && !net.__wrapped) {
+    const room0 = net.room.bind(net);
+    a.Network = Object.assign(Object.create(net), {
+      __wrapped: true,
+      get spectator() { return !!rt.spectator; },
+      async room(roomId, opts) {
+        rt.__mp = true;
+        if (svc() && svc().report) svc().report({ mp: true });
+        if (rt.spectator) return rt.spectatorRoom(rt.spectateRoom || roomId);
+        const r = await room0(roomId, opts);
+        if (svc() && svc().roomBeat) {
+          const beat = () => svc().roomBeat(roomId, r.peers.size);
+          beat(); r.on('peerJoined', beat); r.on('peerLeft', beat);
+          const iv = setInterval(beat, 25000); rt._cleanups.push(() => clearInterval(iv));
+        }
+        /* multiplayer sessions keep their last 3 minutes, ready to save as a replay */
+        rt.startReplay().arm();
+        return r;
+      },
+      async signal(roomId) { if (rt.spectator) throw new Error('SPECTATOR_READ_ONLY'); return net.signal(roomId); }
+    });
+  }
+  if (a.Engine && !('isSpectator' in a.Engine)) Object.defineProperty(a.Engine, 'isSpectator', { get: () => !!rt.spectator });
+  return a;
+};
+/* a room you can watch but not touch: nothing of yours is written to it */
+RTp.spectatorRoom = async function (roomId) {
+  const rt = this;
+  const handlers = {}, peers = new Map();
+  const room = {
+    id: String(roomId), me: null, peers, spectator: true,
+    on(ev, cb) { (handlers[ev] = handlers[ev] || []).push(cb); return room; },
+    _emit(ev, ...x) { (handlers[ev] || []).forEach(cb => { try { cb(...x); } catch (e) { rt.error(e); } }); },
+    async setState() {}, async send() {}, async leave() { off && off(); }
+  };
+  const off = await (rt.watchRoom ? rt.watchRoom(roomId, room) : watchRoomDirect(roomId, room));
+  rt._cleanups.push(() => room.leave());
+  return room;
+};
+async function watchRoomDirect(roomId, room) {
+  const { F, db } = Backend.fb;
+  const base = ['rooms', String(roomId)];
+  const since = Date.now();
+  const u1 = F.onSnapshot(F.collection(db, ...base, 'peers'), s => s.docChanges().forEach(ch => {
+    const d = ch.doc.data();
+    if (ch.type === 'removed') { room.peers.delete(d.uid); room._emit('peerLeft', d.uid); }
+    else { const n = !room.peers.has(d.uid); room.peers.set(d.uid, d); room._emit(n ? 'peerJoined' : 'peerState', d); }
+  }));
+  const u2 = F.onSnapshot(F.query(F.collection(db, ...base, 'messages'), F.orderBy('at', 'desc'), F.limit(30)), s => s.docChanges().forEach(ch => {
+    if (ch.type !== 'added') return;
+    const d = ch.doc.data(); if (d.at < since) return;
+    room._emit('message', d); room._emit(d.type, d.data, d.from);
+  }));
+  return () => { u1(); u2(); };
+}
+/* errors and frame rate for the anonymous analytics */
+const _err = RTp.error;
+RTp.error = function (e, where) {
+  _err.call(this, e, where);
+  if (this.services && this.services.report) this.services.report({ error: (e && e.message) || String(e) });
+};
+RTp.startStats = function () {
+  if (this._statsIv) return;
+  let frames = 0;
+  const off = this.engine.onUpdate(() => { frames++; });
+  this._statsIv = setInterval(() => { if (this.services && this.services.report) this.services.report({ fps: frames / 5 }); frames = 0; }, 5000);
+  this._cleanups.push(() => { clearInterval(this._statsIv); this._statsIv = null; off(); });
+};
+/* spectator: no controls, a free camera (or the game's own camera) */
+RTp.enterSpectator = function (host) {
+  this.spectator = true;
+  try { this._unbindInput(); } catch {}
+  this._bindInput = () => {};
+  const eng = this.engine;
+  const cam = new THREE.PerspectiveCamera(60, 1, 0.1, 3000);
+  cam.position.set(0, 12, 18);
+  const orbit = new NX.OrbitCam(cam, eng.canvas);
+  orbit.radius = 22; orbit.apply();
+  const gameCam = () => { const c = Array.from(eng.entities.values()).find(e => e.type === 'camera' && e.props.isMain); return c && c.object3D; };
+  let free = true;
+  const use = () => { eng.activeCamera = free ? cam : (gameCam() || cam); eng._resize(); };
+  const keep = eng.onUpdate(() => { if (free && eng.activeCamera !== cam) use(); });
+  this._cleanups.push(keep);
+  use();
+  if (host) {
+    const hud = el('div', { class: 'spec-hud' }, [el('span', { text: '👁 وضع المشاهدة — لا تتحكم باللعبة' })]);
+    hud.appendChild(btn('كاميرا اللعبة', { cls: 'sm', onclick: e => { free = !free; e.currentTarget.textContent = free ? 'كاميرا اللعبة' : 'كاميرا حرّة'; use(); } }));
+    host.appendChild(hud);
+    this._uiNodes.push(hud);
+  }
+};
+
+/* ================================================================ REPLAY
+   The motion of everything in the scene, 8 times a second, for at most
+   3 minutes and ~900 KB compressed. Viewing a replay runs no game code. */
+const REPLAY = { hz: 8, maxSec: 180, maxRaw: 6e6 };
+const r3 = n => Math.round(n * 100) / 100;
+class ReplayRecorder {
+  constructor(rt) { this.rt = rt; this.frames = []; this.objs = {}; this.last = new Map(); this.base = new Map(); this.on = false; this.t0 = 0; this.raw = 0; }
+  arm() { if (!this.on) this.start(); }
+  start() {
+    this.on = true; this.t0 = performance.now();
+    this.iv = setInterval(() => this.tick(), 1000 / REPLAY.hz);
+    this.rt._cleanups.push(() => this.stop());
+  }
+  stop() { clearInterval(this.iv); this.on = false; }
+  def(e) { return { n: e.name, ty: e.type, a: e.assetId || null, p: e.props || {} }; }
+  tick() {
+    const eng = this.rt.engine, t = r3((performance.now() - this.t0) / 1000);
+    const moves = [], gone = [], seen = new Set();
+    eng.entities.forEach((e, id) => {
+      if (!e.object3D || (e.type !== 'model' && e.type !== 'primitive' && e.type !== 'group')) return;
+      seen.add(id);
+      if (!this.objs[id]) this.objs[id] = this.def(e);
+      const o = e.object3D, q = o.quaternion;
+      const v = [r3(o.position.x), r3(o.position.y), r3(o.position.z), r3(q.x), r3(q.y), r3(q.z), r3(q.w), r3(o.scale.x), r3(o.scale.y), r3(o.scale.z), o.visible ? 1 : 0];
+      const k = v.join(',');
+      if (this.last.get(id) !== k) { this.last.set(id, k); moves.push([id].concat(v)); }
+    });
+    this.last.forEach((_, id) => { if (!seen.has(id)) { gone.push(id); this.last.delete(id); } });
+    const c = eng.activeCamera;
+    const cam = c ? [r3(c.position.x), r3(c.position.y), r3(c.position.z), r3(c.quaternion.x), r3(c.quaternion.y), r3(c.quaternion.z), r3(c.quaternion.w)] : null;
+    this.frames.push([t, moves, gone, cam]);
+    this.raw += 40 + moves.length * 70;
+    /* a ring of the last 3 minutes; what leaves it is folded into the base
+       state, so a saved clip always starts from a complete picture */
+    while (this.frames.length > 1 && (t - this.frames[0][0] > REPLAY.maxSec || this.raw > REPLAY.maxRaw)) {
+      const x = this.frames.shift();
+      x[1].forEach(m => this.base.set(m[0], m)); x[2].forEach(id => this.base.delete(id));
+      this.raw -= 40 + x[1].length * 70;
+    }
+  }
+  async pack() {
+    if (!this.frames.length) throw new Error('لا شيء مسجّل بعد');
+    const first = this.frames[0][0];
+    const frames = this.frames.map(([t, moves, gone, cam]) => [r3(t - first), moves, gone, cam]);
+    const f0 = new Map(this.base);
+    frames[0][1].forEach(m => f0.set(m[0], m)); frames[0][2].forEach(id => f0.delete(id));
+    frames[0] = [0, Array.from(f0.values()), [], frames[0][3]];
+    const used = new Set(); frames.forEach(f => f[1].forEach(m => used.add(m[0])));
+    const objs = {}; used.forEach(id => { if (this.objs[id]) objs[id] = this.objs[id]; });
+    const json = JSON.stringify({ v: 1, hz: REPLAY.hz, dur: frames[frames.length - 1][0], objs, frames, env: this.rt.engine.environment || null });
+    const { deflateSync, strToU8 } = await import('fflate');
+    const z = deflateSync(strToU8(json), { level: 9 });
+    let b = ''; for (let i = 0; i < z.length; i += 0x8000) b += String.fromCharCode.apply(null, z.subarray(i, i + 0x8000));
+    return { data: btoa(b), duration: Math.max(1, Math.ceil(frames[frames.length - 1][0])), frames: frames.length, rawBytes: json.length };
+  }
+}
+RTp.startReplay = function () { if (!this.replay) this.replay = new ReplayRecorder(this); return this.replay; };
+
+const Replays = {
+  /* rt: the game's runtime, or a sandbox session (the recording lives inside its frame) */
+  async save(rt, svc) {
+    const rec = rt && rt.replay;
+    if (!(rt && rt.__sandbox) && (!rec || !rec.frames.length)) { Toast.err('لا توجد إعادة: الإعادة تُسجَّل في الألعاب متعددة اللاعبين بعد دخول غرفة'); return; }
+    if (!svc) { Toast.err('حفظ الإعادات متاح في اللعبة المنشورة وفي الاختبار الجماعي'); return; }
+    const t = Toast.show('🎞 تجهيز الإعادة…', '', 20000);
+    let packed;
+    try { packed = rt.__sandbox ? await rt.call('replay.pack') : await rec.pack(); } catch (e) { t.remove(); Toast.err(e.message || e); return; }
+    t.remove();
+    const kb = Math.round(packed.data.length / 1024);
+    if (packed.data.length > 900000) { Toast.err('الإعادة ' + kb + ' KB — أكبر من الحد (880 KB). جرّب لاحقًا بمدة أقصر.'); return; }
+    const title = await Modal.prompt('اسم الإعادة · ' + packed.duration + ' ث · ' + kb + ' KB', 'مباراة ' + new Date().toLocaleTimeString());
+    if (title == null) return;
+    try { await svc.replaySave({ title, duration: packed.duration, frames: packed.frames }, packed.data); Toast.ok('🎞 حُفظت الإعادة (' + packed.duration + ' ث)'); }
+    catch (e) { Toast.err('تعذّر الحفظ: ' + (e.message || fbErr(e))); }
+  },
+  async list({ gameId, projectId } = {}) {
+    const { F, db } = Backend.fb;
+    const w = projectId ? F.where('projectId', '==', projectId) : F.where('ownerId', '==', Backend.user.uid);
+    const s = await F.getDocs(F.query(F.collection(db, 'replays'), w, F.limit(60)));
+    return s.docs.map(d => d.data()).filter(r => !gameId || r.gameId === gameId).sort((a, b) => (b.at || 0) - (a.at || 0));
+  },
+  async open(opts = {}) {
+    if (!Backend.isOnline() || !Backend.user) { Toast.err('الإعادات تحتاج اتصال Firebase'); return; }
+    const body = el('div');
+    body.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' })]));
+    const s = Sheet.open({ title: '🎞 الإعادات · Replays', body, id: 'replays' });
+    let items = [];
+    try { items = await this.list(opts); } catch (e) { body.textContent = ''; body.appendChild(el('p', { class: 'muted', text: fbErr(e) })); return; }
+    body.textContent = '';
+    if (!items.length) body.appendChild(el('div', { class: 'center-note', text: 'لا إعادات بعد. في لعبة متعددة اللاعبين اضغط 🎞 أثناء اللعب لحفظ آخر 3 دقائق.' }));
+    items.forEach(r => {
+      const row = el('div', { class: 'comp-row', onclick: e => { if (e.target.closest('.icon-btn')) return; s.close(); this.play(r); } });
+      row.append(el('span', { class: 'fx-ico', text: '🎞' }), el('div', { class: 'fx-t' }, [el('b', { text: r.title }), el('small', { text: r.duration + ' ث · ' + Math.round((r.bytes || 0) / 1024) + ' KB · ' + (r.ownerId === Backend.user.uid ? 'أنت' : r.ownerName) + ' · ' + timeAgo(r.at) })]));
+      if (r.ownerId === Backend.user.uid) row.appendChild(iconBtn('trash', { label: 'delete', onclick: async () => {
+        if (!await Modal.confirm('حذف الإعادة؟', r.title, 'حذف')) return;
+        await Backend.delDoc('replays', r.replayId).catch(e => Toast.err(fbErr(e))); row.remove();
+      } }));
+      body.appendChild(row);
+    });
+  },
+  /* the viewer: the recorded motion over the game's scene — no game code runs */
+  async play(r) {
+    let data;
+    try {
+      const { inflateSync, strFromU8 } = await import('fflate');
+      const bin = Uint8Array.from(atob(r.data), c => c.charCodeAt(0));
+      data = JSON.parse(strFromU8(inflateSync(bin)));
+    } catch (e) { Toast.err('ملف الإعادة تالف: ' + (e.message || e)); return; }
+    const wrap = el('div', { class: 'rp-wrap' });
+    const canvas = el('canvas', { class: 'rp-canvas' });
+    const bar = el('div', { class: 'rp-bar' });
+    wrap.append(canvas, bar);
+    const sheet = Sheet.open({ title: '🎞 ' + r.title, body: wrap, full: true, id: 'replay-view', onClose: () => { stop = true; eng.stop(); eng.clear(); } });
+    const eng = new NX.EngineCore(canvas, { mode: 'runtime' });
+    eng.start();
+    if (data.env) eng.applyEnvironment(data.env);
+    eng.scene.add(new THREE.HemisphereLight(0xdde6ff, 0x1a1d2e, 1.1));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(6, 12, 5); eng.scene.add(sun);
+    const cam = new THREE.PerspectiveCamera(60, 1, 0.1, 3000);
+    const orbit = new NX.OrbitCam(cam, canvas); orbit.radius = 24; orbit.apply();
+    eng.activeCamera = cam; eng._resize();
+    const ents = new Map();
+    for (const [id, d] of Object.entries(data.objs || {})) {
+      try {
+        const asset = d.a ? await NX.Assets.get(d.a).catch(() => null) : null;
+        const e = await eng.addEntity({ id, name: d.n, type: d.a && asset ? 'model' : (d.ty === 'model' ? 'primitive' : d.ty), assetId: asset ? d.a : null, props: d.a && !asset ? { shape: 'box', color: '#7c5cff' } : d.p, parentId: null, visible: false }, { asset });
+        ents.set(id, e);
+      } catch (e) { console.warn('[replay] object', id, e); }
+    }
+    const frames = data.frames || [];
+    let i = 0, t = 0, speed = 1, playing = true, stop = false, pov = false, last = performance.now();
+    const apply = upto => {
+      /* seeking back: start again from the full first frame */
+      if (i && frames[i - 1] && upto < frames[i - 1][0]) { i = 0; ents.forEach(e => { if (e.object3D) e.object3D.visible = false; }); }
+      for (; i < frames.length && frames[i][0] <= upto; i++) {
+        const [, moves, gone, c] = frames[i];
+        moves.forEach(m => { const e = ents.get(m[0]); if (!e || !e.object3D) return; const o = e.object3D; o.position.set(m[1], m[2], m[3]); o.quaternion.set(m[4], m[5], m[6], m[7]); o.scale.set(m[8], m[9], m[10]); o.visible = !!m[11]; });
+        gone.forEach(id => { const e = ents.get(id); if (e && e.object3D) e.object3D.visible = false; });
+        if (c && pov) { cam.position.set(c[0], c[1], c[2]); cam.quaternion.set(c[3], c[4], c[5], c[6]); }
+      }
+    };
+    const range = el('input', { type: 'range', min: 0, max: data.dur, step: 0.05, value: 0, class: 'rp-range' });
+    const time = el('span', { class: 'rp-time', text: '0:00' });
+    const fmt = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+    const playBtn = btn('⏸', { cls: 'sm', onclick: () => { playing = !playing; playBtn.textContent = playing ? '⏸' : '▶'; } });
+    const sp = btn('1×', { cls: 'sm ghost', onclick: () => { speed = speed === 1 ? 2 : speed === 2 ? 0.5 : 1; sp.textContent = speed + '×'; } });
+    const pv = btn('كاميرا اللاعب', { cls: 'sm ghost', onclick: () => { pov = !pov; orbit.enabled = !pov; pv.textContent = pov ? 'كاميرا حرّة' : 'كاميرا اللاعب'; } });
+    range.oninput = () => { t = +range.value; apply(t); };
+    bar.append(playBtn, range, time, sp, pv);
+    apply(0);
+    const loop = () => {
+      if (stop) return;
+      const now = performance.now(), dt = (now - last) / 1000; last = now;
+      if (playing) { t += dt * speed; if (t >= data.dur) { t = data.dur; playing = false; playBtn.textContent = '▶'; } apply(t); range.value = t; }
+      time.textContent = fmt(t) + ' / ' + fmt(data.dur);
+      requestAnimationFrame(loop);
+    };
+    loop();
+  }
+};
+
+/* ================================================================ SPECTATOR (store page side) */
+const Spectate = {
+  async liveRooms(gameId) {
+    const { F, db } = Backend.fb;
+    const s = await F.getDocs(F.query(F.collection(db, 'games', gameId, 'rooms'), F.where('at', '>', F.Timestamp.fromMillis(Date.now() - 70000)), F.limit(30)));
+    return s.docs.map(d => d.data({ serverTimestamps: 'estimate' })).filter(r => r.players > 0);
+  },
+  async section(game, host) {
+    if (!Backend.isOnline()) return;
+    let rooms = [];
+    try { rooms = await this.liveRooms(game.gameId); } catch { return; }
+    if (!rooms.length) return;
+    const box = el('div', { class: 'lb-box' }, [el('h3', { text: '👁 مباريات حيّة الآن · Spectate' }),
+      el('p', { class: 'tiny', text: 'شاهد دون أن تلعب أو تتحكم. ترى فقط ما تبثّه اللعبة لكل اللاعبين.' })]);
+    rooms.forEach(r => box.appendChild(el('div', { class: 'lb-row' }, [el('b', { text: '🎮' }), el('span', { text: r.name + ' · ' + r.players + ' لاعب' }),
+      btn('مشاهدة', { cls: 'sm', onclick: () => { Sheet.closeAll(); NX.GamePlayer.open(game, { spectate: r.name }); } })])));
+    host.appendChild(box);
+  }
+};
+
+/* ================================================================ ANALYTICS (owner + developers) */
+const Analytics = {
+  async load(gameId) {
+    const { F, db } = Backend.fb;
+    const [g, s, live] = await Promise.all([
+      Backend.getDoc('games', gameId),
+      F.getDocs(F.query(F.collection(db, 'games', gameId, 'analytics'), F.orderBy('at', 'desc'), F.limit(2000))),
+      F.getDocs(F.query(F.collection(db, 'games', gameId, 'live'), F.where('at', '>', F.Timestamp.fromMillis(Date.now() - 75000))))
+    ]);
+    const rows = s.docs.map(d => d.data({ serverTimestamps: 'estimate' }));
+    const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+    const days = {};
+    rows.forEach(r => { days[r.day] = (days[r.day] || 0) + 1; });
+    const errs = {};
+    rows.forEach(r => (r.errorSamples || []).forEach(m => { errs[m] = (errs[m] || 0) + 1; }));
+    const dev = {}; rows.forEach(r => { dev[r.device] = (dev[r.device] || 0) + 1; });
+    return {
+      plays: (g && g.plays) || 0, sessions: rows.length, players: new Set(rows.map(r => r.pid)).size, online: live.size,
+      avgDur: avg(rows.map(r => r.dur || 0)), totalErrors: rows.reduce((a, r) => a + (r.errors || 0), 0),
+      errSessions: rows.filter(r => r.errors > 0).length, topErrors: Object.entries(errs).sort((a, b) => b[1] - a[1]).slice(0, 5),
+      fps: avg(rows.map(r => r.fps).filter(Boolean)), loadMs: avg(rows.map(r => r.loadMs).filter(Boolean)),
+      mp: rows.filter(r => r.mp).length, devices: dev, days
+    };
+  },
+  async open(p) {
+    const gameId = p && (p.publishedId || p.gameId);
+    if (!gameId) { Toast.err('انشر اللعبة أولًا — التحليلات تُجمع من اللعبة المنشورة'); return; }
+    if (!Backend.isOnline()) { Toast.err('التحليلات تحتاج اتصال Firebase'); return; }
+    const body = el('div');
+    body.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' })]));
+    Sheet.open({ title: '📊 التحليلات · Analytics', body, full: true, id: 'analytics' });
+    let a;
+    try { a = await this.load(gameId); } catch (e) { body.textContent = ''; body.appendChild(el('p', { class: 'muted', text: e.code === 'permission-denied' ? 'التحليلات مرئية للمالك والمطوّرين في فريق المشروع فقط.' : fbErr(e) })); return; }
+    body.textContent = '';
+    const kpi = (label, v) => el('div', { class: 'an-kpi' }, [el('b', { text: v }), el('span', { text: label })]);
+    const mm = s => s >= 60 ? Math.floor(s / 60) + 'د ' + Math.round(s % 60) + 'ث' : Math.round(s) + 'ث';
+    body.append(el('div', { class: 'an-grid' }, [
+      kpi('مرات اللعب', NX.fmtNum(a.plays)), kpi('جلسات مسجّلة', NX.fmtNum(a.sessions)), kpi('لاعبون (أجهزة)', NX.fmtNum(a.players)),
+      kpi('يلعبون الآن', String(a.online)), kpi('متوسط مدة الجلسة', mm(a.avgDur)), kpi('جلسات متعددة اللاعبين', String(a.mp)),
+      kpi('الأخطاء', NX.fmtNum(a.totalErrors) + ' في ' + a.errSessions + ' جلسة'), kpi('متوسط الإطارات', a.fps ? Math.round(a.fps) + ' FPS' : '—'),
+      kpi('متوسط التحميل', a.loadMs ? (a.loadMs / 1000).toFixed(1) + ' ث' : '—')]));
+    const days = Object.keys(a.days).sort().slice(-14);
+    if (days.length) {
+      const max = Math.max(...days.map(d => a.days[d]));
+      const chart = el('div', { class: 'an-chart' });
+      days.forEach(d => chart.appendChild(el('div', { class: 'an-bar', title: d + ': ' + a.days[d] }, [el('i', { style: { height: Math.max(4, a.days[d] / max * 100) + '%' } }), el('small', { text: d.slice(5) })])));
+      body.append(el('div', { class: 'ttl', text: 'الجلسات في آخر ' + days.length + ' يومًا' }), chart);
+    }
+    if (a.topErrors.length) {
+      body.appendChild(el('div', { class: 'ttl', text: 'أكثر الأخطاء' }));
+      a.topErrors.forEach(([m, n]) => body.appendChild(el('div', { class: 'tiny mono', style: { direction: 'ltr', textAlign: 'left', padding: '4px 0' }, text: n + '× ' + m })));
+    }
+    const dv = Object.entries(a.devices);
+    if (dv.length) body.append(el('div', { class: 'ttl', text: 'الأجهزة' }), el('p', { class: 'tiny', text: dv.map(([k, v]) => ({ mobile: '📱 هاتف', tablet: '📟 لوحي', desktop: '🖥 كمبيوتر' })[k] + ' ' + Math.round(v / a.sessions * 100) + '%').join(' · ') }));
+    body.appendChild(el('p', { class: 'tiny', style: { marginTop: '12px' }, text: 'لا تُجمع بيانات شخصية: لا حساب ولا اسم ولا بريد — لكل جهاز معرّف عشوائي فقط. مرئية للمالك والمطوّرين في الفريق.' }));
+  }
+};
+
+/* ================================================================ hooks into the Studio menu + TEAM panel */
+/* a replay button in the team playtest bar */
+const PT = NX.Playtest;
+const _hud = PT.paintHud.bind(PT);
+PT.paintHud = function (p) {
+  _hud(p);
+  const S = NX.Studio, hud = S._overlay && S._overlay.querySelector('.pt-hud');
+  if (hud && !hud.querySelector('.pt-rp')) hud.insertBefore(btn('🎞', { cls: 'sm pt-rp', onclick: () => Replays.save(S.runtime, GameServices.session({ mode: 'studio', projectId: p.projectId, playtest: true })) }), hud.lastChild);
+};
+
+const TU = NX.TeamUI;
+TU.addAction({ id: 'replays', icon: 'play', label: '🎞 الإعادات', when: p => Team.hasTeam(p), run: p => Replays.open({ projectId: p.projectId }) });
+TU.addAction({ id: 'analytics', icon: 'grid', label: '📊 التحليلات', when: p => !!p.publishedId && (Team.isOwner(p) || Team.roleOf(p) === 'developer'), run: p => Analytics.open(p) });
+TU.addAction({ id: 'leaderboard', icon: 'flame', label: '🏆 لوحة الصدارة', when: p => Team.isOwner(p), run: p => Leaderboards.configure(p) });
+
+NX.Leaderboards = Leaderboards;
+NX.GameServices = GameServices;
+NX.Replays = Replays;
+NX.ReplayRecorder = ReplayRecorder;
+NX.Spectate = Spectate;
+NX.Analytics = Analytics;
+</script>
+<!-- /NX-PART:22 -->
+<!-- NX-PART:23 -->
+<script type="module">
+/* ============================================================
+   PART 23 · SCRIPT SANDBOX — game code that is not only yours
+   (someone else's published game, any team project) runs inside
+   <iframe sandbox="allow-scripts">: an opaque origin with no
+   access to this site's storage, cookies, Firebase session, AI
+   keys or DOM. It reaches the outside only through this bridge,
+   which answers a short list of requests and checks each one:
+   the game's own rooms, its own saves, readable assets, the
+   leaderboard and replays of THIS game. Secrets never cross it.
+   ============================================================ */
+const NX = window.NX;
+const { $, el, btn, Toast, LS, uid } = NX;
+const Backend = NX.Backend;
+
+/* ================================================================ GUEST — inside the frame */
+const SandboxGuest = {
+  n: 0, calls: new Map(), subs: new Map(), rt: null, engine: null, cfg: null, saves: {}, blobs: new Map(),
+  post(msg, transfer) { window.parent.postMessage(Object.assign({ nx: 'sb' }, msg), '*', transfer || []); },
+  rpc(op, args) { return new Promise((res, rej) => { const id = ++this.n; this.calls.set(id, { res, rej }); this.post({ t: 'rpc', id, op, args }); }); },
+  fire(op, args) { this.post({ t: 'fire', op, args }); },
+  on(ch, cb) { this.subs.set(ch, cb); },
+
+  start() {
+    document.documentElement.dataset.sandbox = '1';
+    window.addEventListener('message', e => {
+      if (e.source !== window.parent) return;
+      const m = e.data;
+      if (!m || m.nx !== 'sb') return;
+      if (m.t === 'rpc-r') { const c = this.calls.get(m.id); if (!c) return; this.calls.delete(m.id); m.ok ? c.res(m.value) : c.rej(Object.assign(new Error(m.error || 'refused'), { code: m.code })); }
+      else if (m.t === 'ev') { const cb = this.subs.get(m.ch); if (cb) { try { cb(m.ev, m.data); } catch (er) { console.error(er); } } }
+      else if (m.t === 'init') this.run(m.run).catch(er => this.post({ t: 'fatal', error: String((er && er.message) || er).slice(0, 300) }));
+      else if (m.t === 'stop') this.stop();
+      else if (m.t === 'call') this.answer(m);
+    });
+    this.patch();
+    window.addEventListener('error', e => this.fire('log', { m: String(e.message || e).slice(0, 500), t: 'err' }));
+    NX.Screen.show('player');
+    ['#p-exit', '#p-load'].forEach(q => { const n = $(q); if (n) n.classList.add('hide'); });
+    this.post({ t: 'hello' });
+  },
+
+  /* what the game engine would have asked the page for, asked of the host instead */
+  patch() {
+    const A = NX.Assets, cache = new Map();
+    A.get = id => { id = String(id || ''); if (!cache.has(id)) cache.set(id, this.rpc('asset.get', { id }).catch(() => null)); return cache.get(id); };
+    A.url = async a => {
+      if (!a || !a.assetId) return null;
+      if (this.blobs.has(a.assetId)) return this.blobs.get(a.assetId);
+      const buf = await this.rpc('asset.bytes', { id: a.assetId });
+      if (!buf) return null;
+      const ext = String(a.fileType || '').toLowerCase();
+      const type = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav', m4a: 'audio/mp4', glb: 'model/gltf-binary' }[ext] || 'application/octet-stream';
+      const u = URL.createObjectURL(new Blob([buf], { type }));
+      this.blobs.set(a.assetId, u);
+      return u;
+    };
+    A.thumbURL = async () => null;
+    A.search = async opts => ({ items: await this.rpc('asset.search', { q: String((opts && opts.q) || ''), kind: opts && opts.kind, limit: Math.min(30, (opts && opts.limit) || 20) }).catch(() => []), done: true });
+    /* the game's saves: this frame has no storage of its own */
+    const self = this;
+    const LS0 = NX.LS;
+    NX.LS.get = (k, d) => String(k).startsWith('save.') ? (k in self.saves ? self.saves[k] : d) : d;
+    NX.LS.set = (k, v) => { if (String(k).startsWith('save.')) { self.saves[k] = v; self.fire('save.set', { k, v }); } return true; };
+    NX.LS.del = k => { if (String(k).startsWith('save.')) { delete self.saves[k]; self.fire('save.del', { k }); } };
+    void LS0;
+    NX.SandboxNet = {
+      async room(roomId, opts, rt) {
+        const r = await self.rpc('net.join', { roomId: String(roomId), state: (opts && opts.state) || {} });
+        const handlers = {}, peers = new Map((r.peers || []).map(p => [p.uid, p]));
+        const room = {
+          id: String(roomId), me: r.me, peers,
+          on(ev, cb) { (handlers[ev] = handlers[ev] || []).push(cb); return room; },
+          _emit(ev, ...a) { (handlers[ev] || []).forEach(cb => { try { cb(...a); } catch (e) { rt.error(e); } }); },
+          async setState(patch) { self.fire('net.state', { rid: r.rid, patch }); },
+          async send(type, data) { self.fire('net.send', { rid: r.rid, type: String(type), data: data == null ? null : data }); },
+          async leave() { self.fire('net.leave', { rid: r.rid }); self.subs.delete('room:' + r.rid); }
+        };
+        self.on('room:' + r.rid, (ev, d) => {
+          if (ev === 'peerLeft') { peers.delete(d); room._emit('peerLeft', d); }
+          else if (ev === 'peer') { const isNew = !peers.has(d.uid); peers.set(d.uid, d); room._emit(isNew ? 'peerJoined' : 'peerState', d); }
+          else if (ev === 'message') { room._emit('message', d); room._emit(d.type, d.data, d.from); }
+        });
+        rt._cleanups.push(() => room.leave());
+        return room;
+      },
+      async signal(roomId, rt) {
+        const r = await self.rpc('sig.open', { roomId: String(roomId) });
+        return {
+          me: r.me,
+          async send(to, payload) { self.fire('sig.send', { sid: r.sid, to: String(to), payload }); },
+          listen(cb) { self.on('sig:' + r.sid, (ev, d) => cb(d)); self.fire('sig.listen', { sid: r.sid }); return () => self.subs.delete('sig:' + r.sid); }
+        };
+      }
+    };
+    /* Save.sync / Save.pull go through the host too */
+    const RTp = NX.Runtime.prototype, _api = RTp.api;
+    RTp.api = function () {
+      const a = _api.call(this);
+      if (a.Save && !a.Save.__sb) {
+        a.Save.__sb = true;
+        a.Save.sync = async k => { await self.rpc('save.sync', { key: a.Save._key(k), value: a.Save.get(k, null) }); return true; };
+        a.Save.pull = async k => { const v = await self.rpc('save.pull', { key: a.Save._key(k) }); if (v !== undefined && v !== null) NX.LS.set(a.Save._key(k), v); return v; };
+      }
+      return a;
+    };
+  },
+
+  async run(cfg) {
+    this.stop();
+    this.cfg = cfg;
+    this.saves = Object.assign({}, cfg.saves || {});
+    NX.Backend.user = cfg.user ? { uid: cfg.user.uid, name: cfg.user.name } : null;   // a name to show; no token, no session
+    $('#player-ui').textContent = '';
+    if (!this.engine) this.engine = new NX.EngineCore($('#player-canvas'), { mode: 'runtime' });
+    const eng = this.engine;
+    eng.start();
+    this.fire('status', { text: 'تحميل المشهد…' });
+    await eng.load(cfg.scene || { objects: [] });
+    const cam = Array.from(eng.entities.values()).find(e => e.type === 'camera' && e.props.isMain) || Array.from(eng.entities.values()).find(e => e.type === 'camera');
+    if (cam && cam.object3D) { eng.activeCamera = cam.object3D; eng._resize(); }
+    const rt = new NX.Runtime(eng, {
+      project: cfg.project, uiHost: $('#player-ui'), trusted: true,
+      onLog: (m, t) => this.fire('log', { m: String(m).slice(0, 4000), t })
+    });
+    this.rt = rt;
+    rt.services = this.services(cfg);
+    rt.watchRoom = (roomId, room) => this.watchRoom(roomId, room);
+    if (cfg.mode === 'spectate') { rt.spectateRoom = cfg.spectate; rt.enterSpectator($('#player-ui')); }
+    rt.startStats();
+    const art = Object.assign({}, cfg.build.artifacts);
+    art.wasm = (cfg.wasm || []).map(w => ({ path: w.path, bytes: new Uint8Array(w.buf) }));
+    await rt.runBuild({ artifacts: art, manifest: cfg.build.manifest });
+    this.post({ t: 'ready' });
+  },
+  stop() {
+    if (this.clip && this.clip.rec && this.clip.rec.state !== 'inactive') { try { this.clip.rec.stop(); } catch {} }
+    this.clip = null;
+    if (this.rt) { try { this.rt.stop(); } catch {} this.rt = null; }
+    if (this.engine) { this.engine.stop(); this.engine.clear(); }
+    this.subs.clear();
+    const ui = $('#player-ui'); if (ui) ui.textContent = '';
+  },
+  services(cfg) {
+    const self = this;
+    return {
+      mode: cfg.mode, lb: cfg.lb || null, published: cfg.mode === 'play',
+      lbSubmit: score => self.rpc('svc.lbSubmit', { score: +score }),
+      lbTop: n => self.rpc('svc.lbTop', { n: Math.min(100, n | 0 || 10) }),
+      lbMine: () => self.rpc('svc.lbMine', {}),
+      roomBeat: (name, players) => self.fire('svc.roomBeat', { name: String(name), players: players | 0 }),
+      report: r => self.fire('svc.report', r)
+    };
+  },
+  async watchRoom(roomId, room) {
+    const r = await this.rpc('net.watch', { roomId: String(roomId) });
+    this.on('room:' + r.rid, (ev, d) => {
+      if (ev === 'peerLeft') { room.peers.delete(d); room._emit('peerLeft', d); }
+      else if (ev === 'peer') { const n = !room.peers.has(d.uid); room.peers.set(d.uid, d); room._emit(n ? 'peerJoined' : 'peerState', d); }
+      else if (ev === 'message') { room._emit('message', d); room._emit(d.type, d.data, d.from); }
+    });
+    return () => { this.fire('net.leave', { rid: r.rid }); this.subs.delete('room:' + r.rid); };
+  },
+  /* the host asks: replay, live readout for the assistant, a gameplay clip */
+  async answer(m) {
+    const reply = (ok, value, error) => this.post({ t: 'call-r', id: m.id, ok, value, error });
+    try {
+      if (m.op === 'replay.pack') {
+        if (!this.rt || !this.rt.replay || !this.rt.replay.frames.length) throw new Error('لا توجد إعادة مسجّلة بعد');
+        return reply(true, await this.rt.replay.pack());
+      }
+      if (m.op === 'runtime.snapshot') {
+        const eng = this.engine, rt = this.rt;
+        if (!rt) return reply(true, null);
+        const f0 = eng.time.frame, t0 = performance.now();
+        await new Promise(r => setTimeout(r, 1000));
+        const api = rt._api, pl = api && api.Player && api.Player.object;
+        return reply(true, {
+          fps: Math.round((eng.time.frame - f0) * 1000 / Math.max(1, performance.now() - t0)), seconds: Math.round(eng.time.t),
+          entities: eng.entities.size, bodies: eng.physics.bodies.size, physics: !!eng.physicsEnabled, scripts: (rt.instances || []).length,
+          loadedAssets: NX.AssetCache._mem.size, player: pl && pl.exists ? pl.position.toArray().map(n => +n.toFixed(2)) : null,
+          camera: (Array.from(eng.entities.values()).find(e => e.object3D === eng.activeCamera) || {}).name || 'camera',
+          stats: eng.stats, errors: NX.ErrorLog ? NX.ErrorLog.items.filter(e => e.kind === 'runtime').slice(0, 6).map(e => e.message.slice(0, 160)) : [], sandbox: true
+        });
+      }
+      if (m.op === 'clip.start') {
+        const stream = this.engine.canvas.captureStream(30);
+        const type = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+        const rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+        this.clip = { rec, chunks: [], type: type || 'video/webm' };
+        rec.ondataavailable = e => { if (e.data && e.data.size) this.clip.chunks.push(e.data); };
+        rec.start(500);
+        return reply(true, true);
+      }
+      if (m.op === 'clip.pause') { this.clip && this.clip.rec.pause(); return reply(true, true); }
+      if (m.op === 'clip.resume') { this.clip && this.clip.rec.resume(); return reply(true, true); }
+      if (m.op === 'clip.stop') {
+        const c = this.clip; if (!c) throw new Error('NO_CLIP');
+        const blob = await new Promise(res => { c.rec.onstop = () => res(new Blob(c.chunks, { type: c.type.split(';')[0] })); c.rec.stop(); });
+        this.clip = null;
+        return reply(true, blob);
+      }
+      if (m.op === 'focus') { window.focus(); return reply(true, true); }
+      throw new Error('UNKNOWN_CALL');
+    } catch (e) { reply(false, null, String((e && e.message) || e)); }
+  }
+};
+
+/* ================================================================ HOST — the page */
+const MAX = { json: 20000, save: 100000, sendPerSec: 15, joins: 12, bytes: 64 * 1024 * 1024 };
+const jsonSize = v => { try { return JSON.stringify(v === undefined ? null : v).length; } catch { return Infinity; } };
+const plain = v => JSON.parse(JSON.stringify(v === undefined ? null : v));
+function guestURL() {
+  return location.origin + location.pathname + '#nx-sandbox';
+}
+
+class SandboxSession {
+  constructor(frame, opts) {
+    this.frame = frame; this.opts = opts; this.__sandbox = true;
+    this.rooms = new Map(); this.sigs = new Map(); this.n = 0; this.calls = new Map(); this.rate = new Map();
+    this.mp = false; this.joins = 0; this.bytes = 0; this.stopped = false;
+    const ids = new Set(opts.project && opts.project.assetRefs || []);
+    ((opts.scene && opts.scene.objects) || []).forEach(o => { if (o.assetId) ids.add(o.assetId); });
+    this.allowed = ids;
+    this.gameKey = (opts.project && (opts.project.publishedId || opts.project.projectId)) || 'sandbox';
+  }
+  post(msg, transfer) { if (!this.stopped || msg.t === 'stop') this.frame.iframe.contentWindow.postMessage(Object.assign({ nx: 'sb' }, msg), '*', transfer || []); }
+  call(op, args) { return new Promise((res, rej) => { const id = ++this.n; this.calls.set(id, { res, rej }); this.post({ t: 'call', id, op, args }); setTimeout(() => { if (this.calls.has(id)) { this.calls.delete(id); rej(new Error('SANDBOX_TIMEOUT')); } }, 30000); }); }
+  ev(ch, ev, data) { this.post({ t: 'ev', ch, ev, data: plain(data) }); }
+  limit(key, perSec) {
+    const now = Date.now(), r = this.rate.get(key) || { t: now, n: 0 };
+    if (now - r.t > 1000) { r.t = now; r.n = 0; }
+    r.n++; this.rate.set(key, r);
+    return r.n <= perSec;
+  }
+  savePrefix() { return 'save.' + this.gameKey + '.' + ((Backend.user && Backend.user.uid) || 'anon') + '.'; }
+  roomId(name) { const n = String(name).slice(0, 120); return this.opts.roomFor ? this.opts.roomFor(n) : n; }
+
+  async start() {
+    await this.frame.ready;
+    const o = this.opts;
+    const wasm = ((o.build.artifacts && o.build.artifacts.wasm) || []).map(w => {
+      const b = w.bytes instanceof Uint8Array ? w.bytes : Uint8Array.from(w.bytes || []);
+      return { path: w.path, buf: b.slice().buffer };
+    });
+    const artifacts = Object.assign({}, o.build.artifacts); delete artifacts.wasm;
+    const saves = {};
+    const pre = 'nx.' + this.savePrefix();
+    try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(pre)) saves[k.slice(3)] = LS.get(k.slice(3), null); } } catch {}
+    const run = plain({
+      mode: o.mode, spectate: o.spectate || null,
+      user: Backend.user ? { uid: Backend.user.uid, name: Backend.user.name } : null,
+      project: o.project, scene: o.scene, build: { artifacts, manifest: o.build.manifest || null },
+      saves, lb: o.services && o.services.lb ? o.services.lb : null
+    });
+    run.wasm = wasm;
+    const done = new Promise((res, rej) => { this._ready = res; this._fatal = rej; });
+    this.post({ t: 'init', run }, wasm.map(w => w.buf));
+    await done;
+    try { this.frame.iframe.focus(); } catch {}
+    return this;
+  }
+  stop(destroy) {
+    if (this.stopped) return;
+    this.stopped = true;
+    this.rooms.forEach(r => r.close()); this.rooms.clear();
+    this.sigs.forEach(s => s.close && s.close()); this.sigs.clear();
+    try { this.post({ t: 'stop' }); } catch {}
+    if (SandboxHost.active === this) SandboxHost.active = null;
+    if (destroy || !this.frame.key) SandboxHost.drop(this.frame);
+    else this.frame.iframe.classList.add('hide');
+  }
+  /* a gameplay clip recorded inside the frame, handed back as a file */
+  clipSession(onTick) {
+    const self = this;
+    let paused = 0, pausedAt = 0; const t0 = Date.now();
+    const s = { state: 'recording',
+      pause() { if (s.state !== 'recording') return; s.state = 'paused'; pausedAt = Date.now(); self.call('clip.pause').catch(() => {}); },
+      resume() { if (s.state !== 'paused') return; s.state = 'recording'; paused += Date.now() - pausedAt; self.call('clip.resume').catch(() => {}); },
+      async stop() { clearInterval(tk); s.state = 'inactive'; return self.call('clip.stop'); } };
+    const tk = setInterval(() => { if (s.state === 'recording') onTick && onTick((Date.now() - t0 - paused) / 1000); }, 250);
+    this.call('clip.start').catch(e => Toast.err('تعذّر التسجيل: ' + e.message));
+    return s;
+  }
+
+  /* ---------------- requests from the game ---------------- */
+  async handle(m) {
+    const a = m.args || {};
+    const svc = this.opts.services;
+    switch (m.op) {
+      case 'asset.get': {
+        const id = String(a.id || '').slice(0, 100);
+        const x = id ? await NX.Assets.get(id).catch(() => null) : null;
+        if (!x || (x.visibility === 'private' && !this.allowed.has(id))) return null;
+        this.allowed.add(id);
+        return { assetId: x.assetId, name: x.name, creatorName: x.creatorName, category: x.category, tags: x.tags, license: x.license,
+          fileType: x.fileType, kind: x.kind, usageCount: x.usageCount, stats: x.stats, visibility: x.visibility, storagePath: 'asset.' + (x.fileType || 'bin') };
+      }
+      case 'asset.bytes': {
+        const id = String(a.id || '');
+        if (!this.allowed.has(id)) throw Object.assign(new Error('ASSET_NOT_ALLOWED'), { code: 'permission-denied' });
+        const x = await NX.Assets.get(id).catch(() => null);
+        if (!x) return null;
+        const url = await NX.Assets.url(x);
+        if (!url) return null;
+        const buf = await (await fetch(url)).arrayBuffer();
+        this.bytes += buf.byteLength;
+        if (this.bytes > MAX.bytes * 4) throw new Error('TOO_MUCH_DATA');
+        return { __transfer: buf };
+      }
+      case 'asset.search': {
+        const r = await NX.Assets.search({ q: String(a.q || '').slice(0, 80), kind: a.kind || 'all', limit: Math.min(30, a.limit | 0 || 20), scope: 'public' });
+        return r.items.filter(x => x.visibility === 'public').map(x => { this.allowed.add(x.assetId); return { assetId: x.assetId, name: x.name, creator: x.creatorName, category: x.category, tags: x.tags, license: x.license, fileType: x.fileType, kind: x.kind, usageCount: x.usageCount, stats: x.stats }; });
+      }
+      case 'net.join': return this.join(a, false);
+      case 'net.watch': return this.join(a, true);
+      case 'sig.open': return this.sigOpen(a);
+      case 'save.sync': {
+        const k = String(a.key || '');
+        if (!k.startsWith(this.savePrefix()) || jsonSize(a.value) > MAX.save) throw Object.assign(new Error('SAVE_REFUSED'), { code: 'permission-denied' });
+        if (!Backend.isOnline()) return false;
+        await Backend.setDoc('saves', k.replace(/\./g, '_'), { value: plain(a.value), at: Date.now(), uid: Backend.user.uid });
+        return true;
+      }
+      case 'save.pull': {
+        const k = String(a.key || '');
+        if (!k.startsWith(this.savePrefix()) || !Backend.isOnline()) return null;
+        const d = await Backend.getDoc('saves', k.replace(/\./g, '_'));
+        if (d) LS.set(k, d.value);
+        return d ? d.value : null;
+      }
+      case 'svc.lbSubmit': return svc ? svc.lbSubmit(+a.score) : { ok: false, reason: 'editor', message: 'لوحة الصدارة تعمل في اللعبة المنشورة فقط' };
+      case 'svc.lbTop': return svc ? svc.lbTop(Math.min(100, a.n | 0 || 10)) : [];
+      case 'svc.lbMine': return svc ? svc.lbMine() : null;
+      default: throw new Error('UNKNOWN_REQUEST');
+    }
+  }
+  fire(m) {
+    const a = m.args || {};
+    const svc = this.opts.services;
+    switch (m.op) {
+      case 'log': { const t = ['log', 'warn', 'err', 'sys'].includes(a.t) ? a.t : 'log'; const txt = String(a.m || '').slice(0, 4000);
+        this.opts.onLog && this.opts.onLog(txt, t);
+        if (t === 'err' && NX.ErrorLog) NX.ErrorLog.push('runtime', txt, null, { sandbox: true });
+        if (t === 'err' && svc && svc.report) svc.report({ error: txt });
+        return; }
+      case 'status': this.opts.onStatus && this.opts.onStatus(String(a.text || '').slice(0, 120)); return;
+      case 'save.set': { const k = String(a.k || ''); if (k.startsWith(this.savePrefix()) && jsonSize(a.v) <= MAX.save) LS.set(k, plain(a.v)); return; }
+      case 'save.del': { const k = String(a.k || ''); if (k.startsWith(this.savePrefix())) LS.del(k); return; }
+      case 'net.state': { const r = this.rooms.get(a.rid); if (r && !r.watch && this.limit('state', MAX.sendPerSec) && jsonSize(a.patch) <= MAX.json) r.setState(plain(a.patch)); return; }
+      case 'net.send': { const r = this.rooms.get(a.rid); if (r && !r.watch && this.limit('send', MAX.sendPerSec) && jsonSize(a.data) <= MAX.json) r.send(String(a.type).slice(0, 60), plain(a.data)); return; }
+      case 'net.leave': { const r = this.rooms.get(a.rid); if (r) { r.close(); this.rooms.delete(a.rid); } return; }
+      case 'sig.send': { const s = this.sigs.get(a.sid); if (s && this.limit('sig', 40) && jsonSize(a.payload) <= MAX.json) s.send(String(a.to).slice(0, 128), plain(a.payload)); return; }
+      case 'sig.listen': { const s = this.sigs.get(a.sid); if (s) s.listen(); return; }
+      case 'svc.roomBeat': if (svc && svc.roomBeat) svc.roomBeat(String(a.name).slice(0, 60), a.players | 0); this.mp = true; return;
+      case 'svc.report': if (a && a.mp) this.mp = true; if (svc && svc.report) svc.report({ fps: a.fps, error: a.error ? String(a.error).slice(0, 300) : undefined, mp: !!a.mp }); return;
+    }
+  }
+  /* a room on behalf of the game: the same Firestore paths and rules as the
+     page would use, written as the signed-in player — nothing else reachable */
+  async join(a, watch) {
+    if (!Backend.isOnline() || !Backend.user) throw new Error('NETWORK_REQUIRES_BACKEND: rooms need the platform cloud connection.');
+    if (++this.joins > MAX.joins) throw new Error('TOO_MANY_ROOMS');
+    if (jsonSize(a.state) > MAX.json) throw new Error('STATE_TOO_BIG');
+    const { F, db } = Backend.fb;
+    const me = Backend.user.uid, rid = uid('r');
+    const base = ['rooms', this.roomId(a.roomId)];
+    const meRef = F.doc(db, ...base, 'peers', me);
+    if (!watch) await F.setDoc(meRef, { uid: me, name: Backend.user.name, at: Date.now(), state: plain(a.state || {}) });
+    this.mp = true;
+    const peers = [];
+    const since = Date.now();
+    const u1 = F.onSnapshot(F.collection(db, ...base, 'peers'), s => s.docChanges().forEach(ch => {
+      const d = ch.doc.data();
+      if (ch.type === 'removed') this.ev('room:' + rid, 'peerLeft', d.uid); else this.ev('room:' + rid, 'peer', d);
+    }), () => {});
+    const u2 = F.onSnapshot(F.query(F.collection(db, ...base, 'messages'), F.orderBy('at', 'desc'), F.limit(30)), s => s.docChanges().forEach(ch => {
+      if (ch.type !== 'added') return;
+      const d = ch.doc.data();
+      if (d.at < since || d.from === me) return;
+      this.ev('room:' + rid, 'message', d);
+    }), () => {});
+    const hb = watch ? null : setInterval(() => F.setDoc(meRef, { at: Date.now() }, { merge: true }).catch(() => {}), 12000);
+    this.rooms.set(rid, {
+      watch,
+      setState: patch => F.setDoc(meRef, { uid: me, name: Backend.user.name, at: Date.now(), state: patch }, { merge: true }).catch(() => {}),
+      send: (type, data) => F.addDoc(F.collection(db, ...base, 'messages'), { type, data, from: me, at: Date.now() }).catch(() => {}),
+      close: () => { u1(); u2(); clearInterval(hb); if (!watch) F.deleteDoc(meRef).catch(() => {}); }
+    });
+    return { rid, me: watch ? null : me, peers };
+  }
+  async sigOpen(a) {
+    if (!Backend.isOnline() || !Backend.user) throw new Error('SIGNALING_REQUIRES_BACKEND');
+    const { F, db } = Backend.fb;
+    const me = Backend.user.uid, sid = uid('g');
+    const col = F.collection(db, 'rooms', this.roomId(a.roomId), 'signals');
+    let off = null;
+    this.sigs.set(sid, {
+      send: (to, payload) => F.addDoc(col, { from: me, to, payload, at: Date.now() }).catch(() => {}),
+      listen: () => {
+        if (off) return;
+        const since = Date.now();
+        off = F.onSnapshot(F.query(col, F.where('to', '==', me)), s => s.docChanges().forEach(ch => {
+          if (ch.type !== 'added') return;
+          const d = ch.doc.data();
+          if (d.at >= since) this.ev('sig:' + sid, 'signal', d);
+        }), () => {});
+      },
+      close: () => off && off()
+    });
+    return { sid, me };
+  }
+}
+
+const SandboxHost = {
+  frames: [], active: null, _bound: false,
+  bind() {
+    if (this._bound) return;
+    this._bound = true;
+    window.addEventListener('message', e => {
+      const f = this.frames.find(x => x.iframe.contentWindow === e.source);
+      if (!f) return;                                   // only our own sandbox frames are answered
+      const m = e.data;
+      if (!m || m.nx !== 'sb') return;
+      if (m.t === 'hello') { f._hello(); return; }
+      const s = f.session;
+      if (!s || s.stopped) return;
+      if (m.t === 'rpc') {
+        s.handle(m).then(v => {
+          if (v && v.__transfer) s.post({ t: 'rpc-r', id: m.id, ok: true, value: v.__transfer }, [v.__transfer]);
+          else s.post({ t: 'rpc-r', id: m.id, ok: true, value: v === undefined ? null : plain(v) });
+        }, err => s.post({ t: 'rpc-r', id: m.id, ok: false, error: String((err && err.message) || err).slice(0, 300), code: err && err.code }));
+      } else if (m.t === 'fire') s.fire(m);
+      else if (m.t === 'ready') s._ready && s._ready();
+      else if (m.t === 'fatal') s._fatal && s._fatal(new Error(m.error));
+      else if (m.t === 'call-r') { const c = s.calls.get(m.id); if (c) { s.calls.delete(m.id); m.ok ? c.res(m.value) : c.rej(new Error(m.error)); } }
+    });
+  },
+  /* one frame per place (the player screen, the Studio viewport); reused
+     only for the same game, never shared between two different games */
+  frame(container, key) {
+    this.bind();
+    let f = this.frames.find(x => x.container === container && x.key && x.key === key && x.iframe.isConnected);
+    if (f) { f.iframe.classList.remove('hide'); return f; }
+    this.frames.filter(x => x.container === container).forEach(x => this.drop(x));
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('sandbox', 'allow-scripts allow-pointer-lock');
+    iframe.setAttribute('allow', 'autoplay; fullscreen; gamepad; microphone');
+    iframe.setAttribute('title', 'game sandbox');
+    iframe.className = 'sb-frame';
+    let hello;
+    f = { iframe, container, key, ready: new Promise(r => { hello = r; }) };
+    f._hello = () => hello();
+    iframe.src = guestURL();
+    container.appendChild(iframe);
+    this.frames.push(f);
+    return f;
+  },
+  drop(f) { f.iframe.remove(); this.frames = this.frames.filter(x => x !== f); },
+  async run(opts) {
+    const f = this.frame(opts.container, opts.key || null);
+    if (f.session && !f.session.stopped) f.session.stop();
+    const s = new SandboxSession(f, opts);
+    f.session = s;
+    this.active = s;
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('SANDBOX_TIMEOUT: صندوق اللعبة لم يبدأ (تحقق من الاتصال)')), 45000));
+    try { await Promise.race([s.start(), timeout]); }
+    catch (e) { s.stop(true); throw e; }
+    return s;
+  },
+  /* the running sandbox the user is looking at (for the clip recorder) */
+  visible() {
+    const s = this.active;
+    return s && !s.stopped && s.frame.iframe.isConnected && !s.frame.iframe.classList.contains('hide') && s.opts.mode !== 'test' ? s : null;
+  }
+};
+
+/* ================================================================ WHEN TO SANDBOX
+   Your own solo project and your own published games run as before.
+   A project with a team, or anyone else's published game, runs sandboxed. */
+const Sandbox = {
+  forProject(p) { return !!(p && Backend.isOnline() && NX.Team && (NX.Team.hasTeam(p) || !NX.Team.isOwner(p))); }
+};
+
+/* ---------------- the Studio's play / stop / AI test run ---------------- */
+if (!window.NX_SANDBOX) {
+  const S = NX.Studio;
+  const _play = S.play, _stop = S.stopPlay, _test = S.testRun;
+  S.play = async function () {
+    if (!Sandbox.forProject(this.project)) return _play.apply(this, arguments);
+    if (this.playing) return;
+    this.playing = true;
+    this.playStartedAt = Date.now();
+    NX.Sheet.closeAll();
+    $('#s-play').classList.add('on');
+    $('#s-play').firstChild.firstChild.setAttribute('href', '#i-stop');
+    this.engine.select(null);
+    $('#sel-bar').classList.remove('in');
+    this.updateEmptyState();
+    let build = this.lastBuild;
+    if (!build || build.projectRev !== this.projectRev()) build = await this.buildProject({ silent: true });
+    if (!build || !build.ok) {
+      await this.stopPlay();
+      Toast.err('فشل البناء — افتح «الكود ← Problems»');
+      if (NX.IDE) NX.IDE.open(this.project, { panel: 'problems' });
+      return;
+    }
+    const overlay = el('div', { id: 'play-ui', class: 'sb-host' });
+    $('#vp-wrap').appendChild(overlay);
+    this._overlay = overlay;
+    this.engine.stop();
+    const p = this.project, playtest = NX.Playtest && NX.Playtest.active && this.__playtest;
+    const services = playtest && NX.GameServices ? NX.GameServices.session({ mode: 'studio', projectId: p.projectId, playtest: true }) : null;
+    try {
+      this._sb = await SandboxHost.run({
+        container: overlay, key: null, scene: this.engine.serialize(), build,
+        project: { projectId: p.projectId, name: p.name, assetRefs: p.assetRefs || [], i18n: p.i18n || null, settings: p.settings || {} },
+        mode: 'studio', services,
+        roomFor: name => NX.Playtest ? NX.Playtest.roomFor(name, { engine: this.engine }) : name,
+        onLog: (m, t) => { if (t === 'err') Toast.err(String(m).split('\n')[0]); if (NX.IDE) NX.IDE.log(m, t); },
+        onStatus: t => { if (NX.IDE) NX.IDE.log(t, 'sys'); }
+      });
+      Toast.ok('🛡️ تشغيل داخل صندوق آمن (Sandbox) — اضغط ⏹ للعودة');
+    } catch (e) {
+      Toast.err('تعذّر التشغيل: ' + (e.message || e));
+      await this.stopPlay();
+    }
+  };
+  S.stopPlay = async function () {
+    if (this._overlay && this._overlay.classList.contains('sb-host')) {
+      const sb = this._sb; this._sb = null;
+      if (sb) sb.stop(true);
+      this._overlay.remove(); this._overlay = null;
+      this.playing = false;
+      $('#s-play').classList.remove('on');
+      $('#s-play').firstChild.firstChild.setAttribute('href', '#i-play');
+      this.engine.start();
+      this.updateHud();
+    }
+    return _stop.apply(this, arguments);
+  };
+  /* the assistant's short test run of a team project: sandboxed too */
+  S.testRun = async function (build) {
+    if (!Sandbox.forProject(this.project)) return _test.apply(this, arguments);
+    const host = el('div', { class: 'sb-offscreen' });
+    document.body.appendChild(host);
+    const errors = [];
+    let sb = null;
+    const p = this.project;
+    try {
+      sb = await SandboxHost.run({ container: host, key: null, scene: this.engine.serialize(), build,
+        project: { projectId: p.projectId, name: p.name, assetRefs: p.assetRefs || [], i18n: p.i18n || null }, mode: 'test',
+        onLog: (m, t) => { if (t === 'err') errors.push(String(m).split('\n')[0].slice(0, 240)); } });
+      await new Promise(r => setTimeout(r, 2000));
+    } catch (e) { errors.push(String((e && e.message) || e).slice(0, 160)); }
+    finally { if (sb) sb.stop(true); host.remove(); }
+    return { errors };
+  };
+}
+
+NX.SandboxGuest = SandboxGuest;
+NX.SandboxHost = SandboxHost;
+NX.Sandbox = Sandbox;
+</script>
+<!-- /NX-PART:23 -->
 <script type="module">
 /* ============================================================
    PART 8/18 · GAME PLATFORM + BOOT
@@ -22737,7 +23932,7 @@ const Player = {
     return (a.scripts || build.scripts || []).concat(a.components || build.components || []);
   },
 
-  async open(game) {
+  async open(game, opts = {}) {
     let build = null;
     try { build = await Games.build(game.gameId); }
     catch (e) { Toast.err('تعذّر تحميل نسخة اللعبة من Firebase: ' + NX.describeFirebaseError(e)); return; }
@@ -22755,21 +23950,14 @@ const Player = {
     $('#p-load-txt').textContent = 'تحميل ' + game.title + '…';
     $('#player-ui').textContent = '';
     this.gameId = game.gameId;
+    /* someone else's code runs in the sandbox frame (PART 23): an opaque
+       origin that cannot reach this page's session, storage or keys */
+    const sandboxed = !!(NX.SandboxHost && !mine && hasCode);
 
     try {
-      if (!this.engine) this.engine = new EngineCore($('#player-canvas'), { mode: 'runtime' });
-      this.engine.start();
-      await this.engine.load(build.scene || { objects: [] });
-      const cam = Array.from(this.engine.entities.values()).find(e => e.type === 'camera' && e.props.isMain)
-        || Array.from(this.engine.entities.values()).find(e => e.type === 'camera');
-      if (cam && cam.object3D) { this.engine.activeCamera = cam.object3D; this.engine._resize(); }
-
-      this.runtime = new Runtime(this.engine, {
-        project: { projectId: build.gameId, publishedId: build.gameId, assetRefs: build.assetRefs || [], i18n: build.i18n || null },
-        uiHost: $('#player-ui'),
-        trusted: !!mine,
-        onLog: (m, t) => { if (t === 'err') console.error('[game]', m); else console.log('[game]', m); }
-      });
+      /* leaderboard, anonymous analytics, replays, spectator mode (PART 22) */
+      this.services = NX.GameServices ? NX.GameServices.session({ game, build, mode: opts.spectate ? 'spectate' : 'play' }) : null;
+      if (this.services) this.services.start();
       /* a published game ships compiled artifacts; fetch any WASM it references */
       const art = build.artifacts || { scripts: build.scripts || [], components: build.components || [], ui: [], styles: [], wasm: [] };
       art.wasm = [];
@@ -22780,24 +23968,68 @@ const Player = {
         const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
         art.wasm.push({ path: ref.path, bytes });
       }
-      await this.runtime.runBuild({ artifacts: art, manifest: build.manifest });
-      /* say exactly which assets could not be loaded on THIS device, and why */
-      const bad = Array.from(this.engine.entities.values()).filter(e => e.object3D && (e.object3D.userData.missing || e.object3D.userData.loadError));
-      if (bad.length) {
-        const missing = bad.filter(e => e.object3D.userData.missing).length;
-        const failed = bad.length - missing;
-        Toast.show((missing ? `${missing} أصل غير متاح (محذوف أو خاص)` : '') + (missing && failed ? ' · ' : '') +
-          (failed ? `${failed} أصل تعذّر تنزيل ملفه (${String(bad.find(e => e.object3D.userData.loadError).object3D.userData.loadError).slice(0, 60)}) — راجع إعداد CORS في التشخيص` : ''), '', 8000);
+      if (sandboxed) {
+        if (this.engine) { this.engine.stop(); this.engine.clear(); }
+        this.sandbox = await NX.SandboxHost.run({
+          container: $('#player-vp'), key: 'game:' + game.gameId,
+          scene: build.scene || { objects: [] }, build: { artifacts: art, manifest: build.manifest },
+          project: { projectId: build.gameId, publishedId: build.gameId, assetRefs: build.assetRefs || [], i18n: build.i18n || null },
+          mode: opts.spectate ? 'spectate' : 'play', spectate: opts.spectate || null, services: this.services,
+          onLog: (m, t) => { if (t === 'err') console.error('[game]', m); else console.log('[game]', m); },
+          onStatus: t => { $('#p-load-txt').textContent = t; }
+        });
+      } else {
+        if (!this.engine) this.engine = new EngineCore($('#player-canvas'), { mode: 'runtime' });
+        this.engine.start();
+        await this.engine.load(build.scene || { objects: [] });
+        const cam = Array.from(this.engine.entities.values()).find(e => e.type === 'camera' && e.props.isMain)
+          || Array.from(this.engine.entities.values()).find(e => e.type === 'camera');
+        if (cam && cam.object3D) { this.engine.activeCamera = cam.object3D; this.engine._resize(); }
+
+        this.runtime = new Runtime(this.engine, {
+          project: { projectId: build.gameId, publishedId: build.gameId, assetRefs: build.assetRefs || [], i18n: build.i18n || null },
+          uiHost: $('#player-ui'),
+          trusted: !!mine,
+          onLog: (m, t) => { if (t === 'err') console.error('[game]', m); else console.log('[game]', m); }
+        });
+        if (this.services) {
+          this.runtime.services = this.services;
+          if (opts.spectate) { this.runtime.spectateRoom = opts.spectate; this.runtime.enterSpectator($('#player-ui')); }
+          this.runtime.startStats();
+        }
+        await this.runtime.runBuild({ artifacts: art, manifest: build.manifest });
+        /* say exactly which assets could not be loaded on THIS device, and why */
+        const bad = Array.from(this.engine.entities.values()).filter(e => e.object3D && (e.object3D.userData.missing || e.object3D.userData.loadError));
+        if (bad.length) {
+          const missing = bad.filter(e => e.object3D.userData.missing).length;
+          const failed = bad.length - missing;
+          Toast.show((missing ? `${missing} أصل غير متاح (محذوف أو خاص)` : '') + (missing && failed ? ' · ' : '') +
+            (failed ? `${failed} أصل تعذّر تنزيل ملفه (${String(bad.find(e => e.object3D.userData.loadError).object3D.userData.loadError).slice(0, 60)}) — راجع إعداد CORS في التشخيص` : ''), '', 8000);
+        }
       }
       /* record a clip straight out of gameplay */
       if (!$('#p-clip')) {
         const clip = el('button', { class: 'icon-btn', id: 'p-clip',
           style: { position: 'absolute', top: 'calc(var(--sat) + 10px)', insetInlineEnd: '62px', zIndex: '5' },
-          onclick: () => NX.Community.openRecorder({ gameId: game.gameId }) }, [icon('cam')]);
+          onclick: () => NX.Community.openRecorder({ gameId: this.gameId }) }, [icon('cam')]);
         $('#player-vp').appendChild(clip);
       }
+      /* a multiplayer game can save its last minutes as a replay */
+      if (!$('#p-replay')) {
+        const rb = el('button', { class: 'icon-btn hide', id: 'p-replay', 'aria-label': 'replay',
+          style: { position: 'absolute', top: 'calc(var(--sat) + 10px)', insetInlineEnd: '114px', zIndex: '5' },
+          onclick: () => NX.Replays.save(this.sandbox || this.runtime, this.services) }, [el('span', { text: '🎞' })]);
+        $('#player-vp').appendChild(rb);
+      }
+      clearInterval(this._rpPoll);
+      this._rpPoll = setInterval(() => {
+        const b = $('#p-replay');
+        const mp = this.sandbox ? (this.sandbox.mp && !opts.spectate) : (this.runtime && this.runtime.__mp && !this.runtime.spectator);
+        if (b) b.classList.toggle('hide', !mp);
+      }, 1500);
       $('#p-load').classList.add('hide');
-      Games.recordPlay(game.gameId);
+      if (this.services) this.services.loaded();
+      if (!opts.spectate) Games.recordPlay(game.gameId);
     } catch (e) {
       $('#p-load-txt').textContent = 'تعذّر تشغيل اللعبة: ' + (e.message || e);
       console.error(e);
@@ -22810,7 +24042,7 @@ const Player = {
       if (LS.get(key, false)) return res(true);
       const body = el('div');
       body.appendChild(el('p', { class: 'muted', style: { fontSize: '13.5px', lineHeight: '1.7' },
-        text: `هذه اللعبة تحتوي على كود كتبه @${game.creatorName}. الأصول لا تُنفَّذ أبدًا — لكن كود اللعبة يعمل داخل صندوق المحرك. يمكنك قراءته قبل التشغيل.` }));
+        text: `هذه اللعبة تحتوي على كود كتبه @${game.creatorName}. الأصول لا تُنفَّذ أبدًا، وكود اللعبة يعمل داخل صندوق معزول (Sandbox) لا يصل إلى حسابك ولا جلستك ولا مفاتيحك. يمكنك قراءته قبل التشغيل.` }));
       const list = el('div', { style: { marginTop: '10px' } });
       this.codeOf(build).forEach(s => {
         list.appendChild(btn(s.name, { cls: 'block sm ghost', onclick: () => {
@@ -22834,6 +24066,9 @@ const Player = {
   },
 
   close() {
+    clearInterval(this._rpPoll);
+    if (this.sandbox) { this.sandbox.stop(); this.sandbox = null; }
+    if (this.services) { this.services.end(); this.services = null; }
     if (this.runtime) { this.runtime.stop(); this.runtime = null; }
     if (this.engine) { this.engine.stop(); this.engine.clear(); }
     $('#player-ui').textContent = '';
@@ -23901,7 +25136,7 @@ function openSecurityPanel() {
   body.appendChild(mk('firestore.rules — كل المجموعات', NX.SECURITY_RULES.firestore));
   body.appendChild(mk('storage.rules — الملفات والوسائط', NX.SECURITY_RULES.storage));
   body.appendChild(el('p', { class: 'tiny', style: { marginTop: '10px', lineHeight: '1.8' },
-    text: 'الملفات نفسها (firestore.rules · storage.rules · firestore.indexes.json · firebase.json · cors.json) موجودة بجانب index.html في المستودع (مجلد nexus). النشر مرة واحدة من جهاز المالك:\nfirebase deploy --only firestore:rules,firestore:indexes,storage\n\nثم اسمح لموقعك بتنزيل ملفات Storage (المجسمات والأصوات):\ngsutil cors set cors.json gs://' + ((NX.FB_CONFIG || {}).storageBucket || 'YOUR-BUCKET') + '\n\nالقواعد: الألعاب العامة مقروءة للجميع · المشاريع للمالك فقط · الأصول الخاصة للمالك فقط · كل كتابة لصاحبها فقط · لا توجد قاعدة allow read, write: if true.' }));
+    text: 'الملفات نفسها (firestore.rules · storage.rules · firestore.indexes.json · firebase.json · cors.json) موجودة بجانب index.html في المستودع (مجلد nexus). النشر مرة واحدة من جهاز المالك:\nfirebase deploy --only firestore:rules,firestore:indexes,storage\n\nثم اسمح لموقعك بتنزيل ملفات Storage (المجسمات والأصوات):\ngsutil cors set cors.json gs://' + ((NX.FB_CONFIG || {}).storageBucket || 'YOUR-BUCKET') + '\n\nالقواعد: الألعاب العامة مقروءة للجميع · المشاريع للمالك وفريقه (كلٌّ حسب دوره) · الأصول الخاصة للمالك فقط · كل كتابة لصاحبها فقط · لا توجد قاعدة allow read, write: if true.' }));
   Sheet.open({ title: 'الأمان', body, full: true, id: 'security' });
 }
 
@@ -23968,6 +25203,8 @@ NX.registerOfflineSupport = registerOfflineSupport;
 
 (async function boot() {
   NX.__booting = true;
+  /* the sandbox frame only ever runs one game, handed over by its host page */
+  if (window.NX_SANDBOX) { NX.__booted = true; NX.SandboxGuest.start(); return; }
   const staleSW = clearStaleServiceWorkers();
   const msg = document.getElementById('boot-msg');
   if (msg && (NX.FB_OWNER_CONFIGURED || NX.EMULATORS)) msg.textContent = 'الاتصال بـ Firebase…';
