@@ -11951,6 +11951,7 @@ const AIPanel = {
     this.modeSeg = el('div', { class: 'seg ai-mode' });
     this.buildPane = el('div', { class: 'ai-wrap' });
     this.chatPane = el('div', { class: 'ai-wrap hide' });
+    this._chatBuilt = false;   // a new panel: its chat is built again (it stayed empty after closing and reopening)
     this.log = el('div', { class: 'ai-log scroll' });
     this.status = el('div', { class: 'ai-status hide' });
 
@@ -12021,7 +12022,9 @@ const AIPanel = {
     const info = NX.AIClient.info();
     this.say('sys', NX.AIConfig.isReady()
       ? `متصل بـ ${info.provider} · ${info.model} — الخطة والكود من النموذج، مع فحص حقيقي للأصول والـAPI قبل التطبيق.`
-      : 'لا يوجد مزوّد AI: يعمل «المخطّط المدمج» — يتعرّف على كلمات مفتاحية ويبني أنظمة جاهزة حقيقية. هذا ليس ذكاءً اصطناعيًا؛ لطلبات حرّة صِلْ مزوّدًا من ⚙.');
+      : NX.FreeAI && NX.FreeAI.state === 'on' && !NX.FreeAI.signedIn()
+        ? 'الذكاء المجاني متاح لمن سجّل الدخول بحساب Google — سجّل الدخول وسيعمل وحده. حتى ذلك الحين يعمل «المخطّط المدمج».'
+        : 'لا يوجد مزوّد AI: يعمل «المخطّط المدمج» — يتعرّف على كلمات مفتاحية ويبني أنظمة جاهزة حقيقية. هذا ليس ذكاءً اصطناعيًا؛ لطلبات حرّة صِلْ مزوّدًا من ⚙.');
     this.say('ai', opts.firstGame
       ? 'قل لي ما نوع اللعبة التي تريدها وسأخطّط لها وأبنيها وأختبرها. تستطيع إيقافي في أي لحظة، ولكل تغيير نقطة رجوع.'
       : 'اطلب ما تريد. سأقرأ مشروعك أولًا، ثم أضع خطة، ثم أنفّذ وأبني وأختبر وأصلح.');
@@ -14779,7 +14782,15 @@ const { LS, uid, Toast } = NX;
 /* ------------------------------------------------------------
    PROVIDER REGISTRY (rules 4, 5, 8)
    ------------------------------------------------------------ */
+/* the site's own server function (netlify/edge-functions/ai.js) — only on a web address */
+const FREE_AI_BASE = /^https?:$/.test(location.protocol) ? location.origin + location.pathname.replace(/[^/]*$/, '') + 'api/ai' : '';
 const PROVIDERS = {
+  nexus: {
+    id: 'nexus', name: 'NEXUS AI — مجاني', shape: 'openai', badge: 'NEXUS', builtin: true, needsKey: false,
+    baseURL: FREE_AI_BASE,
+    defaultModel: 'auto', canListModels: true,
+    note: 'ذكاء اصطناعي مجاني يقدّمه صاحب المنصة لكل من سجّل الدخول بحساب Google. اختر النموذج فقط — المفاتيح على خادم الموقع ولا تظهر لأحد. إذا انتهى حدّ مفتاح ينتقل وحده إلى التالي، ثم إلى النموذج الآخر.'
+  },
   groq: {
     id: 'groq', name: 'Groq', shape: 'openai', badge: 'Groq',
     baseURL: 'https://api.groq.com/openai/v1',
@@ -14810,8 +14821,9 @@ const PROVIDERS = {
   gemini: {
     id: 'gemini', name: 'Google Gemini', shape: 'gemini', badge: 'Gemini',
     baseURL: 'https://generativelanguage.googleapis.com/v1beta',
-    defaultModel: 'gemini-2.0-flash',
-    canListModels: true, keyURL: 'https://aistudio.google.com/apikey'
+    defaultModel: 'gemini-3.6-flash',
+    canListModels: true, keyURL: 'https://aistudio.google.com/apikey',
+    note: 'المفتاح من Google AI Studio (يبدأ بـ AIza أو AQ.).'
   },
   openrouter: {
     id: 'openrouter', name: 'OpenRouter', shape: 'openai', badge: 'OpenRouter',
@@ -14841,7 +14853,7 @@ function providerForKey(k) {
   if (/^xai-/.test(k)) return 'xai';
   if (/^sk-ant-/.test(k)) return 'anthropic';
   if (/^sk-or-/.test(k)) return 'openrouter';
-  if (/^AIza/.test(k)) return 'gemini';
+  if (/^AIza/.test(k) || /^AQ\.[\w-]{20,}$/.test(k)) return 'gemini';   // Google AI Studio (old and new formats)
   if (/^sk-/.test(k)) return 'openai';
   return null;
 }
@@ -14852,16 +14864,26 @@ const MODEL_PREF = {
   xai: [/^grok-4(?!.*(image|vision))/, /^grok-3(?!.*mini)/, /^grok-3-mini/, /^grok(?!.*(image|vision))/],
   openai: [/^gpt-4o-mini$/, /^gpt-4\.1-mini/, /^gpt-5-mini/, /^gpt-4o$/, /^gpt-4\.1$/],
   anthropic: [/sonnet/, /opus/, /haiku/],
-  gemini: [/flash(?!.*(image|tts|live|thinking))/, /pro(?!.*(image|tts))/],
+  gemini: [/^gemini-\d.*-flash$/, /flash(?!.*(image|tts|live|thinking|lite))/, /flash/, /pro(?!.*(image|tts))/],
   openrouter: [/gpt-4o-mini/, /llama-3\.3-70b/, /claude.*sonnet/]
 };
-function pickModel(id, list) {
+function pickModels(id, list) {
   const P = PROVIDERS[id] || {};
-  const ok = (list || []).filter(m => !/image|vision|tts|whisper|embed|guard|audio|transcribe|search/i.test(m));
-  if (P.defaultModel && ok.includes(P.defaultModel)) return P.defaultModel;
-  for (const re of MODEL_PREF[id] || []) { const m = ok.find(x => re.test(x)); if (m) return m; }
-  return ok[0] || null;
+  const ok = (list || []).filter(m => !/image|vision|tts|whisper|embed|guard|audio|transcribe|search|live|robotics|computer-use/i.test(m));
+  const out = [];
+  const add = m => { if (m && ok.includes(m) && !out.includes(m)) out.push(m); };
+  add(P.defaultModel);
+  if (id === 'gemini') {
+    /* gemini-X.Y-flash, newest first (the 2.x ones are retired for new keys) */
+    const ver = m => { const x = /^gemini-(\d+(?:\.\d+)?)-flash$/.exec(m); return x ? +x[1] : -1; };
+    ok.filter(m => ver(m) >= 3).sort((a, b) => ver(b) - ver(a)).forEach(add);
+    add('gemini-flash-latest');
+  }
+  for (const re of MODEL_PREF[id] || []) ok.filter(x => re.test(x)).forEach(add);
+  ok.forEach(add);
+  return out;
 }
+function pickModel(id, list) { return pickModels(id, list)[0] || null; }
 
 /* ------------------------------------------------------------
    SETTINGS — stored per provider so switching keeps each key
@@ -14895,6 +14917,7 @@ const AIConfig = {
   isReady() {
     const id = this.active();
     if (id === 'none' || !PROVIDERS[id]) return false;
+    if (id === 'nexus') return FreeAI.ready();
     const c = this.get(id);
     if (PROVIDERS[id].needsKey === false) return !!c.baseURL;
     return !!(c.apiKey && c.baseURL);
@@ -14908,6 +14931,43 @@ const AIConfig = {
     if (!k) return '';
     if (k.length <= 8) return '••••••••';
     return k.slice(0, 4) + '••••••••••••' + k.slice(-4);
+  }
+};
+
+/* ------------------------------------------------------------
+   THE FREE BUILT-IN AI — the site's own server function holds the
+   owner's keys (never this page). The page only asks whether it is
+   there, and signs each request with the player's Firebase token.
+   ------------------------------------------------------------ */
+const FreeAI = {
+  state: 'unknown',        // 'on' · 'off' (not on this site) · 'unknown'
+  providers: [],
+  signedIn() { const u = NX.Backend && NX.Backend.user; return !!(u && !u.anon); },
+  ready() { return this.state === 'on' && this.signedIn(); },
+  /* the player's sign-in token: proves who asks, reveals nothing */
+  async token() {
+    const a = NX.Backend && NX.Backend.fb && NX.Backend.fb.auth, u = a && a.currentUser;
+    if (!u || u.isAnonymous) return null;
+    return u.getIdToken();
+  },
+  _probe: null,
+  probe() {
+    if (this._probe) return this._probe;
+    this._probe = (async () => {
+      if (!FREE_AI_BASE) { this.state = 'off'; return; }
+      try {
+        const r = await fetch(FREE_AI_BASE + '/health', { cache: 'no-store' });
+        const j = r.ok && /json/.test(r.headers.get('content-type') || '') ? await r.json() : null;
+        this.state = j && j.free ? 'on' : 'off';
+        this.providers = (j && j.providers) || [];
+      } catch { this.state = 'off'; }
+    })().finally(() => { setTimeout(() => { this._probe = null; }, 30000); });
+    return this._probe;
+  },
+  /* someone who never chose a provider gets the free one once signed in */
+  adopt() {
+    if (this.state === 'on' && LS.get('ai.active', null) === null && this.signedIn()) AIConfig.setActive('nexus');
+    else window.dispatchEvent(new CustomEvent('nx:aiProvider', { detail: 'free' }));
   }
 };
 
@@ -15104,6 +15164,10 @@ const AIClient = {
     if (!cur) throw Object.assign(new Error('NO_PROVIDER'), { info: { code: 'none', title: 'لم تختر مزوّد AI', detail: 'افتح إعدادات المساعد واختر مزوّدًا.' } });
     const provider = cur.provider, cfg = Object.assign({}, cur.cfg, _cfg || {});
     if (!cfg.model) throw Object.assign(new Error('NO_MODEL'), { info: { code: 'model', title: 'لم تختر نموذجًا', detail: '' } });
+    if (provider.id === 'nexus') {
+      cfg.apiKey = await FreeAI.token();    // never stored: the sign-in token of this request
+      if (!cfg.apiKey) throw Object.assign(new Error('SIGN_IN'), { info: { code: 'signin', title: 'سجّل الدخول بحساب Google لاستعمال الذكاء المجاني', detail: '' } });
+    }
     const A = Adapters[provider.shape];
     const useStream = stream && !!onDelta;
     const ctrl = new AbortController();
@@ -15130,6 +15194,10 @@ const AIClient = {
       throw Object.assign(new Error('FETCH_FAILED'), { info: timedOut ? timeoutInfo() : classify(e, 0, '') });
     }
     touch();
+    /* the free AI says which model answered, and why when it had to switch */
+    const served = res.headers.get('x-nexus-served');
+    const note = decodeURIComponent(res.headers.get('x-nexus-note') || '');
+    if (note) Toast.show(note, '', 5000);
     if (!res.ok) {
       clearTimeout(idle);
       const body = await res.text().catch(() => '');
@@ -15193,7 +15261,7 @@ const AIClient = {
     /* reasoning models (qwen3, deepseek-r1 …) may put their thinking in the text */
     text = text.replace(/<think>[\s\S]*?<\/think>\s*/g, '').replace(/^[\s\S]*?<\/think>\s*/, '');
     if (stop === 'refusal' && !text) throw Object.assign(new Error('REFUSAL'), { info: { code: 'refusal', title: 'رفض النموذج هذا الطلب', detail: 'أعد صياغة الطلب.' } });
-    return { text, usage, model: cfg.model, provider: provider.name, stop, truncated: /^(length|max_tokens|MAX_TOKENS)$/.test(stop || '') };
+    return { text, usage, model: served ? served.replace(':', ' · ') : cfg.model, provider: provider.name, stop, truncated: /^(length|max_tokens|MAX_TOKENS)$/.test(stop || '') };
   },
 
   /* returns config overrides for one more try, or null */
@@ -15215,15 +15283,16 @@ const AIClient = {
       return null;
     }
     /* the chosen model is retired or unknown: the provider's own list decides */
-    if (info.code === 'model' && provider.canListModels && /decommission|deprecat|not.?found|does not exist|no longer|unknown|invalid model|not supported|not available|no access/i.test(text)) {
+    if (info.code === 'model' && provider.canListModels && provider.id !== 'nexus' && /decommission|deprecat|not.?found|does not exist|no longer|unknown|invalid model|not supported|not available|no access/i.test(text)) {
       try {
         const list = await this.listModels(provider.id);
-        const pick = pickModel(provider.id, Array.from(list).filter(m => m !== cfg.model));
+        const tried = (cfg._tried || []).concat(cfg.model);
+        const pick = pickModels(provider.id, Array.from(list)).find(m => !tried.includes(m));
         if (pick) {
           AIConfig.set(provider.id, { model: pick });
           Toast.show('النموذج «' + cfg.model + '» غير متاح عند ' + provider.name + ' — انتقلت إلى «' + pick + '»', '', 5000);
           window.dispatchEvent(new CustomEvent('nx:aiProvider', { detail: provider.id }));
-          return { model: pick };
+          return { model: pick, _tried: tried };
         }
       } catch {}
     }
@@ -15236,18 +15305,34 @@ const AIClient = {
     const P = PROVIDERS[id];
     if (!P) return { ok: false, info: { title: 'لا يوجد مزوّد' } };
     const cfg = AIConfig.get(id);
+    if (id === 'nexus') {
+      await FreeAI.probe();
+      if (FreeAI.state !== 'on') return { ok: false, info: { code: 'free-off', title: 'الذكاء المجاني غير مفعّل على هذا الموقع', detail: 'صاحب المنصة لم يضع مفاتيح الخادم بعد (Netlify → Environment variables).' } };
+      if (!FreeAI.signedIn()) return { ok: false, info: { code: 'signin', title: 'سجّل الدخول بحساب Google لاستعمال الذكاء المجاني', detail: '' } };
+    }
     if (P.needsKey !== false && !cfg.apiKey) return { ok: false, info: { code: 'key', title: 'أدخل مفتاح API أولًا', detail: '' } };
-    let fixed = null;
+    let fixed = null, candidates = [];
     if (P.canListModels && cfg.baseURL) {
       try {
         const list = await this.listModels(id);
-        if (list.length && !list.includes(cfg.model)) { fixed = pickModel(id, list); if (fixed) AIConfig.set(id, { model: fixed }); }
+        candidates = pickModels(id, list);
+        if (list.length && !list.includes(cfg.model)) { fixed = candidates[0] || null; if (fixed) AIConfig.set(id, { model: fixed }); }
       } catch (e) {
         const i = e.info || {};
-        if (['key', 'network', 'cors', 'forbidden'].includes(i.code)) return { ok: false, info: i };
+        if (['key', 'network', 'cors', 'forbidden', 'signin'].includes(i.code)) return { ok: false, info: i };
       }
     }
-    const t = await this.test(id);
+    /* a model the key may not use (retired, no quota on this plan): the next one on the provider's own list */
+    let t = await this.test(id);
+    const tried = [AIConfig.get(id).model];
+    while (!t.ok && t.info && ['model', 'rate', 'provider'].includes(t.info.code) && tried.length < 4) {
+      const next = candidates.find(m => !tried.includes(m));
+      if (!next) break;
+      tried.push(next);
+      AIConfig.set(id, { model: next });
+      fixed = next;
+      t = await this.test(id);
+    }
     if (t.ok) AIConfig.setActive(id);
     return Object.assign(t, { fixedModel: fixed });
   },
@@ -15257,6 +15342,10 @@ const AIClient = {
     if (!provider) throw new Error('NO_PROVIDER');
     const cfg = AIConfig.get(provider.id);
     const A = Adapters[provider.shape];
+    if (provider.id === 'nexus') {
+      cfg.apiKey = await FreeAI.token();
+      if (!cfg.apiKey) throw Object.assign(new Error('SIGN_IN'), { info: { code: 'signin', title: 'سجّل الدخول بحساب Google لاستعمال الذكاء المجاني', detail: '' } });
+    }
     if (provider.needsKey !== false && !cfg.apiKey) throw Object.assign(new Error('NO_KEY'), { info: { code: 'key', title: 'أدخل مفتاح API أولًا', detail: '' } });
     if (!cfg.baseURL) throw Object.assign(new Error('NO_URL'), { info: { code: 'url', title: 'أدخل Base URL', detail: '' } });
     try {
@@ -15321,10 +15410,14 @@ legacy.ask = async function (prompt, project, engine) {
 };
 
 NX.PROVIDERS = PROVIDERS;
+NX.FreeAI = FreeAI;
 NX.providerForKey = providerForKey;
 NX.pickModel = pickModel;
 NX.AIConfig = AIConfig;
 NX.AIClient = AIClient;
+/* the free AI: asked at start, and again whenever the player signs in or out */
+FreeAI.probe().then(() => FreeAI.adopt());
+if (NX.Backend && NX.Backend.onAuth) NX.Backend.onAuth(() => FreeAI.probe().then(() => FreeAI.adopt()));
 NX.AIAdapters = Adapters;
 NX.classifyAIError = classify;
 </script>
@@ -15569,6 +15662,7 @@ const ChatStore = {
 function openAISettings() {
   const body = el('div');
   let current = AIConfig.active();
+  let commitNow = null;   // the open card's fields → saved (also when the sheet closes)
   if (!PROVIDERS[current]) current = 'groq';
 
   body.appendChild(el('div', { class: 'ttl', text: 'المزوّد' }));
@@ -15594,19 +15688,38 @@ function openAISettings() {
     /* what is typed is what is used: every button below saves the fields
        first, so "Refresh models" never runs with a stale or empty key */
     const commit = () => {
-      const patch = { baseURL: urlIn.value.trim() };
+      const patch = {};
+      if (!P.builtin) patch.baseURL = urlIn.value.trim();          // the free AI's address is the site's own
       if (keyIn) patch.apiKey = keyIn.value.trim();
       if (modelIn) patch.model = modelIn.value.trim();
       if (nameIn2) patch.name = nameIn2.value.trim();
       return AIConfig.set(current, patch);
     };
+    commitNow = commit;
+    /* saved while typing — a key pasted and the sheet closed (back button,
+       swipe) is not lost: the old code only saved on «change» */
+    const saveSoon = debounce(() => { commit(); paintGrid(); }, 350);
     const urlIn = el('input', { class: 'input', value: cfg.baseURL, placeholder: 'https://api.example.com/v1', style: { direction: 'ltr' }, autocapitalize: 'off', spellcheck: 'false' });
     urlIn.addEventListener('change', commit);
-    pane.appendChild(field('Base URL', urlIn));
+    urlIn.addEventListener('input', saveSoon);
+    if (!P.builtin) pane.appendChild(field('Base URL', urlIn));
+
+    /* the free AI: no key here — its state, and sign-in when needed */
+    if (P.builtin) {
+      const F = NX.FreeAI;
+      const st = el('div', { class: 'card', style: { marginBottom: '12px', fontSize: '13px', lineHeight: '1.7' } });
+      st.appendChild(el('b', { text: F.state === 'off' ? '⚪ غير مفعّل على هذا الموقع' : !F.signedIn() ? '🔒 سجّل الدخول لتستعمله — مجاني' : '🟢 متاح لك مجانًا' }));
+      st.appendChild(el('div', { class: 'tiny', text: F.state === 'off' ? 'صاحب المنصة لم يضع مفاتيح الذكاء على خادم الموقع بعد. تستطيع استعمال مفتاحك الخاص من البطاقات الأخرى.'
+        : !F.signedIn() ? 'الذكاء المجاني لمن سجّل الدخول بحساب Google أو بالبريد — حتى لا يستهلكه أحد من خارج المنصة.'
+        : 'اختر النموذج أدناه أو اتركه «auto». إذا انتهى حدّ مفتاح ينتقل وحده إلى التالي، ثم إلى النموذج الآخر، ويخبرك بذلك.' + (F.providers.length ? ' المتاح: ' + F.providers.map(x => x === 'gemini' ? 'Gemini' : x === 'groq' ? 'Groq' : x).join(' · ') : '') }));
+      if (F.state !== 'off' && !F.signedIn()) st.appendChild(btn('تسجيل الدخول', { cls: 'sm primary', icon: 'user', style: { marginTop: '8px' }, onclick: () => NX.promptSignIn('الذكاء المجاني لمن سجّل الدخول.', () => { drawProvider(); paintGrid(); }) }));
+      pane.appendChild(st);
+    }
 
     if (P.needsKey !== false) {
       const keyWrap = el('div', { style: { position: 'relative' } });
-      keyIn = el('input', { class: 'input', type: 'password', value: cfg.apiKey, placeholder: current === 'groq' ? 'gsk_…' : current === 'xai' ? 'xai-…' : 'sk-…', style: { direction: 'ltr', paddingInlineEnd: '54px' }, autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false' });
+      keyIn = el('input', { class: 'input', type: 'password', value: cfg.apiKey, placeholder: current === 'groq' ? 'gsk_…' : current === 'xai' ? 'xai-…' : current === 'gemini' ? 'AIza… أو AQ.…' : 'sk-…', style: { direction: 'ltr', paddingInlineEnd: '54px' }, autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false' });
+      keyIn.addEventListener('input', saveSoon);
       /* a pasted key is set up at once: whose key it is, a model that
          exists, a real test — then it is the active provider */
       keyIn.addEventListener('change', () => {
@@ -15649,6 +15762,7 @@ function openAISettings() {
     const modelWrap = el('div');
     modelIn = el('input', { class: 'input', value: cfg.model, placeholder: P.defaultModel || 'model-id', style: { direction: 'ltr' }, autocapitalize: 'off', spellcheck: 'false' });
     modelIn.addEventListener('change', commit);
+    modelIn.addEventListener('input', saveSoon);
     modelWrap.appendChild(modelIn);
     const modelInfo = el('p', { class: 'tiny', style: { marginTop: '6px' } });
     const modelFilter = el('input', { class: 'input hide', placeholder: 'تصفية النماذج…', style: { direction: 'ltr', marginTop: '8px', minHeight: '38px' } });
@@ -15670,6 +15784,8 @@ function openAISettings() {
     };
     modelFilter.addEventListener('input', () => drawModels(shown));
     drawModels(cfg.models);
+    /* the free AI: its models, fresh, without pressing anything */
+    if (P.builtin && NX.FreeAI.ready()) AIClient.listModels('nexus').then(l => drawModels(l, null)).catch(() => {});
     modelWrap.append(modelInfo, modelFilter, modelList);
     if (P.canListModels) {
       const rBtn = btn('تحديث قائمة النماذج', { cls: 'sm ghost', icon: 'undo', style: { marginTop: '8px' }, onclick: async () => {
@@ -15754,7 +15870,9 @@ function openAISettings() {
           cors: 'هذا المزوّد لا يسمح بالطلبات من المتصفح. استخدم مزوّدًا آخر أو وسيطًا خاصًا بك.',
           network: 'تحقّق من الاتصال. إن كان المزوّد محليًا فشغّله وفعّل CORS.',
           rate: 'انتظر دقيقة ثم أعد الاختبار.',
-          provider: 'المشكلة عند المزوّد — أعد المحاولة بعد قليل أو اختر نموذجًا آخر.'
+          provider: 'المشكلة عند المزوّد — أعد المحاولة بعد قليل أو اختر نموذجًا آخر.',
+          signin: 'سجّل الدخول بحساب Google ثم أعد الاختبار.',
+          'free-off': 'استعمل مفتاحك الخاص من البطاقات الأخرى (Groq مجاني).'
         };
         if (HINT[i.code]) bad.appendChild(el('div', { class: 'tiny', style: { marginTop: '6px' }, text: '💡 ' + HINT[i.code] }));
         result.appendChild(bad);
@@ -15779,7 +15897,9 @@ function openAISettings() {
       const c = el('button', { class: 'beg-card' + (P.id === current ? ' on' : ''), dataset: { pid: P.id }, onclick: () => { current = P.id; drawProvider(); } });
       c.appendChild(el('b', { text: P.name }));
       const cfg = AIConfig.get(P.id);
-      c.appendChild(el('span', { class: 'beg-desc', text: AIConfig.active() === P.id && AIConfig.isReady() ? '✓ نشط' : cfg.apiKey || P.needsKey === false ? '● مُهيّأ' : 'غير مُهيّأ' }));
+      c.appendChild(el('span', { class: 'beg-desc', text: AIConfig.active() === P.id && AIConfig.isReady() ? '✓ نشط'
+        : P.builtin ? (NX.FreeAI.state === 'off' ? 'غير مفعّل هنا' : NX.FreeAI.signedIn() ? 'مجاني' : 'مجاني — سجّل الدخول')
+        : cfg.apiKey || P.needsKey === false ? '● مُهيّأ' : 'غير مُهيّأ' }));
       grid.appendChild(c);
     });
   };
@@ -15795,7 +15915,7 @@ function openAISettings() {
   body.appendChild(el('p', { class: 'tiny', text: 'المفاتيح تُحفظ في متصفحك فقط، ولا تُرسل إلى Firestore ولا تُطبع في الـConsole. للمنصات العامة استخدم وسيطًا (proxy) من خادمك بدل توزيع مفتاح.' }));
 
   drawProvider();
-  Sheet.open({ title: 'إعدادات المساعد', body, full: true, id: 'aisettings' });
+  Sheet.open({ title: 'إعدادات المساعد', body, full: true, id: 'aisettings', onClose: () => { try { commitNow && commitNow(); } catch {} } });
 }
 
 /* ------------------------------------------------------------
@@ -15901,7 +16021,8 @@ const Chat = {
     }
     mk('حذف', 'trash', () => this.deleteMsg(m));
     b.appendChild(acts);
-    if (m.usage) b.appendChild(el('div', { class: 'chat-meta', text: `${m.model || ''} · ${m.usage.in || 0}→${m.usage.out || 0} tokens` }));
+    /* which model answered (the free AI may have switched), and the tokens when the provider says */
+    if (m.usage || (m.model && m.role === 'assistant')) b.appendChild(el('div', { class: 'chat-meta', text: (m.model || '') + (m.usage ? ` · ${m.usage.in || 0}→${m.usage.out || 0} tokens` : '') }));
     return b;
   },
 
@@ -18216,7 +18337,9 @@ const Intent = {
       '• «اصنع لي لعبة قيادة: الطريق في المنتصف، المنازل على الجانبين، والسيارة في البداية» — من ملفاتك',
       '• «أضف سيارة بجانب المبنى» · «اجعلها أكبر» · «احذف الشجرة»',
       '• «ماذا يوجد في المشهد؟» · «حلل لعبتي» · «تراجع» · «أعد»',
-      'للمحادثة الحرة وفهم أعمق لملفاتك: ⚙ ← الصق مفتاح API (Groq مجاني ويبدأ بـ gsk_، أو Grok ويبدأ بـ xai-) — يُضبط ويُختبر وحده.'].join('\n');
+      NX.FreeAI && NX.FreeAI.state === 'on'
+        ? 'للمحادثة الحرة وفهم أعمق لملفاتك: سجّل الدخول بحساب Google — الذكاء المجاني المدمج يعمل وحده. أو ⚙ ← الصق مفتاحك الخاص.'
+        : 'للمحادثة الحرة وفهم أعمق لملفاتك: ⚙ ← الصق مفتاح API (Groq مجاني ويبدأ بـ gsk_، أو Gemini ويبدأ بـ AQ. أو AIza) — يُضبط ويُختبر وحده.'].join('\n');
     if (has(['سلام', 'السلام', 'salam'])) return 'وعليكم السلام ورحمة الله 👋 أنا مساعد NEXUS.\n\n' + help;
     if (has(TALK_GREET)) return 'أهلًا بك 👋 أنا مساعد NEXUS.\n\n' + help;
     if (has(TALK_THANKS)) return 'العفو! 🙂 أنا هنا متى احتجتني.';
