@@ -15663,6 +15663,7 @@ function openAISettings() {
   const body = el('div');
   let current = AIConfig.active();
   let commitNow = null;   // the open card's fields → saved (also when the sheet closes)
+  let paneGen = 0;        // a card redrawn (another provider) cancels the old card's pending save
   if (!PROVIDERS[current]) current = 'groq';
 
   body.appendChild(el('div', { class: 'ttl', text: 'المزوّد' }));
@@ -15672,6 +15673,7 @@ function openAISettings() {
   const drawProvider = (autoRun = false) => {
     Array.from(grid.children).forEach(c => c.classList.toggle('on', c.dataset.pid === current));
     pane.textContent = '';
+    const pid = current, gen = ++paneGen;   // this card's provider, for every save it makes
     const P = PROVIDERS[current];
     const cfg = AIConfig.get(current);
     let keyIn = null, modelIn = null, nameIn2 = null;
@@ -15693,7 +15695,8 @@ function openAISettings() {
       if (keyIn) patch.apiKey = keyIn.value.trim();
       if (modelIn) patch.model = modelIn.value.trim();
       if (nameIn2) patch.name = nameIn2.value.trim();
-      return AIConfig.set(current, patch);
+      /* only while this card is the one on screen, and only into its own provider */
+      return gen === paneGen ? AIConfig.set(pid, patch) : AIConfig.get(pid);
     };
     commitNow = commit;
     /* saved while typing — a key pasted and the sheet closed (back button,
