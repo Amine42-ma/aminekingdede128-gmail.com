@@ -139,6 +139,7 @@ python3 -m http.server 8000          # في نافذة أخرى
   Site configuration ← Environment variables ← Add a variable:
   - `GEMINI_KEYS` = مفاتيح Google AI Studio مفصولة بفاصلة
   - `GROQ_KEYS` = مفاتيح Groq مفصولة بفاصلة
+  - `OPENROUTER_KEYS` = مفاتيح OpenRouter مفصولة بفاصلة (تُستعمل نماذج OpenRouter المجانية فقط، ولا يُصرف أي رصيد)
   - اختياري: `GEMINI_MODELS` (الافتراضي gemini-3.6-flash)، `GROQ_MODELS`، `AI_PER_MINUTE` (الافتراضي 20 طلبًا في الدقيقة لكل لاعب)
 - الدالة `netlify/edge-functions/ai.js` تعمل على خادم Netlify: تتحقق من تسجيل دخول اللاعب (توكن Firebase)، وإذا انتهى حدّ مفتاح أو رُفض تنتقل إلى المفتاح التالي، ثم إلى المزوّد الآخر (Gemini ← Groq)، وتخبر اللاعب بذلك. وإذا تعطّل كل شيء تقول «غير متاح الآن».
 - **مهم:** الدوال لا تُنشر بالسحب والإفلات. اربط الموقع بمستودع GitHub:

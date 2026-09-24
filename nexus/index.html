@@ -15714,7 +15714,7 @@ function openAISettings() {
       st.appendChild(el('b', { text: F.state === 'off' ? '⚪ غير مفعّل على هذا الموقع' : !F.signedIn() ? '🔒 سجّل الدخول لتستعمله — مجاني' : '🟢 متاح لك مجانًا' }));
       st.appendChild(el('div', { class: 'tiny', text: F.state === 'off' ? 'صاحب المنصة لم يضع مفاتيح الذكاء على خادم الموقع بعد. تستطيع استعمال مفتاحك الخاص من البطاقات الأخرى.'
         : !F.signedIn() ? 'الذكاء المجاني لمن سجّل الدخول بحساب Google أو بالبريد — حتى لا يستهلكه أحد من خارج المنصة.'
-        : 'اختر النموذج أدناه أو اتركه «auto». إذا انتهى حدّ مفتاح ينتقل وحده إلى التالي، ثم إلى النموذج الآخر، ويخبرك بذلك.' + (F.providers.length ? ' المتاح: ' + F.providers.map(x => x === 'gemini' ? 'Gemini' : x === 'groq' ? 'Groq' : x).join(' · ') : '') }));
+        : 'اختر النموذج أدناه أو اتركه «auto». إذا انتهى حدّ مفتاح ينتقل وحده إلى التالي، ثم إلى النموذج الآخر، ويخبرك بذلك.' + (F.providers.length ? ' المتاح: ' + F.providers.map(x => x === 'gemini' ? 'Gemini' : x === 'groq' ? 'Groq' : x === 'openrouter' ? 'OpenRouter' : x).join(' · ') : '') }));
       if (F.state !== 'off' && !F.signedIn()) st.appendChild(btn('تسجيل الدخول', { cls: 'sm primary', icon: 'user', style: { marginTop: '8px' }, onclick: () => NX.promptSignIn('الذكاء المجاني لمن سجّل الدخول.', () => { drawProvider(); paintGrid(); }) }));
       pane.appendChild(st);
     }

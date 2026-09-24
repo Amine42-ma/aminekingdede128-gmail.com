@@ -2,8 +2,9 @@
    NEXUS — free built-in AI for every signed-in player.
    The keys live HERE, on the server, never in index.html or Git:
    Netlify → Site configuration → Environment variables:
-     GEMINI_KEYS = key1,key2,…     (Google AI Studio)
-     GROQ_KEYS   = gsk_…,gsk_…     (Groq)
+     GEMINI_KEYS     = key1,key2,…     (Google AI Studio)
+     GROQ_KEYS       = gsk_…,gsk_…     (Groq)
+     OPENROUTER_KEYS = sk-or-…,sk-or-… (OpenRouter — its free models only)
    optional: GEMINI_MODELS (gemini-3.6-flash) · GROQ_MODELS (the
    account's real list) · FIREBASE_PROJECT_ID (jknbb-n) ·
    AI_MAX_TOKENS (4096) · AI_PER_MINUTE (20)
@@ -19,9 +20,16 @@ const P = {
   gemini: { label: 'Gemini', base: () => env('GEMINI_BASE') || 'https://generativelanguage.googleapis.com/v1beta/openai',
     keys: () => list('GEMINI_KEYS'), models: async () => list('GEMINI_MODELS').length ? list('GEMINI_MODELS') : ['gemini-3.6-flash'] },
   groq: { label: 'Groq', base: () => env('GROQ_BASE') || 'https://api.groq.com/openai/v1',
-    keys: () => list('GROQ_KEYS'), models: () => groqModels() }
+    keys: () => list('GROQ_KEYS'), models: () => groqModels() },
+  openrouter: { label: 'OpenRouter', base: () => env('OPENROUTER_BASE') || 'https://openrouter.ai/api/v1',
+    keys: () => list('OPENROUTER_KEYS'), models: () => openrouterModels() }
 };
-const owner = m => /^gemini/i.test(m || '') ? 'gemini' : 'groq';
+const ORDER = ['gemini', 'groq', 'openrouter'];
+/* which provider offers a model: the one whose list has it (none → treated as «auto») */
+async function owner(m) {
+  for (const p of ORDER) if (P[p].keys().length && (await P[p].models()).includes(m)) return p;
+  return null;
+}
 const json = (status, obj, extra = {}) => new Response(JSON.stringify(obj), { status, headers: Object.assign({ 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }, extra) });
 const fail = (status, code, message, extra) => json(status, { error: { code, message } }, extra);
 
@@ -41,11 +49,12 @@ function restFor(status, text, headers) {
   const t = String(text || '');
   if (status === 401 || status === 403 || (status === 400 && KEY_WORDS.test(t))) return 6 * 3600e3;   // refused key
   if (status === 429) {
-    if (/per day|daily|quota|limit: ?0|RESOURCE_EXHAUSTED/i.test(t)) return 3600e3;   // out of quota for now
+    if (/per[- ]day|daily|quota|limit: ?0|RESOURCE_EXHAUSTED/i.test(t)) return 3600e3;   // out of quota for now
     const ra = +(headers.get('retry-after') || 0), m = /try again in\s*([\d.]+)\s*(ms|s|m)/i.exec(t);
     const s = ra || (m ? (+m[1]) * (m[2] === 'ms' ? 0.001 : m[2] === 'm' ? 60 : 1) : 20);
     return Math.min(600, Math.max(5, s)) * 1000;
   }
+  if (status === 402) return 3600e3;                 // OpenRouter: this key has no credit left
   if (status >= 500 || status === 0) return 30e3;
   return 0;
 }
@@ -67,6 +76,25 @@ async function groqModels() {
     } catch { /* next key */ }
   }
   return groqCache.ids || ['llama-3.3-70b-versatile'];
+}
+
+/* ---------- OpenRouter: its FREE models only (the owner's credit is never spent), asked once an hour ---------- */
+let orCache = { at: 0, ids: null };
+async function openrouterModels() {
+  if (list('OPENROUTER_MODELS').length) return list('OPENROUTER_MODELS');
+  if (orCache.ids && Date.now() - orCache.at < 3600e3) return orCache.ids;
+  try {
+    const r = await fetch(P.openrouter.base() + '/models');
+    if (r.ok) {
+      const free = ((await r.json()).data || []).filter(m => m && m.id && m.pricing && +m.pricing.prompt === 0 && +m.pricing.completion === 0
+        && !/image|audio|vision-only|embed|tts|guard/i.test(m.id) && (!m.architecture || !m.architecture.output_modalities || m.architecture.output_modalities.includes('text')));
+      const pref = [/deepseek/i, /llama-3\.3-70b/i, /qwen/i, /gemma/i, /mistral/i];
+      const rank = id => { const i = pref.findIndex(re => re.test(id)); return i < 0 ? pref.length : i; };
+      orCache = { at: Date.now(), ids: free.map(m => m.id).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).slice(0, 30) };
+      return orCache.ids;
+    }
+  } catch { /* the cached list, or none */ }
+  return orCache.ids || [];
 }
 
 /* ---------- who is asking: a Firebase sign-in token (Google / email) ---------- */
@@ -122,23 +150,25 @@ async function chat(req, body) {
     stream: !!body.stream, max_tokens: Math.min(+(env('AI_MAX_TOKENS') || 4096), Math.max(64, +body.max_tokens || +body.max_completion_tokens || 2048)) };
   if (Number.isFinite(+body.temperature)) clean.temperature = Math.min(1.5, Math.max(0, +body.temperature));
 
-  /* the chosen model first, then the other provider */
+  /* the chosen model's provider first, then the others */
   const asked = String(body.model || 'auto');
-  const first = asked === 'auto' ? 'gemini' : owner(asked);
-  const order = [first, first === 'gemini' ? 'groq' : 'gemini'].filter(p => P[p].keys().length);
+  const first = (asked !== 'auto' && await owner(asked)) || ORDER[0];
+  const order = [first].concat(ORDER.filter(p => p !== first)).filter(p => P[p].keys().length);
   if (!order.length) return fail(503, 'free_ai_unavailable', 'الذكاء المجاني غير مُعدّ على هذا الموقع بعد.');
   const notes = [];
   for (const p of order) {
     const models = await P[p].models();
-    const model = asked !== 'auto' && owner(asked) === p && models.includes(asked) ? asked : models[0];
+    const model = asked !== 'auto' && first === p && models.includes(asked) ? asked : models[0];
+    if (!model) { notes.push(P[p].label + ' بلا نماذج متاحة'); continue; }
     const keys = keysNow(p);
     if (!keys.length) { notes.push(P[p].label + ' مشغول الآن'); continue; }
     let why = 'غير متاح الآن';
     for (const key of keys) {
       let r;
       try {
-        r = await fetch(P[p].base() + '/chat/completions', { method: 'POST',
-          headers: { 'content-type': 'application/json', authorization: 'Bearer ' + key }, body: JSON.stringify(Object.assign({ model }, clean)) });
+        const headers = { 'content-type': 'application/json', authorization: 'Bearer ' + key };
+        if (p === 'openrouter') { headers['HTTP-Referer'] = new URL(req.url).origin; headers['X-Title'] = 'NEXUS'; }
+        r = await fetch(P[p].base() + '/chat/completions', { method: 'POST', headers, body: JSON.stringify(Object.assign({ model }, clean)) });
       } catch { rest.set(key, Date.now() + 30e3); continue; }
       if (r.ok) {
         const h = { 'content-type': r.headers.get('content-type') || (clean.stream ? 'text/event-stream' : 'application/json'),
