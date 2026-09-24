@@ -500,6 +500,13 @@ service cloud.firestore {
       }
     }
 
+    // ---------------------------------------------------------------- passkeys
+    // written and read ONLY by the server (netlify/edge-functions/passkeys.js,
+    // with the service account); no browser ever touches them
+    match /passkeys/{id} {
+      allow read, write: if false;
+    }
+
     // ---------------------------------------------------------------- moderation
     match /reports/{rid} {
       allow create: if signedIn() && incoming().reporterId == me();

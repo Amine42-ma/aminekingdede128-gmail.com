@@ -1157,6 +1157,55 @@ html[data-sandbox] #p-exit,html[data-sandbox] #p-clip,html[data-sandbox] #p-repl
 .opt-row{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer}
 .opt-row input{width:20px;height:20px;flex:0 0 auto}
 /* /NX-CSS:25 */
+/* NX-CSS:26 */
+/* ---------- a modern finish, in the user's own colours (PART 26) ---------- */
+:root{--brand-rgb:124,92,255}
+#tabgrad stop:first-child{stop-color:var(--brand)}
+#tabgrad stop:last-child{stop-color:var(--cyan)}
+.btn.primary{box-shadow:0 10px 30px -12px rgba(var(--brand-rgb),.8)}
+@media (hover:hover){.btn.primary:hover{filter:brightness(1.08)}}
+.input:focus,.select:focus,.textarea:focus{border-color:rgba(var(--brand-rgb),.6);box-shadow:0 0 0 3px rgba(var(--brand-rgb),.14)}
+.brandmark .dot{box-shadow:0 6px 18px -6px rgba(var(--brand-rgb),.9)}
+.sc-play{box-shadow:0 18px 42px -14px rgba(var(--brand-rgb),.95)}
+.hero{background:linear-gradient(140deg,rgba(var(--brand-rgb),.24),rgba(var(--brand-rgb),.04) 60%),var(--panel);border-color:rgba(var(--brand-rgb),.28)}
+/* the bars: glass with a thin line in the gradient */
+.p-top,#s-top{position:relative}
+.p-top::after,#s-top::after{content:'';position:absolute;inset-inline:0;bottom:-1px;height:1px;background:var(--grad);opacity:.55;pointer-events:none}
+html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,16,30,.9),rgba(7,8,16,.97))}
+#p-tabs::before{content:'';position:absolute;inset-inline:0;top:-1px;height:1px;background:var(--grad);opacity:.45;pointer-events:none}
+#p-tabs button{position:relative;isolation:isolate}
+#p-tabs button.on::before{content:'';position:absolute;top:5px;left:50%;transform:translateX(-50%);width:46px;height:30px;border-radius:12px;
+  background:linear-gradient(120deg,rgba(var(--brand-rgb),.3),rgba(var(--brand-rgb),.08));box-shadow:0 6px 18px -8px rgba(var(--brand-rgb),.95);z-index:-1}
+#p-tabs button.on span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+#s-tabs button{position:relative}
+#s-tabs button.on::after{content:'';position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:22px;height:3px;border-radius:3px;background:var(--grad)}
+/* cards and headings */
+.gcard{transition:transform .2s var(--ease),box-shadow .2s,border-color .2s}
+@media (hover:hover){.gcard:hover{transform:translateY(-3px);border-color:rgba(var(--brand-rgb),.45);box-shadow:0 16px 40px -18px rgba(var(--brand-rgb),.7)}}
+.sec-head h2{display:flex;align-items:center;gap:8px}
+.sec-head h2::before{content:'';flex:0 0 auto;width:4px;height:18px;border-radius:4px;background:var(--grad)}
+.sheet-head{position:relative}
+.sheet-head::after{content:'';position:absolute;inset-inline:15px;bottom:-1px;height:2px;border-radius:2px;background:var(--grad);opacity:.45;pointer-events:none}
+.proj-row{transition:border-color .2s,box-shadow .2s}
+@media (hover:hover){.proj-row:hover{border-color:rgba(var(--brand-rgb),.4);box-shadow:0 10px 30px -18px rgba(var(--brand-rgb),.7)}}
+/* the colour picker */
+.th-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.th-sw{display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 4px;border-radius:var(--r-md);border:1.5px solid var(--line);background:var(--glass);font-size:11.5px;font-weight:700;color:var(--ink)}
+.th-sw.on{border-color:var(--ink);box-shadow:0 0 0 2px rgba(var(--brand-rgb),.35)}
+.th-sw i{display:block;width:100%;height:28px;border-radius:8px}
+.th-custom{display:flex;gap:12px;flex-wrap:wrap}
+.th-custom label{display:flex;align-items:center;gap:6px;font-size:12.5px}
+.th-custom input[type=color]{width:44px;height:36px;border:1px solid var(--line-2);border-radius:10px;background:none;padding:2px}
+.th-prev{border:1px solid var(--line-2);border-radius:var(--r-lg);padding:14px;background:linear-gradient(140deg,rgba(var(--brand-rgb),.2),transparent 70%),var(--panel-2)}
+.th-prev-bar{height:6px;border-radius:6px;background:var(--grad);margin-bottom:10px}
+.th-chip{display:inline-block;padding:6px 14px;border-radius:99px;background:var(--grad);color:#fff;font-weight:800;font-size:12px}
+.th-chip.ghost{background:transparent;border:1.5px solid var(--cyan);color:var(--cyan)}
+@media (max-width:360px){.th-grid{grid-template-columns:repeat(2,1fr)}}
+/* the toast's ✓ / ✕ icon (it had no size or stroke, and showed as a large black shape) */
+.toast svg{width:18px;height:18px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
+.toast.ok svg{color:var(--green)}
+.toast.err svg{color:var(--rose)}
+/* /NX-CSS:26 */
 </style>
 </head>
 <body>
@@ -3092,7 +3141,8 @@ function cleanShowcase(sc) {
     sections: (Array.isArray(sc.sections) ? sc.sections : []).filter(s => SHOWCASE_SECTIONS.includes(s)),
     cover: media(sc.cover), thumbnail: media(sc.thumbnail), banner: media(sc.banner), background: media(sc.background), video: media(sc.video),
     screenshots: (Array.isArray(sc.screenshots) ? sc.screenshots : []).map(s => { const m = media(s); if (m) m.id = String(s.id || '').slice(0, 40); return m; }).filter(Boolean).slice(0, 12),
-    main: sc.main ? String(sc.main).slice(0, 40) : null
+    main: sc.main ? String(sc.main).slice(0, 40) : null,
+    theme: NX.cleanTheme ? NX.cleanTheme(sc.theme) : null
   };
   SHOWCASE_SECTIONS.forEach(s => { if (!out.sections.includes(s)) out.sections.push(s); });
   return out;
@@ -3916,6 +3966,13 @@ service cloud.firestore {
         allow read:   if signedIn() && existing().to == me();
         allow create: if signedIn() && incoming().from == me();
       }
+    }
+
+    // ---------------------------------------------------------------- passkeys
+    // written and read ONLY by the server (netlify/edge-functions/passkeys.js,
+    // with the service account); no browser ever touches them
+    match /passkeys/{id} {
+      allow read, write: if false;
     }
 
     // ---------------------------------------------------------------- moderation
@@ -14409,6 +14466,8 @@ async function openGamePage(game, opts = {}) {
   const preview = !!(opts.preview || game.preview);
   const mine = !!(Backend.user && game.ownerId === Backend.user.uid);
   const root = el('div', { class: 'sc' });
+  /* the creator's colours for this game's page (PART 26) */
+  if (NX.Theme) NX.Theme.scope(root, (game.showcase || {}).theme);
   const bg = el('div', { class: 'sc-bg' }), dim = el('div', { class: 'sc-dim' });
   dim.style.setProperty('--dim', String(sc.bgDim == null ? 0.55 : sc.bgDim));
   /* the owner's page background; without one, a soft blur of the art */
@@ -24712,6 +24771,225 @@ NX.Optimizer = Optimizer;
 NX.TeamAI = TeamAI;
 </script>
 <!-- /NX-PART:25 -->
+<!-- NX-PART:26 -->
+<script type="module">
+/* ============================================================
+   PART 26 · PASSKEYS (optional sign-in) · YOUR COLOURS
+   - Passkeys: only when the site owner has enabled them on the
+     server (netlify/edge-functions/passkeys.js). Google and e-mail
+     sign-in stay exactly as they are.
+   - Colours: every user colours their own interface (saved on this
+     device and on their profile, so it follows them), and every
+     creator colours the store page of their own games.
+   ============================================================ */
+const NX = window.NX;
+const { $, el, btn, iconBtn, Sheet, Modal, Toast, LS, timeAgo } = NX;
+const { Backend } = NX;
+
+/* ================================================================ PASSKEYS */
+const b64u = s => { s = String(s).replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); };
+const u64 = buf => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+const Passkeys = {
+  status: null,
+  supported() { return !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create); },
+  async probe() {
+    if (window.NX_SANDBOX) return null;
+    try { const r = await fetch('api/passkey/status', { cache: 'no-store' }); this.status = r.ok ? await r.json() : { configured: false }; }
+    catch { this.status = { configured: false }; }
+    return this.status;
+  },
+  available() { return this.supported() && !!(this.status && this.status.configured) && Backend.isOnline(); },
+  async call(path, body, auth) {
+    const headers = { 'content-type': 'application/json' };
+    if (auth) headers.authorization = 'Bearer ' + await Backend.fb.auth.currentUser.getIdToken();
+    const r = await fetch('api/passkey/' + path, { method: 'POST', headers, body: JSON.stringify(body || {}) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw Object.assign(new Error((j.error && j.error.message) || ('HTTP ' + r.status)), { code: j.error && j.error.code });
+    return j;
+  },
+  /* add a passkey to the signed-in account */
+  async register(name) {
+    if (!Backend.hasAccount()) throw new Error('سجّل الدخول بحساب (Google أو البريد) أولًا — المفتاح يُضاف إلى حسابك');
+    const o = await this.call('register/options', {}, true);
+    const pk = o.publicKey;
+    const cred = await navigator.credentials.create({ publicKey: Object.assign({}, pk, {
+      challenge: b64u(pk.challenge), user: Object.assign({}, pk.user, { id: b64u(pk.user.id) }),
+      excludeCredentials: (pk.excludeCredentials || []).map(c => ({ type: c.type, id: b64u(c.id) }))
+    }) });
+    await this.call('register/verify', { token: o.token, id: cred.id, name: name || this.deviceName(),
+      response: { clientDataJSON: u64(cred.response.clientDataJSON), attestationObject: u64(cred.response.attestationObject) } }, true);
+    return true;
+  },
+  /* sign in with a passkey: the server checks it and hands back a token for the same account */
+  async signIn() {
+    const o = await this.call('login/options', {});
+    const pk = o.publicKey;
+    const a = await navigator.credentials.get({ publicKey: Object.assign({}, pk, { challenge: b64u(pk.challenge), allowCredentials: [] }) });
+    const r = await this.call('login/verify', { token: o.token, id: a.id, response: {
+      clientDataJSON: u64(a.response.clientDataJSON), authenticatorData: u64(a.response.authenticatorData),
+      signature: u64(a.response.signature), userHandle: a.response.userHandle ? u64(a.response.userHandle) : null } });
+    const { A, auth } = Backend.fb;
+    return Backend.auth._carryAnonymousProjects(async () => (await A.signInWithCustomToken(auth, r.token)).user);
+  },
+  async list() { return (await this.call('list', {}, true)).items || []; },
+  async remove(id) { await this.call('delete', { id }, true); },
+  deviceName() { const ua = navigator.userAgent; return (/iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android' : /Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'جهاز') + ' · ' + new Date().toLocaleDateString(); },
+  why(e) {
+    const n = e && e.name;
+    return n === 'NotAllowedError' ? 'أُلغيت العملية أو انتهى وقتها' : n === 'InvalidStateError' ? 'هذا الجهاز لديه مفتاح مرور لهذا الحساب بالفعل' : n === 'SecurityError' ? 'مفاتيح المرور تحتاج موقعًا على https' : (e && e.message) || String(e);
+  },
+  /* the account screen: list · add · remove */
+  async open() {
+    const body = el('div');
+    const draw = async () => {
+      body.textContent = '';
+      body.appendChild(el('p', { class: 'tiny', text: 'مفتاح المرور (Passkey) يسجّل دخولك بالبصمة أو الوجه أو قفل الجهاز — بلا كلمة مرور. إضافي واختياري: الدخول بـ Google والبريد يبقى كما هو.' }));
+      if (!this.supported()) { body.appendChild(el('p', { class: 'muted', text: 'هذا المتصفح لا يدعم مفاتيح المرور.' })); return; }
+      if (!this.available()) { body.appendChild(el('p', { class: 'muted', text: 'مفاتيح المرور غير مفعّلة على هذا الموقع بعد — يفعّلها مالك الموقع من إعدادات Netlify (FIREBASE_SERVICE_ACCOUNT).' })); return; }
+      if (!Backend.hasAccount()) { body.appendChild(el('p', { class: 'muted', text: 'سجّل الدخول بحساب Google أو البريد أولًا، ثم أضف مفتاح مرور لحسابك.' })); return; }
+      let items = [];
+      try { items = await this.list(); } catch (e) { body.appendChild(el('p', { class: 'muted', text: e.message })); }
+      items.forEach(x => body.appendChild(el('div', { class: 'dep-row' }, [
+        el('div', { class: 'fx-t' }, [el('b', { text: '🔑 ' + (x.name || 'Passkey') }), el('small', { text: 'أُضيف ' + timeAgo(x.createdAt) + (x.lastUsed ? ' · آخر استعمال ' + timeAgo(x.lastUsed) : '') })]),
+        iconBtn('trash', { label: 'remove', onclick: async () => { if (await Modal.confirm('حذف هذا المفتاح؟', 'لن تستطيع الدخول به بعد الآن (احذفه أيضًا من إعدادات جهازك).', 'حذف')) { try { await this.remove(x.id); draw(); } catch (e) { Toast.err(e.message); } } } })])));
+      if (!items.length) body.appendChild(el('p', { class: 'tiny', text: 'لا مفاتيح بعد.' }));
+      body.appendChild(btn('＋ إضافة مفتاح مرور لهذا الجهاز', { cls: 'primary block', style: { marginTop: '10px' }, onclick: async () => {
+        try { await this.register(); Toast.ok('أُضيف مفتاح المرور 🔑'); draw(); } catch (e) { Toast.err('تعذّر: ' + this.why(e)); }
+      } }));
+    };
+    await draw();
+    Sheet.open({ title: '🔑 مفاتيح المرور · Passkeys', body, id: 'passkeys' });
+  }
+};
+
+/* ================================================================ YOUR COLOURS */
+const hex = v => /^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v).toLowerCase() : null;
+const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)).join(',');
+const PRESETS = [
+  { id: 'nexus', name: 'NEXUS', brand: '#7c5cff', brand2: '#4f7bff', accent: '#22d3ee' },
+  { id: 'sunset', name: 'غروب', brand: '#ff5e62', brand2: '#ff9966', accent: '#ffd166' },
+  { id: 'ocean', name: 'محيط', brand: '#0ea5e9', brand2: '#2563eb', accent: '#34d399' },
+  { id: 'emerald', name: 'زمرّد', brand: '#10b981', brand2: '#059669', accent: '#a3e635' },
+  { id: 'neon', name: 'نيون', brand: '#ec4899', brand2: '#a855f7', accent: '#22d3ee' },
+  { id: 'gold', name: 'ذهبي', brand: '#f59e0b', brand2: '#ef4444', accent: '#fde047' },
+  { id: 'ice', name: 'جليدي', brand: '#38bdf8', brand2: '#818cf8', accent: '#e0f2fe' },
+  { id: 'crimson', name: 'قرمزي', brand: '#e11d48', brand2: '#7c3aed', accent: '#fb7185' }
+];
+const SURFACES = {
+  default: null,
+  midnight: { bg: '#050814', bg1: '#080c1c', panel: '#0c1226', panel2: '#121a33' },
+  plum: { bg: '#0b0612', bg1: '#110a1c', panel: '#170e26', panel2: '#201433' },
+  forest: { bg: '#040d0a', bg1: '#071410', panel: '#0b1c17', panel2: '#10271f' },
+  pure: { bg: '#000000', bg1: '#06060a', panel: '#0b0b12', panel2: '#14141d' }
+};
+const SURFACE_NAMES = { default: 'افتراضي', midnight: 'ليل أزرق', plum: 'بنفسجي داكن', forest: 'أخضر داكن', pure: 'أسود' };
+const clean = t => {
+  if (!t || typeof t !== 'object') return null;
+  const o = { brand: hex(t.brand), brand2: hex(t.brand2), accent: hex(t.accent), surface: SURFACES[t.surface] !== undefined ? t.surface : 'default', preset: String(t.preset || '').slice(0, 20) };
+  return o.brand && o.brand2 && o.accent ? o : null;
+};
+/* the variables everything else reads */
+function vars(t) {
+  return { '--brand': t.brand, '--brand-2': t.brand2, '--cyan': t.accent, '--brand-rgb': rgb(t.brand),
+    '--grad': `linear-gradient(120deg,${t.brand},${t.brand2} 55%,${t.accent})` };
+}
+const Theme = {
+  current: null,
+  apply(t) {
+    t = clean(t);
+    const root = document.documentElement;
+    Object.keys(vars(PRESETS[0])).forEach(k => root.style.removeProperty(k));
+    ['--bg', '--bg-1', '--panel', '--panel-2'].forEach(k => root.style.removeProperty(k));
+    this.current = t;
+    if (!t) return;
+    Object.entries(vars(t)).forEach(([k, v]) => root.style.setProperty(k, v));
+    const s = SURFACES[t.surface];
+    if (s && root.dataset.theme !== 'light') { root.style.setProperty('--bg', s.bg); root.style.setProperty('--bg-1', s.bg1); root.style.setProperty('--panel', s.panel); root.style.setProperty('--panel-2', s.panel2); }
+    const meta = document.querySelector('meta[name=theme-color]'); if (meta && s) meta.setAttribute('content', s.bg);
+  },
+  load() { this.apply(LS.get('uiTheme', null)); },
+  /* saved here and on your profile, so it follows your account to your other phone */
+  async save(t) {
+    t = clean(t);
+    LS.set('uiTheme', t);
+    this.apply(t);
+    if (Backend.isOnline() && Backend.hasAccount() && NX.Profiles) { try { await NX.Profiles.update({ uiTheme: t }); } catch (e) { console.warn('[theme] profile', e && e.code); } }
+  },
+  async adoptFromProfile() {
+    if (!Backend.isOnline() || !Backend.hasAccount() || !NX.Profiles) return;
+    try { const p = await NX.Profiles.get(Backend.user.uid); const t = p && clean(p.uiTheme); if (t && JSON.stringify(t) !== JSON.stringify(LS.get('uiTheme', null))) { LS.set('uiTheme', t); this.apply(t); } } catch {}
+  },
+  /* the colour picker, for your interface or for one game's page */
+  picker({ title, value, onSave, onReset, surface = true, previewHost = null }) {
+    const cur = Object.assign({}, PRESETS[0], clean(value) || {});
+    const body = el('div');
+    const grid = el('div', { class: 'th-grid' });
+    const prev = el('div', { class: 'th-prev' });
+    const paintPrev = () => {
+      prev.textContent = '';
+      Object.entries(vars(cur)).forEach(([k, v]) => prev.style.setProperty(k, v));
+      prev.append(el('div', { class: 'th-prev-bar' }), el('b', { text: 'معاينة · Preview' }),
+        el('div', { class: 'row', style: { gap: '6px', marginTop: '8px' } }, [el('span', { class: 'th-chip', text: 'PLAY' }), el('span', { class: 'th-chip ghost', text: 'Tag' })]));
+      if (previewHost) Object.entries(vars(cur)).forEach(([k, v]) => previewHost.style.setProperty(k, v));
+    };
+    PRESETS.forEach(p => {
+      const b = el('button', { class: 'th-sw' + (cur.preset === p.id ? ' on' : ''), title: p.name, onclick: () => {
+        Object.assign(cur, { brand: p.brand, brand2: p.brand2, accent: p.accent, preset: p.id });
+        [c1, c2, c3].forEach((c, i) => { c.value = [p.brand, p.brand2, p.accent][i]; });
+        Array.from(grid.children).forEach(x => x.classList.toggle('on', x === b)); paintPrev();
+      } }, [el('i', { style: { background: `linear-gradient(120deg,${p.brand},${p.brand2} 55%,${p.accent})` } }), el('span', { text: p.name })]);
+      grid.appendChild(b);
+    });
+    const mk = (label, key) => {
+      const c = el('input', { type: 'color', value: cur[key] });
+      c.addEventListener('input', () => { cur[key] = c.value; cur.preset = 'custom'; Array.from(grid.children).forEach(x => x.classList.remove('on')); paintPrev(); });
+      body._row = body._row || el('div', { class: 'th-custom' });
+      body._row.appendChild(el('label', {}, [c, el('span', { text: label })]));
+      return c;
+    };
+    const c1 = mk('الأساسي', 'brand'), c2 = mk('الثاني', 'brand2'), c3 = mk('اللمعة', 'accent');
+    body.append(el('div', { class: 'ttl', text: 'ألوان جاهزة' }), grid, el('div', { class: 'ttl', text: 'ألوانك' }), body._row);
+    if (surface) {
+      const seg = el('div', { class: 'seg', style: { flexWrap: 'wrap' } });
+      Object.keys(SURFACES).forEach(k => seg.appendChild(el('button', { class: (cur.surface || 'default') === k ? 'on' : '', text: SURFACE_NAMES[k], onclick: e => { cur.surface = k; NX.segPick(seg, e.target); } })));
+      body.append(el('div', { class: 'ttl', text: 'الخلفية (الوضع الداكن)' }), seg);
+    }
+    body.append(el('div', { class: 'ttl', text: 'معاينة' }), prev);
+    paintPrev();
+    const s = Sheet.open({ title, body, id: 'theme-pick', foot: [
+      btn('الافتراضي', { cls: 'ghost', onclick: async () => { await onReset(); s.close(); } }),
+      btn('حفظ', { cls: 'primary', onclick: async () => { await onSave(clean(cur)); s.close(); } })] });
+  },
+  openMine() {
+    this.picker({ title: '🎨 ألوان واجهتي · My colours', value: this.current,
+      onSave: async t => { await this.save(t); Toast.ok('طُبّقت ألوانك' + (Backend.hasAccount() ? ' — وتتبعك على أجهزتك' : '')); },
+      onReset: async () => { await this.save(null); LS.del('uiTheme'); Toast.ok('عادت ألوان NEXUS'); } });
+  },
+  /* a game's store page, in its creator's colours */
+  openGame(p) {
+    if (NX.Team && !NX.Team.isOwner(p)) { Toast.err('ألوان صفحة اللعبة للمالك فقط'); return; }
+    p.showcase = p.showcase || {};
+    this.picker({ title: '🎨 ألوان صفحة اللعبة · ' + p.name, value: p.showcase.theme, surface: false,
+      onSave: async t => { p.showcase.theme = t; NX.Studio.dirty = true; await NX.Studio.save(true); if (p.publishedId && NX.Games.syncShowcase) await NX.Games.syncShowcase(p).catch(() => {}); Toast.ok('حُفظت ألوان الصفحة' + (p.publishedId ? ' وطُبّقت على اللعبة المنشورة' : ' — تظهر بعد النشر')); },
+      onReset: async () => { delete p.showcase.theme; NX.Studio.dirty = true; await NX.Studio.save(true); if (p.publishedId && NX.Games.syncShowcase) await NX.Games.syncShowcase(p).catch(() => {}); } });
+  },
+  /* the store page applies them on its own root only */
+  scope(node, t) { t = clean(t); if (!node || !t) return; Object.entries(vars(t)).forEach(([k, v]) => node.style.setProperty(k, v)); }
+};
+
+if (!window.NX_SANDBOX) {
+  Theme.load();
+  Passkeys.probe();
+  Backend.onAuth(u => { if (u && Backend.hasAccount()) Theme.adoptFromProfile(); });
+  const TU = NX.TeamUI;
+  TU.addAction({ id: 'gametheme', icon: 'image', label: '🎨 ألوان صفحة اللعبة', when: p => NX.Team.isOwner(p), run: p => Theme.openGame(p) });
+}
+
+NX.Passkeys = Passkeys;
+NX.Theme = Theme;
+NX.cleanTheme = clean;
+</script>
+<!-- /NX-PART:26 -->
 <script type="module">
 /* ============================================================
    PART 8/18 · GAME PLATFORM + BOOT
@@ -25614,6 +25892,11 @@ function promptSignIn(reason, after) {
     catch (e) { Toast.err(authMessage(e)); }
   }}));
   body.appendChild(btn('البريد وكلمة المرور', { cls: 'block', icon: 'book', onclick: () => { sheet.close(); Platform.openEmailAuth(after); } }));
+  /* optional: a passkey (only when the site owner enabled it on the server) */
+  if (NX.Passkeys && NX.Passkeys.available()) body.appendChild(btn('🔑 الدخول بمفتاح المرور · Passkey', { cls: 'block', style: { marginTop: '8px' }, onclick: async () => {
+    try { const u = await NX.Passkeys.signIn(); if (u) { Toast.ok('أهلًا ' + (Backend.user ? Backend.user.name : '')); sheet.close(); Platform.render(); after && after(); } }
+    catch (e) { Toast.err('تعذّر الدخول بالمفتاح: ' + NX.Passkeys.why(e)); }
+  } }));
   const sheet = Sheet.open({ title: T('signIn'), body, id: 'signin' });
 }
 /* turn a thrown "needs an account" into the sign-in sheet */
@@ -25897,6 +26180,7 @@ function openSettings() {
   ]);
   body.appendChild(themeSeg);
 
+  if (NX.Theme) body.appendChild(btn('🎨 ألوان واجهتي · My colours', { cls: 'block', style: { marginTop: '8px' }, onclick: () => NX.Theme.openMine() }));
   body.appendChild(el('div', { class: 'ttl', text: 'الاتصال' }));
   /* read-only: the Firebase project belongs to the platform owner and is
      built into the code — visitors never configure it */
@@ -25907,6 +26191,7 @@ function openSettings() {
   body.appendChild(el('hr', { class: 'sep' }));
   body.appendChild(btn('التشخيص · Firebase / Storage / Netlify', { cls: 'block primary', icon: 'shield', onclick: () => openDiagnostics() }));
   body.appendChild(btn('الأمان وقواعد Firebase', { cls: 'block', icon: 'shield', style: { marginTop: '8px' }, onclick: () => openSecurityPanel() }));
+  if (NX.Passkeys && NX.Passkeys.supported()) body.appendChild(btn('🔑 مفاتيح المرور · Passkeys', { cls: 'block', style: { marginTop: '8px' }, onclick: () => NX.Passkeys.open() }));
   body.appendChild(btn('مزوّدو الذكاء الاصطناعي', { cls: 'block', icon: 'spark', style: { marginTop: '8px' }, onclick: () => NX.openAISettings() }));
   body.appendChild(btn('سجلّ الأخطاء والتشخيص', { cls: 'block', icon: 'shield', style: { marginTop: '8px' }, onclick: () => NX.AIDebug.open() }));
   body.appendChild(btn('مسح ذاكرة الأصول المؤقتة', { cls: 'block ghost', style: { marginTop: '8px' }, onclick: () => { NX.AssetCache.clear(); Toast.ok('مُسحت'); } }));
