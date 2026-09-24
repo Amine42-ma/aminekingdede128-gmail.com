@@ -1142,6 +1142,21 @@ html[data-sandbox] #p-exit,html[data-sandbox] #p-clip,html[data-sandbox] #p-repl
 .plug-wrap{display:flex;flex-direction:column;gap:8px}
 .plug-frame{width:100%;min-height:52vh;border:1px solid var(--line-2);border-radius:12px;background:#0e111c}
 /* /NX-CSS:23 */
+/* NX-CSS:25 */
+/* ---------- security scan · device test · optimizer ---------- */
+.sec-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+.sec-pill{border:1.5px solid;border-radius:var(--r-md);padding:8px 4px;text-align:center;display:flex;flex-direction:column;background:var(--glass)}
+.sec-pill b{font:800 18px var(--font-en)}
+.sec-pill span{font:700 10px var(--font-en);letter-spacing:.04em;color:var(--ink-soft)}
+.sec-note{margin:6px 0 10px}
+.sec-card{border:1px solid var(--line);border-inline-start:4px solid;border-radius:var(--r-md);padding:9px 11px;margin-bottom:8px;background:var(--glass);display:flex;flex-direction:column;gap:3px}
+.sec-card b{font-size:13.5px}
+.sec-card small{font-size:11.5px;color:var(--ink-soft);direction:ltr;text-align:start;word-break:break-all}
+.sec-card p{font-size:12.5px;line-height:1.65;margin:0}
+.dev-row{font-size:13px;line-height:1.6;padding:6px 2px;border-bottom:1px solid var(--line)}
+.opt-row{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+.opt-row input{width:20px;height:20px;flex:0 0 auto}
+/* /NX-CSS:25 */
 </style>
 </head>
 <body>
@@ -12529,6 +12544,13 @@ const AIPanel = {
     if (!q) return;
     this.input.value = ''; this.input.style.height = '';
 
+    /* the team: «اجعل يوسف يعمل على …», «أعط يوسف صلاحية …», «من متصل؟» (PART 25) */
+    if (!opts.forceAct && NX.TeamAI && NX.TeamAI.claims(q)) {
+      this.say('me', q);
+      await NX.TeamAI.handle(q, { say: t => this.say('ai', t) });
+      return;
+    }
+
     /* a greeting or a question is a conversation, never a build: the
        connected model answers it in «محادثة»; without one, a short honest reply */
     const route = opts.forceAct || !NX.Intent ? 'act' : NX.Intent.route(q);
@@ -12797,6 +12819,7 @@ const AIPanel = {
     if (!tips.length) tips.push('الأداء ضمن الحدود الجيدة — لا حاجة لتغيير الآن.');
     card.appendChild(el('div', { class: 'rep-t', text: 'اقتراحات' }));
     tips.forEach(t => card.appendChild(el('div', { class: 'rep-item', text: '• ' + t })));
+    if (NX.Optimizer) card.appendChild(btn('🧹 الملفات غير المستخدمة · Optimize Project', { cls: 'sm', style: { marginTop: '8px' }, onclick: () => NX.Optimizer.open(S.project) }));
     this.log.appendChild(card);
     this.log.scrollTop = this.log.scrollHeight;
   },
@@ -16633,6 +16656,7 @@ ${api}
 ${sel.index.files.join('\n') || 'لا ملفات'}
 
 ${acts}
+${NX.TeamAI ? NX.TeamAI.context(p) : ''}
 ${errs.length ? '\nآخر الأخطاء:\n' + errs.join('\n') : ''}
 
 الملفات ذات الصلة بسؤال المستخدم:
@@ -16644,6 +16668,13 @@ ${sel.files.map(f => `--- ${f.path} ---\n${f.code}`).join('\n\n') || '(لا شي
     if (!q || this.streaming) return;
     if (!this.project()) { Toast.err('افتح مشروعًا أولًا'); return; }
     this.input.value = ''; this.input.style.height = '';
+
+    /* the team (members, roles, tasks) — handled here, whatever the model (PART 25) */
+    if (NX.TeamAI && NX.TeamAI.claims(q)) {
+      this.push('user', q); this.render();
+      await NX.TeamAI.handle(q, { say: t => { this.push('assistant', t); this.render(); } });
+      return;
+    }
 
     /* talk or act? a greeting or a question is answered, never built */
     const route = NX.Intent ? NX.Intent.route(q) : 'act';
@@ -20583,7 +20614,7 @@ const ACTIONS = {
   'merge': 'حلّ تعارضًا في', 'file.new': 'أنشأ ملفًا', 'file.rename': 'أعاد تسمية', 'file.move': 'نقل', 'file.delete': 'حذف', 'folder.new': 'أنشأ مجلدًا',
   'bug.new': 'أبلغ عن خطأ', 'bug.status': 'غيّر حالة خطأ', 'task.new': 'أضاف مهمة', 'task.status': 'حرّك مهمة', 'comment.new': 'علّق على',
   'playtest.start': 'بدأ اختبارًا جماعيًا', 'playtest.end': 'أنهى الاختبار الجماعي', 'publish': 'نشر اللعبة',
-  'deps.change': 'غيّر المكتبات', 'voice.on': 'فتح الصوت'
+  'deps.change': 'غيّر المكتبات', 'voice.on': 'فتح الصوت', 'security.scan': 'فحص أمان المشروع:', 'optimize': 'نظّف المشروع وأزال'
 };
 const Activity = {
   _last: new Map(),
@@ -24232,6 +24263,455 @@ NX.Deps = Deps;
 NX.Plugins = Plugins;
 </script>
 <!-- /NX-PART:24 -->
+<!-- NX-PART:25 -->
+<script type="module">
+/* ============================================================
+   PART 25 · PROJECT CHECKS — 🛡️ Scan Project (security audit),
+   📱 Test Mobile (this device), 🧹 Optimize Project (unused
+   files, never deleted without approval), and the assistant's
+   awareness of the team (members, roles, tasks).
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, Sheet, Modal, Toast, timeAgo } = NX;
+const { Backend, Team, Activity } = NX;
+const S = () => NX.Studio;
+const SEV = { CRITICAL: ['#fb7185', 4], HIGH: ['#fbbf24', 3], MEDIUM: ['#22d3ee', 2], LOW: ['#8b93b8', 1] };
+
+/* ================================================================ SECURITY AUDIT */
+const SECRET_PATTERNS = [
+  ['CRITICAL', /-----BEGIN (?:RSA |EC |OPENSSH |)PRIVATE KEY-----/, 'مفتاح خاص (Private Key)'],
+  ['CRITICAL', /"type"\s*:\s*"service_account"/, 'ملف حساب خدمة Firebase/Google (Service Account)'],
+  ['CRITICAL', /\bsk-ant-[A-Za-z0-9_-]{20,}/, 'مفتاح Anthropic'],
+  ['CRITICAL', /\bsk-or-v1-[A-Za-z0-9]{20,}/, 'مفتاح OpenRouter'],
+  ['CRITICAL', /\bsk-(?:proj-)?[A-Za-z0-9_-]{24,}/, 'مفتاح OpenAI'],
+  ['CRITICAL', /\bgsk_[A-Za-z0-9]{20,}/, 'مفتاح Groq'],
+  ['CRITICAL', /\bxai-[A-Za-z0-9]{20,}/, 'مفتاح xAI'],
+  ['CRITICAL', /\bAQ\.[A-Za-z0-9_-]{20,}/, 'مفتاح Google AI Studio (Gemini)'],
+  ['CRITICAL', /\bgh[pousr]_[A-Za-z0-9]{30,}/, 'رمز GitHub'],
+  ['CRITICAL', /\bAKIA[0-9A-Z]{16}\b/, 'مفتاح AWS'],
+  ['CRITICAL', /\b(?:sk|rk)_live_[0-9A-Za-z]{20,}/, 'مفتاح Stripe'],
+  ['CRITICAL', /\bxox[baprs]-[0-9A-Za-z-]{10,}/, 'رمز Slack'],
+  ['HIGH', /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/, 'رمز JWT (قد يكون جلسة دخول)'],
+  ['MEDIUM', /\bAIza[0-9A-Za-z_-]{35}\b/, 'مفتاح Google API']
+];
+const redact = s => String(s).replace(/([A-Za-z0-9_\-.]{6})[A-Za-z0-9_\-.]{8,}/g, '$1…');
+const SecurityAudit = {
+  /* every text the project carries: code, UI, translations, scene data */
+  texts(p) {
+    const out = [];
+    (p.files || []).forEach(f => out.push({ where: f.path, text: String(f.code || ''), kind: /\.(html?|css)$/i.test(f.path) ? 'ui' : 'code' }));
+    if (p.i18n && p.i18n.keys) out.push({ where: 'الترجمات', text: JSON.stringify(p.i18n.keys), kind: 'data' });
+    out.push({ where: 'المشهد', text: JSON.stringify((S().project === p && S().engine ? S().engine.serialize() : p.scene) || {}), kind: 'data' });
+    if (p.settings) out.push({ where: 'إعدادات المشروع', text: JSON.stringify(p.settings), kind: 'data' });
+    (p.plugins || []).forEach(x => out.push({ where: 'إضافة ' + x.name, text: x.code || '', kind: 'code' }));
+    return out;
+  },
+  lineOf(text, index) { return text.slice(0, index).split('\n').length; },
+  async scan(p, opts = {}) {
+    const F = [];
+    const add = (sev, title, where, fix, detail) => F.push({ sev, title, where, fix, detail });
+    const texts = this.texts(p);
+
+    /* 1 · exposed keys and secrets */
+    texts.forEach(t => SECRET_PATTERNS.forEach(([sev, re, name]) => {
+      const g = new RegExp(re.source, 'g'); let m;
+      while ((m = g.exec(t.text))) {
+        const isFb = name === 'مفتاح Google API';
+        add(sev, (isFb ? 'مفتاح Google API ظاهر: ' : 'سرّ مكشوف: ') + name, t.where + (t.kind !== 'data' ? ':' + this.lineOf(t.text, m.index) : ''),
+          isFb ? 'إن كان مفتاح إعداد Firebase للويب فهو عام بطبيعته — قيّده بنطاق موقعك من Google Cloud Console. إن كان مفتاح Gemini أو Maps فهو سرّ: احذفه من هنا وضعه في متغيرات بيئة Netlify (Function / Edge Function).'
+               : 'احذفه من المشروع فورًا وأبطله (Revoke) من لوحة المزوّد وأنشئ مفتاحًا جديدًا. الأسرار مكانها متغيرات بيئة Netlify على الخادم فقط — أي كود في اللعبة يراه كل لاعب.',
+          redact(m[0]).slice(0, 40));
+        if (m.index === g.lastIndex) g.lastIndex++;
+      }
+    }));
+    texts.filter(t => t.kind === 'code').forEach(t => {
+      const g = /\b(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|private[_-]?key|client[_-]?secret)\s*[:=]\s*(['"`])([^'"`\n]{8,})\2/gi; let m;
+      while ((m = g.exec(t.text))) add('HIGH', 'قيمة سرّية مكتوبة في الكود: ' + m[1], t.where + ':' + this.lineOf(t.text, m.index), 'لا تكتب كلمات السر أو الرموز في كود اللعبة — كل لاعب يستطيع قراءتها. انقلها إلى الخادم (Netlify Function) واطلب النتيجة فقط.', redact(m[3]));
+    });
+
+    /* 2 · XSS and unsafe code */
+    texts.filter(t => t.kind === 'code').forEach(t => {
+      [[/\.(innerHTML|outerHTML)\s*=/g, 'HIGH', 'كتابة HTML مباشرة (innerHTML)', 'استعمل textContent أو UI.text() — نص يكتبه لاعب قد يحمل كودًا يُنفَّذ عند غيره (XSS).'],
+       [/insertAdjacentHTML\s*\(/g, 'HIGH', 'insertAdjacentHTML', 'استعمل عناصر DOM أو UI.* بنص عادي.'],
+       [/document\.write\s*\(/g, 'HIGH', 'document.write', 'احذفه — استعمل UI.* لعرض النصوص.'],
+       [/\beval\s*\(/g, 'HIGH', 'eval()', 'لا تنفّذ نصوصًا ككود — خصوصًا ما يأتي من الشبكة أو من لاعب آخر.'],
+       [/new\s+Function\s*\(/g, 'HIGH', 'new Function()', 'لا تبنِ كودًا من نصوص.'],
+       [/set(?:Timeout|Interval)\s*\(\s*['"`]/g, 'MEDIUM', 'setTimeout/setInterval بنص', 'مرّر دالة وليس نصًا.'],
+       [/while\s*\(\s*(?:true|1)\s*\)(?![\s\S]{0,400}?\bbreak\b)/g, 'MEDIUM', 'حلقة لا تنتهي (while(true) بدون break)', 'قد تجمّد اللعبة على الهاتف — أضف شرط خروج أو استعمل update(dt).'],
+       [/function\s+update\s*\([^)]*\)\s*\{[\s\S]{0,600}?\b(?:room|net|Network)\.(?:send|setState)\s*\(/g, 'MEDIUM', 'إرسال شبكي في كل إطار', 'update() تعمل ~60 مرة في الثانية — أرسل كل 100–250ms فقط (تكلفة Firebase وتأخير).'],
+       [/Time\.every\s*\(\s*0?\.0[0-1]\d*/g, 'LOW', 'مؤقت سريع جدًا', 'فترات أقل من 20ms تستهلك البطارية — استعمل update(dt).']
+      ].forEach(([re, sev, title, fix]) => { let m; re.lastIndex = 0; while ((m = re.exec(t.text))) add(sev, title, t.where + ':' + this.lineOf(t.text, m.index), fix); });
+      if (t.text.length > 150000) add('LOW', 'ملف كبير جدًا (' + Math.round(t.text.length / 1024) + ' KB)', t.where, 'قسّمه إلى ملفات أصغر — أسهل للمراجعة وللدمج بين أعضاء الفريق.');
+    });
+    texts.filter(t => t.kind === 'ui').forEach(t => {
+      [[/<script\b/gi, 'MEDIUM', 'وسم script داخل واجهة HTML', 'المحرك يحذفه عند البناء — ضع المنطق في ملفات JS.'],
+       [/\son[a-z]+\s*=/gi, 'MEDIUM', 'معالج حدث داخل HTML (onclick=…)', 'المحرك يحذفه عند البناء — استعمل data-emit أو UI.button().'],
+       [/javascript:/gi, 'HIGH', 'رابط javascript:', 'احذفه — روابط javascript: تنفّذ كودًا.']
+      ].forEach(([re, sev, title, fix]) => { let m; re.lastIndex = 0; while ((m = re.exec(t.text))) add(sev, title, t.where + ':' + this.lineOf(t.text, m.index), fix); });
+    });
+
+    /* 3 · dangerous links */
+    texts.forEach(t => {
+      const g = /\b(https?:\/\/[^\s'"`<>)]+|data:text\/html[^\s'"`<>)]*)/gi; let m;
+      while ((m = g.exec(t.text))) {
+        const u = m[1], where = t.where + (t.kind !== 'data' ? ':' + this.lineOf(t.text, m.index) : '');
+        if (/^data:text\/html/i.test(u)) add('HIGH', 'رابط data:text/html', where, 'قد يُستعمل لتنفيذ صفحة ضارة — احذفه.', u.slice(0, 60));
+        else if (/^http:\/\//i.test(u) && !/^http:\/\/(localhost|127\.0\.0\.1)/i.test(u)) add('MEDIUM', 'رابط غير مشفّر (http)', where, 'استعمل https:// — المتصفح يحجب المحتوى غير المشفّر على موقع https ويمكن تعديله في الطريق.', u.slice(0, 80));
+        else if (/^https?:\/\/(\d{1,3}\.){3}\d{1,3}/i.test(u)) add('MEDIUM', 'رابط إلى عنوان IP مباشر', where, 'تأكّد من مصدره — الروابط الموثوقة تستعمل اسم نطاق.', u.slice(0, 80));
+        else if (/^https?:\/\/(bit\.ly|tinyurl\.com|t\.co|goo\.gl|is\.gd|cutt\.ly|shorturl\.at)\//i.test(u)) add('LOW', 'رابط مختصر', where, 'الروابط المختصرة تخفي وجهتها — استعمل الرابط الكامل.', u.slice(0, 80));
+        if (/\.(exe|apk|msi|bat|scr|dmg|jar)(\?|$)/i.test(u)) add('HIGH', 'رابط لتنزيل برنامج', where, 'لا توجّه اللاعبين لتنزيل برامج.', u.slice(0, 80));
+        if (m.index === g.lastIndex) g.lastIndex++;
+      }
+    });
+
+    /* 4 · the team and its permissions */
+    if (Team.hasTeam(p)) {
+      const ms = Team.members(p).filter(m => m.role !== 'owner');
+      const devs = ms.filter(m => m.role === 'developer').length, builders = ms.filter(m => m.role === 'builder').length;
+      if (devs + builders > 4) add('LOW', `${devs + builders} أعضاء يملكون صلاحية تعديل (مطوّر/باني)`, 'الفريق', 'أعطِ كل عضو أقل دور يحتاجه: من يختبر فقط يكفيه Tester، ومن يتابع يكفيه Viewer.');
+      if (!ms.length) add('LOW', 'لا أعضاء', 'الفريق', '');
+    }
+    (p.plugins || []).forEach(x => {
+      const w = (x.permissions || []).filter(k => /:write$/.test(k));
+      if (w.length) add('MEDIUM', 'إضافة «' + x.name + '» تملك صلاحية كتابة: ' + w.join('، '), 'الإضافات', 'اترك صلاحية الكتابة فقط للإضافات التي تثق بها، وعطّل ما لا تستعمله.');
+    });
+    if (Backend.isOnline() && Team.isOwner(p)) {
+      try {
+        const inv = (await Team.sentInvites(p)).filter(i => i.status === 'pending' && Date.now() - (i.at || 0) > 30 * 864e5);
+        if (inv.length) add('LOW', inv.length + ' دعوة معلّقة منذ أكثر من 30 يومًا', 'الفريق', 'ألغِ الدعوات القديمة من «إدارة الفريق».');
+      } catch {}
+    }
+
+    /* 5 · settings */
+    const lb = p.settings && p.settings.leaderboard;
+    if (lb && lb.enabled && lb.order !== 'asc' && (+lb.perSecond >= 10000 || +lb.max >= 1e8)) add('MEDIUM', 'حدود لوحة الصدارة واسعة جدًا', 'لوحة الصدارة', 'الخادم يرفض النتائج المستحيلة حسب هذه الحدود — كلما كانت أدق (أقصى نتيجة ونقاط/ثانية حقيقية) صعُب التلاعب.');
+    if (location.protocol !== 'https:' && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) add('HIGH', 'الموقع يعمل بدون HTTPS', location.host, 'انشر NEXUS على https (Netlify يوفّره تلقائيًا).');
+    (NX.FB_CONFIG_PROBLEMS || []).forEach(x => add('MEDIUM', 'إعداد Firebase: ' + x, 'index.html', 'أكمل إعداد Firebase في أعلى index.html.'));
+    const keysHere = NX.AIConfig && NX.AIConfig.all ? Object.values(NX.AIConfig.all() || {}).filter(v => v && v.key).length : 0;
+    if (keysHere) add('LOW', keysHere + ' مفتاح AI شخصي محفوظ في هذا المتصفح', 'هذا الجهاز', 'مفاتيحك محفوظة على جهازك فقط ولا تُرفع. ألعاب الآخرين والفريق تعمل في صندوق معزول لا يصل إليها. احذفها من «مزوّدي الذكاء الاصطناعي» إن كان الجهاز مشتركًا.');
+
+    /* 6 · the Firebase rules really deployed: what can a signed-out visitor read? */
+    let rules = 'skipped';
+    if (Backend.isOnline() && opts.rules !== false) {
+      let v = null;
+      try {
+        v = await Backend.visitor();
+        const probe = async col => { try { const s = await v.F.getDocs(v.F.query(v.F.collection(v.db, col), v.F.limit(1))); return s.size > 0 ? 'OPEN' : 'OPEN-EMPTY'; } catch (e) { return e && e.code === 'permission-denied' ? 'DENIED' : 'ERR'; } };
+        const r = { projects: await probe('projects'), reports: await probe('reports'), saves: await probe('saves'), invites: await probe('invites') };
+        rules = r;
+        const open = Object.entries(r).filter(([, x]) => x === 'OPEN' || x === 'OPEN-EMPTY').map(([k]) => k);
+        if (open.length) add('CRITICAL', 'قواعد Firebase ضعيفة: زائر غير مسجّل يقرأ ' + open.join('، '), 'Firestore Rules (المنشورة فعلًا)', 'انشر firestore.rules من المستودع: firebase deploy --only firestore:rules — القواعد الحالية تبدو «وضع الاختبار» وتكشف مشاريع الناس وتقاريرهم.');
+      } catch (e) { rules = 'error'; add('LOW', 'تعذّر فحص قواعد Firebase المنشورة', 'Firestore', String((e && e.message) || e).slice(0, 80)); }
+      finally { if (v) v.close(); }
+    }
+    F.sort((a, b) => SEV[b.sev][1] - SEV[a.sev][1]);
+    return { findings: F, rules, at: Date.now() };
+  },
+  async open(p) {
+    p = p || S().project;
+    if (!p) return;
+    NX.IDE && NX.IDE.project === p && NX.IDE.flush && NX.IDE.flush();
+    const body = el('div');
+    body.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' }), el('span', { text: 'يفحص الكود والواجهات والروابط والصلاحيات وقواعد Firebase المنشورة…' })]));
+    const sheet = Sheet.open({ title: '🛡️ فحص أمان المشروع · Scan Project', body, full: true, id: 'sec-scan' });
+    const r = await this.scan(p);
+    body.textContent = '';
+    const count = s => r.findings.filter(f => f.sev === s).length;
+    const sum = el('div', { class: 'sec-sum' });
+    Object.keys(SEV).forEach(s => sum.appendChild(el('div', { class: 'sec-pill', style: { borderColor: SEV[s][0] } }, [el('b', { text: String(count(s)) }), el('span', { text: s })])));
+    body.appendChild(sum);
+    body.appendChild(el('p', { class: 'tiny sec-note', text: r.findings.length
+      ? 'هذه نتائج فحوص محددة. أصلح CRITICAL وHIGH أولًا.'
+      : 'لم تجد هذه الفحوص مشكلة معروفة. هذا لا يعني أن المشروع آمن 100% — لا يوجد فحص يضمن ذلك.' }));
+    if (r.rules && typeof r.rules === 'object') body.appendChild(el('p', { class: 'tiny', text: 'قواعد Firebase المنشورة (زائر غير مسجّل): ' + Object.entries(r.rules).map(([k, v]) => k + ' ' + (v === 'DENIED' ? '🔒' : v === 'ERR' ? '?' : '⚠ مفتوح')).join(' · ') }));
+    Object.keys(SEV).forEach(s => {
+      const list = r.findings.filter(f => f.sev === s);
+      if (!list.length) return;
+      body.appendChild(el('div', { class: 'ttl', style: { color: SEV[s][0] }, text: s + ' (' + list.length + ')' }));
+      list.forEach(f => body.appendChild(el('div', { class: 'sec-card', style: { borderInlineStartColor: SEV[s][0] } }, [
+        el('b', { text: f.title }), el('small', { text: '📍 ' + f.where + (f.detail ? ' · ' + f.detail : '') }), f.fix ? el('p', { text: '✔ الإصلاح: ' + f.fix }) : el('span')])));
+    });
+    const aiBox = el('div');
+    body.appendChild(aiBox);
+    if (NX.AIClient && NX.AIClient.ready()) aiBox.appendChild(btn('✨ مراجعة إضافية بالذكاء الاصطناعي', { cls: 'sm', onclick: () => this.aiReview(p, aiBox) }));
+    body.appendChild(el('p', { class: 'tiny', style: { marginTop: '14px' }, text: 'فُحص: الكود، واجهات HTML، الترجمات، المشهد، الإعدادات، الإضافات، الروابط، أدوار الفريق، وقواعد Firebase المنشورة فعلًا (قراءة فقط، دون كتابة شيء).' }));
+    Activity.log(p, 'security.scan', r.findings.length + ' ملاحظة');
+    return r;
+  },
+  /* the model reads the code with every detected secret removed first */
+  async aiReview(p, host) {
+    host.textContent = '';
+    host.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' }), el('span', { text: 'المساعد يراجع الكود…' })]));
+    let code = (p.files || []).map(f => '--- ' + f.path + ' ---\n' + String(f.code || '').slice(0, 12000)).join('\n\n').slice(0, 60000);
+    SECRET_PATTERNS.forEach(([, re]) => { code = code.replace(new RegExp(re.source, 'g'), '[REDACTED]'); });
+    try {
+      const r = await NX.AIClient.chat([{ role: 'user', content: code }], { stream: false, system: 'You are a security reviewer for browser game code running in the NEXUS engine. List concrete security problems only (XSS, unsafe eval, leaking data, trusting other players\' messages, cheating vectors, unsafe links). Reply in Arabic as a short list: [SEVERITY] file:line — problem — fix. SEVERITY is CRITICAL, HIGH, MEDIUM or LOW. If you find nothing specific, say so, and never claim the project is 100% secure.' });
+      host.textContent = '';
+      host.appendChild(el('div', { class: 'ttl', text: '✨ ملاحظات المساعد (قد يخطئ — تحقّق منها)' }));
+      host.appendChild(el('p', { style: { whiteSpace: 'pre-wrap', fontSize: '13px', lineHeight: '1.7' }, text: String(r.text || '').replace(/100\s*%\s*(آمن|safe|secure)/gi, 'آمن (بلا ضمان كامل)') }));
+    } catch (e) { host.textContent = ''; host.appendChild(el('p', { class: 'tiny', text: 'تعذّرت المراجعة: ' + (e.message || e) })); }
+  }
+};
+
+/* ================================================================ DEVICE TEST (this phone / computer) */
+const DeviceTest = {
+  uses(p) {
+    const code = (p.files || []).map(f => String(f.code || '')).join('\n');
+    return {
+      touch: /UI\.(joystick|button)\s*\(|Input\.(onTap|joystick|pointer|pick)\b|data-emit/.test(code),
+      keys: /Input\.(isDown|onKey|onKeyUp|keys)\b/.test(code),
+      voice: /\b(Voice\.join|Mic\.(start|request))\b/.test(code),
+      net: /Network\.room\s*\(/.test(code),
+      wasm: (p.files || []).some(f => f.bytes || /\.(c|cpp|cs)$/i.test(f.path)),
+      pointerLock: /requestPointerLock/.test(code), vibrate: /vibrate\s*\(/.test(code), sab: /SharedArrayBuffer/.test(code)
+    };
+  },
+  async run(p) {
+    const R = [];
+    const add = (cat, st, text) => R.push({ cat, st, text });
+    const u = this.uses(p);
+    /* touch */
+    const touch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+    add('Touch Controls', touch ? 'ok' : 'info', touch ? 'الشاشة تدعم اللمس (' + navigator.maxTouchPoints + ' نقاط)' : 'هذا الجهاز بلا لمس — الفحص الحقيقي للّمس يكون على هاتف');
+    if (u.keys && !u.touch) add('Touch Controls', 'bad', 'اللعبة تعتمد على لوحة المفاتيح فقط — لن تُلعب على الهاتف. أضف UI.joystick() وUI.button().');
+    else if (u.touch) add('Touch Controls', 'ok', 'اللعبة فيها عناصر تحكم باللمس (UI.joystick / UI.button / Input.onTap)');
+    else add('Touch Controls', 'warn', 'لم أجد عناصر تحكم في الكود — تأكّد أن اللاعب يستطيع التحكم باللمس');
+    /* WebGL */
+    try {
+      const c = document.createElement('canvas');
+      const gl2 = c.getContext('webgl2'), gl = gl2 || c.getContext('webgl');
+      if (!gl) add('WebGL', 'bad', 'WebGL غير متاح — اللعبة لن تعمل على هذا المتصفح');
+      else {
+        const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+        const rend = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+        const mts = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+        add('WebGL', gl2 ? 'ok' : 'warn', (gl2 ? 'WebGL 2' : 'WebGL 1 فقط') + ' · ' + String(rend).slice(0, 60) + ' · أقصى خامة ' + mts + 'px');
+        const ext = gl.getExtension('WEBGL_lose_context'); ext && ext.loseContext();
+      }
+    } catch (e) { add('WebGL', 'bad', 'تعذّر اختبار WebGL: ' + e.message); }
+    /* audio */
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) add('Audio', 'bad', 'Web Audio غير مدعوم');
+    else {
+      const a = document.createElement('audio');
+      const fmt = [['mp3', 'audio/mpeg'], ['ogg', 'audio/ogg; codecs="vorbis"'], ['wav', 'audio/wav'], ['m4a', 'audio/mp4']].map(([k, t]) => k + (a.canPlayType(t) ? ' ✓' : ' ✗')).join(' · ');
+      add('Audio', 'ok', 'Web Audio متاح · ' + fmt);
+      const assets = await Promise.all((p.assetRefs || []).slice(0, 60).map(id => NX.Assets.get(id).catch(() => null)));
+      const oggOnly = assets.filter(x => x && x.kind === 'audio' && /ogg/i.test(x.fileType || ''));
+      if (oggOnly.length && !a.canPlayType('audio/ogg')) add('Audio', 'bad', oggOnly.length + ' صوت بصيغة OGG لا يعمل هنا (iPhone/Safari) — استعمل MP3 أو M4A');
+    }
+    /* WebRTC */
+    const rtc = !!window.RTCPeerConnection, gum = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    add('WebRTC', rtc ? 'ok' : (u.voice ? 'bad' : 'warn'), (rtc ? 'WebRTC متاح' : 'WebRTC غير متاح') + ' · ' + (gum ? 'الميكروفون ممكن (بإذن)' : 'لا وصول للميكروفون') + (u.voice ? ' · اللعبة تستعمل الصوت' : ''));
+    if (u.net) add('WebRTC', Backend.isOnline() ? 'ok' : 'warn', 'اللعب الجماعي يحتاج اتصال Firebase' + (Backend.isOnline() ? ' ✓' : ' — غير متصل الآن'));
+    /* performance: the real scene for 3 seconds */
+    const eng = S().engine;
+    if (eng && S().project === p) {
+      const f0 = eng.time.frame, t0 = performance.now();
+      await new Promise(r => setTimeout(r, 3000));
+      const fps = Math.round((eng.time.frame - f0) * 1000 / Math.max(1, performance.now() - t0));
+      const st = eng.stats;
+      add('Performance', fps >= 50 ? 'ok' : fps >= 28 ? 'warn' : 'bad', fps + ' FPS في المحرر على هذا الجهاز · ' + NX.fmtNum(st.tris) + ' مثلث · ' + st.calls + ' استدعاء رسم');
+      if (st.tris > 400000) add('Performance', 'warn', 'المثلثات كثيرة للهواتف (أكثر من 400 ألف) — استعمل مجسمات أخف');
+      if (st.calls > 200) add('Performance', 'warn', 'استدعاءات الرسم كثيرة للهواتف (أكثر من 200) — قلّل الخامات المختلفة');
+      const mem = performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null;
+      if (mem) add('Performance', mem < 400 ? 'ok' : 'warn', 'ذاكرة JavaScript المستعملة: ' + mem + ' MB');
+    }
+    /* browser */
+    add('Browser', 'info', navigator.userAgent.replace(/\s+\(KHTML.*$/, '').slice(0, 110));
+    add('Browser', typeof WebAssembly === 'object' ? 'ok' : (u.wasm ? 'bad' : 'warn'), 'WebAssembly ' + (typeof WebAssembly === 'object' ? '✓' : '✗') + (u.wasm ? ' (المشروع يستعمل WASM)' : ''));
+    if (u.pointerLock) add('Browser', 'warn', 'Pointer Lock لا يعمل على الهواتف — وفّر تحكمًا بديلًا');
+    if (u.vibrate) add('Browser', 'info', 'الاهتزاز (vibrate) لا يعمل على iPhone');
+    if (u.sab) add('Browser', 'warn', 'SharedArrayBuffer يحتاج رؤوس COOP/COEP في الاستضافة');
+    add('Browser', 'info', 'الشاشة ' + screen.width + '×' + screen.height + ' · كثافة ' + (window.devicePixelRatio || 1) + 'x · ' + (matchMedia('(pointer:coarse)').matches ? 'مؤشر لمس' : 'فأرة'));
+    return R;
+  },
+  async open(p) {
+    p = p || S().project;
+    if (!p) return;
+    const body = el('div');
+    body.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' }), el('span', { text: 'يفحص هذا الجهاز ويشغّل المشهد 3 ثوانٍ…' })]));
+    Sheet.open({ title: '📱 اختبار الجهاز · Test Mobile', body, full: true, id: 'device-test' });
+    const R = await this.run(p);
+    body.textContent = '';
+    const ico = { ok: '✅', warn: '⚠️', bad: '❌', info: 'ℹ️' };
+    ['Touch Controls', 'WebGL', 'Audio', 'WebRTC', 'Performance', 'Browser'].forEach(cat => {
+      const rows = R.filter(r => r.cat === cat);
+      if (!rows.length) return;
+      const worst = rows.some(r => r.st === 'bad') ? 'bad' : rows.some(r => r.st === 'warn') ? 'warn' : 'ok';
+      body.appendChild(el('div', { class: 'ttl', text: ico[worst] + ' ' + cat }));
+      rows.forEach(r => body.appendChild(el('div', { class: 'dev-row', text: ico[r.st] + ' ' + r.text })));
+    });
+    body.appendChild(el('p', { class: 'tiny', style: { marginTop: '12px' }, text: 'هذا فحص حقيقي لهذا الجهاز وهذا المتصفح فقط. افتح المشروع من هاتفك (نفس الحساب) واضغط «📱 Test Mobile» هناك للحصول على نتيجة الهاتف.' }));
+    return R;
+  }
+};
+
+/* ================================================================ OPTIMIZER (never deletes by itself) */
+const Optimizer = {
+  async find(p) {
+    const eng = S().project === p && S().engine ? S().engine : null;
+    const scene = eng ? eng.serialize() : (p.scene || { objects: [] });
+    const code = (p.files || []).map(f => String(f.code || '')).join('\n');
+    const sceneJSON = JSON.stringify(scene);
+    const out = [];
+    /* assets referenced by the project but used nowhere */
+    for (const id of (p.assetRefs || [])) {
+      if (sceneJSON.includes(id) || code.includes(id)) continue;
+      const a = await NX.Assets.get(id).catch(() => null);
+      const cat = !a ? 'Models' : a.kind === 'image' ? 'Textures' : a.kind === 'audio' ? 'Audio' : 'Models';
+      out.push({ kind: 'asset', cat, id, name: a ? a.name : id + ' (غير متاح)', size: a ? a.bytes || 0 : 0, why: 'غير مستخدم في المشهد ولا في الكود' });
+    }
+    /* scripts that never run */
+    const ents = new Set(scene.objects.map(o => o.id));
+    const compUsed = new Set();
+    scene.objects.forEach(o => (o.components || []).forEach(c => compUsed.add(c.type || c.name)));
+    (p.files || []).forEach(f => {
+      if (/\.(html?|css)$/i.test(f.path) || f.bytes) return;
+      const name = NX.componentName(f.path);
+      if (f.role === 'component') {
+        if (!compUsed.has(name) && !new RegExp('addComponent\\(\\s*[\'"`]' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[\'"`]').test(code))
+          out.push({ kind: 'file', cat: 'Scripts', id: f.id || f.path, name: f.path, size: String(f.code || '').length, why: 'مكوّن غير مركّب على أي كائن' });
+      } else if (f.entityId && !ents.has(f.entityId)) out.push({ kind: 'file', cat: 'Scripts', id: f.id || f.path, name: f.path, size: String(f.code || '').length, why: 'مرتبط بكائن لم يعد في المشهد' });
+      else if (f.enabled === false) out.push({ kind: 'file', cat: 'Scripts', id: f.id || f.path, name: f.path, size: String(f.code || '').length, why: 'معطّل في البناء' });
+    });
+    /* libraries nobody loads */
+    const used = NX.Deps ? NX.Deps.used(p) : new Set();
+    (p.deps || []).forEach(d => { if (!used.has(d.name)) out.push({ kind: 'dep', cat: 'Libraries', id: d.name, name: d.name + '@' + d.version, size: 0, why: 'لا يستدعيها الكود (Libs.load)' }); });
+    return { items: out, stats: eng ? eng.stats : null };
+  },
+  async open(p) {
+    p = p || S().project;
+    if (!p) return;
+    const body = el('div');
+    body.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' }), el('span', { text: 'يبحث عن الملفات غير المستخدمة…' })]));
+    const sheet = Sheet.open({ title: '🧹 تحسين المشروع · Optimize Project', body, full: true, id: 'optimizer' });
+    const r = await this.find(p);
+    body.textContent = '';
+    if (r.stats) body.appendChild(el('p', { class: 'tiny', text: 'المشهد: ' + NX.fmtNum(r.stats.tris) + ' مثلث · ' + r.stats.calls + ' استدعاء رسم · ' + r.stats.textures + ' خامة' }));
+    const chosen = new Set();
+    const canCode = Team.can(p, 'code'), canScene = Team.can(p, 'scene');
+    const allowed = it => it.kind === 'asset' ? canScene : canCode;
+    if (!r.items.length) body.appendChild(el('div', { class: 'center-note', text: '✓ لا ملفات غير مستخدمة — المشروع نظيف' }));
+    ['Models', 'Textures', 'Audio', 'Scripts', 'Libraries'].forEach(cat => {
+      const list = r.items.filter(i => i.cat === cat);
+      if (!list.length) return;
+      body.appendChild(el('div', { class: 'ttl', text: cat + ' (' + list.length + ')' }));
+      list.forEach(it => {
+        const cb = el('input', { type: 'checkbox' });
+        cb.disabled = !allowed(it);
+        cb.onchange = () => { cb.checked ? chosen.add(it) : chosen.delete(it); go.disabled = !chosen.size; };
+        body.appendChild(el('label', { class: 'opt-row' }, [cb, el('div', { class: 'fx-t' }, [el('b', { text: it.name }), el('small', { text: it.why + (it.size ? ' · ' + NX.fmtBytes(it.size) : '') + (allowed(it) ? '' : ' · دورك لا يسمح بإزالته') })])]));
+      });
+    });
+    body.appendChild(el('p', { class: 'tiny', style: { marginTop: '10px' }, text: 'لا شيء يُحذف تلقائيًا. اختر ما تريد إزالته من المشروع ثم أكّد. الأصول تبقى في مكتبتك — تُزال من هذا المشروع فقط.' }));
+    const go = btn('إزالة المحدد', { cls: 'danger', onclick: async () => {
+      const list = Array.from(chosen);
+      if (!await Modal.confirm('إزالة ' + list.length + ' عنصر من المشروع؟', list.map(i => '• ' + i.name).join('\n'), 'إزالة')) return;
+      const st = S();
+      if (st.project === p) st.pushUndo('🧹 تحسين المشروع', { files: true });
+      const files = new Set(list.filter(i => i.kind === 'file').map(i => i.id));
+      const assets = new Set(list.filter(i => i.kind === 'asset').map(i => i.id));
+      const deps = new Set(list.filter(i => i.kind === 'dep').map(i => i.id));
+      if (files.size) p.files = (p.files || []).filter(f => !files.has(f.id || f.path));
+      if (assets.size) p.assetRefs = (p.assetRefs || []).filter(id => !assets.has(id));
+      if (deps.size) p.deps = (p.deps || []).filter(d => !deps.has(d.name));
+      if (NX.IDE && NX.IDE.renderTabs && NX.IDE.project === p) { if (NX.IDE.current && files.has(NX.IDE.current.id)) NX.IDE.current = null; NX.IDE.renderTabs(); }
+      st.dirty = true; await st.save(true);
+      Activity.log(p, 'optimize', list.length + ' عنصر');
+      Toast.ok('أُزيل ' + list.length + ' عنصر — يمكنك التراجع');
+      sheet.close();
+    } });
+    go.disabled = true;
+    if (r.items.length) sheet.el.appendChild(el('div', { class: 'sheet-foot' }, [go]));
+    return r;
+  }
+};
+
+/* ================================================================ THE ASSISTANT KNOWS THE TEAM
+   «اجعل يوسف يعمل على Player Controller» → a task for Yusuf (roles unchanged)
+   «أعط يوسف صلاحية Developer» → only if you are the owner, after you confirm */
+const ROLE_WORDS = { developer: /developer|مطور|مطوّر|ديفلوبر/i, builder: /builder|باني|بناء/i, tester: /tester|مختبر|مختبِر|تستر/i, viewer: /viewer|مشاهد|مشاهدة/i };
+const TeamAI = {
+  claims(q) {
+    const p = S().project;
+    if (!p) return false;
+    return /^(اجعل|خل(ي|ّي)|دع|كلّف|كلف|assign|let)\s+\S+.*\s(يعمل|يشتغل|يعمل\s+على|work\s+on)\s/i.test(q)
+      || /(أعط|اعط|امنح|أعطِ|give|make)\s+\S+\s+(صلاحية|دور|role|permission)/i.test(q)
+      || /(غي(ّ)?ر|change)\s+(دور|صلاحية|role)\s/i.test(q)
+      || /(من|who)\s+(متصل|يعمل|online|is working|في الفريق)/i.test(q);
+  },
+  member(p, name) {
+    const n = String(name || '').replace(/^@/, '').trim().toLowerCase();
+    if (!n) return null;
+    return Team.members(p).find(m => String(m.name || '').toLowerCase() === n)
+      || Team.members(p).find(m => String(m.name || '').toLowerCase().startsWith(n) || n.startsWith(String(m.name || '').toLowerCase()));
+  },
+  async handle(q, ui) {
+    const p = S().project;
+    let m;
+    if ((m = /(من|who)\s+(متصل|يعمل|online|is working|في الفريق)/i.exec(q))) {
+      const lines = Team.members(p).map(x => {
+        const pr = x.uid === Team.me() ? { working: NX.Presence && NX.Presence.working } : NX.Presence && NX.Presence.list.get(x.uid);
+        const on = x.uid === Team.me() || (NX.Presence && NX.Presence.isOnline(pr));
+        return (on ? '🟢 ' : '⚪ ') + (x.uid === Team.me() ? 'أنت' : x.name) + ' — ' + Team.ROLES[x.role].ar + (on && pr && pr.working ? ' · يعمل على: ' + pr.working : '');
+      });
+      ui.say(Team.hasTeam(p) ? 'الفريق الآن:\n' + lines.join('\n') : 'هذا المشروع بلا فريق بعد — يمكنك دعوة أعضاء من «👥 الفريق».');
+      return true;
+    }
+    if ((m = /(?:أعط|اعط|امنح|أعطِ|give|make)\s+(\S+)\s+(?:صلاحية|دور|role|permission)\s*(?:ال)?(.+)?$/i.exec(q)) || (m = /(?:غي(?:ّ)?ر|change)\s+(?:دور|صلاحية|role)\s+(\S+)\s+(?:إلى|الى|ل|to)?\s*(.+)?$/i.exec(q))) {
+      /* only the owner manages members — the server refuses anyone else anyway */
+      if (!Team.isOwner(p)) { ui.say('لا أستطيع: تغيير الصلاحيات للمالك فقط، ودورك «' + Team.ROLES[Team.roleOf(p)].ar + '». اطلب ذلك من مالك المشروع.'); return true; }
+      const who = this.member(p, m[1]);
+      const role = Object.keys(ROLE_WORDS).find(r => ROLE_WORDS[r].test(m[2] || ''));
+      if (!who || who.role === 'owner') { ui.say(who ? 'هذا هو مالك المشروع — دوره لا يتغيّر من هنا (يمكن نقل الملكية من «إدارة الفريق»).' : 'لا يوجد عضو بهذا الاسم في فريق المشروع.'); return true; }
+      if (!role) { ui.say('أي دور؟ الأدوار: Developer (الكود)، Builder (المشهد)، Tester (الاختبار)، Viewer (مشاهدة).'); return true; }
+      if (who.role === role) { ui.say(who.name + ' دوره بالفعل ' + Team.ROLES[role].en + '.'); return true; }
+      const ok = await Modal.confirm('تغيير دور ' + who.name + '؟', Team.ROLES[who.role].en + ' → ' + Team.ROLES[role].en + '\n' + Team.ROLE_DESC[role], 'تغيير');
+      if (!ok) { ui.say('لم أغيّر شيئًا.'); return true; }
+      try { await Team.setRole(p, who.uid, role); ui.say('✓ صار ' + who.name + ' بدور ' + Team.ROLES[role].en + ' (' + Team.ROLE_DESC[role] + ').'); }
+      catch (e) { ui.say('رفض الخادم التغيير: ' + (e.message || e)); }
+      return true;
+    }
+    if ((m = /^(?:اجعل|خل(?:ي|ّي)|دع|كلّف|كلف|assign|let)\s+(\S+)\s+(?:يعمل|يشتغل|work)\s+(?:على|on)\s+(.+)$/i.exec(q))) {
+      const who = this.member(p, m[1]);
+      const title = m[2].trim().slice(0, 140);
+      if (!who) { ui.say('لا يوجد عضو بهذا الاسم في الفريق. الأعضاء: ' + Team.members(p).map(x => x.name).join('، ')); return true; }
+      if (!Team.can(p, 'tasks')) { ui.say('دورك لا يسمح بإنشاء المهام (للمالك والمطوّر والباني).'); return true; }
+      try {
+        await NX.Tasks.create(p, { title, assignee: who.uid });
+        ui.say('✓ أنشأت مهمة «' + title + '» وأسندتها إلى ' + (who.uid === Team.me() ? 'نفسك' : who.name) + ' — في «✅ المهام» (TODO). لم أغيّر دوره ولا صلاحياته.');
+      } catch (e) { ui.say('تعذّر إنشاء المهمة: ' + (e.code === 'permission-denied' ? 'رفض الخادم' : e.message)); }
+      return true;
+    }
+    return false;
+  },
+  /* what the chat model is told about the team */
+  context(p) {
+    if (!p || !Team.hasTeam(p)) return '';
+    const me = Team.roleOf(p);
+    const lines = Team.members(p).map(x => '- ' + (x.uid === Team.me() ? 'المستخدم الحالي' : x.name) + ': ' + Team.ROLES[x.role].en);
+    return `\nفريق المشروع (الأدوار يفرضها الخادم):
+${lines.join('\n')}
+دور المستخدم الحالي: ${Team.ROLES[me] ? Team.ROLES[me].en : '—'}.
+- «اجعل X يعمل على Y» تعني مهمة لـX، ولا تعني تغيير دوره أبدًا.
+- تغيير الأدوار أو الأعضاء للمالك فقط؛ إن لم يكن المستخدم المالك فقل ذلك ولا تحاول.
+- لا تقترح تعديلات يمنعها دور المستخدم الحالي (Developer: الكود فقط · Builder: المشهد فقط · Tester/Viewer: بلا تعديل).\n`;
+  }
+};
+
+/* ================================================================ menu entries */
+const TU = NX.TeamUI;
+TU.addAction({ id: 'scan', icon: 'shield', label: '🛡️ فحص الأمان · Scan Project', run: p => SecurityAudit.open(p) });
+TU.addAction({ id: 'device', icon: 'grid', label: '📱 اختبار الجهاز · Test Mobile', run: p => DeviceTest.open(p) });
+TU.addAction({ id: 'optimize', icon: 'box', label: '🧹 تحسين المشروع · Optimize', run: p => Optimizer.open(p) });
+
+NX.SecurityAudit = SecurityAudit;
+NX.DeviceTest = DeviceTest;
+NX.Optimizer = Optimizer;
+NX.TeamAI = TeamAI;
+</script>
+<!-- /NX-PART:25 -->
 <script type="module">
 /* ============================================================
    PART 8/18 · GAME PLATFORM + BOOT
@@ -25444,8 +25924,9 @@ function openSecurityPanel() {
   body.appendChild(el('div', { class: 'card', style: { marginBottom: '12px' } }, [
     el('b', { text: 'الأصول ≠ الكود' }),
     el('p', { class: 'tiny', style: { marginTop: '6px', lineHeight: '1.8' },
-      text: '• الأصول (GLB/صور/صوت) بيانات فقط ولا تُنفَّذ أبدًا؛ لا يُقبل رفع ملفات سكربت كأصول.\n• كود اللعبة يخصّ المشروع لا الأصل، ويعمل داخل نطاق مقيَّد لا يرى window أو fetch أو التخزين.\n• كود مطوّر آخر لا يعمل إلا بموافقتك الصريحة، ويمكنك قراءته قبل التشغيل.\n• التقييد داخل الصفحة حاجز سلامة لا حاجز أمني مطلق — لذلك توجد بوابة الموافقة.' })
+      text: '• الأصول (GLB/صور/صوت) بيانات فقط ولا تُنفَّذ أبدًا؛ لا يُقبل رفع ملفات سكربت كأصول.\n• كود مطوّر آخر لا يعمل إلا بموافقتك الصريحة، ويمكنك قراءته قبل التشغيل.\n• كود الآخرين (ألعابهم المنشورة وكل مشروع فيه فريق) يعمل في صندوق معزول (iframe sandbox) بمصدر مجهول: لا يصل إلى جلسة دخولك ولا تخزين الموقع ولا مفاتيح AI ولا Firebase — فقط عبر جسر يسمح بغرف اللعبة وحفظها وأصولها المقروءة.\n• كودك أنت في مشروعك الفردي يعمل داخل الصفحة كما كان (التقييد هناك حاجز سلامة).' })
   ]));
+  if (NX.SecurityAudit && NX.Studio.project) body.appendChild(btn('🛡️ فحص أمان المشروع · Scan Project', { cls: 'primary block', style: { marginBottom: '12px' }, onclick: () => NX.SecurityAudit.open(NX.Studio.project) }));
   const mk = (title, text) => {
     const d = el('details', { class: 'acc' });
     d.appendChild(el('summary', { text: title }));
