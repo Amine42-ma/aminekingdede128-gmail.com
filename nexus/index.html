@@ -1135,6 +1135,12 @@ html.kb-open .ide-toolbar,html.kb-open .ide-seg{display:none}
 .sb-frame.hide{display:none}
 .sb-offscreen{position:fixed;left:-10000px;top:0;width:360px;height:640px;overflow:hidden;pointer-events:none}
 html[data-sandbox] #p-exit,html[data-sandbox] #p-clip,html[data-sandbox] #p-replay{display:none!important}
+/* ---------- dependencies · plugins ---------- */
+.dep-row{display:flex;align-items:center;gap:8px;padding:9px 4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.dep-row .fx-t{flex:1 1 180px}
+.dep-up{font-size:11.5px;color:var(--cyan);font-weight:700}
+.plug-wrap{display:flex;flex-direction:column;gap:8px}
+.plug-frame{width:100%;min-height:52vh;border:1px solid var(--line-2);border-radius:12px;background:#0e111c}
 /* /NX-CSS:23 */
 </style>
 </head>
@@ -3131,6 +3137,7 @@ const Games = {
         manifest: build ? build.manifest || null : null,
         settings: project.settings || {},
         i18n: project.i18n && project.i18n.keys && Object.keys(project.i18n.keys).length ? project.i18n : null,
+        deps: Array.isArray(project.deps) ? project.deps.map(d => ({ name: d.name, version: d.version })) : [],
         assetRefs: Array.from(new Set([...(project.assetRefs || []), ...usedIds]))
       };
       const local = findLocalURLs(snapshot);
@@ -8030,6 +8037,7 @@ const Studio = {
       item('grid', 'لوحة المشروع', () => NX.ProjectHub.open(this.project)),
       item('save', 'تصدير / استيراد', () => NX.Exporter.open(this.project)),
       item('folder', 'مشاريعي', () => NX.ProjectManager.open()),
+      ...(NX.TeamUI ? NX.TeamUI.actions : []).filter(a => { try { return !a.when || a.when(this.project); } catch { return false; } }).map(a => item(a.icon || 'grid', a.label, () => a.run(this.project))),
       item('undo', 'تاريخ المشروع ونقاط الرجوع', () => NX.History.open(this.project, () => this.reloadScene())),
       item('search', 'الأوامر والبحث', () => NX.Commands.open()),
       item('grid', NX.Mode.isBeginner() ? 'التبديل إلى وضع المحترف' : 'التبديل إلى وضع المبتدئ', () => {
@@ -23859,7 +23867,7 @@ if (!window.NX_SANDBOX) {
     try {
       this._sb = await SandboxHost.run({
         container: overlay, key: null, scene: this.engine.serialize(), build,
-        project: { projectId: p.projectId, name: p.name, assetRefs: p.assetRefs || [], i18n: p.i18n || null, settings: p.settings || {} },
+        project: { projectId: p.projectId, name: p.name, assetRefs: p.assetRefs || [], i18n: p.i18n || null, settings: p.settings || {}, deps: p.deps || [] },
         mode: 'studio', services,
         roomFor: name => NX.Playtest ? NX.Playtest.roomFor(name, { engine: this.engine }) : name,
         onLog: (m, t) => { if (t === 'err') Toast.err(String(m).split('\n')[0]); if (NX.IDE) NX.IDE.log(m, t); },
@@ -23894,7 +23902,7 @@ if (!window.NX_SANDBOX) {
     const p = this.project;
     try {
       sb = await SandboxHost.run({ container: host, key: null, scene: this.engine.serialize(), build,
-        project: { projectId: p.projectId, name: p.name, assetRefs: p.assetRefs || [], i18n: p.i18n || null }, mode: 'test',
+        project: { projectId: p.projectId, name: p.name, assetRefs: p.assetRefs || [], i18n: p.i18n || null, deps: p.deps || [] }, mode: 'test',
         onLog: (m, t) => { if (t === 'err') errors.push(String(m).split('\n')[0].slice(0, 240)); } });
       await new Promise(r => setTimeout(r, 2000));
     } catch (e) { errors.push(String((e && e.message) || e).slice(0, 160)); }
@@ -23908,6 +23916,322 @@ NX.SandboxHost = SandboxHost;
 NX.Sandbox = Sandbox;
 </script>
 <!-- /NX-PART:23 -->
+<!-- NX-PART:24 -->
+<script type="module">
+/* ============================================================
+   PART 24 · DEPENDENCIES AND PLUGINS
+   - Dependency manager: the libraries a project declares (name,
+     exact version, source), which ones the code really uses,
+     updates offered — never applied without the user.
+   - Plugins: the structure only (none ship with NEXUS). A plugin
+     runs in a sandboxed frame with NO network and NO access to the
+     page; it can only ask for what its declared permissions allow.
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, iconBtn, icon, Sheet, Modal, Toast, debounce } = NX;
+const { Backend, Team, Activity } = NX;
+const S = () => NX.Studio;
+const touch = () => { S().dirty = true; S().save(true); };
+
+/* ================================================================ DEPENDENCIES */
+const NPM_NAME = /^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
+const VERSION = /^\d+\.\d+\.\d+(-[\w.]+)?$/;
+const semver = v => String(v || '').split('-')[0].split('.').map(n => +n || 0);
+const bump = (from, to) => { const a = semver(from), b = semver(to); return b[0] > a[0] ? 'major' : b[1] > a[1] ? 'minor' : b[2] > a[2] ? 'patch' : (b.join() === a.join() ? 'same' : 'older'); };
+const Deps = {
+  /* what the engine itself brings — updated with NEXUS, not per project */
+  ENGINE: [
+    { name: 'three', version: '0.162.0', source: 'cdn.jsdelivr.net', note: 'محرك الرسوم ثلاثي الأبعاد (مدمج)' },
+    { name: 'fflate', version: 'three@0.162.0', source: 'cdn.jsdelivr.net', note: 'الضغط (مدمج)' }
+  ],
+  list(p) { return Array.isArray(p.deps) ? p.deps : (p.deps = []); },
+  url(d) { return 'https://cdn.jsdelivr.net/npm/' + d.name + '@' + d.version + '/+esm'; },
+  /* the code really asks for it: Libs.load("name") */
+  used(p) {
+    const out = new Set(), re = /Libs\.(?:load|get)\(\s*(['"`])([^'"`]+)\1/g;
+    (p.files || []).forEach(f => { let m; re.lastIndex = 0; while ((m = re.exec(String(f.code || '')))) out.add(m[2]); });
+    return out;
+  },
+  async versions(name) {
+    const r = await fetch('https://data.jsdelivr.com/v1/packages/npm/' + name);
+    if (!r.ok) throw new Error(r.status === 404 ? 'لا توجد مكتبة بهذا الاسم' : 'HTTP ' + r.status);
+    const j = await r.json();
+    return { latest: (j.tags && j.tags.latest) || (j.versions && j.versions[0] && j.versions[0].version), versions: (j.versions || []).map(v => v.version).slice(0, 40) };
+  },
+  async search(q) {
+    const r = await fetch('https://registry.npmjs.org/-/v1/search?size=10&text=' + encodeURIComponent(q));
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return ((await r.json()).objects || []).map(o => ({ name: o.package.name, version: o.package.version, description: o.package.description || '' }));
+  },
+  add(p, name, version) {
+    if (!NPM_NAME.test(name) || !VERSION.test(version)) throw new Error('اسم أو إصدار غير صالح');
+    const list = this.list(p);
+    if (list.some(d => d.name === name)) throw new Error('المكتبة مضافة بالفعل');
+    list.push({ name, version, source: 'npm · cdn.jsdelivr.net', addedBy: Team.me(), at: Date.now() });
+    touch(); Activity.log(p, 'deps.change', '+ ' + name + '@' + version);
+  },
+  setVersion(p, name, version) {
+    const d = this.list(p).find(x => x.name === name);
+    if (!d || !VERSION.test(version)) return;
+    const from = d.version; d.version = version; d.at = Date.now();
+    touch(); Activity.log(p, 'deps.change', name + ' ' + from + ' → ' + version);
+  },
+  remove(p, name) { p.deps = this.list(p).filter(d => d.name !== name); touch(); Activity.log(p, 'deps.change', '− ' + name); },
+  open(p) {
+    const can = Team.can(p, 'code');
+    const body = el('div');
+    const used = this.used(p);
+    const draw = () => {
+      body.textContent = '';
+      body.appendChild(el('div', { class: 'ttl', text: 'مكتبات المشروع' }));
+      const list = this.list(p);
+      if (!list.length) body.appendChild(el('p', { class: 'tiny', text: 'لا مكتبات مضافة. أضف مكتبة من npm بإصدار ثابت، ثم استعملها في الكود: const lib = await Libs.load("اسمها");' }));
+      list.forEach(d => {
+        const u = used.has(d.name);
+        const row = el('div', { class: 'dep-row' });
+        const st = el('small', { class: 'dep-up', text: '' });
+        row.append(el('div', { class: 'fx-t' }, [el('b', { text: d.name + '@' + d.version }), el('small', { text: d.source + ' · ' + (u ? '✓ مستخدمة في الكود' : '⚠ غير مستخدمة في الكود') })]), st);
+        if (can) {
+          row.appendChild(btn('تحقق من تحديث', { cls: 'sm ghost', onclick: async e => {
+            e.currentTarget.disabled = true;
+            try {
+              const v = await this.versions(d.name), kind = bump(d.version, v.latest);
+              st.textContent = kind === 'same' ? 'أحدث إصدار ✓' : kind === 'older' ? 'أحدث من latest' : 'متاح ' + v.latest + (kind === 'major' ? ' (تغيير كبير)' : '');
+              if (kind === 'patch' || kind === 'minor' || kind === 'major') row.appendChild(btn('تحديث إلى ' + v.latest, { cls: 'sm ' + (kind === 'major' ? 'danger' : 'primary'), onclick: async () => {
+                if (kind === 'major' && !await Modal.confirm('تحديث كبير: ' + d.version + ' → ' + v.latest, 'الإصدارات الكبيرة قد تغيّر طريقة استعمال المكتبة وتكسر الكود. جرّب اللعبة بعد التحديث.', 'تحديث')) return;
+                this.setVersion(p, d.name, v.latest); draw();
+              } }));
+            } catch (er) { st.textContent = 'تعذّر: ' + (er.message || er); }
+          } }));
+          row.appendChild(iconBtn('trash', { label: 'remove', onclick: async () => { if (await Modal.confirm('إزالة ' + d.name + '؟', u ? 'الكود ما زال يستعملها — ستفشل Libs.load("' + d.name + '").' : '', 'إزالة')) { this.remove(p, d.name); draw(); } } }));
+        }
+        body.appendChild(row);
+      });
+      const missing = Array.from(used).filter(n => !list.some(d => d.name === n));
+      if (missing.length) body.appendChild(el('p', { class: 'tiny', style: { color: 'var(--amber)' }, text: '⚠ الكود يطلب مكتبات غير مضافة: ' + missing.join('، ') }));
+      body.appendChild(el('div', { class: 'ttl', style: { marginTop: '14px' }, text: 'مدمجة في المحرك (تُحدَّث مع NEXUS)' }));
+      this.ENGINE.forEach(d => body.appendChild(el('div', { class: 'dep-row' }, [el('div', { class: 'fx-t' }, [el('b', { text: d.name + '@' + d.version }), el('small', { text: d.source + ' · ' + d.note })])])));
+      if (can) {
+        body.appendChild(el('div', { class: 'ttl', style: { marginTop: '14px' }, text: 'إضافة مكتبة من npm' }));
+        const q = el('input', { class: 'input', type: 'search', placeholder: 'مثل: simplex-noise' });
+        const res = el('div');
+        q.addEventListener('input', debounce(async () => {
+          res.textContent = '';
+          const t = q.value.trim(); if (t.length < 2) return;
+          try {
+            (await this.search(t)).forEach(x => res.appendChild(el('div', { class: 'dep-row' }, [
+              el('div', { class: 'fx-t' }, [el('b', { text: x.name + '@' + x.version }), el('small', { text: x.description.slice(0, 90) })]),
+              btn('إضافة', { cls: 'sm primary', onclick: () => { try { this.add(p, x.name, x.version); Toast.ok('أُضيفت ' + x.name + '@' + x.version + ' (إصدار ثابت)'); draw(); } catch (e) { Toast.err(e.message); } } })])));
+          } catch (e) { res.appendChild(el('p', { class: 'tiny', text: 'تعذّر البحث في npm: ' + (e.message || e) })); }
+        }, 350));
+        body.append(q, res);
+      }
+      body.appendChild(el('p', { class: 'tiny', style: { marginTop: '12px' }, text: 'كل مكتبة مثبّتة على إصدار محدد ولا تتغيّر وحدها. التحديث يتم فقط عندما تضغط «تحديث».' }));
+    };
+    draw();
+    Sheet.open({ title: '📦 المكتبات · Dependencies', body, full: true, id: 'deps' });
+  }
+};
+/* the game's side: const noise = await Libs.load("simplex-noise") */
+const RTp = NX.Runtime.prototype, _api = RTp.api;
+RTp.api = function () {
+  const a = _api.call(this);
+  if (!a.Libs) {
+    const rt = this;
+    const deps = () => (rt.project && Array.isArray(rt.project.deps) ? rt.project.deps : []);
+    const cache = new Map();
+    a.Libs = {
+      list: () => deps().map(d => ({ name: d.name, version: d.version })),
+      async load(name) {
+        const d = deps().find(x => x.name === name);
+        if (!d) throw new Error('LIB_NOT_DECLARED: أضف «' + name + '» من «المكتبات» أولًا (بإصدار ثابت)');
+        if (!cache.has(name)) cache.set(name, import(/* @vite-ignore */ Deps.url(d)));
+        return cache.get(name);
+      }
+    };
+    a.Libs.get = a.Libs.load;
+  }
+  return a;
+};
+
+/* ================================================================ PLUGINS (structure only) */
+const PERMS = {
+  'scene:read': 'قراءة المشهد (أسماء الكائنات ومواقعها)',
+  'selection:read': 'معرفة الكائن المحدد',
+  'scene:write': 'تعديل المشهد (إضافة / تحريك / حذف) — كل عملية خطوة تراجع',
+  'files:read': 'قراءة ملفات الكود',
+  'files:write': 'تعديل ملفات الكود',
+  'ui:toast': 'عرض رسائل قصيرة'
+};
+/* what each request needs: the plugin's permission AND the user's role */
+const OPS = {
+  'scene.list': ['scene:read'], 'selection': ['selection:read'],
+  'scene.add': ['scene:write', 'scene'], 'scene.update': ['scene:write', 'scene'], 'scene.remove': ['scene:write', 'scene'],
+  'files.list': ['files:read'], 'files.read': ['files:read'], 'files.write': ['files:write', 'code'],
+  'toast': ['ui:toast']
+};
+const num3 = v => Array.isArray(v) && v.length === 3 && v.every(n => Number.isFinite(+n)) ? v.map(Number) : null;
+const Plugins = {
+  PERMS,
+  installed(p) { return Array.isArray(p.plugins) ? p.plugins : []; },
+  validate(m) {
+    const err = t => { throw new Error('إضافة غير صالحة: ' + t); };
+    if (!m || typeof m !== 'object') err('ليس JSON');
+    if (!/^[a-z0-9][a-z0-9._-]{2,59}$/.test(m.id || '')) err('id');
+    if (!m.name || String(m.name).length > 60) err('name');
+    if (!/^\d+\.\d+\.\d+$/.test(m.version || '')) err('version');
+    if (!Array.isArray(m.permissions) || m.permissions.some(x => !PERMS[x])) err('permissions (المسموح: ' + Object.keys(PERMS).join(', ') + ')');
+    if (typeof m.code !== 'string' || !m.code.trim() || m.code.length > 200000) err('code (حتى 200 KB)');
+    return { id: m.id, name: String(m.name), version: m.version, author: String(m.author || '').slice(0, 60), description: String(m.description || '').slice(0, 300), permissions: Array.from(new Set(m.permissions)), code: m.code };
+  },
+  async install(p, manifest) {
+    if (!Team.isOwner(p)) throw new Error('تثبيت الإضافات للمالك فقط');
+    const m = this.validate(manifest);
+    const body = el('div');
+    body.append(el('p', { class: 'tiny', text: (m.author ? m.author + ' · ' : '') + 'v' + m.version + (m.description ? ' — ' + m.description : '') }),
+      el('b', { text: 'تطلب هذه الصلاحيات فقط:' }));
+    m.permissions.forEach(x => body.appendChild(el('div', { class: 'tiny', text: '• ' + PERMS[x] })));
+    if (!m.permissions.length) body.appendChild(el('div', { class: 'tiny', text: '• لا شيء' }));
+    body.appendChild(el('p', { class: 'tiny', style: { marginTop: '8px' }, text: 'تعمل في صندوق معزول: لا إنترنت، لا وصول إلى حسابك أو Firebase أو مفاتيح AI أو ملفات الموقع.' }));
+    const ok = await new Promise(res => Modal.open({ title: 'تثبيت «' + m.name + '»؟', body, actions: [{ label: 'إلغاء', cls: 'ghost', onclick: () => res(false) }, { label: 'تثبيت', cls: 'primary', onclick: () => res(true) }] }));
+    if (!ok) return false;
+    p.plugins = this.installed(p).filter(x => x.id !== m.id).concat([Object.assign(m, { enabled: true, installedBy: Team.me(), at: Date.now() })]);
+    touch();
+    return true;
+  },
+  remove(p, id) { p.plugins = this.installed(p).filter(x => x.id !== id); touch(); },
+  toggle(p, id) { const x = this.installed(p).find(y => y.id === id); if (x) { x.enabled = !x.enabled; touch(); } },
+  /* the plugin's page: a sandboxed frame, a strict CSP (no network), and a
+     tiny "nexus" object that can only ASK the host */
+  srcdoc(m) {
+    const boot = `(function(){var n=0,c={};addEventListener('message',function(e){if(e.source!==parent)return;var m=e.data||{};if(m.nxp==='r'&&c[m.id]){var x=c[m.id];delete c[m.id];m.ok?x.res(m.value):x.rej(new Error(m.error));}});
+function q(op,a){return new Promise(function(res,rej){var id=++n;c[id]={res:res,rej:rej};parent.postMessage({nxp:'q',id:id,op:op,args:a||{}},'*');});}
+window.nexus={permissions:${JSON.stringify(m.permissions)},scene:{list:function(){return q('scene.list')},add:function(d){return q('scene.add',{def:d})},update:function(id,p){return q('scene.update',{id:id,patch:p})},remove:function(id){return q('scene.remove',{id:id})}},selection:function(){return q('selection')},files:{list:function(){return q('files.list')},read:function(p){return q('files.read',{path:p})},write:function(p,s){return q('files.write',{path:p,code:s})}},toast:function(t){return q('toast',{text:String(t)})}};})();`;
+    /* (written so that no HTML comment or script tag appears literally in this page) */
+    const safe = s => String(s).replace(/<\/(script)/gi, '<\\/$1').replace(/<!-{2}/g, '<\\!' + '--');
+    const tag = n => '<' + n + '>';
+    return '<!doctype html><html><head><meta charset="utf-8">' +
+      '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data: blob:">' +
+      '<style>body{font:14px system-ui,sans-serif;color:#e9ecff;background:#0e111c;margin:12px}button{font:inherit}</style></head><body>' +
+      tag('script') + boot + tag('/script') + tag('script') + safe(m.code) + tag('/script') + '</body></html>';
+  },
+  run(p, id) {
+    const m = this.installed(p).find(x => x.id === id);
+    if (!m || !m.enabled) return;
+    const frame = el('iframe', { class: 'plug-frame', title: m.name });
+    frame.setAttribute('sandbox', 'allow-scripts');
+    frame.srcdoc = this.srcdoc(m);
+    const onMsg = e => {
+      if (e.source !== frame.contentWindow) return;
+      const q = e.data || {};
+      if (q.nxp !== 'q') return;
+      const reply = (ok, value, error) => frame.contentWindow && frame.contentWindow.postMessage({ nxp: 'r', id: q.id, ok, value, error }, '*');
+      Promise.resolve().then(() => this.handle(p, m, String(q.op), q.args || {})).then(v => reply(true, v === undefined ? null : JSON.parse(JSON.stringify(v))), er => reply(false, null, String((er && er.message) || er)));
+    };
+    window.addEventListener('message', onMsg);
+    const body = el('div', { class: 'plug-wrap' }, [frame, el('p', { class: 'tiny', text: '🧩 ' + m.name + ' v' + m.version + ' · صندوق معزول · الصلاحيات: ' + (m.permissions.join('، ') || 'لا شيء') })]);
+    Sheet.open({ title: '🧩 ' + m.name, body, id: 'plugin-run', onClose: () => window.removeEventListener('message', onMsg) });
+  },
+  async handle(p, m, op, a) {
+    const need = OPS[op];
+    if (!need) throw new Error('UNKNOWN_REQUEST');
+    if (!m.permissions.includes(need[0])) throw new Error('PERMISSION_DENIED: ' + need[0]);
+    if (need[1] && !Team.can(p, need[1])) throw new Error('ROLE_DENIED: دورك لا يسمح');
+    const st = S(), eng = st.engine;
+    switch (op) {
+      case 'scene.list': return (st.project === p && eng ? eng.serialize() : p.scene || { objects: [] }).objects.map(o => ({ id: o.id, name: o.name, type: o.type, position: o.position, rotation: o.rotation, scale: o.scale, visible: o.visible !== false }));
+      case 'selection': { const e = eng && eng.selection ? eng.getEntity(eng.selection) : null; return e ? { id: e.id, name: e.name, type: e.type } : null; }
+      case 'scene.add': {
+        const d = a.def || {};
+        if (!['primitive', 'light', 'group'].includes(d.type)) throw new Error('type: primitive | light | group');
+        if (JSON.stringify(d.props || {}).length > 5000) throw new Error('props too big');
+        const def = { name: String(d.name || 'Object').slice(0, 60), type: d.type, props: Object.assign({}, d.props || {}), position: num3(d.position) || [0, 0, 0], rotation: num3(d.rotation) || [0, 0, 0], scale: num3(d.scale) || [1, 1, 1] };
+        st.pushUndo('🧩 ' + m.name + ': إضافة ' + def.name);
+        const e = await eng.addEntity(def);
+        st.dirty = true; st.updateHud();
+        return { id: e.id };
+      }
+      case 'scene.update': {
+        const e = eng.getEntity(String(a.id));
+        if (!e || !e.object3D) throw new Error('NOT_FOUND');
+        const pt = a.patch || {};
+        st.pushUndo('🧩 ' + m.name + ': تعديل ' + e.name);
+        const pos = num3(pt.position), rot = num3(pt.rotation), sc = num3(pt.scale);
+        if (pos) e.object3D.position.fromArray(pos);
+        if (rot) e.object3D.rotation.set(rot[0], rot[1], rot[2]);
+        if (sc) e.object3D.scale.fromArray(sc);
+        if (typeof pt.name === 'string') { e.name = pt.name.slice(0, 60); e.object3D.name = e.name; }
+        if (typeof pt.visible === 'boolean') e.object3D.visible = pt.visible;
+        eng.emit('changed'); st.dirty = true;
+        return true;
+      }
+      case 'scene.remove': {
+        const e = eng.getEntity(String(a.id));
+        if (!e) throw new Error('NOT_FOUND');
+        st.pushUndo('🧩 ' + m.name + ': حذف ' + e.name);
+        eng.removeEntity(e.id); st.dirty = true; st.updateHud();
+        return true;
+      }
+      case 'files.list': return (p.files || []).map(f => ({ path: f.path, role: f.role || 'script', lines: String(f.code || '').split('\n').length }));
+      case 'files.read': { const f = (p.files || []).find(x => x.path === String(a.path)); if (!f) throw new Error('NOT_FOUND'); return String(f.code || ''); }
+      case 'files.write': {
+        const path = String(a.path || ''), code = String(a.code == null ? '' : a.code);
+        if (!/^[^\/\\:*?"<>|\x00-\x1f.][^\\:*?"<>|\x00-\x1f]{0,120}\.(js|ts|html|css)$/.test(path) || path.includes('..')) throw new Error('BAD_PATH');
+        if (code.length > 200000) throw new Error('TOO_BIG');
+        let f = (p.files || []).find(x => x.path === path);
+        st.pushUndo('🧩 ' + m.name + ': ' + path, { files: true });
+        if (f) f.code = code; else NX.IDE.addFile(path, code, { silent: true });
+        st.lastBuild = null; touch(); Activity.log(p, 'edit.code', path + ' (🧩 ' + m.name + ')', { throttle: true });
+        return true;
+      }
+      case 'toast': Toast.show('🧩 ' + m.name + ': ' + String(a.text || '').slice(0, 140)); return true;
+    }
+  },
+  open(p) {
+    const body = el('div');
+    const owner = Team.isOwner(p);
+    const draw = () => {
+      body.textContent = '';
+      body.appendChild(el('p', { class: 'tiny', text: 'الإضافات أدوات صغيرة للاستوديو. كل إضافة تعمل في صندوق معزول بلا إنترنت، ولا تصل إلى حسابك أو Firebase أو مفاتيح AI أو ملفات الموقع — فقط ما تسمح به صلاحياتها، وضمن حدود دورك في المشروع.' }));
+      const list = this.installed(p);
+      if (!list.length) body.appendChild(el('div', { class: 'center-note', text: 'لا إضافات مثبّتة' }));
+      list.forEach(m => {
+        const row = el('div', { class: 'dep-row' }, [el('div', { class: 'fx-t' }, [el('b', { text: '🧩 ' + m.name + ' v' + m.version + (m.enabled ? '' : ' (معطّلة)') }), el('small', { text: (m.permissions.join('، ') || 'بلا صلاحيات') + (m.author ? ' · ' + m.author : '') })])]);
+        if (m.enabled) row.appendChild(btn('تشغيل', { cls: 'sm primary', onclick: () => this.run(p, m.id) }));
+        if (owner) {
+          row.appendChild(btn(m.enabled ? 'تعطيل' : 'تفعيل', { cls: 'sm ghost', onclick: () => { this.toggle(p, m.id); draw(); } }));
+          row.appendChild(iconBtn('trash', { label: 'remove', onclick: async () => { if (await Modal.confirm('إزالة ' + m.name + '؟', '', 'إزالة')) { this.remove(p, m.id); draw(); } } }));
+        }
+        body.appendChild(row);
+      });
+      body.appendChild(el('div', { class: 'ttl', style: { marginTop: '12px' }, text: 'الصلاحيات الممكنة' }));
+      Object.entries(PERMS).forEach(([k, v]) => body.appendChild(el('div', { class: 'tiny', text: k + ' — ' + v })));
+    };
+    draw();
+    const pick = () => {
+      const inp = el('input', { type: 'file', accept: '.json,application/json', style: { display: 'none' } });
+      document.body.appendChild(inp);
+      inp.onchange = async () => {
+        const f = inp.files[0]; inp.remove();
+        if (!f) return;
+        try { if (await this.install(p, JSON.parse(await f.text()))) { Toast.ok('ثُبّتت الإضافة'); draw(); } }
+        catch (e) { Toast.err(e.message || e); }
+      };
+      inp.click();
+    };
+    Sheet.open({ title: '🧩 الإضافات · Plugins', body, full: true, id: 'plugins', foot: owner ? [btn('تثبيت من ملف JSON', { cls: 'primary', icon: 'upload', onclick: pick })] : null });
+  }
+};
+
+/* ================================================================ menu entries */
+const TU = NX.TeamUI;
+TU.addAction({ id: 'deps', icon: 'box', label: '📦 المكتبات', run: p => Deps.open(p) });
+TU.addAction({ id: 'plugins', icon: 'grid', label: '🧩 الإضافات', run: p => Plugins.open(p) });
+
+NX.Deps = Deps;
+NX.Plugins = Plugins;
+</script>
+<!-- /NX-PART:24 -->
 <script type="module">
 /* ============================================================
    PART 8/18 · GAME PLATFORM + BOOT
@@ -23973,7 +24297,7 @@ const Player = {
         this.sandbox = await NX.SandboxHost.run({
           container: $('#player-vp'), key: 'game:' + game.gameId,
           scene: build.scene || { objects: [] }, build: { artifacts: art, manifest: build.manifest },
-          project: { projectId: build.gameId, publishedId: build.gameId, assetRefs: build.assetRefs || [], i18n: build.i18n || null },
+          project: { projectId: build.gameId, publishedId: build.gameId, assetRefs: build.assetRefs || [], i18n: build.i18n || null, deps: build.deps || [] },
           mode: opts.spectate ? 'spectate' : 'play', spectate: opts.spectate || null, services: this.services,
           onLog: (m, t) => { if (t === 'err') console.error('[game]', m); else console.log('[game]', m); },
           onStatus: t => { $('#p-load-txt').textContent = t; }
@@ -23987,7 +24311,7 @@ const Player = {
         if (cam && cam.object3D) { this.engine.activeCamera = cam.object3D; this.engine._resize(); }
 
         this.runtime = new Runtime(this.engine, {
-          project: { projectId: build.gameId, publishedId: build.gameId, assetRefs: build.assetRefs || [], i18n: build.i18n || null },
+          project: { projectId: build.gameId, publishedId: build.gameId, assetRefs: build.assetRefs || [], i18n: build.i18n || null, deps: build.deps || [] },
           uiHost: $('#player-ui'),
           trusted: !!mine,
           onLog: (m, t) => { if (t === 'err') console.error('[game]', m); else console.log('[game]', m); }
