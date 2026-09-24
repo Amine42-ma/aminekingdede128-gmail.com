@@ -5275,19 +5275,25 @@ function makeVoice(rt, net) {
         return pc;
       };
       sig.listen(async msg => {
-        const pc = await newPeer(msg.from, false);
-        const p = msg.payload || {};
-        if (p.sdp) {
-          await pc.setRemoteDescription(new RTCSessionDescription(p.sdp));
-          if (p.sdp.type === 'offer') {
-            const ans = await pc.createAnswer();
-            await pc.setLocalDescription(ans);
-            await sig.send(msg.from, { sdp: { type: ans.type, sdp: ans.sdp } });
-          }
-        } else if (p.ice) { try { await pc.addIceCandidate(new RTCIceCandidate(p.ice)); } catch (e) {} }
+        try {
+          const pc = await newPeer(msg.from, false);
+          const p = msg.payload || {};
+          if (p.sdp) {
+            /* an answer only belongs to an offer we are still waiting on */
+            if (p.sdp.type === 'answer' && pc.signalingState !== 'have-local-offer') return;
+            await pc.setRemoteDescription(new RTCSessionDescription(p.sdp));
+            if (p.sdp.type === 'offer') {
+              const ans = await pc.createAnswer();
+              await pc.setLocalDescription(ans);
+              await sig.send(msg.from, { sdp: { type: ans.type, sdp: ans.sdp } });
+            }
+          } else if (p.ice) { try { await pc.addIceCandidate(new RTCIceCandidate(p.ice)); } catch (e) {} }
+        } catch (e) { console.warn('[voice] signal', e && e.message); }
       });
-      room.on('peerJoined', p => { if (p.uid !== room.me) newPeer(p.uid, true); });
-      Array.from(room.peers.keys()).forEach(id => { if (id !== room.me) newPeer(id, true); });
+      /* one side calls (the smaller id), the other answers — two offers crossing
+         each other used to leave a connection in the wrong state */
+      room.on('peerJoined', p => { if (p.uid !== room.me && room.me < p.uid) newPeer(p.uid, true); });
+      Array.from(room.peers.keys()).forEach(id => { if (id !== room.me && room.me < id) newPeer(id, true); });
       rt._cleanups.push(() => this.leave());
       return { room, peers };
     },
@@ -6077,6 +6083,9 @@ NX.locateScriptError = locateScriptError;
 NX.SCRIPT_LINE_OFFSET = SCRIPT_LINE_OFFSET;
 NX.GameObject = GameObject;
 NX.Mic = Mic;
+/* the sandbox bridge runs a game's voice chat from the page (PART 23) */
+NX.makeNetwork = makeNetwork;
+NX.makeVoice = makeVoice;
 NX.API_DOCS = API_DOCS;
 NX.SCRIPT_TEMPLATE = SCRIPT_TEMPLATE;
 NX.SHADOWED = SHADOWED;
@@ -23545,6 +23554,52 @@ const SandboxGuest = {
         a.Save.sync = async k => { await self.rpc('save.sync', { key: a.Save._key(k), value: a.Save.get(k, null) }); return true; };
         a.Save.pull = async k => { const v = await self.rpc('save.pull', { key: a.Save._key(k) }); if (v !== undefined && v !== null) NX.LS.set(a.Save._key(k), v); return v; };
       }
+      /* the browser gives no microphone to a sandboxed frame: the page captures
+         it for the game (after asking the player) and hands over levels only */
+      if (!a.__sbMedia) {
+        a.__sbMedia = true;
+        const rt = this;
+        let level = 0, muted = false, active = false;
+        const cbs = [];
+        self.on('mic', (ev, d) => {
+          if (ev === 'level') { level = d; cbs.forEach(cb => { try { cb(d); } catch (e) {} }); }
+          else if (ev === 'state') { active = !!d.active; muted = !!d.muted; }
+        });
+        const M = {
+          supported: () => true,
+          permission: () => self.rpc('mic.permission', {}),
+          request: async () => { await self.rpc('mic.start', {}); active = true; return true; },
+          async start() { await self.rpc('mic.start', {}); active = true; return true; },
+          stop() { active = false; level = 0; self.fire('mic.stop', {}); },
+          mute() { muted = true; self.fire('mic.mute', { on: true }); },
+          unmute() { muted = false; self.fire('mic.mute', { on: false }); },
+          toggle() { muted ? M.unmute() : M.mute(); return !muted; },
+          pushToTalk(down) { down ? M.unmute() : M.mute(); },
+          get level() { return muted ? 0 : level; },
+          get muted() { return muted; },
+          get active() { return active; },
+          onLevel(cb) { cbs.push(cb); return () => { const i = cbs.indexOf(cb); if (i >= 0) cbs.splice(i, 1); }; },
+          startRecording() { self.fire('mic.rec', {}); },
+          stopRecording() { return self.rpc('mic.rec.stop', {}); },
+          outputStream() { return null; }
+        };
+        a.Mic = M;
+        a.Voice = {
+          async join(roomId, opts = {}) {
+            const r = await self.rpc('voice.join', { roomId: String(roomId) });
+            active = true;
+            const peers = new Map((r.peers || []).map(id => [id, {}]));
+            self.on('voice', (ev, d) => {
+              if (ev === 'peer') { peers.set(d, {}); opts.onPeerAudio && opts.onPeerAudio(d, null, null); }
+              else if (ev === 'gone') peers.delete(d);
+            });
+            rt._cleanups.push(() => a.Voice.leave());
+            return { room: await a.Network.room(roomId), peers };
+          },
+          leave() { self.fire('voice.leave', {}); active = false; },
+          mute: () => M.mute(), unmute: () => M.unmute(), get muted() { return muted; }
+        };
+      }
       return a;
     };
   },
@@ -23706,6 +23761,9 @@ class SandboxSession {
   stop(destroy) {
     if (this.stopped) return;
     this.stopped = true;
+    this.voiceLeave();
+    if (this.micOff) { this.micOff(); this.micOff = null; }
+    if (this.micOn) { this.micOn = false; try { NX.Mic.stop(); } catch {} }
     this.rooms.forEach(r => r.close()); this.rooms.clear();
     this.sigs.forEach(s => s.close && s.close()); this.sigs.clear();
     try { this.post({ t: 'stop' }); } catch {}
@@ -23772,6 +23830,10 @@ class SandboxSession {
         if (d) LS.set(k, d.value);
         return d ? d.value : null;
       }
+      case 'mic.permission': return NX.Mic.permission();
+      case 'mic.start': return this.micStart();
+      case 'mic.rec.stop': { const b = await NX.Mic.stopRecording(); return b ? { __blob: b } : null; }
+      case 'voice.join': return this.voiceJoin(a);
       case 'svc.lbSubmit': return svc ? svc.lbSubmit(+a.score) : { ok: false, reason: 'editor', message: 'لوحة الصدارة تعمل في اللعبة المنشورة فقط' };
       case 'svc.lbTop': return svc ? svc.lbTop(Math.min(100, a.n | 0 || 10)) : [];
       case 'svc.lbMine': return svc ? svc.lbMine() : null;
@@ -23795,9 +23857,43 @@ class SandboxSession {
       case 'net.leave': { const r = this.rooms.get(a.rid); if (r) { r.close(); this.rooms.delete(a.rid); } return; }
       case 'sig.send': { const s = this.sigs.get(a.sid); if (s && this.limit('sig', 40) && jsonSize(a.payload) <= MAX.json) s.send(String(a.to).slice(0, 128), plain(a.payload)); return; }
       case 'sig.listen': { const s = this.sigs.get(a.sid); if (s) s.listen(); return; }
+      case 'mic.stop': if (this.micOn) { this.micOn = false; if (this.micOff) { this.micOff(); this.micOff = null; } NX.Mic.stop(); } return;
+      case 'mic.mute': if (this.micOn) { a.on ? NX.Mic.mute() : NX.Mic.unmute(); } return;
+      case 'mic.rec': if (this.micOn) { try { NX.Mic.startRecording(); } catch (e) {} } return;
+      case 'voice.leave': this.voiceLeave(); return;
       case 'svc.roomBeat': if (svc && svc.roomBeat) svc.roomBeat(String(a.name).slice(0, 60), a.players | 0); this.mp = true; return;
       case 'svc.report': if (a && a.mp) this.mp = true; if (svc && svc.report) svc.report({ fps: a.fps, error: a.error ? String(a.error).slice(0, 300) : undefined, mp: !!a.mp }); return;
     }
+  }
+  /* the microphone, captured by the page for the game — only after the player
+     agrees, and only the level (a number) goes into the frame */
+  async micStart() {
+    if (!this.micOk) {
+      const name = (this.opts.project && (this.opts.project.name || this.opts.project.publishedId)) || 'هذه اللعبة';
+      const ok = await new Promise(res => NX.Modal.open({ title: '🎤 «' + name + '» تطلب الميكروفون',
+        body: 'اللعبة تعمل في صندوق معزول، فالصفحة تشغّل الميكروفون نيابةً عنها بعد موافقتك ثم إذن المتصفح. تصل إلى اللعبة شدّة الصوت فقط، والصوت نفسه يذهب مباشرة إلى اللاعبين الآخرين إن كانت محادثة صوتية.',
+        actions: [{ label: 'رفض', cls: 'ghost', onclick: () => res(false) }, { label: 'سماح', cls: 'primary', onclick: () => res(true) }] }));
+      if (!ok) throw Object.assign(new Error('MIC_DENIED: رفض اللاعب الميكروفون'), { code: 'permission-denied' });
+      this.micOk = true;
+    }
+    await NX.Mic.start();
+    this.micOn = true;
+    if (!this.micOff) this.micOff = NX.Mic.onLevel(l => { if (this.limit('miclvl', 12)) this.ev('mic', 'level', Math.round(l * 1000) / 1000); });
+    this.ev('mic', 'state', { active: true, muted: NX.Mic.muted });
+    return true;
+  }
+  async voiceJoin(a) {
+    await this.micStart();
+    if (this.voice) this.voiceLeave();
+    const rtLike = { _cleanups: [], error: e => console.warn('[sandbox voice]', e), engine: null };
+    this.voiceRt = rtLike;
+    this.voice = NX.makeVoice(rtLike, NX.makeNetwork(rtLike));
+    const r = await this.voice.join(this.roomId(a.roomId), { onPeerAudio: id => this.ev('voice', 'peer', id) });
+    return { peers: Array.from(r.peers.keys()) };
+  }
+  voiceLeave() {
+    if (this.voiceRt) { this.voiceRt._cleanups.forEach(f => { try { f(); } catch {} }); this.voiceRt = null; }
+    if (this.voice) { try { this.voice.leave(); } catch {} this.voice = null; this.micOn = false; }
   }
   /* a room on behalf of the game: the same Firestore paths and rules as the
      page would use, written as the signed-in player — nothing else reachable */
@@ -23871,6 +23967,7 @@ const SandboxHost = {
       if (m.t === 'rpc') {
         s.handle(m).then(v => {
           if (v && v.__transfer) s.post({ t: 'rpc-r', id: m.id, ok: true, value: v.__transfer }, [v.__transfer]);
+          else if (v && v.__blob) s.post({ t: 'rpc-r', id: m.id, ok: true, value: v.__blob });
           else s.post({ t: 'rpc-r', id: m.id, ok: true, value: v === undefined ? null : plain(v) });
         }, err => s.post({ t: 'rpc-r', id: m.id, ok: false, error: String((err && err.message) || err).slice(0, 300), code: err && err.code }));
       } else if (m.t === 'fire') s.fire(m);
