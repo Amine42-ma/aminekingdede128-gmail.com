@@ -12,6 +12,12 @@
   to = "/index.html"
   status = 200
 
+# A shared HTML app link — https://YOUR-SITE.netlify.app/app/<appId>
+[[redirects]]
+  from = "/app/*"
+  to = "/index.html"
+  status = 200
+
 # Optional — only if Google sign-in by REDIRECT fails on some phones
 # (browsers that block third-party storage). Proxy Firebase's auth helper
 # through this site, then set authDomain in the NEXUS_FIREBASE block of

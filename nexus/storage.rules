@@ -46,6 +46,17 @@ service firebase.storage {
       allow delete: if owner(userId);
     }
 
+    // HTML apps & websites: the site's files packed in one ZIP, and its icon.
+    // Readable by others only while the app record is not private.
+    match /apps/{userId}/{appId}/{file} {
+      allow read: if owner(userId)
+                  || (firestore.exists(/databases/(default)/documents/apps/$(appId))
+                      && docVis('apps', appId) != 'private');
+      allow create, update: if owner(userId)
+                    && ((typeIs('application/zip') && under(25)) || (typeIs('image/.*') && under(2)));
+      allow delete: if owner(userId);
+    }
+
     // diagnostics probe: proves the bucket answers (holds no files)
     match /_nexus/{file} {
       allow read: if true;

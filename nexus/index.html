@@ -9,8 +9,8 @@ window.NX_SANDBOX = location.hash === '#nx-sandbox' && window.parent !== window;
 /* a pretty game link (…/game/<id>, sent to this page by netlify.toml)
    becomes the app's own route (…/#game/<id>) before anything relative loads */
 (function () {
-  var m = /^(.*\/)game\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname);
-  if (m) history.replaceState(null, '', m[1] + location.search + '#game/' + m[2]);
+  var m = /^(.*\/)(game|app)\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname);
+  if (m) history.replaceState(null, '', m[1] + location.search + '#' + m[2] + '/' + m[3]);
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -1206,6 +1206,60 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 .toast.ok svg{color:var(--green)}
 .toast.err svg{color:var(--rose)}
 /* /NX-CSS:26 */
+/* NX-CSS:27 */
+/* PART 27 · the model picker, and the model list grouped by provider */
+.mp-grp { flex-basis: 100%; font-size: 11.5px; font-weight: 700; letter-spacing: .3px; color: var(--ink-soft, #aab); margin: 10px 2px 4px; text-transform: none; }
+.chips > .mp-grp:first-child { margin-top: 0; }
+.mp-box { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); border-radius: 14px; padding: 8px 10px 10px; margin-bottom: 8px; }
+.mp-box .mp-grp { margin: 0 2px 6px; }
+.mp-box .chip { direction: ltr; }
+/* the owner's game page: every empty place says what can go there */
+.sc-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 128px; padding: 18px 14px;
+  border: 1.5px dashed rgba(var(--brand-rgb, 124,92,255), .55); border-radius: 18px; background: rgba(var(--brand-rgb, 124,92,255), .08); color: inherit; font: inherit; cursor: pointer; text-align: center; }
+.sc-add i { font-style: normal; font-size: 28px; line-height: 1; }
+.sc-add b { font-size: 15px; color: var(--ink, #fff); }
+.sc-add span { font-size: 12px; opacity: .75; }
+.sc-add:active { transform: scale(.985); }
+.sc-add-line { display: block; width: fit-content; margin: 6px 0 8px; padding: 6px 12px; border-radius: 999px; border: 1px dashed rgba(var(--brand-rgb, 124,92,255), .6);
+  background: rgba(var(--brand-rgb, 124,92,255), .08); color: var(--ink, #fff); font: inherit; font-size: 12.5px; cursor: pointer; }
+.sc-cover.sc-cov-add .ph { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer;
+  border: 1.5px dashed rgba(var(--brand-rgb, 124,92,255), .6); border-radius: inherit; background: rgba(var(--brand-rgb, 124,92,255), .1); color: var(--ink, #fff); font: inherit; }
+.sc-cover.sc-cov-add .ph b { font-size: 30px; line-height: 1; }
+.sc-cover.sc-cov-add .ph span { font-size: 11.5px; }
+.sc-editpage { border-style: dashed !important; }
+.gm-flash { animation: gmflash 1.5s ease 2; border-radius: 12px; }
+@keyframes gmflash { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--brand-rgb, 124,92,255), 0); } 40% { box-shadow: 0 0 0 4px rgba(var(--brand-rgb, 124,92,255), .75); } }
+/* /NX-CSS:27 */
+/* NX-CSS:28 */
+/* PART 28 · HTML apps & websites */
+.ha-icon { width: 46px; height: 46px; border-radius: 12px; overflow: hidden; flex: none; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, rgba(var(--brand-rgb, 124,92,255), .35), rgba(34,211,238,.25)); color: #fff; font: 700 14px ui-monospace, monospace; }
+.ha-icon img { width: 100%; height: 100%; object-fit: cover; }
+.ha-icon.big { width: 84px; height: 84px; border-radius: 20px; font-size: 22px; }
+.ha-entry { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; cursor: pointer; }
+.ha-entry b { display: block; font-size: 14.5px; }
+.ha-cover { display: flex; align-items: center; justify-content: center; }
+.ha-cover .ha-icon { width: 64px; height: 64px; border-radius: 16px; }
+.ha-head { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+.ha-hinfo { min-width: 0; flex: 1; }
+.ha-hinfo h2 { font-size: 20px; margin: 0 0 2px; overflow-wrap: anywhere; }
+.ha-by { color: var(--cyan, #22d3ee); font: inherit; font-size: 13px; background: none; border: 0; padding: 0; cursor: pointer; }
+.ha-open { min-height: 50px; font-size: 16px; }
+.ha-desc { margin-top: 14px; white-space: pre-wrap; line-height: 1.75; font-size: 14px; overflow-wrap: anywhere; }
+.ha-sheet .sheet-body { padding: 0 !important; display: flex; flex-direction: column; }
+.ha-view { display: flex; flex-direction: column; height: 100%; min-height: 0; flex: 1; }
+.ha-bar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.07); }
+.ha-bar b { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14.5px; }
+.ha-safe { font-size: 11px; padding: 3px 8px; border-radius: 999px; background: rgba(34,197,94,.14); color: #86efac; white-space: nowrap; }
+.ha-note { font-size: 11.5px; padding: 6px 12px; background: rgba(252,215,122,.08); color: #fcd77a; line-height: 1.5; }
+.ha-frame { position: relative; flex: 1; min-height: 60vh; background: #fff; }
+.ha-iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+.ha-status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 20px; text-align: center; color: #555; font-size: 14px; background: #f7f7fb; z-index: 1; }
+.ha-status.err { color: #b91c1c; }
+.ha-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ha-acts > .btn { width: 100%; min-width: 0; white-space: normal; line-height: 1.3; min-height: 40px; justify-content: center; text-align: center; }
+.ha-acts > .btn:only-child { grid-column: 1 / -1; }
+/* /NX-CSS:28 */
 </style>
 </head>
 <body>
@@ -1583,7 +1637,7 @@ const Sheet = {
     requestAnimationFrame(() => { sheet.classList.add('in'); scrim.classList.add('in'); });
     return handle;
   },
-  closeAll() { [...openSheets].forEach(s => s.close()); },
+  closeAll() { [...openSheets].forEach(s => { s._all = true; s.close(); }); },   // _all: closed as a group (navigation), not by the user
   top() { return openSheets[openSheets.length - 1] || null; }
 };
 
@@ -2432,10 +2486,12 @@ const Backend = {
     async _carryAnonymousProjects(fn) {
       const { auth } = Backend.fb;
       const cur = auth.currentUser;
-      let carry = [], carryAssets = [];
+      let carry = [], carryAssets = [], seals = [];
       if (cur && cur.isAnonymous) {
         try { carry = await Projects.list(cur.uid); } catch {}
         try { carryAssets = (await Assets.search({ scope: 'mine', ownerId: cur.uid, limit: 300, sort: 'new' })).items; } catch {}
+        /* the guest session's PUBLISHED games move too: sealed now, taken over after sign-in */
+        try { seals = await this._sealGames(cur.uid); } catch (e) { console.warn('[carry] seal games', e && e.code); }
       }
       /* fetch the files while this session still owns them */
       const blobs = new Map(), fallback = [];
@@ -2462,6 +2518,8 @@ const Backend = {
       }
       const oldUid = cur && cur.uid;
       const user = await fn();
+      const moved = new Map();   // old projectId → the account's copy
+      const sealed = new Set(seals.map(x => x.gameId));
       if (carry.length && user && user.uid !== oldUid) {
         const remap = new Map();
         for (const { asset, blob, thumb } of blobs.values()) {
@@ -2478,18 +2536,64 @@ const Backend = {
           const copy = JSON.parse(JSON.stringify(p));
           copy.projectId = uid('proj');
           copy.ownerId = user.uid;
-          copy.publishedId = null; copy.publishMeta = null; copy.history = [];
+          /* a published game that moves with it keeps its page and link */
+          if (!(p.publishedId && sealed.has(p.publishedId))) { copy.publishedId = null; copy.publishMeta = null; }
+          copy.history = [];
           if (remap.size) {
             copy.assetRefs = (copy.assetRefs || []).map(id => remap.get(id) || id);
             ((copy.scene && copy.scene.objects) || []).forEach(o => { if (o.assetId && remap.has(o.assetId)) o.assetId = remap.get(o.assetId); });
             (copy.files || []).forEach(f => { if (typeof f.code === 'string') remap.forEach((n, o) => { f.code = f.code.split(o).join(n); }); });
           }
-          try { await Projects.save(copy); } catch (e) { console.warn('carry project failed', e); }
+          try { await Projects.save(copy); moved.set(p.projectId, copy.projectId); } catch (e) { console.warn('carry project failed', e); }
         }
         Toast.ok(`نُقل ${carry.length} مشروعًا${remap.size ? ' و' + remap.size + ' أصلًا' : ''} من الجلسة المؤقتة إلى حسابك`);
         if (fallback.length) Toast.show(`${fallback.length} أصلًا لم يُنسخ (تعذّر تنزيله من هذا المتصفح) — بقي مرتبطًا بمعرّفه «برابط فقط» حتى تعمل مشاريعك.`, '', 8000);
       }
+      if (seals.length && user && user.uid !== oldUid) {
+        const n = await this._claimGames(seals, user, moved);
+        if (n) Toast.ok(`نُقلت ${n} لعبة منشورة إلى حسابك — صفحتها ورابطها كما هما، وتعدّلها الآن من أي جهاز`, 6000);
+      }
       return user;
+    },
+
+    /* A guest (anonymous) session cannot hand its games to an account it
+       does not know yet. So, just before signing in, it seals each of its
+       published games with the SHA-256 of a one-time secret that only this
+       page holds; right after sign-in the account presents the secret and
+       the server (firestore.rules → claimedWith) moves the game to it —
+       once. Nobody else can: the secret never leaves this page. */
+    async _sealGames(guestUid) {
+      const { F, db } = Backend.fb;
+      const snap = await F.getDocs(F.query(F.collection(db, 'games'), F.where('ownerId', '==', guestUid)));
+      if (snap.empty) return [];
+      const hex = b => Array.from(new Uint8Array(b), x => x.toString(16).padStart(2, '0')).join('');
+      const key = hex(crypto.getRandomValues(new Uint8Array(32)));
+      const h = hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key)));
+      const out = [];
+      for (const d of snap.docs) {
+        try {
+          await F.updateDoc(d.ref, { claim: { h, at: Date.now() } });
+          let build = false;
+          try { await F.updateDoc(F.doc(db, 'builds', d.id), { claim: { h, at: Date.now() } }); build = true; } catch {}
+          out.push({ gameId: d.id, projectId: d.data().projectId || null, key, build });
+        } catch (e) { console.warn('[carry] seal', d.id, e && e.code); }
+      }
+      return out;
+    },
+    async _claimGames(seals, user, moved) {
+      const { F, db } = Backend.fb;
+      const name = user.displayName || (user.email ? user.email.split('@')[0] : 'creator_' + user.uid.slice(0, 5));
+      let n = 0;
+      for (const x of seals) {
+        try {
+          const patch = { ownerId: user.uid, creatorName: name, claim: F.deleteField(), claimKey: x.key, updatedAt: Date.now() };
+          if (x.projectId && moved.has(x.projectId)) patch.projectId = moved.get(x.projectId);
+          await F.updateDoc(F.doc(db, 'games', x.gameId), patch);
+          if (x.build) await F.updateDoc(F.doc(db, 'builds', x.gameId), { ownerId: user.uid, claim: F.deleteField(), claimKey: x.key, updatedAt: Date.now() }).catch(e => console.warn('[carry] claim build', x.gameId, e && e.code));
+          n++;
+        } catch (e) { console.warn('[carry] claim', x.gameId, e && e.code); }
+      }
+      return n;
     },
 
     async signInGoogle() {
@@ -3484,6 +3588,17 @@ service cloud.firestore {
     function onlyChanged(ks) { return incoming().diff(existing()).affectedKeys().hasOnly(ks); }
     // a counter may move by exactly 'by', and nothing else in the doc may change
     function bumped(f, by)   { return incoming()[f] == existing()[f] + by && onlyChanged([f]); }
+    // A game published from a guest (anonymous) session moves to the account
+    // the player signs in to: just before signing in, the guest session (the
+    // owner) seals the doc with the SHA-256 of a one-time secret that only
+    // that page holds; right after, the account presents the secret. Whoever
+    // has it takes the doc over — once (the seal is removed in the same write).
+    function claimedWith(ks) {
+      return signedIn() && existing().get('claim', null) is map && incoming().ownerId == me()
+             && incoming().get('claimKey', null) is string && incoming().claimKey.size() == 64
+             && hashing.sha256(incoming().claimKey).toHexString().lower() == existing().claim.h
+             && !('claim' in incoming()) && onlyChanged(ks);
+    }
 
     // ---------------------------------------------------------------- team roles
     // A project has ONE owner (ownerId) and a team {uid: role}:
@@ -3706,7 +3821,8 @@ service cloud.firestore {
                         && !exists(/databases/$(database)/documents/games/$(gameId)/likes/$(request.auth.uid)))
                     || (signedIn() && bumped('likes', -1)
                         && !existsAfter(/databases/$(database)/documents/games/$(gameId)/likes/$(request.auth.uid))
-                        && exists(/databases/$(database)/documents/games/$(gameId)/likes/$(request.auth.uid)));
+                        && exists(/databases/$(database)/documents/games/$(gameId)/likes/$(request.auth.uid)))
+                    || claimedWith(['ownerId', 'creatorName', 'projectId', 'claim', 'claimKey', 'updatedAt']);
       allow delete: if resource == null || isOwner(existing());
 
       // one marker per (user, session); markers are never overwritten
@@ -3793,7 +3909,28 @@ service cloud.firestore {
                  || get(/databases/$(database)/documents/games/$(gameId)).data.visibility in ['public', 'unlisted'];
       allow create: if signedIn() && incoming().ownerId == me() && incoming().gameId == gameId
                     && getAfter(/databases/$(database)/documents/games/$(gameId)).data.ownerId == me();
-      allow update: if isOwner(existing()) && incoming().ownerId == me() && incoming().gameId == gameId;
+      allow update: if (isOwner(existing()) && incoming().ownerId == me() && incoming().gameId == gameId)
+                    || claimedWith(['ownerId', 'claim', 'claimKey', 'updatedAt']);
+      allow delete: if resource == null || isOwner(existing());
+    }
+
+    // ---------------------------------------------------------------- HTML apps & websites
+    // The owner's own pages / sites (the files live in the file host as one
+    // ZIP; this is the record). They run in a sandboxed opaque-origin frame.
+    // A real account (not a guest session) owns them; anyone may count an open.
+    match /apps/{appId} {
+      function account()    { return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'; }
+      function validApp(d)  { return d.appId == appId && d.name is string && d.name.size() > 0 && d.name.size() <= 80
+                                     && d.description is string && d.description.size() <= 2000 && validVis(d.visibility)
+                                     && d.entry is string && d.entry.size() <= 300 && d.bundle is map && d.bundle.path is string
+                                     && d.files is int && d.files > 0 && d.files <= 800
+                                     && d.bytes is int && d.bytes <= 26214400; }
+      allow get:    if resource == null || existing().visibility in ['public', 'unlisted'] || isOwner(existing());
+      allow list:   if existing().visibility == 'public' || isOwner(existing());
+      allow create: if account() && incoming().ownerId == me() && validApp(incoming()) && incoming().opens == 0;
+      allow update: if (isOwner(existing()) && incoming().ownerId == me() && validApp(incoming())
+                        && incoming().opens == existing().opens && incoming().createdAt == existing().createdAt)
+                    || (signedIn() && bumped('opens', 1));
       allow delete: if resource == null || isOwner(existing());
     }
 
@@ -4027,6 +4164,17 @@ service firebase.storage {
       allow create, update: if owner(userId) && under(24)
                     && (typeIs('image/.*') || typeIs('application/wasm') || typeIs('application/octet-stream')
                         || typeIs('application/json'));
+      allow delete: if owner(userId);
+    }
+
+    // HTML apps & websites: the site's files packed in one ZIP, and its icon.
+    // Readable by others only while the app record is not private.
+    match /apps/{userId}/{appId}/{file} {
+      allow read: if owner(userId)
+                  || (firestore.exists(/databases/(default)/documents/apps/$(appId))
+                      && docVis('apps', appId) != 'private');
+      allow create, update: if owner(userId)
+                    && ((typeIs('application/zip') && under(25)) || (typeIs('image/.*') && under(2)));
       allow delete: if owner(userId);
     }
 
@@ -8300,6 +8448,14 @@ const Studio = {
           return;
         }
         if (!Backend.user) { NX.promptSignIn('النشر يحتاج جلسة دخول.'); return; }
+        /* a guest session: the game would stay with this browser only — say so before, not after */
+        if (Backend.user.anon && !this._guestPublishOK) {
+          const go = await new Promise(res => Modal.open({ title: 'تنشر وأنت ضيف؟', body: 'أنت في جلسة ضيف مؤقتة: ستكون اللعبة مرتبطة بهذا المتصفح فقط، ولن تستطيع تعديل صفحتها (الفيديو والصور والشرح) من جهاز آخر أو بعد تسجيل الدخول على جهاز آخر. سجّل الدخول بحساب Google أولًا لتبقى لك في كل مكان. (إن سجّلت الدخول لاحقًا من هذا المتصفح تنتقل إليك وحدها.)', actions: [
+            { label: 'النشر كضيف', cls: 'ghost', onclick: () => res('guest') },
+            { label: 'تسجيل الدخول أولًا', cls: 'primary', onclick: () => res('signin') }] }));
+          if (go === 'signin') { NX.promptSignIn('سجّل الدخول لتبقى لعبتك لك على كل أجهزتك — ثم اضغط PUBLISH.'); return; }
+          this._guestPublishOK = true;
+        }
         busy = true;
         try {
           if (NX.Profiles) await NX.Profiles.ensure().catch(() => {});
@@ -14474,6 +14630,16 @@ async function openGamePage(game, opts = {}) {
   const sc = scOf(game);
   const preview = !!(opts.preview || game.preview);
   const mine = !!(Backend.user && game.ownerId === Backend.user.uid);
+  /* the owner edits the page from the page itself: every empty place says what can go there */
+  const canEdit = mine && !preview;
+  const edit = async focus => {
+    const p = (NX.Studio.project && NX.Studio.project.projectId === game.projectId) ? NX.Studio.project : await NX.Projects.get(game.projectId).catch(() => null);
+    if (!p) { Toast.err('تعذّر فتح مشروع اللعبة — افتحه من «مشاريعي» ثم «وسائط اللعبة»'); return; }
+    sheet.close();
+    NX.GameMedia.open(p, { focus, back: () => (game.gameId ? Games.get(game.gameId).catch(() => null) : Promise.resolve(null)).then(g => openGamePage(g || game)) });
+  };
+  const addBox = (ic, title, note, focus) => el('button', { class: 'sc-add', dataset: { add: focus }, onclick: () => edit(focus) },
+    [el('i', { text: ic }), el('b', { text: '＋ ' + title }), el('span', { text: note })]);
   const root = el('div', { class: 'sc' });
   /* the creator's colours for this game's page (PART 26) */
   if (NX.Theme) NX.Theme.scope(root, (game.showcase || {}).theme);
@@ -14491,6 +14657,7 @@ async function openGamePage(game, opts = {}) {
   const topShare = el('button', { class: 'sc-ib', 'aria-label': 'share', onclick: () => doShare() }, [svgIcon('share')]);
   const topFav = el('button', { class: 'sc-ib', 'aria-label': 'favorite', onclick: () => doFav() }, [svgIcon('heart')]);
   top.append(back, el('b', { text: game.title }), topShare, topFav);
+  if (canEdit) top.insertBefore(el('button', { class: 'sc-ib', 'aria-label': 'edit page', title: 'تعديل الصفحة', text: '✎', style: { fontSize: '18px' }, onclick: () => edit() }), topShare);
   root.appendChild(top);
   const wrap = el('div', { class: 'sc-wrap' });
   root.appendChild(wrap);
@@ -14501,11 +14668,14 @@ async function openGamePage(game, opts = {}) {
   if (sc.banner) hero.appendChild(el('div', { class: 'sc-banner' }, [lazyImg(sc.banner, game.title)]));
   const heroIn = el('div', { class: 'sc-hero-in' });
   const cov = el('div', { class: 'sc-cover' });
-  if (coverM) { const im = lazyImg(coverM, game.title); im.loading = 'eager'; cov.appendChild(im); } else cov.appendChild(el('div', { class: 'ph', text: '◆' }));
+  if (coverM) { const im = lazyImg(coverM, game.title); im.loading = 'eager'; cov.appendChild(im); }
+  else if (canEdit) { cov.classList.add('sc-cov-add'); cov.appendChild(el('button', { class: 'ph', dataset: { add: 'cover' }, onclick: () => edit('cover') }, [el('b', { text: '＋' }), el('span', { text: 'أضف غلافًا' })])); }
+  else cov.appendChild(el('div', { class: 'ph', text: '◆' }));
   const head = el('div', { class: 'sc-head' });
   head.appendChild(el('h1', { class: 'sc-title', text: game.title }));
   const tagline = sc.tagline || String(game.description || '').split(/(?<=[.!؟?])\s|\n/)[0].slice(0, 160);
   if (tagline) head.appendChild(el('p', { class: 'sc-tagline', text: tagline }));
+  else if (canEdit) head.appendChild(el('button', { class: 'sc-add-line', dataset: { add: 'tagline' }, text: '＋ أضف جملة تعريفية عن لعبتك', onclick: () => edit('tagline') }));
   const dev = el('div', { class: 'sc-dev' }, [el('span', { text: 'المطوّر' })]);
   const devBtn = el('button', { text: '@' + (game.creatorName || 'creator') });
   if (!preview && game.ownerId) devBtn.onclick = () => openCreator(game.ownerId);
@@ -14534,6 +14704,7 @@ async function openGamePage(game, opts = {}) {
   const playBtn = el('button', { class: 'sc-play', onclick: play }, [svgIcon('play'), el('span', { text: 'PLAY GAME' })]);
   const cta = el('div', { class: 'sc-cta' }, [playBtn]);
   if (sc.video) cta.appendChild(el('button', { class: 'sc-watch', onclick: () => openVideo(sc.video, game.title) }, [svgIcon('play'), el('span', { text: 'WATCH GAMEPLAY' })]));
+  if (canEdit) cta.appendChild(el('button', { class: 'sc-watch sc-editpage', onclick: () => edit() }, [svgIcon('image'), el('span', { text: 'تعديل الصفحة · EDIT' })]));
   head.appendChild(cta);
   const stats = el('div', { class: 'sc-stats' });
   const likesSpan = el('span', { text: '♥ ' + fmtNum(game.likes || 0) });
@@ -14576,6 +14747,12 @@ async function openGamePage(game, opts = {}) {
         box.appendChild(more);
       }
       wrap.appendChild(sec('description', box));
+    } else if (canEdit && key === 'video') {
+      wrap.appendChild(sec('video', addBox('🎬', 'أضف فيديو للعبة', 'MP4 أو WebM — يشاهده الزوار قبل أن يلعبوا', 'video')));
+    } else if (canEdit && key === 'screenshots') {
+      wrap.appendChild(sec('screenshots', addBox('🖼️', 'أضف صورًا من لعبتك', 'لقطات شاشة يتصفّحها الزوار — حتى ' + SHOTS_MAX + ' صورة', 'screenshots')));
+    } else if (canEdit && key === 'description') {
+      wrap.appendChild(sec('description', addBox('✍️', 'اكتب شرحًا للعبة', 'ما هي؟ كيف تُلعب؟ ما الذي يميّزها؟', 'description')));
     } else if (key === 'info') {
       const info = el('div', { class: 'sc-info' });
       infoRows.forEach(([k, v]) => info.appendChild(el('div', {}, [el('span', { text: k }), el('b', { text: v })])));
@@ -14621,12 +14798,18 @@ async function openGamePage(game, opts = {}) {
 
   /* the owner (and only the owner) manages the media from here */
   if (mine || preview) {
-    const ow = el('div', { class: 'sc-owner' }, [el('p', { text: preview ? 'هذه معاينة. عدّل الغلاف والخلفية والفيديو واللقطات من «وسائط اللعبة».' : 'هذه لعبتك — الزوار يرون هذه الصفحة. عدّل وسائطها من «وسائط اللعبة».' })]);
-    ow.appendChild(btn('✎ وسائط اللعبة · GAME MEDIA', { cls: 'primary sm', onclick: async () => {
+    const ow = el('div', { class: 'sc-owner' }, [el('p', { text: preview ? 'هذه معاينة. عدّل الغلاف والخلفية والفيديو واللقطات من «وسائط اللعبة».' : 'هذه لعبتك — الزوار يرون هذه الصفحة. أضف فيديو وصورًا وشرحًا من «تعديل الصفحة».' })]);
+    ow.appendChild(btn('✎ تعديل الصفحة · GAME MEDIA', { cls: 'primary sm', onclick: async () => {
+      if (!preview) { edit(); return; }
       const p = (NX.Studio.project && NX.Studio.project.projectId === game.projectId) ? NX.Studio.project : await NX.Projects.get(game.projectId).catch(() => null);
       if (!p) { Toast.err('تعذّر فتح المشروع'); return; }
       sheet.close(); NX.GameMedia.open(p);
     } }));
+    /* a game published from a guest session stays with THIS browser only until the player signs in */
+    if (!preview && Backend.user && Backend.user.anon) ow.appendChild(el('div', { class: 'card', style: { marginTop: '10px', fontSize: '12.5px', lineHeight: '1.7' } }, [
+      el('b', { text: '⚠ أنت في جلسة ضيف' }),
+      el('div', { class: 'tiny', text: 'اللعبة مرتبطة بهذا المتصفح فقط. سجّل الدخول بحساب Google أو البريد لتبقى لك على كل أجهزتك — تنتقل اللعبة وصفحتها ورابطها إلى حسابك.' }),
+      btn('تسجيل الدخول', { cls: 'sm', icon: 'user', style: { marginTop: '6px' }, onclick: () => NX.promptSignIn('سجّل الدخول لتبقى لعبتك لك على كل أجهزتك.', () => { sheet.close(); Games.get(game.gameId).then(g => openGamePage(g || game)); }) })]));
     if (!preview && game.gameId && NX.Analytics) ow.appendChild(btn('📊 التحليلات · Analytics', { cls: 'sm', onclick: () => NX.Analytics.open({ publishedId: game.gameId }) }));
     wrap.appendChild(ow);
   }
@@ -14880,10 +15063,11 @@ const GameMedia = {
   preview(p) { return openGamePage(this.previewGame(p), { preview: true }); },
 
   /* ---------------- the manager (Project → GAME MEDIA) ---------------- */
-  open(p) {
+  open(p, opts = {}) {
     if (!p) { Toast.err('افتح مشروعًا أولًا'); return; }
     if (!this.mine(p)) { Toast.err('وسائط اللعبة يعدّلها صاحبها فقط'); return; }
     const body = el('div');
+    let goBack = !!opts.back;   // closed by the owner → back to the game page, fresh
     const draw = () => {
       const sc = this.sc(p);
       body.textContent = '';
@@ -14893,15 +15077,15 @@ const GameMedia = {
       st.appendChild(el('div', { class: 'tiny', text: 'التخزين: ' + (NX.FILE_HOST === 'drive' ? 'Google Drive (ملفاتك، مشاركة للقراءة)' : 'Firebase Storage') + ' · الزوار يشاهدون فقط، وأنت وحدك تعدّل.' }));
       body.appendChild(st);
       const top = el('div', { class: 'gm-state' });
-      top.appendChild(btn('👁 معاينة الصفحة · Preview', { cls: 'primary sm', onclick: () => { sheet.close(); this.preview(p); } }));
+      top.appendChild(btn('👁 معاينة الصفحة · Preview', { cls: 'primary sm', onclick: () => { goBack = false; sheet.close(); this.preview(p); } }));
       if (p.publishedId) top.appendChild(btn('🔗 نسخ رابط اللعبة', { cls: 'sm ghost', onclick: () => share('game', p.publishedId, p.name) }));
       body.appendChild(top);
 
       /* texts */
-      body.appendChild(el('div', { class: 'ttl', text: 'النصوص' }));
-      const tl = el('input', { class: 'input', value: sc.tagline || '', maxlength: '160', placeholder: 'جملة واحدة تجذب اللاعب' });
+      body.appendChild(el('div', { class: 'ttl', text: 'النصوص — الجملة التعريفية والشرح', dataset: { focus: 'texts' } }));
+      const tl = el('input', { class: 'input', value: sc.tagline || '', maxlength: '160', placeholder: 'جملة واحدة تجذب اللاعب', dataset: { focus: 'tagline' } });
       const tg = el('input', { class: 'input', value: (sc.tags || []).join('، '), placeholder: 'سباق، مدينة، سيارات' });
-      const ds = el('textarea', { class: 'textarea', value: (p.publishMeta && p.publishMeta.description != null ? p.publishMeta.description : p.description) || '', placeholder: 'ما هي اللعبة؟ كيف تُلعب؟ ما الذي يميّزها؟', style: { minHeight: '110px' } });
+      const ds = el('textarea', { class: 'textarea', value: (p.publishMeta && p.publishMeta.description != null ? p.publishMeta.description : p.description) || '', placeholder: 'ما هي اللعبة؟ كيف تُلعب؟ ما الذي يميّزها؟', style: { minHeight: '110px' }, dataset: { focus: 'description' } });
       body.append(field('وصف مختصر · Short Description', tl), field('الوسوم · Tags (افصل بفاصلة)', tg), field('الوصف · Description', ds));
       body.appendChild(btn('حفظ النصوص', { cls: 'sm', icon: 'save', onclick: async e => {
         const b = e.currentTarget; b.disabled = true;
@@ -14911,7 +15095,7 @@ const GameMedia = {
       } }));
 
       /* the images */
-      body.appendChild(el('div', { class: 'ttl', style: { marginTop: '18px' }, text: 'الصور' }));
+      body.appendChild(el('div', { class: 'ttl', style: { marginTop: '18px' }, text: 'الصور — الغلاف والخلفية', dataset: { focus: 'images' } }));
       Object.keys(IMG_ROLES).forEach(role => body.appendChild(this.slot(p, role, draw)));
       /* the page background's shade: the text stays readable over any picture */
       const dimIn = el('input', { type: 'range', min: '0', max: '0.9', step: '0.05', value: String(sc.bgDim == null ? 0.55 : sc.bgDim), class: 'input' });
@@ -14921,11 +15105,11 @@ const GameMedia = {
       body.append(dimL, dimIn);
 
       /* the video */
-      body.appendChild(el('div', { class: 'ttl', style: { marginTop: '18px' }, text: 'فيديو اللعب · Gameplay Video' }));
+      body.appendChild(el('div', { class: 'ttl', style: { marginTop: '18px' }, text: 'فيديو اللعب · Gameplay Video', dataset: { focus: 'video' } }));
       body.appendChild(this.videoSlot(p, draw));
 
       /* the screenshots */
-      body.appendChild(el('div', { class: 'ttl', style: { marginTop: '18px' }, text: `لقطات الشاشة · Screenshots (${sc.screenshots.length}/${SHOTS_MAX})` }));
+      body.appendChild(el('div', { class: 'ttl', style: { marginTop: '18px' }, text: `لقطات الشاشة · Screenshots (${sc.screenshots.length}/${SHOTS_MAX})`, dataset: { focus: 'screenshots' } }));
       body.appendChild(this.shotsGrid(p, draw));
 
       /* the order of the page */
@@ -14937,8 +15121,18 @@ const GameMedia = {
         body.appendChild(r);
       });
     };
-    const sheet = Sheet.open({ title: 'وسائط اللعبة · GAME MEDIA', body, full: true, id: 'gamemedia' });
+    const sheet = Sheet.open({ title: 'وسائط اللعبة · GAME MEDIA', body, full: true, id: 'gamemedia', onClose: () => { if (goBack && !sheet._all) setTimeout(() => opts.back(), 60); } });
     draw();
+    /* opened from a «＋ أضف …» place on the game page: straight to it */
+    if (opts.focus) setTimeout(() => {
+      const f = opts.focus === 'cover' ? body.querySelector('[data-role="cover"]') : body.querySelector('[data-focus="' + opts.focus + '"]');
+      if (!f) return;
+      const box = f.closest('.field') || f;
+      box.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      box.classList.add('gm-flash');
+      setTimeout(() => box.classList.remove('gm-flash'), 3200);
+      if (f.matches('input, textarea')) f.focus({ preventScroll: true });
+    }, 380);
     return sheet;
   },
 
@@ -15654,7 +15848,10 @@ const Adapters = {
          embeddings, image, moderation) and anything the provider marks inactive */
       const NON_CHAT = /whisper|tts|playai|embed|dall-e|gpt-image|moderation|transcribe|guard|orpheus|speech|audio/i;
       const all = raw.filter(m => m && m.active !== false).map(m => m.id || m.name).filter(Boolean);
-      const chat = all.filter(id => !NON_CHAT.test(id)).sort();
+      const chat = all.filter(id => !NON_CHAT.test(id));
+      /* the free AI keeps the server's order: grouped by the provider that serves each model */
+      if (provider.builtin) chat.owners = Object.fromEntries(raw.filter(m => m && m.id).map(m => [m.id, m.provider || m.owned_by || '']));
+      else chat.sort();
       chat.hidden = all.length - chat.length;
       return chat;
     },
@@ -15945,7 +16142,7 @@ const AIClient = {
     if (!cfg.baseURL) throw Object.assign(new Error('NO_URL'), { info: { code: 'url', title: 'أدخل Base URL', detail: '' } });
     try {
       const list = await A.models(provider, cfg);
-      AIConfig.set(provider.id, { models: Array.from(list) });
+      AIConfig.set(provider.id, list.owners ? { models: Array.from(list), modelOwners: list.owners } : { models: Array.from(list) });
       return list;
     } catch (e) {
       throw Object.assign(new Error('MODELS_FAILED'), { info: classify(e, e.status, e.body) });
@@ -16366,7 +16563,7 @@ function openAISettings() {
     modelWrap.appendChild(modelIn);
     const modelInfo = el('p', { class: 'tiny', style: { marginTop: '6px' } });
     const modelFilter = el('input', { class: 'input hide', placeholder: 'تصفية النماذج…', style: { direction: 'ltr', marginTop: '8px', minHeight: '38px' } });
-    const modelList = el('div', { class: 'chips', style: { marginTop: '8px', flexWrap: 'wrap', maxHeight: '190px', overflowY: 'auto' } });
+    const modelList = el('div', { class: 'chips', style: { marginTop: '8px', flexWrap: 'wrap', maxHeight: P.builtin ? '320px' : '190px', overflowY: 'auto' } });
     let shown = cfg.models || [];
     const drawModels = (list, note) => {
       shown = list || [];
@@ -16374,12 +16571,20 @@ function openAISettings() {
       modelFilter.classList.toggle('hide', shown.length < 12);
       const q = modelFilter.value.trim().toLowerCase();
       const items = q ? shown.filter(m => m.toLowerCase().includes(q)) : shown;
-      items.slice(0, 80).forEach(m => modelList.appendChild(el('button', {
-        class: 'chip' + (m === modelIn.value ? ' on' : ''), text: m,
-        onclick: () => { modelIn.value = m; commit(); drawModels(shown); }
-      })));
+      /* the free AI: a heading per provider (Gemini · Groq · OpenRouter) */
+      const owners = P.builtin ? (shown.owners || (AIConfig.all()[pid] || {}).modelOwners || null) : null;
+      const cap = owners ? 400 : 80;
+      let group = null;
+      items.slice(0, cap).forEach(m => {
+        const g = owners ? (owners[m] || '') : null;
+        if (owners && g !== group) { group = g; modelList.appendChild(el('div', { class: 'mp-grp', text: g === 'NEXUS' || g === 'nexus' ? 'تلقائي' : g + ' · ' + items.filter(x => owners[x] === g).length })); }
+        modelList.appendChild(el('button', {
+          class: 'chip' + (m === modelIn.value ? ' on' : ''), text: m === 'auto' ? 'auto — الأنسب تلقائيًا' : m, dataset: { model: m },
+          onclick: () => { modelIn.value = m; commit(); drawModels(shown); }
+        }));
+      });
       modelInfo.textContent = note || (shown.length
-        ? `${shown.length} نموذجًا من المزوّد${items.length > 80 ? ' — اكتب للتصفية' : ''}` + (modelIn.value && !shown.includes(modelIn.value) ? ` · ⚠ النموذج «${modelIn.value}» غير موجود في قائمة المزوّد` : '')
+        ? `${shown.length} نموذجًا من المزوّد${items.length > cap ? ' — اكتب للتصفية' : ''}` + (modelIn.value && !shown.includes(modelIn.value) ? ` · ⚠ النموذج «${modelIn.value}» غير موجود في قائمة المزوّد` : '')
         : 'اضغط «تحديث قائمة النماذج» لجلب النماذج الحقيقية من المزوّد.');
     };
     modelFilter.addEventListener('input', () => drawModels(shown));
@@ -25087,6 +25292,802 @@ NX.Theme = Theme;
 NX.cleanTheme = clean;
 </script>
 <!-- /NX-PART:26 -->
+<!-- NX-PART:27 -->
+<script type="module">
+/* ============================================================
+   PART 27 · EVERY MODEL, ONE TAP — the free AI's models from every
+   provider the site has keys for (Gemini · Groq · OpenRouter),
+   grouped by provider, searchable, chosen with one tap; and the
+   models of your own keys beside them. The keys stay on the site's
+   server (netlify/edge-functions/ai.js) — only model names come here.
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, Sheet, Toast } = NX;
+const { AIConfig, AIClient, PROVIDERS } = NX;
+
+const LABEL = { nexus: 'تلقائي', NEXUS: 'تلقائي', gemini: 'Gemini', groq: 'Groq', openrouter: 'OpenRouter' };
+const ModelPicker = {
+  /* the free AI's list as the server groups it: [{ name, models: [] }] */
+  groups(list, owners) {
+    const out = [];
+    (list || []).forEach(m => {
+      const g = LABEL[(owners && owners[m]) || ''] || (owners && owners[m]) || 'NEXUS';
+      let grp = out.find(x => x.name === g);
+      if (!grp) out.push(grp = { name: g, models: [] });
+      grp.models.push(m);
+    });
+    return out;
+  },
+  choose(pid, model) {
+    AIConfig.set(pid, { model });
+    AIConfig.setActive(pid);
+    const P = PROVIDERS[pid] || {};
+    Toast.ok('النموذج الآن: ' + (model === 'auto' ? 'auto — الأنسب تلقائيًا' : model) + (P.builtin ? ' · مجاني' : ' · ' + (P.name || pid)));
+  },
+  open() {
+    const body = el('div', { class: 'mp' });
+    const search = el('input', { class: 'input', type: 'search', placeholder: 'ابحث: gemini · llama · qwen · deepseek…', style: { direction: 'ltr' }, autocapitalize: 'off', spellcheck: 'false' });
+    const free = el('div'), own = el('div');
+    body.append(search, free, own);
+    const sheet = Sheet.open({ title: 'اختر النموذج · Models', body, full: true, id: 'modelpicker',
+      foot: [btn('⚙ الإعدادات والمفاتيح', { cls: 'ghost', onclick: () => { sheet.close(); NX.openAISettings(); } })] });
+    const F = NX.FreeAI;
+    const activeId = () => AIConfig.active();
+    const chip = (pid, m, label) => el('button', {
+      class: 'chip' + (activeId() === pid && AIConfig.get(pid).model === m ? ' on' : ''), dataset: { model: m, pid },
+      text: label || m, onclick: () => { this.choose(pid, m); sheet.close(); }
+    });
+    const section = (host, title, sub, groups, pid) => {
+      const q = search.value.trim().toLowerCase();
+      if (title) host.appendChild(el('div', { class: 'ttl', style: { marginTop: '14px' }, text: title }));
+      if (sub) host.appendChild(el('p', { class: 'tiny', style: { margin: '-2px 0 8px' }, text: sub }));
+      let n = 0;
+      groups.forEach(g => {
+        const ms = q ? g.models.filter(m => m.toLowerCase().includes(q)) : g.models;
+        if (!ms.length) return;
+        n += ms.length;
+        const box = el('div', { class: 'mp-box', dataset: { group: g.name } }, [el('div', { class: 'mp-grp', text: g.name + (g.name === 'تلقائي' ? '' : ' · ' + ms.length) })]);
+        const chips = el('div', { class: 'chips', style: { flexWrap: 'wrap' } });
+        ms.forEach(m => chips.appendChild(chip(pid, m, m === 'auto' ? 'auto — الأنسب تلقائيًا، ويتنقّل وحده عند انتهاء الحدّ' : null)));
+        box.appendChild(chips);
+        host.appendChild(box);
+      });
+      if (!n && q && groups.length) host.appendChild(el('p', { class: 'tiny', text: 'لا نموذج يطابق «' + q + '» هنا.' }));
+    };
+    let freeList = null;
+    const drawFree = () => {
+      free.textContent = '';
+      if (!F || F.state === 'off') {
+        free.appendChild(el('div', { class: 'card', style: { fontSize: '13px', lineHeight: '1.7', marginTop: '10px' } }, [
+          el('b', { text: '⚪ الذكاء المجاني غير مفعّل على هذا الموقع بعد' }),
+          el('div', { class: 'tiny', text: 'صاحب الموقع يضع مفاتيح Gemini و Groq و OpenRouter في Netlify → Environment variables (GEMINI_KEYS · GROQ_KEYS · OPENROUTER_KEYS) — حينها تظهر هنا كل نماذجها. تستطيع الآن استعمال مفتاحك الخاص من «الإعدادات والمفاتيح».' })]));
+        return;
+      }
+      if (!F.signedIn()) {
+        free.appendChild(el('div', { class: 'card', style: { fontSize: '13px', lineHeight: '1.7', marginTop: '10px' } }, [
+          el('b', { text: '🔒 سجّل الدخول لترى النماذج المجانية وتختار بينها' }),
+          btn('تسجيل الدخول', { cls: 'sm primary', icon: 'user', style: { marginTop: '8px', display: 'flex' }, onclick: () => NX.promptSignIn('الذكاء المجاني لمن سجّل الدخول.', () => { sheet.close(); this.open(); }) })]));
+        return;
+      }
+      const saved = AIConfig.all().nexus || {};
+      const list = freeList || saved.models || [];
+      const owners = (freeList && freeList.owners) || saved.modelOwners || null;
+      const provs = (F.providers || []).map(x => LABEL[x] || x).join(' · ');
+      section(free, 'NEXUS AI — مجاني', 'نماذج ' + (provs || 'الموقع') + ' — المفاتيح على خادم الموقع ولا تظهر لأحد. إذا انتهى حدّ مفتاح ينتقل وحده إلى التالي.', this.groups(list.length ? list : ['auto'], owners), 'nexus');
+      if (!freeList) free.appendChild(el('p', { class: 'tiny mp-loading', text: 'أجلب القائمة الحديثة من الخادم…' }));
+    };
+    const drawOwn = () => {
+      own.textContent = '';
+      const mine = Object.values(PROVIDERS).filter(P => !P.builtin && !P.custom && P.id !== 'local' && AIConfig.get(P.id).apiKey);
+      const custom = Object.values(PROVIDERS).filter(P => (P.custom || P.id === 'local') && AIConfig.get(P.id).model && (AIConfig.get(P.id).apiKey || AIConfig.get(P.id).baseURL !== P.baseURL));
+      const all = mine.concat(custom);
+      if (!all.length) return;
+      section(own, 'مفاتيحك الخاصة', 'محفوظة في هذا المتصفح فقط.', [], null);
+      all.forEach(P => {
+        const c = AIConfig.get(P.id);
+        const models = (c.models && c.models.length ? c.models : [c.model || P.defaultModel]).filter(Boolean);
+        section(own, '', '', [{ name: P.name, models }], P.id);
+      });
+    };
+    const draw = () => { drawFree(); drawOwn(); };
+    search.addEventListener('input', draw);
+    draw();
+    if (F && F.ready()) AIClient.listModels('nexus').then(l => { freeList = l; draw(); }).catch(e => {
+      const i = e.info || {};
+      const w = free.querySelector('.mp-loading');
+      if (w) w.textContent = '✕ ' + (i.title || 'تعذّر جلب القائمة') + ' — تعمل القائمة المحفوظة.';
+    });
+    return sheet;
+  }
+};
+NX.ModelPicker = ModelPicker;
+
+/* the chat's model badge («NEXUS · auto») opens the picker */
+if (!window.NX_SANDBOX && NX.Chat) {
+  const _rb = NX.Chat.refreshBadge;
+  NX.Chat.refreshBadge = function () {
+    _rb.apply(this, arguments);
+    if (this.badge) { this.badge.onclick = () => ModelPicker.open(); this.badge.title = 'اختر النموذج'; }
+  };
+  if (NX.Chat.badge) NX.Chat.refreshBadge();
+}
+</script>
+<!-- /NX-PART:27 -->
+<!-- NX-PART:28 -->
+<script type="module">
+/* ============================================================
+   PART 28 · HTML APPS & WEBSITES — upload your own pages, apps and
+   whole websites: one .html file, several files (html · css · js ·
+   images · sounds · fonts) or a ZIP of a site, and they run here.
+   - Every app runs in <iframe sandbox> WITHOUT allow-same-origin: an
+     opaque origin that cannot read this site's storage, cookies,
+     Firebase session or keys, cannot touch this page, and cannot
+     navigate it away. The frame builds the site from its own files
+     (links, styles, scripts, images, modules) and gets a private
+     localStorage that is kept in the viewer's browser, per app.
+   - Stored like everything else: the files packed in one ZIP in the
+     site's file host (Drive / Storage), a record in Firestore apps/
+     whose owner, visibility and counters firestore.rules enforce.
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, Sheet, Modal, Toast, LS, uid, timeAgo, fmtNum, fmtBytes } = NX;
+const { Backend } = NX;
+
+const LIMIT = { bytes: 25 * 1024 * 1024, files: 800, file: 20 * 1024 * 1024, name: 80, desc: 2000, store: 512 * 1024 };
+const IMG = /\.(png|jpe?g|gif|webp|svg|ico|avif)$/i;
+const STORED = /\.(png|jpe?g|gif|webp|avif|mp3|m4a|aac|ogg|mp4|webm|woff2?|zip|glb|wasm)$/i;   // already compressed
+
+/* ================================================================ INSIDE THE FRAME
+   This function is sent into the sandboxed frame as text and runs
+   there. It turns the uploaded files into a working page: every
+   relative link, stylesheet, script, module import, image and font
+   points at the frame's own blob: copy of that file. */
+function appLoader() {
+  'use strict';
+  var S = 'scr' + 'ipt';
+  var TYPES = { html: 'text/html', htm: 'text/html', css: 'text/css', js: 'text/javascript', mjs: 'text/javascript', json: 'application/json',
+    svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif', ico: 'image/x-icon', bmp: 'image/bmp',
+    mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav', m4a: 'audio/mp4', aac: 'audio/aac', mp4: 'video/mp4', webm: 'video/webm', ogv: 'video/ogg',
+    woff: 'font/woff', woff2: 'font/woff2', ttf: 'font/ttf', otf: 'font/otf', txt: 'text/plain', xml: 'application/xml', csv: 'text/csv', md: 'text/markdown',
+    wasm: 'application/wasm', glb: 'model/gltf-binary', gltf: 'model/gltf+json' };
+  var files = {}, raw = {}, css = {}, mods = {}, htmls = {}, STORE = {}, dec = new TextDecoder('utf-8');
+  function ext(p) { var m = /\.([a-z0-9]+)$/i.exec(p); return m ? m[1].toLowerCase() : ''; }
+  function text(p) { return dec.decode(files[p]); }
+  function dirOf(p) { var i = p.lastIndexOf('/'); return i < 0 ? '' : p.slice(0, i + 1); }
+  function resolve(base, ref) {
+    if (ref == null) return null;
+    ref = String(ref).trim();
+    if (!ref || /^([a-z][a-z0-9+.-]*:|\/\/|#)/i.test(ref)) return null;
+    var clean = ref.split('#')[0].split('?')[0];
+    if (!clean) return null;
+    try { clean = decodeURIComponent(clean); } catch (e) { }
+    var parts = (clean.charAt(0) === '/' ? clean.slice(1) : dirOf(base) + clean).split('/'), out = [];
+    for (var i = 0; i < parts.length; i++) { if (parts[i] === '..') out.pop(); else if (parts[i] !== '.' && parts[i] !== '') out.push(parts[i]); }
+    var p = out.join('/');
+    if (files[p]) return p;
+    if (files[p + (p ? '/' : '') + 'index.html']) return p + (p ? '/' : '') + 'index.html';
+    if (files[p + '.html']) return p + '.html';
+    return null;
+  }
+  function blobOf(p) { if (!raw[p]) raw[p] = URL.createObjectURL(new Blob([files[p]], { type: TYPES[ext(p)] || 'application/octet-stream' })); return raw[p]; }
+  function urlFor(p, asModule) {
+    var e = ext(p);
+    if (e === 'css') return cssURL(p);
+    if (asModule && (e === 'js' || e === 'mjs')) return modURL(p);
+    if (e === 'html' || e === 'htm') return htmlURL(p);
+    return blobOf(p);
+  }
+  function fixCSS(t, base) {
+    t = t.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, function (m, q, u) { var p = resolve(base, u); return p ? 'url("' + urlFor(p) + '")' : m; });
+    return t.replace(/@import\s+(['"])([^'"]+)\1/g, function (m, q, u) { var p = resolve(base, u); return p ? '@import "' + urlFor(p) + '"' : m; });
+  }
+  function cssURL(p) {
+    if (css[p] === 1) return blobOf(p);   // an @import loop: the file as it is
+    if (!css[p]) { css[p] = 1; css[p] = URL.createObjectURL(new Blob([fixCSS(text(p), p)], { type: 'text/css' })); }
+    return css[p];
+  }
+  var IMP = /(\bimport\s*(?:[\w*{}\s,$]+?\s*from\s*)?|\bexport\s*[\w*{}\s,$]+?\s*from\s*|\bimport\s*\(\s*)(['"])([^'"\n]+)\2/g;
+  function fixJS(t, base) { return t.replace(IMP, function (m, head, q, u) { var p = resolve(base, u); return p ? head + q + urlFor(p, true) + q : m; }); }
+  function modURL(p) {
+    if (mods[p] === 1) return blobOf(p);   // an import cycle
+    if (!mods[p]) { mods[p] = 1; mods[p] = URL.createObjectURL(new Blob([fixJS(text(p), p)], { type: 'text/javascript' })); }
+    return mods[p];
+  }
+  function htmlURL(p) { if (!htmls[p]) htmls[p] = URL.createObjectURL(new Blob([page(p, false)], { type: 'text/html' })); return htmls[p]; }
+  function srcset(v, base) {
+    return v.split(',').map(function (c) { var t = c.trim().split(/\s+/); var p = resolve(base, t[0]); if (p) t[0] = urlFor(p); return t.join(' '); }).join(', ');
+  }
+  function page(p, withShim) {
+    var doc = new DOMParser().parseFromString(text(p), 'text/html');
+    var all = doc.querySelectorAll('*');
+    for (var i = 0; i < all.length; i++) {
+      var n = all[i], tag = n.tagName.toLowerCase(), r;
+      if (tag === 'base') { n.remove(); continue; }
+      if (tag === S) {
+        var st = (n.getAttribute('type') || '').toLowerCase(), mod = st === 'module';
+        if (n.hasAttribute('src')) { r = resolve(p, n.getAttribute('src')); if (r) n.setAttribute('src', urlFor(r, mod)); }
+        else if (mod) n.textContent = fixJS(n.textContent, p);
+        else if (st === 'importmap') {
+          try { var im = JSON.parse(n.textContent), o = im.imports || {}; Object.keys(o).forEach(function (k) { var q = resolve(p, o[k]); if (q) o[k] = urlFor(q, true); }); n.textContent = JSON.stringify(im); } catch (e) { }
+        }
+        continue;
+      }
+      if (tag === 'style') { n.textContent = fixCSS(n.textContent, p); continue; }
+      if (tag === 'link') { r = resolve(p, n.getAttribute('href')); if (r) n.setAttribute('href', urlFor(r, /modulepreload/i.test(n.getAttribute('rel') || ''))); continue; }
+      if (tag !== 'a' && tag !== 'area' && tag !== 'form') {
+        ['src', 'poster', 'data'].forEach(function (a) { if (n.hasAttribute(a)) { var q = resolve(p, n.getAttribute(a)); if (q) n.setAttribute(a, urlFor(q)); } });
+        if (n.hasAttribute('srcset')) n.setAttribute('srcset', srcset(n.getAttribute('srcset'), p));
+        if (tag === 'image' || tag === 'feimage') ['href', 'xlink:href'].forEach(function (a) { if (n.hasAttribute(a)) { var q = resolve(p, n.getAttribute(a)); if (q) n.setAttribute(a, urlFor(q)); } });
+      }
+      if (n.hasAttribute('style') && /url\(/i.test(n.getAttribute('style'))) n.setAttribute('style', fixCSS(n.getAttribute('style'), p));
+    }
+    if (withShim) {
+      var map = {};
+      Object.keys(files).forEach(function (k) { map[k] = ext(k) === 'css' ? cssURL(k) : blobOf(k); });
+      var s = doc.createElement(S);
+      s.textContent = '(' + shim.toString() + ')(' + JSON.stringify({ map: map, page: p, store: STORE }).replace(/</g, '\\u003c') + ');';
+      doc.head.insertBefore(s, doc.head.firstChild);
+    }
+    return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+  }
+  /* runs first in the app's page: storage that works here, relative URLs made in code, links to the app's other pages */
+  function shim(cfg) {
+    var map = cfg.map, page = cfg.page, post = function (m) { try { parent.postMessage(m, '*'); } catch (e) { } };
+    function res(u) {
+      u = String(u == null ? '' : u).trim();
+      if (!u || /^([a-z][a-z0-9+.-]*:|\/\/|#)/i.test(u)) return null;
+      var c = u.split('#')[0].split('?')[0];
+      try { c = decodeURIComponent(c); } catch (e) { }
+      var i = page.lastIndexOf('/'), parts = (c.charAt(0) === '/' ? c.slice(1) : (i < 0 ? '' : page.slice(0, i + 1)) + c).split('/'), out = [];
+      for (var j = 0; j < parts.length; j++) { if (parts[j] === '..') out.pop(); else if (parts[j] !== '.' && parts[j] !== '') out.push(parts[j]); }
+      var p = out.join('/');
+      return map[p] ? p : map[p + (p ? '/' : '') + 'index.html'] ? p + (p ? '/' : '') + 'index.html' : map[p + '.html'] ? p + '.html' : null;
+    }
+    function url(u) { var p = res(u); return p ? map[p] : null; }
+    function store(persist) {
+      var d = {};
+      if (persist) Object.keys(cfg.store || {}).forEach(function (k) { d[k] = String(cfg.store[k]); });
+      var has = function (k) { return Object.prototype.hasOwnProperty.call(d, k); };
+      var api = {
+        getItem: function (k) { k = String(k); return has(k) ? d[k] : null; },
+        setItem: function (k, v) { k = String(k); v = String(v); d[k] = v; if (persist) post({ nxa: 'store', k: k, v: v }); },
+        removeItem: function (k) { k = String(k); delete d[k]; if (persist) post({ nxa: 'store', k: k, v: null }); },
+        clear: function () { Object.keys(d).forEach(function (k) { delete d[k]; }); if (persist) post({ nxa: 'store', clear: true }); },
+        key: function (i) { return Object.keys(d)[i] || null; }
+      };
+      return new Proxy(api, {
+        get: function (t, k) { if (k === 'length') return Object.keys(d).length; if (k in t) return t[k]; return typeof k === 'string' ? (has(k) ? d[k] : undefined) : undefined; },
+        set: function (t, k, v) { t.setItem(k, v); return true; },
+        deleteProperty: function (t, k) { t.removeItem(k); return true; },
+        has: function (t, k) { return k in t || has(String(k)); },
+        ownKeys: function () { return Object.keys(d); },
+        getOwnPropertyDescriptor: function (t, k) { return has(String(k)) ? { value: d[k], enumerable: true, configurable: true, writable: true } : undefined; }
+      });
+    }
+    try { Object.defineProperty(window, 'localStorage', { value: store(true), configurable: true }); } catch (e) { }
+    try { Object.defineProperty(window, 'sessionStorage', { value: store(false), configurable: true }); } catch (e) { }
+    var jar = {};
+    try {
+      Object.defineProperty(document, 'cookie', { configurable: true,
+        get: function () { return Object.keys(jar).map(function (k) { return k + '=' + jar[k]; }).join('; '); },
+        set: function (v) { var kv = String(v).split(';')[0], i = kv.indexOf('='); if (i > 0) jar[kv.slice(0, i).trim()] = kv.slice(i + 1).trim(); } });
+    } catch (e) { }
+    var of = window.fetch;
+    if (of) window.fetch = function (i, o) { if (typeof i === 'string' || (window.URL && i instanceof URL)) { var r = url(String(i)); if (r) i = r; } return of.call(this, i, o); };
+    var xo = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (m, u) { var a = Array.prototype.slice.call(arguments), r = url(u); if (r) a[1] = r; return xo.apply(this, a); };
+    function patch(C, prop) {
+      var P = window[C] && window[C].prototype, d = P && Object.getOwnPropertyDescriptor(P, prop);
+      if (!d || !d.set) return;
+      Object.defineProperty(P, prop, { configurable: true, enumerable: d.enumerable, get: d.get, set: function (v) { var r = url(v); d.set.call(this, r || v); } });
+    }
+    [['HTMLImageElement', 'src'], ['HTMLScriptElement', 'src'], ['HTMLMediaElement', 'src'], ['HTMLSourceElement', 'src'], ['HTMLTrackElement', 'src'],
+     ['HTMLIFrameElement', 'src'], ['HTMLEmbedElement', 'src'], ['HTMLLinkElement', 'href'], ['HTMLVideoElement', 'poster'], ['HTMLInputElement', 'src'], ['HTMLObjectElement', 'data']]
+      .forEach(function (x) { patch(x[0], x[1]); });
+    var sa = Element.prototype.setAttribute;
+    Element.prototype.setAttribute = function (n, v) {
+      var ln = String(n).toLowerCase();
+      if (ln === 'src' || ln === 'poster' || (ln === 'href' && /^(LINK|image)$/i.test(this.tagName))) { var r = url(v); if (r) v = r; }
+      return sa.call(this, n, v);
+    };
+    var OA = window.Audio;
+    if (OA) { var A2 = function (s) { var a = new OA(); if (s !== undefined) a.src = s; return a; }; A2.prototype = OA.prototype; window.Audio = A2; }
+    var OW = window.Worker;
+    if (OW) { var W2 = function (u, o) { return new OW(url(u) || u, o); }; W2.prototype = OW.prototype; window.Worker = W2; }
+    /* the app's own pages open here; other sites open in a new tab */
+    document.addEventListener('click', function (e) {
+      var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a || e.defaultPrevented) return;
+      var h = a.getAttribute('href') || '';
+      if (h.charAt(0) === '#' || /^javascript:/i.test(h)) return;
+      var p = res(h);
+      if (p && /\.html?$/i.test(p)) { e.preventDefault(); post({ nxa: 'nav', path: p }); }
+      else if (p) { e.preventDefault(); window.open(map[p], '_blank'); }
+      else if (/^(https?:|mailto:|tel:)/i.test(h) && a.target !== '_blank') { e.preventDefault(); window.open(h, '_blank', 'noopener'); }
+    }, true);
+    document.addEventListener('DOMContentLoaded', function () { post({ nxa: 'title', title: String(document.title || '').slice(0, 80) }); });
+    window.addEventListener('error', function (e) { post({ nxa: 'log', m: String(e.message || 'error').slice(0, 300) }); });
+  }
+  window.addEventListener('message', function (e) {
+    if (e.source !== parent) return;
+    var m = e.data;
+    if (!m || m.nxa !== 'run') return;
+    try {
+      files = m.files || {}; STORE = m.store || {};
+      if (!files[m.page]) throw new Error('الصفحة غير موجودة: ' + m.page);
+      var html = page(m.page, true);
+      document.open(); document.write(html); document.close();
+    } catch (er) { parent.postMessage({ nxa: 'err', msg: String((er && er.message) || er).slice(0, 300) }, '*'); }
+  });
+  parent.postMessage({ nxa: 'hello' }, '*');
+}
+const S_TAG = 'scr' + 'ipt';
+const BOOT = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><' + S_TAG + '>(' + appLoader.toString() + ')();</' + S_TAG + '></body></html>';
+
+/* ================================================================ THE PAGE SIDE */
+class AppFrame {
+  constructor(host, app, files, hooks = {}) { this.host = host; this.app = app; this.files = files; this.hooks = hooks; this.frame = null; this.onMsg = null; }
+  storeKey() { return 'happ.' + this.app.appId + '.' + ((Backend.user && Backend.user.uid) || 'guest'); }
+  start(page) {
+    this.stop();
+    this.page = page || this.app.entry;
+    const f = document.createElement('iframe');
+    /* NO allow-same-origin: an opaque origin, walled off from this site. No allow-top-navigation: it cannot take this page away. */
+    f.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-pointer-lock allow-downloads');
+    f.setAttribute('allow', 'fullscreen; autoplay; gamepad; clipboard-write; accelerometer; gyroscope');
+    f.setAttribute('referrerpolicy', 'no-referrer');
+    f.setAttribute('title', this.app.name || 'app');
+    f.className = 'ha-iframe';
+    this.onMsg = e => {
+      if (!this.frame || e.source !== this.frame.contentWindow) return;
+      const m = e.data;
+      if (!m || typeof m !== 'object' || typeof m.nxa !== 'string') return;
+      if (m.nxa === 'hello') this.frame.contentWindow.postMessage({ nxa: 'run', files: this.files, page: this.page, store: LS.get(this.storeKey(), {}) }, '*');
+      else if (m.nxa === 'nav' && typeof m.path === 'string' && this.files[m.path]) { this.start(m.path); this.hooks.nav && this.hooks.nav(m.path); }
+      else if (m.nxa === 'store') this.keep(m);
+      else if (m.nxa === 'title' && this.hooks.title) this.hooks.title(String(m.title || ''));
+      else if (m.nxa === 'err' && this.hooks.error) this.hooks.error(String(m.msg || ''));
+      else if (m.nxa === 'log') console.warn('[app ' + this.app.appId + ']', String(m.m || '').slice(0, 300));
+    };
+    window.addEventListener('message', this.onMsg);
+    f.srcdoc = BOOT;
+    this.frame = f;
+    this.host.appendChild(f);
+  }
+  /* the app's localStorage: this viewer's browser only, per app, at most 512 KB */
+  keep(m) {
+    const k = this.storeKey(), cur = LS.get(k, {});
+    if (m.clear) { LS.set(k, {}); return; }
+    if (typeof m.k !== 'string') return;
+    if (m.v === null) delete cur[m.k]; else cur[m.k] = String(m.v);
+    if (JSON.stringify(cur).length > LIMIT.store) { if (!this._warned) { this._warned = true; Toast.show('مساحة حفظ هذا التطبيق امتلأت (512 KB)'); } return; }
+    LS.set(k, cur);
+  }
+  stop() {
+    if (this.onMsg) window.removeEventListener('message', this.onMsg);
+    this.onMsg = null;
+    if (this.frame) { this.frame.remove(); this.frame = null; }
+  }
+}
+
+/* ---------------- reading what was picked ---------------- */
+function normalize(entries) {
+  let list = entries.map(f => ({ path: String(f.path || '').replace(/\\/g, '/').replace(/^(\.\/|\/)+/, ''), bytes: f.bytes }))
+    .filter(f => f.path && !f.path.endsWith('/') && !/(^|\/)(__MACOSX|\.DS_Store|Thumbs\.db|\.git)(\/|$)/.test(f.path));
+  /* a ZIP of a folder: the folder's own name is not part of the site */
+  const tops = new Set(list.map(f => f.path.includes('/') ? f.path.split('/')[0] : ''));
+  if (tops.size === 1 && !tops.has('')) { const t = [...tops][0].length + 1; list.forEach(f => { f.path = f.path.slice(t); }); }
+  const seen = new Set();
+  return list.filter(f => !seen.has(f.path) && seen.add(f.path));
+}
+function entryOf(paths) {
+  for (const p of ['index.html', 'index.htm']) if (paths.includes(p)) return p;
+  return paths.filter(p => /\.html?$/i.test(p)).sort((a, b) => a.split('/').length - b.split('/').length || a.length - b.length)[0] || null;
+}
+async function readPicked(picked) {
+  const { unzipSync } = await import('fflate');
+  const entries = [];
+  let total = 0;
+  const tooBig = () => Object.assign(new Error('حجم التطبيق أكبر من ' + fmtBytes(LIMIT.bytes)), { code: 'too-big' });
+  for (const f of picked) {
+    if (/\.zip$/i.test(f.name) || /zip/.test(f.type || '')) {
+      let z;
+      try {
+        z = unzipSync(new Uint8Array(await f.arrayBuffer()), { filter: x => {
+          if (x.name.endsWith('/')) return false;
+          total += x.originalSize;
+          if (x.originalSize > LIMIT.file || total > LIMIT.bytes) throw tooBig();
+          return true;
+        } });
+      } catch (e) { if (e.code === 'too-big') throw e; throw new Error('تعذّر فتح ملف ZIP: ' + String(e.message || e).slice(0, 80)); }
+      Object.keys(z).forEach(p => entries.push({ path: p, bytes: own(z[p]) }));
+    } else {
+      total += f.size;
+      if (f.size > LIMIT.file || total > LIMIT.bytes) throw tooBig();
+      entries.push({ path: f.webkitRelativePath || f.name, bytes: new Uint8Array(await f.arrayBuffer()) });
+    }
+  }
+  const files = normalize(entries);
+  if (files.length > LIMIT.files) throw new Error('ملفات كثيرة (' + files.length + ') — الحد ' + LIMIT.files);
+  const entry = entryOf(files.map(f => f.path));
+  if (!entry) throw new Error('لا يوجد ملف HTML — ارفع ملف ‎.html‎ (مثل index.html) أو ZIP لموقع فيه index.html');
+  const html = new TextDecoder().decode(files.find(f => f.path === entry).bytes);
+  const title = ((/<title[^>]*>([^<]{1,120})<\/title>/i.exec(html) || [])[1] || '').trim();
+  /* an icon the site already has */
+  let iconPath = null;
+  const rel = /<link[^>]+rel=["'][^"']*(apple-touch-icon|icon)[^"']*["'][^>]*>/ig;
+  let m;
+  while (!iconPath && (m = rel.exec(html))) {
+    const h = (/href=["']([^"']+)["']/i.exec(m[0]) || [])[1];
+    if (h && !/^[a-z]+:|^\/\//i.test(h)) { const p = h.replace(/^\.?\//, '').split('?')[0]; if (IMG.test(p) && files.some(f => f.path === p)) iconPath = p; }
+  }
+  if (!iconPath) iconPath = (files.find(f => /^(icon|favicon|logo|apple-touch-icon)[\w-]*\.(png|jpe?g|webp|svg)$/i.test(f.path)) || {}).path || null;
+  return { files, entry, title, iconPath, bytes: files.reduce((n, f) => n + f.bytes.length, 0) };
+}
+/* a small square icon (256 px) from an image file */
+async function makeIcon(bytes, name) {
+  const type = /\.svg$/i.test(name) ? 'image/svg+xml' : /\.png$/i.test(name) ? 'image/png' : /\.webp$/i.test(name) ? 'image/webp' : 'image/jpeg';
+  const u = URL.createObjectURL(new Blob([bytes], { type }));
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; });
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const g = c.getContext('2d'), s = Math.min(img.naturalWidth || 256, img.naturalHeight || 256);
+    g.drawImage(img, ((img.naturalWidth || 256) - s) / 2, ((img.naturalHeight || 256) - s) / 2, s, s, 0, 0, 256, 256);
+    return await new Promise(r => c.toBlob(r, 'image/webp', 0.9));
+  } catch { return null; } finally { URL.revokeObjectURL(u); }
+}
+/* a file's bytes on their own buffer: a view into the whole ZIP would be copied whole into the frame */
+const own = u => (u.byteOffset || u.byteLength !== u.buffer.byteLength ? u.slice() : u);
+const pick = (accept, { multiple = true, folder = false } = {}) => new Promise(res => {
+  const inp = el('input', { type: 'file', accept });
+  inp.multiple = multiple;
+  if (folder) inp.webkitdirectory = true;
+  inp.onchange = () => res(Array.from(inp.files || []));
+  inp.click();
+});
+
+/* ---------------- the data ---------------- */
+function appLink(id) {
+  if (/\.netlify\.app$/i.test(location.hostname) || window.NEXUS_PRETTY_LINKS)
+    return location.origin + location.pathname.replace(/[^/]*$/, '') + 'app/' + encodeURIComponent(id);
+  return location.origin + location.pathname + '#app/' + encodeURIComponent(id);
+}
+const cache = { key: null, files: null };
+const HtmlApps = {
+  LIMIT,
+  link: appLink,
+  ready(what) {
+    if (!Backend.isOnline()) { Toast.err((what || 'التطبيقات') + ' تحتاج اتصال Firebase'); return false; }
+    if (!Backend.hasAccount()) {
+      NX.promptSignIn('تطبيقاتك ومواقعك تُحفظ في حسابك — سجّل الدخول بحساب Google أو البريد حتى تبقى لك على كل أجهزتك.');
+      return false;
+    }
+    return true;
+  },
+  async get(id) {
+    try { return await Backend.getDoc('apps', id); }
+    catch (e) { if (e && e.code === 'permission-denied') return null; throw e; }
+  },
+  async mine() {
+    const { F, db } = Backend.fb;
+    const s = await F.getDocs(F.query(F.collection(db, 'apps'), F.where('ownerId', '==', Backend.user.uid)));
+    return s.docs.map(d => d.data()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  },
+  async publicList(n = 24) {
+    const { F, db } = Backend.fb;
+    let s;
+    try { s = await F.getDocs(F.query(F.collection(db, 'apps'), F.where('visibility', '==', 'public'), F.orderBy('updatedAt', 'desc'), F.limit(n))); }
+    catch (e) {
+      /* the index is not deployed yet: the same list, sorted here */
+      if (!(e && e.code === 'failed-precondition')) throw e;
+      s = await F.getDocs(F.query(F.collection(db, 'apps'), F.where('visibility', '==', 'public'), F.limit(n)));
+    }
+    return s.docs.map(d => d.data()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  },
+  async files(app) {
+    const key = app.appId + ':' + (app.bundle && app.bundle.path);
+    if (cache.key === key) return cache.files;
+    const u = await Backend.fileURL(app.bundle.path, app.bundle.url);
+    if (!u) throw new Error('ملفات التطبيق غير موجودة');
+    const r = await fetch(u);
+    if (!r.ok) throw new Error('تعذّر تنزيل ملفات التطبيق (HTTP ' + r.status + ')');
+    const { unzipSync } = await import('fflate');
+    let total = 0;
+    const z = unzipSync(new Uint8Array(await r.arrayBuffer()), { filter: x => { total += x.originalSize; if (total > LIMIT.bytes * 1.2) throw new Error('حجم غير متوقّع'); return !x.name.endsWith('/'); } });
+    Object.keys(z).forEach(p => { z[p] = own(z[p]); });
+    cache.key = key; cache.files = z;
+    return z;
+  },
+  /* pack → upload → record. meta: { name, description, visibility } */
+  async save(read, meta, { existing = null, onProgress } = {}) {
+    const { zipSync } = await import('fflate');
+    const me = Backend.user;
+    const map = {};
+    read.files.forEach(f => { map[f.path] = [f.bytes, { level: STORED.test(f.path) ? 0 : 6 }]; });
+    const zip = zipSync(map);
+    const appId = existing ? existing.appId : uid('app');
+    const dir = 'apps/' + me.uid + '/' + appId + '/';
+    const stamp = Date.now().toString(36);
+    const up = await Backend.upload(dir + 'bundle-' + stamp + '.zip', new File([zip], 'bundle.zip', { type: 'application/zip' }), f => onProgress && onProgress(f * 0.92));
+    let icon = existing ? existing.icon || null : null;
+    if (read.iconPath) {
+      const b = await makeIcon(read.files.find(f => f.path === read.iconPath).bytes, read.iconPath);
+      if (b) { try { const r = await Backend.upload(dir + 'icon-' + stamp + '.webp', new File([b], 'icon.webp', { type: 'image/webp' })); icon = { path: r.path, url: r.url || null }; } catch (e) { console.warn('[apps] icon', e); } }
+    }
+    const now = Date.now();
+    const rec = {
+      appId, ownerId: me.uid, creatorName: me.name || 'creator',
+      name: String(meta.name || read.title || 'تطبيقي').trim().slice(0, LIMIT.name) || 'تطبيقي',
+      description: String(meta.description || '').slice(0, LIMIT.desc),
+      visibility: ['public', 'unlisted', 'private'].includes(meta.visibility) ? meta.visibility : 'public',
+      entry: read.entry, files: read.files.length, bytes: read.bytes,
+      bundle: { path: up.path, url: up.url || null }, icon,
+      opens: existing ? existing.opens || 0 : 0, createdAt: existing ? existing.createdAt : now, updatedAt: now, v: 1
+    };
+    const { F, db } = Backend.fb;
+    await Backend.serverWrite(F.setDoc(F.doc(db, 'apps', appId), rec));
+    if (existing && existing.bundle && existing.bundle.path !== up.path) Backend.removeFile(existing.bundle.path).catch(() => {});
+    if (existing && existing.icon && icon && existing.icon.path !== icon.path) Backend.removeFile(existing.icon.path).catch(() => {});
+    onProgress && onProgress(1);
+    return rec;
+  },
+  async update(app, patch) {
+    const { F, db } = Backend.fb;
+    const p = { updatedAt: Date.now() };
+    if (patch.name != null) p.name = String(patch.name).trim().slice(0, LIMIT.name) || app.name;
+    if (patch.description != null) p.description = String(patch.description).slice(0, LIMIT.desc);
+    if (patch.visibility) p.visibility = patch.visibility;
+    if (patch.icon !== undefined) p.icon = patch.icon;
+    await Backend.serverWrite(F.updateDoc(F.doc(db, 'apps', app.appId), p));
+    return Object.assign(app, p);
+  },
+  async remove(app) {
+    const { F, db } = Backend.fb;
+    await Backend.serverWrite(F.deleteDoc(F.doc(db, 'apps', app.appId)));
+    if (app.bundle) Backend.removeFile(app.bundle.path).catch(() => {});
+    if (app.icon) Backend.removeFile(app.icon.path).catch(() => {});
+  },
+  bump(app) {
+    if (!Backend.isOnline() || !Backend.user || app.ownerId === Backend.user.uid) return;
+    const k = 'happ.opened.' + app.appId;
+    if (sessionStorage.getItem(k)) return;
+    try { sessionStorage.setItem(k, '1'); } catch { }
+    const { F, db } = Backend.fb;
+    F.updateDoc(F.doc(db, 'apps', app.appId), { opens: F.increment(1) }).catch(() => {});
+  }
+};
+
+/* ---------------- the interface ---------------- */
+const VIS = { public: ['🌍 عام', 'يظهر في الصفحة الرئيسية ولكل من لديه الرابط'], unlisted: ['🔗 برابط فقط', 'لا يظهر في القوائم — يفتحه من لديه الرابط'], private: ['🔒 خاص', 'أنت فقط'] };
+function iconEl(app, cls = 'ha-icon') {
+  const box = el('div', { class: cls });
+  if (app.icon) { const im = el('img', { alt: '', loading: 'lazy' }); Backend.fileURL(app.icon.path, app.icon.url).then(u => { if (u) im.src = u; }); box.appendChild(im); }
+  else box.appendChild(el('span', { text: '</>' }));
+  return box;
+}
+async function share(app) {
+  const url = appLink(app.appId);
+  try { if (navigator.share) { await navigator.share({ title: app.name, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(url); Toast.ok('نُسخ الرابط'); } catch { Modal.open({ title: 'رابط التطبيق', body: el('input', { class: 'input', value: url, readonly: true, style: { direction: 'ltr' } }), actions: [{ label: 'إغلاق', cls: 'primary' }] }); }
+}
+
+/* run an app, full screen */
+async function openViewer(app, opts = {}) {
+  const root = el('div', { class: 'ha-view' });
+  const title = el('b', { text: app.name });
+  const host = el('div', { class: 'ha-frame' });
+  const status = el('div', { class: 'ha-status', text: 'تحميل ملفات التطبيق…' });
+  host.appendChild(status);
+  const mine = Backend.user && app.ownerId === Backend.user.uid;
+  let frame = null;
+  const bar = el('div', { class: 'ha-bar' }, [
+    el('button', { class: 'sc-ib', 'aria-label': 'close', text: '✕', onclick: () => sheet.close() }),
+    title,
+    el('span', { class: 'ha-safe', title: 'يعمل في صندوق معزول عن حسابك وعن الموقع', text: '🔒 معزول' }),
+    el('button', { class: 'sc-ib', 'aria-label': 'reload', text: '↻', onclick: () => frame && frame.start(app.entry) }),
+    el('button', { class: 'sc-ib', 'aria-label': 'fullscreen', text: '⛶', onclick: () => { const f = host.querySelector('iframe'); (f && f.requestFullscreen ? f.requestFullscreen() : Promise.reject()).catch(() => {}); } })
+  ]);
+  root.append(bar);
+  if (!mine) root.appendChild(el('div', { class: 'ha-note', text: 'تطبيق من @' + (app.creatorName || 'creator') + ' — يعمل معزولًا عن حسابك. لا تكتب فيه كلمة مرور NEXUS أو Google.' }));
+  root.appendChild(host);
+  const sheet = Sheet.open({ title: app.name, body: root, full: true, id: 'htmlapp-run', onClose: () => { if (frame) frame.stop(); if (opts.back && !sheet._all) setTimeout(opts.back, 60); } });
+  sheet.el.classList.add('ha-sheet');
+  try {
+    const files = opts.files || await HtmlApps.files(app);
+    if (!files[app.entry]) throw new Error('الصفحة الرئيسية ' + app.entry + ' غير موجودة في الملفات');
+    status.remove();
+    frame = new AppFrame(host, app, files, {
+      title: t => { if (t) title.textContent = t; },
+      error: m => { host.appendChild(el('div', { class: 'ha-status err', text: '✕ ' + m })); }
+    });
+    frame.start(app.entry);
+    if (!opts.files) HtmlApps.bump(app);
+  } catch (e) {
+    status.textContent = '✕ ' + (e.message || NX.describeFirebaseError(e));
+    status.classList.add('err');
+  }
+  return sheet;
+}
+
+/* the app's page: what it is, who made it, open / share / report — and, for the owner, edit */
+async function openAppPage(app) {
+  if (!app) return;
+  const body = el('div', { class: 'ha-page' });
+  const mine = Backend.user && app.ownerId === Backend.user.uid;
+  const draw = () => {
+    body.textContent = '';
+    const head = el('div', { class: 'ha-head' }, [iconEl(app, 'ha-icon big'), el('div', { class: 'ha-hinfo' }, [
+      el('h2', { text: app.name }),
+      el('button', { class: 'ha-by', text: '@' + (app.creatorName || 'creator'), onclick: () => { sheet.close(); NX.Community.openCreator(app.ownerId); } }),
+      el('div', { class: 'tiny', text: ['▶ ' + fmtNum(app.opens || 0) + ' فتح', app.files + ' ملف', fmtBytes(app.bytes || 0), 'حُدّث ' + timeAgo(app.updatedAt)].join(' · ') })])]);
+    body.appendChild(head);
+    body.appendChild(btn('▶ فتح التطبيق', { cls: 'primary block ha-open', onclick: () => { sheet.close(); openViewer(app, { back: () => openAppPage(app) }); } }));
+    if (app.description) body.appendChild(el('div', { class: 'ha-desc', text: app.description }));
+    else if (mine) body.appendChild(el('button', { class: 'sc-add', style: { minHeight: '84px', marginTop: '12px' }, onclick: () => editInfo(app, draw) }, [el('b', { text: '＋ اكتب وصفًا لتطبيقك' }), el('span', { text: 'ما هو؟ كيف يُستعمل؟' })]));
+    const acts = el('div', { class: 'ha-acts', style: { marginTop: '14px' } });
+    if (app.visibility !== 'private') acts.appendChild(btn('مشاركة الرابط', { cls: 'sm', icon: 'share', onclick: () => share(app) }));
+    if (!mine) acts.appendChild(btn('إبلاغ', { cls: 'sm ghost', icon: 'shield', onclick: () => NX.Community.openReport({ type: 'app', id: app.appId, ownerId: app.ownerId }) }));
+    body.appendChild(acts);
+    if (mine) {
+      const ow = el('div', { class: 'card', style: { marginTop: '14px' } }, [el('b', { text: 'تطبيقك · ' + VIS[app.visibility][0] }), el('p', { class: 'tiny', style: { margin: '4px 0 10px' }, text: VIS[app.visibility][1] + ' · الصفحة الرئيسية: ' + app.entry })]);
+      const r = el('div', { class: 'ha-acts' });
+      r.append(
+        btn('✎ الاسم والوصف والظهور', { cls: 'sm primary', onclick: () => editInfo(app, draw) }),
+        btn('⬆ تحديث الملفات', { cls: 'sm', onclick: () => { sheet.close(); uploadFlow(app); } }),
+        btn('صورة التطبيق', { cls: 'sm ghost', icon: 'image', onclick: async () => {
+          const [f] = await pick('image/png,image/jpeg,image/webp,image/svg+xml', { multiple: false });
+          if (!f) return;
+          try {
+            const b = await makeIcon(new Uint8Array(await f.arrayBuffer()), f.name);
+            if (!b) throw new Error('تعذّرت قراءة الصورة');
+            const u = await Backend.upload('apps/' + Backend.user.uid + '/' + app.appId + '/icon-' + Date.now().toString(36) + '.webp', new File([b], 'icon.webp', { type: 'image/webp' }));
+            const old = app.icon;
+            await HtmlApps.update(app, { icon: { path: u.path, url: u.url || null } });
+            if (old) Backend.removeFile(old.path).catch(() => {});
+            Toast.ok('تغيّرت صورة التطبيق'); draw();
+          } catch (e) { Toast.err('تعذّر: ' + (e.message || NX.describeFirebaseError(e))); }
+        } }),
+        btn('حذف', { cls: 'sm danger', icon: 'trash', onclick: async () => {
+          if (!(await Modal.confirm('حذف «' + app.name + '»؟', 'يُحذف التطبيق وملفاته، ويتوقّف رابطه.', 'حذف'))) return;
+          try { await HtmlApps.remove(app); Toast.ok('حُذف'); sheet.close(); window.dispatchEvent(new CustomEvent('nx:platformRefresh')); }
+          catch (e) { Toast.err('تعذّر الحذف: ' + NX.describeFirebaseError(e)); }
+        } }));
+      ow.appendChild(r);
+      body.appendChild(ow);
+    }
+  };
+  const sheet = Sheet.open({ title: app.name, body, full: true, id: 'htmlapp' });
+  draw();
+  return sheet;
+}
+
+function editInfo(app, after) {
+  const body = el('div');
+  const name = el('input', { class: 'input', value: app.name, maxlength: String(LIMIT.name) });
+  const desc = el('textarea', { class: 'textarea', value: app.description || '', placeholder: 'ما هو التطبيق؟ كيف يُستعمل؟', style: { minHeight: '110px' } });
+  const vis = el('select', { class: 'select' }, Object.keys(VIS).map(v => el('option', { value: v, text: VIS[v][0] + ' — ' + VIS[v][1] })));
+  vis.value = app.visibility;
+  body.append(NX.field('الاسم', name), NX.field('الوصف', desc), NX.field('من يراه', vis));
+  const sh = Sheet.open({ title: 'معلومات التطبيق', body, id: 'htmlapp-info', foot: [btn('حفظ', { cls: 'primary', icon: 'save', onclick: async e => {
+    e.currentTarget.disabled = true;
+    try { await HtmlApps.update(app, { name: name.value, description: desc.value, visibility: vis.value }); Toast.ok('حُفظ'); sh.close(); after && after(); }
+    catch (err) { Toast.err('تعذّر الحفظ: ' + NX.describeFirebaseError(err)); e.currentTarget.disabled = false; }
+  } })] });
+}
+
+/* pick → check → describe → upload (a new app, or new files for an existing one) */
+async function uploadFlow(existing = null, how = 'files') {
+  if (!HtmlApps.ready('رفع التطبيقات')) return;
+  const picked = how === 'folder' ? await pick('', { folder: true }) : await pick('.html,.htm,.zip,.css,.js,.mjs,.json,.png,.jpg,.jpeg,.gif,.webp,.svg,.ico,.mp3,.ogg,.wav,.m4a,.mp4,.webm,.woff,.woff2,.ttf,.otf,.txt,.xml,.csv,.wasm,.glb,.gltf,text/html,application/zip');
+  if (!picked.length) return;
+  let read;
+  try { read = await readPicked(picked); }
+  catch (e) { Modal.open({ title: 'تعذّر قبول الملفات', body: e.message || String(e), actions: [{ label: 'حسنًا', cls: 'primary' }] }); return; }
+  const body = el('div');
+  const sum = el('div', { class: 'card', style: { fontSize: '13px', lineHeight: '1.8', marginBottom: '12px' } });
+  sum.append(el('b', { text: '✓ ' + read.files.length + ' ملف · ' + fmtBytes(read.bytes) }), el('div', { class: 'tiny', text: 'الصفحة الرئيسية: ' + read.entry + (read.iconPath ? ' · الأيقونة: ' + read.iconPath : '') }));
+  const kinds = {};
+  read.files.forEach(f => { const x = (/\.([a-z0-9]+)$/i.exec(f.path) || [, '—'])[1].toLowerCase(); kinds[x] = (kinds[x] || 0) + 1; });
+  sum.appendChild(el('div', { class: 'tiny', text: Object.keys(kinds).map(k => k + ' ×' + kinds[k]).join(' · ') }));
+  body.appendChild(sum);
+  const name = el('input', { class: 'input', value: existing ? existing.name : (read.title || picked[0].name.replace(/\.(zip|html?)$/i, '')).slice(0, LIMIT.name), maxlength: String(LIMIT.name) });
+  const desc = el('textarea', { class: 'textarea', value: existing ? existing.description || '' : '', placeholder: 'ما هو التطبيق أو الموقع؟ كيف يُستعمل؟', style: { minHeight: '90px' } });
+  const vis = el('select', { class: 'select' }, Object.keys(VIS).map(v => el('option', { value: v, text: VIS[v][0] + ' — ' + VIS[v][1] })));
+  vis.value = existing ? existing.visibility : 'public';
+  if (!existing) body.append(NX.field('الاسم', name), NX.field('الوصف', desc), NX.field('من يراه', vis));
+  else body.appendChild(el('p', { class: 'tiny', text: 'تُستبدل ملفات «' + existing.name + '» بهذه، ويبقى الاسم والرابط كما هما.' }));
+  body.appendChild(el('p', { class: 'tiny', style: { marginTop: '8px' }, text: '🔒 كل تطبيق يعمل في صندوق معزول: لا يصل إلى حسابك ولا إلى الموقع، ولا يستطيع تغيير الصفحة.' }));
+  const prog = el('div', { class: 'gm-prog hide' }, [el('i')]);
+  body.appendChild(prog);
+  let busy = false;
+  const sheet = Sheet.open({ title: existing ? 'تحديث ملفات التطبيق' : 'رفع تطبيق أو موقع HTML', body, id: 'htmlapp-up', foot: [
+    btn('تجربة قبل الرفع', { cls: 'ghost', icon: 'play', onclick: () => {
+      const files = {}; read.files.forEach(f => { files[f.path] = f.bytes; });
+      openViewer({ appId: 'preview', name: name.value || 'معاينة', entry: read.entry, ownerId: Backend.user.uid, creatorName: Backend.user.name }, { files });
+    } }),
+    btn(existing ? 'رفع التحديث' : 'رفع ونشر', { cls: 'primary', icon: 'upload', onclick: async e => {
+      if (busy) return;
+      busy = true; e.currentTarget.disabled = true; prog.classList.remove('hide');
+      try {
+        const rec = await HtmlApps.save(read, { name: name.value, description: desc.value, visibility: vis.value }, { existing, onProgress: f => { prog.firstChild.style.width = Math.round(f * 100) + '%'; } });
+        sheet.close();
+        Toast.ok(existing ? 'حُدّث التطبيق' : 'رُفع التطبيق ✓');
+        window.dispatchEvent(new CustomEvent('nx:platformRefresh'));
+        openAppPage(rec);
+      } catch (err) {
+        busy = false; e.currentTarget.disabled = false; prog.classList.add('hide');
+        if (!NX.handleAuthError(err)) Toast.err('تعذّر الرفع: ' + (err.code === 'storage-not-enabled' ? 'Firebase Storage غير مفعّل' : NX.describeFirebaseError(err)));
+      }
+    } })] });
+}
+
+/* my apps */
+async function openManager() {
+  if (!HtmlApps.ready('تطبيقاتك')) return;
+  const body = el('div');
+  const intro = el('div', { class: 'card', style: { fontSize: '13px', lineHeight: '1.75', marginBottom: '12px' } }, [
+    el('b', { text: 'ارفع تطبيقاتك ومواقعك الخاصة' }),
+    el('div', { class: 'tiny', text: 'ملف ‎.html‎ واحد، أو عدة ملفات معًا (html · css · js · صور · أصوات · خطوط)، أو ملف ZIP لموقع كامل فيه index.html. يعمل هنا مباشرة، وتشاركه برابط.' })]);
+  const r = el('div', { class: 'row', style: { flexWrap: 'wrap', gap: '8px', marginTop: '10px' } });
+  r.appendChild(btn('⬆ رفع ملفات أو ZIP', { cls: 'primary sm', onclick: () => { sheet.close(); uploadFlow(null, 'files'); } }));
+  if ('webkitdirectory' in document.createElement('input') && !/Android|iPhone|iPad/i.test(navigator.userAgent)) r.appendChild(btn('📁 رفع مجلد', { cls: 'sm', onclick: () => { sheet.close(); uploadFlow(null, 'folder'); } }));
+  intro.appendChild(r);
+  body.appendChild(intro);
+  const list = el('div');
+  list.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' }), el('span', { text: 'جارٍ التحميل…' })]));
+  body.appendChild(list);
+  const sheet = Sheet.open({ title: 'تطبيقاتي ومواقعي · HTML', body, full: true, id: 'htmlapps' });
+  try {
+    const apps = await HtmlApps.mine();
+    list.textContent = '';
+    if (!apps.length) list.appendChild(el('p', { class: 'tiny', style: { textAlign: 'center', padding: '16px' }, text: 'لم ترفع تطبيقًا بعد.' }));
+    apps.forEach(a => list.appendChild(row(a, () => { sheet.close(); openAppPage(a); })));
+  } catch (e) { list.textContent = ''; list.appendChild(el('p', { class: 'tiny', text: 'تعذّر التحميل: ' + NX.describeFirebaseError(e) })); }
+  return sheet;
+}
+function row(a, onclick) {
+  return el('div', { class: 'proj-row ha-row', dataset: { app: a.appId }, onclick }, [iconEl(a, 'proj-thumb ha-icon'), el('div', { class: 'proj-info' }, [
+    el('b', { text: a.name }),
+    el('span', { class: 'tiny', text: VIS[a.visibility][0] + ' · ' + a.files + ' ملف · ' + fmtBytes(a.bytes || 0) + ' · ▶ ' + fmtNum(a.opens || 0) + ' · ' + timeAgo(a.updatedAt) })])]);
+}
+function card(a) {
+  return el('div', { class: 'gcard ha-card', dataset: { app: a.appId }, onclick: () => openAppPage(a) }, [
+    el('div', { class: 'cover ha-cover' }, [iconEl(a)]),
+    el('div', { class: 'meta' }, [el('b', { text: a.name }), el('span', { class: 'by', text: '@' + (a.creatorName || 'creator') }), el('div', { class: 'stats' }, [el('span', { text: '▶ ' + fmtNum(a.opens || 0) })])])]);
+}
+
+Object.assign(HtmlApps, { open: openAppPage, run: openViewer, manager: openManager, upload: uploadFlow, async openById(id) {
+  let a = null;
+  try { a = await HtmlApps.get(id); } catch (e) { Toast.err('تعذّر جلب التطبيق: ' + NX.describeFirebaseError(e)); return; }
+  if (a) openAppPage(a); else Toast.err(Backend.isOnline() ? 'التطبيق غير موجود أو خاص' : 'فتح رابط تطبيق يحتاج اتصالًا بـ Firebase');
+} });
+NX.HtmlApps = HtmlApps;
+
+/* ---------------- where it shows up (called from «مشاريعي» and the home page, PART 8) ---------------- */
+Object.assign(HtmlApps, {
+  /* «مشاريعي»: a way in, right under the title */
+  entry(host) {
+    host.appendChild(el('div', { class: 'card ha-entry', onclick: e => { if (!e.target.closest('button')) openManager(); } }, [
+      el('div', { class: 'ha-icon' }, [el('span', { text: '</>' })]),
+      el('div', { style: { flex: '1', minWidth: '0' } }, [el('b', { text: 'تطبيقاتي ومواقعي · HTML' }), el('div', { class: 'tiny', text: 'ارفع ملفات HTML أو موقعًا كاملًا (ZIP) وشغّله هنا' })]),
+      btn('رفع', { cls: 'sm primary', icon: 'upload', onclick: () => uploadFlow() })]));
+  },
+  /* the home page: apps and sites people shared */
+  async homeSection(host) {
+    const sec = el('div');
+    host.appendChild(sec);
+    try {
+      const apps = await HtmlApps.publicList(12);
+      if (!apps.length || !sec.isConnected) return;
+      sec.appendChild(el('div', { class: 'sec-head' }, [el('h2', { text: 'تطبيقات ومواقع' }), el('button', { text: '＋ ارفع تطبيقك', style: { fontSize: '12.5px', color: 'var(--cyan)', fontWeight: '700' }, onclick: () => uploadFlow() })]));
+      const g = el('div', { class: 'grid' });
+      apps.forEach(a => g.appendChild(card(a)));
+      sec.appendChild(g);
+    } catch (e) { console.warn('[apps] home', e && e.code); }
+  }
+});
+</script>
+<!-- /NX-PART:28 -->
 <script type="module">
 /* ============================================================
    PART 8/18 · GAME PLATFORM + BOOT
@@ -25414,6 +26415,7 @@ const Platform = {
   /* ---------------- Projects (rules 1, 5, 6, 7) ---------------- */
   async view_projects(host) {
     host.appendChild(el('h2', { text: 'مشاريعي', style: { fontSize: '20px', marginBottom: '12px' } }));
+    if (NX.HtmlApps) NX.HtmlApps.entry(host);   // «تطبيقاتي ومواقعي · HTML» (PART 28)
     await this.projectsView(host, { full: true });
   },
 
@@ -25578,6 +26580,7 @@ const Platform = {
     if (Backend.isOnline()) {
       host.appendChild(el('div', { class: 'sec-head' }, [el('h2', { text: 'الأكثر تشغيلًا' })]));
       this.liveGames(host, { sort: 'plays', limit: 8, empty: ['لا ألعاب بعد', ''] });
+      if (NX.HtmlApps) NX.HtmlApps.homeSection(host);   // apps & websites people shared (PART 28)
     }
   },
 
@@ -26432,7 +27435,7 @@ NX.registerOfflineSupport = registerOfflineSupport;
     window.addEventListener('online', () => Toast.show('عاد الاتصال — اضغط مؤشر الحالة ثم «إعادة المحاولة» للاتصال بـ Firebase', '', 6000), { once: true });
   }
 
-  /* deep links: #game/<id> · #project/<id> */
+  /* deep links: #game/<id> · #app/<id> · #project/<id> */
   const route = async () => {
     const h = location.hash.slice(1);
     if (h.startsWith('game/')) {
@@ -26443,6 +27446,8 @@ NX.registerOfflineSupport = registerOfflineSupport;
       catch (e) { Toast.err('تعذّر جلب اللعبة من Firebase: ' + NX.describeFirebaseError(e)); return; }
       if (g) NX.Community.openGamePage(g);
       else Toast.err(Backend.isOnline() ? 'اللعبة غير موجودة أو خاصة' : 'فتح رابط لعبة يحتاج اتصالًا بـ Firebase — ' + (Backend.reason || 'الوضع المحلي'));
+    } else if (h.startsWith('app/')) {
+      if (NX.HtmlApps) NX.HtmlApps.openById(h.slice(4));
     } else if (h.startsWith('post/')) {
       const p = await NX.Posts.get(h.slice(5));
       if (p) NX.Community.openPost(p);

@@ -16,6 +16,17 @@ service cloud.firestore {
     function onlyChanged(ks) { return incoming().diff(existing()).affectedKeys().hasOnly(ks); }
     // a counter may move by exactly 'by', and nothing else in the doc may change
     function bumped(f, by)   { return incoming()[f] == existing()[f] + by && onlyChanged([f]); }
+    // A game published from a guest (anonymous) session moves to the account
+    // the player signs in to: just before signing in, the guest session (the
+    // owner) seals the doc with the SHA-256 of a one-time secret that only
+    // that page holds; right after, the account presents the secret. Whoever
+    // has it takes the doc over — once (the seal is removed in the same write).
+    function claimedWith(ks) {
+      return signedIn() && existing().get('claim', null) is map && incoming().ownerId == me()
+             && incoming().get('claimKey', null) is string && incoming().claimKey.size() == 64
+             && hashing.sha256(incoming().claimKey).toHexString().lower() == existing().claim.h
+             && !('claim' in incoming()) && onlyChanged(ks);
+    }
 
     // ---------------------------------------------------------------- team roles
     // A project has ONE owner (ownerId) and a team {uid: role}:
@@ -238,7 +249,8 @@ service cloud.firestore {
                         && !exists(/databases/$(database)/documents/games/$(gameId)/likes/$(request.auth.uid)))
                     || (signedIn() && bumped('likes', -1)
                         && !existsAfter(/databases/$(database)/documents/games/$(gameId)/likes/$(request.auth.uid))
-                        && exists(/databases/$(database)/documents/games/$(gameId)/likes/$(request.auth.uid)));
+                        && exists(/databases/$(database)/documents/games/$(gameId)/likes/$(request.auth.uid)))
+                    || claimedWith(['ownerId', 'creatorName', 'projectId', 'claim', 'claimKey', 'updatedAt']);
       allow delete: if resource == null || isOwner(existing());
 
       // one marker per (user, session); markers are never overwritten
@@ -325,7 +337,28 @@ service cloud.firestore {
                  || get(/databases/$(database)/documents/games/$(gameId)).data.visibility in ['public', 'unlisted'];
       allow create: if signedIn() && incoming().ownerId == me() && incoming().gameId == gameId
                     && getAfter(/databases/$(database)/documents/games/$(gameId)).data.ownerId == me();
-      allow update: if isOwner(existing()) && incoming().ownerId == me() && incoming().gameId == gameId;
+      allow update: if (isOwner(existing()) && incoming().ownerId == me() && incoming().gameId == gameId)
+                    || claimedWith(['ownerId', 'claim', 'claimKey', 'updatedAt']);
+      allow delete: if resource == null || isOwner(existing());
+    }
+
+    // ---------------------------------------------------------------- HTML apps & websites
+    // The owner's own pages / sites (the files live in the file host as one
+    // ZIP; this is the record). They run in a sandboxed opaque-origin frame.
+    // A real account (not a guest session) owns them; anyone may count an open.
+    match /apps/{appId} {
+      function account()    { return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'; }
+      function validApp(d)  { return d.appId == appId && d.name is string && d.name.size() > 0 && d.name.size() <= 80
+                                     && d.description is string && d.description.size() <= 2000 && validVis(d.visibility)
+                                     && d.entry is string && d.entry.size() <= 300 && d.bundle is map && d.bundle.path is string
+                                     && d.files is int && d.files > 0 && d.files <= 800
+                                     && d.bytes is int && d.bytes <= 26214400; }
+      allow get:    if resource == null || existing().visibility in ['public', 'unlisted'] || isOwner(existing());
+      allow list:   if existing().visibility == 'public' || isOwner(existing());
+      allow create: if account() && incoming().ownerId == me() && validApp(incoming()) && incoming().opens == 0;
+      allow update: if (isOwner(existing()) && incoming().ownerId == me() && validApp(incoming())
+                        && incoming().opens == existing().opens && incoming().createdAt == existing().createdAt)
+                    || (signedIn() && bumped('opens', 1));
       allow delete: if resource == null || isOwner(existing());
     }
 

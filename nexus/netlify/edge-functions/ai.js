@@ -5,8 +5,11 @@
      GEMINI_KEYS     = key1,key2,…     (Google AI Studio)
      GROQ_KEYS       = gsk_…,gsk_…     (Groq)
      OPENROUTER_KEYS = sk-or-…,sk-or-… (OpenRouter — its free models only)
-   optional: GEMINI_MODELS (gemini-3.6-flash) · GROQ_MODELS (the
-   account's real list) · FIREBASE_PROJECT_ID (jknbb-n) ·
+   Every model each provider offers these keys is listed (asked from the
+   provider once an hour), and the player picks one — or «auto».
+   optional: GEMINI_MODEL (the first/default one, gemini-3.6-flash) ·
+   GEMINI_MODELS / GROQ_MODELS / OPENROUTER_MODELS (a fixed list instead
+   of the provider's own) · FIREBASE_PROJECT_ID (jknbb-n) ·
    AI_MAX_TOKENS (4096) · AI_PER_MINUTE (20)
    The page calls /api/ai/… with the player's Firebase sign-in token.
    This function checks the token, picks a key, and when a key is out
@@ -18,7 +21,7 @@ const list = k => env(k).split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
 
 const P = {
   gemini: { label: 'Gemini', base: () => env('GEMINI_BASE') || 'https://generativelanguage.googleapis.com/v1beta/openai',
-    keys: () => list('GEMINI_KEYS'), models: async () => list('GEMINI_MODELS').length ? list('GEMINI_MODELS') : ['gemini-3.6-flash'] },
+    keys: () => list('GEMINI_KEYS'), models: () => geminiModels() },
   groq: { label: 'Groq', base: () => env('GROQ_BASE') || 'https://api.groq.com/openai/v1',
     keys: () => list('GROQ_KEYS'), models: () => groqModels() },
   openrouter: { label: 'OpenRouter', base: () => env('OPENROUTER_BASE') || 'https://openrouter.ai/api/v1',
@@ -38,7 +41,7 @@ const KEY_WORDS = /api[_ ]?key|auth(entication)?[_ ]?key|invalid[^"]{0,24}key|cr
 
 /* ---------- which keys may be tried now ---------- */
 const rest = new Map();                     // key → resting until (ms)
-const turn = { gemini: 0, groq: 0 };        // round-robin start, spreads the load over the keys
+const turn = { gemini: 0, groq: 0, openrouter: 0 };   // round-robin start, spreads the load over the keys
 function keysNow(p) {
   const all = P[p].keys(), n = all.length;
   if (!n) return [];
@@ -57,6 +60,34 @@ function restFor(status, text, headers) {
   if (status === 402) return 3600e3;                 // OpenRouter: this key has no credit left
   if (status >= 500 || status === 0) return 30e3;
   return 0;
+}
+
+/* ---------- Google's own model list (every Gemini / Gemma that can chat), asked once an hour ---------- */
+let gemCache = { at: 0, ids: null };
+const GEM_FIRST = () => env('GEMINI_MODEL') || 'gemini-3.6-flash';
+async function geminiModels() {
+  if (list('GEMINI_MODELS').length) return list('GEMINI_MODELS');
+  if (gemCache.ids && Date.now() - gemCache.at < 3600e3) return gemCache.ids;
+  const native = P.gemini.base().replace(/\/openai\/?$/, '');
+  /* the resting keys are skipped; the chat's round-robin turn is left as it is */
+  for (const key of P.gemini.keys().filter(k => !(rest.get(k) > Date.now()))) {
+    try {
+      const r = await fetch(native + '/models?pageSize=1000', { headers: { 'x-goog-api-key': key } });
+      if (!r.ok) { const t = await r.text(); rest.set(key, Date.now() + restFor(r.status, t, r.headers)); continue; }
+      const j = await r.json();
+      const ids = (j.models || j.data || [])
+        .filter(m => m && (!m.supportedGenerationMethods || m.supportedGenerationMethods.includes('generateContent')))
+        .map(m => String(m.name || m.id || '').replace(/^models\//, ''))
+        .filter(id => /^(gemini|gemma)/i.test(id) && !/embed|image|imagen|veo|tts|audio|live|aqa|robotics|computer-use|learnlm|native/i.test(id));
+      /* newest flash first, then pro, then the light ones, then Gemma */
+      const rank = id => /gemma/i.test(id) ? 4 : /lite/i.test(id) ? 3 : /pro/i.test(id) ? 2 : /flash/i.test(id) ? 1 : 3;
+      const ver = id => +((/(\d+(?:\.\d+)?)/.exec(id) || [])[1] || 0);
+      const sorted = Array.from(new Set(ids)).sort((a, b) => rank(a) - rank(b) || ver(b) - ver(a) || a.localeCompare(b));
+      gemCache = { at: Date.now(), ids: [GEM_FIRST()].concat(sorted.filter(x => x !== GEM_FIRST())) };
+      return gemCache.ids;
+    } catch { /* next key */ }
+  }
+  return gemCache.ids || [GEM_FIRST()];
 }
 
 /* ---------- Groq's own model list, asked once an hour ---------- */
@@ -90,7 +121,7 @@ async function openrouterModels() {
         && !/image|audio|vision-only|embed|tts|guard/i.test(m.id) && (!m.architecture || !m.architecture.output_modalities || m.architecture.output_modalities.includes('text')));
       const pref = [/deepseek/i, /llama-3\.3-70b/i, /qwen/i, /gemma/i, /mistral/i];
       const rank = id => { const i = pref.findIndex(re => re.test(id)); return i < 0 ? pref.length : i; };
-      orCache = { at: Date.now(), ids: free.map(m => m.id).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).slice(0, 30) };
+      orCache = { at: Date.now(), ids: free.map(m => m.id).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).slice(0, 80) };
       return orCache.ids;
     }
   } catch { /* the cached list, or none */ }
@@ -161,7 +192,8 @@ async function chat(req, body) {
     const model = asked !== 'auto' && first === p && models.includes(asked) ? asked : models[0];
     if (!model) { notes.push(P[p].label + ' بلا نماذج متاحة'); continue; }
     const keys = keysNow(p);
-    if (!keys.length) { notes.push(P[p].label + ' مشغول الآن'); continue; }
+    /* every key resting (refused, out of quota or rate-limited) */
+    if (!keys.length) { notes.push(P[p].label + ' غير متاح الآن'); continue; }
     let why = 'غير متاح الآن';
     for (const key of keys) {
       let r;
@@ -206,8 +238,10 @@ export default async (req) => {
   const me = await who(req);
   if (me.error) return fail(401, 'signin', 'سجّل الدخول بحساب Google لاستعمال الذكاء المجاني');
   if (req.method === 'GET' && path === '/models') {
-    const data = [{ id: 'auto', owned_by: 'nexus' }];
-    for (const p of Object.keys(P)) if (P[p].keys().length) (await P[p].models()).forEach(id => data.push({ id, owned_by: p }));
+    /* every model of every provider that has keys here, grouped by provider (the page shows the groups) */
+    const data = [{ id: 'auto', owned_by: 'nexus', provider: 'NEXUS' }];
+    const lists = await Promise.all(ORDER.map(p => P[p].keys().length ? P[p].models().catch(() => []) : []));
+    ORDER.forEach((p, i) => lists[i].forEach(id => { if (!data.some(d => d.id === id)) data.push({ id, owned_by: p, provider: P[p].label }); }));
     return json(200, { object: 'list', data });
   }
   if (req.method === 'POST' && path === '/chat/completions') {
