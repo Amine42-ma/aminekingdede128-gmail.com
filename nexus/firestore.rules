@@ -17,6 +17,20 @@ service cloud.firestore {
     // a counter may move by exactly 'by', and nothing else in the doc may change
     function bumped(f, by)   { return incoming()[f] == existing()[f] + by && onlyChanged([f]); }
 
+    // ---------------------------------------------------------------- team roles
+    // A project has ONE owner (ownerId) and a team {uid: role}:
+    //   developer — scripts / code          builder — scene + assets
+    //   tester    — run and test the game    viewer  — read only
+    // Every check below runs on the server; hiding a button in the app is
+    // never what stops a member from doing something their role forbids.
+    function projectPath(pid) { return /databases/$(database)/documents/projects/$(pid); }
+    function roleIn(d)        { return d.ownerId == me() ? 'owner' : d.get('members', {}).get(me(), ''); }
+    function roleIs(pid, rs)  { return signedIn() && pid is string && exists(projectPath(pid)) && roleIn(get(projectPath(pid)).data) in rs; }
+    function memberOf(pid)    { return roleIs(pid, ['owner', 'developer', 'builder', 'tester', 'viewer']); }
+    function workerOf(pid)    { return roleIs(pid, ['owner', 'developer', 'builder', 'tester']); }
+    function ROLES()          { return ['developer', 'builder', 'tester', 'viewer']; }
+    function textOk(v, n)     { return v is string && v.size() <= n; }
+
     // Nothing is readable or writable unless a rule below says so (Firestore
     // denies by default). There is NO "allow read, write: if true" anywhere.
 
@@ -40,13 +54,162 @@ service cloud.firestore {
       allow delete: if isOwner(existing());
     }
 
-    // ---------------------------------------------------------------- projects (always private)
+    // ---------------------------------------------------------------- projects (private to the owner and the team)
     match /projects/{projectId} {
-      allow get:    if resource == null || isOwner(existing());
-      allow list:   if isOwner(existing());
-      allow create: if signedIn() && incoming().ownerId == me() && incoming().projectId == projectId;
-      allow update: if isOwner(existing()) && incoming().ownerId == existing().ownerId;
+      // what each role may change — anything else in the record is the owner's
+      function CODE()   { return ['files', 'scripts', 'components', 'deps', 'fileFolders']; }
+      function SCENE()  { return ['scene', 'assetRefs', 'assetFolders']; }
+      function SHARED() { return ['i18n', 'aiMemory', 'history', 'updatedAt', 'updatedBy', 'rev', 'lastEdit']; }
+      function team(d)  { return d.get('memberIds', []); }
+      function inTeam(d) { return signedIn() && me() in team(d); }
+      function changed() { return incoming().diff(existing()).affectedKeys(); }
+      // every content change moves the revision by exactly one: two people
+      // saving over the same revision cannot both win — the second one is
+      // refused and has to merge (Studio shows the conflict)
+      function nextRev() { return incoming().get('rev', 0) == existing().get('rev', 0) + 1; }
+      function revOk()   { return !changed().hasAny(CODE().concat(SCENE()).concat(['i18n'])) || nextRev() || team(existing()).size() == 0; }
+      function validTeam() {
+        return incoming().get('members', {}).values().hasOnly(ROLES())
+          && incoming().get('members', {}).keys().toSet() == team(incoming()).toSet()
+          && team(incoming()).size() <= 30
+          && !(incoming().ownerId in team(incoming()));
+      }
+      // nobody is added to a team by someone else: a member joins only by
+      // accepting their own invitation (see joining())
+      function noNewMembers() { return team(incoming()).toSet().difference(team(existing()).toSet()).size() == 0; }
+
+      function ownerEdit() {
+        return isOwner(existing()) && incoming().ownerId == existing().ownerId
+          && validTeam() && noNewMembers() && revOk();
+      }
+      // ownership goes to someone already in the team; the old owner may stay
+      // on as a member or leave
+      function transfer() {
+        return isOwner(existing()) && incoming().ownerId != existing().ownerId
+          && incoming().ownerId in team(existing())
+          && validTeam()
+          && team(incoming()).toSet().difference(team(existing()).toSet()).hasOnly([me()])
+          && changed().hasOnly(['ownerId', 'ownerName', 'members', 'memberIds', 'memberNames', 'updatedAt']);
+      }
+      function memberEdit() {
+        let r = roleIn(existing());
+        return (r == 'developer' || r == 'builder') && inTeam(existing())
+          && nextRev() && incoming().get('updatedBy', '') == me()
+          && changed().hasOnly((r == 'developer' ? CODE() : SCENE()).concat(SHARED()));
+      }
+      function invitePath() { return /databases/$(database)/documents/invites/$(projectId + '__' + request.auth.uid); }
+      function joining() {
+        return signedIn() && !(me() in team(existing())) && existing().ownerId != me()
+          && exists(invitePath())
+          && get(invitePath()).data.status == 'pending'
+          && getAfter(invitePath()).data.status == 'accepted'
+          && changed().hasOnly(['members', 'memberIds', 'memberNames'])
+          && incoming().members.diff(existing().get('members', {})).affectedKeys().hasOnly([me()])
+          && incoming().members[me()] == get(invitePath()).data.role
+          && team(incoming()).toSet().difference(team(existing()).toSet()).hasOnly([me()])
+          && team(existing()).toSet().difference(team(incoming()).toSet()).size() == 0
+          && team(incoming()).size() <= 30
+          && incoming().get('memberNames', {}).diff(existing().get('memberNames', {})).affectedKeys().hasOnly([me()]);
+      }
+      function leaving() {
+        return inTeam(existing())
+          && changed().hasOnly(['members', 'memberIds', 'memberNames'])
+          && !(me() in team(incoming()))
+          && !(me() in incoming().get('members', {}))
+          && incoming().get('members', {}).diff(existing().get('members', {})).affectedKeys().hasOnly([me()])
+          && team(existing()).toSet().difference(team(incoming()).toSet()).hasOnly([me()])
+          && team(incoming()).toSet().difference(team(existing()).toSet()).size() == 0
+          && incoming().get('memberNames', {}).diff(existing().get('memberNames', {})).affectedKeys().hasOnly([me()]);
+      }
+
+      allow get:    if resource == null || isOwner(existing()) || inTeam(existing());
+      allow list:   if isOwner(existing()) || inTeam(existing());
+      allow create: if signedIn() && incoming().ownerId == me() && incoming().projectId == projectId
+                    && team(incoming()).size() == 0 && incoming().get('members', {}).size() == 0;
+      allow update: if ownerEdit() || transfer() || memberEdit() || joining() || leaving();
       allow delete: if resource == null || isOwner(existing());
+
+      // who is in the Studio now, what they are working on, their voice state
+      match /presence/{uid} {
+        allow read:           if memberOf(projectId);
+        allow create, update: if memberOf(projectId) && uid == me() && incoming().uid == me()
+                              && incoming().at == request.time && textOk(incoming().get('working', ''), 120);
+        allow delete:         if signedIn() && (uid == me() || roleIs(projectId, ['owner']));
+      }
+      // the owner can mute someone for the whole team (every client obeys it)
+      match /moderation/{uid} {
+        allow read:           if memberOf(projectId);
+        allow create, update: if roleIs(projectId, ['owner']) && incoming().by == me() && uid != me();
+        allow delete:         if signedIn() && (uid == me() || roleIs(projectId, ['owner']));
+      }
+      // WebRTC voice signalling between team members — nothing else; no audio
+      // ever passes through here (audio goes peer to peer and is never stored)
+      match /signals/{sid} {
+        allow read:   if signedIn() && existing().to == me() && memberOf(projectId);
+        allow create: if memberOf(projectId) && incoming().from == me() && incoming().to is string
+                      && (incoming().to == get(projectPath(projectId)).data.ownerId
+                          || incoming().to in get(projectPath(projectId)).data.get('memberIds', []));
+        allow delete: if signedIn() && (existing().to == me() || existing().from == me());
+      }
+      // the activity feed: append-only, written as yourself, at the server's time
+      match /activity/{aid} {
+        allow read:   if memberOf(projectId);
+        allow create: if memberOf(projectId) && incoming().uid == me() && incoming().at == request.time
+                      && textOk(incoming().action, 60) && textOk(incoming().get('target', ''), 160);
+        allow delete: if roleIs(projectId, ['owner']);
+      }
+      // bug numbers (#1, #2 …) come from one counter that only moves by one,
+      // in the same write as the bug it numbers
+      match /meta/{doc} {
+        allow read:   if memberOf(projectId);
+        allow create: if workerOf(projectId) && doc == 'counters' && incoming().keys().hasOnly(['bugs']) && incoming().bugs == 1
+                      && existsAfter(/databases/$(database)/documents/projects/$(projectId)/bugs/b1);
+        allow update: if workerOf(projectId) && doc == 'counters' && bumped('bugs', 1)
+                      && existsAfter(/databases/$(database)/documents/projects/$(projectId)/bugs/$('b' + string(incoming().bugs)));
+      }
+      match /bugs/{bid} {
+        function bugOk(d) {
+          return d.status in ['open', 'progress', 'fixed', 'closed'] && d.priority in ['low', 'medium', 'high', 'critical']
+            && textOk(d.title, 140) && d.title.size() > 0 && textOk(d.get('desc', ''), 2000)
+            && (d.get('assignee', null) == null || d.assignee is string);
+        }
+        allow read:   if memberOf(projectId);
+        allow create: if workerOf(projectId) && incoming().by == me() && bugOk(incoming())
+                      && incoming().status == 'open' && bid == 'b' + string(incoming().num)
+                      && getAfter(/databases/$(database)/documents/projects/$(projectId)/meta/counters).data.bugs == incoming().num;
+        allow update: if workerOf(projectId) && bugOk(incoming())
+                      && changed().hasOnly(['title', 'desc', 'status', 'priority', 'assignee', 'assigneeName', 'updatedAt', 'updatedBy']);
+        allow delete: if roleIs(projectId, ['owner']) || (signedIn() && existing().by == me());
+      }
+      // comments on a line of code or on an object in the scene
+      match /comments/{cid} {
+        allow read:   if memberOf(projectId);
+        allow create: if workerOf(projectId) && incoming().by == me() && incoming().at == request.time
+                      && incoming().resolved == false && textOk(incoming().text, 1000) && incoming().text.size() > 0
+                      && incoming().target is map && incoming().target.kind in ['file', 'object'];
+        allow update: if workerOf(projectId) && (
+                           (existing().by == me() && changed().hasOnly(['text', 'editedAt']) && textOk(incoming().text, 1000))
+                        || (changed().hasOnly(['resolved', 'resolvedBy', 'resolvedAt']) && incoming().resolved is bool));
+        allow delete: if signedIn() && (existing().by == me() || roleIs(projectId, ['owner']));
+      }
+      // the task board — TODO / IN PROGRESS / DONE
+      match /tasks/{tid} {
+        function taskOk(d) { return d.status in ['todo', 'doing', 'done'] && textOk(d.title, 140) && d.title.size() > 0 && textOk(d.get('desc', ''), 1000); }
+        allow read:   if memberOf(projectId);
+        allow create: if roleIs(projectId, ['owner', 'developer', 'builder']) && incoming().by == me() && taskOk(incoming());
+        allow update: if taskOk(incoming()) && incoming().by == existing().by && (
+                           (roleIs(projectId, ['owner', 'developer', 'builder'])
+                              && changed().hasOnly(['title', 'desc', 'status', 'assignee', 'assigneeName', 'order', 'updatedAt', 'updatedBy']))
+                        || (signedIn() && existing().get('assignee', '') == me() && changed().hasOnly(['status', 'updatedAt', 'updatedBy'])));
+        allow delete: if roleIs(projectId, ['owner']) || (signedIn() && existing().by == me());
+      }
+      // a TEAM PLAYTEST session (private: the room it uses is team-only, see /rooms)
+      match /playtests/{sid} {
+        allow read:   if memberOf(projectId);
+        allow create: if workerOf(projectId) && incoming().hostId == me() && incoming().status == 'open';
+        allow update: if signedIn() && existing().hostId == me() && incoming().hostId == me();
+        allow delete: if signedIn() && (existing().hostId == me() || roleIs(projectId, ['owner']));
+      }
     }
     match /checkpoints/{id} {
       allow get:    if resource == null || isOwner(existing());
@@ -87,6 +250,73 @@ service cloud.firestore {
         allow get:            if signedIn() && me() == uid;
         allow create, delete: if signedIn() && me() == uid;
       }
+
+      function gameDoc()      { return get(/databases/$(database)/documents/games/$(gameId)).data; }
+      function gameReadable() { return gameDoc().visibility in ['public', 'unlisted'] || isOwner(gameDoc()); }
+      // analytics are read by the owner and the project's developers only
+      function statsReader()  { return signedIn() && (isOwner(gameDoc()) || roleIs(gameDoc().get('projectId', null), ['owner', 'developer'])); }
+
+      // ------------------------------------------------ leaderboard
+      // One best score per player. The browser is never trusted with it: the
+      // game's owner sets the ceiling and the fastest rate a real session can
+      // reach (points per second since the session began at the SERVER's
+      // clock); a score no real session could reach is refused here.
+      // 'time' boards: lower is better, and a time can never be shorter than
+      // the session that produced it.
+      function lb()          { return gameDoc().get('leaderboard', {}); }
+      function sessionPath() { return /databases/$(database)/documents/games/$(gameId)/lbSessions/$(request.auth.uid); }
+      function elapsed()     { return (request.time - get(sessionPath()).data.startedAt).seconds(); }
+      function scoreOk() {
+        return lb().get('enabled', false) == true
+          && incoming().keys().hasOnly(['uid', 'name', 'score', 'at'])
+          && incoming().uid == me() && incoming().at == request.time
+          && textOk(incoming().name, 40)
+          && incoming().score is number && incoming().score >= 0
+          && exists(sessionPath())
+          && (lb().get('order', 'desc') == 'asc'
+                ? (incoming().score >= lb().get('min', 0) && incoming().score <= elapsed() + 1)
+                : (incoming().score <= lb().get('max', 1000000) && incoming().score <= (elapsed() + 1) * lb().get('perSecond', 100)));
+      }
+      function better() {
+        return lb().get('order', 'desc') == 'asc' ? incoming().score < existing().score : incoming().score > existing().score;
+      }
+      match /scores/{uid} {
+        allow read:   if gameReadable();
+        allow create: if signedIn() && uid == me() && scoreOk();
+        allow update: if signedIn() && uid == me() && scoreOk() && better();
+        allow delete: if signedIn() && (uid == me() || isOwner(gameDoc()));
+      }
+      match /lbSessions/{uid} {
+        allow get:            if signedIn() && uid == me();
+        allow create, update: if signedIn() && uid == me() && incoming().keys().hasOnly(['startedAt']) && incoming().startedAt == request.time;
+      }
+
+      // ------------------------------------------------ analytics
+      // One anonymous record per play session: no account id, no name, no
+      // e-mail — 'pid' is a random id this device made for itself.
+      match /analytics/{sid} {
+        allow read:   if statsReader();
+        allow create: if signedIn() && incoming().at == request.time
+                      && incoming().keys().hasOnly(['at', 'day', 'dur', 'errors', 'errorSamples', 'fps', 'loadMs', 'device', 'mp', 'pid', 'v'])
+                      && incoming().dur is number && incoming().dur >= 0 && incoming().dur <= 21600
+                      && incoming().errors is int && incoming().errors >= 0 && incoming().errors <= 100000
+                      && textOk(incoming().pid, 40) && textOk(incoming().day, 10)
+                      && incoming().device in ['mobile', 'tablet', 'desktop']
+                      && incoming().get('errorSamples', []).size() <= 3;
+      }
+      // players online now: a heartbeat with nothing in it but the time
+      match /live/{sid} {
+        allow read:           if statsReader();
+        allow create, update: if signedIn() && incoming().keys().hasOnly(['at']) && incoming().at == request.time;
+        allow delete:         if signedIn();
+      }
+      // multiplayer rooms that are running now — what a spectator can pick from
+      match /rooms/{name} {
+        allow read:           if gameReadable();
+        allow create, update: if signedIn() && gameReadable() && incoming().keys().hasOnly(['name', 'players', 'at'])
+                              && incoming().name == name && incoming().at == request.time
+                              && incoming().players is int && incoming().players >= 0 && incoming().players <= 64;
+      }
     }
     // the runnable snapshot of a game follows the game's visibility; only the
     // owner of the game record may write it (getAfter also works in a batch)
@@ -108,19 +338,69 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------- multiplayer rooms + WebRTC signalling
+    // A TEAM PLAYTEST room ("pt--<projectId>--…") is private to that project's
+    // team: members watch, everyone but viewers plays. Other rooms: any
+    // signed-in player.
     match /rooms/{roomId} {
+      function teamRoom() { return roomId.matches('pt--.+'); }
+      function roomPid()  { return roomId.split('--')[1]; }
+      function canSee()   { return signedIn() && (!teamRoom() || memberOf(roomPid())); }
+      function canPlay()  { return signedIn() && (!teamRoom() || workerOf(roomPid())); }
       match /peers/{uid} {
-        allow read: if signedIn();
-        allow create, update, delete: if signedIn() && me() == uid;
+        allow read: if canSee();
+        allow create, update, delete: if canPlay() && me() == uid;
       }
       match /messages/{mid} {
-        allow read:   if signedIn();
-        allow create: if signedIn() && incoming().from == me();
+        allow read:   if canSee();
+        allow create: if canPlay() && incoming().from == me();
       }
       match /signals/{sid} {
-        allow read:   if signedIn() && existing().to == me();
-        allow create: if signedIn() && incoming().from == me();
+        allow read:   if canSee() && existing().to == me();
+        allow create: if canPlay() && incoming().from == me();
       }
+    }
+
+    // ---------------------------------------------------------------- replays (multiplayer sessions)
+    // a recording belongs to whoever made it; one made in a team playtest is
+    // readable by that project's team. Size and length are capped here.
+    match /replays/{rid} {
+      allow get:    if resource == null || isOwner(existing()) || existing().visibility == 'unlisted'
+                    || memberOf(existing().get('projectId', null));
+      allow list:   if isOwner(existing()) || memberOf(existing().get('projectId', null));
+      allow create: if signedIn() && incoming().ownerId == me() && incoming().replayId == rid
+                    && incoming().visibility in ['private', 'unlisted']
+                    && incoming().data is string && incoming().data.size() <= 900000
+                    && incoming().duration is number && incoming().duration <= 300
+                    && (incoming().get('projectId', null) == null || memberOf(incoming().projectId));
+      allow update: if isOwner(existing()) && onlyChanged(['title', 'visibility']) && incoming().visibility in ['private', 'unlisted'];
+      allow delete: if isOwner(existing());
+    }
+
+    // ---------------------------------------------------------------- team invitations
+    // "<projectId>__<uid>": only the project's owner invites; only the
+    // invited person accepts (in the same write that adds them to the team)
+    // or declines.
+    match /invites/{iid} {
+      allow get:    if signedIn() && (resource == null || existing().toId == me() || existing().fromId == me()
+                                      || roleIs(existing().projectId, ['owner']));
+      allow list:   if signedIn() && (existing().toId == me() || existing().fromId == me());
+      allow create: if signedIn() && incoming().fromId == me() && incoming().toId is string && incoming().toId != me()
+                    && iid == incoming().projectId + '__' + incoming().toId
+                    && roleIs(incoming().projectId, ['owner'])
+                    && !(incoming().toId in get(projectPath(incoming().projectId)).data.get('memberIds', []))
+                    && incoming().role in ROLES() && incoming().status == 'pending'
+                    && textOk(incoming().get('projectName', ''), 120);
+      allow update: if signedIn() && (
+           (existing().toId == me() && existing().status == 'pending'
+              && onlyChanged(['status', 'answeredAt'])
+              && (incoming().status == 'declined'
+                  || (incoming().status == 'accepted'
+                      && getAfter(projectPath(existing().projectId)).data.get('members', {}).get(me(), '') == existing().role)))
+        || (existing().fromId == me() && incoming().fromId == me() && roleIs(existing().projectId, ['owner'])
+              && incoming().toId == existing().toId && incoming().projectId == existing().projectId
+              && incoming().status == 'pending' && incoming().role in ROLES()
+              && !(incoming().toId in get(projectPath(incoming().projectId)).data.get('memberIds', []))));
+      allow delete: if signedIn() && (existing().toId == me() || existing().fromId == me());
     }
 
     // ---------------------------------------------------------------- creator profiles
