@@ -1478,8 +1478,32 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 /* ---------- local store ---------- */
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('nx.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-  set(k, v) { try { localStorage.setItem('nx.' + k, JSON.stringify(v)); return true; } catch { return false; } },
-  del(k) { try { localStorage.removeItem('nx.' + k); } catch {} }
+  set(k, v) {
+    let s;
+    try { s = JSON.stringify(v); localStorage.setItem('nx.' + k, s); return true; }
+    catch {
+      /* the browser's storage is full (old assistant conversations pile up): a setting, a key, a save
+         must still be kept — the largest old conversations make room, then it is written again */
+      if (s != null && LS.makeRoom(k, s.length)) { try { localStorage.setItem('nx.' + k, s); return true; } catch {} }
+      return false;
+    }
+  },
+  del(k) { try { localStorage.removeItem('nx.' + k); } catch {} },
+  makeRoom(k, need) {
+    try {
+      const cand = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key !== 'nx.' + k && /^nx\.(chats|agentMem|happ)\./.test(key)) cand.push([key, (localStorage.getItem(key) || '').length]);
+      }
+      if (!cand.length) return false;
+      cand.sort((a, b) => b[1] - a[1]);
+      let freed = 0;
+      for (const [key, n] of cand) { localStorage.removeItem(key); freed += n; if (freed > need * 2 + 300000) break; }
+      if (!LS._told) { LS._told = true; setTimeout(() => window.NX && NX.Toast && NX.Toast.show('ذاكرة المتصفح امتلأت — حُذفت محادثات قديمة مع المساعد لحفظ إعداداتك', '', 6000), 0); }
+      return true;
+    } catch { return false; }
+  }
 };
 
 /* ---------- i18n ---------- */
@@ -15698,7 +15722,11 @@ const AIConfig = {
   set(id, patch) {
     const all = this.all();
     all[id] = Object.assign({}, all[id] || {}, patch);
-    LS.set('ai.providers', all);
+    /* never a silent loss: a key that could not be kept is said out loud */
+    if (!LS.set('ai.providers', all) && !this._warned) {
+      this._warned = true;
+      Toast.err('لم يُحفظ الإعداد: هذا المتصفح لا يسمح بالحفظ (وضع التصفّح الخاص أو ذاكرة ممتلئة). افتح الموقع في متصفح عادي مثل Chrome.', 8000);
+    }
     return this.get(id);
   },
   active() { return LS.get('ai.active', 'none'); },
@@ -15749,9 +15777,17 @@ const FreeAI = {
         const j = r.ok && /json/.test(r.headers.get('content-type') || '') ? await r.json() : null;
         this.state = j && j.free ? 'on' : 'off';
         this.providers = (j && j.providers) || [];
-      } catch { this.state = 'off'; }
+        /* off because the site's server function is not running at all, or runs without keys */
+        this.reason = j ? (j.free ? '' : 'no-keys') : 'no-function';
+      } catch { this.state = 'off'; this.reason = 'no-function'; }
     })().finally(() => { setTimeout(() => { this._probe = null; }, 30000); });
     return this._probe;
+  },
+  /* what the site owner has to do, in one sentence */
+  offText() {
+    return this.reason === 'no-keys'
+      ? 'دالة الذكاء تعمل على خادم الموقع لكن بلا مفاتيح. صاحب الموقع يضع GEMINI_KEYS و GROQ_KEYS في Netlify ← Site configuration ← Environment variables، ثم Deploys ← Trigger deploy.'
+      : 'خادم الموقع لا يشغّل دالة الذكاء (netlify/edge-functions/ai.js) — غالبًا لأن الموقع رُفع بالسحب والإفلات، والدوال لا تعمل هكذا. صاحب الموقع يربطه بـ GitHub في Netlify (Base directory = nexus) ثم يضع المفاتيح في Environment variables.';
   },
   /* someone who never chose a provider gets the free one once signed in */
   adopt() {
@@ -16506,7 +16542,7 @@ function openAISettings() {
       const F = NX.FreeAI;
       const st = el('div', { class: 'card', style: { marginBottom: '12px', fontSize: '13px', lineHeight: '1.7' } });
       st.appendChild(el('b', { text: F.state === 'off' ? '⚪ غير مفعّل على هذا الموقع' : !F.signedIn() ? '🔒 سجّل الدخول لتستعمله — مجاني' : '🟢 متاح لك مجانًا' }));
-      st.appendChild(el('div', { class: 'tiny', text: F.state === 'off' ? 'صاحب المنصة لم يضع مفاتيح الذكاء على خادم الموقع بعد. تستطيع استعمال مفتاحك الخاص من البطاقات الأخرى.'
+      st.appendChild(el('div', { class: 'tiny', text: F.state === 'off' ? F.offText() + ' حتى ذلك الحين تستطيع استعمال مفتاحك الخاص من البطاقات الأخرى.'
         : !F.signedIn() ? 'الذكاء المجاني لمن سجّل الدخول بحساب Google أو بالبريد — حتى لا يستهلكه أحد من خارج المنصة.'
         : 'اختر النموذج أدناه أو اتركه «auto». إذا انتهى حدّ مفتاح ينتقل وحده إلى التالي، ثم إلى النموذج الآخر، ويخبرك بذلك.' + (F.providers.length ? ' المتاح: ' + F.providers.map(x => x === 'gemini' ? 'Gemini' : x === 'groq' ? 'Groq' : x === 'openrouter' ? 'OpenRouter' : x).join(' · ') : '') }));
       if (F.state !== 'off' && !F.signedIn()) st.appendChild(btn('تسجيل الدخول', { cls: 'sm primary', icon: 'user', style: { marginTop: '8px' }, onclick: () => NX.promptSignIn('الذكاء المجاني لمن سجّل الدخول.', () => { drawProvider(); paintGrid(); }) }));
@@ -25360,7 +25396,7 @@ const ModelPicker = {
       if (!F || F.state === 'off') {
         free.appendChild(el('div', { class: 'card', style: { fontSize: '13px', lineHeight: '1.7', marginTop: '10px' } }, [
           el('b', { text: '⚪ الذكاء المجاني غير مفعّل على هذا الموقع بعد' }),
-          el('div', { class: 'tiny', text: 'صاحب الموقع يضع مفاتيح Gemini و Groq و OpenRouter في Netlify → Environment variables (GEMINI_KEYS · GROQ_KEYS · OPENROUTER_KEYS) — حينها تظهر هنا كل نماذجها. تستطيع الآن استعمال مفتاحك الخاص من «الإعدادات والمفاتيح».' })]));
+          el('div', { class: 'tiny', text: (F ? F.offText() : '') + ' حينها تظهر هنا نماذجه. تستطيع الآن استعمال مفتاحك الخاص من «الإعدادات والمفاتيح».' })]));
         return;
       }
       if (!F.signedIn()) {

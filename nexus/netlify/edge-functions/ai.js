@@ -5,11 +5,13 @@
      GEMINI_KEYS     = key1,key2,…     (Google AI Studio)
      GROQ_KEYS       = gsk_…,gsk_…     (Groq)
      OPENROUTER_KEYS = sk-or-…,sk-or-… (OpenRouter — its free models only)
-   Every model each provider offers these keys is listed (asked from the
-   provider once an hour), and the player picks one — or «auto».
-   optional: GEMINI_MODEL (the first/default one, gemini-3.6-flash) ·
-   GEMINI_MODELS / GROQ_MODELS / OPENROUTER_MODELS (a fixed list instead
-   of the provider's own) · FIREBASE_PROJECT_ID (jknbb-n) ·
+   The player picks a model (or «auto»): Gemini 3.6 Flash (the model
+   these Google AI Studio keys serve), every model of Groq's own list,
+   OpenRouter's free ones.
+   optional: GEMINI_MODELS (default gemini-3.6-flash; GEMINI_ALL_MODELS=1
+   offers every chat model Google lists for the keys) · GROQ_MODELS /
+   OPENROUTER_MODELS (a fixed list instead of the provider's own) ·
+   FIREBASE_PROJECT_ID (jknbb-n) ·
    AI_MAX_TOKENS (4096) · AI_PER_MINUTE (20)
    The page calls /api/ai/… with the player's Firebase sign-in token.
    This function checks the token, picks a key, and when a key is out
@@ -42,11 +44,14 @@ const KEY_WORDS = /api[_ ]?key|auth(entication)?[_ ]?key|invalid[^"]{0,24}key|cr
 /* ---------- which keys may be tried now ---------- */
 const rest = new Map();                     // key → resting until (ms)
 const turn = { gemini: 0, groq: 0, openrouter: 0 };   // round-robin start, spreads the load over the keys
-function keysNow(p) {
+/* a key that is refused rests as a whole; a key out of quota / rate-limited
+   rests only for THAT model (its other models keep working) */
+const resting = (k, model) => rest.get(k) > Date.now() || (model && rest.get(k + '|' + model) > Date.now());
+function keysNow(p, model) {
   const all = P[p].keys(), n = all.length;
   if (!n) return [];
   const s = turn[p]++ % n;
-  return all.slice(s).concat(all.slice(0, s)).filter(k => !(rest.get(k) > Date.now()));
+  return all.slice(s).concat(all.slice(0, s)).filter(k => !resting(k, model));
 }
 function restFor(status, text, headers) {
   const t = String(text || '');
@@ -67,13 +72,15 @@ let gemCache = { at: 0, ids: null };
 const GEM_FIRST = () => env('GEMINI_MODEL') || 'gemini-3.6-flash';
 async function geminiModels() {
   if (list('GEMINI_MODELS').length) return list('GEMINI_MODELS');
+  /* Google AI Studio keys serve Gemini 3.6 Flash; other models answer «quota 0» — not offered unless asked for */
+  if (env('GEMINI_ALL_MODELS') !== '1') return [GEM_FIRST()];
   if (gemCache.ids && Date.now() - gemCache.at < 3600e3) return gemCache.ids;
   const native = P.gemini.base().replace(/\/openai\/?$/, '');
   /* the resting keys are skipped; the chat's round-robin turn is left as it is */
   for (const key of P.gemini.keys().filter(k => !(rest.get(k) > Date.now()))) {
     try {
       const r = await fetch(native + '/models?pageSize=1000', { headers: { 'x-goog-api-key': key } });
-      if (!r.ok) { const t = await r.text(); rest.set(key, Date.now() + restFor(r.status, t, r.headers)); continue; }
+      if (!r.ok) { const t = await r.text(); if (r.status === 401 || r.status === 403 || KEY_WORDS.test(t)) rest.set(key, Date.now() + restFor(r.status, t, r.headers)); continue; }
       const j = await r.json();
       const ids = (j.models || j.data || [])
         .filter(m => m && (!m.supportedGenerationMethods || m.supportedGenerationMethods.includes('generateContent')))
@@ -191,7 +198,7 @@ async function chat(req, body) {
     const models = await P[p].models();
     const model = asked !== 'auto' && first === p && models.includes(asked) ? asked : models[0];
     if (!model) { notes.push(P[p].label + ' بلا نماذج متاحة'); continue; }
-    const keys = keysNow(p);
+    const keys = keysNow(p, model);
     /* every key resting (refused, out of quota or rate-limited) */
     if (!keys.length) { notes.push(P[p].label + ' غير متاح الآن'); continue; }
     let why = 'غير متاح الآن';
@@ -218,7 +225,7 @@ async function chat(req, body) {
       /* the service is overloaded: the other provider, the keys are fine */
       if (r.status >= 500) { why = 'مشغول الآن'; break; }
       /* this key: out of quota, rate-limited or refused — it rests, the next key is tried */
-      rest.set(key, Date.now() + (restFor(r.status, t, r.headers) || 15e3));
+      rest.set(keyIssue || r.status === 402 ? key : key + '|' + model, Date.now() + (restFor(r.status, t, r.headers) || 15e3));
     }
     notes.push(P[p].label + ' ' + why);
   }
