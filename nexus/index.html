@@ -1313,6 +1313,30 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 .gcard .cover{position:relative}
 .ha-age{margin:2px 0 4px}
 /* /NX-CSS:30 */
+/* NX-CSS:31 */
+/* PART 31 · the editor agent: target bar, change card */
+.ea-bar{margin:0 0 8px;display:flex;flex-direction:column;gap:6px}
+.ea-bar .ea-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ea-target{font-size:12px;font-weight:700;padding:5px 10px;border-radius:999px;background:var(--glass-2);border:1px solid var(--line-2);color:var(--ink-dim);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;unicode-bidi:isolate}
+.ea-target.on{color:var(--ink);border-color:rgba(124,92,255,.55);background:rgba(124,92,255,.14)}
+.ea-scope{width:auto;min-width:0;padding:5px 8px;font-size:12px;height:auto}
+.ea-sugg{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.ea-sugg::-webkit-scrollbar{display:none}
+.ea-sugg .chip{flex:0 0 auto;font-size:11.5px}
+.ea-card .ea-kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12.5px;margin-bottom:8px}
+.ea-card .ea-kv .k,.ea-card .ea-changes .k{color:var(--ink-dim);font-size:11.5px}
+.ea-card .ea-kv b{unicode-bidi:isolate;overflow-wrap:anywhere}
+.ea-card .ea-counts{font-size:12px;font-weight:700;margin-bottom:6px;color:#fcd77a}
+.ea-card .ea-changes{border-top:1px solid var(--line);padding-top:6px}
+.ea-card .ea-ch{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:3px 0;flex-wrap:wrap}
+.ea-card .ea-ch .w{min-width:0;overflow-wrap:anywhere}
+.ea-card .ea-ch .v{font-family:var(--mono);direction:ltr;unicode-bidi:isolate;text-align:left;color:#9ae6b4;font-size:11.5px;overflow-wrap:anywhere}
+.ea-card .ea-ch.failed .w,.ea-card .ea-ch.failed .v{color:#ff9aa8}
+.ea-card .ea-note{font-size:11.5px;color:var(--ink-dim);line-height:1.6;margin-top:6px}
+.ea-card .ea-test{font-size:12px;margin-top:6px;color:#9ae6b4;line-height:1.6}
+.ea-card .ea-test.bad{color:#ff9aa8}
+.ea-card.done{border-color:rgba(52,211,153,.35)}
+/* /NX-CSS:31 */
 </style>
 </head>
 <body>
@@ -1892,18 +1916,18 @@ function describeFirebaseError(e) {
   const map = {
     'invalid-api-key': 'مفتاح apiKey في إعداد Firebase غير صالح',
     'api-key-not-valid.-please-pass-a-valid-api-key.': 'مفتاح apiKey في إعداد Firebase غير صالح',
-    'network-request-failed': 'تعذّر الوصول إلى خوادم Firebase (الشبكة)',
+    'network-request-failed': 'تعذّر الوصول إلى الخادم (الشبكة)',
     'unavailable': 'Firestore غير متاح الآن (الشبكة أو الخادم)',
-    'timeout': 'انتهت مهلة الاتصال بـ Firebase',
+    'timeout': 'انتهت مهلة الاتصال بالخادم',
     'failed-precondition': 'قاعدة بيانات Firestore غير مُنشأة في هذا المشروع',
     'not-found': 'قاعدة بيانات Firestore غير موجودة في هذا المشروع',
     'unauthorized-domain': 'هذا النطاق غير مضاف في Authentication → Authorized domains',
     'operation-not-allowed': 'الدخول المجهول غير مفعّل في Authentication',
     'admin-restricted-operation': 'الدخول المجهول غير مفعّل في Authentication',
     'configuration-not-found': 'Authentication غير مفعّل في مشروع Firebase — افتح Authentication واضغط Get started ثم فعّل طرق الدخول',
-    'permission-denied': 'Firebase متصل، لكن قواعد الأمان تمنع هذه العملية (انشر firestore.rules من المستودع)',
+    'permission-denied': 'الخادم رفض هذه العملية: قواعد الحماية لا تسمح بها (إن كنت مالك الموقع ويتكرر هذا: انشر firestore.rules من المستودع)',
     'unauthenticated': 'العملية تحتاج جلسة دخول',
-    'unauthorized': 'Firebase Storage متصل، لكن قواعد storage.rules تمنع هذه العملية',
+    'unauthorized': 'مساحة الملفات رفضت هذه العملية: قواعد الحماية لا تسمح بها (لمالك الموقع: storage.rules)',
     'bucket-not-found': 'لا توجد حاوية Storage بهذا الاسم — تحقّق من storageBucket أو فعّل Storage في المشروع',
     'storage-not-enabled': 'Storage غير مفعّل في مشروع Firebase — رفع الصور والفيديو والملفات يحتاجه (Firebase Console ← Storage ← Get started)',
     'drive-disabled': 'Google Drive API غير مفعّل في مشروع Google Cloud الخاص بـ Firebase (Google Cloud Console ← APIs & Services ← Library ← Google Drive API ← Enable)',
@@ -1916,7 +1940,7 @@ function describeFirebaseError(e) {
     'drive-share-blocked': 'حساب Google هذا لا يسمح بمشاركة الملفات للعامة (حساب مؤسسة/مدرسة؟) — استعمل حساب Gmail شخصيًا',
     'drive-failed': 'تعذّر الرفع إلى Google Drive',
     'user-mismatch': 'اخترت حساب Google غير الحساب المرتبط بحسابك في NEXUS',
-    'upload-stalled': 'توقف الرفع: لم يصل أي جزء من الملف إلى Firebase خلال 90 ثانية — الشبكة ضعيفة أو مقطوعة. أعد المحاولة.',
+    'upload-stalled': 'توقف الرفع: لم يصل أي جزء من الملف إلى الخادم خلال 90 ثانية — الشبكة ضعيفة أو مقطوعة. أعد المحاولة.',
     'no-default-bucket': 'لم يُضبط storageBucket في إعداد Firebase',
     'project-not-found': 'مشروع Storage غير موجود — فعّل Storage في Firebase Console',
     'quota-exceeded': 'تجاوزت حصة Storage في المشروع',
@@ -1926,9 +1950,9 @@ function describeFirebaseError(e) {
     'invalid-argument': 'البيانات المرسلة غير صالحة أو أكبر من حد المستند (1MB)',
     'deadline-exceeded': 'انتهت مهلة الخادم',
     'publish-not-confirmed': 'لم يؤكّد الخادم استلام النشر (الشبكة بطيئة أو مقطوعة)',
-    'app-deleted': 'أُغلق تطبيق Firebase'
+    'app-deleted': 'أُغلق الاتصال بالخادم'
   };
-  if (!map[code] && /dynamically imported module|Importing a module script failed|error loading dynamically/i.test(msg)) return 'تعذّر تحميل مكتبة Firebase من الشبكة (الاتصال ضعيف أو مقطوع)';
+  if (!map[code] && /dynamically imported module|Importing a module script failed|error loading dynamically/i.test(msg)) return 'تعذّر تحميل مكتبة الاتصال بالخادم من الشبكة (الاتصال ضعيف أو مقطوع)';
   return map[code] || (code ? code + ' — ' + msg.slice(0, 160) : msg.slice(0, 200)) || 'خطأ غير معروف';
 }
 
@@ -6276,7 +6300,7 @@ const API_DOCS = [
   ]},
   { ns: 'Save', desc: 'حفظ تقدّم اللاعب', m: [
     ['Save.set(key,value) · Save.get(key,default)', 'محلي فوري'],
-    ['await Save.sync(key) · await Save.pull(key)', 'مزامنة مع الحساب عند توفر Firebase']
+    ['await Save.sync(key) · await Save.pull(key)', 'مزامنة مع الحساب عند الاتصال بالسحابة']
   ]},
   { ns: 'Time', desc: 'الزمن', m: [
     ['Time.dt · Time.elapsed · Time.frame', 'قيم الإطار'],
@@ -6291,7 +6315,7 @@ const API_DOCS = [
     ['Mic.startRecording() · await Mic.stopRecording()', 'تسجيل خام'],
     ['Mic.outputStream()', 'MediaStream للمعالجة أو الإرسال']
   ]},
-  { ns: 'Network', desc: 'خطافات الشبكة — تتطلب Firebase', m: [
+  { ns: 'Network', desc: 'خطافات الشبكة — تتطلب اتصال الموقع بالسحابة', m: [
     ['await Network.room(id)', 'غرفة: حضور + رسائل'],
     ['room.on("message"|"peerJoined"|"peerLeft", fn)', 'أحداث الغرفة'],
     ['room.send(type,data) · room.setState(patch)', 'إرسال'],
@@ -8345,7 +8369,7 @@ const Studio = {
       'الكود ومتعدّد اللغات': 'افتح ملفات الكود وعدّلها',
       'بناء المشروع · BUILD': 'يجهّز اللعبة للتشغيل ويكشف أخطاء الكود',
       'سلاسل الأدوات · Toolchains': 'لغات برمجة إضافية (للمحترفين)',
-      'الأمان و قواعد Firebase': 'القواعد التي تحمي بياناتك، وفحص أمان المشروع',
+      'الأمان وقواعد الحماية': 'القواعد التي تحمي بياناتك، وفحص أمان المشروع',
       'لوحة المشروع': 'ملخّص مشروعك وكل أقسامه في شاشة واحدة',
       'تصدير / استيراد': 'احفظ نسخة من مشروعك في ملف، أو افتح نسخة',
       'مشاريعي': 'كل مشاريعك — افتح أو أنشئ أو احذف',
@@ -8382,7 +8406,7 @@ const Studio = {
       item('code', 'الكود ومتعدّد اللغات', () => NX.IDE.open(this.project)),
       item('box', 'بناء المشروع · BUILD', () => this.buildProject()),
       item('gear', 'سلاسل الأدوات · Toolchains', () => NX.IDE.openToolchains()),
-      item('shield', 'الأمان و قواعد Firebase', () => NX.openSecurityPanel()),
+      item('shield', 'الأمان وقواعد الحماية', () => NX.openSecurityPanel()),
       item('gear', T('settings'), () => NX.openSettings()),
       item('grid', 'لوحة المشروع', () => NX.ProjectHub.open(this.project)),
       item('save', 'تصدير / استيراد', () => NX.Exporter.open(this.project)),
@@ -8549,11 +8573,11 @@ const Studio = {
 
     /* every published game is public */
     const vis = 'public';
-    body.appendChild(el('p', { class: 'tiny', text: 'يُنشر المشهد والكود المترجَم إلى Firebase — الأصول تبقى في Storage وتُحمَّل بالمعرّف على أي جهاز.' }));
+    body.appendChild(el('p', { class: 'tiny', text: 'تُنشر لعبتك على الموقع ليلعبها الآخرون من أي جهاز — مجسماتك تُحمَّل من مكانها كما هي.' }));
     /* where this will go, stated before the button is pressed */
     body.appendChild(el('div', { class: 'card', style: { marginTop: '10px', fontSize: '12.5px', lineHeight: '1.7' },
       text: Backend.isOnline()
-        ? '🟢 Firebase متصل — المشروع: ' + (Backend.projectId || '—') + '. ستظهر اللعبة لكل من يفتح هذا الرابط على أي جهاز.'
+        ? '🟢 متصل — ستظهر اللعبة لكل من يفتح هذا الموقع على أي جهاز.'
         : (Backend.status === 'error' ? '🔴 ' : '🟠 ') + 'الوضع المحلي — ' + (Backend.reason || '') + '\nلا يمكن النشر للآخرين من هذا الوضع.' }));
     const statusLine = el('p', { class: 'tiny', style: { marginTop: '8px', minHeight: '18px', whiteSpace: 'pre-line' } });
     body.appendChild(statusLine);
@@ -8566,7 +8590,7 @@ const Studio = {
         if (busy) return;
         if (!Backend.isOnline()) {
           Modal.open({ title: 'لم تُنشر اللعبة', body: el('p', { class: 'muted', style: { lineHeight: '1.7', whiteSpace: 'pre-line' },
-            text: 'تعذر نشر اللعبة إلى الخادم. اللعبة لم تُنشر للمستخدمين الآخرين.\n\nالسبب: ' + (Backend.reason || 'Firebase غير متصل') + '\n\nمشروعك محفوظ على هذا الجهاز فقط.' }),
+            text: 'تعذر نشر اللعبة إلى الخادم. اللعبة لم تُنشر للمستخدمين الآخرين.\n\nالسبب: ' + (Backend.reason || 'الموقع غير متصل بالسحابة') + '\n\nمشروعك محفوظ على هذا الجهاز فقط.' }),
             actions: [{ label: T('close'), cls: 'ghost' }, { label: 'التشخيص', cls: 'primary', onclick: () => NX.openDiagnostics && NX.openDiagnostics() }] });
           return;
         }
@@ -8590,7 +8614,7 @@ const Studio = {
           say('بناء اللعبة…');
           const build = await this.buildProject({ silent: true });
           if (!build || !build.ok) { say(''); Toast.err('لا يمكن النشر: البناء فاشل'); if (NX.IDE) NX.IDE.open(p, { panel: 'problems' }); return; }
-          say('الإرسال إلى Firebase والتحقق من الخادم…');
+          say('الإرسال إلى الخادم والتحقق…');
           const meta = { title: title.value.trim() || p.name, description: desc.value.trim(), genre: genre.value, visibility: vis, cover: prev.cover || null, coverURL: prev.coverURL || null, ageRating: age ? age.select.value : '3' };
           if (age) { p.showcase = Object.assign({}, p.showcase || {}, { ageRating: age.select.value }); }
           const rec = await Games.publish(p, meta, build, { coverBlob });
@@ -8628,9 +8652,9 @@ const Studio = {
       body.appendChild(el('p', { class: 'muted', style: { fontSize: '13px', lineHeight: '1.7' },
         text: 'هذه الأصول مستخدمة في اللعبة لكن الأجهزة الأخرى لن تستطيع تحميلها:' }));
       list('أصولك الخاصة (PRIVATE)', chk.privateMine, a => '🔒 ' + a.name);
-      list('غير موجودة في Firebase', chk.missing, id => '✗ ' + id + ' — ربما رُفع في الوضع المحلي على هذا الجهاز فقط أو حُذف');
+      list('غير موجودة على الخادم', chk.missing, id => '✗ ' + id + ' — ربما رُفع في الوضع المحلي على هذا الجهاز فقط أو حُذف');
       list('خاصة بمستخدم آخر', chk.privateOther, a => '✗ ' + a.name + ' @' + (a.creatorName || ''));
-      list('ملفها غير مرفوع إلى Storage', chk.notUploaded, a => '✗ ' + a.name);
+      list('ملفها غير مرفوع', chk.notUploaded, a => '✗ ' + a.name);
       if (blocking) body.appendChild(el('p', { class: 'tiny', style: { marginTop: '10px', color: '#ff9aa8' },
         text: 'احذف هذه العناصر من المشهد أو استبدلها (أو انقل عملك المحلي من «التشخيص ← مزامنة») ثم أعد النشر.' }));
       const actions = [{ label: 'إلغاء النشر', cls: 'ghost', onclick: () => resolve(false) }];
@@ -8653,7 +8677,7 @@ const Studio = {
         : rec.visibility === 'unlisted' ? '✓ نُشرت «برابط فقط» وتأكّد الخادم منها. لا تظهر في القوائم؛ أرسل الرابط لمن تريد.'
         : '✓ حُفظت على الخادم كلعبة خاصة — لا يراها غيرك.' }));
     const k = el('div', { class: 'card', style: { marginTop: '10px' } });
-    [['المعرّف', rec.gameId], ['الإصدار', String(rec.version || 1)], ['Firebase', Backend.projectId || '—']].forEach(([a, b]) =>
+    [['المعرّف', rec.gameId], ['الإصدار', String(rec.version || 1)]].forEach(([a, b]) =>
       k.appendChild(el('div', { class: 'kv' }, [el('span', { text: a }), el('span', { text: b })])));
     body.appendChild(k);
     (rec.warnings || []).forEach(w => body.appendChild(el('p', { class: 'tiny', style: { color: '#fcd77a', marginTop: '8px' }, text: '⚠ ' + w })));
@@ -10531,7 +10555,7 @@ const HELP = {
   tag:       { t: 'الوسم', w: 'اسم تجميعي يسهّل إيجاد الكائنات من الكود.', h: 'ضع "enemy" على كل الأعداء ثم Scene.findByTag("enemy").', e: 'player · enemy · pickup' },
   ai:        { t: 'المساعد', w: 'يخطّط وينفّذ ويبني ويختبر ويصلح داخل مشروعك.', h: 'صف ما تريد بلغتك. راجع الخطة ثم نفّذ. كل تغيير له نقطة رجوع.', e: '«اصنع لعبة سباق في مدينة»' },
   checkpoint:{ t: 'نقطة الرجوع', w: 'نسخة محفوظة من مشروعك قبل تغيير كبير.', h: 'من «تاريخ المشروع» ترجع إلى أي نقطة.', e: 'قبل إضافة Multiplayer' },
-  multiplayer:{ t: 'اللعب الجماعي', w: 'مزامنة اللاعبين عبر الشبكة.', h: 'يحتاج اتصالًا بسحابة المنصة (Firebase) لتعمل الغرف والإشارات.', e: 'Network.room("race-1")' },
+  multiplayer:{ t: 'اللعب الجماعي', w: 'مزامنة اللاعبين عبر الشبكة.', h: 'يحتاج اتصال الموقع بالسحابة لتعمل الغرف والإشارات.', e: 'Network.room("race-1")' },
   build_run: { t: 'تشغيل', w: 'يبني المشروع ثم يشغّله داخل مساحة العرض.', h: 'إن فشل البناء لن يعمل التشغيل، وستظهر المشاكل.', e: '—' }
 };
 function helpSheet(key) {
@@ -12591,7 +12615,7 @@ const ACTIONS = [
   { id: 'shop',    icon: 'cube',   title: 'إضافة متجر',      desc: 'شراء بعملات اللعبة',               prompt: 'أضف متجرًا' },
   { id: 'ui',      icon: 'layers', title: 'إضافة واجهة',     desc: 'نقاط وصحة ورسائل',                 prompt: 'أضف واجهة علوية للنقاط والصحة' },
   { id: 'audio',   icon: 'music',  title: 'إضافة صوت',       desc: 'ارفع صوتًا أو خذه من المكتبة',      kind: 'asset', category: 'Audio', assetKind: 'audio' },
-  { id: 'mp',      icon: 'share',  title: 'لعب جماعي',       desc: 'مزامنة لاعبين — يحتاج Firebase',    prompt: 'أضف لعبًا جماعيًا', help: 'multiplayer' },
+  { id: 'mp',      icon: 'share',  title: 'لعب جماعي',       desc: 'مزامنة لاعبين — يحتاج اتصال الموقع بالسحابة',    prompt: 'أضف لعبًا جماعيًا', help: 'multiplayer' },
   { id: 'ask',     icon: 'spark',  title: 'اطلب من AI',      desc: 'صف ما تريد بلغتك',                 kind: 'ai', help: 'ai' }
 ];
 
@@ -15173,7 +15197,7 @@ const GameMedia = {
     } else {
       lines.push(`${file.name || 'صورة'} — ${fmtBytes(file.size)}` + (blob === file ? '' : ` ← ${fmtBytes(blob.size)} بعد الضغط`));
     }
-    lines.push('', 'الوجهة: ' + (NX.FILE_HOST === 'drive' ? 'Google Drive الخاص بك' : 'Firebase Storage') + ' — تبقى مرتبطة بالمشروع وتظهر على كل الأجهزة.');
+    lines.push('', 'الوجهة: ' + (NX.FILE_HOST === 'drive' ? 'Google Drive الخاص بك' : 'مساحة الموقع') + ' — تبقى مرتبطة بالمشروع وتظهر على كل الأجهزة.');
     return new Promise(res => Modal.open({ title: 'رفع؟', body: el('p', { class: 'muted', style: { whiteSpace: 'pre-line', lineHeight: '1.8', fontSize: '13px' }, text: lines.join('\n') }),
       actions: [{ label: T('cancel'), cls: 'ghost', onclick: () => res(false) }, { label: 'رفع', cls: 'primary', onclick: () => res(true) }] }));
   },
@@ -15200,7 +15224,7 @@ const GameMedia = {
       /* where it lives, what visitors see */
       const st = el('div', { class: 'card', style: { marginBottom: '12px', fontSize: '12.5px', lineHeight: '1.7' } });
       st.appendChild(el('div', { text: (p.publishedId ? '🟢 منشورة — كل تغيير هنا يظهر فورًا في صفحة اللعبة على كل الأجهزة.' : '🟠 لم تُنشر بعد — الوسائط محفوظة في المشروع وتظهر عند النشر.') }));
-      st.appendChild(el('div', { class: 'tiny', text: 'التخزين: ' + (NX.FILE_HOST === 'drive' ? 'Google Drive (ملفاتك، مشاركة للقراءة)' : 'Firebase Storage') + ' · الزوار يشاهدون فقط، وأنت وحدك تعدّل.' }));
+      st.appendChild(el('div', { class: 'tiny', text: 'التخزين: ' + (NX.FILE_HOST === 'drive' ? 'Google Drive (ملفاتك، مشاركة للقراءة)' : 'مساحة الموقع') + ' · الزوار يشاهدون فقط، وأنت وحدك تعدّل.' }));
       body.appendChild(st);
       /* the five things people add most, one tap each: the file picker opens at once */
       const quick = el('div', { class: 'gm-quick' });
@@ -16351,7 +16375,9 @@ legacy.setCfg = function (c) {
 legacy.isReady = () => AIConfig.isReady();
 /* raw system+prompt call — what the planner actually needs */
 legacy.raw = async function (system, prompt, opts = {}) {
-  const r = await AIClient.chat([{ role: 'user', content: prompt }], { system, stream: false, ...opts });
+  let r = await AIClient.chat([{ role: 'user', content: prompt }], { system, stream: false, ...opts });
+  /* a small answer room that was not enough (a thinking model): once more, full room */
+  if (r.truncated && opts._cfg && opts._cfg.maxTokens) r = await AIClient.chat([{ role: 'user', content: prompt }], { system, stream: false, ...opts, _cfg: null });
   return r.text;
 };
 legacy.ask = async function (prompt, project, engine) {
@@ -16428,7 +16454,7 @@ const ProjectIndex = {
   },
 
   /* pick the files that actually relate to the question */
-  select(query, project, engine, budget = 7000) {
+  select(query, project, engine, budget = 7000, { fallback = true } = {}) {
     const index = this.get(project, engine);
     const q = NX.tokenize(query).concat(String(query).toLowerCase().split(/[^a-z0-9_]+/i).filter(Boolean));
     const scored = index.files.map(f => {
@@ -16444,7 +16470,8 @@ const ProjectIndex = {
     /* when anything actually matches, send only the matches; when nothing
        matches, fall back to the two most recently touched files */
     const anyMatch = scored.length && scored[0].s > 0;
-    const pool = anyMatch ? scored.filter(x => x.s > 0) : scored.slice(0, 2);
+    const pool = anyMatch ? scored.filter(x => x.s > 0) : fallback ? scored.slice(0, 1) : [];
+    if (!anyMatch) budget = Math.min(budget, 2000);          // a guess: one file, short
     for (const { f, s } of pool) {
       const src = (project.files.find(x => x.path === f.path) || {}).code || '';
       if (used + src.length > budget) {
@@ -17062,38 +17089,68 @@ const Chat = {
       foot: [btn('محادثة جديدة', { cls: 'primary', icon: 'plus', onclick: () => { this.newChat(); sheet.close(); } })] });
   },
 
-  /* ---- context assembly (rules 9, 10, 22-25, 31) ---- */
-  async systemFor(question) {
+  /* ---- context assembly (rules 9, 10, 22-25, 31) — sized to the message, so
+     the free keys last longer and answers come faster: a greeting sends no
+     project at all, a question sends the project in brief, a request to
+     change the game sends the full picture (engine API, operations, files,
+     objects, the code that matches). The fixed part comes first, so a
+     provider that caches prompt prefixes can reuse it. ---- */
+  async systemFor(question, route = 'act') {
     const p = this.project();
     const eng = NX.Studio.engine;
-    const sel = ProjectIndex.select(question, p, eng);
-    const errs = ErrorLog.items.slice(0, 3).map(e => `${e.kind}: ${e.message}`);
-    const api = NX.API_DOCS.map(d => d.ns + ': ' + d.m.map(m => m[0]).join(' | ')).join('\n');
-    /* the user's files (A1…An, metadata only) and the scene, as the model may act on them */
-    const acts = NX.ModelActions ? await NX.ModelActions.context().catch(() => '') : '';
-    return `أنت مساعد ذكي داخل محرك الألعاب NEXUS (يعمل في المتصفح)، وشريك صاحب المشروع في صنع لعبته.
+    const rules = `أنت مساعد ذكي داخل محرك الألعاب NEXUS (يعمل في المتصفح)، وشريك صاحب المشروع في صنع لعبته.
 - أجب بلغة المستخدم (غالبًا العربية) بأسلوب ودود وواضح ومختصر. التحية تُردّ بتحية، والسؤال يُجاب عنه — بلا كود وبلا تعديلات ما لم يطلبها.
+- لا تخترع دوالًا أو ملفات أو كائنات أو أصولًا غير موجودة؛ إن نقص شيء فقل ذلك واقترح بديلًا متوافقًا.`;
+    if (route === 'talk') return rules + `\nالمشروع المفتوح: «${p.name}». ردّ بجملة أو جملتين.`;
+    const act = route === 'act';
+    const sel = ProjectIndex.select(question, p, eng, act ? 4500 : 2500, { fallback: act });
+    const errs = ErrorLog.items.slice(0, act ? 3 : 2).map(e => `${e.kind}: ${String(e.message).slice(0, 200)}`);
+    const api = NX.API_DOCS.map(d => d.ns + ': ' + d.m.map(m => m[0]).join(' | ')).join('\n');
+    const needsApi = act || /(كيف|كود|سكربت|سكريبت|برمج|دال|اجعل|يتحرك|يقفز|نظام|how|code|script|function|api|make|move|jump|system)/i.test(question);
+    const files = sel.index.files.slice(0, act ? 40 : 20);
+    /* the user's files (A1…An, metadata only) and the scene, as the model may act on them */
+    const acts = act && NX.ModelActions ? await NX.ModelActions.context().catch(() => '') : '';
+    let brief = '';
+    if (!act && eng) {
+      const objs = Array.from(eng.entities.values()).filter(e => !['camera', 'light'].includes(e.type));
+      brief = `كائنات المشهد (${objs.length}): ` + objs.slice(0, 25).map(e => e.name + (e.tag ? '#' + e.tag : '')).join('، ') + (objs.length > 25 ? '…' : '');
+      const s0 = eng.selection && eng.getEntity(eng.selection);
+      if (s0) brief += `\nالمحدد الآن: «${s0.name}» (${s0.type})` + ((s0.components || []).length ? ' — مكوّنات: ' + s0.components.map(c => c.type).join('، ') : '');
+    }
+    return rules + (act ? `
 - افهم مشروعه قبل الرد: كائنات المشهد، ملفات الكود، وملفاته المرفوعة (نوعها وأبعادها) أدناه — واستعمل ملفاته هو أولًا.
 - عندما يطلب شيئًا في لعبته، نفّذ أقوى ما يمكن فعلًا بأوامر NEXUS أدناه — لا تكتفِ بالشرح.
-- لا تخترع دوالًا أو ملفات أو كائنات أو أصولًا غير موجودة؛ إن نقص شيء فقل ذلك واقترح بديلًا متوافقًا.
 - الكود: JavaScript بواجهات المحرك أدناه فقط. إن طلب كودًا ليقرأه فاكتبه في كتلة \`\`\`js؛ وإن طلب تعديل لعبته فاستعمل CREATE_SCRIPT أو UPDATE_SCRIPT.
 
-${NX.ModelActions ? NX.ModelActions.protocol : ''}
+${NX.ModelActions ? NX.ModelActions.protocol : ''}` : `
+- هذا سؤال: أجب عنه من معلومات المشروع أدناه. إن أراد تعديل لعبته فسيطلبه، والمساعد ينفّذه بمعاينة.`) + (needsApi ? `
 
 واجهات المحرك:
-${api}
+${api}` : '') + `
 
 المشروع: ${sel.index.project}
 الأنظمة الموجودة: ${sel.index.systems.join(', ') || 'لا شيء'}
 ملفات الكود:
-${sel.index.files.join('\n') || 'لا ملفات'}
-
-${acts}
+${files.join('\n') || 'لا ملفات'}${sel.index.files.length > files.length ? '\n…' : ''}
+${act ? '\n' + acts : brief}
 ${NX.TeamAI ? NX.TeamAI.context(p) : ''}
-${errs.length ? '\nآخر الأخطاء:\n' + errs.join('\n') : ''}
+${errs.length ? '\nآخر الأخطاء:\n' + errs.join('\n') : ''}` + (sel.files.length ? `
 
 الملفات ذات الصلة بسؤال المستخدم:
-${sel.files.map(f => `--- ${f.path} ---\n${f.code}`).join('\n\n') || '(لا شيء)'}`;
+${sel.files.map(f => `--- ${f.path} ---\n${f.code}`).join('\n\n')}` : '');
+  },
+
+  /* earlier turns, shortened: the last few, long code in older answers
+     replaced by a one-line note (it stays in the chat, just not re-sent) */
+  historyFor(c) {
+    const recent = c.messages.filter(m => m.content && !m.error).slice(-7, -1);
+    return recent.map((m, i) => {
+      let t = String(m.content);
+      if (m.role === 'assistant' && i < recent.length - 1) t = t.replace(/```[\w-]*\n([\s\S]*?)```/g, (x, code) => '[كود: ' + code.split('\n').length + ' سطر]');
+      const cap = m.role === 'user' ? 600 : 900;
+      if (t.length > cap) t = t.slice(0, cap) + ' …';
+      return { role: m.role, content: t };
+    });
   },
 
   async send(text) {
@@ -17157,17 +17214,28 @@ ${sel.files.map(f => `--- ${f.path} ---\n${f.code}`).join('\n\n') || '(لا شي
     this.setStreaming(true);
 
     try {
-      const system = await this.systemFor(q);
+      /* how much of the project the model needs: none for small talk, a brief for a
+         pure question, everything for anything that may change the game */
+      const kind = NX.Intent && NX.Intent.smallTalk(q) ? 'talk' : route === 'ask' && NX.Intent && !NX.Intent.hasActVerb(q) ? 'ask' : 'act';
+      const system = await this.systemFor(q, kind);
       const c = this.ensure();
-      const history = c.messages.filter(m => m.content && !m.error).slice(-10, -1)
-        .map(m => ({ role: m.role, content: m.content }));
-      const r = await AIClient.chat(history.concat([{ role: 'user', content: q }]), {
+      const history = this.historyFor(c);
+      /* a greeting or a question needs a short answer: less room reserved
+         (a provider counts the reserved room against the key's minute budget) */
+      const want = kind === 'talk' ? 800 : kind === 'ask' ? 2000 : 0;
+      const has = (AIConfig.current() || { cfg: {} }).cfg.maxTokens || 4000;
+      const capped = !!(want && want < has);
+      const call = cfg => AIClient.chat(history.concat([{ role: 'user', content: q }]), {
+        _cfg: cfg,
         system,
         onDelta: (piece, full) => {
           assistant.content = full;
           if (txt) { if (!firstToken) { firstToken = true; txt.style.opacity = ''; } txt.textContent = full.replace(/```[ \t]*nexus-actions[\s\S]*$/i, '⏳ أجهّز التعديلات…'); this.toBottom(); }
         }
       });
+      let r = await call(capped ? { maxTokens: want } : null);
+      /* the short room was not enough (a thinking model, a long answer): once more, full room */
+      if (capped && r.truncated && !r.aborted) { assistant.content = ''; r = await call(null); }
       assistant.content = r.text || assistant.content || (r.aborted ? '' : '(ردّ فارغ من النموذج)');
       /* the model asked to change the project: every operation checked → preview → APPLY */
       if (NX.ModelActions && !r.aborted) {
@@ -17863,7 +17931,7 @@ async function findAssets(q, { source = 'any', kind = null, limit = 6 } = {}) {
   if (q.query) q.query.forEach(w => terms.push(...NX.tokenize(w)));
   const qstr = Array.from(new Set(terms)).slice(0, 10).join(' ');
   for (const scope of scopes) {
-    if (scope === 'public' && !Backend.isOnline()) { notes.push('Firebase غير متصل — البحث في المكتبة العامة غير متاح حاليًا. بحثت في أصول هذا الجهاز فقط.'); continue; }
+    if (scope === 'public' && !Backend.isOnline()) { notes.push('الموقع غير متصل بالسحابة — البحث في المكتبة العامة غير متاح حاليًا. بحثت في أصول هذا الجهاز فقط.'); continue; }
     if (scope === 'mine' && !me) continue;
     const label = scope === 'mine' ? 'أصولي' : 'المكتبة العامة';
     try {
@@ -18483,7 +18551,7 @@ const Agent = {
     if (touched[0]) { eng.select(touched[0]); }
     S.dirty = true; S.updateHud();
     const saved = await S.save(true);
-    const where = saved ? (Backend.isOnline() ? '✓ حُفظ في Firebase' : '✓ حُفظ على هذا الجهاز (LOCAL)') : '⚠ لم يُحفظ — التغيير في المحرّر فقط، اضغط حفظ';
+    const where = saved ? (Backend.isOnline() ? '✓ حُفظ' : '✓ حُفظ على هذا الجهاز (LOCAL)') : '⚠ لم يُحفظ — التغيير في المحرّر فقط، اضغط حفظ';
     plan.ui.say((errors.length ? 'تمّ جزئيًا.' : 'تمّ.') + ' ' + where, [{ type: 'result', title: errors.length ? 'نُفّذ مع مشاكل' : 'ما الذي تغيّر', lines: lines.concat(errors.map(x => '✗ ' + x)), ids: touched, undoable: true,
       alternatives: (plan.grounded.find(g => g.type === 'add' && g.alternatives && g.alternatives.length) || {}).alternatives ? (plan.grounded.find(g => g.alternatives && g.alternatives.length).alternatives.map(assetSummary)) : null,
       altFor: touched.length === 1 ? touched[0] : null }]);
@@ -18583,7 +18651,7 @@ const Agent = {
     const S = this.studio();
     const idx = await sceneIndex(S.engine);
     const mem = Memory.of(S.project.projectId);
-    const objs = idx.filter(x => !x.ground || x.e.tag === 'ground').slice(0, 60).map(x => ({
+    const objs = idx.filter(x => !x.ground || x.e.tag === 'ground').slice(0, 40).map(x => ({
       id: x.e.id, name: x.e.name, type: x.e.type, is: Array.from(x.concepts), asset: x.a ? x.a.name : null,
       pos: x.box.getCenter(new THREE.Vector3()).toArray().map(n => +n.toFixed(1)),
       size: x.box.getSize(new THREE.Vector3()).toArray().map(n => +n.toFixed(1))
@@ -18594,7 +18662,7 @@ Rules: ids MUST come from SCENE OBJECTS; never invent ids or asset ids. "it": tr
 SCENE OBJECTS: ${JSON.stringify(objs)}
 LAST TOUCHED: ${JSON.stringify(mem.lastEntityIds.filter(id => S.engine.entities.has(id)))}
 SELECTED: ${JSON.stringify(S.engine.selection || null)}`;
-    const raw = await NX.AI.raw(system, text);
+    const raw = await NX.AI.raw(system, text, { _cfg: { maxTokens: 1000 } });   // a few JSON steps
     let j = null;
     try { j = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch {}
     if (!j) throw new Error('ردّ النموذج ليس JSON صالحًا');
@@ -18889,7 +18957,7 @@ const GameComposer = {
 Use only concepts the user asked for or that the genre clearly needs. Never output asset ids.
 AVAILABLE ASSETS (metadata only):
 ${assets.slice(0, 40).map(x => `ASSET: name=${x.name} · type=${x.type} · size=${x.size || '?'} · source=${x.scope}`).join('\n')}`;
-    const raw = await NX.AI.raw(system, text);
+    const raw = await NX.AI.raw(system, text, { _cfg: { maxTokens: 1000 } });   // a short JSON answer
     const j = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
     const byId = id => CONCEPTS.find(c => c.id === id && !c.noAsset) || null;
     const items = (j.items || []).map(it => ({ concept: byId(it.concept), relation: RELATION_AR[it.relation] ? it.relation : null, target: byId(it.target), count: Number.isFinite(+it.count) && +it.count > 0 ? Math.min(40, +it.count) : null, clause: it.concept }))
@@ -19171,7 +19239,7 @@ ${assets.slice(0, 40).map(x => `ASSET: name=${x.name} · type=${x.type} · size=
     finally { plan.ui.busy(null); }
     lines.push(test.ok ? '▶ تشغيل تجريبي: نجح البناء والتشغيل بلا أخطاء' : '▶ تشغيل تجريبي: ' + (test.stage === 'build' ? 'فشل البناء' : 'أخطاء أثناء التشغيل') + ' — ' + test.errors.slice(0, 3).join(' · '));
     Memory.touch(p.projectId, touched.slice(-20));
-    const where = saved ? (Backend.isOnline() ? '✓ حُفظ في Firebase' : '✓ حُفظ على هذا الجهاز') : '⚠ لم يُحفظ — اضغط حفظ';
+    const where = saved ? (Backend.isOnline() ? '✓ حُفظ' : '✓ حُفظ على هذا الجهاز') : '⚠ لم يُحفظ — اضغط حفظ';
     plan.ui.say((errors.length ? 'تمّ جزئيًا. ' : 'تمّ. ') + where, [{ type: 'result', title: errors.length ? 'نُفّذ مع مشاكل' : 'ما الذي بنيته', undoable: true, canPlay: true,
       lines: lines.concat(errors.map(x => '✗ ' + x)), ids: touched.filter(id => eng.entities.has(id)), used: Array.from(used.values()) }]);
     return { lines, errors, used: Array.from(used.values()), test, saved };
@@ -19290,6 +19358,16 @@ function intentOf(text) {
 }
 const Intent = {
   of: intentOf,
+  /* only a greeting / thanks / goodbye / «كيف حالك» — the chat sends no project for these */
+  smallTalk(text) {
+    const ws = words(text);
+    if (!ws.length || ws.length > 6) return false;
+    const has = (w, list) => stems(w).some(s => list.includes(s));
+    if (ws.some(w => has(w, ACT_VERBS) || !!detectVerb(w) || !!detectConcept(w))) return false;
+    return ws.some(w => has(w, TALK_GREET) || has(w, TALK_THANKS) || has(w, TALK_BYE) || /^(حالك|احوالك|اخبارك|عليكم|ورحمه|الله|وبركاته)$/.test(w));
+  },
+  /* an action word anywhere («ما رأيك أن تضيف شجرة؟») */
+  hasActVerb(text) { return words(text).some(w => stems(w).some(s => ACT_VERBS.includes(s)) || !!detectVerb(w)); },
   /* 'act' → the agent / the builder · 'talk' | 'ask' → a conversation */
   route(text) {
     if (REDO_RE.test(text) || showcaseIntent(text)) return 'act';
@@ -19332,7 +19410,9 @@ const Intent = {
    every operation, shows a preview, and applies it only after APPLY —
    as one undo step, through GameOps (the builder's own checks).
    ============================================================ */
-const MA_OPS = ['ADD_ASSET', 'CREATE_OBJECT', 'MOVE_OBJECT', 'ROTATE_OBJECT', 'SCALE_OBJECT', 'SET_PROPERTY', 'DELETE_OBJECT', 'CREATE_SCRIPT', 'UPDATE_SCRIPT', 'BUILD_GAME', 'PLAY_TEST'];
+const MA_OPS = ['ADD_ASSET', 'CREATE_OBJECT', 'MOVE_OBJECT', 'ROTATE_OBJECT', 'SCALE_OBJECT', 'SET_PROPERTY', 'DELETE_OBJECT', 'CREATE_SCRIPT', 'UPDATE_SCRIPT', 'BUILD_GAME', 'PLAY_TEST',
+  /* the editor agent's operations (PART 31) */
+  'ADD_SYSTEM', 'SET_COMPONENT', 'SET_BODY', 'SNAP_TO_GROUND', 'FIX_ROTATION'];
 const MA_RELATIONS = ['beside', 'front', 'behind', 'left', 'right', 'around', 'on'];
 const MA_REL_AR = { beside: 'بجانب', front: 'أمام', behind: 'خلف', left: 'يسار', right: 'يمين', around: 'حول', on: 'فوق' };
 const MA_PROTOCOL = `ACTING ON THE PROJECT
@@ -19445,6 +19525,7 @@ ${objs.join('\n') || '(empty scene)'}${idx.length > 60 ? '\n…' : ''}`;
             break;
           }
           case 'BUILD_GAME': o.request = String(o.request || '').slice(0, 400); if (!o.request.trim()) throw new Error('طلب بناء فارغ'); break;
+          default: if (NX.EditorAgent) NX.EditorAgent.checkModelOp(o, exists);
         }
         ok.push(o);
       } catch (e) { bad.push((raw.op || '?') + ': ' + e.message); }
@@ -19468,6 +19549,7 @@ ${objs.join('\n') || '(empty scene)'}${idx.length > 60 ? '\n…' : ''}`;
       case 'BUILD_GAME': return `🏗 بناء عبر باني NEXUS: «${o.request}»`;
       case 'PLAY_TEST': return '▶ تشغيل تجريبي';
     }
+    if (NX.EditorAgent) return NX.EditorAgent.describeModelOp(o);
     return o.op;
   },
 
@@ -19490,7 +19572,7 @@ ${objs.join('\n') || '(empty scene)'}${idx.length > 60 ? '\n…' : ''}`;
     if (S.playing) { ui.say('أوقف التشغيل ⏹ أولًا.'); plan.done = false; return; }
     plan.done = true;
     const me = Backend.user && Backend.user.uid;
-    const scripts = plan.ops.some(o => /SCRIPT$/.test(o.op));
+    const scripts = plan.ops.some(o => /SCRIPT$|^ADD_SYSTEM$/.test(o.op));
     S.pushUndo('AI: ' + String(plan.text || '').slice(0, 60), { by: 'ai', files: scripts });
     const lines = [], errors = [], used = new Map(), touched = [], builds = [];
     let wantTest = scripts;
@@ -19551,6 +19633,12 @@ ${objs.join('\n') || '(empty scene)'}${idx.length > 60 ? '\n…' : ''}`;
             }
             case 'BUILD_GAME': builds.push(o.request); break;
             case 'PLAY_TEST': wantTest = true; break;
+            default: {
+              const r = await NX.EditorAgent.runModelOp(o);
+              r.lines.forEach(x => lines.push(x));
+              (r.ids || []).forEach(id => touched.push(id));
+              if (r.test) wantTest = true;
+            }
           }
         } catch (e) { errors.push(this.describe(o) + ' — ' + ((e && e.message) || e)); }
       }
@@ -19566,7 +19654,7 @@ ${objs.join('\n') || '(empty scene)'}${idx.length > 60 ? '\n…' : ''}`;
     }
     Memory.touch(p.projectId, touched.slice(-20));
     if (lines.length || errors.length) {
-      const where = !lines.length ? '' : saved ? (Backend.isOnline() ? ' ✓ حُفظ في Firebase' : ' ✓ حُفظ على هذا الجهاز') : ' ⚠ لم يُحفظ — اضغط حفظ';
+      const where = !lines.length ? '' : saved ? (Backend.isOnline() ? ' ✓ حُفظ' : ' ✓ حُفظ على هذا الجهاز') : ' ⚠ لم يُحفظ — اضغط حفظ';
       ui.say((errors.length ? (lines.length ? 'تمّ جزئيًا.' : 'لم يُنفّذ شيء.') : 'تمّ.') + where, [{ type: 'result', title: errors.length ? 'نُفّذ مع مشاكل' : 'ما الذي فعلته',
         undoable: lines.length > 0, canPlay: lines.length > 0, lines: lines.concat(errors.map(x => '✗ ' + x)), ids: touched.filter(id => eng.entities.has(id)), used: Array.from(used.values()) }]);
     }
@@ -19671,7 +19759,7 @@ async function writeWithModel(kind, facts, userText) {
     tags: `5 to 8 short tags (one or two words each) that describe the game for search. Reply ONLY with a JSON array of strings.`
   }[kind];
   const system = `You write the store page of a small 3D browser game made with the NEXUS engine. Write in ${lang}. Use ONLY the facts given: never invent features, modes, levels, multiplayer, a story, characters or rewards that are not in the facts. ${task}`;
-  const raw = (await NX.AI.raw(system, 'FACTS:\n' + JSON.stringify(facts, null, 1) + '\n\nREQUEST: ' + userText)).trim();
+  const raw = (await NX.AI.raw(system, 'FACTS:\n' + JSON.stringify(facts) + '\n\nREQUEST: ' + userText, { _cfg: { maxTokens: 1200 } })).trim();
   if (kind === 'tags') {
     const j = JSON.parse(raw.slice(raw.indexOf('['), raw.lastIndexOf(']') + 1));
     return j.map(t => String(t).replace(/^#/, '').trim()).filter(Boolean).slice(0, 8);
@@ -20360,6 +20448,9 @@ Agent.sceneIndex = sceneIndex;
 Agent.placeRelative = placeRelative;
 Agent.boxOf = boxOf;
 Agent.Memory = Memory;
+/* the language tools and scene helpers, for the editor agent (PART 31) */
+Agent.nlp = { norm, words, stems, detectConcept, detectAdj, detectNum, conceptById, CONCEPTS, ADJECTIVES, IT_WORDS, THIS_WORDS };
+Agent.util = { setBoxBottomCenter, groundAt, isGroundLike, fmtV, aiCodeViolations, finite3, drivingCode };
 NX.Agent = Agent;
 NX.GameAnalyzer = GameAnalyzer;
 NX.RuntimeInfo = RuntimeInfo;
@@ -20760,16 +20851,17 @@ const Status = {
       detail: 'لا يوجد اتصال بالإنترنت الآن.\nالألعاب والمشاريع التي فتحتها من قبل تعمل بدون إنترنت، وتعديلاتك تُحفظ على هذا الجهاز وتُرسل تلقائيًا عند عودة الاتصال.\nالنشر ورفع الملفات يحتاجان إنترنت.' };
     const pid = Backend.projectId || '—';
     const shortPid = pid.length > 18 ? pid.slice(0, 16) + '…' : pid;
-    if (Backend.isOnline()) return { key: 'online', label: 'Firebase Online' + (Backend.warning ? ' ⚠' : ''), cls: 'pub',
-      detail: '🟢 FIREBASE ONLINE\nالمشروع: ' + shortPid +
-        '\nمشاريعك وأصولك وألعابك المنشورة محفوظة في Firebase وتظهر على أي جهاز يفتح هذا الرابط.' +
+    void shortPid;
+    if (Backend.isOnline()) return { key: 'online', label: 'Online' + (Backend.warning ? ' ⚠' : ''), cls: 'pub',
+      detail: '🟢 متصل' +
+        '\nمشاريعك وأصولك وألعابك المنشورة محفوظة في السحابة وتظهر على أي جهاز يفتح هذا الرابط.' +
         (Backend.warning ? '\n\n⚠ ' + Backend.warning : '') };
-    if (Backend.status === 'error') return { key: 'local', label: 'Firebase Error', cls: 'err',
-      detail: '🔴 FIREBASE ERROR — الإعداد موجود لكن الاتصال فشل، فالتطبيق يعمل الآن في الوضع المحلي.\nالسبب: ' + (Backend.reason || 'غير معروف') +
+    if (Backend.status === 'error') return { key: 'local', label: 'Connection Error', cls: 'err',
+      detail: '🔴 خطأ في الاتصال — الإعداد موجود لكن الاتصال فشل، فالتطبيق يعمل الآن في الوضع المحلي.\nالسبب: ' + (Backend.reason || 'غير معروف') +
         '\n\nكل ما تصنعه الآن محفوظ على هذا الجهاز فقط ولا يراه أي جهاز آخر. افتح «التشخيص» لمعرفة التفاصيل.' };
     return { key: 'local', label: 'Local Mode', cls: 'local',
       detail: '🟠 LOCAL MODE — البيانات على هذا الجهاز فقط.\nالسبب: ' + (Backend.reason || 'غير معروف') +
-        '\n\nلن تظهر ألعابك على أي هاتف آخر حتى يضع مالك المنصة إعداد Firebase في أعلى index.html ويعيد رفعه.' };
+        '\n\nلن تظهر ألعابك على أي هاتف آخر حتى يُكمل مالك الموقع إعداد الاتصال بالسحابة (التشخيص ← إعداد المالك).' };
   },
   install() {
     const host = $('.p-top');
@@ -20925,7 +21017,7 @@ const Team = {
     return out;
   },
   _fb() {
-    if (!Backend.isOnline()) throw coded('local-mode', 'العمل الجماعي يحتاج اتصال Firebase (الوضع المحلي لا يشارك شيئًا).');
+    if (!Backend.isOnline()) throw coded('local-mode', 'العمل الجماعي يحتاج اتصال الموقع بالسحابة (الوضع المحلي لا يشارك شيئًا).');
     if (!Backend.user) throw coded('sign-in-required', 'SIGN_IN_REQUIRED');
     return Backend.fb;
   },
@@ -22379,7 +22471,7 @@ const S = () => NX.Studio;
 const persist = debounce(() => { const st = S(); if (st.project) st.save(true); }, 900);
 const touch = () => { S().dirty = true; persist(); };
 const fbErr = e => e && e.code === 'permission-denied' ? 'رفض الخادم: صلاحيتك في هذا المشروع لا تسمح' : NX.describeFirebaseError(e);
-const needOnline = () => { if (!Backend.isOnline() || !Backend.user) { Toast.err('هذه الميزة تحتاج اتصال Firebase'); return false; } return true; };
+const needOnline = () => { if (!Backend.isOnline() || !Backend.user) { Toast.err('هذه الميزة تحتاج اتصال الموقع بالسحابة وتسجيل الدخول'); return false; } return true; };
 const memberSelect = (p, value, none = 'بدون') => {
   const s = el('select', { class: 'select' }, [el('option', { value: '', text: none })].concat(Team.members(p).map(m => el('option', { value: m.uid, text: (m.uid === me() ? 'أنت' : m.name) + ' · ' + Team.ROLES[m.role].en }))));
   s.value = value || '';
@@ -23295,7 +23387,7 @@ const Leaderboards = {
     const flip = () => { pts.style.display = order.value === 'desc' ? '' : 'none'; tim.style.display = order.value === 'asc' ? '' : 'none'; };
     order.onchange = flip; flip();
     body.append(el('div', { class: 'switch' }, [el('span', { text: 'تفعيل لوحة الصدارة' }), on]), NX.field('النوع', order), NX.field('اسم النتيجة', label), pts, tim,
-      el('p', { class: 'tiny', text: 'الخادم (قواعد Firebase) يتحقق من كل نتيجة: لا تُقبل نتيجة أعلى من الحد، ولا أسرع مما يسمح به زمن الجلسة الحقيقي. اللاعب لا يستطيع كتابة نتيجة غيره ولا تعديلها يدويًا. هذه حماية قوية لكنها ليست محاكاة كاملة للعبة على الخادم.' }),
+      el('p', { class: 'tiny', text: 'الخادم يتحقق من كل نتيجة: لا تُقبل نتيجة أعلى من الحد، ولا أسرع مما يسمح به زمن الجلسة الحقيقي. اللاعب لا يستطيع كتابة نتيجة غيره ولا تعديلها يدويًا. هذه حماية قوية لكنها ليست محاكاة كاملة للعبة على الخادم.' }),
       el('p', { class: 'tiny', text: 'في اللعبة: await Leaderboard.submit(score) · await Leaderboard.top(10)' }));
     const s = Sheet.open({ title: '🏆 لوحة الصدارة · Leaderboard', body, id: 'lb-config', foot: [btn('حفظ', { cls: 'primary', onclick: async () => {
       p.settings.leaderboard = { enabled: on.classList.contains('on'), order: order.value, label: label.value.trim() || 'النقاط', max: +max.value, perSecond: +rate.value, min: +min.value };
@@ -23634,7 +23726,7 @@ const Replays = {
     return s.docs.map(d => d.data()).filter(r => !gameId || r.gameId === gameId).sort((a, b) => (b.at || 0) - (a.at || 0));
   },
   async open(opts = {}) {
-    if (!Backend.isOnline() || !Backend.user) { Toast.err('الإعادات تحتاج اتصال Firebase'); return; }
+    if (!Backend.isOnline() || !Backend.user) { Toast.err('الإعادات تحتاج اتصال الموقع بالسحابة'); return; }
     const body = el('div');
     body.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' })]));
     const s = Sheet.open({ title: '🎞 الإعادات · Replays', body, id: 'replays' });
@@ -23760,7 +23852,7 @@ const Analytics = {
   async open(p) {
     const gameId = p && (p.publishedId || p.gameId);
     if (!gameId) { Toast.err('انشر اللعبة أولًا — التحليلات تُجمع من اللعبة المنشورة'); return; }
-    if (!Backend.isOnline()) { Toast.err('التحليلات تحتاج اتصال Firebase'); return; }
+    if (!Backend.isOnline()) { Toast.err('التحليلات تحتاج اتصال الموقع بالسحابة'); return; }
     const body = el('div');
     body.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' })]));
     Sheet.open({ title: '📊 التحليلات · Analytics', body, full: true, id: 'analytics' });
@@ -24644,7 +24736,7 @@ const Plugins = {
       el('b', { text: 'تطلب هذه الصلاحيات فقط:' }));
     m.permissions.forEach(x => body.appendChild(el('div', { class: 'tiny', text: '• ' + PERMS[x] })));
     if (!m.permissions.length) body.appendChild(el('div', { class: 'tiny', text: '• لا شيء' }));
-    body.appendChild(el('p', { class: 'tiny', style: { marginTop: '8px' }, text: 'تعمل في صندوق معزول: لا إنترنت، لا وصول إلى حسابك أو Firebase أو مفاتيح AI أو ملفات الموقع.' }));
+    body.appendChild(el('p', { class: 'tiny', style: { marginTop: '8px' }, text: 'تعمل في صندوق معزول: لا إنترنت، لا وصول إلى حسابك أو بياناتك أو مفاتيح AI أو ملفات الموقع.' }));
     const ok = await new Promise(res => Modal.open({ title: 'تثبيت «' + m.name + '»؟', body, actions: [{ label: 'إلغاء', cls: 'ghost', onclick: () => res(false) }, { label: 'تثبيت', cls: 'primary', onclick: () => res(true) }] }));
     if (!ok) return false;
     p.plugins = this.installed(p).filter(x => x.id !== m.id).concat([Object.assign(m, { enabled: true, installedBy: Team.me(), at: Date.now() })]);
@@ -24744,7 +24836,7 @@ window.nexus={permissions:${JSON.stringify(m.permissions)},scene:{list:function(
     const owner = Team.isOwner(p);
     const draw = () => {
       body.textContent = '';
-      body.appendChild(el('p', { class: 'tiny', text: 'الإضافات أدوات صغيرة للاستوديو. كل إضافة تعمل في صندوق معزول بلا إنترنت، ولا تصل إلى حسابك أو Firebase أو مفاتيح AI أو ملفات الموقع — فقط ما تسمح به صلاحياتها، وضمن حدود دورك في المشروع.' }));
+      body.appendChild(el('p', { class: 'tiny', text: 'الإضافات أدوات صغيرة للاستوديو. كل إضافة تعمل في صندوق معزول بلا إنترنت، ولا تصل إلى حسابك أو بياناتك أو مفاتيح AI أو ملفات الموقع — فقط ما تسمح به صلاحياتها، وضمن حدود دورك في المشروع.' }));
       const list = this.installed(p);
       if (!list.length) body.appendChild(el('div', { class: 'center-note', text: 'لا إضافات مثبّتة' }));
       list.forEach(m => {
@@ -25024,7 +25116,7 @@ const DeviceTest = {
     /* WebRTC */
     const rtc = !!window.RTCPeerConnection, gum = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
     add('WebRTC', rtc ? 'ok' : (u.voice ? 'bad' : 'warn'), (rtc ? 'WebRTC متاح' : 'WebRTC غير متاح') + ' · ' + (gum ? 'الميكروفون ممكن (بإذن)' : 'لا وصول للميكروفون') + (u.voice ? ' · اللعبة تستعمل الصوت' : ''));
-    if (u.net) add('WebRTC', Backend.isOnline() ? 'ok' : 'warn', 'اللعب الجماعي يحتاج اتصال Firebase' + (Backend.isOnline() ? ' ✓' : ' — غير متصل الآن'));
+    if (u.net) add('WebRTC', Backend.isOnline() ? 'ok' : 'warn', 'اللعب الجماعي يحتاج اتصال الموقع بالسحابة' + (Backend.isOnline() ? ' ✓' : ' — غير متصل الآن'));
     /* performance: the real scene for 3 seconds */
     const eng = S().engine;
     if (eng && S().project === p) {
@@ -25918,7 +26010,7 @@ const HtmlApps = {
   LIMIT,
   link: appLink,
   ready(what) {
-    if (!Backend.isOnline()) { Toast.err((what || 'التطبيقات') + ' تحتاج اتصال Firebase'); return false; }
+    if (!Backend.isOnline()) { Toast.err((what || 'التطبيقات') + ' تحتاج اتصال الموقع بالسحابة'); return false; }
     if (!Backend.hasAccount()) {
       NX.promptSignIn('تطبيقاتك ومواقعك تُحفظ في حسابك — سجّل الدخول بحساب Google أو البريد حتى تبقى لك على كل أجهزتك.');
       return false;
@@ -26184,7 +26276,7 @@ async function uploadFlow(existing = null, how = 'files') {
         openAppPage(rec);
       } catch (err) {
         busy = false; e.currentTarget.disabled = false; prog.classList.add('hide');
-        if (!NX.handleAuthError(err)) Toast.err('تعذّر الرفع: ' + (err.code === 'storage-not-enabled' ? 'Firebase Storage غير مفعّل' : NX.describeFirebaseError(err)));
+        if (!NX.handleAuthError(err)) Toast.err('تعذّر الرفع: ' + (err.code === 'storage-not-enabled' ? 'تخزين الملفات غير مفعّل في هذا الموقع (Storage — لمالك الموقع)' : NX.describeFirebaseError(err)));
       }
     } })] });
 }
@@ -26227,7 +26319,7 @@ function card(a) {
 Object.assign(HtmlApps, { open: openAppPage, run: openViewer, manager: openManager, upload: uploadFlow, async openById(id) {
   let a = null;
   try { a = await HtmlApps.get(id); } catch (e) { Toast.err('تعذّر جلب التطبيق: ' + NX.describeFirebaseError(e)); return; }
-  if (a) openAppPage(a); else Toast.err(Backend.isOnline() ? 'التطبيق غير موجود أو خاص' : 'فتح رابط تطبيق يحتاج اتصالًا بـ Firebase');
+  if (a) openAppPage(a); else Toast.err(Backend.isOnline() ? 'التطبيق غير موجود أو خاص' : 'فتح رابط تطبيق يحتاج اتصال الموقع بالسحابة');
 } });
 NX.HtmlApps = HtmlApps;
 
@@ -26294,6 +26386,7 @@ const CAPTIONS = {
   'vt-add': ['إضافة', 'أضف شكلًا أو كائنًا إلى المشهد'], 'vt-focus': ['الكاميرا', 'اجعل الكاميرا تنظر إلى الكائن المحدّد'],
   'vt-grid': ['الشبكة', 'إظهار أو إخفاء خطوط الأرضية'], 'sel-insp': ['الخصائص', 'اللون والحجم والفيزياء للكائن المحدّد'],
   'sel-cmt': ['تعليق', 'اكتب ملاحظة لفريقك على هذا الكائن'],
+  'sel-ai': ['اسأل الذكاء', 'اطلب من المساعد أن يعدّل هذا الكائن أو يصلحه'],
   'btn-search': ['بحث', 'ابحث عن لعبة أو صانع أو أصل'], 'btn-notif': ['التنبيهات', 'الإعجابات والمتابعات والدعوات'],
   'btn-settings': ['الإعدادات', 'اللغة والألوان والحساب والذكاء الاصطناعي']
 };
@@ -26541,6 +26634,2005 @@ const Age = {
 NX.Age = Age;
 </script>
 <!-- /NX-PART:30 -->
+<!-- NX-PART:31 -->
+<script type="module">
+/* ============================================================
+   PART 31 · THE EDITOR AGENT — the assistant works ON the object you
+   selected (or the objects you name, or the whole game). It resolves
+   the TARGET and the SCOPE, reads the object's transform, asset,
+   components, scripts and physics, finds the real cause of a problem,
+   changes the project, TESTS it (a short real run with the throttle
+   held), and shows Target · Scope · Action · Changes (before → after)
+   with Apply / Cancel — then Undo / Redo AI Change.
+   It is built on the existing agent (PART 17B): its language tools,
+   scene index, asset search, operations, code checks and undo stack.
+   Everything it adds to a game is an ordinary project file or
+   component that the user can open, read and edit.
+   ============================================================ */
+const NX = window.NX;
+const THREE = NX.THREE;
+const { el, btn, icon, iconBtn, Sheet, Modal, Toast, uid } = NX;
+const Agent = NX.Agent;
+const { norm, words, stems, detectConcept } = Agent.nlp;
+const { setBoxBottomCenter, isGroundLike, aiCodeViolations } = Agent.util;
+const Stu = () => NX.Studio;
+const ent = id => { const S = Stu(); return S.engine && S.engine.getEntity(id); };
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const r2 = n => Math.round(n * 100) / 100;
+const deg = r => Math.round(THREE.MathUtils.radToDeg(r));
+const v3s = v => '(' + [v.x, v.y, v.z].map(n => (+n).toFixed(2)).join(', ') + ')';
+const msg = e => String((e && e.message) || e || '').slice(0, 220);
+const hasComp = (e, type) => !!(e && (e.components || []).some(c => c.type === type && c.enabled !== false));
+const compOf = (e, type) => e && (e.components || []).find(c => c.type === type) || null;
+const clone = o => JSON.parse(JSON.stringify(o == null ? null : o));
+
+/* ------------------------------------------------------------
+   WORDS — what people say, normalised (أ→ا، ة→ه، ى→ي)
+   ------------------------------------------------------------ */
+const RX = {
+  undoAI: /^(تراجع|الغ|الغي|ارجع|undo)(\s|$).*(الذكاء|المساعد|\bai\b)/,
+  redoAI: /^(اعد|redo)(\s|$).*(الذكاء|المساعد|\bai\b)/,
+  multiplayer: /(multi ?player|ملتي ?بلاير|متعدد(ه)? اللاعبين|لعب جماعي|اللعب الجماعي|مع اصدقائي|مع اصحابي|مع اصدقاء|اون ?لاين|online|يرون بعض|يشوفون بعض|يري بعضهم|يرو بعض|see each other|غرف(ه)? (لعب|اللعب)|غرف اللعب|اللاعبين يرون)/,
+  death: /(يموت|يمت|مات|موته|الموت|يخسر|خسر|death|dies|\bdie\b|\bdead\b)/,
+  back: /(اعده|اعيده|ارجعه|رجعه|يرجع|يعود|يرجعه|نقطه البدايه|نقطه الانطلاق|البدايه|respawn|spawn|start point|checkpoint)/,
+  chase: /(يطارد|تطارد|يلاحق|تلاحق|يلحق|تلحق|طارد|لاحق|chase|chases|hunt|يهاجم اللاعب|يتبع اللاعب|follows? the player)/,
+  door: /(باب|الباب|بوابه|البوابه|door|gate)/,
+  open: /(يفتح|ينفتح|تفتح|تنفتح|\bopens?\b)/,
+  path: /(تتبع|يتبع|اتبع|تمشي علي|تسير علي|يمشي علي|يسير علي|تمشي في|تسير في|\bfollows?\b)/,
+  pathWhat: /(الطريق|طريق|المسار|مسار|الشارع|\bpath\b|\broad\b|\btrack\b|waypoint|\broute\b)/,
+  stop: /(تتوقف|يتوقف|توقف|تقف|يقف|\bstops?\b)/,
+  race: /(السباق|سباق|\brace\b)/,
+  fuel: /(بنزين|البنزين|وقود|الوقود|\bfuel\b|بترول|petrol|gasoline)/,
+  touch: /(باللمس|اللمس|\bلمس\b|touch|موبايل|الموبايل|الجوال|الهاتف|mobile|phone|جويستيك|joystick)/,
+  drive: /(قياده|للقياده|القياده|يقود|اقود|نقود|تقود|قودها|اقودها|\bdriv|يتحكم|اتحكم|نتحكم|التحكم بها)/,
+  speedUp: /(اسرع|سريعه|سريع|زد سرعت|زد السرعه|زود سرعت|زود السرعه|ارفع سرعت|ارفع السرعه|faster|speed ?up|more speed|quicker)/,
+  speedDown: /(ابطا|ابطئ|بطيئه|بطيء|بطيئ|قلل سرعت|قلل السرعه|خفف سرعت|خفف السرعه|slower|slow down|less speed)/,
+  speedWord: /(سرعه|السرعه|سرعت|speed)/,
+  broken: /(لا تعمل|لا يعمل|ما تعمل|ما يعمل|ما تشتغل|ما يشتغل|مش شغال|مو شغال|مب شغال|لا تشتغل|لا يشتغل|لا تتحرك|لا يتحرك|ما تتحرك|ما يتحرك|ماتتحرك|مش بتتحرك|لا تمشي|ما تمشي|لا يمشي|ما يمشي|واقفه مكانها|واقف مكانه|خربانه|خربان|معطله|معطل|عطلانه|عطلان|broken|not working|doesn'?t work|won'?t move|doesn'?t move|isn'?t moving|not moving|ما المشكله|وش المشكله|شو المشكله|ايش المشكله|ماذا بها|مابها|ما بها|شو فيها|وش فيها|ايش فيها|what'?s wrong|مشكلتها|مشكلته|لماذا لا|ليش ما|ليش لا|why (doesn|won|isn|can)|^شخص|^افحصها|^افحصه|diagnose)/,
+  fixMove: /(اصلح|صلح|عالج|\bfix\b|repair)\s*(حركه|الحركه|حركتها|حركته|قياده|القياده|قيادتها|movement|driving|controls?)/,
+  fixVerb: /(^|\s)(اصلح|صلح|عالج|اصلحها|اصلحه|صلحها|صلحه|fix|repair)/,
+  through: /(لا تمر|ما تمر|لا يمر|ما يمر|تخترق|يخترق|تمر من خلال|يمر من خلال|تمر عبر|يمر عبر|تعبر من خلال|تدخل في|تغوص|pass(es)? through|goes through|clipping|اصطدام|الاصطدام|تصادم|التصادم|collision|collide|تصطدم|يصطدم|تتصادم)/,
+  ground: /(علي الارض|للارض|الي الارض|فوق الارض|ع الارض|on the ground|to the ground|onto the ground|on the floor)/,
+  floating: /(معلق|معلقه|في الهواء|بالهواء|طايره|طائره في|floating|in the air|mid-?air|hovering|تحت الارض|غارقه|غاطسه|غاطس|sunk|under the ground|below the ground|داخل الارض)/,
+  rotWord: /(دوران|دورانها|دورانه|اتجاه|اتجاهها|اتجاهه|زاويه|زاويتها|rotation|orientation|\bangle\b)/,
+  rotFix: /(صحيح|صحيحا|صحح|عدل|اصلح|سليم|مستقيم|معدول|straight|\bfix|correct|upright)/,
+  tilted: /(مقلوب|مقلوبه|مائل|مائله|مايل|مايله|upside|tilted|crooked|sideways|علي جنبها|علي جنبه)/,
+  relocate: /(غير مكان|غير موضع|بدل مكان|بدل موضع|مكان اخر|مكان ثاني|مكان تاني|موضع اخر|another (place|spot)|somewhere else|elsewhere|different (place|spot))/,
+  colorWord: /(لون|لونها|لونه|الوان|اصبغ|اصبغها|colou?r|paint)/,
+  change: /(غير|بدل|change|اجعل|خلي|صير|make|turn)/,
+  sizeDown: /(صغر|اصغر|smaller|shrink)/,
+  sizeUp: /(كبر|اكبر|bigger|larger|enlarge)/,
+  soft: /(شوي|شويه|شويا|قليلا|قليل|بقليل|بعض الشيء|بعض الشي|شيء بسيط|شي بسيط|a bit|a little|slightly)/,
+  much: /(بكثير|كثيرا|جدا|بزاف|a lot|much more|way more)/,
+  all: /(^|\s)(كل|كلها|كلهم|جميع|جميعها|جميعهم|كافه|\ball\b|every)(\s|$)/,
+  only: /(فقط|(^|\s)بس(\s|$)|وحدها|وحده|لوحدها|لوحده|\bonly\b|just this)/,
+  game: /(في اللعبه|باللعبه|in the game|اللعبه كلها|كل اللعبه)/,
+  project: /(المشروع|\bproject\b)/,
+  add: /^(\S+\s+){0,3}(اضف|ضيف|add)\s/
+};
+const THIS = new Set(['هذا', 'هذه', 'هذي', 'هاذي', 'هاذا', 'this', 'المحدد', 'المختار', 'selected', 'المحدده', 'المختاره']);
+const PRON_WORDS = new Set(['لها', 'له', 'فيها', 'فيه', 'عليها', 'عليه', 'بها', 'به', 'منها', 'منه', 'لهم', 'it', 'its', 'them']);
+const PRON_VERBS = new Set(['اجعل', 'خلي', 'صغر', 'كبر', 'حرك', 'انقل', 'ضع', 'حط', 'اصلح', 'صلح', 'لون', 'دور', 'غير', 'ارجع', 'اعد', 'انزل', 'نزل', 'ارفع', 'عدل', 'صحح', 'شغل', 'زود', 'سرع', 'بطئ', 'ابطئ', 'اسرع', 'وقف', 'اوقف', 'افحص', 'شخص']);
+const COLORS = [
+  ['#e53935', 'أحمر', ['احمر', 'حمراء', 'حمرا', 'red']],
+  ['#1e88e5', 'أزرق', ['ازرق', 'زرقاء', 'زرقا', 'blue']],
+  ['#43a047', 'أخضر', ['اخضر', 'خضراء', 'خضرا', 'green']],
+  ['#212121', 'أسود', ['اسود', 'سوداء', 'سودا', 'black']],
+  ['#fafafa', 'أبيض', ['ابيض', 'بيضاء', 'بيضا', 'white']],
+  ['#fdd835', 'أصفر', ['اصفر', 'صفراء', 'صفرا', 'yellow']],
+  ['#fb8c00', 'برتقالي', ['برتقالي', 'برتقاليه', 'orange']],
+  ['#8e24aa', 'بنفسجي', ['بنفسجي', 'بنفسجيه', 'ارجواني', 'موف', 'purple', 'violet']],
+  ['#ec407a', 'وردي', ['وردي', 'ورديه', 'زهري', 'زهريه', 'pink']],
+  ['#9e9e9e', 'رمادي', ['رمادي', 'رماديه', 'grey', 'gray']],
+  ['#6d4c41', 'بني', ['بني', 'بنيه', 'brown']],
+  ['#d4af37', 'ذهبي', ['ذهبي', 'ذهبيه', 'gold', 'golden']],
+  ['#c0c0c0', 'فضي', ['فضي', 'فضيه', 'silver']],
+  ['#26c6da', 'سماوي', ['سماوي', 'سماويه', 'cyan', 'turquoise']]
+];
+function colorIn(text) {
+  const hex = /#([0-9a-f]{6})\b/i.exec(text);
+  if (hex) return { hex: '#' + hex[1].toLowerCase(), label: '#' + hex[1].toLowerCase() };
+  for (const w of words(text)) for (const s of stems(w)) for (const [h, label, list] of COLORS) if (list.includes(s)) return { hex: h, label };
+  return null;
+}
+const clean = text => norm(text).replace(/[،,.!?؟;:«»"()]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+/* the request: which object(s), how far, what */
+function reqOf(text) {
+  const t = clean(text), ws = words(text);
+  let concept = null, second = null, plural = false;
+  for (const w of ws) {
+    const c = detectConcept(w);
+    if (!c) continue;
+    const id = c.concept.id;
+    if (['ground', 'sun', 'camera', 'sound'].includes(id)) continue;
+    if (!concept) { concept = id; plural = !!(c.plural || c.dual); }
+    else if (!second && id !== concept) second = id;
+  }
+  const thisWord = ws.some(w => THIS.has(w));
+  const pronoun = ws.some(w => PRON_WORDS.has(w) || !THIS.has(w) && ((w.length >= 4 && /(ها|هم)$/.test(w) && !detectConcept(w)) || (/ه$/.test(w) && PRON_VERBS.has(w.slice(0, -1)))));
+  const only = RX.only.test(t);
+  const group = !only && (RX.all.test(t) || plural);
+  const scope = only ? 'object' : RX.project.test(t) ? 'project' : RX.game.test(t) ? 'game' : group ? 'scene' : null;
+  /* «كيف أجعلها أسرع؟» · «هل يمكنك…؟» — asked, not ordered: shown, applied only on Apply */
+  const question = /^(كيف|ازاي|شلون|هل|ممكن|how|can you|could you)(\s|$)/.test(t) || /[?؟]\s*$/.test(String(text));
+  return { text, t, ws, concept, second, plural, thisWord, pronoun, only, group, scope, question };
+}
+
+const DEST = /((^|\s)(ال|لل|ب|ل|الي )?(جانب|جنب|امام|قدام|خلف|وراء|ورا|فوق|يمين|يسار|حول|قرب|جوار)(ه|ها)?(\s|$)|\b(near|behind|beside|next to|in front|to the left|to the right)\b)/;
+/* which skill a sentence asks for (null → the existing agent / the model) */
+function skillOf(text) {
+  const t = clean(text);
+  if (!t) return null;
+  /* «اصنع لي لعبة قيادة…» is a whole game: the game composer's */
+  if (NX.GameComposer && NX.GameComposer.isRequest(text)) return null;
+  /* «أضف سيارة سريعة» adds a new thing (the existing agent); «أضف لها …» / «أضف نظام …» acts on one */
+  const adding = RX.add.test(t) && !/(^|\s)(لها|له|فيها|عليها|نظام|system)(\s|$)/.test(t);
+  /* a sentence that also places it next to something or asks for code is a bigger request:
+     the simple edits below leave it to the existing agent / the model */
+  const more = /(سكربت|سكريبت|كود|برمج|script|code)/.test(t) || (DEST.test(t) && !RX.ground.test(t) && !RX.floating.test(t));
+  if (RX.undoAI.test(t)) return 'undoAI';
+  if (RX.redoAI.test(t)) return 'redoAI';
+  if (RX.multiplayer.test(t)) return 'multiplayer';
+  if (RX.death.test(t) && RX.back.test(t)) return 'respawn';
+  if (RX.stop.test(t) && RX.race.test(t)) return 'raceStop';
+  if (RX.door.test(t) && RX.open.test(t)) return 'door';
+  if (RX.chase.test(t)) return 'chase';
+  if (RX.path.test(t) && RX.pathWhat.test(t)) return 'path';
+  if (RX.fuel.test(t)) return 'fuel';
+  if (adding) return null;
+  if (RX.fixMove.test(t)) return 'diagnose';
+  if (RX.drive.test(t) && !RX.broken.test(t)) return 'drive';
+  if (RX.speedUp.test(t) || RX.speedDown.test(t)) return 'speed';
+  if (RX.speedWord.test(t) && /\d/.test(t) && RX.change.test(t)) return 'speed';
+  if (RX.broken.test(t)) return 'diagnose';
+  if (RX.through.test(t)) return 'collision';
+  if (more) return null;
+  if (!adding && (RX.floating.test(t) || (RX.ground.test(t) && /(ضع|حط|خلي|اجعل|انزل|نزل|put|place|snap|drop|make|ضعها|حطها|انزلها|نزلها|خليها|اجعلها|ضعه|حطه|انزله|نزله|خليه|اجعله)/.test(t)))) return 'ground';
+  if (!adding && ((RX.rotWord.test(t) && RX.rotFix.test(t)) || RX.tilted.test(t))) return 'rotation';
+  if (!adding && RX.relocate.test(t)) return DEST.test(t) && !/(مكان|موضع) (اخر|ثاني|تاني)/.test(t) ? null : 'relocate';
+  const col = colorIn(text);
+  if (!adding && ((RX.colorWord.test(t) && RX.change.test(t)) || (col && RX.colorWord.test(t)) || (col && /(اجعل|خلي|صير|make|turn)/.test(t) && !RX.add.test(t)))) return 'color';
+  if (!adding && RX.soft.test(t) && (RX.sizeDown.test(t) || RX.sizeUp.test(t))) return 'size';
+  return null;
+}
+
+/* ------------------------------------------------------------
+   SCOPE — Selected Object · Current Scene · Current Game · Entire
+   Project. «تلقائي» reads it from the sentence («فقط», «كل», «في
+   اللعبة», «المشروع»). A NEXUS game has one scene: «المشهد» is its
+   objects, «اللعبة» adds its scripts, «المشروع» everything.
+   ------------------------------------------------------------ */
+const SCOPES = {
+  auto: ['تلقائي', 'Auto'], object: ['العنصر المحدد', 'Selected Object'], scene: ['المشهد الحالي', 'Current Scene'],
+  game: ['اللعبة الحالية', 'Current Game'], project: ['المشروع كاملًا', 'Entire Project']
+};
+const Scope = {
+  value: 'auto',
+  label(k) { const s = SCOPES[k] || SCOPES.object; return s[1] + ' · ' + s[0]; },
+  set(k) { this.value = SCOPES[k] ? k : 'auto'; window.dispatchEvent(new CustomEvent('nx:aiScope')); }
+};
+
+/* ------------------------------------------------------------
+   THE PROJECT MAP — objects, what they are, their components,
+   the scripts attached to them or looking them up by name, the
+   physics, the systems — so a request is understood in context
+   ------------------------------------------------------------ */
+const VEHICLE = ['car', 'truck', 'bus', 'bike', 'plane', 'boat'];
+function isVehicle(x) { return VEHICLE.some(c => x.concepts.has(c)) || x.e.tag === 'vehicle' || hasComp(x.e, 'VehicleController'); }
+function matches(x, cid) {
+  if (x.ground && cid !== 'road') return false;
+  if (!['model', 'primitive', 'group', 'spawn'].includes(x.e.type)) return false;
+  if (cid === 'car') return isVehicle(x);
+  if (cid === 'player') return x.concepts.has('player') || x.e.tag === 'player';
+  if (cid === 'enemy') return x.concepts.has('enemy') || x.e.tag === 'enemy';
+  if (cid === 'road') return x.concepts.has('road') || x.e.tag === 'road';
+  return x.concepts.has(cid);
+}
+const esc = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const Map_ = {
+  filesFor(p, e) {
+    const byName = new RegExp('Scene\\.find\\(\\s*["\'`]' + esc(e.name) + '["\'`]\\s*\\)');
+    const attached = (p.files || []).filter(f => f.entityId === e.id);
+    const referencing = (p.files || []).filter(f => f.entityId !== e.id && /\.(m?js|ts)$/i.test(f.path) && byName.test(f.code || ''));
+    const comps = (e.components || []).filter(c => c.type !== 'Rigidbody').map(c => ({ c, file: (p.files || []).find(f => f.role === 'component' && NX.componentName(f.path) === c.type) || null }));
+    return { attached, referencing, comps };
+  },
+  /* code that moves this object — the controllers */
+  movers(p, e) {
+    const { attached, referencing, comps } = this.filesFor(p, e);
+    const out = [];
+    const MOVE = /(\.translate\(|\.setPosition\(|velocity\.(x|z|set)|\.velocity\s*=|moveWithInput|Player\.move|position\.(x|z)\s*[+\-]?=|position\.add)/;
+    comps.forEach(({ c, file }) => {
+      if (['VehicleController', 'FollowPath', 'ChaseTarget'].includes(c.type) || (file && MOVE.test(file.code || ''))) out.push({ kind: 'component', name: c.type, enabled: c.enabled !== false, hasFile: !!file });
+    });
+    attached.forEach(f => { if (MOVE.test(f.code || '')) out.push({ kind: 'script', name: f.path, enabled: f.enabled !== false }); });
+    referencing.forEach(f => { if (MOVE.test(f.code || '')) out.push({ kind: 'script', name: f.path, enabled: f.enabled !== false, byName: true }); });
+    if (e.tag === 'player' && (p.files || []).some(f => /Player\.(moveWithInput|move)\(/.test(f.code || ''))) out.push({ kind: 'player', name: 'Player', enabled: true });
+    return out;
+  },
+  /* a compact description of the project for a model (small on purpose) */
+  async brief(maxObjects = 30) {
+    const S = Stu(), p = S.project, eng = S.engine;
+    const idx = await Agent.sceneIndex(eng);
+    const sel = eng.selection;
+    const lines = [];
+    const pick = idx.filter(x => !['camera', 'light'].includes(x.e.type)).sort((a, b) => (b.e.id === sel) - (a.e.id === sel)).slice(0, maxObjects);
+    pick.forEach(x => {
+      const { attached, comps } = this.filesFor(p, x.e);
+      const rb = compOf(x.e, 'Rigidbody');
+      const bits = [];
+      if (comps.length) bits.push('components ' + comps.map(({ c }) => c.type + (c.data && Object.keys(c.data).length ? JSON.stringify(c.data).slice(0, 80) : '')).join(', '));
+      if (rb) bits.push('body ' + (rb.data || {}).type);
+      if (attached.length) bits.push('scripts ' + attached.map(f => f.path).join(', '));
+      if (bits.length || x.e.id === sel) lines.push('«' + x.e.name + '»' + (x.e.id === sel ? ' (SELECTED)' : '') + ': ' + (bits.join('; ') || 'no components'));
+    });
+    const net = (p.files || []).some(f => /Network\.room\(/.test(f.code || ''));
+    return lines.join('\n') + (net ? '\nmultiplayer: uses Network.room' : '');
+  }
+};
+
+/* ------------------------------------------------------------
+   READY SYSTEMS — real components / scripts the agent adds. Engine
+   API only (checked by the same validator as the AI's code); each
+   file says what it does and which settings (props) it reads.
+   ------------------------------------------------------------ */
+const T = {};
+T.VehicleController = `// NEXUS · VehicleController — قيادة مركبة بلوحة المفاتيح وباللمس
+// الإعدادات (props): maxSpeed السرعة القصوى · accel التسارع · brake الكبح · turn الانعطاف
+//   reverse سرعة الرجوع · touch أزرار لمس · camera كاميرا تتبعها · control يقودها اللاعب
+//   gravity جاذبية (تحتاج أرضًا لها جسم ثابت)
+// الأحداث: «RaceFinished» يوقفها · «FuelEmpty» يوقف البنزين · «FuelRefilled» يعيده
+// ترسل: «VehicleSpeed» (الاسم، السرعة)
+let cfg = null, body = null, speed = 0, stopped = false, noFuel = false;
+const FRONT = -1;   // مجسمات glTF تتجه نحو +Z، و forward() هو -Z
+
+function num(v, d) { v = +v; return isFinite(v) && v > 0 ? v : d; }
+
+function start() {
+  if (!self) return;
+  cfg = { maxSpeed: num(props.maxSpeed, 24), accel: num(props.accel, 14), brake: num(props.brake, 28),
+          turn: num(props.turn, 1.9), reverse: num(props.reverse, 7), drag: props.drag == null ? 0.6 : +props.drag };
+  if (!self.tag) self.tag = "vehicle";
+  body = self.body;
+  if (!body || body.type === "static") body = self.addBody({ type: "character", shape: "box", useGravity: props.gravity === true });
+  Physics.enable(true);
+  if (props.control !== false) {
+    if (props.touch !== false) {
+      UI.joystick({ id: "move", side: "left" });
+      UI.button("GAS", () => {}, { id: "gas", right: 18, bottom: 118 });
+      UI.button("BRAKE", () => {}, { id: "brake", right: 18, bottom: 30 });
+    }
+    if (props.camera !== false) Camera.follow(self, { offset: [0, 4.2, -10], smooth: 5.5 });
+  }
+  Events.on("RaceFinished", () => { stopped = true; });
+  Events.on("FuelEmpty", name => { if (!name || name === self.name) noFuel = true; });
+  Events.on("FuelRefilled", name => { if (!name || name === self.name) noFuel = false; });
+}
+
+function update(dt) {
+  if (!self || !self.exists || !body || !cfg) return;
+  let throttle = 0, brake = 0, steer = 0;
+  if (props.control !== false && !stopped) {
+    throttle = Math.min(1, (Input.button("gas") ? 1 : 0) + Math.max(0, Input.axis("vertical")));
+    brake = Math.min(1, (Input.button("brake") ? 1 : 0) + Math.max(0, -Input.axis("vertical")));
+    steer = Input.axis("horizontal");
+  }
+  if (noFuel) throttle = 0;
+  if (stopped) brake = 1;
+  speed += throttle * cfg.accel * dt;
+  speed -= brake * cfg.brake * dt;
+  speed -= speed * cfg.drag * dt;
+  speed = MathUtils.clamp(speed, stopped ? 0 : -cfg.reverse, cfg.maxSpeed);
+  self.rotate(0, -steer * cfg.turn * dt * MathUtils.clamp(Math.abs(speed) / 8, 0.12, 1) * (speed < 0 ? -1 : 1), 0);
+  const dir = self.forward();
+  body.velocity.x = dir.x * FRONT * speed;
+  body.velocity.z = dir.z * FRONT * speed;
+  Events.emit("VehicleSpeed", self.name, Math.abs(speed));
+}
+`;
+T.Fuel = `// NEXUS · Fuel — خزان وقود: ينقص كلما تحرّكت المركبة، ويتوقف التسارع عندما يفرغ
+// الإعدادات (props): capacity السعة · perMeter الاستهلاك لكل متر · idle الاستهلاك في الثانية
+//   refuelDistance مسافة التعبئة · hud عدّاد على الشاشة
+// محطة الوقود: أي كائن tag = "fuel" — الاقتراب منه يعيد التعبئة
+// ترسل: «FuelEmpty» و«FuelRefilled» (باسم المركبة) و«FuelChanged» (الاسم، النسبة)
+let fuel = 0, cap = 100, last = null, empty = false, label = null, bar = null, stations = [], look = 0;
+
+function start() {
+  if (!self) return;
+  cap = +props.capacity > 0 ? +props.capacity : 100;
+  fuel = cap;
+  last = self.position.clone();
+  if (props.hud !== false) {
+    label = UI.text("⛽ 100%", { x: 16, y: 14, size: 14 });
+    bar = UI.bar({ x: 16, y: 36, width: 150, color: "#fbbf24" });
+  }
+}
+
+function update(dt) {
+  if (!self || !self.exists) return;
+  const p = self.position;
+  const moved = last ? Math.hypot(p.x - last.x, p.z - last.z) : 0;
+  last = p.clone();
+  fuel = Math.max(0, fuel - moved * (+props.perMeter > 0 ? +props.perMeter : 0.25) - (+props.idle > 0 ? +props.idle : 0) * dt);
+  look -= dt;
+  if (look <= 0) { look = 0.5; stations = Scene.findByTag("fuel"); }
+  const reach = +props.refuelDistance > 0 ? +props.refuelDistance : 4;
+  for (const s of stations) if (s.exists && self.distanceTo(s) < reach) fuel = Math.min(cap, fuel + cap * 0.35 * dt);
+  if (fuel <= 0 && !empty) { empty = true; Events.emit("FuelEmpty", self.name); }
+  if (fuel > 0.5 && empty) { empty = false; Events.emit("FuelRefilled", self.name); }
+  const k = fuel / cap;
+  if (bar) bar.set(k);
+  if (label) label.set("⛽ " + Math.round(k * 100) + "%");
+  Events.emit("FuelChanged", self.name, k);
+}
+`;
+T.FollowPath = `// NEXUS · FollowPath — يسير على نقاط مسار بالترتيب ثم يعيد
+// الإعدادات (props): points نقاط [{x,y,z},…] (فارغة = كائنات tag "waypoint" بترتيب أسمائها)
+//   speed السرعة · reach مسافة الوصول لنقطة · loop يكرّر · turn سرعة الالتفات
+// «RaceFinished» يوقفه
+let pts = [], i = 0, body = null, spd = 8, stopped = false;
+
+function start() {
+  if (!self) return;
+  pts = (props.points || []).map(a => Array.isArray(a) ? new Vector3(+a[0], +a[1], +a[2]) : new Vector3(+a.x, +a.y, +a.z));
+  if (!pts.length) pts = Scene.findByTag("waypoint").sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true })).map(o => o.position.clone());
+  spd = +props.speed > 0 ? +props.speed : 8;
+  body = self.body && self.body.type !== "static" ? self.body : null;
+  let best = 0, bd = Infinity;
+  pts.forEach((q, k) => { const d = self.position.distanceTo(q); if (d < bd) { bd = d; best = k; } });
+  i = best;
+  if (!pts.length) Engine.warn(self.name + ": FollowPath بلا نقاط مسار");
+  Events.on("RaceFinished", () => { stopped = true; if (body) { body.velocity.x = 0; body.velocity.z = 0; } });
+}
+
+function update(dt) {
+  if (!self || !self.exists || !pts.length || stopped) return;
+  const q = pts[i], p = self.position;
+  const dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz);
+  if (d < (+props.reach > 0 ? +props.reach : 1.5)) {
+    if (i + 1 < pts.length) i++; else if (props.loop !== false) i = 0; else { stopped = true; return; }
+    return;
+  }
+  const want = Math.atan2(dx, dz);
+  let a = want - self.rotation.y;
+  while (a > Math.PI) a -= Math.PI * 2;
+  while (a < -Math.PI) a += Math.PI * 2;
+  self.rotation.y += a * Math.min(1, dt * (+props.turn > 0 ? +props.turn : 5));
+  if (body) { body.velocity.x = dx / d * spd; body.velocity.z = dz / d * spd; }
+  else self.setPosition(p.x + dx / d * spd * dt, p.y, p.z + dz / d * spd * dt);
+}
+`;
+T.ChaseTarget = `// NEXUS · ChaseTarget — يطارد الهدف (اللاعب) عندما يكون ضمن مدى الرؤية
+// الإعدادات (props): target اسم الهدف أو tag (افتراضيًا اللاعب) · speed السرعة
+//   sight مدى الرؤية · stopDistance يتوقف عند هذه المسافة · anim حركة المجسم أثناء الجري
+// ترسل: «EnemyReachedTarget» (اسمه، اسم الهدف) مرة كل ثانية وهو ملاصق له
+let tgt = null, body = null, look = 0, cool = 0, running = false;
+
+function findTarget() {
+  const n = props.target || "player";
+  return Scene.find(n) || Scene.findByTag(n)[0] || Player.object || Scene.findByTag("player")[0] || Scene.find("Player") || null;
+}
+
+function start() {
+  if (!self) return;
+  body = self.body && self.body.type !== "static" ? self.body : null;
+  if (!self.tag) self.tag = "enemy";
+}
+
+function update(dt) {
+  if (!self || !self.exists) return;
+  cool -= dt;
+  if (!tgt || !tgt.exists) { look -= dt; if (look > 0) return; look = 0.5; tgt = findTarget(); if (!tgt) return; }
+  const a = self.position, b = tgt.position;
+  const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
+  const sight = +props.sight > 0 ? +props.sight : 25, stopAt = +props.stopDistance > 0 ? +props.stopDistance : 1.4;
+  const spd = +props.speed > 0 ? +props.speed : 3.5;
+  const chase = d <= sight && d > stopAt;
+  if (chase !== running) { running = chase; if (props.anim) { if (chase) self.play(props.anim); else self.stopAnimation(); } }
+  if (d <= stopAt && cool <= 0) { cool = 1; Events.emit("EnemyReachedTarget", self.name, tgt.name); }
+  if (!chase) { if (body) { body.velocity.x = 0; body.velocity.z = 0; } return; }
+  self.rotation.y = Math.atan2(dx, dz);
+  if (body) { body.velocity.x = dx / d * spd; body.velocity.z = dz / d * spd; }
+  else self.setPosition(a.x + dx / d * spd * dt, a.y, a.z + dz / d * spd * dt);
+}
+`;
+T.DoorProximity = `// NEXUS · DoorProximity — يفتح الباب عندما يقترب اللاعب ويغلقه عندما يبتعد
+// الإعدادات (props): distance مسافة الفتح · mode "swing" يدور أو "slide" ينزلق جانبًا
+//   angle زاوية الدوران · width مسافة الانزلاق · speed سرعة الفتح · who اسم أو tag من يفتحه
+//   anim حركة المجسم عند الفتح (إن كانت فيه)
+// ترسل: «DoorOpened» و«DoorClosed» (اسم الباب)
+let base = null, t = 0, who = null, look = 0, wasOpen = false;
+
+function findWho() {
+  const n = props.who || "player";
+  return Scene.find(n) || Scene.findByTag(n)[0] || Player.object || Scene.findByTag("player")[0] || Scene.find("Player") || null;
+}
+
+function start() {
+  if (!self) return;
+  base = { x: self.position.x, y: self.position.y, z: self.position.z, ry: self.rotation.y };
+}
+
+function update(dt) {
+  if (!self || !self.exists || !base) return;
+  if (!who || !who.exists) { look -= dt; if (look <= 0) { look = 0.5; who = findWho(); } }
+  const reach = +props.distance > 0 ? +props.distance : 3;
+  const dx = who ? who.position.x - base.x : 1e9, dz = who ? who.position.z - base.z : 1e9;
+  const near = Math.hypot(dx, dz) < reach;
+  t = MathUtils.clamp(t + (near ? 1 : -1) * dt * (+props.speed > 0 ? +props.speed : 2), 0, 1);
+  if (props.mode === "slide") {
+    const w = +props.width > 0 ? +props.width : 1.2;
+    self.setPosition(base.x + Math.cos(base.ry) * w * t, base.y, base.z - Math.sin(base.ry) * w * t);
+  } else {
+    self.rotation.y = base.ry + MathUtils.degToRad(+props.angle || 90) * t;
+  }
+  const open = t > 0.5;
+  if (open !== wasOpen) {
+    wasOpen = open;
+    Events.emit(open ? "DoorOpened" : "DoorClosed", self.name);
+    if (open && props.anim) self.play(props.anim, { once: true });
+  }
+}
+`;
+T.FinishLine = `// NEXUS · FinishLine — خط النهاية: عندما تعبره مركبة (بعد عدد اللفّات) ينتهي السباق
+// الإعدادات (props): laps عدد اللفّات · radius نصف عرض الخط
+// ترسل: «RaceFinished» (اسم الفائز)
+let done = false, away = {}, laps = {}, look = 0, cars = [];
+
+function start() { if (self) Events.on("RaceFinished", () => { done = true; }); }
+
+function update(dt) {
+  if (done || !self || !self.exists) return;
+  look -= dt;
+  if (look <= 0) { look = 0.5; cars = Scene.findByTag("vehicle"); }
+  const r = +props.radius > 0 ? +props.radius : 6, need = +props.laps > 0 ? +props.laps : 1;
+  for (const c of cars) {
+    if (!c.exists) continue;
+    const d = c.distanceTo(self);
+    if (d > r + 6) away[c.name] = true;
+    if (d < r && away[c.name]) {
+      away[c.name] = false;
+      laps[c.name] = (laps[c.name] || 0) + 1;
+      if (laps[c.name] >= need) { done = true; UI.text("🏁 " + c.name, { center: true, y: 70, size: 24 }); Events.emit("RaceFinished", c.name); return; }
+    }
+  }
+}
+`;
+const tRaceEnd = (events, cars) => `// NEXUS · RaceEnd — عندما ينتهي السباق تتوقف كل السيارات
+// ينتظر الأحداث: ${events.join('، ')}
+// يوقف: كل كائن tag = "vehicle" وهذه السيارات: ${cars.join('، ') || '—'}
+const END_EVENTS = Array.of(${events.map(x => JSON.stringify(x)).join(', ')});
+const CARS = Array.of(${cars.map(x => JSON.stringify(x)).join(', ')});
+let ended = false;
+
+function stopAll(winner) {
+  if (ended) return;
+  ended = true;
+  if (!END_EVENTS.includes("RaceFinished")) Events.emit("RaceFinished", winner);
+  Scene.all().forEach(o => {
+    if (!o.exists || !(o.tag === "vehicle" || CARS.includes(o.name))) return;
+    const b = o.body;
+    if (b) { b.velocity.x = 0; b.velocity.z = 0; b.type = "static"; }   // يتوقف مهما كان السكربت الذي يقودها
+  });
+  UI.text("🏁 انتهى السباق", { center: true, y: 110, size: 26 });
+}
+
+function start() { END_EVENTS.forEach(ev => Events.on(ev, stopAll)); }
+`;
+const tRespawn = (o) => `// NEXUS · Respawn — عندما يموت اللاعب يعود إلى نقطة البداية
+// «الموت»: السقوط تحت الارتفاع FALL_Y، أو أحد الأحداث: ${o.events.join('، ')}
+// نقطة البداية: الكائن «${o.spawn}» (حرّكه في المحرّر لتغييرها)
+const SPAWN = ${JSON.stringify(o.spawn)};
+const PLAYER = ${JSON.stringify(o.player || '')};
+const FALL_Y = ${o.fallY};
+const DEATH_EVENTS = Array.of(${o.events.map(x => JSON.stringify(x)).join(', ')});
+let who = null, look = 0, busy = false;
+
+function findPlayer() {
+  return (PLAYER && Scene.find(PLAYER)) || Player.object || Scene.findByTag("player")[0] || null;
+}
+
+function respawn() {
+  if (busy) return;
+  who = who && who.exists ? who : findPlayer();
+  if (!who) return;
+  busy = true;
+  const s = Scene.find(SPAWN);
+  const p = s ? s.position : who.position;
+  if (Player.object && who.id === Player.object.id) Player.teleport(p.x, p.y + 0.1, p.z);
+  else { who.setPosition(p.x, p.y + 0.1, p.z); if (who.body) { who.body.velocity.x = 0; who.body.velocity.y = 0; who.body.velocity.z = 0; } }
+  if (s) who.rotation.y = s.rotation.y;
+  Events.emit("PlayerRespawned", who.name);
+  Time.after(0.3, () => { busy = false; });
+}
+
+function start() { DEATH_EVENTS.forEach(ev => Events.on(ev, respawn)); }
+
+function update(dt) {
+  if (!who || !who.exists) { look -= dt; if (look > 0) return; look = 0.5; who = findPlayer(); if (!who) return; }
+  if (who.position.y < FALL_Y) respawn();
+}
+`;
+const tMultiplayer = (o) => `// NEXUS · Multiplayer — غرف لعب: «العب مع الجميع»، غرفة خاصة برمز، أو انضمام برمز
+// يزامن موقعك ودورانك وحالتك مع الآخرين (${Math.round(1 / o.rate)} مرات في الثانية كحدّ أقصى، وفقط عندما تتحرك)
+// ويُظهر اللاعبين الآخرين في مشهدك. يحتاج اتصال اللعبة بالسحابة (Firestore) ودخول اللاعب
+// (الضيف يكفي). الواجهة: ui/Multiplayer.html — الأحداث:
+//   Events.emit("NetEmit", "اسم", بيانات) → يصل إلى الآخرين كحدث Events بنفس الاسم
+//   Events.emit("NetState", "مفتاح", قيمة)  → يُضاف إلى حالتك المتزامنة
+//   «MP:Joined» عند الدخول · «MP:PeerJoined» / «MP:PeerLeft» عند دخول لاعب أو خروجه
+const SYNC = ${JSON.stringify(o.sync || '')};           // الكائن الذي يمثّلك (فارغ = اللاعب Player)
+const AVATAR_ASSET = ${JSON.stringify(o.asset || '')};  // مجسم اللاعبين الآخرين (فارغ = شكل بسيط)
+const ROOM_PREFIX = ${JSON.stringify(o.prefix)};
+const RATE = ${o.rate};
+let room = null, t = 0, lastSent = "", others = {}, extra = {}, sweep = 0;
+
+function mine() { return SYNC ? Scene.find(SYNC) : Player.object; }
+function rnd(n) { return Math.round(n * 100) / 100; }
+function pack() {
+  const o = mine();
+  if (!o || !o.exists) return { x: extra };
+  const p = o.position;
+  return { p: [rnd(p.x), rnd(p.y), rnd(p.z)], ry: rnd(o.rotation.y), x: extra };
+}
+function code() {
+  const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let c = "";
+  for (let k = 0; k < 5; k++) c += a[Math.floor(Math.random() * a.length)];
+  return c;
+}
+function status(s) { UI.bind("mpStatus", s); }
+
+async function join(c) {
+  if (room) return;
+  if (!Network.online) { status("اللعب الجماعي يحتاج اتصال اللعبة بالسحابة — غير متاح الآن"); return; }
+  status("أتصل…");
+  try { room = await Network.room(ROOM_PREFIX + "-" + c, { state: pack() }); }
+  catch (e) { room = null; status("تعذّر الاتصال: " + ((e && e.message) || e)); return; }
+  status(c === "PUBLIC" ? "أنت في الغرفة العامة" : "غرفتك: " + c + " — أرسل الرمز لأصدقائك");
+  const lobby = UI.el(".mp-lobby");
+  if (lobby) lobby.classList.add("in-room");
+  room.on("peerJoined", p => { upsert(p); Events.emit("MP:PeerJoined", p.uid, p.name); });
+  room.on("peerState", p => upsert(p));
+  room.on("peerLeft", id => { drop(id); Events.emit("MP:PeerLeft", id); });
+  room.on("ev", (m, from) => { if (m && m.name) Events.emit(m.name, m.data, from); });
+  room.peers.forEach(p => upsert(p));
+  Events.emit("MP:Joined", c);
+}
+
+async function avatar(p) {
+  const st = p.state || {}, at = st.p || [0, 0, 0], nm = "Player " + String(p.name || p.uid).slice(0, 14);
+  let a = null;
+  if (AVATAR_ASSET) { try { a = await Scene.spawn(AVATAR_ASSET, { name: nm, position: at }); } catch (e) { a = null; } }
+  if (!a) a = await Scene.create({ name: nm, type: "primitive", props: { shape: "cylinder", color: "#22d3ee" }, position: at, scale: [0.6, 1.8, 0.6] });
+  a.tag = "remote-player";
+  return a;
+}
+async function upsert(p) {
+  if (!room || !p || p.uid === room.me) return;
+  const st = p.state || {};
+  let o = others[p.uid];
+  if (!o) { o = others[p.uid] = { obj: null, to: null, ry: 0, at: 0, x: {} }; o.obj = await avatar(p); }
+  if (st.p) o.to = st.p;
+  if (st.ry != null) o.ry = st.ry;
+  if (st.x) o.x = st.x;
+  o.at = p.at || Date.now();
+}
+function drop(id) {
+  const o = others[id];
+  if (o && o.obj && o.obj.exists) Scene.destroy(o.obj);
+  delete others[id];
+}
+
+function start() {
+  status(Network.online ? "العب مع الجميع، أو أنشئ غرفة خاصة، أو اكتب رمز غرفة" : "اللعب الجماعي يحتاج اتصال اللعبة بالسحابة — غير متاح الآن");
+  Events.on("MP:Quick", () => join("PUBLIC"));
+  Events.on("MP:Create", () => join(code()));
+  Events.on("MP:Join", () => {
+    const c = String(UI.value("mpRoom") || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (c) join(c); else status("اكتب رمز الغرفة أولًا");
+  });
+  Events.on("NetEmit", (name, data) => { if (room) room.send("ev", { name, data: data == null ? null : data }).catch(() => {}); });
+  Events.on("NetState", (k, v) => { extra[k] = v; });
+}
+
+function update(dt) {
+  if (!room) return;
+  t += dt;
+  if (t >= RATE) {
+    t = 0;
+    const s = pack(), k = JSON.stringify(s);
+    if (k !== lastSent) { lastSent = k; room.setState(s).catch(() => {}); }
+  }
+  const f = Math.min(1, dt * 10);
+  for (const id in others) {
+    const o = others[id];
+    if (!o.obj || !o.obj.exists || !o.to) continue;
+    const p = o.obj.position;
+    o.obj.setPosition(p.x + (o.to[0] - p.x) * f, p.y + (o.to[1] - p.y) * f, p.z + (o.to[2] - p.z) * f);
+    o.obj.rotation.y += (o.ry - o.obj.rotation.y) * f;
+  }
+  sweep -= dt;
+  if (sweep <= 0) {   // someone who closed the game without leaving
+    sweep = 3;
+    const now = Date.now();
+    for (const id in others) if (others[id].at && now - others[id].at > 40000) drop(id);
+  }
+}
+`;
+const HTML_MP = `<div class="mp-lobby" title="NEXUS · Multiplayer lobby — الأزرار ترسل أحداثًا إلى Multiplayer.js">
+  <b>👥 اللعب الجماعي</b>
+  <div class="mp-row">
+    <button data-emit="MP:Quick">العب مع الجميع</button>
+    <button data-emit="MP:Create">غرفة خاصة جديدة</button>
+  </div>
+  <div class="mp-row">
+    <input data-field="mpRoom" placeholder="رمز الغرفة" maxlength="8">
+    <button data-emit="MP:Join">انضم</button>
+  </div>
+  <small data-bind="mpStatus">…</small>
+</div>
+`;
+const CSS_MP = `/* NEXUS · Multiplayer lobby */
+.mp-lobby { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 5;
+  background: rgba(12,14,24,.86); border: 1px solid rgba(255,255,255,.16); border-radius: 14px;
+  padding: 10px 12px; color: #fff; font: 13px system-ui, sans-serif; text-align: center; max-width: 92vw; }
+.mp-lobby b { display: block; margin-bottom: 6px; }
+.mp-lobby .mp-row { display: flex; gap: 6px; justify-content: center; margin-bottom: 6px; }
+.mp-lobby button { background: rgba(124,92,255,.35); border: 1px solid rgba(180,160,255,.6); color: #fff;
+  border-radius: 999px; padding: 7px 12px; font: 700 12.5px system-ui, sans-serif; cursor: pointer; }
+.mp-lobby input { width: 110px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25); background: rgba(0,0,0,.35);
+  color: #fff; padding: 6px 8px; text-transform: uppercase; }
+.mp-lobby small { display: block; opacity: .85; }
+.mp-lobby.in-room { padding: 6px 10px; }
+.mp-lobby.in-room b, .mp-lobby.in-room .mp-row { display: none; }
+`;
+const SYSTEM_NAMES = { vehicle: 'VehicleController', fuel: 'Fuel', path: 'FollowPath', chase: 'ChaseTarget', door: 'DoorProximity', finish: 'FinishLine' };
+const SYSTEM_AR = { VehicleController: 'نظام القيادة', Fuel: 'نظام الوقود', FollowPath: 'تتبّع المسار', ChaseTarget: 'المطاردة', DoorProximity: 'الباب التلقائي', FinishLine: 'خط النهاية', RaceEnd: 'نهاية السباق', Respawn: 'إعادة الظهور', Multiplayer: 'اللعب الجماعي' };
+
+/* ------------------------------------------------------------
+   OPERATIONS — each change is computed first (so the preview shows
+   exactly what will happen), then applied in one undo step
+   ------------------------------------------------------------ */
+const Op = {
+  transform(e, label, from, to, set) {
+    return { kind: 'transform', id: e.id, where: e.name, label, from, to, apply: async () => { const x = ent(e.id); if (!x) throw new Error('«' + e.name + '» لم يعد موجودًا'); set(x.object3D); x.object3D.updateMatrixWorld(true); return x.id; } };
+  },
+  addComponent(e, type, data, label) {
+    return { kind: 'component', id: e.id, where: e.name, label: label || ('+ ' + type), from: compOf(e, type) ? 'موجود' : '—', to: type + (data && Object.keys(data).length ? ' ' + briefData(data) : ''),
+      apply: async () => { const x = ent(e.id); if (!x) throw new Error('«' + e.name + '» لم يعد موجودًا'); x.components = (x.components || []).filter(c => c.type !== type); x.components.push({ id: uid('c'), type, name: type, data: clone(data || {}), enabled: true }); return x.id; } };
+  },
+  setData(e, type, key, from, to, label) {
+    return { kind: 'data', id: e.id, where: e.name + ' · ' + type, label: label || key, from, to,
+      apply: async () => { const x = ent(e.id); const c = x && compOf(x, type); if (!c) throw new Error(type + ' غير موجود على «' + e.name + '»'); c.data = c.data || {}; c.data[key] = to; c.enabled = true; return x.id; } };
+  },
+  body(e, type, label) {
+    const cur = (compOf(e, 'Rigidbody') || {}).data;
+    return { kind: 'component', id: e.id, where: e.name, label: label || 'Rigidbody', from: cur ? cur.type : 'بلا جسم', to: type || 'بلا جسم',
+      apply: async () => { const x = ent(e.id); if (!x) throw new Error('«' + e.name + '» لم يعد موجودًا'); x.components = (x.components || []).filter(c => c.type !== 'Rigidbody'); if (type) x.components.push({ id: uid('c'), type: 'Rigidbody', name: 'Rigidbody', data: { type }, enabled: true }); return x.id; } };
+  },
+  toggleComponent(e, type, on, label) {
+    return { kind: 'data', id: e.id, where: e.name, label: label || type, from: on ? 'متوقف' : 'يعمل', to: on ? 'يعمل' : 'متوقف', apply: async () => { const c = compOf(ent(e.id), type); if (!c) throw new Error(type + ' غير موجود'); c.enabled = !!on; return e.id; } };
+  },
+  enableComponent(e, type) {
+    return { kind: 'data', id: e.id, where: e.name, label: type, from: 'متوقف', to: 'يعمل', apply: async () => { const c = compOf(ent(e.id), type); if (c) c.enabled = true; return e.id; } };
+  },
+  file(path, code, role, label) {
+    const p = Stu().project;
+    const cur = (p.files || []).find(f => f.path === path);
+    if (cur && cur.code === code) return null;
+    return { kind: cur ? 'edit' : 'file', path, where: path, label: label || (cur ? 'تحديث الملف' : 'ملف جديد'), from: cur ? (cur.code.split('\n').length + ' سطر') : '—', to: code.split('\n').length + ' سطر',
+      diff: NX.diffLines(cur ? cur.code : '', code), before: cur ? cur.code : null,
+      apply: async () => {
+        const pr = Stu().project; NX.migrateProjectFiles(pr);
+        const f = pr.files.find(x => x.path === path);
+        if (f) { if (cur && f.code !== cur.code) throw new Error(path + ' تغيّر منذ المعاينة — أعد الطلب'); f.code = code; f.enabled = true; }
+        else pr.files.push({ id: uid('f'), path, code, role: role || NX.fileRole(path), entityId: null, enabled: true });
+      } };
+  },
+  editFile(path, before, after, label, from, to) {
+    return { kind: 'edit', path, where: path, label, from, to, diff: NX.diffLines(before, after), before,
+      apply: async () => { const f = (Stu().project.files || []).find(x => x.path === path); if (!f) throw new Error(path + ' غير موجود'); if (f.code !== before) throw new Error(path + ' تغيّر منذ المعاينة — أعد الطلب'); f.code = after; } };
+  },
+  enableFile(path, on, label) {
+    return { kind: 'edit', path, where: path, label: label || (on ? 'تشغيل الملف' : 'إيقاف الملف'), from: on ? 'متوقف' : 'يعمل', to: on ? 'يعمل' : 'متوقف',
+      apply: async () => { const f = (Stu().project.files || []).find(x => x.path === path); if (!f) throw new Error(path + ' غير موجود'); f.enabled = !!on; } };
+  },
+  create(def, label) {
+    return { kind: 'object', where: def.name, label: label || ('+ ' + def.name), from: '—', to: def.type + (def.position ? ' ' + v3s({ x: def.position[0], y: def.position[1], z: def.position[2] }) : ''),
+      apply: async () => { const eng = Stu().engine; let n = def.name, k = 2; while (eng.findByName(n)) n = def.name + ' ' + (k++); const e = await eng.addEntity(Object.assign({}, def, { name: n })); return e.id; } };
+  },
+  prop(e, key, from, to, set, label) {
+    return { kind: 'transform', id: e.id, where: e.name, label: label || key, from, to, apply: async () => { const x = ent(e.id); if (!x) throw new Error('«' + e.name + '» لم يعد موجودًا'); set(x); return x.id; } };
+  },
+  color(e, hex, label) {
+    return { kind: 'transform', id: e.id, where: e.name, label: 'اللون', from: (e.props && e.props.color) || 'الأصلي', to: label + ' ' + hex,
+      apply: async () => { const x = ent(e.id); if (!x) throw new Error('«' + e.name + '» لم يعد موجودًا'); tint(x, hex); return x.id; } };
+  }
+};
+const briefData = d => Object.entries(d || {}).filter(([, v]) => v !== undefined && typeof v !== 'object').slice(0, 5).map(([k, v]) => k + '=' + v).join(' ');
+
+/* a model's colour: its own materials, cloned so other copies keep theirs;
+   kept in props.color and applied again whenever the object loads */
+function tint(e, hex) {
+  e.props = e.props || {};
+  e.props.color = hex;
+  e.object3D.traverse(n => {
+    if (!n.isMesh || !n.material || (n.userData && n.userData.helper)) return;
+    const one = m => { if (!m || !m.color) return m; const c = m.clone(); c.color.set(hex); return c; };
+    n.material = Array.isArray(n.material) ? n.material.map(one) : one(n.material);
+  });
+}
+const _addEntity = NX.EngineCore.prototype.addEntity;
+NX.EngineCore.prototype.addEntity = async function (def, opts) {
+  const e = await _addEntity.call(this, def, opts);
+  if (e && e.type === 'model' && e.props && /^#[0-9a-f]{6}$/i.test(String(e.props.color || '')) && e.object3D) tint(e, e.props.color);
+  return e;
+};
+
+/* the body a scene object was given in the inspector («فيزياء» / Body type)
+   was saved but never created when the game ran: it is now. A script's
+   own addBody() still wins (it runs later). */
+function applyRigidbodies(eng) {
+  let n = 0;
+  for (const e of eng.entities.values()) {
+    const c = (e.components || []).find(x => x.type === 'Rigidbody' && x.enabled !== false);
+    if (!c || !e.object3D) continue;
+    const d = c.data || {};
+    const type = ['static', 'dynamic', 'character'].includes(d.type) ? d.type : 'static';
+    eng.physics.add(e, { type, shape: d.shape, mass: d.mass, friction: d.friction, restitution: d.restitution, trigger: !!d.trigger, useGravity: type !== 'static' && d.gravity !== false });
+    n++;
+  }
+  if (n) eng.physicsEnabled = true;
+  return n;
+}
+const _run = NX.Runtime.prototype.run;
+NX.Runtime.prototype.run = async function () {
+  if (!this.running && this.engine) { try { applyRigidbodies(this.engine); } catch (e) { console.warn('rigidbody', e); } }
+  return _run.call(this);
+};
+
+/* ------------------------------------------------------------
+   THE GROUND UNDER AN OBJECT — a ray straight down against every
+   other object; nothing below → the world floor y = 0
+   ------------------------------------------------------------ */
+function groundUnder(eng, e) {
+  const box = Agent.boxOf(e), c = box.getCenter(new THREE.Vector3());
+  const skip = new Set();
+  e.object3D.traverse(n => skip.add(n));
+  const ray = new THREE.Raycaster(new THREE.Vector3(c.x, box.max.y + 200, c.z), new THREE.Vector3(0, -1, 0), 0, 5000);
+  const hits = ray.intersectObject(eng.root, true).filter(h => !skip.has(h.object) && h.object.isMesh && !(h.object.userData && h.object.userData.helper) && h.object.visible !== false);
+  /* the highest surface that is not above the object's middle (so a roof over it does not count) */
+  const mid = (box.min.y + box.max.y) / 2;
+  const under = hits.filter(h => h.point.y <= mid + 0.05);
+  const h = under[0];
+  if (!h) return { y: 0, on: null };
+  const other = eng.entityOf(h.object);
+  return { y: h.point.y, on: other || null };
+}
+
+/* ------------------------------------------------------------
+   TRIAL — build, run the real game code for a moment with the
+   throttle / forward key held, measure what the object did, then
+   put the scene back exactly as it was. (A team project runs its
+   code sandboxed: there only the errors are read.)
+   ------------------------------------------------------------ */
+const Trial = {
+  async run({ id, keys = ['w', 'arrowup'], buttons = ['gas'], seconds = 1.6 } = {}) {
+    const S = Stu(), eng = S.engine, p = S.project;
+    if (S.playing) return { skipped: 'playing' };
+    const build = await S.buildProject({ silent: true });
+    if (!build || !build.ok) return { ok: false, stage: 'build', errors: ((build && build.diagnostics) || []).filter(d => d.severity === 'error').slice(0, 4).map(d => (d.file ? d.file + ':' + d.line + ' ' : '') + d.message) };
+    if (NX.Sandbox && NX.Sandbox.forProject(p)) { const t = await S.testRun(build); return { ok: !t.errors.length, errors: t.errors, sandboxed: true }; }
+    const snapshot = JSON.stringify(eng.serialize());
+    const cam = eng.editorCam, active = eng.activeCamera, sel = eng.selection;
+    const camPos = cam.position.clone(), camQ = cam.quaternion.clone();
+    const host = el('div', { style: { position: 'absolute', inset: '0', pointerEvents: 'none', opacity: '0' } });
+    (document.getElementById('vp-wrap') || document.body).appendChild(host);
+    const errors = [];
+    const rt = new NX.Runtime(eng, { project: p, uiHost: host, onLog: (m, t) => { if (t === 'err') errors.push(String(m).split('\n')[0].slice(0, 200)); } });
+    let before = null, after = null, low = Infinity;
+    const pos = () => { const e = id && eng.getEntity(id); return e && e.object3D ? e.object3D.position.clone() : null; };
+    try {
+      before = pos();
+      await rt.runBuild(build);
+      keys.forEach(k => rt._keys.add(k));
+      buttons.forEach(b => { if (rt._buttons[b]) rt._buttons[b].down = true; });
+      const t0 = performance.now();
+      while (performance.now() - t0 < seconds * 1000) { await wait(100); const q = pos(); if (q) low = Math.min(low, q.y); }
+      after = pos();
+    } catch (e) { errors.push(msg(e)); }
+    try { rt.stop(); } catch {}
+    host.remove();
+    await eng.load(JSON.parse(snapshot));
+    eng.activeCamera = active; cam.position.copy(camPos); cam.quaternion.copy(camQ);
+    if (eng.orbit && eng.orbit.apply) eng.orbit.apply();
+    if (sel && eng.entities.has(sel)) eng.select(sel);
+    S.updateHud();
+    const moved = before && after ? Math.hypot(after.x - before.x, after.z - before.z) : 0;
+    const fell = before && isFinite(low) ? before.y - low : 0;
+    return { ok: !errors.length, errors, moved, fell, ran: true };
+  },
+  lines(r, name, how) {
+    how = how || 'مع الضغط على التسارع';
+    if (!r) return [];
+    if (r.skipped) return ['▶ لم أشغّل تجربة: اللعبة تعمل الآن'];
+    if (r.stage === 'build') return ['▶ التجربة: فشل البناء — ' + r.errors.join(' · ')];
+    if (r.sandboxed) return [r.ok ? '▶ تشغيل تجريبي (داخل الصندوق الآمن لمشروع الفريق): بلا أخطاء ✓ — قياس الحركة غير متاح هنا' : '▶ تشغيل تجريبي: أخطاء — ' + r.errors.slice(0, 3).join(' · ')];
+    const out = [];
+    if (name) out.push(r.moved > 0.5 ? `▶ جرّبت: شغّلت اللعبة 1.6 ث ${how} — «${name}» تحرّكت ${r.moved.toFixed(1)} م ✓` : `▶ جرّبت: شغّلت اللعبة 1.6 ث ${how} — «${name}» لم تتحرك (${r.moved.toFixed(2)} م)`);
+    if (name && r.fell > 3) out.push(`⚠ سقطت ${r.fell.toFixed(1)} م أثناء التجربة — الأرض تحتها بلا جسم فيزيائي ثابت`);
+    out.push(r.errors.length ? '✗ أخطاء أثناء التشغيل: ' + r.errors.slice(0, 3).join(' · ') : '✓ بلا أخطاء أثناء التشغيل');
+    return out;
+  }
+};
+
+/* ------------------------------------------------------------
+   CHECKS — code the agent writes goes through the same validator
+   as the AI's code (engine API only, real names)
+   ------------------------------------------------------------ */
+async function checked(path, code) {
+  if (/\.(m?js|ts)$/i.test(path)) {
+    const bad = aiCodeViolations(code);
+    if (bad.length) throw new Error(path + ': ' + bad.join('، '));
+    const S = Stu();
+    const v = await NX.Validator.checkCode(code, Object.assign({ path }, NX.Validator.context(S.project, S.engine)));
+    if (!v.ok) throw new Error(path + ': ' + v.errors.map(x => 'سطر ' + x.line + ' ' + x.message).join(' · '));
+  }
+  return code;
+}
+/* the component file a system needs — reused when it is already there */
+async function systemFile(plan, type) {
+  const path = type + '.js';
+  const p = Stu().project;
+  const cur = (p.files || []).find(f => f.role === 'component' && NX.componentName(f.path) === type);
+  if (cur) return cur.path;
+  const op = Op.file(path, await checked(path, T[type]), 'component', 'نظام جاهز: ' + (SYSTEM_AR[type] || type));
+  if (op) { plan.ops.push(op); plan.systems.push(type); }
+  return path;
+}
+
+/* ------------------------------------------------------------
+   PLANS, THE CARD, APPLY
+   ------------------------------------------------------------ */
+const Plans = new Map();
+let talkingTo = null;            // the conversation a request came from: its answers go back there
+function newPlan(req, o) {
+  const plan = Object.assign({ id: uid('ep'), req, ops: [], notes: [], systems: [], ids: [], done: false, test: null, direct: null, ui: talkingTo }, o);
+  Plans.set(plan.id, plan);
+  return plan;
+}
+function counts(plan) {
+  const objs = new Set(), comps = plan.ops.filter(o => o.kind === 'component' || o.kind === 'data').length;
+  plan.ops.forEach(o => { if (o.id) objs.add(o.id); if (o.kind === 'object') objs.add(o.where); });
+  return { objects: objs.size, components: comps, files: plan.ops.filter(o => o.kind === 'file' || o.kind === 'edit').length, systems: plan.systems.length };
+}
+function isBig(plan) {
+  const c = counts(plan);
+  return plan.ops.length >= 5 || c.systems >= 2 || c.files >= 2 || c.objects >= 4;
+}
+function isDirect(plan) {
+  if (plan.direct != null) return plan.direct;
+  const c = counts(plan);
+  return plan.ops.length <= 2 && !plan.ops.some(o => o.kind === 'edit' || o.kind === 'file') && c.objects <= 2;
+}
+function cardOf(plan, state) {
+  return {
+    type: 'edit', planId: plan.id, state: state || null,
+    target: plan.targetLabel, scope: plan.scopeLabel, action: plan.action,
+    changes: plan.ops.map(o => ({ where: o.where || '', label: o.label || '', from: o.from == null ? '' : String(o.from), to: o.to == null ? '' : String(o.to), path: o.path || null })),
+    files: plan.ops.filter(o => o.diff).map(o => ({ path: o.path, kind: o.kind === 'file' ? 'create' : 'edit', diff: o.diff.slice(0, 160) })),
+    counts: counts(plan), big: isBig(plan), notes: plan.notes.slice(0, 8), systems: plan.systems, ids: plan.ids.slice(0, 20), test: null
+  };
+}
+async function propose(plan, ui, lead) {
+  if (plan.req && plan.req.dry) return true;          // a model's operation: the plan is taken, not shown
+  if (!plan.ops.length) { ui.say(lead || 'لا يوجد ما أغيّره.', plan.notes.length ? [{ type: 'list', lines: plan.notes }] : []); plan.done = true; return true; }
+  if (isDirect(plan) && !(plan.req && plan.req.question && !plan.diag)) return apply(plan, ui, lead);
+  const c = counts(plan);
+  const asked = plan.req && plan.req.question && !isBig(plan);
+  const head = (lead ? lead + '\n' : '') + (asked ? 'هكذا أفعلها — اضغط Apply إن أردت، ولن يتغيّر شيء قبل ذلك:'
+    : isBig(plan) ? `تغيير كبير: ${c.files} ملف · ${c.components} مكوّن · ${c.systems} نظام · ${c.objects} كائن — راجعه قبل التطبيق.`
+    : 'هذا ما سأغيّره — راجعه ثم اضغط Apply:');
+  ui.say(head, [cardOf(plan, null)]);
+  return true;
+}
+async function apply(plan, ui, lead) {
+  const S = Stu(), eng = S.engine, p = S.project;
+  if (S.playing) { ui.say('أوقف التشغيل ⏹ أولًا — أي تعديل أثناء اللعب يُلغى عند الإيقاف.'); return true; }
+  if (plan.done) { Toast.show('انتهت صلاحية هذا الطلب — أرسله من جديد'); return true; }
+  plan.done = true;
+  S.pushUndo('AI: ' + String(plan.action || plan.req.text).slice(0, 60), { by: 'ai', files: true });
+  if (isBig(plan) && NX.History) { try { await NX.History.create(p, 'قبل تغيير AI: ' + String(plan.action).slice(0, 50), { by: 'ai' }); } catch (e) { plan.notes.push('⚠ لم تُحفظ نقطة رجوع دائمة: ' + msg(e)); } }
+  const errors = [];
+  ui.busy('أطبّق التغييرات على المشروع…');
+  try {
+    for (const op of plan.ops) {
+      try { const id = await op.apply(); op.ok = true; if (id && !plan.ids.includes(id)) plan.ids.push(id); }
+      catch (e) { op.ok = false; errors.push((op.where ? op.where + ' · ' : '') + op.label + ': ' + msg(e)); }
+    }
+  } finally { ui.busy(null); }
+  if (!plan.ops.some(o => o.ok)) {
+    S.undoStack.pop();
+    ui.say('✕ لم يتغيّر شيء.', [{ type: 'list', title: 'لم يُطبَّق', lines: errors.map(x => '✗ ' + x) }], { error: true });
+    return true;
+  }
+  S.lastBuild = null; S.dirty = true; S.updateHud();
+  const saved = await S.save(true);
+  let test = null;
+  if (plan.test) {
+    ui.busy('أختبر: تشغيل قصير للعبة…');
+    try { test = await Trial.run(plan.test); } catch (e) { test = { ok: false, errors: [msg(e)], ran: true }; }
+    finally { ui.busy(null); }
+  }
+  const live = plan.ids.filter(id => eng.entities.has(id));
+  if (live.length) Agent.Memory.touch(p.projectId, live);
+  const card = cardOf(plan, 'done');
+  card.changes = card.changes.map((c, i) => Object.assign(c, { failed: plan.ops[i] && plan.ops[i].ok === false }));
+  card.errors = errors;
+  card.test = test ? Trial.lines(test, plan.test.name, plan.test.how) : null;
+  card.undoable = true;
+  const where = saved ? (NX.Backend.isOnline() ? '✓ حُفظ' : '✓ حُفظ على هذا الجهاز') : '⚠ لم يُحفظ بعد — اضغط حفظ';
+  const verdict = test && test.ran && plan.test.name ? (test.moved > 0.5 && test.ok ? ' — وجرّبته: يعمل ✓' : ' — لكن التجربة وجدت مشكلة (انظر أدناه)') : '';
+  ui.say((lead ? lead + '\n' : '') + (errors.length ? 'تمّ جزئيًا.' : 'تمّ.') + ' ' + where + verdict, [card]);
+  window.dispatchEvent(new CustomEvent('nx:aiChange'));
+  return true;
+}
+
+/* ------------------------------------------------------------
+   UNDO / REDO AI CHANGE — the same undo stack as the editor; an AI
+   change is the entry it pushed (the scene, the files and the
+   components as they were before it)
+   ------------------------------------------------------------ */
+const AIChanges = {
+  list() { const S = Stu(); return (S.undoStack || []).map((s, i) => ({ s, i })).filter(x => x.s && typeof x.s === 'object' && x.s.by === 'ai'); },
+  redoList() { const S = Stu(); return (S.redoStack || []).filter(s => s && s.by === 'ai'); },
+  async undo(ui) {
+    const S = Stu();
+    const all = this.list();
+    if (!all.length) { ui.say('لا يوجد تغيير من الذكاء الاصطناعي أتراجع عنه في هذه الجلسة.' + ((S.project && (S.project.history || []).length) ? ' نقاط الرجوع الأقدم في «تاريخ المشروع».' : '')); return false; }
+    const last = all[all.length - 1];
+    const after = S.undoStack.length - 1 - last.i;
+    if (after > 0 && !(await Modal.confirm('تراجع عن تغيير AI؟', `بعد «${last.s.label}» عدّلتَ ${after} مرة بنفسك — التراجع عنه يلغي تعديلاتك هذه أيضًا (ويمكن إعادتها بـ «إعادة»).`, 'تراجع'))) return false;
+    let r = null;
+    for (let k = 0; k <= after; k++) r = await S.undo();
+    if (!r) { ui.say('لم يتم التراجع.'); return false; }
+    ui.say('↩ تراجعت عن تغيير AI: ' + last.s.label.replace(/^AI: /, '') + (r.saved ? ' — وحُفظ المشروع.' : ' — ⚠ لم يُحفظ بعد.'));
+    window.dispatchEvent(new CustomEvent('nx:aiChange'));
+    return true;
+  },
+  async redo(ui) {
+    const S = Stu();
+    const top = S.peekRedo && S.peekRedo();
+    if (!top || top.by !== 'ai') { ui.say(top ? 'آخر ما تراجعتَ عنه تعديل يدوي — أعده من «إعادة» في المحرّر.' : 'لا يوجد تغيير AI تراجعتَ عنه لأعيده.'); return false; }
+    const r = await S.redo();
+    if (!r) { ui.say('لم تتم الإعادة.'); return false; }
+    ui.say('↪ أعدت تغيير AI: ' + r.label.replace(/^AI: /, '') + (r.saved ? ' — وحُفظ المشروع.' : ' — ⚠ لم يُحفظ بعد.'));
+    window.dispatchEvent(new CustomEvent('nx:aiChange'));
+    return true;
+  },
+  open(ui) {
+    const S = Stu();
+    const body = el('div');
+    const draw = () => {
+      body.textContent = '';
+      body.appendChild(el('p', { class: 'tiny', style: { lineHeight: '1.7', marginBottom: '10px' }, text: 'كل تغيير يجريه المساعد يحفظ نسخة من المشهد والملفات والمكوّنات قبله. «تراجع» يعيدها كما كانت، و«إعادة» يرجع التغيير. (في هذه الجلسة — نقاط الرجوع الدائمة في «تاريخ المشروع».)' }));
+      const list = this.list().reverse(), redo = this.redoList().slice().reverse();
+      if (!list.length && !redo.length) body.appendChild(el('div', { class: 'center-note', text: 'لا تغييرات من الذكاء الاصطناعي بعد.' }));
+      list.forEach((x, k) => body.appendChild(el('div', { class: 'comp-row' }, [el('span', { text: k === 0 ? '●' : '○' }), el('div', { style: { flex: '1', minWidth: '0' } }, [el('b', { text: x.s.label.replace(/^AI: /, ''), style: { display: 'block', fontSize: '12.5px' } }), el('span', { class: 'tiny', text: NX.timeAgo(x.s.at) })])])));
+      redo.forEach(s => body.appendChild(el('div', { class: 'comp-row', style: { opacity: '.6' } }, [el('span', { text: '↩' }), el('div', { style: { flex: '1' } }, [el('b', { text: s.label.replace(/^AI: /, '') + ' (متراجَع عنه)', style: { display: 'block', fontSize: '12.5px' } })])])));
+    };
+    draw();
+    const say = t => (ui ? ui.say(t) : Toast.show(t));
+    const u = ui || { say };
+    const sheet = Sheet.open({ title: '↩ تغييرات الذكاء الاصطناعي', body, id: 'aichanges', foot: [
+      btn('↩ Undo AI Change', { cls: 'danger', onclick: async () => { await this.undo(u); draw(); } }),
+      btn('↪ Redo AI Change', { cls: 'primary', onclick: async () => { await this.redo(u); draw(); } })] });
+    return sheet;
+  }
+};
+
+/* ------------------------------------------------------------
+   TARGET — the selected object; «هذا/ها» = it; a named thing =
+   the one in the scene (asked when several); «كل السيارات» = all
+   ------------------------------------------------------------ */
+async function target(req, { allowGroup = true, want = null } = {}) {
+  const S = Stu(), eng = S.engine, p = S.project;
+  const idx = await Agent.sceneIndex(eng);
+  const sel = eng.selection && eng.entities.has(eng.selection) ? eng.selection : null;
+  const scope = Scope.value !== 'auto' ? Scope.value : req.scope;
+  const cid = req.concept || want;
+  const pool = cid ? idx.filter(x => matches(x, cid)) : null;
+  const label = ids => ids.length === 1 ? (ent(ids[0]) || {}).name : ids.length + ' ' + ((cid && (Agent.nlp.conceptById(cid) || {}).label) || 'كائن');
+  if (req.forced) { const ids = req.forced.filter(id => eng.entities.has(id)); return { ids, scope: ids.length > 1 ? 'scene' : 'object', label: label(ids), idx }; }
+  /* the scope picked in the bar (scene / game / project) with «ها»: everything of the selected object's kind */
+  let gcid = cid;
+  if (!gcid && sel && Scope.value !== 'auto' && Scope.value !== 'object') {
+    const x = idx.find(y => y.e.id === sel);
+    gcid = x ? (isVehicle(x) ? 'car' : Array.from(x.concepts)[0] || null) : null;
+  }
+  if (allowGroup && scope && scope !== 'object' && (req.group || req.concept || (Scope.value !== 'auto' && gcid))) {
+    if (gcid) {
+      const ids = idx.filter(x => matches(x, gcid)).map(x => x.e.id);
+      if (!ids.length) return { none: true, cid: gcid };
+      const kind = (Agent.nlp.conceptById(gcid) || {}).label || 'كائن';
+      return { ids, group: true, scope, label: ids.length === 1 ? (ent(ids[0]) || {}).name : ids.length + ' ' + kind, idx };
+    }
+  }
+  if (sel && (scope === 'object' || !req.concept || req.thisWord || req.pronoun || (pool && pool.some(x => x.e.id === sel)))) return { ids: [sel], scope: 'object', selected: true, label: label([sel]), idx };
+  if (cid && pool) {
+    if (pool.length === 1) return { ids: [pool[0].e.id], scope: 'object', label: label([pool[0].e.id]), idx };
+    if (pool.length > 1) {
+      const mem = Agent.Memory.of(p.projectId).lastEntityIds.filter(id => pool.some(x => x.e.id === id));
+      if (mem.length === 1) return { ids: mem, scope: 'object', label: label(mem), idx };
+      return { ask: pool.slice(0, 6).map(x => ({ label: x.e.name, value: x.e.id })).concat(allowGroup ? [{ label: 'كلها (' + pool.length + ')', value: '*' }] : []), all: pool.map(x => x.e.id), cid, idx };
+    }
+    if (req.concept) return { none: true, cid, idx };
+  }
+  const mem = Agent.Memory.of(p.projectId).lastEntityIds.filter(id => eng.entities.has(id));
+  if ((req.pronoun || req.thisWord) && mem.length) return { ids: [mem[0]], scope: 'object', fromMemory: true, label: label([mem[0]]), idx };
+  return { noTarget: true, idx };
+}
+function scopeLabelOf(tg) { return Scope.label(tg.scope || 'object') + (tg.selected ? '' : tg.fromMemory ? ' (آخر ما عدّلته)' : ''); }
+
+/* the question when several objects match: the answer re-runs the same request */
+function askWhich(req, skill, tg, ui) {
+  const plan = newPlan(req, { ask: true, skill });
+  const cl = (Agent.nlp.conceptById(tg.cid) || {}).label || 'هذا';
+  ui.say(`يوجد ${tg.all.length} من «${cl}» في المشهد. أيها تقصد؟ (أو حدّده في المشهد ثم أعد الطلب)`, [{ type: 'question', planId: plan.id, key: 'which', options: tg.ask }]);
+  plan.all = tg.all;
+  return true;
+}
+function noTarget(ui, what) {
+  ui.say('ما العنصر الذي تقصده؟ ' + (what || 'حدّده في المشهد (المسه) ثم أعد الطلب — أو سمِّه، مثل «السيارة».'));
+  return true;
+}
+
+/* ------------------------------------------------------------
+   SKILLS
+   ------------------------------------------------------------ */
+const SK = {};
+
+/* «ضعها على الأرض» · «معلقة في الهواء» · «تحت الأرض» */
+SK.ground = async (req, ui) => {
+  const tg = await target(req);
+  if (tg.ask) return askWhich(req, 'ground', tg, ui);
+  if (!tg.ids) return tg.none ? (ui.say('لا يوجد «' + ((Agent.nlp.conceptById(tg.cid) || {}).label || '') + '» في المشهد.'), true) : noTarget(ui);
+  const eng = Stu().engine;
+  const plan = newPlan(req, { action: 'وضعها على الأرض · Snap to ground', targetLabel: tg.label, scopeLabel: scopeLabelOf(tg) });
+  for (const id of tg.ids) {
+    const e = ent(id), box = Agent.boxOf(e), g = groundUnder(eng, e);
+    const dy = g.y - box.min.y;
+    if (Math.abs(dy) < 0.01) { plan.notes.push(`«${e.name}» على الأرض أصلًا (أسفلها y=${r2(box.min.y)})`); continue; }
+    const y0 = e.object3D.position.y, y1 = y0 + dy;
+    plan.ops.push(Op.transform(e, 'الارتفاع (position.y)', r2(y0), r2(y1), o => { o.position.y = y1; }));
+    plan.notes.push(`«${e.name}»: كان ${dy > 0 ? 'تحت السطح بـ ' + r2(dy) : 'معلّقًا ' + r2(-dy)} م — ${g.on ? 'الآن على «' + g.on.name + '»' : 'لا يوجد سطح تحته؛ وضعته على أرض العالم y=0'}`);
+  }
+  return propose(plan, ui);
+};
+
+/* «اجعل دورانها صحيحًا» · «مقلوبة» · «مائلة» */
+SK.rotation = async (req, ui) => {
+  const tg = await target(req);
+  if (tg.ask) return askWhich(req, 'rotation', tg, ui);
+  if (!tg.ids) return noTarget(ui);
+  const eng = Stu().engine;
+  const plan = newPlan(req, { action: 'تصحيح الدوران · Fix rotation', targetLabel: tg.label, scopeLabel: scopeLabelOf(tg) });
+  for (const id of tg.ids) {
+    const e = ent(id), r = e.object3D.rotation;
+    const from = `x ${deg(r.x)}° · y ${deg(r.y)}° · z ${deg(r.z)}°`;
+    /* upside down: x or z near ±180° → turn it over and keep where it faces */
+    const flipped = Math.abs(Math.cos(r.x) * Math.cos(r.z)) < 0.2 ? false : (Math.cos(r.x) * Math.cos(r.z) < 0);
+    let y = r.y; if (flipped) y = r.y + Math.PI;
+    y = Math.atan2(Math.sin(y), Math.cos(y));
+    if (Math.abs(r.x) < 0.01 && Math.abs(r.z) < 0.01) { plan.notes.push(`«${e.name}» مستقيم أصلًا (${from}) — لم أغيّر شيئًا. إن كان يتّجه عكس الطريق قل «لفّه 180 درجة».`); continue; }
+    plan.ops.push(Op.transform(e, 'الدوران', from, `x 0° · y ${deg(y)}° · z 0°`, o => { o.rotation.set(0, y, 0); }));
+    /* standing again: its bottom goes back onto the ground */
+    const box0 = Agent.boxOf(e), g = groundUnder(eng, e);
+    plan.ops.push({ kind: 'transform', id: e.id, where: e.name, label: 'على الأرض بعد التعديل', from: '', to: 'y = ' + r2(g.y),
+      apply: async () => { const x = ent(e.id); x.object3D.updateMatrixWorld(true); const b = Agent.boxOf(x); x.object3D.position.y += g.y - b.min.y; return x.id; } });
+    if (flipped) plan.notes.push(`«${e.name}» كان مقلوبًا — قلبته وأبقيت اتجاهه`);
+    void box0;
+  }
+  plan.direct = plan.ops.length <= 2;
+  return propose(plan, ui);
+};
+
+/* «غيّر مكانها» — a free spot next to where it is (a named place → the existing agent) */
+SK.relocate = async (req, ui) => {
+  const tg = await target(req);
+  if (tg.ask) return askWhich(req, 'relocate', tg, ui);
+  if (!tg.ids) return noTarget(ui);
+  const eng = Stu().engine;
+  const plan = newPlan(req, { action: 'نقلها إلى مكان آخر · Move', targetLabel: tg.label, scopeLabel: scopeLabelOf(tg) });
+  const idx = await Agent.sceneIndex(eng);
+  for (const id of tg.ids) {
+    const e = ent(id), from = e.object3D.position.clone();
+    /* try the placement on a copy of the position, then restore: the op re-does it */
+    const r = Agent.placeRelative(eng, idx, e, { targetBox: Agent.boxOf(e), relation: 'beside', exclude: new Set([id]) });
+    const to = e.object3D.position.clone();
+    e.object3D.position.copy(from); e.object3D.updateMatrixWorld(true);
+    if (to.distanceTo(from) < 0.05) { plan.notes.push(`لم أجد مكانًا فارغًا قرب «${e.name}» — قل إلى أين: «انقلها خلف المنزل»`); continue; }
+    plan.ops.push(Op.transform(e, 'الموضع', v3s(from), v3s(to) + ' ' + (r.note || ''), o => { o.position.copy(to); }));
+  }
+  return propose(plan, ui, 'نقلتها إلى أقرب مكان فارغ بجانبها. لمكان محدّد قل مثلًا «انقلها أمام المبنى».');
+};
+
+/* «غيّر لونها إلى الأحمر» — primitives and models (materials cloned) */
+SK.color = async (req, ui) => {
+  const c = colorIn(req.text);
+  const tg = await target(req);
+  if (tg.ask) return askWhich(req, 'color', tg, ui);
+  if (!tg.ids) return noTarget(ui);
+  if (!c) {
+    const plan = newPlan(req, { ask: true, skill: 'color', forcedIds: tg.ids });
+    ui.say('أي لون؟', [{ type: 'question', planId: plan.id, key: 'color', options: COLORS.slice(0, 10).map(([h, l]) => ({ label: l, value: h })) }]);
+    return true;
+  }
+  const plan = newPlan(req, { action: 'تغيير اللون · Color', targetLabel: tg.label, scopeLabel: scopeLabelOf(tg) });
+  tg.ids.forEach(id => {
+    const e = ent(id);
+    if (!['primitive', 'model'].includes(e.type)) { plan.notes.push(`«${e.name}» (${e.type}) لا لون له`); return; }
+    plan.ops.push(Op.color(e, c.hex, c.label));
+  });
+  if (tg.ids.some(id => (ent(id) || {}).type === 'model')) plan.notes.push('في المجسم المستورد: يُصبغ كل جزء باللون (نسخة من خاماته — الملف الأصلي لا يتغيّر)');
+  plan.direct = plan.ops.length <= 3;
+  return propose(plan, ui);
+};
+
+/* «صغّرها شوي» · «كبّرها قليلًا» (the plain «كبّرها» stays with the existing agent) */
+SK.size = async (req, ui) => {
+  const tg = await target(req);
+  if (tg.ask) return askWhich(req, 'size', tg, ui);
+  if (!tg.ids) return noTarget(ui);
+  const t = req.t;
+  const down = t.search(RX.sizeDown) > t.search(RX.sizeUp) ? true : !RX.sizeUp.test(t);
+  const k = down ? 0.8 : 1.25;
+  const eng = Stu().engine;
+  const plan = newPlan(req, { action: (down ? 'تصغير قليلًا' : 'تكبير قليلًا') + ' · Scale ×' + k, targetLabel: tg.label, scopeLabel: scopeLabelOf(tg) });
+  tg.ids.forEach(id => {
+    const e = ent(id), s = e.object3D.scale.clone(), box = Agent.boxOf(e), g = groundUnder(eng, e);
+    const onGround = Math.abs(box.min.y - g.y) < 0.3;
+    plan.ops.push(Op.transform(e, 'الحجم (scale)', '×' + r2(s.x), '×' + r2(s.x * k), o => {
+      o.scale.copy(s).multiplyScalar(k); o.updateMatrixWorld(true);
+      if (onGround) { const b = Agent.boxOf(ent(id)); o.position.y += g.y - b.min.y; }
+    }));
+  });
+  plan.direct = true;
+  return propose(plan, ui);
+};
+
+/* the speed a controller really uses: component settings, then the
+   constants of the scripts that drive the object */
+const SPEED_KEYS = /^(max_?speed|top_?speed|speed|move_?speed|run_?speed|walk_?speed|accel(eration)?)$/i;
+const SPEED_CONST = /\b(MAX_?SPEED|TOP_?SPEED|MAXSPEED|SPEED|MOVE_?SPEED|RUN_?SPEED|WALK_?SPEED|ACCEL(?:ERATION)?|maxSpeed|topSpeed|moveSpeed|runSpeed|walkSpeed)\s*=\s*(\d+(?:\.\d+)?)/g;
+const SPEED_CALL = /\b(setSpeed|moveWithInput)\(\s*(\d+(?:\.\d+)?)\s*\)|\bspeed\s*:\s*(\d+(?:\.\d+)?)/g;
+function speedSpots(p, e) {
+  const out = [];
+  const DEFAULTS = { VehicleController: { maxSpeed: 24, accel: 14 }, FollowPath: { speed: 8 }, ChaseTarget: { speed: 3.5 } };
+  (e.components || []).forEach(c => {
+    if (c.type === 'Rigidbody') return;
+    const d = c.data || {};
+    Object.keys(d).forEach(k => { if (SPEED_KEYS.test(k) && Number.isFinite(+d[k]) && +d[k] > 0) out.push({ kind: 'data', type: c.type, key: k, value: +d[k] }); });
+    const def = DEFAULTS[c.type];
+    if (def) Object.keys(def).forEach(k => { if (!(k in d)) out.push({ kind: 'data', type: c.type, key: k, value: def[k], implicit: true }); });
+  });
+  const { attached, referencing } = Map_.filesFor(p, e);
+  attached.concat(referencing).forEach(f => {
+    const code = f.code || '';
+    let m;
+    SPEED_CONST.lastIndex = 0;
+    while ((m = SPEED_CONST.exec(code))) { if (+m[2] > 0) out.push({ kind: 'code', path: f.path, name: m[1], value: +m[2], at: m.index + m[0].length - m[2].length, len: m[2].length, shared: referencing.includes(f) && countFinds(code) > 1 }); }
+    SPEED_CALL.lastIndex = 0;
+    while ((m = SPEED_CALL.exec(code))) { const v = m[2] || m[3]; if (+v > 0) out.push({ kind: 'code', path: f.path, name: m[1] || 'speed', value: +v, at: m.index + m[0].lastIndexOf(v), len: v.length }); }
+  });
+  return out;
+}
+const countFinds = code => new Set((String(code).match(/Scene\.find\(\s*["'`][^"'`]+["'`]/g) || [])).size;
+SK.speed = async (req, ui) => {
+  const S = Stu(), p = S.project, t = req.t;
+  const tg = await target(req, { want: 'car' });
+  if (tg.ask) return askWhich(req, 'speed', tg, ui);
+  if (!tg.ids) return tg.none ? (ui.say('لا توجد مركبات في المشهد.'), true) : noTarget(ui);
+  const slower = RX.speedDown.test(t);
+  const absM = /(\d+(?:\.\d+)?)/.exec(t);
+  const pct = /(\d+(?:\.\d+)?)\s*(%|بالمئه|بالمائه|percent)/.exec(t);
+  let k = slower ? 0.75 : 1.3;
+  if (RX.soft.test(t)) k = slower ? 0.88 : 1.15;
+  if (RX.much.test(t)) k = slower ? 0.55 : 1.6;
+  if (pct) k = slower ? Math.max(0.05, 1 - pct[1] / 100) : 1 + pct[1] / 100;
+  const abs = !pct && absM && RX.speedWord.test(t) ? +absM[1] : null;
+  const plan = newPlan(req, { action: abs ? 'السرعة القصوى = ' + abs : (slower ? 'تقليل السرعة' : 'زيادة السرعة') + ' ×' + r2(k) + ' · ' + (slower ? 'Decrease' : 'Increase') + ' speed', targetLabel: tg.label, scopeLabel: scopeLabelOf(tg) });
+  const byFile = new Map(), missing = [];
+  for (const id of tg.ids) {
+    const e = ent(id);
+    const spots = speedSpots(p, e);
+    if (!spots.length) { missing.push(e); continue; }
+    spots.forEach(s => {
+      const isMax = /max|top|^speed$|^SPEED$|MAXSPEED|setSpeed|moveWithInput/i.test(s.key || s.name);
+      if (abs != null && !isMax) return;
+      const nv = abs != null ? abs : r2(s.value * k);
+      if (s.kind === 'data') {
+        const label = s.key === 'maxSpeed' ? 'Max Speed' : s.key === 'accel' ? 'Acceleration' : s.key;
+        if (s.implicit) plan.ops.push({ kind: 'data', id: e.id, where: e.name + ' · ' + s.type, label, from: s.value + ' (الافتراضي)', to: nv,
+          apply: async () => { const c = compOf(ent(e.id), s.type); if (!c) throw new Error(s.type + ' غير موجود'); c.data = c.data || {}; c.data[s.key] = nv; return e.id; } });
+        else plan.ops.push(Op.setData(e, s.type, s.key, s.value, nv, label));
+      } else {
+        if (!byFile.has(s.path)) byFile.set(s.path, []);
+        if (!byFile.get(s.path).some(x => x.at === s.at)) byFile.get(s.path).push(Object.assign({ nv, who: e.name }, s));
+        if (s.shared && req.only) plan.notes.push(`⚠ «${s.path}» يقود أكثر من كائن — تغيير ${s.name} فيه يسرّعها كلها. لتسريع «${e.name}» وحدها: «اجعلها قابلة للقيادة» (VehicleController بإعدادات خاصة بها).`);
+      }
+    });
+  }
+  byFile.forEach((spots, path) => {
+    const f = p.files.find(x => x.path === path);
+    let code = f.code;
+    spots.sort((a, b) => b.at - a.at).forEach(s => { code = code.slice(0, s.at) + String(s.nv) + code.slice(s.at + s.len); });
+    const line = s => f.code.slice(0, s.at).split('\n').length;
+    plan.ops.push(Op.editFile(path, f.code, code, spots.map(s => s.name).join(' · '), spots.map(s => s.value).join(' · '), spots.map(s => s.nv).join(' · ')));
+    plan.ops[plan.ops.length - 1].where = path + ':' + Array.from(new Set(spots.map(line))).join(',');
+  });
+  if (missing.length) {
+    const names = missing.map(e => '«' + e.name + '»').join('، ');
+    plan.notes.push(`لم أجد نظام سرعة يحرّك ${names} (لا مكوّن ولا سكربت يغيّر موضعها أو سرعتها).`);
+    if (!plan.ops.length) {
+      const e = missing[0];
+      const x = (tg.idx || []).find(y => y.e.id === e.id);
+      if (x && isVehicle(x)) {
+        const p2 = newPlan(req, { ask: true, skill: 'drive-offer', forcedIds: missing.map(m => m.id), speed: Math.round(24 * (abs ? abs / 24 : k)) });
+        ui.say(`${names}: لا يوجد ما يحرّكها أصلًا، لذلك لا توجد سرعة أغيّرها. أضيف لها نظام قيادة (VehicleController) بسرعة قصوى ${p2.speed}؟`, [{ type: 'question', planId: p2.id, key: 'go', options: [{ label: 'نعم، أضف نظام القيادة', value: 'yes' }, { label: 'لا', value: 'no' }] }]);
+        return true;
+      }
+      ui.say(plan.notes.join('\n'));
+      return true;
+    }
+  }
+  if (tg.ids.length === 1) plan.test = { id: tg.ids[0], name: tg.label };
+  return propose(plan, ui);
+};
+
+/* ---------- the ground a moving object needs (a static body under it) ---------- */
+async function groundFor(plan, e) {
+  const S = Stu(), eng = S.engine, p = S.project;
+  const g = groundUnder(eng, e);
+  const code = (p.files || []).map(f => f.code || '').join('\n');
+  if (!g.on) {
+    plan.notes.push('لا يوجد سطح تحت «' + e.name + '» — تعمل بلا جاذبية (تبقى على ارتفاعها). أضف أرضًا لها «فيزياء: static» لتسقط عليها.');
+    return false;
+  }
+  /* the surface under it, and every other ground / road it can drive onto */
+  const idx = await Agent.sceneIndex(eng);
+  const surfaces = [g.on].concat(idx.filter(x => x.e.id !== g.on.id && x.e.id !== e.id && (x.ground || x.concepts.has('road') || x.e.tag === 'road')).map(x => x.e));
+  surfaces.forEach(s => {
+    const hasBody = hasComp(s, 'Rigidbody') || new RegExp('Scene\\.find\\(\\s*["\'`]' + esc(s.name) + '["\'`]\\s*\\)[\\s\\S]{0,120}addBody|' + esc(s.name) + '[\\s\\S]{0,80}addBody\\(\\s*\\{\\s*type:\\s*["\']static').test(code)
+      || (/findByTag\(\s*["'`]ground["'`]\)[\s\S]{0,160}addBody/.test(code) && s.tag === 'ground');
+    if (!hasBody && !plan.ops.some(o => o.id === s.id && /^Rigidbody/.test(o.label))) plan.ops.push(Op.body(s, 'static', 'Rigidbody (أرض صلبة)'));
+  });
+  return true;
+}
+
+/* ---------- the driving system ---------- */
+async function driveOps(plan, e, { touch = true, maxSpeed = null, control = true } = {}) {
+  const S = Stu(), p = S.project;
+  const has = compOf(e, 'VehicleController');
+  const oldScripts = (p.files || []).filter(f => f.enabled !== false && /\.(m?js|ts)$/i.test(f.path) && f.role !== 'component'
+    && (f.entityId === e.id || new RegExp('Scene\\.find\\(\\s*["\'`]' + esc(e.name) + '["\'`]').test(f.code || '')) && /velocity|translate|setPosition/.test(f.code || ''));
+  if (has) {
+    const d = has.data || {};
+    if (has.enabled === false) plan.ops.push(Op.enableComponent(e, 'VehicleController'));
+    if (touch && d.touch === false) plan.ops.push(Op.setData(e, 'VehicleController', 'touch', false, true, 'أزرار اللمس'));
+    if (maxSpeed && +d.maxSpeed !== maxSpeed) plan.ops.push(Op.setData(e, 'VehicleController', 'maxSpeed', d.maxSpeed || 24, maxSpeed, 'Max Speed'));
+    if (!plan.ops.length) plan.notes.push(`«${e.name}» فيها نظام قيادة (VehicleController) يعمل — لمس: ${d.touch === false ? 'لا' : 'نعم'} · سرعة قصوى ${d.maxSpeed || 24}`);
+  } else {
+    if (oldScripts.length && control) {
+      /* a script already drives it: keep it (it is the user's), unless it is the builder's own */
+      const mine = oldScripts.filter(f => /^\/\/ قيادة .+ — كتبه المساعد/.test(f.code || ''));
+      if (mine.length === oldScripts.length) mine.forEach(f => plan.ops.push(Op.enableFile(f.path, false, 'قيادة قديمة (يحلّ محلها VehicleController)')));
+      else { plan.notes.push(`«${e.name}» يقودها سكربتك ${oldScripts.map(f => '«' + f.path + '»').join('، ')} — لم أضف نظامًا ثانيًا فوقه. قل «ما مشكلتها؟» إن كانت لا تتحرك.`); return false; }
+    }
+    await systemFile(plan, 'VehicleController');
+    const data = { maxSpeed: maxSpeed || 24, accel: 14, brake: 28, turn: 1.9, touch: !!touch, camera: control, control };
+    const onGround = await groundFor(plan, e);
+    data.gravity = !!onGround;
+    plan.ops.push(Op.addComponent(e, 'VehicleController', data, '+ VehicleController (قيادة' + (touch ? ' + لمس' : '') + ')'));
+  }
+  const rb = compOf(e, 'Rigidbody');
+  if (rb && (rb.data || {}).type === 'static') plan.ops.push(Op.body(e, 'character', 'Rigidbody (كان ثابتًا فلا يتحرك)'));
+  const others = Array.from(S.engine.entities.values()).filter(x => x.id !== e.id && (compOf(x, 'VehicleController') || {}).data && compOf(x, 'VehicleController').data.control !== false);
+  if (control && others.length) others.forEach(o => plan.ops.push(Op.setData(o, 'VehicleController', 'control', true, false, 'يقودها اللاعب')));
+  return true;
+}
+SK.drive = async (req, ui) => {
+  const tg = await target(req, { allowGroup: false, want: 'car' });
+  if (tg.ask) return askWhich(req, 'drive', tg, ui);
+  if (!tg.ids) return tg.none ? (ui.say('لا توجد مركبة في المشهد — أضف واحدة («أضف سيارة») أو حدّد الكائن الذي تريد قيادته.'), true) : noTarget(ui);
+  const e = ent(tg.ids[0]);
+  const touch = RX.touch.test(req.t) || !/(كيبورد|لوحه المفاتيح|keyboard)/.test(req.t);
+  const plan = newPlan(req, { action: 'جعلها قابلة للقيادة' + (RX.touch.test(req.t) ? ' باللمس' : '') + ' · Make drivable', targetLabel: e.name, scopeLabel: scopeLabelOf(tg) });
+  const ok = await driveOps(plan, e, { touch, maxSpeed: req.speed || null });
+  if (ok !== false && plan.ops.length) plan.test = { id: e.id, name: e.name };
+  if (ok !== false && plan.ops.length) plan.notes.push('التحكم: عصا اللمس يسارًا + GAS / BRAKE يمينًا، أو الأسهم / WASD. الكاميرا تتبعها.');
+  return propose(plan, ui, !plan.ops.length && ok !== false ? plan.notes.join('\n') : null);
+};
+
+/* «أضف لها نظام بنزين» */
+SK.fuel = async (req, ui) => {
+  const tg = await target(req, { allowGroup: false, want: 'car' });
+  if (tg.ask) return askWhich(req, 'fuel', tg, ui);
+  if (!tg.ids) return false;                                   // no vehicle: the builder's fuel system takes it
+  const e = ent(tg.ids[0]);
+  const plan = newPlan(req, { action: 'نظام وقود · Fuel system', targetLabel: e.name, scopeLabel: scopeLabelOf(tg) });
+  if (compOf(e, 'Fuel')) { ui.say(`«${e.name}» فيها نظام وقود أصلًا (Fuel: السعة ${(compOf(e, 'Fuel').data || {}).capacity || 100}).`); return true; }
+  if (!compOf(e, 'VehicleController')) {
+    const ok = await driveOps(plan, e, { touch: true });
+    if (ok === false) plan.notes.push('⚠ الوقود يُعدّ ويُطلق «FuelEmpty»، لكن سكربت القيادة الحالي لا يستمع له — لن تتوقف عند فراغه حتى يستمع له.');
+  }
+  await systemFile(plan, 'Fuel');
+  plan.ops.push(Op.addComponent(e, 'Fuel', { capacity: 100, perMeter: 0.25, refuelDistance: 4, hud: true }, '+ Fuel (خزان 100 · عدّاد على الشاشة)'));
+  const stations = Array.from(Stu().engine.entities.values()).filter(x => x.tag === 'fuel' || x.tag === 'fuelstation');
+  plan.notes.push(stations.length ? `محطات الوقود: ${stations.map(x => '«' + x.name + '»').join('، ')}` + (stations.some(x => x.tag === 'fuelstation') ? ' — غيّرت tag إلى fuel' : '') : 'لا توجد محطة وقود في مشهدك: ضع أي كائن واجعل tag له «fuel» — الاقتراب منه يعيد التعبئة.');
+  stations.filter(x => x.tag === 'fuelstation').forEach(x => plan.ops.push(Op.prop(x, 'tag', 'fuelstation', 'fuel', y => { y.tag = 'fuel'; }, 'tag')));
+  plan.test = { id: e.id, name: e.name };
+  return propose(plan, ui);
+};
+
+/* «اجعلها تتبع الطريق» */
+SK.path = async (req, ui) => {
+  const S = Stu(), eng = S.engine;
+  if (req.concept === 'road') req = Object.assign({}, req, { concept: req.second, group: req.group && !!req.second });   // the road is where, not who
+  const tg = await target(req, { want: 'car' });
+  if (tg.ask) return askWhich(req, 'path', tg, ui);
+  if (!tg.ids) return noTarget(ui);
+  const idx = tg.idx || await Agent.sceneIndex(eng);
+  const plan = newPlan(req, { action: 'تتبّع الطريق · Follow path', targetLabel: tg.label, scopeLabel: scopeLabelOf(tg) });
+  await systemFile(plan, 'FollowPath');
+  const wps = idx.filter(x => x.e.tag === 'waypoint');
+  const roads = idx.filter(x => x.concepts.has('road') || x.e.tag === 'road');
+  let points = [];
+  if (wps.length >= 2) plan.notes.push(`يسير على نقاط المسار الموجودة (${wps.length}: ${wps.slice(0, 4).map(x => x.e.name).join('، ')}…) بترتيب أسمائها`);
+  else if (roads.length) {
+    /* along the road(s): the long axis of each piece, chained from the nearest */
+    const first = ent(tg.ids[0]), start = Agent.boxOf(first).getCenter(new THREE.Vector3());
+    let segs = roads.map(x => {
+      const b = x.box, c = b.getCenter(new THREE.Vector3()), s = b.getSize(new THREE.Vector3());
+      const along = s.x >= s.z ? [new THREE.Vector3(b.min.x + 2, 0, c.z), new THREE.Vector3(b.max.x - 2, 0, c.z)] : [new THREE.Vector3(c.x, 0, b.min.z + 2), new THREE.Vector3(c.x, 0, b.max.z - 2)];
+      return along;
+    });
+    let cur = start.clone();
+    while (segs.length) {
+      let bi = 0, bd = Infinity, flip = false;
+      segs.forEach((s, i) => { const d0 = cur.distanceTo(s[0]), d1 = cur.distanceTo(s[1]); if (d0 < bd) { bd = d0; bi = i; flip = false; } if (d1 < bd) { bd = d1; bi = i; flip = true; } });
+      const s = segs.splice(bi, 1)[0]; const a = flip ? s[1] : s[0], b = flip ? s[0] : s[1];
+      points.push(a, b); cur = b;
+    }
+    points = points.map(v => ({ x: r2(v.x), y: r2(start.y), z: r2(v.z) }));   // {x,y,z}: the cloud database keeps no arrays inside arrays
+    plan.notes.push(`المسار من الطريق «${roads.map(x => x.e.name).slice(0, 3).join('، ')}»: ${points.length} نقاط (ذهاب وإياب على طوله). عدّلها من إعدادات FollowPath (points).`);
+  } else {
+    const c = Agent.boxOf(ent(tg.ids[0])).getCenter(new THREE.Vector3());
+    const R = 12;
+    [[R, R], [R, -R], [-R, -R], [-R, R]].forEach(([dx, dz], k) => plan.ops.push(Op.create({ name: 'Waypoint ' + (k + 1), type: 'spawn', tag: 'waypoint', position: [r2(c.x + dx), 0, r2(c.z + dz)] }, '+ نقطة مسار ' + (k + 1))));
+    plan.notes.push('لا يوجد طريق ولا نقاط مسار في المشهد — أضفت 4 نقاط (Waypoint 1…4) حولها. حرّكها في المحرّر لترسم المسار الذي تريده.');
+  }
+  tg.ids.forEach(id => {
+    const e = ent(id);
+    plan.ops.push(Op.addComponent(e, 'FollowPath', points.length ? { speed: 8, points, loop: true } : { speed: 8, loop: true }, '+ FollowPath (سرعة 8)'));
+    if (hasComp(e, 'VehicleController')) plan.ops.push(Op.toggleComponent(e, 'VehicleController', false, 'VehicleController (الآن تسير وحدها على المسار)'));
+  });
+  plan.test = { id: tg.ids[0], name: ent(tg.ids[0]).name, keys: [], buttons: [], how: 'بلا تحكم (تسير وحدها)' };
+  return propose(plan, ui);
+};
+
+/* «اجعل هذا العدو يطارد اللاعب» */
+SK.chase = async (req, ui) => {
+  const tg = await target(req, { want: 'enemy' });
+  if (tg.ask) return askWhich(req, 'chase', tg, ui);
+  if (!tg.ids) return tg.none ? (ui.say('لا يوجد عدو في المشهد — حدّد الكائن الذي تريده أن يطارد ثم أعد الطلب.'), true) : noTarget(ui);
+  if (codeOwns(/chase|enemy|Chase|Enemy/)) return false;
+  const eng = Stu().engine;
+  const plan = newPlan(req, { action: 'مطاردة اللاعب · Chase player', targetLabel: tg.label, scopeLabel: scopeLabelOf(tg) });
+  await systemFile(plan, 'ChaseTarget');
+  const who = req.second && req.second !== 'player' ? Array.from(eng.entities.values()).find(x => matches({ e: x, concepts: new Set([req.second]), ground: false }, req.second)) : null;
+  const player = Array.from(eng.entities.values()).find(x => x.tag === 'player') || null;
+  const codePlayer = (Stu().project.files || []).some(f => /Player\.create\(/.test(f.code || ''));
+  tg.ids.forEach(id => {
+    const e = ent(id);
+    const anim = (e.animations || []).map(a => a.name).find(n => /run|walk|chase|move/i.test(n)) || null;
+    const data = { target: who ? who.name : (player ? player.name : 'player'), speed: 3.5, sight: 25, stopDistance: 1.4 };
+    if (anim) data.anim = anim;
+    plan.ops.push(Op.addComponent(e, 'ChaseTarget', data, '+ ChaseTarget (يطارد ' + (who ? who.name : player ? player.name : 'اللاعب') + ')'));
+  });
+  if (!player && !codePlayer && !who) plan.notes.push('⚠ لا يوجد لاعب في المشهد ولا في الكود (Player.create أو كائن tag = player) — العدو ينتظر حتى يظهر لاعب.');
+  plan.notes.push('يطارد ضمن 25 م، ويتوقف ملاصقًا له ويطلق الحدث «EnemyReachedTarget» كل ثانية (اربطه بنظام الصحة إن أردت ضررًا).');
+  return propose(plan, ui);
+};
+
+/* «اجعل هذا الباب يفتح عندما يقترب اللاعب» */
+SK.door = async (req, ui) => {
+  if (codeOwns(/door|Door|باب/)) return false;                  // the user's own door code: the code agent edits it
+  const tg = await target(req, { allowGroup: false, want: 'door' });
+  if (tg.ask) return askWhich(req, 'door', tg, ui);
+  if (!tg.ids) return tg.none ? (ui.say('لا يوجد باب في المشهد — حدّد الكائن الذي تريده أن يفتح ثم أعد الطلب.'), true) : noTarget(ui);
+  const e = ent(tg.ids[0]);
+  const size = Agent.boxOf(e).getSize(new THREE.Vector3());
+  const anim = (e.animations || []).map(a => a.name).find(n => /open/i.test(n)) || null;
+  const plan = newPlan(req, { action: 'باب يفتح عند الاقتراب · Proximity door', targetLabel: e.name, scopeLabel: scopeLabelOf(tg) });
+  await systemFile(plan, 'DoorProximity');
+  const data = { distance: 3, mode: 'swing', angle: 90, speed: 2, width: r2(Math.max(size.x, size.z)) };
+  if (anim) data.anim = anim;
+  plan.ops.push(Op.addComponent(e, 'DoorProximity', data, '+ DoorProximity (يفتح ضمن 3 م)'));
+  if (!hasComp(e, 'Rigidbody')) plan.ops.push(Op.body(e, 'static', 'Rigidbody (يمنع المرور وهو مغلق)'));
+  plan.notes.push('يدور 90° حول محوره. إن كان محور المجسم في منتصفه فالأفضل «slide» (انزلاق جانبي): غيّر mode في إعدادات DoorProximity.');
+  if (!Array.from(Stu().engine.entities.values()).some(x => x.tag === 'player') && !(Stu().project.files || []).some(f => /Player\.create\(/.test(f.code || ''))) plan.notes.push('⚠ لا يوجد لاعب بعد (Player.create أو tag = player) — الباب ينتظر من يقترب.');
+  return propose(plan, ui);
+};
+/* the user already wrote code for this system → extend theirs (the model's code agent) */
+function codeOwns(re) {
+  if (!NX.AIConfig.isReady()) return false;
+  return (Stu().project.files || []).some(f => /\.(m?js|ts)$/i.test(f.path) && !/^\/\/ NEXUS · /.test(f.code || '') && (re.test(f.path)));
+}
+
+/* «عندما يموت اللاعب أعده إلى نقطة البداية» */
+SK.respawn = async (req, ui) => {
+  if (codeOwns(/respawn|Respawn|death|Death|health|Health/)) return false;
+  const S = Stu(), eng = S.engine, p = S.project;
+  const plan = newPlan(req, { action: 'إعادة الظهور عند الموت · Respawn', targetLabel: 'اللاعب', scopeLabel: Scope.label('game') });
+  const all = Array.from(eng.entities.values());
+  const selE = eng.selection && ent(eng.selection);
+  const player = all.find(x => x.tag === 'player') || (selE && req.thisWord ? selE : null);
+  let spawn = all.find(x => x.type === 'spawn' && x.tag !== 'waypoint');
+  const code = (p.files || []).map(f => f.code || '').join('\n');
+  const names = new Set(['PlayerDied', 'Died', 'Death']);
+  let m; const re = /Events\.emit\(\s*["'`]([^"'`]+)["'`]/g;
+  while ((m = re.exec(code))) if (/die|dead|death|kill|game ?over|lose|lost|مات|موت/i.test(m[1])) names.add(m[1]);
+  if (spawn) plan.notes.push(`نقطة البداية: «${spawn.name}» الموجودة في مشهدك عند ${v3s(spawn.object3D.position)} — حرّكها لتغييرها.`);
+  if (!spawn) {
+    const at = player ? player.object3D.position : new THREE.Vector3();
+    plan.ops.push(Op.create({ name: 'Spawn Point', type: 'spawn', tag: 'spawn', position: [r2(at.x), r2(at.y), r2(at.z)] }, '+ نقطة البداية'));
+    plan.notes.push('لم تكن في المشهد نقطة بداية — أضفت «Spawn Point» ' + (player ? 'حيث يقف «' + player.name + '» الآن' : 'في مركز العالم') + '. حرّكها لتغييرها.');
+  }
+  const fallY = Math.floor(Math.min(-10, ...all.filter(x => x.object3D).map(x => Agent.boxOf(x).min.y - 15)));
+  const src = tRespawn({ spawn: spawn ? spawn.name : 'Spawn Point', player: player ? player.name : '', fallY, events: Array.from(names) });
+  const op = Op.file('Respawn.js', await checked('Respawn.js', src), 'script', 'نظام جاهز: إعادة الظهور');
+  if (op) { plan.ops.push(op); plan.systems.push('Respawn'); }
+  if (/(health|hp)\s*(<=|<|===?)\s*0/i.test(code) && !Array.from(names).some(n => new RegExp('Events\\.emit\\(\\s*["\'`]' + esc(n)).test(code))) plan.notes.push('⚠ في كودك الصحة تصل إلى الصفر لكن لا يُطلق حدث موت — أضف هناك: Events.emit("PlayerDied")');
+  plan.notes.push(`«الموت» = السقوط تحت y=${fallY}، أو الأحداث: ${Array.from(names).join('، ')}. ${player ? 'اللاعب: «' + player.name + '»' : 'اللاعب: Player.create أو أي كائن tag = player'}`);
+  return propose(plan, ui);
+};
+
+/* «اجعل جميع السيارات تتوقف عندما ينتهي السباق» */
+SK.raceStop = async (req, ui) => {
+  const S = Stu(), eng = S.engine, p = S.project;
+  const idx = await Agent.sceneIndex(eng);
+  const cars = idx.filter(x => !x.ground && isVehicle(x)).map(x => x.e);
+  const plan = newPlan(req, { action: 'إيقاف كل السيارات عند نهاية السباق · Stop on race end', targetLabel: cars.length + ' سيارة', scopeLabel: Scope.label('game') });
+  if (!cars.length) { ui.say('لا توجد سيارات في المشهد لأوقفها.'); return true; }
+  const code = (p.files || []).map(f => f.code || '').join('\n');
+  const ends = new Set();
+  let m; const re = /Events\.emit\(\s*["'`]([^"'`]+)["'`]/g;
+  while ((m = re.exec(code))) if (/finish|race.?end|race.?over|winner|\bwin\b|complete|انته|نهاي/i.test(m[1])) ends.add(m[1]);
+  if (!ends.size) {
+    ends.add('RaceFinished');
+    /* nothing says the race ended: a finish line at the far end of the road (or ahead of the first car) */
+    const roads = idx.filter(x => x.concepts.has('road') || x.e.tag === 'road');
+    const c0 = Agent.boxOf(cars[0]).getCenter(new THREE.Vector3());
+    let at, width = 10, along = null;
+    if (roads.length) {
+      let far = null, fd = -1;
+      roads.forEach(x => { const b = x.box; [[b.min.x, b.min.z], [b.max.x, b.max.z], [b.min.x, b.max.z], [b.max.x, b.min.z]].forEach(([px, pz]) => { const d = Math.hypot(px - c0.x, pz - c0.z); if (d > fd) { fd = d; far = { x: px, z: pz, b }; } }); });
+      const b = far.b, s = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
+      at = s.x >= s.z ? [r2(far.x - Math.sign(far.x - c.x) * 4), 0.05, r2(c.z)] : [r2(c.x), 0.05, r2(far.z - Math.sign(far.z - c.z) * 4)];
+      width = r2(Math.min(s.x, s.z));
+      along = s.x >= s.z ? 'x' : 'z';
+    } else {
+      const f = new THREE.Vector3(0, 0, 1).applyQuaternion(cars[0].object3D.quaternion);
+      at = [r2(c0.x + f.x * 60), 0.05, r2(c0.z + f.z * 60)];
+    }
+    await systemFile(plan, 'FinishLine');
+    const lineScale = along === 'x' ? [1.2, 0.1, width] : [width, 0.1, 1.2];
+    plan.ops.push(Op.create({ name: 'Finish Line', type: 'primitive', tag: 'finish', props: { shape: 'box', color: '#f5f5f5' }, position: at, scale: lineScale, components: [{ id: uid('c'), type: 'FinishLine', name: 'FinishLine', data: { laps: 1, radius: r2(Math.max(4, width / 2)) }, enabled: true }] }, '+ خط النهاية'));
+    plan.notes.push('لم أجد في مشروعك ما يُعلن نهاية السباق — أضفت «Finish Line» ' + (roads.length ? 'في آخر الطريق' : 'على بعد 60 م أمام «' + cars[0].name + '»') + ': أول سيارة تعبره تُنهي السباق (حدث «RaceFinished»). انقله حيث تريد.');
+  } else plan.notes.push('نهاية السباق في مشروعك: الأحداث ' + Array.from(ends).map(x => '«' + x + '»').join('، '));
+  cars.forEach(c => { if (c.tag !== 'vehicle' && !hasComp(c, 'VehicleController')) plan.ops.push(Op.prop(c, 'tag', c.tag || '—', 'vehicle', y => { y.tag = 'vehicle'; }, 'tag')); });
+  const op = Op.file('RaceEnd.js', await checked('RaceEnd.js', tRaceEnd(Array.from(ends), cars.map(c => c.name))), 'script', 'نظام جاهز: نهاية السباق');
+  if (op) { plan.ops.push(op); plan.systems.push('RaceEnd'); }
+  plan.notes.push('عند النهاية: كل سيارة tag = vehicle يصير جسمها ثابتًا (تتوقف مهما كان السكربت الذي يقودها)، وVehicleController يكبح بنفسه.');
+  return propose(plan, ui);
+};
+
+/* «أضف Multiplayer» · «اجعل اللاعبين يرون بعضهم» */
+SK.multiplayer = async (req, ui) => {
+  const S = Stu(), eng = S.engine, p = S.project;
+  const has = (p.files || []).find(f => /\.(m?js|ts)$/i.test(f.path) && /Network\.room\(/.test(f.code || ''));
+  const plan = newPlan(req, { action: 'اللعب الجماعي · Multiplayer', targetLabel: 'اللعبة كلها', scopeLabel: Scope.label('game') });
+  if (has && !/^\/\/ NEXUS · Multiplayer/.test(has.code || '')) {
+    ui.say(`مشروعك فيه نظام لعب جماعي كتبته: «${has.path}» (يستعمل Network.room). لن أضيف نظامًا ثانيًا فوقه — اطلب تعديله مباشرة، مثل «اجعل ${has.path} يرسل الدوران أيضًا».`);
+    return true;
+  }
+  const selE = eng.selection && ent(eng.selection);
+  const codePlayer = (p.files || []).some(f => /Player\.create\(/.test(f.code || ''));
+  const idx = await Agent.sceneIndex(eng);
+  const driven = idx.filter(x => hasComp(x.e, 'VehicleController') && (compOf(x.e, 'VehicleController').data || {}).control !== false).map(x => x.e);
+  const me = (req.thisWord || req.pronoun) && selE ? selE : driven[0] || idx.map(x => x.e).find(x => x.tag === 'player') || (codePlayer ? null : selE) || null;
+  const o = { sync: me ? me.name : '', asset: me && me.assetId ? me.assetId : '', prefix: 'g-' + String(p.projectId).replace(/[^\w-]/g, '').slice(0, 40), rate: 0.2 };
+  if (!me && !codePlayer) { ui.say('من يمثّل اللاعب في لعبتك؟ حدّد الكائن (سيارتك أو شخصيتك) ثم قل «أضف Multiplayer» — أو أضف لاعبًا بـ Player.create.'); return true; }
+  const src = await checked('Multiplayer.js', tMultiplayer(o));
+  [Op.file('Multiplayer.js', src, 'script', 'نظام جاهز: اللعب الجماعي'), Op.file('ui/Multiplayer.html', HTML_MP, 'ui', 'واجهة الغرف (إنشاء / انضمام)'), Op.file('ui/Multiplayer.css', CSS_MP, 'style', 'شكل واجهة الغرف')]
+    .forEach(op => { if (op) plan.ops.push(op); });
+  if (plan.ops.length) plan.systems.push('Multiplayer');
+  plan.notes.push(`يزامن: ${me ? '«' + me.name + '»' : 'اللاعب (Player)'} — الموقع والدوران وحالة إضافية (NetState) · اللاعبون الآخرون يظهرون ${o.asset ? 'بنفس المجسم' : 'كأشكال بسيطة'} ويتحرّكون بسلاسة · الأحداث بين اللاعبين: Events.emit("NetEmit", …).`);
+  plan.notes.push('يعمل عبر غرف NEXUS (Network.room على Firestore) — يحتاج: اتصال الموقع بالسحابة، واللاعب داخلًا (الضيف يكفي). لا يحتاج خادمًا أو مفتاحًا إضافيًا.');
+  const online = NX.Backend.isOnline(), user = NX.Backend.user;
+  plan.notes.push(online && user ? '✓ الآن: السحابة متصلة وأنت داخل — جرّبه: شغّل اللعبة في جهازين (أو نافذتين) واضغط «العب مع الجميع».' : '⚠ الآن: ' + (online ? 'لم تسجّل الدخول' : 'اللعبة غير متصلة بالسحابة (الوضع المحلي)') + ' — سيعمل النظام لكن الانضمام لغرفة يفشل برسالة واضحة حتى يتوفر الاتصال. لا أدّعي أنه يعمل قبل ذلك.');
+  plan.notes.push('التكلفة: كل لاعب متحرك يكتب حتى 5 مرات في الثانية في Firestore (الخطة المجانية: 20 ألف كتابة يوميًا).');
+  return propose(plan, ui);
+};
+
+/* «لا تمر من خلال الأرض» · «أصلح الاصطدام» */
+SK.collision = async (req, ui) => {
+  const tg = await target(req);
+  if (tg.ask) return askWhich(req, 'collision', tg, ui);
+  if (!tg.ids) return noTarget(ui);
+  const S = Stu(), eng = S.engine;
+  const plan = newPlan(req, { action: 'إصلاح الاصطدام · Fix collision', targetLabel: tg.label, scopeLabel: scopeLabelOf(tg) });
+  for (const id of tg.ids) {
+    const e = ent(id);
+    const moves = Map_.movers(S.project, e).length > 0;
+    const rb = compOf(e, 'Rigidbody');
+    if (!rb) plan.ops.push(Op.body(e, moves ? 'character' : 'static', 'Rigidbody (' + (moves ? 'يتحرك ويصطدم' : 'جسم صلب ثابت') + ')'));
+    await groundFor(plan, e);
+    const box = Agent.boxOf(e), g = groundUnder(eng, e);
+    if (box.min.y < g.y - 0.02) { const y1 = e.object3D.position.y + (g.y - box.min.y); plan.ops.push(Op.transform(e, 'الارتفاع (كان داخل الأرض)', r2(e.object3D.position.y), r2(y1), o => { o.position.y = y1; })); }
+  }
+  plan.notes.push('الأجسام الفيزيائية المحدّدة من الخصائص (Rigidbody) صارت تُنشأ فعلًا عند التشغيل — كانت تُحفظ ولا تُطبَّق.');
+  if (tg.ids.length === 1 && Map_.movers(S.project, ent(tg.ids[0])).length) plan.test = { id: tg.ids[0], name: tg.label };
+  return propose(plan, ui);
+};
+
+/* ------------------------------------------------------------
+   DIAGNOSIS — «هذه السيارة لا تعمل»: the object, its transform,
+   asset, components, scripts, physics, events and errors — then a
+   short real run. Causes first, each with its fix.
+   ------------------------------------------------------------ */
+async function diagnose(e) {
+  const S = Stu(), eng = S.engine, p = S.project;
+  const P = [], W = [], fixes = [];
+  const idx = await Agent.sceneIndex(eng);
+  const x = idx.find(y => y.e.id === e.id) || { e, concepts: new Set(), ground: false, box: Agent.boxOf(e) };
+  const o = e.object3D, box = x.box, s = o.scale, r = o.rotation;
+  const facts = [`${e.type}${e.assetId ? ' · أصل ' + e.assetId.slice(0, 10) : ''}`, 'الموضع ' + v3s(o.position), `الدوران x ${deg(r.x)}° y ${deg(r.y)}° z ${deg(r.z)}°`, 'الحجم ×' + r2(s.x) + (Math.abs(s.x - s.y) > 0.01 || Math.abs(s.x - s.z) > 0.01 ? ' / ' + r2(s.y) + ' / ' + r2(s.z) : '')];
+  const add = (arr, text, fix) => { arr.push(text); if (fix) fixes.push(fix); };
+  /* transform */
+  if (!(s.x > 0 && s.y > 0 && s.z > 0) || !isFinite(s.x)) add(P, `حجمها صفر أو سالب (×${r2(s.x)}) — لا تُرى`, { key: 'scale', label: 'الحجم = 1', make: plan => plan.ops.push(Op.transform(e, 'الحجم', '×' + r2(s.x), '×1', q => q.scale.set(1, 1, 1))) });
+  if (o.visible === false) add(P, 'مخفية (visible = false)', { key: 'visible', label: 'إظهارها', make: plan => plan.ops.push(Op.prop(e, 'visible', 'false', 'true', y => { y.object3D.visible = true; })) });
+  const g = groundUnder(eng, e);
+  const gap = box.min.y - g.y;
+  if (!x.ground && gap > 0.25) add(W, `معلّقة ${r2(gap)} م فوق ${g.on ? '«' + g.on.name + '»' : 'الأرض'}`, { key: 'ground', label: 'وضعها على الأرض', make: plan => { const y1 = o.position.y - gap; plan.ops.push(Op.transform(e, 'الارتفاع', r2(o.position.y), r2(y1), q => { q.position.y = y1; })); } });
+  if (!x.ground && gap < -0.25 && box.max.y > g.y) add(W, `غاطسة ${r2(-gap)} م داخل ${g.on ? '«' + g.on.name + '»' : 'الأرض'}`, { key: 'ground', label: 'رفعها فوق الأرض', make: plan => { const y1 = o.position.y - gap; plan.ops.push(Op.transform(e, 'الارتفاع', r2(o.position.y), r2(y1), q => { q.position.y = y1; })); } });
+  if (Math.abs(r.x) > 0.21 || Math.abs(r.z) > 0.21) add(W, `مائلة/مقلوبة (x ${deg(r.x)}° · z ${deg(r.z)}°)`, { key: 'rot', label: 'تصحيح الدوران', make: plan => plan.ops.push(Op.transform(e, 'الدوران', `x ${deg(r.x)}° z ${deg(r.z)}°`, 'x 0° z 0°', q => q.rotation.set(0, q.rotation.y, 0))) });
+  /* asset */
+  const ud = o.userData || {};
+  if (e.assetId && ud.missing) add(P, 'ملف مجسمها غير موجود أو صار خاصًا — لا يُحمَّل', null);
+  if (e.assetId && ud.loadError) add(P, 'تعذّر تنزيل ملف مجسمها: ' + String(ud.loadError).slice(0, 90), null);
+  /* components */
+  const { attached, referencing, comps } = Map_.filesFor(p, e);
+  comps.forEach(({ c, file }) => {
+    if (!file) {
+      if (T[c.type]) add(P, `المكوّن «${c.type}» عليها لكن ملفه غير موجود — لا يعمل`, { key: 'file-' + c.type, label: 'إعادة ملف ' + c.type, make: async plan => { await systemFile(plan, c.type); } });
+      else add(P, `المكوّن «${c.type}» عليها لكن ملفه غير موجود — لا يعمل`, { key: 'rm-' + c.type, label: 'إزالة المكوّن المكسور', make: plan => plan.ops.push({ kind: 'component', id: e.id, where: e.name, label: '− ' + c.type, from: c.type, to: '—', apply: async () => { const y = ent(e.id); y.components = y.components.filter(z => z.type !== c.type); return y.id; } }) });
+    }
+    if (c.enabled === false) add(P, `المكوّن «${c.type}» متوقف (enabled = false)`, { key: 'en-' + c.type, label: 'تشغيل ' + c.type, make: plan => plan.ops.push(Op.enableComponent(e, c.type)) });
+  });
+  attached.concat(referencing).forEach(f => { if (f.enabled === false) add(P, `السكربت «${f.path}» الذي يخصّها متوقف`, { key: 'on-' + f.path, label: 'تشغيل ' + f.path, make: plan => plan.ops.push(Op.enableFile(f.path, true)) }); });
+  /* scripts that look her up by a name she no longer has */
+  const names = new Set(Array.from(eng.entities.values()).map(y => y.name));
+  const renamedDrivers = [];
+  (p.files || []).filter(f => /\.(m?js|ts)$/i.test(f.path)).forEach(f => {
+    const re = /Scene\.find\(\s*["'`]([^"'`]+)["'`]\s*\)/g; let m;
+    while ((m = re.exec(f.code || ''))) {
+      const n = m[1];
+      if (names.has(n)) continue;
+      const close = e.name.toLowerCase().startsWith(n.toLowerCase()) || n.toLowerCase().startsWith(e.name.toLowerCase()) || e.name.replace(/\s*\d+$/, '') === n.replace(/\s*\d+$/, '');
+      if (close) {
+        const at = m.index, before = f.code, after = before.slice(0, at) + before.slice(at).replace(m[0], m[0].replace(n, e.name));
+        add(P, `«${f.path}» يبحث عن «${n}» لكن اسمها «${e.name}» — لا يجدها`, { key: 'name-' + f.path, label: `تصحيح الاسم في ${f.path}`, make: plan => plan.ops.push(Op.editFile(f.path, before, after, 'Scene.find', n, e.name)) });
+        if (/velocity|translate|setPosition/.test(f.code || '')) renamedDrivers.push(f.path);
+      }
+    }
+  });
+  /* who moves it */
+  const movers = Map_.movers(p, e);
+  const vehicle = isVehicle(x);
+  const enemy = x.concepts.has('enemy') || e.tag === 'enemy';
+  /* a script that will drive it once its name is right is its controller: no second one */
+  if (!movers.length && !renamedDrivers.length && (vehicle || enemy)) {
+    add(P, vehicle ? 'لا يوجد أي كود أو مكوّن يحرّكها — لا نظام قيادة مربوط بها' : 'لا يوجد أي كود يحرّكه — لا نظام مطاردة', vehicle
+      ? { key: 'drive', label: 'إضافة نظام قيادة (VehicleController) + لمس', make: async plan => { await driveOps(plan, e, { touch: true }); } }
+      : { key: 'chase', label: 'إضافة المطاردة (ChaseTarget)', make: async plan => { await systemFile(plan, 'ChaseTarget'); plan.ops.push(Op.addComponent(e, 'ChaseTarget', { target: 'player', speed: 3.5, sight: 25, stopDistance: 1.4 })); } });
+  }
+  /* physics */
+  const rb = compOf(e, 'Rigidbody');
+  const code = movers.filter(m => m.kind === 'script').map(m => ((p.files || []).find(f => f.path === m.name) || {}).code || '').join('\n');
+  if (rb && (rb.data || {}).type === 'static' && movers.length) add(P, 'جسمها الفيزيائي «static» (ثابت) — المحرّك لا يحرّك الأجسام الثابتة', { key: 'body', label: 'جعل الجسم character', make: plan => plan.ops.push(Op.body(e, 'character')) });
+  if (/\.body\.velocity|\.velocity\.(x|z)/.test(code) && !/addBody\(/.test(code) && !rb && !movers.some(m => m.kind === 'component')) add(P, 'السكربت يغيّر سرعة جسمها الفيزيائي (body.velocity) لكن لا يوجد جسم — لا يحدث شيء أو يظهر خطأ', { key: 'body', label: 'إضافة جسم character', make: plan => plan.ops.push(Op.body(e, 'character')) });
+  /* validator errors and runtime errors of the files that belong to it */
+  const mine = attached.concat(referencing).concat(comps.map(({ file }) => file).filter(Boolean));
+  const vctx = NX.Validator.context(p, eng);
+  for (const f of mine) {
+    if (!/\.(m?js|ts)$/i.test(f.path)) continue;
+    const v = await NX.Validator.checkCode(f.code || '', Object.assign({ path: f.path }, vctx));
+    v.errors.slice(0, 3).forEach(er => add(P, `${f.path}:${er.line} — ${er.message}`, null));
+  }
+  NX.ErrorLog.items.filter(er => Date.now() - er.at < 3600e3 && (mine.some(f => er.file === f.path || (er.message || '').includes(f.path)) || (er.message || '').includes(e.name))).slice(0, 4)
+    .forEach(er => add(P, 'خطأ أثناء التشغيل: ' + er.message.slice(0, 160) + (er.file ? ` (${er.file}:${er.line})` : ''), null));
+  const facts2 = facts.concat([
+    'المكوّنات: ' + ((e.components || []).map(c => c.type + (c.enabled === false ? ' (متوقف)' : '')).join('، ') || 'لا شيء'),
+    'السكربتات: ' + (attached.concat(referencing).map(f => f.path + (f.enabled === false ? ' (متوقف)' : '')).join('، ') || 'لا شيء'),
+    'يحرّكها: ' + (movers.map(m => m.name).join('، ') || 'لا شيء'),
+    'الفيزياء: ' + (rb ? 'Rigidbody ' + (rb.data || {}).type : /addBody/.test(code) ? 'جسم من الكود' : 'بلا جسم'),
+    'تحتها: ' + (g.on ? '«' + g.on.name + '» (y=' + r2(g.y) + ')' : 'لا شيء (أرض العالم y=0)')
+  ]);
+  return { P, W, fixes, facts: facts2, movers, vehicle, enemy, renamedDrivers };
+}
+SK.diagnose = async (req, ui) => {
+  const tg = await target(req, { allowGroup: false });
+  if (tg.ask) return askWhich(req, 'diagnose', tg, ui);
+  if (!tg.ids) return tg.none ? (ui.say('لا يوجد «' + ((Agent.nlp.conceptById(tg.cid) || {}).label || '') + '» في المشهد.'), true) : (ui.say('أي عنصر لا يعمل؟ حدّده في المشهد (المسه) ثم أعد السؤال — أو قل «حلل لعبتي» لفحص المشروع كله.'), true);
+  const e = ent(tg.ids[0]);
+  ui.busy('أفحص «' + e.name + '»: الحجم والموضع، الأصل، المكوّنات، السكربتات، الفيزياء، الأخطاء…');
+  let d;
+  try { d = await diagnose(e); } finally { ui.busy(null); }
+  /* a real run: did it move? */
+  let trial = null;
+  if (d.vehicle && d.movers.length) {
+    ui.busy('أجرّب: تشغيل قصير مع الضغط على التسارع…');
+    try { trial = await Trial.run({ id: e.id }); } catch (er) { trial = { ok: false, errors: [msg(er)], ran: true }; } finally { ui.busy(null); }
+    if (trial && trial.ran && !trial.sandboxed && trial.stage !== 'build') {
+      if (trial.moved < 0.5 && !d.P.length) d.P.push(`شغّلتها 1.6 ث مع الضغط على التسارع ولم تتحرك (${trial.moved.toFixed(2)} م)` + (trial.errors.length ? ' — ' + trial.errors[0] : ''));
+      if (trial.fell > 3) {
+        d.P.push(`سقطت ${trial.fell.toFixed(1)} م أثناء التجربة — الأرض تحتها بلا جسم ثابت`);
+        d.fixes.push({ key: 'groundbody', label: 'جعل الأرض صلبة (Rigidbody static)', make: async plan => { await groundFor(plan, e); } });
+      }
+      trial.errors.filter(x => !d.P.some(p => p.includes(x.slice(0, 40)))).slice(0, 2).forEach(x => d.P.push('خطأ أثناء التجربة: ' + x));
+    }
+  }
+  const causes = d.P.concat(d.W);
+  const plan = newPlan(req, { action: 'إصلاح «' + e.name + '» · Fix', targetLabel: e.name, scopeLabel: scopeLabelOf(tg), diag: true });
+  const seen = new Set();
+  for (const f of d.fixes) { if (seen.has(f.key)) continue; seen.add(f.key); await f.make(plan); }
+  if (plan.ops.length && (d.vehicle || d.movers.length || d.renamedDrivers.length)) plan.test = { id: e.id, name: e.name };
+  const lead = causes.length
+    ? `وجدت أن «${e.name}» ${d.movers.length || d.vehicle ? (trial && trial.moved > 0.5 ? 'تتحرك في التجربة، لكن' : 'لا تعمل كما يجب لأن') : 'فيها مشكلة:'} ${causes[0]}` + (causes.length > 1 ? ` (+${causes.length - 1} ${causes.length === 2 ? 'مشكلة أخرى' : 'مشاكل أخرى'})` : '')
+    : `فحصت «${e.name}» ولم أجد مشكلة` + (trial && trial.ran && trial.moved > 0.5 ? ` — وفي التجربة تحرّكت ${trial.moved.toFixed(1)} م ✓` : '') + '.';
+  const list = { type: 'list', title: 'الفحص · Diagnosis', lines: d.P.map(x => '✗ ' + x).concat(d.W.map(x => '⚠ ' + x), ['—'], d.facts.map(x => '• ' + x), trial ? Trial.lines(trial, e.name) : []) };
+  if (!plan.ops.length) { ui.say(lead + (causes.length ? '\nلا أعرف إصلاحًا آليًا آمنًا لهذا — ' + (NX.AIConfig.isReady() ? 'قل «أصلح الخطأ» ليعدّل النموذج الكود.' : 'افتح الملف المذكور.') : ''), [list]); plan.done = true; return true; }
+  const fixWanted = RX.fixVerb.test(req.t) || RX.fixMove.test(req.t);
+  if (fixWanted) { ui.say(lead, [list]); plan.direct = false; return apply(plan, ui, 'أصلحت:'); }
+  plan.direct = false;
+  ui.say(lead, [list, cardOf(plan, null)]);
+  return true;
+};
+
+/* «تراجع عن تغيير الذكاء» */
+SK.undoAI = async (req, ui) => { await AIChanges.undo(ui); return true; };
+SK.redoAI = async (req, ui) => { await AIChanges.redo(ui); return true; };
+
+/* ------------------------------------------------------------
+   THE MODEL'S OPERATIONS (with a connected model the chat may ask
+   for these; checked, previewed, applied like the rest)
+   ------------------------------------------------------------ */
+const MODEL_SYSTEMS = { vehicle: 'drive', drive: 'drive', fuel: 'fuel', followpath: 'path', path: 'path', chase: 'chase', door: 'door', respawn: 'respawn', raceend: 'raceStop', multiplayer: 'multiplayer' };
+const EditorAgent = {
+  Scope, AIChanges, Trial, plans: Plans, skillOf, reqOf, diagnose, applyRigidbodies, templates: T,
+  claims(text) {
+    const S = Stu();
+    if (!S.project || !S.engine) return false;
+    const k = skillOf(text);
+    if (!k) return false;
+    if (k === 'fuel') { const r = reqOf(text); return !!(S.engine.selection || r.concept || r.pronoun || r.thisWord); }
+    return true;
+  },
+  async handle(text, ui, opts = {}) {
+    const S = Stu();
+    if (!S.project || !S.engine) return false;
+    const k = opts.skill || skillOf(text);
+    if (!k || !SK[k]) return false;
+    if (S.playing && !['undoAI', 'redoAI'].includes(k)) { ui.say('أوقف التشغيل ⏹ أولًا — أي تعديل أثناء اللعب يُلغى عند الإيقاف.'); return true; }
+    const req = Object.assign(reqOf(text), opts.req || {});
+    talkingTo = ui;
+    try { return await SK[k](req, ui); }
+    catch (e) { console.error(e); ui.say('✕ توقّفت: ' + msg(e), [], { error: true }); return true; }
+  },
+  async answer(planId, key, value) {
+    const plan = Plans.get(planId);
+    if (!plan) return false;
+    const ui = plan.ui || (NX.AIPanel && NX.AIPanel.mode === 'build' ? NX.Agent.panelUI() : NX.Agent.chatUI());
+    if (key === '__apply') {
+      if (plan.done) { Toast.show('انتهت صلاحية هذا الطلب — أرسله من جديد'); return true; }
+      if (value === 'yes') await apply(plan, ui);
+      else { plan.done = true; ui.say('أُلغي — لم يتغيّر شيء في المشروع.'); }
+      return true;
+    }
+    if (plan.done) { Toast.show('انتهت صلاحية هذا السؤال — أعد الطلب'); return true; }
+    plan.done = true;
+    if (key === 'which') return this.handle(plan.req.text, ui, { skill: plan.skill, req: { forced: value === '*' ? plan.all : [value], concept: plan.req.concept } });
+    if (key === 'color') return this.handle(plan.req.text + ' ' + (COLORS.find(c => c[0] === value) || [0, ''])[1], ui, { skill: 'color', req: { forced: plan.forcedIds } });
+    if (key === 'go') {
+      if (value !== 'yes') { ui.say('حسنًا — لم أغيّر شيئًا.'); return true; }
+      return this.handle(plan.req.text, ui, { skill: 'drive', req: { forced: plan.forcedIds, speed: plan.speed } });
+    }
+    return true;
+  },
+  /* ---- the model's operations ---- */
+  checkModelOp(o, exists) {
+    switch (o.op) {
+      case 'ADD_SYSTEM':
+        o.system = String(o.system || '').toLowerCase().replace(/[^a-z]/g, '');
+        if (!MODEL_SYSTEMS[o.system]) throw new Error('نظام غير معروف: ' + o.system + ' (المتاح: ' + Object.keys(MODEL_SYSTEMS).join(', ') + ')');
+        if (!['respawn', 'raceend', 'multiplayer'].includes(o.system) && !exists(o.object)) throw new Error('لا يوجد كائن باسم «' + (o.object || '?') + '»');
+        break;
+      case 'SET_COMPONENT': {
+        if (!exists(o.object)) throw new Error('لا يوجد كائن باسم «' + (o.object || '?') + '»');
+        const e = Stu().engine.findByName(String(o.object));
+        if (!e || !compOf(e, String(o.component))) throw new Error('«' + o.object + '» ليس فيه المكوّن ' + o.component);
+        if (!o.data || typeof o.data !== 'object') throw new Error('بلا إعدادات');
+        const d = {};
+        Object.entries(o.data).slice(0, 12).forEach(([k, v]) => { if (/^[A-Za-z_]\w{0,30}$/.test(k) && (typeof v === 'number' && isFinite(v) || typeof v === 'boolean' || (typeof v === 'string' && v.length < 80))) d[k] = v; });
+        if (!Object.keys(d).length) throw new Error('إعدادات غير صالحة');
+        o.data = d;
+        break;
+      }
+      case 'SET_BODY': if (!exists(o.object)) throw new Error('لا يوجد كائن باسم «' + (o.object || '?') + '»'); if (!['static', 'dynamic', 'character', 'none'].includes(o.type)) throw new Error('نوع جسم غير صالح'); break;
+      case 'SNAP_TO_GROUND': case 'FIX_ROTATION': if (!exists(o.object)) throw new Error('لا يوجد كائن باسم «' + (o.object || '?') + '»'); break;
+      default: throw new Error('عملية غير مسموحة');
+    }
+  },
+  describeModelOp(o) {
+    switch (o.op) {
+      case 'ADD_SYSTEM': return `🧩 نظام جاهز «${o.system}»` + (o.object ? ` على «${o.object}»` : '');
+      case 'SET_COMPONENT': return `⚙ «${o.object}» · ${o.component}: ${briefData(o.data)}`;
+      case 'SET_BODY': return `🧱 «${o.object}» · جسم ${o.type}`;
+      case 'SNAP_TO_GROUND': return `⬇ «${o.object}» على الأرض`;
+      case 'FIX_ROTATION': return `⟲ تصحيح دوران «${o.object}»`;
+    }
+    return o.op;
+  },
+  /* applied inside ModelActions.execute (one undo step already pushed) */
+  async runModelOp(o) {
+    const eng = Stu().engine;
+    const e = o.object ? eng.findByName(String(o.object)) : null;
+    const plan = newPlan({ text: '', t: '', ws: [] }, { action: o.op });
+    const req = { text: '', t: '', ws: [], forced: e ? [e.id] : null, concept: null };
+    switch (o.op) {
+      case 'ADD_SYSTEM': {
+        const k = MODEL_SYSTEMS[o.system];
+        if (k === 'drive') await driveOps(plan, e, { touch: o.options ? o.options.touch !== false : true, maxSpeed: o.options && +o.options.maxSpeed > 0 ? +o.options.maxSpeed : null });
+        else {
+          const cap = { say: (t, cards) => { plan._said = { t, cards }; }, busy() {} };
+          const sub = await captureSkill(k, req, cap);
+          if (!sub) throw new Error('لم يُنفَّذ: ' + ((plan._said && plan._said.t) || o.system));
+          sub.ops.forEach(x => plan.ops.push(x));
+        }
+        break;
+      }
+      case 'SET_COMPONENT': Object.entries(o.data).forEach(([k, v]) => plan.ops.push(Op.setData(e, o.component, k, (compOf(e, o.component).data || {})[k], v))); break;
+      case 'SET_BODY': plan.ops.push(Op.body(e, o.type === 'none' ? null : o.type)); break;
+      case 'SNAP_TO_GROUND': { const b = Agent.boxOf(e), g = groundUnder(eng, e), y1 = e.object3D.position.y + g.y - b.min.y; plan.ops.push(Op.transform(e, 'الارتفاع', r2(e.object3D.position.y), r2(y1), q => { q.position.y = y1; })); break; }
+      case 'FIX_ROTATION': plan.ops.push(Op.transform(e, 'الدوران', '', 'x 0 z 0', q => q.rotation.set(0, q.rotation.y, 0))); break;
+    }
+    const lines = [], ids = [];
+    for (const op of plan.ops) { const id = await op.apply(); if (id) ids.push(id); lines.push('• ' + (op.where ? op.where + ' · ' : '') + op.label + (op.to !== '' && op.to != null ? ': ' + (op.from !== '' && op.from != null ? op.from + ' → ' : '') + op.to : '')); }
+    Stu().lastBuild = null;
+    return { lines, ids, test: plan.systems.length > 0 };
+  }
+};
+/* run a skill without showing its card: its plan comes back */
+async function captureSkill(k, req, ui) {
+  const before = new Set(Plans.keys());
+  await SK[k](Object.assign({ text: '', t: '', ws: [], concept: null, thisWord: false, pronoun: false, group: false, scope: null, dry: true }, req), ui);
+  const made = Array.from(Plans.values()).filter(p => !before.has(p.id) && p.ops && p.ops.length && !p.done);
+  const p = made[made.length - 1] || null;
+  if (p) p.done = true;
+  return p;
+}
+
+/* ------------------------------------------------------------
+   THE CARD — Target · Scope · Action · Changes (before → after),
+   Apply / Cancel (Review Changes · Apply All when it is big), then
+   Undo / Redo AI Change and a test run
+   ------------------------------------------------------------ */
+function actionBtn(label, cls, fn) {
+  return btn(label, { cls: 'sm ' + (cls || ''), onclick: async ev => {
+    const b = ev.currentTarget; if (b.disabled) return;
+    b.disabled = true;
+    try { await fn(); } catch (e) { console.error(e); Toast.err(msg(e)); } finally { b.disabled = false; }
+  } });
+}
+function renderEdit(card, ui) {
+  const box = el('div', { class: 'agent-card ea-card' + (card.state === 'done' ? ' done' : '') });
+  /* the chat re-draws itself when a message is added: then the stored card is what shows */
+  const refresh = () => { ui.persist && ui.persist(); if (box.isConnected) box.replaceWith(renderEdit(card, ui)); else if (NX.Chat.log && NX.Chat.log.isConnected) NX.Chat.render(); };
+  const expired = () => { const p = Plans.get(card.planId); return !p || p.done; };
+  box.appendChild(el('div', { class: 'ac-t', text: card.state === 'done' ? '✓ AI changes · ما تغيّر' : 'AI changes · التغييرات المقترحة' }));
+  const kv = el('div', { class: 'ea-kv' });
+  [['Target · الهدف', card.target], ['Scope · النطاق', card.scope], ['Action · الإجراء', card.action]].forEach(([k, v]) => { if (v) kv.append(el('span', { class: 'k', text: k }), el('b', { text: v })); });
+  box.appendChild(kv);
+  const c = card.counts || {};
+  if (card.big) box.appendChild(el('div', { class: 'ea-counts', text: `${c.files || 0} ملف · ${c.components || 0} مكوّن · ${c.systems || 0} نظام · ${c.objects || 0} كائن` }));
+  const list = el('div', { class: 'ea-changes' });
+  list.appendChild(el('div', { class: 'k', text: 'Changes · التغييرات' }));
+  const show = card.big && !card.review && card.state !== 'done' ? card.changes.slice(0, 5) : card.changes;
+  show.forEach(ch => {
+    const row = el('div', { class: 'ea-ch' + (ch.failed ? ' failed' : '') });
+    row.appendChild(el('span', { class: 'w', text: (ch.failed ? '✗ ' : '- ') + (ch.where ? ch.where + ' · ' : '') + ch.label }));
+    if (ch.from !== '' || ch.to !== '') {
+      /* before → after, each value isolated so Arabic and English keep their order */
+      const v = el('span', { class: 'v', dir: 'ltr' });
+      if (ch.from !== '') v.append(el('bdi', { text: ch.from }), ' → ');
+      v.appendChild(el('bdi', { text: ch.to }));
+      row.appendChild(v);
+    }
+    list.appendChild(row);
+  });
+  if (show.length < card.changes.length) list.appendChild(el('div', { class: 'tiny', text: '… و' + (card.changes.length - show.length) + ' تغييرات أخرى — «Review Changes»' }));
+  box.appendChild(list);
+  if (card.review && card.files && card.files.length) card.files.forEach(f => {
+    box.appendChild(el('div', { class: 'tiny', style: { margin: '6px 0 4px', fontWeight: '800', color: 'var(--ink)' }, text: (f.kind === 'create' ? '+ ملف جديد: ' : '~ تعديل: ') + f.path }));
+    const pre = el('div', { class: 'agent-diff' });
+    (f.diff || []).forEach(d => pre.appendChild(el('span', { class: 'd-' + d.t, text: (d.t === 'add' ? '+ ' : d.t === 'del' ? '- ' : '  ') + d.s })));
+    box.appendChild(pre);
+  });
+  (card.notes || []).forEach(n => box.appendChild(el('div', { class: 'ea-note', text: n })));
+  (card.test || []).forEach(n => box.appendChild(el('div', { class: 'ea-test' + (/✗|⚠|لم تتحرك|فشل/.test(n) ? ' bad' : ''), text: n })));
+  (card.errors || []).forEach(n => box.appendChild(el('div', { class: 'ea-test bad', text: '✗ ' + n })));
+  const acts = el('div', { class: 'ac-acts' });
+  if (card.state === 'no') acts.appendChild(el('span', { class: 'tiny', text: '✕ أُلغي' }));
+  else if (card.state === 'yes') acts.appendChild(el('span', { class: 'tiny', text: '✓ طُبّق — النتيجة في الرسالة التالية' }));
+  else if (card.state === 'done') {
+    if (!card.undone) acts.appendChild(actionBtn('↩ Undo AI Change', 'danger', async () => { card.undone = true; ui.persist && ui.persist(); if (!(await AIChanges.undo(ui))) card.undone = false; refresh(); }));
+    else acts.appendChild(actionBtn('↪ Redo AI Change', 'primary', async () => { card.undone = false; ui.persist && ui.persist(); if (!(await AIChanges.redo(ui))) card.undone = true; refresh(); }));
+    if (card.ids && card.ids.length) acts.appendChild(actionBtn('حدّد في المشهد', 'ghost', async () => {
+      const S = Stu(); const id = card.ids.find(i => S.engine.entities.has(i)); const e = id && S.engine.getEntity(id);
+      if (!e) { Toast.show('العنصر لم يعد موجودًا'); return; }
+      S.engine.select(e.id); S.engine.focus(e); if (NX.AIPanel.sheet) NX.AIPanel.sheet.close();
+    }));
+    acts.appendChild(actionBtn('▶ جرّب اللعبة', 'ghost', async () => { if (NX.AIPanel.sheet) NX.AIPanel.sheet.close(); await Stu().play(); }));
+  } else {
+    const go = async () => { if (expired()) { Toast.show('انتهت صلاحية المعاينة — أعد الطلب'); return; } card.state = 'yes'; refresh(); await EditorAgent.answer(card.planId, '__apply', 'yes'); };
+    if (card.big) {
+      if (!card.review) acts.appendChild(actionBtn('Review Changes · مراجعة', 'ghost', async () => { card.review = true; refresh(); }));
+      acts.appendChild(actionBtn('Apply All · تطبيق الكل', 'primary', go));
+    } else acts.appendChild(actionBtn('Apply · تطبيق', 'primary', go));
+    acts.appendChild(actionBtn('Cancel · إلغاء', 'ghost', async () => { if (expired()) return; card.state = 'no'; refresh(); await EditorAgent.answer(card.planId, '__apply', 'no'); }));
+  }
+  box.appendChild(acts);
+  return box;
+}
+
+/* ------------------------------------------------------------
+   WIRING — ahead of the existing agent: the editor skills first,
+   then everything the agent did before (unchanged)
+   ------------------------------------------------------------ */
+const _claims = Agent.claims, _handle = Agent.handle, _answer = Agent.answer, _renderCard = Agent.renderCard, _panelUI = Agent.panelUI;
+Agent.claims = function (text) { return EditorAgent.claims(text) || _claims.call(this, text); };
+Agent.handle = async function (text, ui) {
+  if (EditorAgent.claims(text)) { const done = await EditorAgent.handle(text, ui); if (done !== false) return true; }
+  /* «غيّر مكانها إلى جانب المنزل»: a move with a destination → the existing agent's «انقلها …» */
+  const t = clean(text);
+  if (/^(غير|بدل) (مكان|موضع)/.test(t) && DEST.test(t)) return _handle.call(this, text.replace(/(غيّر|غير|بدّل|بدل)\s+(مكان|موضع)(ها|ه)?/, 'انقل$3'), ui);
+  return _handle.call(this, text, ui);
+};
+Agent.answer = async function (planId, key, value) {
+  if (Plans.has(planId)) return EditorAgent.answer(planId, key, value);
+  return _answer.call(this, planId, key, value);
+};
+Agent.renderCard = (card, ui) => card.type === 'edit' ? renderEdit(card, ui) : _renderCard(card, ui);
+Agent.renderCards = m => (m.cards || []).map(c => Agent.renderCard(c, Agent.chatUI()));
+Agent.panelUI = function () {
+  const base = _panelUI();
+  return Object.assign({}, base, {
+    say(text, cards = []) {
+      base.say(text, (cards || []).filter(c => c.type !== 'edit'));
+      const A = NX.AIPanel;
+      (cards || []).filter(c => c.type === 'edit').forEach(c => { if (A.log) A.log.appendChild(renderEdit(c, this)); });
+      if (A.log) A.log.scrollTop = A.log.scrollHeight;
+    }
+  });
+};
+/* «هذه السيارة لا تعمل» has no action verb, but it is a request on the project */
+const _route = NX.Intent.route;
+NX.Intent.route = function (text) { if (EditorAgent.claims(text)) return 'act'; return _route.call(this, text); };
+/* «غيّر مكانها» / «غيّر لونها» were read as «replace it»: not any more (claimed above) */
+
+/* the model also sees the selected object and what drives it — compact */
+const _ctx = NX.ModelActions.context;
+NX.ModelActions.context = async function () {
+  const base = await _ctx.call(this);
+  let brief = '';
+  try { brief = await Map_.brief(24); } catch {}
+  return base + (brief ? '\n\nCOMPONENTS / SCRIPTS PER OBJECT:\n' + brief : '');
+};
+NX.ModelActions.protocol += `
+Editor operations (prefer these to writing code for the same thing):
+- ADD_SYSTEM {system: vehicle|fuel|followPath|chase|door|respawn|raceEnd|multiplayer, object?: "name", options?: {touch?: true, maxSpeed?: 24}} — NEXUS's ready, checked systems (a component on the object, or a game script)
+- SET_COMPONENT {object, component: "VehicleController", data: {maxSpeed: 30}} · SET_BODY {object, type: static|dynamic|character|none}
+- SNAP_TO_GROUND {object} · FIX_ROTATION {object}`;
+
+/* ------------------------------------------------------------
+   THE AI PANEL: the target, the scope, AI changes, suggestions
+   ------------------------------------------------------------ */
+function suggestionsFor(e, x) {
+  if (!e) return ['ماذا يوجد في المشهد؟', 'حلل لعبتي', 'أضف Multiplayer'];
+  const v = x && isVehicle(x);
+  const out = ['صغّرها قليلًا', 'ضعها على الأرض', 'ما مشكلتها؟'];
+  if (v) out.unshift('اجعلها قابلة للقيادة باللمس', 'اجعلها أسرع', 'أضف لها نظام بنزين', 'اجعلها تتبع الطريق');
+  else if (x && (x.concepts.has('enemy') || x.e.tag === 'enemy')) out.unshift('اجعل هذا العدو يطارد اللاعب');
+  else if (x && x.concepts.has('door')) out.unshift('اجعل هذا الباب يفتح عندما يقترب اللاعب');
+  out.push('غيّر لونها إلى الأحمر', 'اجعل دورانها صحيحًا');
+  return out;
+}
+function sendFromPanel(q) {
+  const A = NX.AIPanel;
+  if (A.mode === 'chat') NX.Chat.send(q); else A.send(q);
+}
+const TargetBar = {
+  node: null,
+  mount() {
+    const A = NX.AIPanel;
+    if (!A.sheet || !A.buildPane || !A.buildPane.parentNode) return;
+    if (this.node && this.node.isConnected) this.node.remove();
+    const bar = el('div', { class: 'ea-bar' });
+    this.node = bar;
+    A.buildPane.parentNode.insertBefore(bar, A.buildPane);
+    this.draw();
+  },
+  async draw() {
+    const bar = this.node;
+    if (!bar || !bar.isConnected) return;
+    const S = Stu(), eng = S.engine;
+    const sel = eng && eng.selection && eng.getEntity(eng.selection);
+    let x = null;
+    if (sel) { try { x = (await Agent.sceneIndex(eng)).find(y => y.e.id === sel.id) || null; } catch {} }
+    bar.textContent = '';
+    const row = el('div', { class: 'ea-row' });
+    row.appendChild(el('span', { class: 'ea-target' + (sel ? ' on' : ''), title: 'العنصر الذي سيعمل عليه المساعد', text: sel ? '🎯 ' + sel.name : '🎯 لا عنصر محدد — المس عنصرًا في المشهد' }));
+    const scopeSel = el('select', { class: 'select ea-scope', title: 'نطاق التغيير · Scope' }, Object.keys(SCOPES).map(k => el('option', { value: k, text: 'النطاق: ' + SCOPES[k][0] })));
+    scopeSel.value = Scope.value;
+    scopeSel.onchange = () => Scope.set(scopeSel.value);
+    row.appendChild(scopeSel);
+    const n = AIChanges.list().length;
+    row.appendChild(el('button', { class: 'chip', text: '↩ تغييرات AI' + (n ? ' (' + n + ')' : ''), title: 'Undo / Redo AI Change', onclick: () => AIChanges.open(NX.AIPanel.mode === 'build' ? Agent.panelUI() : Agent.chatUI()) }));
+    bar.appendChild(row);
+    const chips = el('div', { class: 'ea-sugg' });
+    suggestionsFor(sel, x).slice(0, 7).forEach(q => chips.appendChild(el('button', { class: 'chip', text: q, onclick: () => sendFromPanel(q) })));
+    bar.appendChild(chips);
+  }
+};
+if (!window.NX_SANDBOX) {
+  const A = NX.AIPanel;
+  const _open = A.open;
+  A.open = function (opts) {
+    const r = _open.apply(this, arguments);
+    try { TargetBar.mount(); } catch (e) { console.warn('target bar', e); }
+    const S = Stu();
+    if (S.engine && !S.engine.__eaHook) { S.engine.__eaHook = true; S.engine.on('selection', () => TargetBar.draw()); }
+    return r;
+  };
+  ['nx:aiChange', 'nx:aiScope'].forEach(ev => window.addEventListener(ev, () => TargetBar.draw()));
+  /* the selection bar: «اسأل الذكاء» about the selected object */
+  const selBar = document.getElementById('sel-bar');
+  if (selBar && !document.getElementById('sel-ai')) {
+    const b = el('button', { class: 'icon-btn', id: 'sel-ai', 'aria-label': 'ask ai', onclick: () => { const S = Stu(); S.openAI(); setTimeout(() => { if (NX.AIConfig.isReady()) NX.AIPanel.setMode('chat'); TargetBar.draw(); }, 60); } });
+    b.appendChild(icon('spark'));
+    selBar.insertBefore(b, document.getElementById('sel-insp'));
+  }
+  NX.Commands && NX.Commands.register([
+    { label: 'تغييرات الذكاء الاصطناعي (تراجع / إعادة)', icon: 'undo', keywords: 'undo redo ai تراجع اعادة الذكاء', when: () => !!Stu().project, run: () => AIChanges.open() }
+  ]);
+}
+
+NX.EditorAgent = EditorAgent;
+</script>
+<!-- /NX-PART:31 -->
 <script type="module">
 /* ============================================================
    PART 8/18 · GAME PLATFORM + BOOT
@@ -26996,14 +29088,6 @@ const Platform = {
   /* ---------------- Home ---------------- */
   async view_home(host) {
     const hero = el('div', { class: 'hero' });
-    hero.append(
-      el('h1', { text: 'محرك فارغ. أنت من يملؤه.' }),
-      el('p', { text: 'لا مكتبة مجسمات جاهزة ولا ألعاب قوالب. ارفع أصولك، اكتب كودك، انشر لعبتك.' })
-    );
-    const arch = el('div', { class: 'arch' });
-    ['EMPTY CORE ENGINE', 'USER CODE', 'USER ASSETS', 'PUBLIC LIBRARY', 'AI ASSISTANT', 'FIREBASE', 'GAME PLATFORM']
-      .forEach(t => arch.appendChild(el('span', { text: t })));
-    hero.appendChild(arch);
     const heroRow = el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } });
     heroRow.appendChild(btn('إنشاء لعبة', { cls: 'primary', icon: 'plus', onclick: () => this.newProject() }));
     heroRow.appendChild(btn('دع AI يبنيها', { cls: '', icon: 'spark', onclick: () => this.aiFirstGame() }));
@@ -27031,7 +29115,7 @@ const Platform = {
     await this.projectsView(host, { full: false });
 
     host.appendChild(el('div', { class: 'sec-head' }, [el('h2', { text: Backend.isOnline() ? 'أحدث الألعاب المنشورة' : 'ألعاب على هذا الجهاز (LOCAL)' })]));
-    this.liveGames(host, { sort: 'new', limit: 12, empty: ['لا توجد ألعاب منشورة بعد', Backend.isOnline() ? 'أنشئ أول لعبة على هذه المنصة.' : 'الوضع المحلي: لا يمكن رؤية ألعاب الآخرين حتى يتصل Firebase.'] });
+    this.liveGames(host, { sort: 'new', limit: 12, empty: ['لا توجد ألعاب منشورة بعد', Backend.isOnline() ? 'أنشئ أول لعبة على هذه المنصة.' : 'الوضع المحلي: لا يمكن رؤية ألعاب الآخرين حتى يتصل الموقع بالسحابة.'] });
 
     if (Backend.isOnline()) {
       host.appendChild(el('div', { class: 'sec-head' }, [el('h2', { text: 'الأكثر تشغيلًا' })]));
@@ -27131,7 +29215,7 @@ const Platform = {
       let items;
       try { items = q ? await Games.search(q) : await Games.list({ sort: 'plays', limit: 20 }); }
       catch (e) { res.appendChild(this.emptyNote('تعذّر البحث في Firebase', NX.describeFirebaseError(e))); return; }
-      if (!items.length) { res.appendChild(this.emptyNote(T('noResults'), Backend.isOnline() ? 'لا نتائج حقيقية مطابقة في Firebase — لا نخترع نتائج.' : 'الوضع المحلي: البحث يشمل هذا الجهاز فقط.')); return; }
+      if (!items.length) { res.appendChild(this.emptyNote(T('noResults'), Backend.isOnline() ? 'لا نتائج حقيقية مطابقة — لا نخترع نتائج.' : 'الوضع المحلي: البحث يشمل هذا الجهاز فقط.')); return; }
       const g = el('div', { class: 'grid' }); items.forEach(x => g.appendChild(this.gameCard(x))); res.appendChild(g);
     }, 300));
     sb.appendChild(inp);
@@ -27479,7 +29563,7 @@ function connectionReport() {
   } else {
     row('الحالة', Backend.status === 'error' ? '🔴 FIREBASE ERROR → LOCAL' : '🟠 LOCAL MODE · هذا الجهاز فقط');
     row('السبب', Backend.reason || '—');
-    c.appendChild(el('p', { class: 'tiny', style: { marginTop: '8px' }, text: 'يعمل المحرّر ومشاريعك محليًا على هذا الجهاز فقط — لا يراها أي هاتف آخر. النشر للآخرين يحتاج اتصالًا بمشروع Firebase الخاص بالمنصة.' }));
+    c.appendChild(el('p', { class: 'tiny', style: { marginTop: '8px' }, text: 'يعمل المحرّر ومشاريعك محليًا على هذا الجهاز فقط — لا يراها أي هاتف آخر. النشر للآخرين يحتاج اتصال الموقع بالسحابة.' }));
     c.appendChild(btn('إعادة محاولة الاتصال', { cls: 'sm block', icon: 'undo', style: { marginTop: '8px' }, onclick: () => location.reload() }));
   }
   c.appendChild(btn('التشخيص الكامل', { cls: 'sm block ghost', icon: 'shield', style: { marginTop: '8px' }, onclick: () => openDiagnostics() }));
@@ -27648,10 +29732,10 @@ async function openDiagnostics() {
 
 /* move this browser's LOCAL work into Firebase — once, no duplicates */
 function runMigration(after) {
-  if (!Backend.isOnline()) { Toast.err('المزامنة تحتاج Firebase متصلًا'); return; }
+  if (!Backend.isOnline()) { Toast.err('المزامنة تحتاج اتصال الموقع بالسحابة'); return; }
   const t = Toast.show('جارٍ النقل…', '', 120000);
   Backend.migrateLocal((d, total) => { t.lastChild.textContent = `جارٍ النقل ${d}/${total}`; })
-    .then(r => { t.remove(); Toast.ok(`نُقل إلى Firebase: ${r.projects} مشروع و${r.assets} أصل`); Platform.render(); after && after(); })
+    .then(r => { t.remove(); Toast.ok(`نُقل إلى السحابة: ${r.projects} مشروع و${r.assets} أصل`); Platform.render(); after && after(); })
     .catch(e => { t.remove(); if (!handleAuthError(e)) Toast.err('تعذّر النقل: ' + NX.describeFirebaseError(e)); });
 }
 
@@ -27751,16 +29835,12 @@ function openSettings() {
   body.appendChild(el('div', { class: 'opt-sec', text: 'الحساب والأمان' }));
   if (NX.Age) opt('user', '🔞 العمر والمحتوى', 'عمرك على هذا الجهاز: يحدّد إن كانت ألعاب ومواقع 18+ تظهر وتُفتح', () => NX.Age.openSettings());
   if (NX.Passkeys && NX.Passkeys.supported()) opt('user', '🔑 مفاتيح المرور · Passkeys', 'ادخل ببصمتك أو وجهك بدل كلمة المرور (اختياري)', () => NX.Passkeys.open());
-  opt('shield', 'الأمان وقواعد Firebase', 'القواعد التي تحمي بيانات موقعك — انسخها وانشرها من Firebase Console', () => openSecurityPanel());
+  opt('shield', 'الأمان وقواعد الحماية', 'القواعد التي تحمي بيانات موقعك (لمالك الموقع)', () => openSecurityPanel());
   body.appendChild(el('div', { class: 'opt-sec', text: 'إذا حدثت مشكلة' }));
-  opt('shield', 'التشخيص · Firebase / Storage / Netlify', 'يفحص الاتصال والتخزين والنشر، ويقول ما الذي لا يعمل ولماذا', () => openDiagnostics());
+  opt('shield', 'التشخيص', 'يفحص الاتصال والتخزين والنشر، ويقول ما الذي لا يعمل ولماذا', () => openDiagnostics());
   opt('book', 'سجلّ الأخطاء والتشخيص', 'آخر الأخطاء التي حدثت مع المساعد والأدوات', () => NX.AIDebug.open());
   opt('trash', 'مسح ذاكرة الأصول المؤقتة', 'يحذف النسخ المحفوظة من المجسمات والصور على هذا الجهاز (تُحمّل من جديد)', () => { NX.AssetCache.clear(); Toast.ok('مُسحت'); });
 
-  body.appendChild(el('hr', { class: 'sep' }));
-  const about = el('p', { class: 'tiny', style: { lineHeight: '1.8' },
-    text: 'NEXUS — EMPTY CORE ENGINE + USER CODE + USER ASSETS + PUBLIC ASSET LIBRARY + AI ASSISTANT + FIREBASE + GAME PLATFORM.\nالمحرك يوفّر الأدوات. المستخدم يصنع اللعبة.' });
-  body.appendChild(about);
 
   Sheet.open({ title: T('settings'), body, id: 'settings' });
 }
@@ -27804,7 +29884,7 @@ async function offerLocalMigration() {
   const n = left.projects.length + left.assets.length;
   if (!n || LS.get('migrateDismissed', 0) === n) return;
   const body = el('p', { class: 'muted', style: { fontSize: '13.5px', lineHeight: '1.7' },
-    text: `في هذا المتصفح ${left.projects.length} مشروعًا و${left.assets.length} أصلًا أُنشئت أثناء الوضع المحلي ولا يراها أي جهاز آخر. انقلها إلى Firebase لتظهر على كل أجهزتك؟ (تُنقل مرة واحدة ثم تُحذف النسخة المحلية — بلا تكرار)` });
+    text: `في هذا المتصفح ${left.projects.length} مشروعًا و${left.assets.length} أصلًا أُنشئت أثناء الوضع المحلي ولا يراها أي جهاز آخر. انقلها إلى حسابك في السحابة لتظهر على كل أجهزتك؟ (تُنقل مرة واحدة ثم تُحذف النسخة المحلية — بلا تكرار)` });
   Modal.open({ title: 'لديك مشاريع محلية لم تتم مزامنتها', body, actions: [
     { label: 'لاحقًا', cls: 'ghost', onclick: () => LS.set('migrateDismissed', n) },
     { label: 'SYNC TO FIREBASE', cls: 'primary', onclick: () => runMigration() }
@@ -27858,7 +29938,7 @@ NX.registerOfflineSupport = registerOfflineSupport;
   if (window.NX_SANDBOX) { NX.__booted = true; NX.SandboxGuest.start(); return; }
   const staleSW = clearStaleServiceWorkers();
   const msg = document.getElementById('boot-msg');
-  if (msg && (NX.FB_OWNER_CONFIGURED || NX.EMULATORS)) msg.textContent = 'الاتصال بـ Firebase…';
+  if (msg && (NX.FB_OWNER_CONFIGURED || NX.EMULATORS)) msg.textContent = 'الاتصال بالخادم…';
   try {
     await Backend.init();
   } catch (e) {
@@ -27893,7 +29973,7 @@ NX.registerOfflineSupport = registerOfflineSupport;
     });
     offerLocalMigration();
   } else {
-    window.addEventListener('online', () => Toast.show('عاد الاتصال — اضغط مؤشر الحالة ثم «إعادة المحاولة» للاتصال بـ Firebase', '', 6000), { once: true });
+    window.addEventListener('online', () => Toast.show('عاد الاتصال — اضغط مؤشر الحالة ثم «إعادة المحاولة» للاتصال من جديد', '', 6000), { once: true });
   }
 
   /* deep links: #game/<id> · #app/<id> · #project/<id> */
@@ -27906,7 +29986,7 @@ NX.registerOfflineSupport = registerOfflineSupport;
       try { g = await Games.get(h.slice(5)); }
       catch (e) { Toast.err('تعذّر جلب اللعبة من Firebase: ' + NX.describeFirebaseError(e)); return; }
       if (g) NX.Community.openGamePage(g);
-      else Toast.err(Backend.isOnline() ? 'اللعبة غير موجودة أو خاصة' : 'فتح رابط لعبة يحتاج اتصالًا بـ Firebase — ' + (Backend.reason || 'الوضع المحلي'));
+      else Toast.err(Backend.isOnline() ? 'اللعبة غير موجودة أو خاصة' : 'فتح رابط لعبة يحتاج اتصال الموقع بالسحابة — ' + (Backend.reason || 'الوضع المحلي'));
     } else if (h.startsWith('app/')) {
       if (NX.HtmlApps) NX.HtmlApps.openById(h.slice(4));
     } else if (h.startsWith('post/')) {
