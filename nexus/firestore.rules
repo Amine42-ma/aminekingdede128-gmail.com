@@ -342,6 +342,14 @@ service cloud.firestore {
       allow delete: if resource == null || isOwner(existing());
     }
 
+    // ---------------------------------------------------------------- the owner's AI key box
+    // Written and read ONLY by the site's server function (service account,
+    // netlify/edge-functions/ai.js). No browser — the owner's included — can
+    // read a key back.
+    match /platformSecrets/{doc} {
+      allow read, write: if false;
+    }
+
     // ---------------------------------------------------------------- HTML apps & websites
     // The owner's own pages / sites (the files live in the file host as one
     // ZIP; this is the record). They run in a sandboxed opaque-origin frame.

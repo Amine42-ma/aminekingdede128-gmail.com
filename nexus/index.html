@@ -1260,6 +1260,50 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 .ha-acts > .btn { width: 100%; min-width: 0; white-space: normal; line-height: 1.3; min-height: 40px; justify-content: center; text-align: center; }
 .ha-acts > .btn:only-child { grid-column: 1 / -1; }
 /* /NX-CSS:28 */
+/* NX-CSS:29 */
+/* PART 29 · every icon has a size (zero specificity: any real rule wins) — menus used to show giant black icons and no text */
+:where(svg[viewBox="0 0 24 24"]:not([width])){width:20px;height:20px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle}
+/* a menu option that says what it does */
+.opt-row{display:flex;align-items:center;gap:12px;width:100%;text-align:start;padding:11px 12px;border-radius:14px;background:var(--glass);border:1px solid var(--line);margin-bottom:8px;color:var(--ink);font:inherit;cursor:pointer}
+.opt-row:active{transform:scale(.99)}
+.opt-row .opt-ic{width:36px;height:36px;flex:0 0 auto;display:grid;place-items:center;border-radius:11px;background:rgba(var(--brand-rgb,124,92,255),.14);color:#cfc3ff;font-size:18px}
+.opt-row .opt-ic svg{width:19px;height:19px}
+.opt-row .opt-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.opt-row .opt-tx b{font-size:14px;line-height:1.35}
+.opt-row .opt-tx small{font-size:12px;line-height:1.5;color:var(--ink-dim);white-space:normal}
+.opt-row > svg:last-child{width:16px;height:16px;opacity:.5}
+.opt-row.hl{background:linear-gradient(135deg,rgba(var(--brand-rgb,124,92,255),.22),rgba(34,211,238,.12));border-color:rgba(var(--brand-rgb,124,92,255),.45)}
+.opt-row.danger-row .opt-tx b{color:#ff9aa8}
+.opt-sec{font-size:11.5px;font-weight:800;letter-spacing:.3px;color:var(--ink-dim);margin:14px 4px 8px}
+/* written labels under the toolbar icons */
+.icon-btn.has-cap{height:auto;min-height:42px;width:auto;min-width:42px;padding:5px 5px 3px;grid-template-rows:auto auto;row-gap:2px;align-content:center}
+.icon-btn.has-cap .ib-cap{font-size:9.5px;line-height:1.1;font-weight:700;color:var(--ink-dim);white-space:nowrap;pointer-events:none}
+.vp-tools .icon-btn.has-cap,.sel-bar .icon-btn.has-cap{min-width:38px;min-height:38px}
+#s-top{gap:6px}
+/* the owner's key box */
+.kb-intro p{font-size:12.5px;line-height:1.8;margin-top:6px;color:var(--ink-soft)}
+.kb-warn{border-color:rgba(252,215,122,.35);margin-bottom:12px}
+.kb-warn p{font-size:12.5px;line-height:1.7;margin:6px 0}
+.kb-steps{margin:6px 0 4px;padding-inline-start:20px;font-size:12.5px;line-height:1.9}
+.kb-steps li{margin-bottom:4px;overflow-wrap:anywhere}
+.kb-claim{margin:4px 2px 10px;color:#fcd77a}
+.kb-in{margin-bottom:8px}
+.kb-res{margin-top:8px}
+.kb-r{font-size:12.5px;padding:6px 10px;border-radius:10px;background:var(--glass);margin-bottom:6px;direction:rtl}
+.kb-r.good{color:#86efac}.kb-r.bad{color:#ff9aa8}
+.kb-key{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--glass);border:1px solid var(--line);margin-bottom:8px}
+.kb-key b{font-family:var(--mono,monospace);direction:ltr;flex:1}
+.kb-prov{font-size:11px;font-weight:800;padding:3px 8px;border-radius:99px;background:rgba(124,92,255,.18)}
+.kb-prov.groq{background:rgba(249,115,22,.18);color:#fdba74}.kb-prov.gemini{background:rgba(59,130,246,.18);color:#93c5fd}.kb-prov.openrouter{background:rgba(34,197,94,.16);color:#86efac}
+/* GAME MEDIA: the five things people add most, one tap each */
+.gm-quick{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-bottom:14px}
+.gm-tile{display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 6px 10px;border-radius:14px;border:1.5px dashed rgba(var(--brand-rgb,124,92,255),.55);background:rgba(var(--brand-rgb,124,92,255),.08);color:var(--ink);font:inherit;cursor:pointer;text-align:center}
+.gm-tile i{font-style:normal;font-size:24px;line-height:1.1}
+.gm-tile b{font-size:13px}
+.gm-tile span{font-size:10.5px;color:var(--ink-dim)}
+.gm-tile.done{border-style:solid;border-color:rgba(34,197,94,.45);background:rgba(34,197,94,.08)}
+.gm-tile.done span{color:#86efac}
+/* /NX-CSS:29 */
 </style>
 </head>
 <body>
@@ -3936,6 +3980,14 @@ service cloud.firestore {
       allow update: if (isOwner(existing()) && incoming().ownerId == me() && incoming().gameId == gameId)
                     || claimedWith(['ownerId', 'claim', 'claimKey', 'updatedAt']);
       allow delete: if resource == null || isOwner(existing());
+    }
+
+    // ---------------------------------------------------------------- the owner's AI key box
+    // Written and read ONLY by the site's server function (service account,
+    // netlify/edge-functions/ai.js). No browser — the owner's included — can
+    // read a key back.
+    match /platformSecrets/{doc} {
+      allow read, write: if false;
     }
 
     // ---------------------------------------------------------------- HTML apps & websites
@@ -7688,10 +7740,12 @@ const Studio = {
   buildTabs() {
     const tabs = $('#s-tabs');
     tabs.textContent = '';
+    const page = ['image', 'صفحة اللعبة', () => NX.GameMedia.open(this.project, { quick: true })];
     const items = NX.Mode.isBeginner() ? [
       ['plus',  'إضافة',   () => NX.Beginner.openActions()],
       ['spark', 'المساعد', () => this.openAI()],
       ['cube',  T('assets'), () => this.openAssets()],
+      page,
       ['play',  'تشغيل',   () => this.playing ? this.stopPlay() : this.play()],
       ['grid',  T('more'), () => this.openMore()]
     ] : [
@@ -7700,6 +7754,7 @@ const Studio = {
       ['code', T('code'), () => NX.IDE.open(this.project)],
       ['globe', T('world'), () => this.openWorld()],
       ['spark', T('ai'), () => this.openAI()],
+      page,
       ['grid', T('more'), () => this.openMore()]
     ];
     items.forEach(([ic, label, fn]) => {
@@ -8265,13 +8320,41 @@ const Studio = {
   /* ---------------- more ---------------- */
   openMore() {
     const body = el('div');
-    const item = (ic, label, fn, cls) => {
-      const b = el('button', { class: 'comp-row', style: { width: '100%', textAlign: 'start' }, onclick: () => { sheet.close(); fn(); } });
-      b.append(icon(ic), el('b', { text: label }), icon('chev'));
-      if (cls) b.classList.add(cls);
-      return b;
+    /* every option says what it does (a line under its name) */
+    const DESC = {
+      'الفريق · TEAM': 'ادعُ أصدقاءك للعمل معك على نفس المشروع، وحدّد دور كل واحد',
+      'حفظ المشروع': 'يحفظ آخر تغييراتك على الخادم (يحفظ وحده أيضًا كل قليل)',
+      'تشغيل تجريبي': 'جرّب لعبتك الآن كما سيراها اللاعب',
+      'نشر اللعبة · Publish': 'اجعل لعبتك متاحة للناس برابط وصفحة عرض',
+      'وسائط اللعبة · GAME MEDIA': 'كل صور الصفحة وخلفيتها وترتيب أقسامها',
+      'تراجع عن آخر تغيير في المشهد': 'يلغي آخر تعديل على الكائنات',
+      'الكود ومتعدّد اللغات': 'افتح ملفات الكود وعدّلها',
+      'بناء المشروع · BUILD': 'يجهّز اللعبة للتشغيل ويكشف أخطاء الكود',
+      'سلاسل الأدوات · Toolchains': 'لغات برمجة إضافية (للمحترفين)',
+      'الأمان و قواعد Firebase': 'القواعد التي تحمي بياناتك، وفحص أمان المشروع',
+      'لوحة المشروع': 'ملخّص مشروعك وكل أقسامه في شاشة واحدة',
+      'تصدير / استيراد': 'احفظ نسخة من مشروعك في ملف، أو افتح نسخة',
+      'مشاريعي': 'كل مشاريعك — افتح أو أنشئ أو احذف',
+      'تاريخ المشروع ونقاط الرجوع': 'ارجع إلى نسخة سابقة من مشروعك',
+      'الأوامر والبحث': 'ابحث عن أي أداة باسمها',
+      'التبديل إلى وضع المحترف': 'يُظهر كل الأدوات المتقدّمة في الأسفل',
+      'التبديل إلى وضع المبتدئ': 'واجهة أبسط بأدوات أقل',
+      'تفريغ المشهد': 'يحذف كل الكائنات من المشهد (تبقى السكربتات)',
+      '📁 الملفات': 'ملفات المشروع ومجلّداته', '📦 المكتبات': 'مكتبات جاهزة يستعملها كودك',
+      '🧩 الإضافات': 'أدوات إضافية للاستوديو', '🐞 الأخطاء': 'أخطاء أبلغ عنها الفريق أو اللاعبون',
+      '💬 التعليقات': 'ملاحظات الفريق على الكائنات والكود', '✅ المهام': 'من يفعل ماذا في المشروع',
+      '🧪 اختبار جماعي': 'العب مع فريقك لتجربة اللعبة معًا', '🌐 الترجمة': 'نصوص اللعبة بلغات أخرى',
+      '🏆 لوحة الصدارة': 'ترتيب أفضل اللاعبين في لعبتك', '📊 التحليلات': 'كم شخصًا لعب، وكم بقي',
+      '🎞 الإعادات': 'تسجيلات لعب يمكن مشاهدتها', '🎨 ألوان صفحة اللعبة': 'ألوان صفحة عرض لعبتك',
+      '🛡️ فحص الأمان · Scan Project': 'يبحث عن مشاكل أمان في كودك', '📱 اختبار الجهاز · Test Mobile': 'هل تعمل لعبتك جيدًا على الهاتف؟',
+      '🧹 تحسين المشروع · Optimize': 'يجعل لعبتك أخفّ وأسرع'
     };
+    DESC[T('apiDocs')] = 'مرجع الأوامر التي يستعملها كود اللعبة';
+    DESC[T('settings')] = 'اللغة والألوان والحساب والذكاء الاصطناعي';
+    const item = (ic, label, fn, cls) => NX.optionRow(ic, label, DESC[label] || '', () => { sheet.close(); fn(); }, { cls: cls || '' });
     const Team = NX.Team, owner = !Team || Team.isOwner(this.project);
+    /* the game's page, first and obvious: icon, cover, video, pictures, description */
+    if (owner) body.appendChild(NX.optionRow('image', '🎬 صفحة لعبتك — أيقونة · غلاف · فيديو · صور · شرح', 'ما يراه الناس قبل أن يلعبوا. اضغط لإضافتها أو تغييرها', () => { sheet.close(); NX.GameMedia.open(this.project, { quick: true }); }, { cls: 'hl' }));
     body.append(
       item('user', 'الفريق · TEAM', () => NX.TeamUI.openPanel()),
       item('save', 'حفظ المشروع', () => this.save()),
@@ -14873,7 +14956,7 @@ async function openGamePage(game, opts = {}) {
    ============================================================ */
 const IMG_ROLES = {
   cover: { label: 'صورة الغلاف · Cover', max: 1920, note: 'في بطاقة اللعبة وأعلى صفحة العرض (16:9 أفضل)' },
-  thumbnail: { label: 'الصورة المصغّرة · Thumbnail', max: 640, note: 'لبطاقات القوائم — تُصنع من الغلاف تلقائيًا إن لم ترفعها' },
+  thumbnail: { label: 'أيقونة اللعبة · Icon', max: 640, note: 'الصورة الصغيرة في قوائم الألعاب — تُصنع من الغلاف تلقائيًا إن لم ترفعها' },
   banner: { label: 'البانر · Banner Image', max: 2400, note: 'شريط عريض في أعلى الصفحة' },
   background: { label: 'خلفية الصفحة · Page Background', max: 2400, note: 'أي صورة تريدها، مستقلة عن الغلاف — يُوضع فوقها ظل ليبقى النص واضحًا' }
 };
@@ -15100,6 +15183,25 @@ const GameMedia = {
       st.appendChild(el('div', { text: (p.publishedId ? '🟢 منشورة — كل تغيير هنا يظهر فورًا في صفحة اللعبة على كل الأجهزة.' : '🟠 لم تُنشر بعد — الوسائط محفوظة في المشروع وتظهر عند النشر.') }));
       st.appendChild(el('div', { class: 'tiny', text: 'التخزين: ' + (NX.FILE_HOST === 'drive' ? 'Google Drive (ملفاتك، مشاركة للقراءة)' : 'Firebase Storage') + ' · الزوار يشاهدون فقط، وأنت وحدك تعدّل.' }));
       body.appendChild(st);
+      /* the five things people add most, one tap each: the file picker opens at once */
+      const quick = el('div', { class: 'gm-quick' });
+      const tile = (emoji, label, done, go) => quick.appendChild(el('button', { class: 'gm-tile' + (done ? ' done' : ''), onclick: go }, [
+        el('i', { text: emoji }), el('b', { text: label }), el('span', { text: done ? '✓ موجود — اضغط للتغيير' : '＋ إضافة' })]));
+      const hit = (sel, pick) => {
+        const n = body.querySelector(sel);
+        if (!n) return;
+        n.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        n.classList.add('gm-flash'); setTimeout(() => n.classList.remove('gm-flash'), 2600);
+        if (pick) { const b = pick(n); if (b) b.click(); }
+      };
+      const firstBtn = n => n.querySelector('.gm-acts .btn');
+      tile('🖼️', 'أيقونة اللعبة', !!sc.thumbnail, () => hit('.gm-slot[data-role="thumbnail"]', firstBtn));
+      tile('🌄', 'صورة الغلاف', !!sc.cover, () => hit('.gm-slot[data-role="cover"]', firstBtn));
+      tile('🎬', 'فيديو', !!sc.video, () => hit('.gm-slot[data-role="video"]', firstBtn));
+      tile('📸', 'صور من اللعبة', !!(sc.screenshots || []).length, () => hit('[data-focus="screenshots"]', () => [...body.querySelectorAll('.btn')].find(b => /إضافة لقطات/.test(b.textContent))));
+      tile('✍️', 'الشرح', !!((p.publishMeta && p.publishMeta.description) || p.description), () => { const d = body.querySelector('[data-focus="description"]'); hit('[data-focus="texts"]'); if (d) setTimeout(() => d.focus(), 350); });
+      body.appendChild(el('p', { class: 'tiny', style: { margin: '0 2px 8px' }, text: 'اضغط على ما تريد إضافته — يُفتح اختيار الملف مباشرة. كل شيء يظهر فورًا في صفحة لعبتك.' }));
+      body.appendChild(quick);
       const top = el('div', { class: 'gm-state' });
       top.appendChild(btn('👁 معاينة الصفحة · Preview', { cls: 'primary sm', onclick: () => { goBack = false; sheet.close(); this.preview(p); } }));
       if (p.publishedId) top.appendChild(btn('🔗 نسخ رابط اللعبة', { cls: 'sm ghost', onclick: () => share('game', p.publishedId, p.name) }));
@@ -16545,6 +16647,7 @@ function openAISettings() {
       st.appendChild(el('div', { class: 'tiny', text: F.state === 'off' ? F.offText() + ' حتى ذلك الحين تستطيع استعمال مفتاحك الخاص من البطاقات الأخرى.'
         : !F.signedIn() ? 'الذكاء المجاني لمن سجّل الدخول بحساب Google أو بالبريد — حتى لا يستهلكه أحد من خارج المنصة.'
         : 'اختر النموذج أدناه أو اتركه «auto». إذا انتهى حدّ مفتاح ينتقل وحده إلى التالي، ثم إلى النموذج الآخر، ويخبرك بذلك.' + (F.providers.length ? ' المتاح: ' + F.providers.map(x => x === 'gemini' ? 'Gemini' : x === 'groq' ? 'Groq' : x === 'openrouter' ? 'OpenRouter' : x).join(' · ') : '') }));
+      if (NX.KeyBox) st.appendChild(btn('🔑 مفاتيح الذكاء المجاني — لصاحب الموقع', { cls: 'sm', style: { marginTop: '8px', display: 'flex' }, onclick: () => NX.KeyBox.open() }));
       if (F.state !== 'off' && !F.signedIn()) st.appendChild(btn('تسجيل الدخول', { cls: 'sm primary', icon: 'user', style: { marginTop: '8px' }, onclick: () => NX.promptSignIn('الذكاء المجاني لمن سجّل الدخول.', () => { drawProvider(); paintGrid(); }) }));
       pane.appendChild(st);
     }
@@ -25396,7 +25499,8 @@ const ModelPicker = {
       if (!F || F.state === 'off') {
         free.appendChild(el('div', { class: 'card', style: { fontSize: '13px', lineHeight: '1.7', marginTop: '10px' } }, [
           el('b', { text: '⚪ الذكاء المجاني غير مفعّل على هذا الموقع بعد' }),
-          el('div', { class: 'tiny', text: (F ? F.offText() : '') + ' حينها تظهر هنا نماذجه. تستطيع الآن استعمال مفتاحك الخاص من «الإعدادات والمفاتيح».' })]));
+          el('div', { class: 'tiny', text: (F ? F.offText() : '') + ' حينها تظهر هنا نماذجه. تستطيع الآن استعمال مفتاحك الخاص من «الإعدادات والمفاتيح».' }),
+          NX.KeyBox ? btn('🔑 أنا صاحب الموقع — أضف المفاتيح', { cls: 'sm primary', style: { marginTop: '8px', display: 'flex' }, onclick: () => { sheet.close(); NX.KeyBox.open(); } }) : el('span')]));
         return;
       }
       if (!F.signedIn()) {
@@ -26124,6 +26228,175 @@ Object.assign(HtmlApps, {
 });
 </script>
 <!-- /NX-PART:28 -->
+<!-- NX-PART:29 -->
+<script type="module">
+/* ============================================================
+   PART 29 · THE OWNER'S KEY BOX · BUTTONS THAT SAY WHAT THEY DO
+   - «مفاتيح الذكاء المجاني»: the site owner types Gemini / Groq /
+     OpenRouter keys here once. They go to the site's server function
+     (netlify/edge-functions/ai.js), which tests each one and keeps it
+     in Firestore platformSecrets/ai — a document no browser can read.
+     Nothing comes back but «Groq ••••a1b2». Everyone without a key of
+     their own then gets the free AI and only picks a model.
+   - Every icon-only button in the main toolbars gets a written label,
+     and menus get a one-line «what this does» under each option.
+     No button is removed.
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, Sheet, Modal, Toast, timeAgo } = NX;
+const { Backend } = NX;
+
+/* ================================================================ OPTION ROWS */
+/* a menu option that says what it does: icon · title · one line of explanation */
+function optionRow(ic, title, desc, onclick, { cls = '', emoji = '' } = {}) {
+  const b = el('button', { class: 'opt-row ' + cls, onclick });
+  const i = el('span', { class: 'opt-ic' });
+  if (emoji) i.textContent = emoji; else i.appendChild(NX.icon(ic));
+  const tx = el('span', { class: 'opt-tx' }, [el('b', { text: title })]);
+  if (desc) tx.appendChild(el('small', { text: desc }));
+  b.append(i, tx, NX.icon('chev'));
+  return b;
+}
+NX.optionRow = optionRow;
+
+/* ================================================================ LABELS ON ICON BUTTONS */
+const CAPTIONS = {
+  's-back': ['رجوع', 'العودة إلى الصفحة الرئيسية'], 's-team': ['الفريق', 'ادعُ أصدقاءك للعمل معك على المشروع'],
+  's-save': ['حفظ', 'احفظ آخر تغييراتك'], 's-play': ['تشغيل', 'جرّب لعبتك الآن'], 's-more': ['المزيد', 'كل أدوات المشروع'],
+  'vt-add': ['إضافة', 'أضف شكلًا أو كائنًا إلى المشهد'], 'vt-focus': ['الكاميرا', 'اجعل الكاميرا تنظر إلى الكائن المحدّد'],
+  'vt-grid': ['الشبكة', 'إظهار أو إخفاء خطوط الأرضية'], 'sel-insp': ['الخصائص', 'اللون والحجم والفيزياء للكائن المحدّد'],
+  'sel-cmt': ['تعليق', 'اكتب ملاحظة لفريقك على هذا الكائن'],
+  'btn-search': ['بحث', 'ابحث عن لعبة أو صانع أو أصل'], 'btn-notif': ['التنبيهات', 'الإعجابات والمتابعات والدعوات'],
+  'btn-settings': ['الإعدادات', 'اللغة والألوان والحساب والذكاء الاصطناعي']
+};
+const GIZMO = { move: ['تحريك', 'حرّك الكائن بالسحب'], rotate: ['تدوير', 'دوّر الكائن'], scale: ['الحجم', 'كبّر أو صغّر الكائن'] };
+function caption(b) {
+  if (!b || b.classList.contains('has-cap')) return;
+  const c = CAPTIONS[b.id] || GIZMO[b.dataset.gizmo];
+  if (!c) return;
+  b.classList.add('has-cap');
+  b.title = c[1];
+  b.setAttribute('aria-label', c[0] + ' — ' + c[1]);
+  b.appendChild(el('span', { class: 'ib-cap', text: c[0] }));
+}
+function captionAll() {
+  document.querySelectorAll('#s-top .icon-btn, .vp-tools .icon-btn, #sel-bar .icon-btn, .p-top .icon-btn').forEach(caption);
+}
+if (!window.NX_SANDBOX) {
+  captionAll();
+  /* buttons added later (comments on the selection bar, …) */
+  const mo = new MutationObserver(() => captionAll());
+  ['#s-top', '#sel-bar', '.vp-tools', '.p-top'].forEach(q => { const n = document.querySelector(q); if (n) mo.observe(n, { childList: true }); });
+}
+
+/* ================================================================ THE OWNER'S KEY BOX */
+const BASE = /^https?:$/.test(location.protocol) ? location.origin + location.pathname.replace(/[^/]*$/, '') + 'api/ai' : '';
+const KeyBox = {
+  async call(path, body) {
+    const a = Backend.fb && Backend.fb.auth, u = a && a.currentUser;
+    if (!u || u.isAnonymous) throw Object.assign(new Error('سجّل الدخول بحساب Google أولًا'), { code: 'signin' });
+    const r = await fetch(BASE + path, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + await u.getIdToken() }, body: JSON.stringify(body || {}) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw Object.assign(new Error((j.error && j.error.message) || ('HTTP ' + r.status)), { code: j.error && j.error.code, status: r.status });
+    return j;
+  },
+  async health() {
+    try { const r = await fetch(BASE + '/health', { cache: 'no-store' }); return r.ok && /json/.test(r.headers.get('content-type') || '') ? await r.json() : null; }
+    catch { return null; }
+  },
+  steps(list) {
+    const ol = el('ol', { class: 'kb-steps' });
+    list.forEach(t => ol.appendChild(el('li', { text: t })));
+    return ol;
+  },
+  async open() {
+    const body = el('div', { class: 'kb' });
+    body.appendChild(el('div', { class: 'card kb-intro' }, [
+      el('b', { text: 'ذكاء مجاني لكل من يستعمل موقعك' }),
+      el('p', { text: 'ضع هنا مفاتيح Gemini (Google AI Studio) أو Groq أو OpenRouter مرة واحدة. تُحفظ على خادم الموقع فقط: لا يراها أحد، ولا تُرسل إلى أي صفحة — ولا حتى إليك بعد الحفظ (يظهر آخر 4 أحرف فقط). كل من ليس لديه مفتاح يحصل على الذكاء المجاني ويختار النموذج فقط. إذا انتهى حدّ مفتاح يُستعمل التالي تلقائيًا، ثم Groq، ثم «غير متاح الآن».' })]));
+    const host = el('div');
+    body.appendChild(host);
+    const sheet = Sheet.open({ title: '🔑 مفاتيح الذكاء المجاني', body, full: true, id: 'keybox' });
+    const wait = () => { host.textContent = ''; host.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' }), el('span', { text: 'أتحقّق من خادم الموقع…' })])); };
+    const draw = async () => {
+      wait();
+      const h = BASE ? await this.health() : null;
+      host.textContent = '';
+      /* 1. the site's server function is not running */
+      if (!h) {
+        host.appendChild(el('div', { class: 'card kb-warn' }, [el('b', { text: '⚠ خادم الموقع لا يعمل بعد' }),
+          el('p', { text: 'المفاتيح تُحفظ على خادم الموقع (دالة Netlify)، والدوال لا تعمل عندما يُرفع الموقع بالسحب والإفلات. خطوة واحدة في Netlify:' }),
+          this.steps(['Site configuration ← Build & deploy ← Link repository', 'اختر مستودع GitHub، واكتب في Base directory: nexus', 'اضغط Deploy — ثم عُد إلى هنا وأضف مفاتيحك'])]));
+        return;
+      }
+      /* 2. sign-in */
+      if (!Backend.hasAccount()) {
+        host.appendChild(el('div', { class: 'card' }, [el('b', { text: 'سجّل الدخول بحساب Google' }), el('p', { class: 'tiny', text: 'صاحب الموقع يُعرف بحساب Google الخاص به.' }),
+          btn('تسجيل الدخول', { cls: 'primary sm', icon: 'user', style: { marginTop: '8px' }, onclick: () => NX.promptSignIn('سجّل الدخول لتضيف مفاتيح الذكاء المجاني.', () => draw()) })]));
+        return;
+      }
+      let st;
+      try { st = await this.call('/keys/status'); }
+      catch (e) { host.appendChild(el('p', { class: 'tiny', text: '✕ ' + e.message })); return; }
+      /* 3. the server has no service account: where the box is kept */
+      if (!st.ready) {
+        host.appendChild(el('div', { class: 'card kb-warn' }, [el('b', { text: '⚠ صندوق المفاتيح يحتاج إعدادًا واحدًا في Netlify' }),
+          el('p', { text: 'ليحفظ الخادم المفاتيح في Firebase بأمان يحتاج «حساب خدمة» مرة واحدة فقط:' }),
+          this.steps(['Firebase Console ← ⚙ Project settings ← Service accounts ← Generate new private key (يُنزَّل ملف JSON)',
+            'Netlify ← Site configuration ← Environment variables ← Add a variable: الاسم FIREBASE_SERVICE_ACCOUNT، والقيمة = محتوى الملف كاملًا',
+            'Deploys ← Trigger deploy — ثم عُد إلى هنا وأضف مفاتيحك']),
+          el('p', { class: 'tiny', text: 'أو ضع المفاتيح مباشرة في Netlify: GEMINI_KEYS و GROQ_KEYS (مفصولة بفاصلة).' })]));
+        this.fromVars(host, st);
+        return;
+      }
+      /* 4. someone else's box */
+      if (!st.owner && !st.canClaim) {
+        host.appendChild(el('div', { class: 'card' }, [el('b', { text: 'هذه الصفحة لصاحب الموقع فقط' }), el('p', { class: 'tiny', text: 'الصندوق مسجّل باسم ' + (st.ownerEmail || 'صاحب الموقع') + '. تستطيع استعمال الذكاء المجاني، أو إضافة مفتاحك الخاص من «مزوّدو الذكاء الاصطناعي».' })]));
+        return;
+      }
+      if (st.canClaim && !st.owner) host.appendChild(el('p', { class: 'tiny kb-claim', text: 'لا صاحب للصندوق بعد: أول حساب يحفظ مفتاحًا يصبح صاحبه — هذا أنت (' + (Backend.user.email || '') + '). بعدها لا يستطيع غيرك إضافة المفاتيح أو حذفها.' }));
+      /* 5. add keys */
+      const ta = el('textarea', { class: 'textarea kb-in', placeholder: 'الصق مفتاحًا أو أكثر — كل مفتاح في سطر\nAQ.…  أو  AIza…  (Gemini)\ngsk_…  (Groq)\nsk-or-…  (OpenRouter)', spellcheck: 'false', autocapitalize: 'off', autocomplete: 'off', style: { direction: 'ltr', minHeight: '110px' } });
+      const res = el('div', { class: 'kb-res' });
+      const add = btn('حفظ على الخادم', { cls: 'primary block', icon: 'save', onclick: async () => {
+        const v = ta.value.trim();
+        if (!v) { Toast.err('الصق مفتاحًا أولًا'); return; }
+        add.disabled = true; add.querySelector('span').textContent = 'أختبر المفاتيح وأحفظها…';
+        try {
+          const r = await this.call('/keys/add', { keys: v });
+          ta.value = '';
+          res.textContent = '';
+          const say = { ok: '✓ حُفظ ويعمل', limit: '✓ حُفظ — وصل حدّه الآن وسيُستعمل عندما يتجدّد', unknown: '✓ حُفظ (لم يُتأكَّد منه الآن)', refused: '✕ رفضه المزوّد — لم يُحفظ', duplicate: '• موجود من قبل', unknown_provider: '✕ ليس مفتاح Gemini أو Groq أو OpenRouter' };
+          (r.results || []).forEach(x => res.appendChild(el('div', { class: 'kb-r ' + (/^(ok|limit|unknown)$/.test(x.status) ? 'good' : x.status === 'duplicate' ? '' : 'bad'), text: (x.label ? x.label + ' ' : '') + (x.tail || '') + ' — ' + (say[x.status] || x.status) })));
+          if (NX.FreeAI) { NX.FreeAI._probe = null; NX.FreeAI.probe().then(() => NX.FreeAI.adopt()); }
+          setTimeout(draw, 1400);
+        } catch (e) { Toast.err('تعذّر الحفظ: ' + e.message); }
+        add.disabled = false; add.querySelector('span').textContent = 'حفظ على الخادم';
+      } });
+      host.append(el('div', { class: 'ttl', text: 'أضف مفاتيح' }), ta, add, res);
+      /* 6. what is saved */
+      host.appendChild(el('div', { class: 'ttl', style: { marginTop: '16px' }, text: 'المفاتيح المحفوظة (' + st.keys.length + ')' }));
+      if (!st.keys.length) host.appendChild(el('p', { class: 'tiny', text: 'لا مفاتيح في الصندوق بعد.' }));
+      st.keys.forEach(k => host.appendChild(el('div', { class: 'kb-key' }, [
+        el('span', { class: 'kb-prov ' + k.provider, text: k.label }), el('b', { text: k.tail }), el('span', { class: 'tiny', text: 'أُضيف ' + timeAgo(k.addedAt) }),
+        btn('حذف', { cls: 'sm danger', icon: 'trash', onclick: async () => {
+          if (!(await Modal.confirm('حذف المفتاح ' + k.label + ' ' + k.tail + '؟', 'لن يُستعمل بعد الآن للذكاء المجاني.', 'حذف'))) return;
+          try { await this.call('/keys/remove', { id: k.id }); Toast.ok('حُذف'); draw(); } catch (e) { Toast.err('تعذّر: ' + e.message); }
+        } })])));
+      this.fromVars(host, st);
+    };
+    draw();
+    return sheet;
+  },
+  fromVars(host, st) {
+    const v = st.fromVariables || {};
+    const parts = [['Gemini', v.gemini], ['Groq', v.groq], ['OpenRouter', v.openrouter]].filter(x => x[1]);
+    if (parts.length) host.appendChild(el('p', { class: 'tiny', style: { marginTop: '12px' }, text: 'ومن إعدادات Netlify (Environment variables): ' + parts.map(x => x[0] + ' ' + x[1]).join(' · ') + ' — تُعدَّل هناك.' }));
+  }
+};
+NX.KeyBox = KeyBox;
+</script>
+<!-- /NX-PART:29 -->
 <script type="module">
 /* ============================================================
    PART 8/18 · GAME PLATFORM + BOOT
@@ -27316,7 +27589,8 @@ function openSettings() {
   ]);
   body.appendChild(themeSeg);
 
-  if (NX.Theme) body.appendChild(btn('🎨 ألوان واجهتي · My colours', { cls: 'block', style: { marginTop: '8px' }, onclick: () => NX.Theme.openMine() }));
+  const opt = (ic, t, d, fn) => body.appendChild(NX.optionRow ? NX.optionRow(ic, t, d, fn) : btn(t, { cls: 'block', style: { marginTop: '8px' }, onclick: fn }));
+  if (NX.Theme) opt('grid', '🎨 ألوان واجهتي · My colours', 'اختر ألوان NEXUS كما تحبها — تتبعك على كل أجهزتك', () => NX.Theme.openMine());
   body.appendChild(el('div', { class: 'ttl', text: 'الاتصال' }));
   /* read-only: the Firebase project belongs to the platform owner and is
      built into the code — visitors never configure it */
@@ -27324,13 +27598,16 @@ function openSettings() {
   if (Backend.isOnline() && !Backend.hasAccount()) {
     body.appendChild(btn('تسجيل الدخول (Google أو البريد)', { cls: 'block', icon: 'user', style: { marginTop: '8px' }, onclick: () => NX.promptSignIn() }));
   }
-  body.appendChild(el('hr', { class: 'sep' }));
-  body.appendChild(btn('التشخيص · Firebase / Storage / Netlify', { cls: 'block primary', icon: 'shield', onclick: () => openDiagnostics() }));
-  body.appendChild(btn('الأمان وقواعد Firebase', { cls: 'block', icon: 'shield', style: { marginTop: '8px' }, onclick: () => openSecurityPanel() }));
-  if (NX.Passkeys && NX.Passkeys.supported()) body.appendChild(btn('🔑 مفاتيح المرور · Passkeys', { cls: 'block', style: { marginTop: '8px' }, onclick: () => NX.Passkeys.open() }));
-  body.appendChild(btn('مزوّدو الذكاء الاصطناعي', { cls: 'block', icon: 'spark', style: { marginTop: '8px' }, onclick: () => NX.openAISettings() }));
-  body.appendChild(btn('سجلّ الأخطاء والتشخيص', { cls: 'block', icon: 'shield', style: { marginTop: '8px' }, onclick: () => NX.AIDebug.open() }));
-  body.appendChild(btn('مسح ذاكرة الأصول المؤقتة', { cls: 'block ghost', style: { marginTop: '8px' }, onclick: () => { NX.AssetCache.clear(); Toast.ok('مُسحت'); } }));
+  body.appendChild(el('div', { class: 'opt-sec', text: 'الذكاء الاصطناعي' }));
+  opt('spark', 'مزوّدو الذكاء الاصطناعي', 'اختر النموذج، أو أضف مفتاحك الخاص (يبقى في هذا المتصفح فقط)', () => NX.openAISettings());
+  if (NX.KeyBox) opt('shield', '🔑 مفاتيح الذكاء المجاني — لصاحب الموقع', 'ضع مفاتيحك مرة واحدة على خادم الموقع: كل الناس يستعملون الذكاء المجاني دون أن يروها', () => NX.KeyBox.open());
+  body.appendChild(el('div', { class: 'opt-sec', text: 'الحساب والأمان' }));
+  if (NX.Passkeys && NX.Passkeys.supported()) opt('user', '🔑 مفاتيح المرور · Passkeys', 'ادخل ببصمتك أو وجهك بدل كلمة المرور (اختياري)', () => NX.Passkeys.open());
+  opt('shield', 'الأمان وقواعد Firebase', 'القواعد التي تحمي بيانات موقعك — انسخها وانشرها من Firebase Console', () => openSecurityPanel());
+  body.appendChild(el('div', { class: 'opt-sec', text: 'إذا حدثت مشكلة' }));
+  opt('shield', 'التشخيص · Firebase / Storage / Netlify', 'يفحص الاتصال والتخزين والنشر، ويقول ما الذي لا يعمل ولماذا', () => openDiagnostics());
+  opt('book', 'سجلّ الأخطاء والتشخيص', 'آخر الأخطاء التي حدثت مع المساعد والأدوات', () => NX.AIDebug.open());
+  opt('trash', 'مسح ذاكرة الأصول المؤقتة', 'يحذف النسخ المحفوظة من المجسمات والصور على هذا الجهاز (تُحمّل من جديد)', () => { NX.AssetCache.clear(); Toast.ok('مُسحت'); });
 
   body.appendChild(el('hr', { class: 'sep' }));
   const about = el('p', { class: 'tiny', style: { lineHeight: '1.8' },

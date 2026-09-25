@@ -13,6 +13,14 @@
    OPENROUTER_MODELS (a fixed list instead of the provider's own) ·
    FIREBASE_PROJECT_ID (jknbb-n) ·
    AI_MAX_TOKENS (4096) · AI_PER_MINUTE (20)
+   THE OWNER'S KEY BOX: instead of (or besides) the variables above, the
+   site owner can type keys inside NEXUS (⚙ ← «مفاتيح الذكاء المجاني»).
+   They are sent here once, tested, and kept in Firestore platformSecrets/ai
+   — a document no browser may read or write (firestore.rules) — using the
+   service account in FIREBASE_SERVICE_ACCOUNT (the same one passkeys use).
+   Nobody ever gets a key back, the owner included: only «Groq ••••a1b2».
+   Who the owner is: ADMIN_EMAILS (comma list) if set; otherwise the first
+   verified Google account that saves a key claims the box.
    The page calls /api/ai/… with the player's Firebase sign-in token.
    This function checks the token, picks a key, and when a key is out
    of quota or refused it moves to the next key, then to the other
@@ -20,14 +28,17 @@
    ============================================================ */
 const env = k => { try { return (globalThis.Netlify && Netlify.env.get(k)) || ''; } catch { return ''; } };
 const list = k => env(k).split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+const VAR = { gemini: 'GEMINI_KEYS', groq: 'GROQ_KEYS', openrouter: 'OPENROUTER_KEYS' };
+/* a provider's keys: the site's variables, then the owner's key box */
+const keysOf = p => Array.from(new Set(list(VAR[p]).concat(box.keys.filter(k => k.provider === p).map(k => k.key))));
 
 const P = {
   gemini: { label: 'Gemini', base: () => env('GEMINI_BASE') || 'https://generativelanguage.googleapis.com/v1beta/openai',
-    keys: () => list('GEMINI_KEYS'), models: () => geminiModels() },
+    keys: () => keysOf('gemini'), models: () => geminiModels() },
   groq: { label: 'Groq', base: () => env('GROQ_BASE') || 'https://api.groq.com/openai/v1',
-    keys: () => list('GROQ_KEYS'), models: () => groqModels() },
+    keys: () => keysOf('groq'), models: () => groqModels() },
   openrouter: { label: 'OpenRouter', base: () => env('OPENROUTER_BASE') || 'https://openrouter.ai/api/v1',
-    keys: () => list('OPENROUTER_KEYS'), models: () => openrouterModels() }
+    keys: () => keysOf('openrouter'), models: () => openrouterModels() }
 };
 const ORDER = ['gemini', 'groq', 'openrouter'];
 /* which provider offers a model: the one whose list has it (none → treated as «auto») */
@@ -165,7 +176,107 @@ async function who(req) {
     if (!key || !(await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64u(parts[2]), new TextEncoder().encode(parts[0] + '.' + parts[1])))) return { error: 'signin' };
   }
   if ((c.firebase && c.firebase.sign_in_provider) === 'anonymous' && env('AI_ALLOW_ANONYMOUS') !== '1') return { error: 'signin' };
-  return { uid: c.sub };
+  return { uid: c.sub, email: c.email || '', verified: !!c.email_verified, provider: (c.firebase && c.firebase.sign_in_provider) || '' };
+}
+
+/* ---------- the owner's key box: Firestore platformSecrets/ai, server-only ---------- */
+const b64url = u => btoa(String.fromCharCode(...u)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+function sa() { try { const j = JSON.parse(env('FIREBASE_SERVICE_ACCOUNT')); return j && j.private_key && j.client_email ? j : null; } catch { return null; } }
+const fsProject = () => env('FIREBASE_PROJECT_ID') || (sa() || {}).project_id || 'jknbb-n';
+let saKey = null, access = { v: '', exp: 0 };
+async function adminToken() {
+  if (env('FIRESTORE_EMULATOR_HOST')) return 'owner';
+  if (access.exp > Date.now() + 60e3) return access.v;
+  const s = sa(), now = Math.floor(Date.now() / 1000), te = x => new TextEncoder().encode(x);
+  if (!saKey) saKey = await crypto.subtle.importKey('pkcs8', Uint8Array.from(atob(s.private_key.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '')), c => c.charCodeAt(0)),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  const head = b64url(te(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid: s.private_key_id })));
+  const body = b64url(te(JSON.stringify({ iss: s.client_email, scope: 'https://www.googleapis.com/auth/datastore', aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 })));
+  const sig = b64url(new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5', saKey, te(head + '.' + body))));
+  const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=' + head + '.' + body + '.' + sig });
+  const j = await r.json();
+  if (!j.access_token) throw new Error('service account refused');
+  access = { v: j.access_token, exp: Date.now() + (j.expires_in || 3600) * 1000 };
+  return access.v;
+}
+const boxURL = () => (env('FIRESTORE_EMULATOR_HOST') ? 'http://' + env('FIRESTORE_EMULATOR_HOST') : 'https://firestore.googleapis.com') + '/v1/projects/' + fsProject() + '/databases/(default)/documents/platformSecrets/ai';
+/* the box is kept as one JSON string field — nothing in it is ever sent to a browser */
+let box = { at: 0, keys: [], owner: null };
+async function loadBox(force) {
+  if (!sa() && !env('FIRESTORE_EMULATOR_HOST')) return box;
+  if (!force && Date.now() - box.at < 60e3) return box;
+  try {
+    const r = await fetch(boxURL(), { headers: { authorization: 'Bearer ' + await adminToken() } });
+    if (r.status === 404) box = { at: Date.now(), keys: [], owner: null };
+    else if (r.ok) { const f = ((await r.json()).fields || {}).data; const d = f ? JSON.parse(f.stringValue || '{}') : {}; box = { at: Date.now(), keys: Array.isArray(d.keys) ? d.keys : [], owner: d.owner || null }; }
+  } catch { /* the last box read stays in use */ }
+  return box;
+}
+async function saveBox(next) {
+  const r = await fetch(boxURL(), { method: 'PATCH', headers: { authorization: 'Bearer ' + await adminToken(), 'content-type': 'application/json' },
+    body: JSON.stringify({ fields: { data: { stringValue: JSON.stringify({ keys: next.keys, owner: next.owner }) } } }) });
+  if (!r.ok) throw new Error('firestore ' + r.status);
+  box = Object.assign({ at: Date.now() }, next);
+}
+const boxReady = () => !!(sa() || env('FIRESTORE_EMULATOR_HOST'));
+const providerOf = k => /^gsk_/.test(k) ? 'groq' : /^sk-or-/.test(k) ? 'openrouter' : /^(AIza|AQ\.)/.test(k) ? 'gemini' : null;
+const LABEL = { gemini: 'Gemini', groq: 'Groq', openrouter: 'OpenRouter' };
+const shown = k => ({ id: k.id, provider: k.provider, label: LABEL[k.provider], tail: '••••' + String(k.key).slice(-4), addedAt: k.addedAt });
+/* the owner: ADMIN_EMAILS, or whoever claimed the box first (a verified Google e-mail) */
+function isOwner(me) {
+  const admins = list('ADMIN_EMAILS').map(x => x.toLowerCase());
+  if (admins.length) return !!(me.email && me.verified && admins.includes(me.email.toLowerCase()));
+  return !!(box.owner && box.owner.uid === me.uid);
+}
+const canClaim = me => !list('ADMIN_EMAILS').length && !box.owner && !!(me.email && me.verified && me.provider === 'google.com');
+/* one tiny real request: is this key accepted? */
+async function tryKey(p, key) {
+  const model = p === 'gemini' ? GEM_FIRST() : p === 'groq' ? 'llama-3.3-70b-versatile' : 'deepseek/deepseek-chat-v3:free';
+  try {
+    const headers = { 'content-type': 'application/json', authorization: 'Bearer ' + key };
+    const r = await fetch(P[p].base() + '/chat/completions', { method: 'POST', headers, body: JSON.stringify({ model, messages: [{ role: 'user', content: 'Reply with one word: OK' }], max_tokens: 64 }) });
+    if (r.ok) return 'ok';
+    const t = await r.text().catch(() => '');
+    if (r.status === 401 || r.status === 403 || KEY_WORDS.test(t)) return 'refused';
+    if (r.status === 429 || r.status === 402) return 'limit';
+    return 'unknown';
+  } catch { return 'unknown'; }
+}
+async function keyBox(path, me, req) {
+  let body = {};
+  try { body = await req.json(); } catch { }
+  await loadBox(true);
+  const owner = isOwner(me), mask = e => String(e || '').replace(/^(.).*(@.*)$/, '$1•••$2');
+  if (path === '/keys/status') return json(200, { ready: boxReady(), owner, canClaim: canClaim(me), ownerEmail: box.owner ? mask(box.owner.email) : null,
+    fromVariables: Object.fromEntries(ORDER.map(p => [p, list(VAR[p]).length])), keys: owner ? box.keys.map(shown) : [] });
+  if (!boxReady()) return fail(503, 'box_off', 'صندوق المفاتيح يحتاج FIREBASE_SERVICE_ACCOUNT في Netlify (مرة واحدة).');
+  if (!owner && !canClaim(me)) return fail(403, 'not_owner', 'هذه الصفحة لصاحب الموقع فقط.');
+  if (path === '/keys/add') {
+    const keys = String(body.keys || body.key || '').split(/[\s,;]+/).map(x => x.trim()).filter(Boolean).slice(0, 30);
+    if (!keys.length) return fail(400, 'empty', 'الصق مفتاحًا واحدًا على الأقل');
+    const next = { keys: box.keys.slice(), owner: box.owner || (owner ? null : { uid: me.uid, email: me.email }) };
+    const results = [];
+    for (const k of keys) {
+      const p = providerOf(k);
+      if (!p) { results.push({ tail: '••••' + k.slice(-4), status: 'unknown_provider' }); continue; }
+      if (next.keys.some(x => x.key === k) || list(VAR[p]).includes(k)) { results.push({ label: LABEL[p], tail: '••••' + k.slice(-4), status: 'duplicate' }); continue; }
+      const st = await tryKey(p, k);
+      if (st === 'refused') { results.push({ label: LABEL[p], tail: '••••' + k.slice(-4), status: 'refused' }); continue; }
+      const rec = { id: crypto.randomUUID().slice(0, 12), provider: p, key: k, addedAt: Date.now(), by: me.uid };
+      next.keys.push(rec);
+      results.push(Object.assign(shown(rec), { status: st }));
+    }
+    if (next.keys.length !== box.keys.length || (!box.owner && next.owner)) await saveBox(next);
+    return json(200, { results, keys: box.keys.map(shown), owner: true });
+  }
+  if (path === '/keys/remove') {
+    if (!owner) return fail(403, 'not_owner', 'هذه الصفحة لصاحب الموقع فقط.');
+    const next = { keys: box.keys.filter(k => k.id !== body.id), owner: box.owner };
+    if (next.keys.length !== box.keys.length) await saveBox(next);
+    return json(200, { keys: box.keys.map(shown), owner: true });
+  }
+  return fail(404, 'not_found', 'غير موجود');
 }
 
 /* ---------- a fair share per player (per server instance) ---------- */
@@ -238,12 +349,14 @@ export default async (req) => {
   /* this site's pages only */
   const origin = req.headers.get('origin');
   if (origin && origin !== url.origin) return fail(403, 'origin', 'غير مسموح');
+  await loadBox();
   if (req.method === 'GET' && path === '/health') {
     const providers = Object.keys(P).filter(p => P[p].keys().length);
-    return json(200, { free: providers.length > 0, providers, signin: 'google' });
+    return json(200, { free: providers.length > 0, providers, signin: 'google', keyBox: boxReady() });
   }
   const me = await who(req);
   if (me.error) return fail(401, 'signin', 'سجّل الدخول بحساب Google لاستعمال الذكاء المجاني');
+  if (req.method === 'POST' && path.startsWith('/keys/')) return keyBox(path, me, req);
   if (req.method === 'GET' && path === '/models') {
     /* every model of every provider that has keys here, grouped by provider (the page shows the groups) */
     const data = [{ id: 'auto', owned_by: 'nexus', provider: 'NEXUS' }];
