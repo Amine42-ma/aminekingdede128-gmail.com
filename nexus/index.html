@@ -26313,7 +26313,8 @@ const KeyBox = {
     const body = el('div', { class: 'kb' });
     body.appendChild(el('div', { class: 'card kb-intro' }, [
       el('b', { text: 'ذكاء مجاني لكل من يستعمل موقعك' }),
-      el('p', { text: 'ضع هنا مفاتيح Gemini (Google AI Studio) أو Groq أو OpenRouter مرة واحدة. تُحفظ على خادم الموقع فقط: لا يراها أحد، ولا تُرسل إلى أي صفحة — ولا حتى إليك بعد الحفظ (يظهر آخر 4 أحرف فقط). كل من ليس لديه مفتاح يحصل على الذكاء المجاني ويختار النموذج فقط. إذا انتهى حدّ مفتاح يُستعمل التالي تلقائيًا، ثم Groq، ثم «غير متاح الآن».' })]));
+      el('p', { text: 'ضع هنا مفاتيح Gemini (Google AI Studio) أو Groq أو OpenRouter مرة واحدة. تُحفظ على خادم الموقع فقط: لا يراها أحد، ولا تُرسل إلى أي صفحة — ولا حتى إليك بعد الحفظ (يظهر آخر 4 أحرف فقط). كل من ليس لديه مفتاح يحصل على الذكاء المجاني ويختار النموذج فقط. إذا انتهى حدّ مفتاح يُستعمل التالي تلقائيًا، ثم Groq، ثم «غير متاح الآن».' }),
+      btn('أو: مفتاح لي أنا فقط (في هذا المتصفح)', { cls: 'sm ghost', icon: 'user', style: { marginTop: '8px' }, onclick: () => { sheet.close(); NX.openAISettings(); } })]));
     const host = el('div');
     body.appendChild(host);
     const sheet = Sheet.open({ title: '🔑 مفاتيح الذكاء المجاني', body, full: true, id: 'keybox' });
@@ -26338,23 +26339,14 @@ const KeyBox = {
       let st;
       try { st = await this.call('/keys/status'); }
       catch (e) { host.appendChild(el('p', { class: 'tiny', text: '✕ ' + e.message })); return; }
-      /* 3. the server has no service account: where the box is kept */
-      if (!st.ready) {
-        host.appendChild(el('div', { class: 'card kb-warn' }, [el('b', { text: '⚠ صندوق المفاتيح يحتاج إعدادًا واحدًا في Netlify' }),
-          el('p', { text: 'ليحفظ الخادم المفاتيح في Firebase بأمان يحتاج «حساب خدمة» مرة واحدة فقط:' }),
-          this.steps(['Firebase Console ← ⚙ Project settings ← Service accounts ← Generate new private key (يُنزَّل ملف JSON)',
-            'Netlify ← Site configuration ← Environment variables ← Add a variable: الاسم FIREBASE_SERVICE_ACCOUNT، والقيمة = محتوى الملف كاملًا',
-            'Deploys ← Trigger deploy — ثم عُد إلى هنا وأضف مفاتيحك']),
-          el('p', { class: 'tiny', text: 'أو ضع المفاتيح مباشرة في Netlify: GEMINI_KEYS و GROQ_KEYS (مفصولة بفاصلة).' })]));
-        this.fromVars(host, st);
-        return;
-      }
+      /* 3. the box cannot keep keys yet: say exactly why — and keep the form (see below) */
+      if (!st.ready) host.appendChild(this.diagnose(st.setup || {}));
       /* 4. someone else's box */
-      if (!st.owner && !st.canClaim) {
+      if (st.ready && !st.owner && !st.canClaim) {
         host.appendChild(el('div', { class: 'card' }, [el('b', { text: 'هذه الصفحة لصاحب الموقع فقط' }), el('p', { class: 'tiny', text: 'الصندوق مسجّل باسم ' + (st.ownerEmail || 'صاحب الموقع') + '. تستطيع استعمال الذكاء المجاني، أو إضافة مفتاحك الخاص من «مزوّدو الذكاء الاصطناعي».' })]));
         return;
       }
-      if (st.canClaim && !st.owner) host.appendChild(el('p', { class: 'tiny kb-claim', text: 'لا صاحب للصندوق بعد: أول حساب يحفظ مفتاحًا يصبح صاحبه — هذا أنت (' + (Backend.user.email || '') + '). بعدها لا يستطيع غيرك إضافة المفاتيح أو حذفها.' }));
+      if (st.ready && st.canClaim && !st.owner) host.appendChild(el('p', { class: 'tiny kb-claim', text: 'لا صاحب للصندوق بعد: أول حساب يحفظ مفتاحًا يصبح صاحبه — هذا أنت (' + (Backend.user.email || '') + '). بعدها لا يستطيع غيرك إضافة المفاتيح أو حذفها.' }));
       /* 5. add keys */
       const ta = el('textarea', { class: 'textarea kb-in', placeholder: 'الصق مفتاحًا أو أكثر — كل مفتاح في سطر\nAQ.…  أو  AIza…  (Gemini)\ngsk_…  (Groq)\nsk-or-…  (OpenRouter)', spellcheck: 'false', autocapitalize: 'off', autocomplete: 'off', style: { direction: 'ltr', minHeight: '110px' } });
       const res = el('div', { class: 'kb-res' });
@@ -26373,6 +26365,16 @@ const KeyBox = {
         } catch (e) { Toast.err('تعذّر الحفظ: ' + e.message); }
         add.disabled = false; add.querySelector('span').textContent = 'حفظ على الخادم';
       } });
+      if (!st.ready) {
+        /* works right now without the box: the same keys as Netlify variables (made on this phone, sent nowhere) */
+        const out = el('div');
+        const make = btn('جهّز نصًّا جاهزًا للصقه في Netlify', { cls: 'primary block', icon: 'copy', onclick: () => this.netlifyText(ta.value, out) });
+        host.append(el('div', { class: 'ttl', text: 'أضف مفاتيحك' }),
+          el('p', { class: 'tiny', style: { margin: '-2px 2px 8px' }, text: 'إلى أن يعمل الصندوق: الصق مفاتيحك هنا، وسأجهّز لك نصًّا واحدًا تلصقه في Netlify — يعمل فورًا بعد Trigger deploy، ولا يرى أحد المفاتيح. النص يُصنع على جهازك ولا يُرسل إلى أي مكان.' }),
+          ta, make, out);
+        this.fromVars(host, st);
+        return;
+      }
       host.append(el('div', { class: 'ttl', text: 'أضف مفاتيح' }), ta, add, res);
       /* 6. what is saved */
       host.appendChild(el('div', { class: 'ttl', style: { marginTop: '16px' }, text: 'المفاتيح المحفوظة (' + st.keys.length + ')' }));
@@ -26387,6 +26389,39 @@ const KeyBox = {
     };
     draw();
     return sheet;
+  },
+  /* what exactly is missing, in the owner's words */
+  diagnose(x) {
+    const card = el('div', { class: 'card kb-warn' });
+    const say = (title, text, steps) => { card.appendChild(el('b', { text: '⚠ ' + title })); if (text) card.appendChild(el('p', { text })); if (steps) card.appendChild(this.steps(steps)); };
+    const deploy = 'مهم: Deploys ← Trigger deploy ← Deploy site — أي متغيّر جديد لا يصل إلى الخادم إلا بعد نشر جديد';
+    if (x.state === 'not-json') say('FIREBASE_SERVICE_ACCOUNT موجود لكنه ليس محتوى ملف JSON', 'وصل المتغيّر (' + (x.length || 0) + ' حرفًا)، لكن قيمته ليست محتوى الملف. لا تلصق اسم الملف ولا رابطه:', [
+      'افتح ملف JSON الذي نزّلته من Firebase بمحرّر نصوص (أو «فتح كنص» في تطبيق الملفات)', 'انسخ كل ما فيه — من { إلى } — والصقه قيمةً لـ FIREBASE_SERVICE_ACCOUNT', deploy]);
+    else if (x.state === 'incomplete') say('محتوى FIREBASE_SERVICE_ACCOUNT ناقص', 'ينقصه: ' + [x.client_email ? '' : 'client_email', x.private_key ? '' : 'private_key'].filter(Boolean).join(' و ') + ' — غالبًا نُسخ جزء من الملف فقط.', ['الصق الملف كاملًا من { إلى }', deploy]);
+    else if (x.state === 'refused') say('Google رفض حساب الخدمة', 'الرد: ' + (x.error || '') + ' — غالبًا المفتاح حُذف من Firebase أو نُسخ ناقصًا.', ['Firebase Console ← ⚙ Project settings ← Service accounts ← Generate new private key', 'ضع محتوى الملف الجديد بدل القديم في FIREBASE_SERVICE_ACCOUNT', deploy]);
+    else if (x.state === 'firestore') say('حساب الخدمة يعمل، لكن Firestore رفض', 'الرد: ' + (x.error || '') + ' (المشروع: ' + (x.project || '—') + ').', ['تأكد أن ملف JSON من نفس مشروع Firebase الذي يستعمله الموقع', 'وأن Firestore Database مفعّل فيه (Firebase Console ← Firestore Database ← Create database)', deploy]);
+    else say('خادم الموقع لا يرى FIREBASE_SERVICE_ACCOUNT', 'الخادم يعمل، لكن هذا المتغيّر لم يصل إليه. إن كنت أضفته فغالبًا لم يُعَد النشر بعده:', [
+      'Firebase Console ← ⚙ Project settings ← Service accounts ← Generate new private key (يُنزَّل ملف JSON)',
+      'Netlify ← Site configuration ← Environment variables ← Add a variable — الاسم بالضبط: FIREBASE_SERVICE_ACCOUNT، والقيمة: كل محتوى الملف من { إلى }',
+      'Scopes: اختر All scopes (أو على الأقل Functions)', deploy]);
+    return card;
+  },
+  /* the keys typed here, as Netlify variables to paste — made on this device, sent nowhere */
+  netlifyText(value, out) {
+    out.textContent = '';
+    const keys = String(value || '').split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
+    const g = { GEMINI_KEYS: [], GROQ_KEYS: [], OPENROUTER_KEYS: [] }, other = [];
+    keys.forEach(k => (/^gsk_/.test(k) ? g.GROQ_KEYS : /^sk-or-/.test(k) ? g.OPENROUTER_KEYS : /^(AIza|AQ\.)/.test(k) ? g.GEMINI_KEYS : other).push(k));
+    const text = Object.keys(g).filter(n => g[n].length).map(n => n + '=' + Array.from(new Set(g[n])).join(',')).join('\n');
+    if (!text) { Toast.err(keys.length ? 'هذه ليست مفاتيح Gemini أو Groq أو OpenRouter' : 'الصق مفاتيحك أولًا'); return; }
+    const box = el('textarea', { class: 'textarea kb-env', readonly: true, value: text, style: { direction: 'ltr', minHeight: '90px', marginTop: '10px' } });
+    const copy = btn('نسخ النص', { cls: 'sm', icon: 'copy', style: { marginTop: '8px' }, onclick: async () => { try { await navigator.clipboard.writeText(text); Toast.ok('نُسخ — الصقه في Netlify'); } catch { box.select(); document.execCommand && document.execCommand('copy'); Toast.show('حدّد النص وانسخه'); } } });
+    out.append(box, copy, el('div', { class: 'card', style: { marginTop: '10px' } }, [el('b', { text: 'ثم في Netlify:' }), this.steps([
+      'Site configuration ← Environment variables ← Add a variable ← Import from a .env file',
+      'الصق النص ← Import variables',
+      'Deploys ← Trigger deploy ← Deploy site',
+      'بعدها يحصل كل من يستعمل موقعك على الذكاء المجاني بمفاتيحك، ولا يرى أحد المفاتيح'])]));
+    if (other.length) out.appendChild(el('p', { class: 'tiny', style: { color: '#ff9aa8', marginTop: '6px' }, text: other.length + ' سطر ليس مفتاح Gemini أو Groq أو OpenRouter — تُرك.' }));
   },
   fromVars(host, st) {
     const v = st.fromVariables || {};

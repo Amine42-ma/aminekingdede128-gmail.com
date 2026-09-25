@@ -181,7 +181,28 @@ async function who(req) {
 
 /* ---------- the owner's key box: Firestore platformSecrets/ai, server-only ---------- */
 const b64url = u => btoa(String.fromCharCode(...u)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-function sa() { try { const j = JSON.parse(env('FIREBASE_SERVICE_ACCOUNT')); return j && j.private_key && j.client_email ? j : null; } catch { return null; } }
+/* the service account, however it was pasted: the JSON file as it is, wrapped in quotes, in base64,
+   with the key's lines broken by a phone copy — or two variables FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY */
+function saRead() {
+  let raw = env('FIREBASE_SERVICE_ACCOUNT').trim();
+  const email2 = env('FIREBASE_CLIENT_EMAIL').trim(), key2 = env('FIREBASE_PRIVATE_KEY');
+  if (!raw && !(email2 && key2)) return { state: 'missing' };
+  let j;
+  if (raw) {
+    if (/^['"`]/.test(raw) && /['"`]$/.test(raw)) raw = raw.slice(1, -1).trim();
+    if (!raw.startsWith('{')) { try { const d = atob(raw.replace(/\s+/g, '')); if (d.trim().startsWith('{')) raw = d.trim(); } catch { } }
+    try { j = JSON.parse(raw); }
+    catch {
+      const f = k => { const m = new RegExp('"' + k + '"\\s*:\\s*"([\\s\\S]*?)"\\s*[,}]').exec(raw); return m ? m[1] : ''; };
+      j = { client_email: f('client_email'), private_key: f('private_key'), private_key_id: f('private_key_id'), project_id: f('project_id') };
+    }
+  } else j = { client_email: email2, private_key: key2 };
+  const pk = String((j && j.private_key) || '').replace(/\\n/g, '\n');
+  if (!j || (!j.client_email && !pk)) return { state: 'not-json', length: raw.length };
+  if (!j.client_email || !/-----BEGIN PRIVATE KEY-----[\s\S]+-----END PRIVATE KEY-----/.test(pk)) return { state: 'incomplete', client_email: !!j.client_email, private_key: !!pk };
+  return { state: 'ok', sa: Object.assign({}, j, { private_key: pk }) };
+}
+function sa() { const r = saRead(); return r.state === 'ok' ? r.sa : null; }
 const fsProject = () => env('FIREBASE_PROJECT_ID') || (sa() || {}).project_id || 'jknbb-n';
 let saKey = null, access = { v: '', exp: 0 };
 async function adminToken() {
@@ -195,8 +216,8 @@ async function adminToken() {
   const sig = b64url(new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5', saKey, te(head + '.' + body))));
   const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: 'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=' + head + '.' + body + '.' + sig });
-  const j = await r.json();
-  if (!j.access_token) throw new Error('service account refused');
+  const j = await r.json().catch(() => ({}));
+  if (!j.access_token) { saKey = null; throw new Error(String(j.error_description || j.error || ('HTTP ' + r.status))); }
   access = { v: j.access_token, exp: Date.now() + (j.expires_in || 3600) * 1000 };
   return access.v;
 }
@@ -220,6 +241,19 @@ async function saveBox(next) {
   box = Object.assign({ at: Date.now() }, next);
 }
 const boxReady = () => !!(sa() || env('FIRESTORE_EMULATOR_HOST'));
+/* why the box is (not) ready — said plainly, never showing the secret itself */
+async function boxCheck() {
+  if (env('FIRESTORE_EMULATOR_HOST')) return { state: 'ok' };
+  const i = saRead();
+  if (i.state !== 'ok') { delete i.sa; return i; }
+  try { await adminToken(); } catch (e) { return { state: 'refused', error: String(e.message || e).slice(0, 200) }; }
+  try {
+    const r = await fetch(boxURL(), { headers: { authorization: 'Bearer ' + await adminToken() } });
+    if (r.ok || r.status === 404) return { state: 'ok', project: fsProject() };
+    const t = await r.text().catch(() => '');
+    return { state: 'firestore', status: r.status, project: fsProject(), error: ((/"message"\s*:\s*"([^"]{0,220})/.exec(t) || [])[1]) || ('HTTP ' + r.status) };
+  } catch (e) { return { state: 'firestore', project: fsProject(), error: String(e.message || e).slice(0, 200) }; }
+}
 const providerOf = k => /^gsk_/.test(k) ? 'groq' : /^sk-or-/.test(k) ? 'openrouter' : /^(AIza|AQ\.)/.test(k) ? 'gemini' : null;
 const LABEL = { gemini: 'Gemini', groq: 'Groq', openrouter: 'OpenRouter' };
 const shown = k => ({ id: k.id, provider: k.provider, label: LABEL[k.provider], tail: '••••' + String(k.key).slice(-4), addedAt: k.addedAt });
@@ -248,8 +282,8 @@ async function keyBox(path, me, req) {
   try { body = await req.json(); } catch { }
   await loadBox(true);
   const owner = isOwner(me), mask = e => String(e || '').replace(/^(.).*(@.*)$/, '$1•••$2');
-  if (path === '/keys/status') return json(200, { ready: boxReady(), owner, canClaim: canClaim(me), ownerEmail: box.owner ? mask(box.owner.email) : null,
-    fromVariables: Object.fromEntries(ORDER.map(p => [p, list(VAR[p]).length])), keys: owner ? box.keys.map(shown) : [] });
+  if (path === '/keys/status') { const setup = await boxCheck(); return json(200, { ready: setup.state === 'ok', setup, owner, canClaim: canClaim(me), ownerEmail: box.owner ? mask(box.owner.email) : null,
+    fromVariables: Object.fromEntries(ORDER.map(p => [p, list(VAR[p]).length])), keys: owner ? box.keys.map(shown) : [] }); }
   if (!boxReady()) return fail(503, 'box_off', 'صندوق المفاتيح يحتاج FIREBASE_SERVICE_ACCOUNT في Netlify (مرة واحدة).');
   if (!owner && !canClaim(me)) return fail(403, 'not_owner', 'هذه الصفحة لصاحب الموقع فقط.');
   if (path === '/keys/add') {

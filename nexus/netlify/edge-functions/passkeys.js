@@ -26,7 +26,28 @@ const eqBytes = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
 const json = (status, obj) => new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const fail = (status, code, message) => json(status, { error: { code, message } });
 
-function sa() { try { const j = JSON.parse(env('FIREBASE_SERVICE_ACCOUNT')); return j && j.private_key && j.client_email ? j : null; } catch { return null; } }
+/* the service account, however it was pasted: the JSON file as it is, wrapped in quotes, in base64,
+   with the key's lines broken by a phone copy — or two variables FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY */
+function saRead() {
+  let raw = env('FIREBASE_SERVICE_ACCOUNT').trim();
+  const email2 = env('FIREBASE_CLIENT_EMAIL').trim(), key2 = env('FIREBASE_PRIVATE_KEY');
+  if (!raw && !(email2 && key2)) return { state: 'missing' };
+  let j;
+  if (raw) {
+    if (/^['"`]/.test(raw) && /['"`]$/.test(raw)) raw = raw.slice(1, -1).trim();
+    if (!raw.startsWith('{')) { try { const d = atob(raw.replace(/\s+/g, '')); if (d.trim().startsWith('{')) raw = d.trim(); } catch { } }
+    try { j = JSON.parse(raw); }
+    catch {
+      const f = k => { const m = new RegExp('"' + k + '"\\s*:\\s*"([\\s\\S]*?)"\\s*[,}]').exec(raw); return m ? m[1] : ''; };
+      j = { client_email: f('client_email'), private_key: f('private_key'), private_key_id: f('private_key_id'), project_id: f('project_id') };
+    }
+  } else j = { client_email: email2, private_key: key2 };
+  const pk = String((j && j.private_key) || '').replace(/\\n/g, '\n');
+  if (!j || (!j.client_email && !pk)) return { state: 'not-json', length: raw.length };
+  if (!j.client_email || !/-----BEGIN PRIVATE KEY-----[\s\S]+-----END PRIVATE KEY-----/.test(pk)) return { state: 'incomplete', client_email: !!j.client_email, private_key: !!pk };
+  return { state: 'ok', sa: Object.assign({}, j, { private_key: pk }) };
+}
+function sa() { const r = saRead(); return r.state === 'ok' ? r.sa : null; }
 const projectId = () => env('FIREBASE_PROJECT_ID') || (sa() || {}).project_id || '';
 
 /* ---------------- the service account: RS256 signatures ---------------- */
