@@ -15,9 +15,10 @@
    AI_MAX_TOKENS (4096) · AI_PER_MINUTE (20)
    THE OWNER'S KEY BOX: instead of (or besides) the variables above, the
    site owner can type keys inside NEXUS (⚙ ← «مفاتيح الذكاء المجاني»).
-   They are sent here once, tested, and kept in Firestore platformSecrets/ai
-   — a document no browser may read or write (firestore.rules) — using the
-   service account in FIREBASE_SERVICE_ACCOUNT (the same one passkeys use).
+   They are sent here once, tested, and kept in the site's own Netlify Blobs
+   store (every function on a linked Netlify site has it — nothing to set
+   up). Elsewhere: Firestore platformSecrets/ai — a document no browser may
+   read or write (firestore.rules) — via FIREBASE_SERVICE_ACCOUNT.
    Nobody ever gets a key back, the owner included: only «Groq ••••a1b2».
    Who the owner is: ADMIN_EMAILS (comma list) if set; otherwise the first
    verified Google account that saves a key claims the box.
@@ -222,34 +223,77 @@ async function adminToken() {
   return access.v;
 }
 const boxURL = () => (env('FIRESTORE_EMULATOR_HOST') ? 'http://' + env('FIRESTORE_EMULATOR_HOST') : 'https://firestore.googleapis.com') + '/v1/projects/' + fsProject() + '/databases/(default)/documents/platformSecrets/ai';
-/* the box is kept as one JSON string field — nothing in it is ever sent to a browser */
+/* The box lives in the site's own Netlify Blobs store — Netlify gives every function on a linked
+   site that store, nothing to set up. Without it (another host): Firestore through the service account. */
+function blobsCtx() {
+  try {
+    const raw = globalThis.netlifyBlobsContext || env('NETLIFY_BLOBS_CONTEXT');
+    if (!raw) return null;
+    const c = JSON.parse(atob(String(raw)));
+    return c && c.siteID && c.token ? c : null;
+  } catch { return null; }
+}
+const BLOB_PATH = c => '/' + c.siteID + '/site:nexus-ai-keys/box';
+async function blobsReq(c, method, body, fresh) {
+  let url, headers = { authorization: 'Bearer ' + c.token };
+  if (c.edgeURL) url = new URL(BLOB_PATH(c), fresh && c.uncachedEdgeURL ? c.uncachedEdgeURL : c.edgeURL).toString();
+  else {
+    /* the API hands out a signed address for the blob */
+    const r = await fetch(new URL('/api/v1/blobs' + BLOB_PATH(c), c.apiURL || 'https://api.netlify.com').toString(), { method, headers: Object.assign({ accept: 'application/json;type=signed-url' }, headers) });
+    if (r.status !== 200) throw new Error('Netlify Blobs ' + r.status);
+    url = (await r.json()).url; headers = {};
+  }
+  if (method === 'put') Object.assign(headers, { 'content-type': 'application/json', 'cache-control': 'max-age=0, stale-while-revalidate=60' });
+  return fetch(url, { method: method.toUpperCase(), headers, body });
+}
+/* the box is kept as one JSON value — nothing in it is ever sent to a browser */
 let box = { at: 0, keys: [], owner: null };
+const boxFrom = d => ({ at: Date.now(), keys: Array.isArray(d && d.keys) ? d.keys : [], owner: (d && d.owner) || null });
 async function loadBox(force) {
-  if (!sa() && !env('FIRESTORE_EMULATOR_HOST')) return box;
+  const c = blobsCtx();
+  if (!c && !sa() && !env('FIRESTORE_EMULATOR_HOST')) return box;
   if (!force && Date.now() - box.at < 60e3) return box;
   try {
+    if (c) {
+      const r = await blobsReq(c, 'get', undefined, force);
+      if (r.status === 404) box = boxFrom(null);
+      else if (r.ok) box = boxFrom(JSON.parse((await r.text()) || '{}'));
+      return box;
+    }
     const r = await fetch(boxURL(), { headers: { authorization: 'Bearer ' + await adminToken() } });
-    if (r.status === 404) box = { at: Date.now(), keys: [], owner: null };
-    else if (r.ok) { const f = ((await r.json()).fields || {}).data; const d = f ? JSON.parse(f.stringValue || '{}') : {}; box = { at: Date.now(), keys: Array.isArray(d.keys) ? d.keys : [], owner: d.owner || null }; }
+    if (r.status === 404) box = boxFrom(null);
+    else if (r.ok) { const f = ((await r.json()).fields || {}).data; box = boxFrom(f ? JSON.parse(f.stringValue || '{}') : {}); }
   } catch { /* the last box read stays in use */ }
   return box;
 }
 async function saveBox(next) {
-  const r = await fetch(boxURL(), { method: 'PATCH', headers: { authorization: 'Bearer ' + await adminToken(), 'content-type': 'application/json' },
-    body: JSON.stringify({ fields: { data: { stringValue: JSON.stringify({ keys: next.keys, owner: next.owner }) } } }) });
-  if (!r.ok) throw new Error('firestore ' + r.status);
+  const data = JSON.stringify({ keys: next.keys, owner: next.owner });
+  const c = blobsCtx();
+  if (c) {
+    const r = await blobsReq(c, 'put', data);
+    if (!r.ok) throw new Error('Netlify Blobs ' + r.status);
+  } else {
+    const r = await fetch(boxURL(), { method: 'PATCH', headers: { authorization: 'Bearer ' + await adminToken(), 'content-type': 'application/json' },
+      body: JSON.stringify({ fields: { data: { stringValue: data } } }) });
+    if (!r.ok) throw new Error('firestore ' + r.status);
+  }
   box = Object.assign({ at: Date.now() }, next);
 }
-const boxReady = () => !!(sa() || env('FIRESTORE_EMULATOR_HOST'));
+const boxReady = () => !!(blobsCtx() || sa() || env('FIRESTORE_EMULATOR_HOST'));
 /* why the box is (not) ready — said plainly, never showing the secret itself */
 async function boxCheck() {
-  if (env('FIRESTORE_EMULATOR_HOST')) return { state: 'ok' };
+  const c = blobsCtx();
+  if (c) {
+    try { const r = await blobsReq(c, 'get', undefined, true); return r.ok || r.status === 404 ? { state: 'ok', store: 'netlify' } : { state: 'blobs', error: 'Netlify Blobs ' + r.status }; }
+    catch (e) { return { state: 'blobs', error: String(e.message || e).slice(0, 200) }; }
+  }
+  if (env('FIRESTORE_EMULATOR_HOST')) return { state: 'ok', store: 'firestore' };
   const i = saRead();
   if (i.state !== 'ok') { delete i.sa; return i; }
   try { await adminToken(); } catch (e) { return { state: 'refused', error: String(e.message || e).slice(0, 200) }; }
   try {
     const r = await fetch(boxURL(), { headers: { authorization: 'Bearer ' + await adminToken() } });
-    if (r.ok || r.status === 404) return { state: 'ok', project: fsProject() };
+    if (r.ok || r.status === 404) return { state: 'ok', store: 'firestore', project: fsProject() };
     const t = await r.text().catch(() => '');
     return { state: 'firestore', status: r.status, project: fsProject(), error: ((/"message"\s*:\s*"([^"]{0,220})/.exec(t) || [])[1]) || ('HTTP ' + r.status) };
   } catch (e) { return { state: 'firestore', project: fsProject(), error: String(e.message || e).slice(0, 200) }; }
@@ -284,7 +328,7 @@ async function keyBox(path, me, req) {
   const owner = isOwner(me), mask = e => String(e || '').replace(/^(.).*(@.*)$/, '$1•••$2');
   if (path === '/keys/status') { const setup = await boxCheck(); return json(200, { ready: setup.state === 'ok', setup, owner, canClaim: canClaim(me), ownerEmail: box.owner ? mask(box.owner.email) : null,
     fromVariables: Object.fromEntries(ORDER.map(p => [p, list(VAR[p]).length])), keys: owner ? box.keys.map(shown) : [] }); }
-  if (!boxReady()) return fail(503, 'box_off', 'صندوق المفاتيح يحتاج FIREBASE_SERVICE_ACCOUNT في Netlify (مرة واحدة).');
+  if (!boxReady()) return fail(503, 'box_off', 'صندوق المفاتيح لا يجد مكانًا يحفظ فيه: اربط الموقع بـ GitHub في Netlify (يعمل وحده)، أو ضع FIREBASE_SERVICE_ACCOUNT.');
   if (!owner && !canClaim(me)) return fail(403, 'not_owner', 'هذه الصفحة لصاحب الموقع فقط.');
   if (path === '/keys/add') {
     const keys = String(body.keys || body.key || '').split(/[\s,;]+/).map(x => x.trim()).filter(Boolean).slice(0, 30);

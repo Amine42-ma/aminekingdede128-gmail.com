@@ -1304,6 +1304,15 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 .gm-tile.done{border-style:solid;border-color:rgba(34,197,94,.45);background:rgba(34,197,94,.08)}
 .gm-tile.done span{color:#86efac}
 /* /NX-CSS:29 */
+/* NX-CSS:30 */
+/* PART 30 · age ratings */
+.age-badge{display:inline-flex;align-items:center;justify-content:center;min-width:34px;padding:2px 8px;border-radius:8px;font:800 11.5px/1.5 var(--font-en,system-ui);letter-spacing:.2px;border:1.5px solid currentColor;background:rgba(0,0,0,.25)}
+.age-badge.age-3{color:#86efac}.age-badge.age-7{color:#bef264}.age-badge.age-12{color:#fde047}.age-badge.age-16{color:#fdba74}.age-badge.age-18{color:#fca5a5;background:rgba(220,38,38,.22)}
+.age-badge.sc-chip{border-radius:999px}
+.age-badge.on-cover{position:absolute;top:8px;inset-inline-start:8px;z-index:2;background:rgba(8,10,18,.8);backdrop-filter:blur(4px)}
+.gcard .cover{position:relative}
+.ha-age{margin:2px 0 4px}
+/* /NX-CSS:30 */
 </style>
 </head>
 <body>
@@ -3317,6 +3326,7 @@ function cleanShowcase(sc) {
     theme: NX.cleanTheme ? NX.cleanTheme(sc.theme) : null
   };
   SHOWCASE_SECTIONS.forEach(s => { if (!out.sections.includes(s)) out.sections.push(s); });
+  if (['3', '7', '12', '16', '18'].includes(String(sc.ageRating))) out.ageRating = String(sc.ageRating);   // who it is for (PART 30)
   return out;
 }
 
@@ -3418,6 +3428,7 @@ const Games = {
         creatorName: u.name || 'creator',
         title, description: String(meta.description || '').slice(0, 2000),
         genre: meta.genre || 'Other', icon: meta.icon || null,
+        ageRating: ['3', '7', '12', '16', '18'].includes(String(meta.ageRating || (sc && sc.ageRating))) ? String(meta.ageRating || sc.ageRating) : '3',
         cover, coverURL, visibility,
         thumb: scThumb ? scThumb.path : null, thumbURL: scThumb ? scThumb.url : null,
         showcase: sc,
@@ -3450,7 +3461,7 @@ const Games = {
       if (!b || b.updatedAt !== now) throw coded('publish-not-confirmed', 'BUILD_NOT_ON_SERVER');
 
       project.publishedId = gameId;
-      project.publishMeta = { title, description: rec.description, genre: rec.genre, visibility, cover, coverURL };
+      project.publishMeta = { title, description: rec.description, genre: rec.genre, ageRating: rec.ageRating, visibility, cover, coverURL };
       try { await Projects.save(project); }
       catch (e) { warnings.push('نُشرت اللعبة، لكن تعذّر حفظ المشروع: ' + describeFirebaseError(e)); }
       return Object.assign({}, g, { verified: true, warnings, link: gameLink(gameId) });
@@ -3468,6 +3479,7 @@ const Games = {
     const sc = cleanShowcase(project.showcase);
     const th = sc && (sc.thumbnail || (sc.cover && sc.cover.thumb));
     const patch = { showcase: sc, thumb: th ? th.path : null, thumbURL: th ? th.url : null, updatedAt: Date.now() };
+    if (sc && sc.ageRating) patch.ageRating = sc.ageRating;
     if (sc && sc.cover) { patch.cover = sc.cover.path; patch.coverURL = sc.cover.url || null; }
     else if (g.showcase && g.showcase.cover && g.cover === g.showcase.cover.path) { patch.cover = null; patch.coverURL = null; }
     const pm = project.publishMeta || {};
@@ -3653,6 +3665,8 @@ service cloud.firestore {
     function isOwner(d)      { return signedIn() && me() == d.ownerId; }
     function isAuthor(d)     { return signedIn() && me() == d.authorId; }
     function validVis(v)     { return v in ['public', 'unlisted', 'private']; }
+    // who a game / app is for: 3+ · 7+ · 12+ · 16+ · 18+ (none = everyone)
+    function validAge(d)     { return !('ageRating' in d) || d.ageRating in ['3', '7', '12', '16', '18']; }
     function onlyChanged(ks) { return incoming().diff(existing()).affectedKeys().hasOnly(ks); }
     // a counter may move by exactly 'by', and nothing else in the doc may change
     function bumped(f, by)   { return incoming()[f] == existing()[f] + by && onlyChanged([f]); }
@@ -3875,7 +3889,7 @@ service cloud.firestore {
     // rule never requires ownerId == request.auth.uid for a public game.
     match /games/{gameId} {
       function validGame(d) { return d.title is string && d.title.size() > 0 && d.title.size() <= 120
-                                     && d.gameId == gameId && validVis(d.visibility); }
+                                     && d.gameId == gameId && validVis(d.visibility) && validAge(d); }
       allow get:  if resource == null || existing().visibility in ['public', 'unlisted'] || isOwner(existing());
       allow list: if existing().visibility == 'public' || isOwner(existing());
       allow create: if signedIn() && incoming().ownerId == me() && validGame(incoming())
@@ -4000,7 +4014,7 @@ service cloud.firestore {
                                      && d.description is string && d.description.size() <= 2000 && validVis(d.visibility)
                                      && d.entry is string && d.entry.size() <= 300 && d.bundle is map && d.bundle.path is string
                                      && d.files is int && d.files > 0 && d.files <= 800
-                                     && d.bytes is int && d.bytes <= 26214400; }
+                                     && d.bytes is int && d.bytes <= 26214400 && validAge(d); }
       allow get:    if resource == null || existing().visibility in ['public', 'unlisted'] || isOwner(existing());
       allow list:   if existing().visibility == 'public' || isOwner(existing());
       allow create: if account() && incoming().ownerId == me() && validApp(incoming()) && incoming().opens == 0;
@@ -8503,7 +8517,9 @@ const Studio = {
     const genre = el('select', { class: 'select' }, ['Action', 'Adventure', 'Racing', 'Puzzle', 'Simulation', 'RPG', 'Sandbox', 'Other']
       .map(g => el('option', { value: g, text: g })));
     genre.value = prev.genre || 'Other';
+    const age = NX.Age ? NX.Age.field(prev.ageRating || (p.showcase && p.showcase.ageRating) || '3') : null;
     body.append(NX.field('اسم اللعبة', title), NX.field(T('description'), desc), NX.field('التصنيف', genre));
+    if (age) body.appendChild(age.field);
 
     /* the store page people see before they play (GAME MEDIA) */
     const sc = p.showcase || {}, shots = (sc.screenshots || []).length;
@@ -8575,7 +8591,8 @@ const Studio = {
           const build = await this.buildProject({ silent: true });
           if (!build || !build.ok) { say(''); Toast.err('لا يمكن النشر: البناء فاشل'); if (NX.IDE) NX.IDE.open(p, { panel: 'problems' }); return; }
           say('الإرسال إلى Firebase والتحقق من الخادم…');
-          const meta = { title: title.value.trim() || p.name, description: desc.value.trim(), genre: genre.value, visibility: vis, cover: prev.cover || null, coverURL: prev.coverURL || null };
+          const meta = { title: title.value.trim() || p.name, description: desc.value.trim(), genre: genre.value, visibility: vis, cover: prev.cover || null, coverURL: prev.coverURL || null, ageRating: age ? age.select.value : '3' };
+          if (age) { p.showcase = Object.assign({}, p.showcase || {}, { ageRating: age.select.value }); }
           const rec = await Games.publish(p, meta, build, { coverBlob });
           say('');
           sheet.close();
@@ -14798,6 +14815,7 @@ async function openGamePage(game, opts = {}) {
   }
   head.appendChild(dev);
   const chips = el('div', { class: 'sc-chips' });
+  if (NX.Age) chips.appendChild(NX.Age.badge(game, 'sc-chip'));
   if (game.genre) chips.appendChild(el('span', { class: 'sc-chip genre', text: GENRE_AR[game.genre] || game.genre }));
   (sc.tags || []).forEach(t => chips.appendChild(el('span', { class: 'sc-chip', text: '#' + t })));
   if (chips.children.length) head.appendChild(chips);
@@ -14831,7 +14849,7 @@ async function openGamePage(game, opts = {}) {
   };
   const shots = orderedShots(sc);
   const infoRows = [['المطوّر', '@' + (game.creatorName || '—')], ['التصنيف', GENRE_AR[game.genre] || game.genre || '—'],
-    ['الإصدار', String(game.version || 1)], ['تاريخ النشر', game.createdAt ? new Date(game.createdAt).toLocaleDateString('ar') : '—'],
+    ['الإصدار', String(game.version || 1)], ['الفئة العمرية', NX.Age ? NX.Age.label(NX.Age.of(game)) + ' — ' + NX.Age.text(NX.Age.of(game)) : '—'], ['تاريخ النشر', game.createdAt ? new Date(game.createdAt).toLocaleDateString('ar') : '—'],
     ['آخر تحديث', game.updatedAt ? timeAgo(game.updatedAt) : '—'], ['مرات اللعب', fmtNum(game.plays || 0)],
     ['الإعجابات', fmtNum(game.likes || 0)], ['يحتوي كودًا', game.hasCode ? 'نعم' : 'لا'], ['عدد الأصول', String(game.assetCount || 0)]];
   for (const key of sc.sections) {
@@ -15131,8 +15149,9 @@ const GameMedia = {
   },
   async setMain(p, id) { this.sc(p).main = id; return this.commit(p); },
   async setSections(p, order) { this.sc(p).sections = order; return this.commit(p); },
-  async setText(p, { tagline, tags, description, bgDim } = {}) {
+  async setText(p, { tagline, tags, description, bgDim, ageRating } = {}) {
     const sc = this.sc(p);
+    if (ageRating != null && NX.Age && NX.Age.valid(ageRating)) { sc.ageRating = String(ageRating); if (p.publishMeta) p.publishMeta.ageRating = sc.ageRating; }
     if (tagline != null) sc.tagline = String(tagline).slice(0, 160);
     if (tags != null) sc.tags = (Array.isArray(tags) ? tags : String(tags).split(/[,،#\n]+/)).map(t => String(t).trim().replace(/^#/, '').slice(0, 32)).filter(Boolean).slice(0, 12);
     if (bgDim != null) sc.bgDim = Math.min(0.9, Math.max(0, +bgDim));
@@ -15213,9 +15232,11 @@ const GameMedia = {
       const tg = el('input', { class: 'input', value: (sc.tags || []).join('، '), placeholder: 'سباق، مدينة، سيارات' });
       const ds = el('textarea', { class: 'textarea', value: (p.publishMeta && p.publishMeta.description != null ? p.publishMeta.description : p.description) || '', placeholder: 'ما هي اللعبة؟ كيف تُلعب؟ ما الذي يميّزها؟', style: { minHeight: '110px' }, dataset: { focus: 'description' } });
       body.append(field('وصف مختصر · Short Description', tl), field('الوسوم · Tags (افصل بفاصلة)', tg), field('الوصف · Description', ds));
-      body.appendChild(btn('حفظ النصوص', { cls: 'sm', icon: 'save', onclick: async e => {
+      const age = NX.Age ? NX.Age.field(NX.Age.of({ showcase: sc, ageRating: p.publishMeta && p.publishMeta.ageRating })) : null;
+      if (age) { age.select.dataset.focus = 'age'; body.appendChild(age.field); }
+      body.appendChild(btn('حفظ النصوص والفئة العمرية', { cls: 'sm', icon: 'save', onclick: async e => {
         const b = e.currentTarget; b.disabled = true;
-        try { const r = await this.setText(p, { tagline: tl.value, tags: tg.value, description: ds.value }); Toast.ok(r.synced ? 'حُفظت وظهرت في صفحة اللعبة' : 'حُفظت'); }
+        try { const r = await this.setText(p, { tagline: tl.value, tags: tg.value, description: ds.value, ageRating: age ? age.select.value : null }); Toast.ok(r.synced ? 'حُفظت وظهرت في صفحة اللعبة' : 'حُفظت'); }
         catch (err) { Toast.err('تعذّر الحفظ: ' + NX.describeFirebaseError(err)); }
         b.disabled = false;
       } }));
@@ -25960,6 +25981,7 @@ const HtmlApps = {
       name: String(meta.name || read.title || 'تطبيقي').trim().slice(0, LIMIT.name) || 'تطبيقي',
       description: String(meta.description || '').slice(0, LIMIT.desc),
       visibility: ['public', 'unlisted', 'private'].includes(meta.visibility) ? meta.visibility : 'public',
+      ageRating: NX.Age && NX.Age.valid(meta.ageRating) ? String(meta.ageRating) : (existing && existing.ageRating) || '3',
       entry: read.entry, files: read.files.length, bytes: read.bytes,
       bundle: { path: up.path, url: up.url || null }, icon,
       opens: existing ? existing.opens || 0 : 0, createdAt: existing ? existing.createdAt : now, updatedAt: now, v: 1
@@ -25977,6 +25999,7 @@ const HtmlApps = {
     if (patch.name != null) p.name = String(patch.name).trim().slice(0, LIMIT.name) || app.name;
     if (patch.description != null) p.description = String(patch.description).slice(0, LIMIT.desc);
     if (patch.visibility) p.visibility = patch.visibility;
+    if (patch.ageRating && NX.Age && NX.Age.valid(patch.ageRating)) p.ageRating = String(patch.ageRating);
     if (patch.icon !== undefined) p.icon = patch.icon;
     await Backend.serverWrite(F.updateDoc(F.doc(db, 'apps', app.appId), p));
     return Object.assign(app, p);
@@ -26013,6 +26036,7 @@ async function share(app) {
 
 /* run an app, full screen */
 async function openViewer(app, opts = {}) {
+  if (!opts.files && NX.Age && !(await NX.Age.allow(app, 'هذا التطبيق'))) return null;
   const root = el('div', { class: 'ha-view' });
   const title = el('b', { text: app.name });
   const host = el('div', { class: 'ha-frame' });
@@ -26058,6 +26082,7 @@ async function openAppPage(app) {
     body.textContent = '';
     const head = el('div', { class: 'ha-head' }, [iconEl(app, 'ha-icon big'), el('div', { class: 'ha-hinfo' }, [
       el('h2', { text: app.name }),
+      NX.Age ? NX.Age.badge(app, 'ha-age') : el('span'),
       el('button', { class: 'ha-by', text: '@' + (app.creatorName || 'creator'), onclick: () => { sheet.close(); NX.Community.openCreator(app.ownerId); } }),
       el('div', { class: 'tiny', text: ['▶ ' + fmtNum(app.opens || 0) + ' فتح', app.files + ' ملف', fmtBytes(app.bytes || 0), 'حُدّث ' + timeAgo(app.updatedAt)].join(' · ') })])]);
     body.appendChild(head);
@@ -26108,9 +26133,11 @@ function editInfo(app, after) {
   const vis = el('select', { class: 'select' }, Object.keys(VIS).map(v => el('option', { value: v, text: VIS[v][0] + ' — ' + VIS[v][1] })));
   vis.value = app.visibility;
   body.append(NX.field('الاسم', name), NX.field('الوصف', desc), NX.field('من يراه', vis));
+  const age = NX.Age ? NX.Age.field(NX.Age.of(app), 'لمن يناسب هذا التطبيق أو الموقع؟ «18+» يُسأل الزائر عن عمره قبل أن يفتحه.') : null;
+  if (age) body.appendChild(age.field);
   const sh = Sheet.open({ title: 'معلومات التطبيق', body, id: 'htmlapp-info', foot: [btn('حفظ', { cls: 'primary', icon: 'save', onclick: async e => {
     e.currentTarget.disabled = true;
-    try { await HtmlApps.update(app, { name: name.value, description: desc.value, visibility: vis.value }); Toast.ok('حُفظ'); sh.close(); after && after(); }
+    try { await HtmlApps.update(app, { name: name.value, description: desc.value, visibility: vis.value, ageRating: age ? age.select.value : null }); Toast.ok('حُفظ'); sh.close(); after && after(); }
     catch (err) { Toast.err('تعذّر الحفظ: ' + NX.describeFirebaseError(err)); e.currentTarget.disabled = false; }
   } })] });
 }
@@ -26134,7 +26161,8 @@ async function uploadFlow(existing = null, how = 'files') {
   const desc = el('textarea', { class: 'textarea', value: existing ? existing.description || '' : '', placeholder: 'ما هو التطبيق أو الموقع؟ كيف يُستعمل؟', style: { minHeight: '90px' } });
   const vis = el('select', { class: 'select' }, Object.keys(VIS).map(v => el('option', { value: v, text: VIS[v][0] + ' — ' + VIS[v][1] })));
   vis.value = existing ? existing.visibility : 'public';
-  if (!existing) body.append(NX.field('الاسم', name), NX.field('الوصف', desc), NX.field('من يراه', vis));
+  const age = NX.Age ? NX.Age.field(existing ? NX.Age.of(existing) : '3', 'لمن يناسب هذا التطبيق أو الموقع؟ «18+» يُسأل الزائر عن عمره قبل أن يفتحه.') : null;
+  if (!existing) { body.append(NX.field('الاسم', name), NX.field('الوصف', desc), NX.field('من يراه', vis)); if (age) body.appendChild(age.field); }
   else body.appendChild(el('p', { class: 'tiny', text: 'تُستبدل ملفات «' + existing.name + '» بهذه، ويبقى الاسم والرابط كما هما.' }));
   body.appendChild(el('p', { class: 'tiny', style: { marginTop: '8px' }, text: '🔒 كل تطبيق يعمل في صندوق معزول: لا يصل إلى حسابك ولا إلى الموقع، ولا يستطيع تغيير الصفحة.' }));
   const prog = el('div', { class: 'gm-prog hide' }, [el('i')]);
@@ -26149,7 +26177,7 @@ async function uploadFlow(existing = null, how = 'files') {
       if (busy) return;
       busy = true; e.currentTarget.disabled = true; prog.classList.remove('hide');
       try {
-        const rec = await HtmlApps.save(read, { name: name.value, description: desc.value, visibility: vis.value }, { existing, onProgress: f => { prog.firstChild.style.width = Math.round(f * 100) + '%'; } });
+        const rec = await HtmlApps.save(read, { name: name.value, description: desc.value, visibility: vis.value, ageRating: age ? age.select.value : null }, { existing, onProgress: f => { prog.firstChild.style.width = Math.round(f * 100) + '%'; } });
         sheet.close();
         Toast.ok(existing ? 'حُدّث التطبيق' : 'رُفع التطبيق ✓');
         window.dispatchEvent(new CustomEvent('nx:platformRefresh'));
@@ -26192,7 +26220,7 @@ function row(a, onclick) {
 }
 function card(a) {
   return el('div', { class: 'gcard ha-card', dataset: { app: a.appId }, onclick: () => openAppPage(a) }, [
-    el('div', { class: 'cover ha-cover' }, [iconEl(a)]),
+    el('div', { class: 'cover ha-cover' }, [iconEl(a)].concat(NX.Age && NX.Age.of(a) !== '3' ? [NX.Age.badge(a, 'on-cover')] : [])),
     el('div', { class: 'meta' }, [el('b', { text: a.name }), el('span', { class: 'by', text: '@' + (a.creatorName || 'creator') }), el('div', { class: 'stats' }, [el('span', { text: '▶ ' + fmtNum(a.opens || 0) })])])]);
 }
 
@@ -26217,7 +26245,7 @@ Object.assign(HtmlApps, {
     const sec = el('div');
     host.appendChild(sec);
     try {
-      const apps = await HtmlApps.publicList(12);
+      const apps = (await HtmlApps.publicList(12)).filter(a => !(NX.Age && NX.Age.hidden(a)));
       if (!apps.length || !sec.isConnected) return;
       sec.appendChild(el('div', { class: 'sec-head' }, [el('h2', { text: 'تطبيقات ومواقع' }), el('button', { text: '＋ ارفع تطبيقك', style: { fontSize: '12.5px', color: 'var(--cyan)', fontWeight: '700' }, onclick: () => uploadFlow() })]));
       const g = el('div', { class: 'grid' });
@@ -26400,7 +26428,8 @@ const KeyBox = {
     else if (x.state === 'incomplete') say('محتوى FIREBASE_SERVICE_ACCOUNT ناقص', 'ينقصه: ' + [x.client_email ? '' : 'client_email', x.private_key ? '' : 'private_key'].filter(Boolean).join(' و ') + ' — غالبًا نُسخ جزء من الملف فقط.', ['الصق الملف كاملًا من { إلى }', deploy]);
     else if (x.state === 'refused') say('Google رفض حساب الخدمة', 'الرد: ' + (x.error || '') + ' — غالبًا المفتاح حُذف من Firebase أو نُسخ ناقصًا.', ['Firebase Console ← ⚙ Project settings ← Service accounts ← Generate new private key', 'ضع محتوى الملف الجديد بدل القديم في FIREBASE_SERVICE_ACCOUNT', deploy]);
     else if (x.state === 'firestore') say('حساب الخدمة يعمل، لكن Firestore رفض', 'الرد: ' + (x.error || '') + ' (المشروع: ' + (x.project || '—') + ').', ['تأكد أن ملف JSON من نفس مشروع Firebase الذي يستعمله الموقع', 'وأن Firestore Database مفعّل فيه (Firebase Console ← Firestore Database ← Create database)', deploy]);
-    else say('خادم الموقع لا يرى FIREBASE_SERVICE_ACCOUNT', 'الخادم يعمل، لكن هذا المتغيّر لم يصل إليه. إن كنت أضفته فغالبًا لم يُعَد النشر بعده:', [
+    else if (x.state === 'blobs') say('مخزن Netlify رفض الحفظ', 'الرد: ' + (x.error || '') + '.', ['Deploys ← Trigger deploy ← Deploy site، ثم أعد فتح هذا الصندوق', 'إن بقي: ضع FIREBASE_SERVICE_ACCOUNT كطريق بديل (الخطوات تظهر هنا بعد إزالة المشكلة)']);
+    else say('لا يوجد بعد مكان على الخادم يحفظ المفاتيح', 'على موقع Netlify مربوط بـ GitHub يعمل الصندوق وحده (مخزن Netlify Blobs) — بعد أن تُنشر هذه النسخة الجديدة من NEXUS: Deploys ← Trigger deploy ← Deploy site. إن بقيت هذه الرسالة بعد النشر، فالطريق البديل مرة واحدة:', [
       'Firebase Console ← ⚙ Project settings ← Service accounts ← Generate new private key (يُنزَّل ملف JSON)',
       'Netlify ← Site configuration ← Environment variables ← Add a variable — الاسم بالضبط: FIREBASE_SERVICE_ACCOUNT، والقيمة: كل محتوى الملف من { إلى }',
       'Scopes: اختر All scopes (أو على الأقل Functions)', deploy]);
@@ -26432,6 +26461,86 @@ const KeyBox = {
 NX.KeyBox = KeyBox;
 </script>
 <!-- /NX-PART:29 -->
+<!-- NX-PART:30 -->
+<script type="module">
+/* ============================================================
+   PART 30 · AGE RATINGS — every game and every HTML app / site says
+   who it is for: 3+ (everyone) · 7+ · 12+ · 16+ · 18+ (adults only).
+   The creator picks it when publishing / uploading (and can change
+   it later); the page and the cards show it; an 18+ game or site
+   asks once on this device «are you 18 or older?» before it runs,
+   and someone who answered «no» does not see 18+ in the lists.
+   (The answer is the player's own word — nothing is verified.)
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, Modal, Toast, LS } = NX;
+
+const AGES = [
+  ['3', '3+', 'لكل الأعمار (من 3 سنوات)'],
+  ['7', '7+', 'من 7 سنوات'],
+  ['12', '12+', 'من 12 سنة'],
+  ['16', '16+', 'من 16 سنة'],
+  ['18', '18+', 'للبالغين فقط (18 سنة فأكثر)']
+];
+const Age = {
+  list: AGES,
+  valid(v) { return AGES.some(a => a[0] === String(v)); },
+  /* a game / app record → its rating ('3' when none was chosen) */
+  of(x) {
+    const v = x && (x.ageRating || (x.showcase && x.showcase.ageRating));
+    return this.valid(v) ? String(v) : '3';
+  },
+  label(v) { return (AGES.find(a => a[0] === String(v)) || AGES[0])[1]; },
+  text(v) { return (AGES.find(a => a[0] === String(v)) || AGES[0])[2]; },
+  badge(x, cls = '') {
+    const v = typeof x === 'object' ? this.of(x) : (this.valid(x) ? String(x) : '3');
+    return el('span', { class: 'age-badge age-' + v + (cls ? ' ' + cls : ''), text: this.label(v), title: this.text(v) });
+  },
+  /* the creator's choice, with each option spelled out */
+  select(value) {
+    const s = el('select', { class: 'select age-select' }, AGES.map(([v, l, t]) => el('option', { value: v, text: l + ' — ' + t })));
+    s.value = this.valid(value) ? String(value) : '3';
+    return s;
+  },
+  field(value, note) {
+    const s = this.select(value);
+    const f = NX.field('الفئة العمرية · Age rating', s);
+    f.appendChild(el('span', { class: 'tiny', style: { display: 'block', marginTop: '4px' }, text: note || 'لمن تناسب هذه اللعبة؟ تظهر على صفحتها وبطاقتها. «18+» يُسأل اللاعب عن عمره قبل أن يلعب.' }));
+    return { field: f, select: s };
+  },
+  /* this device: 'adult' · 'minor' · null (not asked yet) */
+  mode() { const m = LS.get('ageMode', null); return m === 'adult' || m === 'minor' ? m : null; },
+  setMode(m) { if (m) LS.set('ageMode', m); else LS.del('ageMode'); },
+  hidden(x) { return this.mode() === 'minor' && this.of(x) === '18'; },
+  /* before an 18+ game or site runs: asked once on this device */
+  allow(x, what = 'هذه اللعبة') {
+    if (this.of(x) !== '18') return Promise.resolve(true);
+    const me = NX.Backend && NX.Backend.user;
+    if (me && x.ownerId && x.ownerId === me.uid) return Promise.resolve(true);   // your own
+    if (this.mode() === 'adult') return Promise.resolve(true);
+    if (this.mode() === 'minor') {
+      Modal.open({ title: '🔞 للبالغين فقط', body: what + ' مخصّصة لمن عمرهم 18 سنة أو أكثر.', actions: [{ label: 'حسنًا', cls: 'primary' }] });
+      return Promise.resolve(false);
+    }
+    return new Promise(res => Modal.open({ title: '🔞 ' + what + ' للبالغين فقط (18+)', dismissable: false,
+      body: 'صاحبها حدّدها لمن عمرهم 18 سنة أو أكثر. هل عمرك 18 سنة أو أكثر؟ (يُحفظ جوابك على هذا الجهاز، وتغيّره من الإعدادات.)',
+      actions: [
+        { label: 'لا، عمري أقل من 18', cls: 'ghost', onclick: () => { this.setMode('minor'); res(false); } },
+        { label: 'نعم، عمري 18 أو أكثر', cls: 'primary', onclick: () => { this.setMode('adult'); res(true); } }] }));
+  },
+  /* Settings: the answer, changeable */
+  openSettings() {
+    const body = el('div');
+    body.appendChild(el('p', { class: 'muted', style: { fontSize: '13px', lineHeight: '1.7', marginBottom: '12px' }, text: 'الألعاب والمواقع المحدّدة «18+» تسألك عن عمرك مرة واحدة على هذا الجهاز. إذا اخترت «أقل من 18» لا تظهر لك في القوائم ولا تُفتح.' }));
+    const cur = this.mode();
+    [['adult', 'عمري 18 سنة أو أكثر'], ['minor', 'عمري أقل من 18 — أخفِ محتوى 18+'], ['', 'اسألني عندما أفتح شيئًا 18+']].forEach(([m, t]) => body.appendChild(
+      btn((cur === (m || null) ? '✓ ' : '') + t, { cls: 'block' + (cur === (m || null) ? ' primary' : ''), style: { marginBottom: '8px' }, onclick: () => { this.setMode(m || null); Toast.ok('حُفظ'); sheet.close(); window.dispatchEvent(new CustomEvent('nx:platformRefresh')); } })));
+    const sheet = NX.Sheet.open({ title: '🔞 العمر والمحتوى', body, id: 'agemode' });
+  }
+};
+NX.Age = Age;
+</script>
+<!-- /NX-PART:30 -->
 <script type="module">
 /* ============================================================
    PART 8/18 · GAME PLATFORM + BOOT
@@ -26457,6 +26566,7 @@ const Player = {
   },
 
   async open(game, opts = {}) {
+    if (NX.Age && !(await NX.Age.allow(game, 'هذه اللعبة'))) return;
     let build = null;
     try { build = await Games.build(game.gameId); }
     catch (e) { Toast.err('تعذّر تحميل نسخة اللعبة من Firebase: ' + NX.describeFirebaseError(e)); return; }
@@ -26699,6 +26809,7 @@ const Platform = {
       else if (meta.fromCache) note.textContent = '↻ من الذاكرة المؤقتة — جارٍ التحديث من الخادم…';
       else if (meta.degraded) { note.textContent = '⚠ فهرس Firestore غير منشور — القائمة تعمل لكن أبطأ (firestore.indexes.json).'; note.style.color = '#fcd77a'; }
       else note.textContent = '';
+      if (NX.Age) items = items.filter(x => !NX.Age.hidden(x));
       if (!items.length) { grid.appendChild(this.emptyNote(empty[0], empty[1])); return; }
       const g = el('div', { class: 'grid' });
       items.forEach(x => g.appendChild(this.gameCard(x)));
@@ -26742,6 +26853,7 @@ const Platform = {
       (g.thumb ? Backend.fileURL(g.thumb, g.thumbURL) : Backend.fileURL(g.cover, g.coverURL)).then(u => { if (u) img.src = u; });
       cover.appendChild(img);
     } else cover.appendChild(el('div', { class: 'ph', text: '◆' }));
+    if (NX.Age && NX.Age.of(g) !== '3') cover.appendChild(NX.Age.badge(g, 'on-cover'));
     const meta = el('div', { class: 'meta' }, [
       el('b', { text: g.title }),
       el('span', { class: 'by', text: '@' + (g.creatorName || 'creator') })
@@ -27637,6 +27749,7 @@ function openSettings() {
   opt('spark', 'مزوّدو الذكاء الاصطناعي', 'اختر النموذج، أو أضف مفتاحك الخاص (يبقى في هذا المتصفح فقط)', () => NX.openAISettings());
   if (NX.KeyBox) opt('shield', '🔑 مفاتيح الذكاء المجاني — لصاحب الموقع', 'ضع مفاتيحك مرة واحدة على خادم الموقع: كل الناس يستعملون الذكاء المجاني دون أن يروها', () => NX.KeyBox.open());
   body.appendChild(el('div', { class: 'opt-sec', text: 'الحساب والأمان' }));
+  if (NX.Age) opt('user', '🔞 العمر والمحتوى', 'عمرك على هذا الجهاز: يحدّد إن كانت ألعاب ومواقع 18+ تظهر وتُفتح', () => NX.Age.openSettings());
   if (NX.Passkeys && NX.Passkeys.supported()) opt('user', '🔑 مفاتيح المرور · Passkeys', 'ادخل ببصمتك أو وجهك بدل كلمة المرور (اختياري)', () => NX.Passkeys.open());
   opt('shield', 'الأمان وقواعد Firebase', 'القواعد التي تحمي بيانات موقعك — انسخها وانشرها من Firebase Console', () => openSecurityPanel());
   body.appendChild(el('div', { class: 'opt-sec', text: 'إذا حدثت مشكلة' }));

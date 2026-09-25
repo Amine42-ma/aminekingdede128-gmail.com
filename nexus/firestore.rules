@@ -13,6 +13,8 @@ service cloud.firestore {
     function isOwner(d)      { return signedIn() && me() == d.ownerId; }
     function isAuthor(d)     { return signedIn() && me() == d.authorId; }
     function validVis(v)     { return v in ['public', 'unlisted', 'private']; }
+    // who a game / app is for: 3+ · 7+ · 12+ · 16+ · 18+ (none = everyone)
+    function validAge(d)     { return !('ageRating' in d) || d.ageRating in ['3', '7', '12', '16', '18']; }
     function onlyChanged(ks) { return incoming().diff(existing()).affectedKeys().hasOnly(ks); }
     // a counter may move by exactly 'by', and nothing else in the doc may change
     function bumped(f, by)   { return incoming()[f] == existing()[f] + by && onlyChanged([f]); }
@@ -235,7 +237,7 @@ service cloud.firestore {
     // rule never requires ownerId == request.auth.uid for a public game.
     match /games/{gameId} {
       function validGame(d) { return d.title is string && d.title.size() > 0 && d.title.size() <= 120
-                                     && d.gameId == gameId && validVis(d.visibility); }
+                                     && d.gameId == gameId && validVis(d.visibility) && validAge(d); }
       allow get:  if resource == null || existing().visibility in ['public', 'unlisted'] || isOwner(existing());
       allow list: if existing().visibility == 'public' || isOwner(existing());
       allow create: if signedIn() && incoming().ownerId == me() && validGame(incoming())
@@ -360,7 +362,7 @@ service cloud.firestore {
                                      && d.description is string && d.description.size() <= 2000 && validVis(d.visibility)
                                      && d.entry is string && d.entry.size() <= 300 && d.bundle is map && d.bundle.path is string
                                      && d.files is int && d.files > 0 && d.files <= 800
-                                     && d.bytes is int && d.bytes <= 26214400; }
+                                     && d.bytes is int && d.bytes <= 26214400 && validAge(d); }
       allow get:    if resource == null || existing().visibility in ['public', 'unlisted'] || isOwner(existing());
       allow list:   if existing().visibility == 'public' || isOwner(existing());
       allow create: if account() && incoming().ownerId == me() && validApp(incoming()) && incoming().opens == 0;
