@@ -1398,6 +1398,99 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 .pts-pre{max-height:50vh;overflow:auto;background:rgba(0,0,0,.35);padding:10px;border-radius:10px;font-size:12px;white-space:pre-wrap;direction:ltr;text-align:left}
 .donor-badge{display:inline-block;margin:4px 0 0;padding:2px 9px;border-radius:999px;background:rgba(34,197,94,.14);color:#86efac;font-size:12px;font-weight:700}
 /* /NX-CSS:34 */
+/* NX-CSS:35 */
+/* PART 35 · the mobile editor: bottom tool strip, play bar, create / draw / shape / material / tree */
+.ed-bar{position:absolute;inset-inline:0;bottom:0;z-index:4;display:flex;gap:2px;padding:5px 6px calc(5px + 0px);
+  background:rgba(10,12,22,.92);backdrop-filter:blur(14px);border-top:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.ed-bar::-webkit-scrollbar{display:none}
+.ed-t{flex:1 0 auto;min-width:46px;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  border-radius:var(--r-md);color:var(--ink-soft);padding:4px 5px;transition:background var(--dur),color var(--dur)}
+.ed-t svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ed-t .ed-ic{font-size:19px;line-height:21px;height:21px}
+.ed-t small{font-size:9.5px;font-weight:700;white-space:nowrap;color:var(--ink-dim)}
+.ed-t:active{background:var(--glass-2)}
+.ed-t:disabled{opacity:.35}
+.ed-t.on{background:rgba(34,211,238,.16);color:#7fe9ff}
+.ed-t.on small{color:#7fe9ff}
+.ed-t.hl{color:#fff}
+.ed-t.hl svg{background:var(--grad);border-radius:9px;padding:2px;width:25px;height:25px;stroke:#fff}
+/* the selection bar sits above the tool strip */
+.ed-on .sel-bar{bottom:72px;z-index:5;transition:transform .28s var(--ease),opacity .2s}
+.ed-on .sel-bar:not(.in){transform:translateY(calc(100% + 90px));opacity:0;pointer-events:none}
+.ed-on .sel-bar{flex-wrap:wrap;justify-content:space-between;row-gap:4px;padding:6px 7px;gap:4px}
+.ed-on .sel-bar .nm{flex:1 0 100%;padding:0 4px}
+.ed-on .sel-bar .nm small{display:inline;margin-inline-start:8px}
+.ed-on .sel-bar .icon-btn{width:auto;min-width:40px;height:auto;min-height:44px;flex:1 1 0}
+.ed-on .sel-bar .ib-cap{max-width:100%;overflow:hidden;text-overflow:ellipsis;font-size:9px}
+.ed-on .sel-bar [data-gizmo].on{background:rgba(34,211,238,.2);border-color:rgba(34,211,238,.55);color:#7fe9ff}
+.ed-on .vp-empty{bottom:62px}
+/* EDIT / PLAY */
+.ed-pill{position:absolute;top:30px;left:50%;transform:translateX(-50%);z-index:3;pointer-events:none;font-size:10.5px;font-weight:800;
+  letter-spacing:.3px;padding:4px 10px;border-radius:99px;background:rgba(14,17,28,.8);border:1px solid var(--line-2);color:var(--ink-soft);white-space:nowrap}
+.ed-pill.play{background:rgba(34,197,94,.2);border-color:rgba(34,197,94,.5);color:#86efac}
+#vp-wrap.playing .ed-bar,#vp-wrap.playing .sel-bar{display:none}
+.play-bar{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:6;display:flex;gap:6px;padding:6px;
+  border-radius:var(--r-lg);background:rgba(14,17,28,.9);backdrop-filter:blur(14px);border:1px solid var(--line-2);box-shadow:var(--shadow)}
+.pb-b{min-width:64px;min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:var(--r-md);color:var(--ink)}
+.pb-b svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.pb-b .ed-ic{font-size:18px;line-height:20px}
+.pb-b small{font-size:9.5px;font-weight:700;color:var(--ink-dim)}
+.pb-b:active{background:var(--glass-2)}
+#pb-stop{color:#fca5a5}
+/* CREATE / menus: big tiles */
+.ed-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;margin-bottom:12px}
+.ed-grid.sm,.ed-grid.menu{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
+.ed-tile{min-height:84px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 4px;text-align:center;
+  border-radius:var(--r-md);background:var(--panel-2);border:1px solid var(--line);color:var(--ink);transition:transform .12s,border-color var(--dur)}
+.ed-tile.sm{min-height:72px}
+.ed-tile:active{transform:scale(.96);border-color:rgba(34,211,238,.6)}
+.ed-tile b{font-size:12.5px}
+.ed-tile small{font-size:10.5px;color:var(--ink-dim);line-height:1.3}
+.ed-tile.danger small,.ed-tile.danger .ed-glyph{color:#fca5a5}
+.ed-glyph{font-size:26px;line-height:30px;color:#9fdcff}
+.ed-tile.sm .ed-glyph{font-size:21px;line-height:24px}
+.ed-create .btn.block{margin-bottom:6px}
+/* DRAW */
+.draw-layer{position:absolute;inset:0;z-index:8;touch-action:none}
+.draw-cv{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair;background:rgba(5,6,12,.12)}
+.draw-tip{position:absolute;top:10px;inset-inline:12px;text-align:center;font-size:12.5px;font-weight:700;padding:8px 10px;border-radius:var(--r-md);
+  background:rgba(14,17,28,.9);border:1px solid rgba(250,204,21,.4);color:#fde68a;pointer-events:none}
+.draw-bar{position:absolute;bottom:12px;inset-inline:10px;display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.draw-bar .btn{min-height:44px}
+/* shape / material sliders */
+.ed-slider{margin:8px 0 10px}
+.ed-sl-top{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;margin-bottom:4px}
+.ed-sl-top b{font-family:var(--mono);font-size:12px;color:#7fe9ff;direction:ltr;unicode-bidi:isolate}
+.ed-slider input[type=range]{width:100%;height:32px;padding:0;accent-color:#22d3ee}
+.ed-extrude{margin:10px 0 4px;border-color:rgba(34,211,238,.35)}
+.ed-swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:7px;margin-bottom:12px}
+.ed-sw{height:42px;border-radius:12px;border:2px solid rgba(255,255,255,.14);position:relative;overflow:hidden}
+.ed-sw.on{border-color:#22d3ee;box-shadow:0 0 0 2px rgba(34,211,238,.35)}
+.ed-sw-custom{display:grid;place-items:center;background:conic-gradient(#ef4444,#facc15,#22c55e,#22d3ee,#6366f1,#ec4899,#ef4444);cursor:pointer}
+.ed-sw-custom span{font-size:20px;font-weight:800;color:#fff;text-shadow:0 1px 3px #000;pointer-events:none}
+.ed-sw-custom input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+/* the scene tree */
+.ed-tree>.input{margin-bottom:8px}
+.tr-root{font-size:12px;font-weight:800;color:var(--ink-dim);padding:6px 4px}
+.tr-cat{width:100%;display:flex;justify-content:space-between;align-items:center;min-height:40px;padding:6px 8px;margin-top:4px;
+  border-radius:var(--r-sm);background:var(--panel-2);font-size:12.5px;font-weight:800;color:var(--ink-soft);text-align:start}
+.tr-cat small{font-family:var(--mono);color:var(--ink-dim)}
+.tr-row{display:flex;align-items:center;gap:8px;width:100%;min-height:46px;padding-block:4px;padding-inline-end:4px;border-bottom:1px solid var(--line);
+  font-size:13px;text-align:start;color:var(--ink);cursor:pointer;user-select:none;-webkit-user-select:none}
+.tr-row .ic{width:22px;text-align:center;flex:0 0 auto}
+.tr-row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tr-row.on{background:rgba(34,211,238,.12)}
+.tr-row.on .nm{color:#7fe9ff;font-weight:700}
+.tr-row.hidden .nm{opacity:.45}
+.tr-row.locked .nm{font-style:italic}
+.tr-b{width:40px;height:40px;flex:0 0 auto;border-radius:10px;display:grid;place-items:center;font-size:16px}
+.tr-b:active{background:var(--glass-2)}
+.tr-chk{font-size:17px;color:#7fe9ff;flex:0 0 auto}
+.tr-note{font-size:11.5px;color:var(--ink-dim);padding:8px 26px;line-height:1.6}
+.ed-insp{margin-bottom:10px}
+@media (min-width:700px){.ed-bar{inset-inline:auto;left:50%;transform:translateX(-50%);bottom:10px;border:1px solid var(--line-2);border-radius:var(--r-lg);max-width:calc(100% - 20px)}
+  .ed-on .sel-bar{bottom:82px}.ed-t{min-width:60px}}
+/* /NX-CSS:35 */
 </style>
 </head>
 <body>
@@ -4777,6 +4870,112 @@ const AssetCache = {
 /* ------------------------------------------------------------
    ENTITY
    ------------------------------------------------------------ */
+/* ------------------------------------------------------------
+   SHAPES — a primitive is built from its props, so the Shape Editor
+   changes ONE entity's geometry in place (no scene reload). Sizes
+   default to the old fixed ones (a 1 m box, r 0.5 sphere …).
+   Flat shapes (circle · rect · ring · drawn polygon) lie on the
+   ground; a depth turns them into solids: circle → cylinder,
+   rect → box, ring → tube, polygon → extruded mesh.
+   ------------------------------------------------------------ */
+const SHAPE_LIST = ['box', 'sphere', 'plane', 'cylinder', 'cone', 'capsule', 'torus', 'circle', 'ring', 'rect', 'shape2d'];
+const pnum = (v, d) => (v == null || v === '' || !isFinite(+v) ? d : +v);
+function extrudeUp(shape, depth, curveSegments) {
+  const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: curveSegments || 12 });
+  g.rotateX(-Math.PI / 2);                    // on the ground (x, z), raised along +y
+  return g;
+}
+function shapeIsFlat(p) {
+  const s = p.shape;
+  if (s === 'plane') return true;
+  if (s === 'circle' || s === 'rect' || s === 'ring') return !(pnum(p.depth, 0) > 0);
+  if (s === 'shape2d') return !!p.closed && !(pnum(p.depth, 0) > 0);
+  return false;
+}
+function primGeometry(p) {
+  const seg = Math.round(clamp(pnum(p.segments, 0), 0, 128));
+  switch (p.shape) {
+    case 'sphere': return new THREE.SphereGeometry(pnum(p.r, 0.5), seg || 32, Math.max(6, Math.round((seg || 32) * 0.62)));
+    case 'plane': return new THREE.PlaneGeometry(pnum(p.w, 1), pnum(p.d, 1));
+    case 'cylinder': return new THREE.CylinderGeometry(pnum(p.rTop, pnum(p.r, 0.5)), pnum(p.r, 0.5), pnum(p.h, 1), seg || 26);
+    case 'cone': return new THREE.ConeGeometry(pnum(p.r, 0.5), pnum(p.h, 1), seg || 26);
+    case 'capsule': return new THREE.CapsuleGeometry(pnum(p.r, 0.35), pnum(p.h, 0.8), 8, seg || 20);
+    case 'torus': return new THREE.TorusGeometry(pnum(p.r, 0.5), clamp(pnum(p.tube, 0.16), 0.005, 50), 14, seg || 40);
+    case 'circle': {
+      const r = pnum(p.r, 0.5), dep = pnum(p.depth, 0);
+      if (dep > 0) { const g = new THREE.CylinderGeometry(r, r, dep, seg || 40); g.translate(0, dep / 2, 0); return g; }
+      const g = new THREE.CircleGeometry(r, seg || 40); g.rotateX(-Math.PI / 2); return g;
+    }
+    case 'ring': {
+      const r = pnum(p.r, 0.5), inner = clamp(pnum(p.inner, 0.3), 0.001, Math.max(0.002, r - 0.001)), dep = pnum(p.depth, 0);
+      if (dep > 0) {
+        const sh = new THREE.Shape(); sh.absarc(0, 0, r, 0, Math.PI * 2, false);
+        const hole = new THREE.Path(); hole.absarc(0, 0, inner, 0, Math.PI * 2, true); sh.holes.push(hole);
+        return extrudeUp(sh, dep, seg || 40);
+      }
+      const g = new THREE.RingGeometry(inner, r, seg || 40); g.rotateX(-Math.PI / 2); return g;
+    }
+    case 'rect': {
+      const w = pnum(p.w, 1), d = pnum(p.d, 1), dep = pnum(p.depth, 0);
+      if (dep > 0) { const g = new THREE.BoxGeometry(w, dep, d); g.translate(0, dep / 2, 0); return g; }
+      const g = new THREE.PlaneGeometry(w, d); g.rotateX(-Math.PI / 2); return g;
+    }
+    case 'shape2d': {
+      /* points are stored flat — [x0, z0, x1, z1, …] — because Firestore has no arrays inside arrays */
+      const raw = Array.isArray(p.points) ? p.points : [], pts = [];
+      if (Array.isArray(raw[0])) raw.forEach(q => Array.isArray(q) && pts.push([+q[0], +q[1]]));
+      else for (let i = 0; i + 1 < raw.length; i += 2) pts.push([+raw[i], +raw[i + 1]]);
+      for (let i = pts.length - 1; i >= 0; i--) if (!isFinite(pts[i][0]) || !isFinite(pts[i][1])) pts.splice(i, 1);
+      if (pts.length < 2) return new THREE.BoxGeometry(0.2, 0.2, 0.2);
+      if (p.closed && pts.length >= 3) {
+        /* a drawn point (x, z) → shape (x, −z): after the −90° turn it lies at (x, 0, z) */
+        const sh = new THREE.Shape(pts.map(q => new THREE.Vector2(+q[0], -q[1])));
+        const dep = pnum(p.depth, 0);
+        if (dep > 0) return extrudeUp(sh, dep, seg || 12);
+        const g = new THREE.ShapeGeometry(sh); g.rotateX(-Math.PI / 2); return g;
+      }
+      /* an open stroke (line / path): a tube along it */
+      const t = clamp(pnum(p.thickness, 0.06), 0.005, 10);
+      const curve = new THREE.CatmullRomCurve3(pts.map(q => new THREE.Vector3(+q[0], t, +q[1])), false, 'centripetal', 0.2);
+      return new THREE.TubeGeometry(curve, Math.min(400, Math.max(8, pts.length * 4)), t, seg || 8, false);
+    }
+    default: return new THREE.BoxGeometry(pnum(p.w, 1), pnum(p.h, 1), pnum(p.d, 1));
+  }
+}
+/* a material's editable look: colour, metallic, roughness, opacity, glow */
+function applyMatProps(m, p) {
+  if (!m) return;
+  if (p.color && m.color) m.color.set(p.color);
+  if (p.metalness != null && 'metalness' in m) m.metalness = clamp(pnum(p.metalness, 0.05), 0, 1);
+  if (p.roughness != null && 'roughness' in m) m.roughness = clamp(pnum(p.roughness, 0.85), 0, 1);
+  const op = clamp(pnum(p.opacity, 1), 0.02, 1);
+  m.transparent = op < 1; m.opacity = op; m.depthWrite = op >= 0.99;
+  if (m.emissive) {
+    if (p.emissive) { m.emissive.set(p.emissive); m.emissiveIntensity = clamp(pnum(p.emissiveIntensity, 1), 0, 20); }
+    else m.emissive.set(0x000000);
+  }
+  m.needsUpdate = true;
+}
+function primMaterial(p) {
+  const m = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(p.color || '#8b93b8'),
+    metalness: p.metalness == null ? 0.05 : p.metalness,
+    roughness: p.roughness == null ? 0.85 : p.roughness,
+    side: shapeIsFlat(p) ? THREE.DoubleSide : THREE.FrontSide
+  });
+  applyMatProps(m, p);
+  return m;
+}
+/* an imported model's materials take the same settings (each mesh gets its own copy once) */
+function applyModelMat(obj, p) {
+  obj.traverse(n => {
+    if (!n.isMesh || !n.material) return;
+    const own = m => { if (m.userData && m.userData.nxOwn) return m; const c = m.clone(); c.userData = Object.assign({}, c.userData, { nxOwn: true }); return c; };
+    n.material = Array.isArray(n.material) ? n.material.map(own) : own(n.material);
+    (Array.isArray(n.material) ? n.material : [n.material]).forEach(m => applyMatProps(m, p));
+  });
+}
+
 let ENTITY_N = 0;
 class Entity {
   constructor(def = {}) {
@@ -4791,6 +4990,7 @@ class Entity {
     this.mixer = null;
     this.parentId = def.parentId || null;
     this.tag = def.tag || '';
+    this.locked = !!def.locked;          // a locked object cannot be picked or moved in the viewport
     this._loading = false;
   }
   serialize() {
@@ -4802,6 +5002,7 @@ class Entity {
       rotation: o ? [o.rotation.x, o.rotation.y, o.rotation.z].map(n => +n.toFixed(4)) : [0, 0, 0],
       scale: o ? o.scale.toArray().map(n => +n.toFixed(4)) : [1, 1, 1],
       visible: o ? o.visible : true,
+      ...(this.locked ? { locked: true } : {}),
       props: this.props,
       components: this.components
     };
@@ -4950,6 +5151,96 @@ class Physics {
 }
 
 /* ------------------------------------------------------------
+   GIZMO — handles a finger can hit: three arrows and a ground square
+   (move), three rings (rotate), three cubes and a centre cube (scale).
+   Drawn over the scene, the same size on screen at any distance, and
+   each wrapped in a fat invisible "hit" shape (easy on a phone).
+   ------------------------------------------------------------ */
+const GZ_COL = { x: 0xff4d6a, y: 0x4ade80, z: 0x5b8cff, xz: 0xfacc15, all: 0xffffff };
+class Gizmo {
+  constructor(engine) {
+    this.engine = engine;
+    this.root = new THREE.Group(); this.root.name = '__gizmo'; this.root.visible = false;
+    engine.helpers.add(this.root);
+    this.sets = { move: new THREE.Group(), rotate: new THREE.Group(), scale: new THREE.Group() };
+    Object.values(this.sets).forEach(g => this.root.add(g));
+    this.handles = [];
+    const mat = (c, o = 0.96) => new THREE.MeshBasicMaterial({ color: c, depthTest: false, depthWrite: false, transparent: true, opacity: o, toneMapped: false });
+    const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+    const along = (g, a) => { if (a === 'x') g.rotation.z = -Math.PI / 2; else if (a === 'z') g.rotation.x = Math.PI / 2; return g; };
+    const handle = (set, kind, axis, vis, hitGeo, hitPos) => {
+      const hit = new THREE.Mesh(hitGeo, hitMat);
+      if (hitPos) hit.position.copy(hitPos);
+      const g = new THREE.Group(); g.add(vis, hit);
+      vis.traverse(n => { if (n.isMesh) { n.renderOrder = 999; n.userData.base = n.material.color.getHex(); } });
+      hit.userData.gz = { kind, axis };
+      this.handles.push({ kind, axis, vis, hit, group: g });
+      set.add(g);
+      return g;
+    };
+    /* move: arrows along x / y / z, a square for the ground plane, a ball in the middle */
+    ['x', 'y', 'z'].forEach(a => {
+      const v = new THREE.Group();
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.72, 8), mat(GZ_COL[a])); shaft.position.y = 0.36;
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.28, 16), mat(GZ_COL[a])); tip.position.y = 0.86;
+      v.add(shaft, tip);
+      along(handle(this.sets.move, 'move', a, v, new THREE.CylinderGeometry(0.17, 0.17, 1.15, 8), new THREE.Vector3(0, 0.58, 0)), a);
+    });
+    const sq = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), mat(GZ_COL.xz, 0.55)); sq.rotation.x = -Math.PI / 2; sq.position.set(0.36, 0, 0.36); sq.material.side = THREE.DoubleSide;
+    handle(this.sets.move, 'move', 'xz', sq, new THREE.BoxGeometry(0.46, 0.12, 0.46), new THREE.Vector3(0.36, 0, 0.36));
+    handle(this.sets.move, 'move', 'xz', new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), mat(GZ_COL.all)), new THREE.SphereGeometry(0.2, 8, 6));
+    /* rotate: a ring around each axis */
+    ['x', 'y', 'z'].forEach(a => {
+      const v = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.028, 8, 72), mat(GZ_COL[a]));
+      const g = handle(this.sets.rotate, 'rotate', a, v, new THREE.TorusGeometry(0.9, 0.14, 6, 48));
+      if (a === 'y') g.rotation.x = Math.PI / 2; else if (a === 'x') g.rotation.y = Math.PI / 2;
+    });
+    /* scale: a cube at the end of each axis, and one in the middle for all three */
+    ['x', 'y', 'z'].forEach(a => {
+      const v = new THREE.Group();
+      const line = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.8, 8), mat(GZ_COL[a])); line.position.y = 0.4;
+      const cube = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.17, 0.17), mat(GZ_COL[a])); cube.position.y = 0.9;
+      v.add(line, cube);
+      along(handle(this.sets.scale, 'scale', a, v, new THREE.BoxGeometry(0.36, 0.5, 0.36), new THREE.Vector3(0, 0.82, 0)), a);
+    });
+    handle(this.sets.scale, 'scale', 'all', new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.22), mat(GZ_COL.all)), new THREE.BoxGeometry(0.42, 0.42, 0.42));
+  }
+  /* where it sits and how big it is: every frame, cheap (no allocation beyond two vectors) */
+  update() {
+    const E = this.engine, cam = E.activeCamera;
+    const ents = E.topSelected();
+    const prim = E.selection ? E.entities.get(E.selection) : null;
+    const show = E.mode === 'editor' && E.showHandles !== false && !!E.gizmo && ents.length > 0 && prim && !E.isLocked(prim)
+      && E.helpers.visible !== false && cam === E.editorCam;
+    this.root.visible = !!show;
+    if (!show) return;
+    const pivot = E.pivot(ents);
+    this.root.position.copy(pivot);
+    if (E.gizmo === 'scale' && ents.length === 1) ents[0].object3D.getWorldQuaternion(this.root.quaternion);
+    else this.root.quaternion.identity();
+    const h = E.canvas.clientHeight || 600;
+    const wpp = 2 * cam.position.distanceTo(pivot) * Math.tan(cam.fov * Math.PI / 360) / h;
+    this.root.scale.setScalar(Math.max(1e-5, wpp * (E.gizmoPx || 96)));
+    for (const k in this.sets) this.sets[k].visible = k === E.gizmo;
+  }
+  pick(raycaster) {
+    if (!this.root.visible) return null;
+    this.root.updateMatrixWorld(true);
+    const active = this.handles.filter(hd => hd.kind === this.engine.gizmo).map(hd => hd.hit);
+    const hit = raycaster.intersectObjects(active, false)[0];
+    return hit ? hit.object.userData.gz : null;
+  }
+  highlight(gz) {
+    this.handles.forEach(hd => hd.vis.traverse(n => {
+      if (!n.isMesh) return;
+      const on = gz && hd.kind === gz.kind && hd.axis === gz.axis;
+      n.material.color.setHex(on ? 0xffffff : n.userData.base);
+      n.material.opacity = gz && !on ? 0.35 : (n.userData.base === GZ_COL.xz ? 0.55 : 0.96);
+    }));
+  }
+}
+
+/* ------------------------------------------------------------
    ENGINE CORE
    ------------------------------------------------------------ */
 class EngineCore {
@@ -4999,6 +5290,13 @@ class EngineCore {
       this.applyView();
     }
 
+    this.selected = new Set();       // every selected entity; `selection` stays the main one (the last picked)
+    this._boxPool = [];
+    this.multiSelect = false;        // tap adds / removes instead of replacing
+    /* snap: grid (m), rotation (°), scale steps — on or off together */
+    const sn = NX.LS.get('editorSnap', {});
+    this.snapOn = !!sn.on; this.snapMove = sn.move || 0.5; this.snapRot = sn.rot || 15; this.snapScale = sn.scale || 0.1;
+    if (this.mode === 'editor') this.gizmoCtl = new Gizmo(this);
     this.selection = null;
     this.gizmo = 'move';
     this.gizmoAxis = 'xz';
@@ -5090,22 +5388,10 @@ class EngineCore {
         return g;
       }
       case 'primitive': {
-        const c = p.color || '#8b93b8';
-        const mat = new THREE.MeshStandardMaterial({
-          color: new THREE.Color(c),
-          metalness: p.metalness == null ? 0.05 : p.metalness,
-          roughness: p.roughness == null ? 0.85 : p.roughness,
-          side: p.shape === 'plane' ? THREE.DoubleSide : THREE.FrontSide
-        });
-        let g;
-        if (p.shape === 'sphere') g = new THREE.SphereGeometry(0.5, 32, 20);
-        else if (p.shape === 'plane') g = new THREE.PlaneGeometry(1, 1);
-        else if (p.shape === 'cylinder') g = new THREE.CylinderGeometry(0.5, 0.5, 1, 26);
-        else if (p.shape === 'cone') g = new THREE.ConeGeometry(0.5, 1, 26);
-        else g = new THREE.BoxGeometry(1, 1, 1);
-        const m = new THREE.Mesh(g, mat);
-        if (p.shape === 'plane') m.rotation.x = -Math.PI / 2;
-        m.castShadow = true; m.receiveShadow = true;
+        const m = new THREE.Mesh(primGeometry(p), primMaterial(p));
+        if (p.shape === 'plane') m.rotation.x = -Math.PI / 2;     // (a plane carries its own tilt, as before)
+        m.castShadow = !shapeIsFlat(p) || p.shape === 'plane'; m.receiveShadow = true;
+        if (p.texture) this._texture(e, m);
         return m;
       }
       case 'model': {
@@ -5119,6 +5405,7 @@ class EngineCore {
               e.animations = inst.animations || [];
               e.assetName = asset.name;
               holder.userData.assetId = e.assetId;
+              if (p.matOverride) applyModelMat(holder, p);       // colour / metallic … set in the Material Editor
             } catch (err) {
               console.warn('asset load failed', e.assetId, err);
               holder.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xfb7185, wireframe: true })));
@@ -5179,32 +5466,121 @@ class EngineCore {
     }
     this.physics.remove(id);
     this.entities.delete(id);
-    if (this.selection === id) this.select(null);
+    if (this.selected && this.selected.has(id)) {
+      this.selected.delete(id);
+      if (this.selection === id) this.selection = [...this.selected].pop() || null;
+      this._drawSelection();
+      this.emit('selection', this.selection ? this.entities.get(this.selection) : null);
+      this.emit('selectionSet', [...this.selected]);
+    } else if (this.selection === id) this.select(null);
     this.emit('entityRemoved', e);
     this.emit('changed');
   }
 
-  async duplicate(id) {
+  /* a copy with its children, its shape, material and properties; placed beside the original */
+  async duplicate(id, offset) {
     const e = this.entities.get(id); if (!e) return null;
-    const def = e.serialize();
-    delete def.id;
-    def.name = e.name + ' copy';
-    def.position = [def.position[0] + 0.7, def.position[1], def.position[2] + 0.7];
-    return this.addEntity(def);
-  }
-
-  select(id) {
-    this.selection = id;
-    const e = id ? this.entities.get(id) : null;
-    if (this.selBox) {
-      if (e && e.object3D && (!this.view || this.view.outline !== false)) { this.selBox.setFromObject(e.object3D); this.selBox.visible = true; }
-      else this.selBox.visible = false;
+    const off = offset || [0.7, 0, 0.7];
+    const tree = [e].concat(this.descendants(id));
+    const ids = new Map(tree.map(x => [x.id, uid('e')]));
+    let first = null;
+    for (const x of tree) {
+      const def = JSON.parse(JSON.stringify(x.serialize()));
+      def.id = ids.get(x.id);
+      if (x === e) { def.name = e.name + ' copy'; def.position = [def.position[0] + off[0], def.position[1] + off[1], def.position[2] + off[2]]; }
+      else if (ids.has(x.parentId)) def.parentId = ids.get(x.parentId);
+      const n = await this.addEntity(def);
+      if (x === e) first = n;
     }
-    this.emit('selection', e);
+    return first;
   }
-  refreshSelBox() {
-    const e = this.selection ? this.entities.get(this.selection) : null;
-    if (this.selBox && e && e.object3D) this.selBox.setFromObject(e.object3D);
+  descendants(id) { const out = []; const walk = pid => { for (const x of this.entities.values()) if (x.parentId === pid) { out.push(x); walk(x.id); } }; walk(id); return out; }
+  /* move under another object (or back to the scene), keeping where it is in the world */
+  reparent(id, parentId) {
+    const e = this.entities.get(id); if (!e || !e.object3D) return false;
+    for (let q = parentId ? this.entities.get(parentId) : null; q; q = q.parentId ? this.entities.get(q.parentId) : null) if (q.id === id) return false;
+    const parent = parentId ? this.entities.get(parentId) : null;
+    (parent && parent.object3D ? parent.object3D : this.root).attach(e.object3D);
+    e.parentId = parent ? parent.id : null;
+    this.emit('changed');
+    return true;
+  }
+  isLocked(e) { for (let x = e; x; x = x.parentId ? this.entities.get(x.parentId) : null) if (x.locked) return true; return false; }
+
+  /* ---------- selection: one or many ---------- */
+  select(id, opts = {}) {
+    if (id && !this.entities.has(id)) id = null;
+    if (opts.add && id) {
+      if (this.selected.has(id) && opts.toggle) { this.selected.delete(id); if (this.selection === id) this.selection = [...this.selected].pop() || null; }
+      else { this.selected.add(id); this.selection = id; }
+    } else { this.selected = new Set(id ? [id] : []); this.selection = id || null; }
+    this._drawSelection();
+    this.emit('selection', this.selection ? this.entities.get(this.selection) : null);
+    this.emit('selectionSet', [...this.selected]);
+  }
+  selectMany(ids) {
+    this.selected = new Set((ids || []).filter(id => this.entities.has(id)));
+    this.selection = [...this.selected].pop() || null;
+    this._drawSelection();
+    this.emit('selection', this.selection ? this.entities.get(this.selection) : null);
+    this.emit('selectionSet', [...this.selected]);
+  }
+  selectedEntities() { return [...(this.selected || [])].map(id => this.entities.get(id)).filter(Boolean); }
+  /* the selected objects whose parent is not selected too (moving a group moves its children) */
+  topSelected() {
+    const s = this.selected || new Set();
+    return this.selectedEntities().filter(e => { for (let q = e.parentId; q; q = (this.entities.get(q) || {}).parentId) if (s.has(q)) return false; return !!e.object3D; });
+  }
+  pivot(ents) {
+    if (ents.length === 1) return ents[0].object3D.getWorldPosition(new THREE.Vector3());
+    const b = new THREE.Box3(); ents.forEach(e => b.expandByObject(e.object3D));
+    return b.isEmpty() ? new THREE.Vector3() : b.getCenter(new THREE.Vector3());
+  }
+  _drawSelection() {
+    if (!this.selBox) return;
+    const show = !this.view || this.view.outline !== false;
+    const prim = this.selection ? this.entities.get(this.selection) : null;
+    if (prim && prim.object3D && show) { this.selBox.setFromObject(prim.object3D); this.selBox.visible = true; } else this.selBox.visible = false;
+    const others = [...this.selected].filter(id => id !== this.selection).map(id => this.entities.get(id)).filter(e => e && e.object3D);
+    while (this._boxPool.length < others.length) { const b = new THREE.BoxHelper(undefined, 0x22d3ee); b.visible = false; this.helpers.add(b); this._boxPool.push(b); }
+    this._boxPool.forEach((b, i) => { const e = others[i]; if (e && show) { b.setFromObject(e.object3D); b.visible = true; } else b.visible = false; });
+  }
+  refreshSelBox() { this._drawSelection(); }
+
+  /* ---------- transforms as data: for undo / redo and the editor's tools ---------- */
+  captureT(ids) {
+    return ids.map(id => { const e = this.entities.get(id), o = e && e.object3D; return o ? { id, p: o.position.toArray(), r: [o.rotation.x, o.rotation.y, o.rotation.z], s: o.scale.toArray() } : null; }).filter(Boolean);
+  }
+  applyT(list) {
+    (list || []).forEach(t => { const e = this.entities.get(t.id); if (!e || !e.object3D) return; const o = e.object3D; o.position.fromArray(t.p); o.rotation.set(t.r[0], t.r[1], t.r[2]); o.scale.fromArray(t.s); });
+    this._drawSelection();
+    this.emit('transform', this.selection ? this.entities.get(this.selection) : null);
+    this.emit('changed');
+  }
+  /* a primitive's shape or material changed: rebuild THAT object only */
+  rebuild(id) {
+    const e = this.entities.get(id); if (!e || !e.object3D) return;
+    const o = e.object3D, p = e.props;
+    if (e.type === 'primitive' && o.isMesh) {
+      const g = o.geometry, m = o.material;
+      o.geometry = primGeometry(p); o.material = primMaterial(p);
+      if (g) g.dispose(); if (m && m.dispose) m.dispose();
+      o.castShadow = !shapeIsFlat(p) || p.shape === 'plane';
+      if (p.texture) this._texture(e, o);
+    } else if (e.type === 'model') { p.matOverride = true; applyModelMat(o, p); }
+    this._drawSelection();
+    this.emit('changed');
+  }
+  async _texture(e, mesh) {
+    const t = e.props.texture; if (!t) return;
+    try {
+      const a = await NX.Assets.get(t.assetId || t); if (!a) return;
+      const url = await NX.Assets.url(a); if (!url) return;
+      const tex = await new Promise((res, rej) => Loaders._tex.load(url, res, undefined, rej));
+      tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      const rep = pnum(e.props.texRepeat, 1); tex.repeat.set(rep, rep);
+      if (e.object3D === mesh && mesh.material) { mesh.material.map = tex; mesh.material.needsUpdate = true; }
+    } catch (err) { console.warn('[texture]', err && err.message); }
   }
 
   focus(entity) {
@@ -5220,54 +5596,173 @@ class EngineCore {
     else { this.orbit.target.set(0, 0.8, 0); this.orbit.radius = 9; this.orbit.apply(); }
   }
 
-  /* ---------- touch / pointer editing (rule 24) ---------- */
+  /* ---------- touch / pointer editing (rule 24) ----------
+     one finger on a HANDLE   → that handle (move on an axis / plane, rotate on a ring, scale)
+     one finger on an OBJECT  → grab it (and everything selected with it) with the current tool
+     one finger on nothing    → orbit the camera
+     two fingers on the object→ pinch = scale, twist = rotate (around its middle)
+     two fingers elsewhere    → pan + zoom the camera
+     long press               → the object's menu ('longpress')     tap → select
+     Nothing moves before the finger has travelled a few pixels (no accidental nudges). */
   _bindEditorInput() {
     const c = this.canvas;
     const pts = new Map();
-    let mode = null;            // 'orbit' | 'drag' | 'multi'
-    let start = null, startPinch = 0, moved = 0, downT = 0;
-    let dragPlane = new THREE.Plane(), dragOffset = new THREE.Vector3(), startVal = null;
-
-    const ndc = (x, y) => {
-      const r = c.getBoundingClientRect();
-      return new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
-    };
+    let mode = null;              // 'orbit' | 'drag' | 'handle' | 'gesture' | 'camera'
+    let moved = 0, downT = 0, lpTimer = null, lpFired = false, downHit = null, justAdded = false;
+    let op = null, startPinch = 0;
+    const V = () => new THREE.Vector3(), AXES = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, 1) };
+    const ndc = (x, y) => { const r = c.getBoundingClientRect(); return new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); };
+    const shown = o => { for (let n = o; n; n = n.parent) if (n.visible === false) return false; return true; };
     const pick = (x, y) => {
       this._raycaster.setFromCamera(ndc(x, y), this.activeCamera);
-      const hits = this._raycaster.intersectObject(this.root, true);
-      for (const h of hits) { const e = this.entityOf(h.object); if (e) return { e, point: h.point }; }
+      for (const h of this._raycaster.intersectObject(this.root, true)) {
+        if (!shown(h.object)) continue;                          // hidden objects are not picked
+        const e = this.entityOf(h.object);
+        if (e && !this.isLocked(e)) return { e, point: h.point }; // nor locked ones
+      }
       return null;
+    };
+    const screenOf = v => { const q = v.clone().project(this.activeCamera), r = c.getBoundingClientRect(); return { x: r.left + (q.x + 1) / 2 * r.width, y: r.top + (1 - q.y) / 2 * r.height }; };
+    const camDir = () => this.activeCamera.getWorldDirection(V());
+    const snapTo = (v, step) => Math.round(v / step) * step;
+    const setWorld = (st, wp, wq) => {
+      const o = st.e.object3D, par = o.parent || this.root;
+      par.updateMatrixWorld();
+      if (wp) o.position.copy(par.worldToLocal(wp.clone()));
+      if (wq) o.quaternion.copy(par.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(wq));
+    };
+    const changedT = () => { this._drawSelection(); this.emit('transform', this.entities.get(this.selection)); };
+
+    /* a transform in progress: every top-level selected object, as it was */
+    const beginOp = (kind, gz, x, y) => {
+      const ents = this.topSelected();
+      if (!ents.length) return null;
+      const pivot = this.pivot(ents);
+      op = { kind, gz, ents, pivot, x0: x, y0: y, armed: false, before: this.captureT(ents.map(e => e.id)),
+        primIdx: Math.max(0, ents.findIndex(e => e.id === this.selection)),
+        starts: ents.map(e => { const o = e.object3D; o.updateMatrixWorld(); return { e, wp: o.getWorldPosition(V()), wq: o.getWorldQuaternion(new THREE.Quaternion()), s: o.scale.clone() }; }) };
+      this.emit('transformStart', { ids: ents.map(e => e.id) });
+      const sel = this.entities.get(this.selection); if (sel) this.emit('dragStart', sel);
+      return op;
+    };
+    /* the reference is taken when the finger has really started moving */
+    const arm = (x, y) => {
+      op.armed = true; op.x0 = x; op.y0 = y;
+      const P0 = op.pivot, gz = op.gz || {};
+      if (op.kind === 'move' || op.kind === 'drag-move') {
+        if (gz.axis && AXES[gz.axis]) {
+          const A = AXES[gz.axis], cd = camDir();
+          let n = V().crossVectors(A, V().crossVectors(cd, A));
+          if (n.lengthSq() < 1e-6) n = cd.clone().negate();
+          op.axisV = A; op.plane = new THREE.Plane().setFromNormalAndCoplanarPoint(n.normalize(), P0);
+          const Q = this._planePoint(x, y, op.plane); op.t0 = Q ? Q.sub(P0).dot(A) : 0;
+        } else {
+          op.axisV = null;
+          op.plane = new THREE.Plane().setFromNormalAndCoplanarPoint(AXES.y, P0);
+          op.q0 = this._planePoint(x, y, op.plane) || P0.clone();
+        }
+      } else if (op.kind === 'rotate') {
+        op.c = screenOf(P0); op.last = Math.atan2(-(y - op.c.y), x - op.c.x); op.acc = 0;
+      } else if (op.kind === 'scale' && gz.axis && gz.axis !== 'all') {
+        const A = AXES[gz.axis].clone();
+        if (op.ents.length === 1) A.applyQuaternion(op.starts[0].wq);
+        const s0 = screenOf(P0), s1 = screenOf(P0.clone().add(A));
+        const d = { x: s1.x - s0.x, y: s1.y - s0.y }, L = Math.hypot(d.x, d.y) || 1;
+        op.dir2 = { x: d.x / L, y: d.y / L }; op.axisW = A;
+      }
+    };
+    const applyMove = (x, y) => {
+      const Q = this._planePoint(x, y, op.plane); if (!Q) return;
+      const prim = op.starts[op.primIdx];
+      let delta;
+      if (op.axisV) {
+        let t = Q.sub(op.pivot).dot(op.axisV) - op.t0;
+        if (this.snapOn) { const base = prim.wp.dot(op.axisV); t = snapTo(base + t, this.snapMove) - base; }
+        delta = op.axisV.clone().multiplyScalar(t);
+      } else {
+        delta = Q.sub(op.q0); delta.y = 0;
+        if (this.snapOn) { delta.x = snapTo(prim.wp.x + delta.x, this.snapMove) - prim.wp.x; delta.z = snapTo(prim.wp.z + delta.z, this.snapMove) - prim.wp.z; }
+      }
+      op.starts.forEach(st => setWorld(st, st.wp.clone().add(delta)));
+    };
+    const applyRotate = (axisV, ang) => {
+      if (this.snapOn) { const st = this.snapRot * Math.PI / 180; ang = snapTo(ang, st); }
+      const q = new THREE.Quaternion().setFromAxisAngle(axisV, ang);
+      op.starts.forEach(st => setWorld(st, st.wp.clone().sub(op.pivot).applyQuaternion(q).add(op.pivot), q.clone().multiply(st.wq)));
+    };
+    const applyScale = (factor, axis) => {
+      factor = clamp(factor, 0.02, 50);
+      op.starts.forEach(st => {
+        const o = st.e.object3D;
+        if (!axis || axis === 'all') {
+          o.scale.copy(st.s).multiplyScalar(factor);
+          if (this.snapOn) o.scale.set(Math.max(this.snapScale, snapTo(o.scale.x, this.snapScale)), Math.max(this.snapScale, snapTo(o.scale.y, this.snapScale)), Math.max(this.snapScale, snapTo(o.scale.z, this.snapScale)));
+          if (op.ents.length > 1) setWorld(st, st.wp.clone().sub(op.pivot).multiplyScalar(factor).add(op.pivot));
+        } else {
+          o.scale.copy(st.s); o.scale[axis] = st.s[axis] * factor;
+          if (this.snapOn) o.scale[axis] = Math.max(this.snapScale, snapTo(o.scale[axis], this.snapScale));
+          if (op.ents.length > 1 && op.axisW) { const off = st.wp.clone().sub(op.pivot), along = off.dot(op.axisW); setWorld(st, st.wp.clone().addScaledVector(op.axisW, along * (factor - 1))); }
+        }
+        o.scale.clampScalar(0.001, 10000);
+      });
+    };
+    const endOp = (cancel) => {
+      if (!op) return;
+      if (cancel && op.armed) this.applyT(op.before);
+      const ids = op.ents.map(e => e.id), after = this.captureT(ids);
+      const did = !cancel && JSON.stringify(after) !== JSON.stringify(op.before);
+      if (did) this.emit('transformEnd', { ids, before: op.before, after, kind: op.kind });
+      const sel = this.entities.get(this.selection);
+      if (sel) this.emit('dragEnd', sel);
+      if (did) this.emit('changed');
+      if (this.gizmoCtl) this.gizmoCtl.highlight(null);
+      op = null;
     };
 
     const down = ev => {
-      c.setPointerCapture && c.setPointerCapture(ev.pointerId);
+      try { c.setPointerCapture(ev.pointerId); } catch { }
       pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-      moved = 0; downT = performance.now();
+      moved = 0; downT = performance.now(); lpFired = false;
+      clearTimeout(lpTimer);
       if (pts.size === 2) {
         const [a, b] = Array.from(pts.values());
         startPinch = Math.hypot(a.x - b.x, a.y - b.y);
-        mode = 'multi';
+        /* both fingers on what is selected → pinch / twist the object, else the camera */
+        const onSel = downHit && this.selected.has(downHit.e.id) && (mode === 'drag' || mode === 'gesture');
+        if (onSel) {
+          if (op) endOp();
+          const o2 = beginOp('gesture', null, 0, 0);
+          if (o2) { o2.armed = true; o2.d0 = startPinch; o2.a0 = Math.atan2(-(b.y - a.y), b.x - a.x); o2.accA = 0; o2.lastA = o2.a0; }
+          mode = 'gesture';
+        } else { if (op) endOp(); mode = 'camera'; }
         return;
       }
-      start = { x: ev.clientX, y: ev.clientY };
-      const hit = pick(ev.clientX, ev.clientY);
-      /* touching any object grabs it straight away — select-then-move is not
-         required, so anything in the scene can be dragged in one gesture */
-      if (hit && this.gizmo && this.directDrag !== false) {
-        if (this.selection !== hit.e.id) this.select(hit.e.id);
-        const sel = hit.e;
-        mode = 'drag';
-        const o = sel.object3D;
-        const camDir = new THREE.Vector3(); this.activeCamera.getWorldDirection(camDir);
-        if (this.gizmo === 'move' && this.gizmoAxis === 'xz') dragPlane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), o.position);
-        else dragPlane.setFromNormalAndCoplanarPoint(camDir.negate(), o.position);
-        const p = this._planePoint(ev.clientX, ev.clientY, dragPlane);
-        dragOffset.copy(o.position).sub(p || o.position);
-        startVal = { pos: o.position.clone(), rot: o.rotation.clone(), scl: o.scale.clone() };
-        this.emit('dragStart', sel);
-      } else {
-        mode = 'orbit';
+      const x = ev.clientX, y = ev.clientY;
+      /* a handle first */
+      if (this.gizmoCtl && this.gizmoCtl.root.visible) {
+        this._raycaster.setFromCamera(ndc(x, y), this.activeCamera);
+        const gz = this.gizmoCtl.pick(this._raycaster);
+        if (gz) { mode = 'handle'; beginOp(gz.kind, gz, x, y); this.gizmoCtl.highlight(gz); downHit = null; return; }
       }
+      const hit = pick(x, y);
+      downHit = hit; justAdded = false;
+      if (hit) {
+        /* the finger lands on an object: it joins / becomes the selection, and can be dragged at once */
+        if (this.multiSelect) { if (!this.selected.has(hit.e.id)) { this.select(hit.e.id, { add: true }); justAdded = true; } }
+        else if (!this.selected.has(hit.e.id)) this.select(hit.e.id);
+        else if (this.selection !== hit.e.id) { this.selection = hit.e.id; this._drawSelection(); this.emit('selection', hit.e); }
+        if (this.gizmo && this.directDrag !== false) {
+          mode = 'drag';
+          beginOp(this.gizmo === 'move' ? 'drag-move' : this.gizmo, this.gizmo === 'move' && this.gizmoAxis === 'y' ? { kind: 'move', axis: 'y' } : null, x, y);
+        } else mode = 'orbit';
+      } else mode = 'orbit';
+      lpTimer = setTimeout(() => {
+        if (moved > 10 || pts.size !== 1) return;
+        lpFired = true;
+        if (op) endOp(true);
+        mode = null;
+        this.emit('longpress', { entity: hit ? hit.e : null, x, y });
+      }, 520);
     };
 
     const move = ev => {
@@ -5276,52 +5771,79 @@ class EngineCore {
       const dx = ev.clientX - prev.x, dy = ev.clientY - prev.y;
       pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
       moved += Math.abs(dx) + Math.abs(dy);
+      if (moved > 10) clearTimeout(lpTimer);
+      if (lpFired) return;
 
       if (pts.size >= 2) {
         const [a, b] = Array.from(pts.values());
         const d = Math.hypot(a.x - b.x, a.y - b.y);
-        if (startPinch) { this.orbit.zoom(clamp(startPinch / d, 0.9, 1.1)); }
+        if (mode === 'gesture' && op) {
+          const ang = Math.atan2(-(b.y - a.y), b.x - a.x);
+          let dA = ang - op.lastA; if (dA > Math.PI) dA -= 2 * Math.PI; if (dA < -Math.PI) dA += 2 * Math.PI;
+          op.lastA = ang; op.accA += dA;
+          /* twist = turn around Y, pinch = size — both around the selection's middle */
+          let ang2 = op.accA, f = clamp(d / Math.max(1, op.d0), 0.05, 20);
+          if (this.snapOn) { ang2 = snapTo(ang2, this.snapRot * Math.PI / 180); }
+          const q = new THREE.Quaternion().setFromAxisAngle(AXES.y, ang2);
+          op.starts.forEach(st => {
+            const o = st.e.object3D;
+            o.scale.copy(st.s).multiplyScalar(f);
+            if (this.snapOn) o.scale.set(Math.max(this.snapScale, snapTo(o.scale.x, this.snapScale)), Math.max(this.snapScale, snapTo(o.scale.y, this.snapScale)), Math.max(this.snapScale, snapTo(o.scale.z, this.snapScale)));
+            setWorld(st, st.wp.clone().sub(op.pivot).applyQuaternion(q).multiplyScalar(op.ents.length > 1 ? f : 1).add(op.pivot), q.clone().multiply(st.wq));
+          });
+          changedT();
+          return;
+        }
+        if (startPinch) this.orbit.zoom(clamp(startPinch / d, 0.9, 1.1));
         startPinch = d;
-        this.orbit.pan(dx * 0.5, dy * 0.5);           // two fingers = camera (rule 24)
+        this.orbit.pan(dx * 0.5, dy * 0.5);            // two fingers = camera (rule 24)
         return;
       }
       if (mode === 'orbit') { this.orbit.orbit(dx, dy); return; }
-      if (mode === 'drag') {
-        const sel = this.entities.get(this.selection); if (!sel || !sel.object3D) return;
-        const o = sel.object3D;
-        if (this.gizmo === 'move') {
-          const p = this._planePoint(ev.clientX, ev.clientY, dragPlane);
-          if (p) {
-            const np = p.add(dragOffset);
-            if (this.gizmoAxis === 'y') o.position.y = np.y;
-            else { o.position.x = np.x; o.position.z = np.z; }
-            if (this.snap) { const s = this.snap; o.position.set(Math.round(o.position.x / s) * s, o.position.y, Math.round(o.position.z / s) * s); }
-          }
-        } else if (this.gizmo === 'rotate') {
-          o.rotation.y += dx * 0.012;
-          if (this.gizmoAxis === 'y') { /* yaw only */ } else o.rotation.x += dy * 0.012;
-        } else if (this.gizmo === 'scale') {
-          const f = Math.exp(-dy * 0.006);
-          o.scale.multiplyScalar(f);
-          o.scale.clampScalar(0.01, 1000);
+      if ((mode === 'drag' || mode === 'handle') && op) {
+        const x = ev.clientX, y = ev.clientY;
+        if (!op.armed) { if (Math.hypot(x - op.x0, y - op.y0) < 6) return; arm(x, y); }
+        const k = op.kind;
+        if (k === 'move' || k === 'drag-move') applyMove(x, y);
+        else if (k === 'rotate' && op.gz) {
+          const A = AXES[op.gz.axis], a2 = Math.atan2(-(y - op.c.y), x - op.c.x);
+          let d2 = a2 - op.last; if (d2 > Math.PI) d2 -= 2 * Math.PI; if (d2 < -Math.PI) d2 += 2 * Math.PI;
+          op.last = a2; op.acc += d2;
+          const toCam = this.activeCamera.position.clone().sub(op.pivot);
+          applyRotate(A, op.acc * (A.dot(toCam) >= 0 ? 1 : -1));
+        } else if (k === 'rotate') {
+          /* grabbing the object with the rotate tool: sideways = turn around Y */
+          applyRotate(AXES.y, (x - op.x0) * 0.012);
+        } else if (k === 'scale') {
+          const ax = op.gz && op.gz.axis;
+          if (ax && ax !== 'all' && op.dir2) applyScale(Math.exp(((x - op.x0) * op.dir2.x + (y - op.y0) * op.dir2.y) / 140), ax);
+          else applyScale(Math.exp(-(y - op.y0) / 150), 'all');
         }
-        this.refreshSelBox();
-        this.emit('transform', sel);
-        return;
+        changedT();
       }
     };
 
     const up = ev => {
       pts.delete(ev.pointerId);
+      clearTimeout(lpTimer);
       if (pts.size === 0) {
         const quick = performance.now() - downT < 360 && moved < 12;
-        if (quick && mode !== 'drag') {              // tap = select (rule 24)
-          const hit = pick(ev.clientX, ev.clientY);
-          this.select(hit ? hit.e.id : null);
+        if (lpFired) { lpFired = false; mode = null; startPinch = 0; return; }
+        if (op) {
+          const wasTap = !op.armed;
+          endOp(wasTap);
+          /* multi-select: a tap on something already selected takes it out */
+          if (wasTap && quick && this.multiSelect && downHit && !justAdded) this.select(downHit.e.id, { add: true, toggle: true });
+        } else if (quick && mode !== 'handle') {
+          const hit = pick(ev.clientX, ev.clientY);                  // tap = select (rule 24)
+          if (this.multiSelect && hit) this.select(hit.e.id, { add: true, toggle: true });
+          else if (!this.multiSelect || !hit) this.select(hit ? hit.e.id : null);
         }
-        if (mode === 'drag') { this.emit('dragEnd', this.entities.get(this.selection)); this.emit('changed'); }
-        mode = null; startPinch = 0;
-      } else if (pts.size === 1) { startPinch = 0; mode = 'orbit'; }
+        mode = null; startPinch = 0; downHit = null;
+      } else if (pts.size === 1) {
+        if (mode === 'gesture') endOp();
+        startPinch = 0; mode = 'orbit';
+      }
     };
 
     c.addEventListener('pointerdown', down);
@@ -5329,7 +5851,7 @@ class EngineCore {
     c.addEventListener('pointerup', up);
     c.addEventListener('pointercancel', up);
     c.addEventListener('wheel', e => { e.preventDefault(); this.orbit.zoom(e.deltaY > 0 ? 1.11 : 0.9); }, { passive: false });
-    c.addEventListener('contextmenu', e => e.preventDefault());
+    c.addEventListener('contextmenu', e => { e.preventDefault(); const hit = pick(e.clientX, e.clientY); if (hit && !this.selected.has(hit.e.id)) this.select(hit.e.id); this.emit('longpress', { entity: hit ? hit.e : null, x: e.clientX, y: e.clientY }); });
   }
 
   _planePoint(x, y, plane) {
@@ -5420,6 +5942,7 @@ class EngineCore {
       for (const e of this.entities.values()) if (e.mixer) e.mixer.update(dt);
       if (this.physicsEnabled) { this._acc += dt; const step = 1 / 60; let n = 0; while (this._acc >= step && n++ < 5) { this.physics.step(step); this._acc -= step; } }
       for (let i = 0; i < this._updates.length; i++) { try { this._updates[i](dt, this.time.t); } catch (err) { this.emit('scriptError', err); } }
+      if (this.gizmoCtl) this.gizmoCtl.update();
       this.renderer.render(this.scene, this.activeCamera);
     };
     this._raf = requestAnimationFrame(tick);
@@ -5452,6 +5975,7 @@ function emptyScene() {
 }
 
 NX.THREE = THREE;
+NX.Shapes = { primGeometry, primMaterial, shapeIsFlat, list: SHAPE_LIST };
 NX.EngineCore = EngineCore;
 NX.Entity = Entity;
 NX.Loaders = Loaders;
@@ -7884,6 +8408,12 @@ const Studio = {
       this.engine = new EngineCore($('#viewport'), { mode: 'editor' });
       this.engine.on('selection', e => this.onSelection(e));
       this.engine.on('changed', () => { this.dirty = true; this.updateHud(); NX.Collab && NX.Collab.onLocalChange(); });
+      /* every move / turn / resize made by hand becomes one undo step */
+      this.engine.on('transformEnd', t => {
+        const names = t.ids.map(id => (this.engine.getEntity(id) || {}).name).filter(Boolean);
+        const verb = { rotate: 'تدوير', scale: 'تغيير حجم', gesture: 'تدوير وتغيير حجم' }[t.kind] || 'نقل';
+        this.record(verb + ' ' + (names.length > 1 ? names.length + ' عناصر' : names[0] || ''), { t: t.before }, { t: t.after });
+      });
       this.engine.on('view', () => this.updateHud());
       this.bindChrome();
       this.engine.start();
@@ -7891,6 +8421,7 @@ const Studio = {
     NX.migrateProjectFiles(project);
     this.lastBuild = null;
     await this.engine.load(project.scene || NX.emptyScene());
+    if (NX.EditorUI) NX.EditorUI.attach(this);          // the mobile editor (PART 35)
     this.engine.focusAll();
     this.updateHud();
     this.updateEmptyState();
@@ -7936,6 +8467,7 @@ const Studio = {
   openQuickActions(e) {
     const body = el('div');
     const o = e.object3D;
+    const rec = this.begin('تعديل ' + e.name, [e.id]);
     const grid = el('div', { class: 'quick-actions' });
     const add = (label, ic, fn) => grid.appendChild(btn(label, { cls: '', icon: ic, onclick: () => { fn(); } }));
 
@@ -7985,7 +8517,7 @@ const Studio = {
     });
     body.appendChild(grid);
     body.appendChild(btn('كل الخصائص', { cls: 'block ghost', icon: 'gear', onclick: () => { sheet.close(); this.openInspector(e); } }));
-    const sheet = Sheet.open({ title: e.name, body, id: 'quickact' });
+    const sheet = Sheet.open({ title: e.name, body, id: 'quickact', onClose: () => { if (this.engine.getEntity(e.id)) rec.commit(); } });
   },
 
   close() {
@@ -8134,14 +8666,92 @@ const Studio = {
       files: withFiles ? JSON.stringify(this.project.files || []) : null
     };
   },
+  HISTORY_MAX: 100,
   pushUndo(label, opts = {}) {
     if (!this.engine || !this.project) return;
     this.undoStack.push(this._state(label, opts.by, opts.files));
-    if (this.undoStack.length > 30) this.undoStack.shift();
+    if (this.undoStack.length > this.HISTORY_MAX) this.undoStack.shift();
     this.redoStack = [];              // a new change ends the redo history
+    this.editedSoon();
+    window.dispatchEvent(new CustomEvent('nx:history'));
+  },
+  /* A command: only the objects that changed, as they were → as they are. Undone and redone
+     in place (no scene reload), so hundreds of small edits stay light. Two payloads:
+     { t: [transforms] } for moves / turns / sizes, { states: [{ id, def | null }] } for anything
+     else (create = null → def, delete = def → null, edit = def → def). */
+  record(label, before, after, opts = {}) {
+    if (!this.engine || !this.project) return;
+    this.undoStack.push({ kind: 'cmd', label: label || 'تعديل', at: Date.now(), by: opts.by || 'user', before, after });
+    if (this.undoStack.length > this.HISTORY_MAX) this.undoStack.shift();
+    this.redoStack = [];
+    this.dirty = true; this.updateHud(); this.editedSoon();
+    window.dispatchEvent(new CustomEvent('nx:history'));
+  },
+  /* the objects (with everything under them) as data */
+  stateOf(ids) {
+    const eng = this.engine, all = [];
+    const add = id => { if (all.includes(id)) return; all.push(id); if (eng.getEntity(id)) eng.descendants(id).forEach(d => add(d.id)); };
+    (ids || []).forEach(add);
+    return all.map(id => { const e = eng.getEntity(id); return { id, def: e ? JSON.parse(JSON.stringify(e.serialize())) : null }; });
+  },
+  /* begin(label, ids) → do the edit → .commit(newIds): one undo step for the whole edit */
+  begin(label, ids) {
+    const before = new Map(this.stateOf(ids || []).map(x => [x.id, x]));
+    return { label, commit: (more, newLabel) => {
+      const all = Array.from(new Set([...before.keys(), ...this.stateOf(more || []).map(x => x.id)]));
+      const b = all.map(id => before.get(id) || { id, def: null }), a = this.stateOf(all).filter(x => all.includes(x.id));
+      if (JSON.stringify(a) === JSON.stringify(b)) return false;
+      this.record(newLabel || label, { states: b }, { states: a });
+      return true;
+    } };
+  },
+  async _applyCmd(entry, side) {
+    const eng = this.engine, st = entry[side];
+    if (st.t) { eng.applyT(st.t); return; }
+    const list = st.states || [];
+    /* first every object that stays (parents before children) — so the children of a group that is
+       about to go are already back in their old place and are not removed with it */
+    const todo = list.filter(x => x.def), done = new Set();
+    for (let guard = 0; todo.length && guard < 2000; guard++) {
+      const i = todo.findIndex(x => !x.def.parentId || done.has(x.def.parentId) || !todo.some(y => y.id === x.def.parentId));
+      const x = todo.splice(i < 0 ? 0 : i, 1)[0];
+      const e = eng.getEntity(x.id);
+      if (!e) await eng.addEntity(JSON.parse(JSON.stringify(x.def)));
+      else this.applyDef(e, x.def);
+      done.add(x.id);
+    }
+    list.filter(x => !x.def).forEach(x => eng.removeEntity(x.id));
+    eng.refreshSelBox();
+    eng.emit('transform', eng.getEntity(eng.selection));
+    eng.emit('changed');
+  },
+  /* one object back to a saved description (name, place, look, parts) — only what differs is touched */
+  applyDef(e, def) {
+    const eng = this.engine, o = e.object3D;
+    const propsChanged = JSON.stringify(e.props) !== JSON.stringify(def.props || {});
+    e.name = def.name; if (o) o.name = def.name;
+    e.tag = def.tag || ''; e.locked = !!def.locked;
+    e.components = JSON.parse(JSON.stringify(def.components || []));
+    if ((def.parentId || null) !== (e.parentId || null)) {
+      const par = def.parentId ? eng.getEntity(def.parentId) : null;
+      if (o) (par && par.object3D ? par.object3D : eng.root).add(o);
+      e.parentId = par ? par.id : null;
+    }
+    if (o) { o.position.fromArray(def.position); o.rotation.set(def.rotation[0], def.rotation[1], def.rotation[2]); o.scale.fromArray(def.scale); o.visible = def.visible !== false; }
+    if (propsChanged) {
+      e.props = JSON.parse(JSON.stringify(def.props || {}));
+      if (e.type === 'primitive' || (e.type === 'model' && e.props.matOverride)) eng.rebuild(e.id);
+      else if (e.type === 'light' && o) { if (o.color && e.props.color) o.color.set(e.props.color); if (e.props.intensity != null) o.intensity = e.props.intensity * (e.props.light === 'point' ? 8 : e.props.light === 'spot' ? 10 : 1); }
+    }
+  },
+  /* after a burst of edits: saved a few seconds later (the 30 s autosave stays as a safety net) */
+  editedSoon() {
+    clearTimeout(this._editSave);
+    this._editSave = setTimeout(() => { if (this.dirty && !this.playing && this.project) this.save(true); }, 4000);
   },
   peekRedo() { return this.redoStack[this.redoStack.length - 1] || null; },
   async _restore(entry) {
+    setTimeout(() => window.dispatchEvent(new CustomEvent('nx:history')), 0);
     await this.engine.load(JSON.parse(entry.scene));
     if (entry.assetRefs) this.project.assetRefs = entry.assetRefs.slice();
     if (entry.files) { this.project.files = JSON.parse(entry.files); this.lastBuild = null; }
@@ -8153,6 +8763,14 @@ const Studio = {
     if (this.playing) { Toast.err('أوقف التشغيل أولًا ثم تراجع'); return null; }
     const s = this.undoStack.pop();
     if (!s) { Toast.show('لا يوجد تراجع'); return null; }
+    if (s.kind === 'cmd') {
+      await this._applyCmd(s, 'before');
+      this.redoStack.push(s);
+      this.dirty = true; this.updateHud(); this.editedSoon();
+      window.dispatchEvent(new CustomEvent('nx:history'));
+      Toast.ok('تم التراجع: ' + s.label);
+      return Object.assign({ saved: true }, s);
+    }
     const entry = typeof s === 'string' ? { scene: s, label: 'تعديل المشهد' } : s;
     /* what is on screen now becomes the redo step */
     this.redoStack.push(this._state(entry.label, entry.by, !!entry.files));
@@ -8164,6 +8782,14 @@ const Studio = {
     if (this.playing) { Toast.err('أوقف التشغيل أولًا ثم أعد'); return null; }
     const entry = this.redoStack.pop();
     if (!entry) { Toast.show('لا يوجد ما يُعاد'); return null; }
+    if (entry.kind === 'cmd') {
+      await this._applyCmd(entry, 'after');
+      this.undoStack.push(entry);
+      this.dirty = true; this.updateHud(); this.editedSoon();
+      window.dispatchEvent(new CustomEvent('nx:history'));
+      Toast.ok('أُعيد: ' + entry.label);
+      return Object.assign({ saved: true }, entry);
+    }
     this.undoStack.push(this._state(entry.label, entry.by, !!entry.files));
     const saved = await this._restore(entry);
     Toast.ok('أُعيد: ' + entry.label + (saved ? '' : ' (لم يُحفظ بعد)'));
@@ -8172,6 +8798,7 @@ const Studio = {
 
   /* ---------------- scene ---------------- */
   async openHierarchy() {
+    if (NX.EditorUI) return NX.EditorUI.openHierarchy();
     const body = el('div');
     const list = el('div', { class: 'tree' });
     const draw = () => {
@@ -8189,8 +8816,9 @@ const Studio = {
         eye.appendChild(icon(e.object3D && e.object3D.visible ? 'eye' : 'eye-off'));
         eye.onclick = ev => {
           ev.stopPropagation();
+          const r = this.begin((e.object3D.visible ? 'إخفاء ' : 'إظهار ') + e.name, [e.id]);
           e.object3D.visible = !e.object3D.visible;
-          this.dirty = true; draw();
+          r.commit(); this.dirty = true; draw();
         };
         n.appendChild(eye);
         n.onclick = () => { this.engine.select(e.id); this.engine.focus(e); draw(); };
@@ -8208,6 +8836,7 @@ const Studio = {
   },
 
   openAddObject(after) {
+    if (NX.EditorUI) return NX.EditorUI.openCreate(after);
     const body = el('div');
     body.appendChild(el('p', { class: 'tiny', style: { marginBottom: '12px' },
       text: 'المحرك لا يحتوي مكتبة مجسمات. هذه عناصر تقنية فقط — المجسمات تأتي من «الأصول».' }));
@@ -8288,6 +8917,8 @@ const Studio = {
     const e = entity;
     const body = el('div');
     const o = e.object3D;
+    const rec = this.begin('تعديل ' + e.name, [e.id]);
+    if (NX.EditorUI) NX.EditorUI.inspectorTop(e, body, rec);
 
     const nameIn = el('input', { class: 'input', value: e.name });
     nameIn.addEventListener('change', () => { e.name = nameIn.value; o.name = e.name; this.dirty = true; this.onSelection(e); });
@@ -8429,7 +9060,7 @@ const Studio = {
         this.pushUndo(); this.engine.removeEntity(e.id); this.dirty = true; this.updateHud(); sheet.close();
       }})
     ];
-    const sheet = Sheet.open({ title: T('inspector'), body, foot, id: 'inspector', onClose: offT });
+    const sheet = Sheet.open({ title: T('inspector'), body, foot, id: 'inspector', onClose: () => { offT(); if (this.engine.getEntity(e.id)) rec.commit(); } });
   },
 
   /* openCode / newScript / newComponent / pickComponent live in PART 10
@@ -18341,6 +18972,22 @@ function placeRelative(engine, index, e, { targetBox = null, relation = 'beside'
     const cx = tc.x + Math.cos(ang) * R, cz = tc.z + Math.sin(ang) * R;
     return { box: setBoxBottomCenter(e, cx, targetBox.min.y, cz), note: 'حوله' };
   }
+  /* a long target — a road, a wall, a fence: «beside» is along its side, next to where the
+     object already stands (not past its far end, which is where «to its right» would land) */
+  const longX = tSize.x >= tSize.z, tLong = longX ? tSize.x : tSize.z, tShort = longX ? tSize.z : tSize.x;
+  if (relation === 'beside' && tLong > 2.5 * Math.max(0.05, tShort)) {
+    const ec = eBox.getCenter(new THREE.Vector3());
+    const eAlong = longX ? eSize.x : eSize.z, eAcross = longX ? eSize.z : eSize.x;
+    const room = Math.max(0, tLong / 2 - eAlong / 2);
+    const at = THREE.MathUtils.clamp(longX ? ec.x - tc.x : ec.z - tc.z, -room, room) + (slot - (slots - 1) / 2) * (eAlong + Math.max(0.5, gap * 0.6));
+    const side0 = Math.sign(longX ? ec.z - tc.z : ec.x - tc.x) || 1;
+    for (let k = 0; k < 6; k++) for (const side of [side0, -side0]) for (const slide of [0, 1, -1, 2, -2]) {
+      const across = tShort / 2 + eAcross / 2 + gap + k * (eAcross + gap), a = at + slide * (eAlong + gap);
+      const cx = longX ? tc.x + a : tc.x + side * across, cz = longX ? tc.z + side * across : tc.z + a;
+      const box = setBoxBottomCenter(e, cx, targetBox.min.y, cz);
+      if (!overlaps(box, obs)) return { box, note: 'بجانبه' };
+    }
+  }
   /* closest free spot first: every side at the nearest distance before
      moving outwards; an explicit side («أمام») may slide sideways */
   const tryDirs = relation === 'beside' ? ['right', 'left', 'front', 'behind'] : [relation];
@@ -18520,7 +19167,9 @@ const Agent = {
     }
     if (!concept) return { none: true };
     plan.index = plan.index || await sceneIndex(eng);
-    let list = plan.index.filter(x => eng.entities.has(x.e.id) && x.concepts.has(concept.id) && (concept.id === 'ground' || !x.ground));
+    /* a big flat object counts as the ground — unless its own name / tag says what it is («Road», «Parking») */
+    const named = x => [...x.words].some(w => { const h = CONCEPT_OF.get(w); return h && h.c.id === concept.id; });
+    let list = plan.index.filter(x => eng.entities.has(x.e.id) && x.concepts.has(concept.id) && (concept.id === 'ground' || !x.ground || named(x)));
     const adjs = forTarget ? [] : (st.adjs || []);
     if (adjs.length && list.length > 1) {
       const narrowed = list.filter(x => adjs.some(a => a.en.concat(a.ar.map(z => NX.tokenize(z)[0])).some(t => x.words.has(t)) ||
@@ -19724,7 +20373,9 @@ const Intent = {
    ============================================================ */
 const MA_OPS = ['ADD_ASSET', 'CREATE_OBJECT', 'MOVE_OBJECT', 'ROTATE_OBJECT', 'SCALE_OBJECT', 'SET_PROPERTY', 'DELETE_OBJECT', 'CREATE_SCRIPT', 'UPDATE_SCRIPT', 'BUILD_GAME', 'PLAY_TEST',
   /* the editor agent's operations (PART 31) */
-  'ADD_SYSTEM', 'SET_COMPONENT', 'SET_BODY', 'SNAP_TO_GROUND', 'FIX_ROTATION'];
+  'ADD_SYSTEM', 'SET_COMPONENT', 'SET_BODY', 'SNAP_TO_GROUND', 'FIX_ROTATION',
+  /* the editor's own tools (PART 35) */
+  'ARRAY_OBJECT', 'DUPLICATE_OBJECT'];
 const MA_RELATIONS = ['beside', 'front', 'behind', 'left', 'right', 'around', 'on'];
 const MA_REL_AR = { beside: 'بجانب', front: 'أمام', behind: 'خلف', left: 'يسار', right: 'يمين', around: 'حول', on: 'فوق' };
 const MA_PROTOCOL = `ACTING ON THE PROJECT
@@ -26831,6 +27482,7 @@ const CAPTIONS = {
   'vt-grid': ['الشبكة', 'إظهار أو إخفاء خطوط الأرضية'], 'sel-insp': ['الخصائص', 'اللون والحجم والفيزياء للكائن المحدّد'],
   'sel-cmt': ['تعليق', 'اكتب ملاحظة لفريقك على هذا الكائن'],
   'sel-ai': ['اسأل الذكاء', 'اطلب من المساعد أن يعدّل هذا الكائن أو يصلحه'],
+  'sel-dup': ['تكرار', 'نسخة من الكائن بجانبه مباشرة'], 'sel-more': ['قائمة', 'كل أوامر الكائن: حذف، قفل، إخفاء، تجميع، محاذاة…'],
   'btn-search': ['بحث', 'ابحث عن لعبة أو صانع أو أصل'], 'btn-notif': ['التنبيهات', 'الإعجابات والمتابعات والدعوات'],
   'btn-settings': ['الإعدادات', 'اللغة والألوان والحساب والذكاء الاصطناعي']
 };
@@ -27366,8 +28018,26 @@ const RX = {
   only: /(فقط|(^|\s)بس(\s|$)|وحدها|وحده|لوحدها|لوحده|\bonly\b|just this)/,
   game: /(في اللعبه|باللعبه|in the game|اللعبه كلها|كل اللعبه)/,
   project: /(المشروع|\bproject\b)/,
-  add: /^(\S+\s+){0,3}(اضف|ضيف|add)\s/
+  add: /^(\S+\s+){0,3}(اضف|ضيف|add)\s/,
+  /* «انسخ هذا المبنى خمس مرات وضعها على شكل دائرة» — the editor's Array tool */
+  copyVerb: /(^|\s)(انسخ|انسخها|انسخه|نسخ|كرر|كررها|كرره|ضاعف|اعمل|اصنع|سوي|duplicate|copy|clone|repeat|make)(\s|$)/,
+  times: /(\d+\s*(مرات|مره|نسخ|نسخه|copies|times|x)|(^|\s)(مرتين|نسختين)(\s|$)|(^|\s)(ثلاث|ثلاثه|اربع|اربعه|خمس|خمسه|ست|سته|سبع|سبعه|ثمان|ثماني|ثمانيه|تسع|تسعه|عشر|عشره|عشرين|عشرون)\s+(مرات|مره|نسخ|نسخات)|\b(two|three|four|five|six|seven|eight|nine|ten|twenty)\s+(times|copies)\b|×\s*\d+)/,
+  circle: /(دايره|دايري|دايريه|حلقه|حوله|حولها|حول|circle|circular|ring|around)/,
+  grid: /(شبكه|مربع|صفوف|grid)/,
+  higher: /(اعلي|(^|\s)ارفع(ها|ه)?(\s|$)|higher|raise|lift)/,
+  lower: /(اخفض|اخفضها|اخفضه|انزلها قليلا|انزله قليلا|lower)/
 };
+const NUM_WORDS = { 'مرتين': 2, 'نسختين': 2, 'ثلاث': 3, 'ثلاثه': 3, 'اربع': 4, 'اربعه': 4, 'خمس': 5, 'خمسه': 5, 'ست': 6, 'سته': 6, 'سبع': 7, 'سبعه': 7, 'ثمان': 8, 'ثماني': 8, 'ثمانيه': 8,
+  'تسع': 9, 'تسعه': 9, 'عشر': 10, 'عشره': 10, 'عشرين': 20, 'عشرون': 20, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twenty: 20 };
+/* how many copies a sentence asks for (digits, Arabic / English number words) */
+function countIn(t) {
+  const d = /(\d+)\s*(مرات|مره|نسخ|نسخه|copies|times|x)/.exec(t) || /×\s*(\d+)/.exec(t);
+  if (d) return +d[1];
+  for (const w of t.split(' ')) if (NUM_WORDS[w]) return NUM_WORDS[w];
+  return 0;
+}
+/* a distance in metres in the sentence («2 م», «3 متر», «1.5m») */
+function metresIn(t) { const m = /(\d+(?:\.\d+)?)\s*(م|متر|امتار|مترات|m|meters?|metres?)(\s|$)/.exec(t); return m ? +m[1] : 0; }
 const THIS = new Set(['هذا', 'هذه', 'هذي', 'هاذي', 'هاذا', 'this', 'المحدد', 'المختار', 'selected', 'المحدده', 'المختاره']);
 const PRON_WORDS = new Set(['لها', 'له', 'فيها', 'فيه', 'عليها', 'عليه', 'بها', 'به', 'منها', 'منه', 'لهم', 'it', 'its', 'them']);
 const PRON_VERBS = new Set(['اجعل', 'خلي', 'صغر', 'كبر', 'حرك', 'انقل', 'ضع', 'حط', 'اصلح', 'صلح', 'لون', 'دور', 'غير', 'ارجع', 'اعد', 'انزل', 'نزل', 'ارفع', 'عدل', 'صحح', 'شغل', 'زود', 'سرع', 'بطئ', 'ابطئ', 'اسرع', 'وقف', 'اوقف', 'افحص', 'شخص']);
@@ -27438,6 +28108,7 @@ function skillOf(text) {
   if (RX.chase.test(t)) return 'chase';
   if (RX.path.test(t) && RX.pathWhat.test(t)) return 'path';
   if (RX.fuel.test(t)) return 'fuel';
+  if (RX.copyVerb.test(t) && RX.times.test(t) && countIn(t) > 0) return 'array';
   if (adding) return null;
   if (RX.fixMove.test(t)) return 'diagnose';
   if (RX.drive.test(t) && !RX.broken.test(t)) return 'drive';
@@ -27451,7 +28122,7 @@ function skillOf(text) {
   if (!adding && RX.relocate.test(t)) return DEST.test(t) && !/(مكان|موضع) (اخر|ثاني|تاني)/.test(t) ? null : 'relocate';
   const col = colorIn(text);
   if (!adding && ((RX.colorWord.test(t) && RX.change.test(t)) || (col && RX.colorWord.test(t)) || (col && /(اجعل|خلي|صير|make|turn)/.test(t) && !RX.add.test(t)))) return 'color';
-  if (!adding && RX.soft.test(t) && (RX.sizeDown.test(t) || RX.sizeUp.test(t))) return 'size';
+  if (!adding && RX.soft.test(t) && (RX.sizeDown.test(t) || RX.sizeUp.test(t) || RX.higher.test(t) || RX.lower.test(t))) return 'size';
   return null;
 }
 
@@ -28444,18 +29115,48 @@ SK.size = async (req, ui) => {
   if (tg.ask) return askWhich(req, 'size', tg, ui);
   if (!tg.ids) return noTarget(ui);
   const t = req.t;
+  const sizing = RX.sizeDown.test(t) || RX.sizeUp.test(t);
   const down = t.search(RX.sizeDown) > t.search(RX.sizeUp) ? true : !RX.sizeUp.test(t);
-  const k = down ? 0.8 : 1.25;
+  const k = !sizing ? 1 : down ? 0.8 : 1.25;
+  /* «واجعلها أعلى قليلًا» · «ارفعها 2 م» · «اخفضها قليلًا» — its height too */
+  const lift = RX.higher.test(t) ? (metresIn(t) || (RX.soft.test(t) ? 0.5 : 1)) : RX.lower.test(t) ? -(metresIn(t) || (RX.soft.test(t) ? 0.5 : 1)) : 0;
   const eng = Stu().engine;
-  const plan = newPlan(req, { action: (down ? 'تصغير قليلًا' : 'تكبير قليلًا') + ' · Scale ×' + k, targetLabel: tg.label, scopeLabel: scopeLabelOf(tg) });
+  const what = [sizing ? (down ? 'تصغير قليلًا' : 'تكبير قليلًا') + ' · Scale ×' + k : '', lift ? (lift > 0 ? 'رفع ' : 'خفض ') + Math.abs(lift) + ' م · Move Y' : ''].filter(Boolean).join(' + ');
+  const plan = newPlan(req, { action: what, targetLabel: tg.label, scopeLabel: scopeLabelOf(tg) });
   tg.ids.forEach(id => {
     const e = ent(id), s = e.object3D.scale.clone(), box = Agent.boxOf(e), g = groundUnder(eng, e);
     const onGround = Math.abs(box.min.y - g.y) < 0.3;
-    plan.ops.push(Op.transform(e, 'الحجم (scale)', '×' + r2(s.x), '×' + r2(s.x * k), o => {
+    if (sizing) plan.ops.push(Op.transform(e, 'الحجم (scale)', '×' + r2(s.x), '×' + r2(s.x * k), o => {
       o.scale.copy(s).multiplyScalar(k); o.updateMatrixWorld(true);
       if (onGround) { const b = Agent.boxOf(ent(id)); o.position.y += g.y - b.min.y; }
     }));
+    if (lift) { const y0 = e.object3D.position.y; plan.ops.push(Op.transform(e, 'الارتفاع (position.y)', r2(y0), (lift > 0 ? '+' : '') + lift + ' م', o => { o.position.y += lift; })); }
   });
+  plan.direct = true;
+  return propose(plan, ui);
+};
+
+/* «انسخ هذا المبنى خمس مرات وضعها على شكل دائرة» · «كرّر الشجرة 6 مرات في صف» · «اعمل 9 نسخ شبكة»
+   — the editor's own Array tool (PART 35): the same copies, the same one step back */
+SK.array = async (req, ui) => {
+  if (!NX.EditorOps) return false;
+  const tg = await target(req, { allowGroup: false });
+  if (tg.ask) return askWhich(req, 'array', tg, ui);
+  if (!tg.ids) return noTarget(ui, 'حدّد ما تريد نسخه (المسه في المشهد) ثم أعد الطلب — أو سمِّه، مثل «انسخ الشجرة 5 مرات».');
+  const t = req.t, n = Math.max(1, Math.min(100, countIn(t)));
+  const pattern = RX.circle.test(t) ? 'circle' : RX.grid.test(t) ? 'grid' : 'line';
+  const dist = metresIn(t);
+  const e = ent(tg.ids[0]);
+  const L = { line: 'صف', circle: 'دائرة', grid: 'شبكة' }[pattern];
+  const plan = newPlan(req, { action: 'نسخ ×' + n + ' على شكل ' + L + ' · Array', targetLabel: tg.label, scopeLabel: scopeLabelOf(tg) });
+  plan.ops.push({ kind: 'object', id: e.id, where: e.name, label: n + ' نسخة · ' + L, from: '1', to: String(n + 1) + (dist ? ' · ' + dist + ' م' : ''),
+    apply: async () => {
+      const x = ent(e.id); if (!x) throw new Error('«' + e.name + '» لم يعد موجودًا');
+      const r = await NX.EditorOps.array([x.id], { count: n, pattern, spacing: pattern !== 'circle' ? dist : 0, radius: pattern === 'circle' ? dist : 0, record: false });
+      (r && r.created || []).forEach(id => { if (!plan.ids.includes(id)) plan.ids.push(id); });
+      return x.id;
+    } });
+  plan.notes.push(pattern === 'circle' ? 'النسخ حول «' + e.name + '» وكلها تواجه المركز' : pattern === 'grid' ? 'شبكة بجانب «' + e.name + '»' : 'صف مستقيم بجانب «' + e.name + '» بنفس المسافات');
   plan.direct = true;
   return propose(plan, ui);
 };
@@ -29041,6 +29742,19 @@ const EditorAgent = {
       }
       case 'SET_BODY': if (!exists(o.object)) throw new Error('لا يوجد كائن باسم «' + (o.object || '?') + '»'); if (!['static', 'dynamic', 'character', 'none'].includes(o.type)) throw new Error('نوع جسم غير صالح'); break;
       case 'SNAP_TO_GROUND': case 'FIX_ROTATION': if (!exists(o.object)) throw new Error('لا يوجد كائن باسم «' + (o.object || '?') + '»'); break;
+      case 'ARRAY_OBJECT':
+        if (!NX.EditorOps) throw new Error('أدوات المحرّر غير متاحة');
+        if (!exists(o.object)) throw new Error('لا يوجد كائن باسم «' + (o.object || '?') + '»');
+        o.count = Math.round(+o.count);
+        if (!(o.count >= 1 && o.count <= 100)) throw new Error('عدد النسخ من 1 إلى 100');
+        o.pattern = ['line', 'circle', 'grid'].includes(o.pattern) ? o.pattern : 'line';
+        ['spacing', 'radius'].forEach(k => { if (o[k] != null && !(+o[k] > 0 && +o[k] <= 500)) throw new Error(k + ' غير صالح'); });
+        break;
+      case 'DUPLICATE_OBJECT':
+        if (!NX.EditorOps) throw new Error('أدوات المحرّر غير متاحة');
+        if (!exists(o.object)) throw new Error('لا يوجد كائن باسم «' + (o.object || '?') + '»');
+        if (o.offset != null && !(Array.isArray(o.offset) && o.offset.length === 3 && o.offset.every(n => Number.isFinite(+n) && Math.abs(+n) <= 500))) throw new Error('إزاحة غير صالحة');
+        break;
       default: throw new Error('عملية غير مسموحة');
     }
   },
@@ -29051,6 +29765,8 @@ const EditorAgent = {
       case 'SET_BODY': return `🧱 «${o.object}» · جسم ${o.type}`;
       case 'SNAP_TO_GROUND': return `⬇ «${o.object}» على الأرض`;
       case 'FIX_ROTATION': return `⟲ تصحيح دوران «${o.object}»`;
+      case 'ARRAY_OBJECT': return `⁂ «${o.object}» ×${o.count} (${{ line: 'صف', circle: 'دائرة', grid: 'شبكة' }[o.pattern] || 'صف'})`;
+      case 'DUPLICATE_OBJECT': return `⧉ نسخة من «${o.object}»`;
     }
     return o.op;
   },
@@ -29076,6 +29792,10 @@ const EditorAgent = {
       case 'SET_BODY': plan.ops.push(Op.body(e, o.type === 'none' ? null : o.type)); break;
       case 'SNAP_TO_GROUND': { const b = Agent.boxOf(e), g = groundUnder(eng, e), y1 = e.object3D.position.y + g.y - b.min.y; plan.ops.push(Op.transform(e, 'الارتفاع', r2(e.object3D.position.y), r2(y1), q => { q.position.y = y1; })); break; }
       case 'FIX_ROTATION': plan.ops.push(Op.transform(e, 'الدوران', '', 'x 0 z 0', q => q.rotation.set(0, q.rotation.y, 0))); break;
+      case 'ARRAY_OBJECT': plan.ops.push({ where: e.name, label: 'نسخ ×' + o.count + ' · ' + o.pattern, from: '', to: '',
+        apply: async () => { await NX.EditorOps.array([e.id], { count: o.count, pattern: o.pattern, spacing: +o.spacing || 0, radius: +o.radius || 0, record: false }); return e.id; } }); break;
+      case 'DUPLICATE_OBJECT': plan.ops.push({ where: e.name, label: 'نسخة', from: '', to: '',
+        apply: async () => { const r = await NX.EditorOps.duplicate([e.id], { offset: o.offset ? o.offset.map(Number) : null, record: false }); return r && r.created[0]; } }); break;
     }
     const lines = [], ids = [];
     for (const op of plan.ops) { const id = await op.apply(); if (id) ids.push(id); lines.push('• ' + (op.where ? op.where + ' · ' : '') + op.label + (op.to !== '' && op.to != null ? ': ' + (op.from !== '' && op.from != null ? op.from + ' → ' : '') + op.to : '')); }
@@ -29213,7 +29933,9 @@ NX.ModelActions.protocol += `
 Editor operations (prefer these to writing code for the same thing):
 - ADD_SYSTEM {system: vehicle|fuel|followPath|chase|door|respawn|raceEnd|multiplayer, object?: "name", options?: {touch?: true, maxSpeed?: 24}} — NEXUS's ready, checked systems (a component on the object, or a game script)
 - SET_COMPONENT {object, component: "VehicleController", data: {maxSpeed: 30}} · SET_BODY {object, type: static|dynamic|character|none}
-- SNAP_TO_GROUND {object} · FIX_ROTATION {object}`;
+- SNAP_TO_GROUND {object} · FIX_ROTATION {object}
+- ARRAY_OBJECT {object, count: 1-100, pattern: line|circle|grid, spacing?: metres, radius?: metres} — copies; a circle goes around the object, the copies facing its middle
+- DUPLICATE_OBJECT {object, offset?: [x,y,z]} — one copy right beside it (walls line up)`;
 
 /* ------------------------------------------------------------
    THE AI PANEL: the target, the scope, AI changes, suggestions
@@ -30194,6 +30916,897 @@ setInterval(() => Points.beat(), 60000);
 NX.Points = Points;
 </script>
 <!-- /NX-PART:34 -->
+<!-- NX-PART:35 -->
+<script type="module">
+/* ============================================================
+   PART 35 · THE MOBILE EDITOR — the Studio as a real 3D editor on a
+   phone, built on what was already there (the engine's selection and
+   transforms, the Studio's undo stack, Create, Hierarchy, Inspector,
+   Play). Nothing here keeps a second copy of the scene: every tool
+   edits the engine's objects and records one undo step.
+   • Bottom toolbar: Create · Draw · Undo · Redo · Snap · Multi-select ·
+     Scene. The selection bar: Move / Rotate / Scale, Duplicate, ⋯ menu.
+   • Handles on the object (PART 4 gizmo), pinch / twist with two
+     fingers on it, long press → the object's menu.
+   • Create: cube, sphere, cylinder, cone, capsule, plane, torus,
+     circle, ring, rectangle — or DRAW with a finger: a circle, a
+     rectangle, a line, a closed shape, a path; previewed, then added.
+   • Shape Editor (sizes, segments, height = extrude), Material Editor
+     (colour, metallic, roughness, opacity, glow, image texture).
+   • Duplicate, Duplicate + Move, Array (row / circle / grid), Copy /
+     Paste, Group / Ungroup, Lock, Hide, Reset, Align, Distribute,
+     Center, Snap to ground, Focus.
+   • Play ▶ / Pause ⏸ / Stop ⏹ / Restart 🔄 — Stop comes back to the
+     editor with the scene exactly as it was.
+   NX.EditorOps are the same operations for the assistant (PART 31).
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, icon, iconBtn, Sheet, Modal, Toast, LS, clamp } = NX;
+const THREE = NX.THREE;
+const S = () => NX.Studio, E = () => NX.Studio && NX.Studio.engine;
+const beginner = () => !!(NX.Mode && NX.Mode.isBeginner());
+const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+const boxOf = e => new THREE.Box3().setFromObject(e.object3D);
+const r2 = n => Math.round(n * 100) / 100;
+
+/* ================================================================
+   OPERATIONS — the toolbar, the menus, the keyboard and the AI use
+   these; each is one undo step (unless the caller records it itself)
+   ================================================================ */
+const Ops = {
+  ids(ids) { const eng = E(); return (ids && ids.length ? ids : eng.topSelected().map(e => e.id)).filter(id => eng.getEntity(id)); },
+  names(ids) { const n = ids.map(id => (E().getEntity(id) || {}).name).filter(Boolean); return n.length > 1 ? n.length + ' عناصر' : n[0] || ''; },
+  /* run fn as one undo step (the objects in ids before → after, plus what it created) */
+  async step(label, ids, fn, opts = {}) {
+    if (opts.record === false) return fn();
+    const rec = S().begin(label, ids);
+    const r = await fn();
+    rec.commit((r && r.created) || []);
+    return r;
+  },
+  /* the world position of an object changes by (dx, dy, dz), whatever its parent is */
+  shiftWorld(e, d) {
+    const o = e.object3D, par = o.parent;
+    const wp = o.getWorldPosition(V3()).add(d);
+    par.updateMatrixWorld();
+    o.position.copy(par.worldToLocal(wp));
+  },
+  /* the highest surface under the object (not itself), or the ground (0) */
+  groundY(e) {
+    const eng = E(), b = boxOf(e), c = b.getCenter(V3());
+    const skip = new Set([e.id].concat(eng.descendants(e.id).map(d => d.id)));
+    const rc = new THREE.Raycaster(V3(c.x, b.min.y + 0.02, c.z), V3(0, -1, 0), 0, 1000);
+    for (const h of rc.intersectObject(eng.root, true)) {
+      const x = eng.entityOf(h.object);
+      if (!x || skip.has(x.id) || x.type === 'light' || x.type === 'camera' || x.type === 'spawn') continue;
+      let shown = true; for (let n = h.object; n; n = n.parent) if (n.visible === false) shown = false;
+      if (shown) return h.point.y;
+    }
+    return 0;
+  },
+  dropToGround(e) { const b = boxOf(e); if (!b.isEmpty()) this.shiftWorld(e, V3(0, this.groundY(e) - b.min.y, 0)); },
+
+  async create(def, opts = {}) {
+    const eng = E(), t = eng.orbit.target;
+    def = JSON.parse(JSON.stringify(def));
+    if (!def.position) def.position = [r2(t.x), 0, r2(t.z)];
+    return this.step('إنشاء ' + def.name, [], async () => {
+      const e = await eng.addEntity(def);
+      e.object3D.updateMatrixWorld(true);
+      if (opts.ground !== false && ['primitive', 'model', 'group'].includes(e.type)) this.dropToGround(e);
+      eng.select(e.id);
+      return { created: [e.id], entity: e };
+    }, opts);
+  },
+  /* beside the original (the side the camera looks along), by its own width: walls line up */
+  offsetFor(ids, gap = 0.1) {
+    const eng = E(), right = V3();
+    eng.editorCam.matrixWorld.extractBasis(right, V3(), V3());
+    const u = new THREE.Box3(); ids.forEach(id => u.expandByObject(eng.getEntity(id).object3D));
+    const size = u.getSize(V3());
+    return Math.abs(right.x) >= Math.abs(right.z) ? [(size.x + gap) * Math.sign(right.x || 1), 0, 0] : [0, 0, (size.z + gap) * Math.sign(right.z || 1)];
+  },
+  async duplicate(ids, opts = {}) {
+    ids = this.ids(ids); if (!ids.length) return null;
+    const eng = E(), off = opts.offset || this.offsetFor(ids, opts.gap);
+    return this.step((opts.move ? 'تكرار ونقل ' : 'تكرار ') + this.names(ids), [], async () => {
+      const made = [];
+      for (const id of ids) { const c = await eng.duplicate(id, off); if (c) made.push(c.id); }
+      eng.selectMany(made);
+      if (opts.move) { eng.gizmo = 'move'; UI.syncTool(); }
+      return { created: made };
+    }, opts);
+  },
+  /* N copies: a row (along x), a circle around the original (facing it), or a grid */
+  async array(ids, o = {}) {
+    ids = this.ids(ids); if (!ids.length) return null;
+    const eng = E(), src = eng.getEntity(ids[0]);
+    const n = Math.round(clamp(+o.count || 5, 1, 100)), pattern = ['circle', 'grid'].includes(o.pattern) ? o.pattern : 'line';
+    const size = boxOf(src).getSize(V3()), big = Math.max(size.x, size.z, 0.2);
+    const label = { line: 'صف', circle: 'دائرة', grid: 'شبكة' }[pattern];
+    return this.step('نسخ ' + src.name + ' ×' + n + ' (' + label + ')', [], async () => {
+      const made = [];
+      const R = +o.radius || Math.max(big * 1.6, (big * 1.35 * n) / (2 * Math.PI));
+      const sp = +o.spacing || (pattern === 'line' ? size.x + Math.max(0.1, size.x * 0.2) : big * 1.35);
+      const cols = Math.ceil(Math.sqrt(n));
+      for (let i = 0; i < n; i++) {
+        let off, turn = 0;
+        if (pattern === 'circle') { const a = (i / n) * Math.PI * 2; off = [Math.cos(a) * R, 0, Math.sin(a) * R]; if (o.face !== false) turn = Math.atan2(-Math.cos(a), -Math.sin(a)); }
+        else if (pattern === 'grid') off = [((i % cols) + 1) * sp, 0, Math.floor(i / cols) * sp];
+        else off = [(i + 1) * sp, 0, 0];
+        const c = await eng.duplicate(src.id, off);
+        if (!c) continue;
+        if (turn) c.object3D.rotation.y = turn;
+        c.name = src.name + ' ' + (i + 1); c.object3D.name = c.name;
+        made.push(c.id);
+      }
+      eng.selectMany(made);
+      return { created: made };
+    }, o);
+  },
+  async remove(ids, opts = {}) {
+    ids = this.ids(ids); if (!ids.length) return;
+    const eng = E();
+    return this.step('حذف ' + this.names(ids), ids, async () => { ids.forEach(id => eng.removeEntity(id)); return {}; }, opts);
+  },
+  copy(ids) {
+    ids = this.ids(ids); if (!ids.length) return 0;
+    const eng = E(), defs = [];
+    ids.forEach(id => [eng.getEntity(id)].concat(eng.descendants(id)).forEach(e => defs.push(JSON.parse(JSON.stringify(e.serialize())))));
+    this.clip = defs; try { LS.set('editorClipboard', defs); } catch { }
+    return ids.length;
+  },
+  async paste(opts = {}) {
+    const defs = this.clip || LS.get('editorClipboard', null);
+    if (!defs || !defs.length) return null;
+    const eng = E(), ids = new Map(defs.map(d => [d.id, NX.uid('e')]));
+    return this.step('لصق ' + (defs.length > 1 ? defs.length + ' عناصر' : defs[0].name), [], async () => {
+      const made = [], roots = [];
+      for (const d0 of defs) {
+        const d = JSON.parse(JSON.stringify(d0));
+        const isRoot = !ids.has(d.parentId);
+        d.id = ids.get(d0.id);
+        if (isRoot) { d.parentId = d.parentId && eng.getEntity(d.parentId) ? d.parentId : null; d.position = [d.position[0] + 0.6, d.position[1], d.position[2] + 0.6]; }
+        else d.parentId = ids.get(d0.parentId);
+        const e = await eng.addEntity(d);
+        made.push(e.id); if (isRoot) roots.push(e.id);
+      }
+      eng.selectMany(roots);
+      return { created: made };
+    }, opts);
+  },
+  async group(ids, opts = {}) {
+    ids = this.ids(ids); if (!ids.length) return null;
+    const eng = E(), ents = ids.map(id => eng.getEntity(id)), piv = eng.pivot(ents);
+    const parentId = ents[0].parentId || null, par = parentId ? eng.getEntity(parentId) : null;
+    const local = par ? par.object3D.worldToLocal(piv.clone()) : piv;
+    return this.step('تجميع ' + this.names(ids), ids, async () => {
+      const g = await eng.addEntity({ name: 'Group', type: 'group', props: {}, parentId, position: [r2(local.x), r2(local.y), r2(local.z)] });
+      g.object3D.updateMatrixWorld(true);
+      ids.forEach(id => eng.reparent(id, g.id));
+      eng.select(g.id);
+      return { created: [g.id] };
+    }, opts);
+  },
+  async ungroup(ids, opts = {}) {
+    const eng = E();
+    ids = this.ids(ids).filter(id => eng.getEntity(id).type === 'group');
+    if (!ids.length) return null;
+    return this.step('فكّ تجميع ' + this.names(ids), ids, async () => {
+      const freed = [];
+      ids.forEach(id => {
+        const g = eng.getEntity(id);
+        Array.from(eng.entities.values()).filter(c => c.parentId === id).forEach(c => { eng.reparent(c.id, g.parentId || null); freed.push(c.id); });
+        eng.removeEntity(id);
+      });
+      eng.selectMany(freed);
+      return {};
+    }, opts);
+  },
+  async lock(ids, on, opts = {}) {
+    ids = ids && ids.length ? ids : [...E().selected];
+    const eng = E(), val = on == null ? !ids.every(id => eng.getEntity(id).locked) : !!on;
+    return this.step((val ? 'قفل ' : 'فتح ') + this.names(ids), ids, async () => { ids.forEach(id => { eng.getEntity(id).locked = val; }); eng.emit('changed'); return {}; }, opts);
+  },
+  async hide(ids, on, opts = {}) {
+    ids = ids && ids.length ? ids : [...E().selected];
+    const eng = E(), val = on == null ? ids.some(id => eng.getEntity(id).object3D.visible !== false) : !!on;
+    return this.step((val ? 'إخفاء ' : 'إظهار ') + this.names(ids), ids, async () => { ids.forEach(id => { eng.getEntity(id).object3D.visible = !val; }); eng.refreshSelBox(); eng.emit('changed'); return {}; }, opts);
+  },
+  async reset(ids, what, opts = {}) {
+    ids = this.ids(ids); if (!ids.length) return;
+    const eng = E(), L = { position: 'الموضع', rotation: 'الدوران', scale: 'الحجم', all: 'التحويل' }[what] || 'التحويل';
+    return this.step('إعادة ضبط ' + L + ' · ' + this.names(ids), ids, async () => {
+      ids.forEach(id => { const o = eng.getEntity(id).object3D;
+        if (what === 'position' || what === 'all') o.position.set(0, 0, 0);
+        if (what === 'rotation' || what === 'all') o.rotation.set(0, 0, 0);
+        if (what === 'scale' || what === 'all') o.scale.set(1, 1, 1);
+      });
+      eng.refreshSelBox(); eng.emit('changed'); return {};
+    }, opts);
+  },
+  async snapToGround(ids, opts = {}) {
+    ids = this.ids(ids); if (!ids.length) return;
+    const eng = E();
+    return this.step('على الأرض · ' + this.names(ids), ids, async () => { ids.forEach(id => { const e = eng.getEntity(id); e.object3D.updateMatrixWorld(true); this.dropToGround(e); }); eng.refreshSelBox(); eng.emit('changed'); return {}; }, opts);
+  },
+  /* the selection's middle to the world's centre (its height stays) */
+  async center(ids, opts = {}) {
+    ids = this.ids(ids); if (!ids.length) return;
+    const eng = E(), piv = eng.pivot(ids.map(id => eng.getEntity(id)));
+    return this.step('توسيط ' + this.names(ids), ids, async () => { ids.forEach(id => this.shiftWorld(eng.getEntity(id), V3(-piv.x, 0, -piv.z))); eng.refreshSelBox(); eng.emit('changed'); return {}; }, opts);
+  },
+  /* every selected object lines up with the main one: its min / centre / max on an axis */
+  async align(ids, axis, mode, opts = {}) {
+    ids = this.ids(ids); const eng = E();
+    const main = eng.getEntity(eng.selection && ids.includes(eng.selection) ? eng.selection : ids[0]);
+    if (ids.length < 2 || !main) return;
+    const at = b => mode === 'min' ? b.min[axis] : mode === 'max' ? b.max[axis] : (b.min[axis] + b.max[axis]) / 2;
+    const target = at(boxOf(main));
+    return this.step('محاذاة ' + axis.toUpperCase() + ' · ' + this.names(ids), ids, async () => {
+      ids.forEach(id => { if (id === main.id) return; const e = eng.getEntity(id), d = target - at(boxOf(e)); const v = V3(); v[axis] = d; this.shiftWorld(e, v); });
+      eng.refreshSelBox(); eng.emit('changed'); return {};
+    }, opts);
+  },
+  /* equal gaps between the centres, from the first to the last (3 or more) */
+  async distribute(ids, axis, opts = {}) {
+    ids = this.ids(ids); if (ids.length < 3) return;
+    const eng = E(), list = ids.map(id => ({ e: eng.getEntity(id), c: boxOf(eng.getEntity(id)).getCenter(V3())[axis] })).sort((a, b) => a.c - b.c);
+    const a = list[0].c, b = list[list.length - 1].c, st = (b - a) / (list.length - 1);
+    return this.step('توزيع ' + axis.toUpperCase() + ' · ' + this.names(ids), ids, async () => {
+      list.forEach((x, i) => { const v = V3(); v[axis] = a + st * i - x.c; this.shiftWorld(x.e, v); });
+      eng.refreshSelBox(); eng.emit('changed'); return {};
+    }, opts);
+  },
+  frame(ids) {
+    const eng = E(); ids = this.ids(ids);
+    if (!ids.length) return eng.focusAll();
+    const b = new THREE.Box3(); ids.forEach(id => b.expandByObject(eng.getEntity(id).object3D));
+    eng.orbit.frame(b);
+  },
+  /* shape / material: change props and rebuild that object only (callers record the step) */
+  setProps(id, patch) {
+    const eng = E(), e = eng.getEntity(id); if (!e) return;
+    Object.assign(e.props, patch);
+    Object.keys(patch).forEach(k => { if (patch[k] == null) delete e.props[k]; });
+    if (e.type === 'light' && e.object3D) {
+      if (patch.color && e.object3D.color) e.object3D.color.set(patch.color);
+      if (patch.intensity != null) e.object3D.intensity = +patch.intensity * (e.props.light === 'point' ? 8 : e.props.light === 'spot' ? 10 : 1);
+      eng.emit('changed');
+    } else eng.rebuild(id);
+  }
+};
+
+/* ================================================================
+   CREATE — every primitive, and the engine's technical objects
+   ================================================================ */
+const PRIMS = [
+  ['box', 'مكعب', 'Cube', '▣', { shape: 'box' }],
+  ['sphere', 'كرة', 'Sphere', '●', { shape: 'sphere' }],
+  ['cylinder', 'أسطوانة', 'Cylinder', '▮', { shape: 'cylinder' }],
+  ['cone', 'مخروط', 'Cone', '▲', { shape: 'cone' }],
+  ['capsule', 'كبسولة', 'Capsule', '⬮', { shape: 'capsule' }],
+  ['plane', 'أرضية', 'Plane', '▱', { shape: 'plane', color: '#2a3050', w: 20, d: 20 }],
+  ['torus', 'حلقة مجوّفة', 'Torus', '◎', { shape: 'torus' }],
+  ['circle', 'دائرة', 'Circle', '◯', { shape: 'circle', r: 0.8 }],
+  ['ring', 'حلقة', 'Ring', '⊚', { shape: 'ring', r: 0.8, inner: 0.5 }],
+  ['rect', 'مستطيل', 'Rectangle', '▭', { shape: 'rect', w: 2, d: 1 }]
+];
+const TECH = [
+  ['☀', 'ضوء شمس · Directional', () => ({ name: 'Directional Light', type: 'light', props: { light: 'directional', color: '#ffffff', intensity: 2 }, position: [5, 8, 4] })],
+  ['💡', 'ضوء نقطي · Point', () => ({ name: 'Point Light', type: 'light', props: { light: 'point', color: '#ffd9a0', intensity: 1.4 }, position: [0, 3, 0] })],
+  ['🌤', 'إضاءة عامة · Ambient', () => ({ name: 'Ambient Light', type: 'light', props: { light: 'ambient', color: '#ffffff', intensity: 0.6 } })],
+  ['🎥', 'كاميرا · Camera', () => ({ name: 'Camera', type: 'camera', props: { fov: 62 }, position: [0, 2, 6] })],
+  ['⚑', 'نقطة البداية · Spawn', () => ({ name: 'Spawn Point', type: 'spawn', props: {} })],
+  ['⬚', 'مجموعة فارغة · Group', () => ({ name: 'Group', type: 'group', props: {} })]
+];
+
+/* ================================================================
+   DRAW — a finger on the screen → a shape on the ground
+   ================================================================ */
+const Rec = {
+  len(p) { let L = 0; for (let i = 1; i < p.length; i++) L += Math.hypot(p[i].x - p[i - 1].x, p[i].y - p[i - 1].y); return L; },
+  resample(p, n = 64) {
+    const L = this.len(p); if (L === 0 || p.length < 2) return p.slice();
+    const I = L / (n - 1), out = [p[0]]; let D = 0, pts = p.slice();
+    for (let i = 1; i < pts.length; i++) {
+      const d = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+      if (D + d >= I && d > 0) { const t = (I - D) / d, q = { x: pts[i - 1].x + t * (pts[i].x - pts[i - 1].x), y: pts[i - 1].y + t * (pts[i].y - pts[i - 1].y) }; out.push(q); pts.splice(i, 0, q); D = 0; }
+      else D += d;
+    }
+    while (out.length < n) out.push(p[p.length - 1]);
+    return out;
+  },
+  /* Ramer–Douglas–Peucker: the corners that matter */
+  simplify(p, eps) {
+    if (p.length < 3) return p.slice();
+    const segDist = (q, a, b) => { const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy; let t = L2 ? ((q.x - a.x) * dx + (q.y - a.y) * dy) / L2 : 0; t = Math.max(0, Math.min(1, t)); return Math.hypot(q.x - (a.x + t * dx), q.y - (a.y + t * dy)); };
+    let dmax = 0, idx = 0;
+    for (let i = 1; i < p.length - 1; i++) { const d = segDist(p[i], p[0], p[p.length - 1]); if (d > dmax) { dmax = d; idx = i; } }
+    if (dmax > eps) { const a = this.simplify(p.slice(0, idx + 1), eps), b = this.simplify(p.slice(idx), eps); return a.slice(0, -1).concat(b); }
+    return [p[0], p[p.length - 1]];
+  },
+  /* screen points → { kind: circle | rect | polygon | line | path, … } */
+  recognize(raw) {
+    if (raw.length < 4 || this.len(raw) < 25) return null;
+    const p = this.resample(raw, 64);
+    const xs = p.map(q => q.x), ys = p.map(q => q.y);
+    const bw = Math.max(...xs) - Math.min(...xs), bh = Math.max(...ys) - Math.min(...ys), diag = Math.hypot(bw, bh) || 1;
+    const closed = Math.hypot(p[0].x - p[p.length - 1].x, p[0].y - p[p.length - 1].y) < 0.22 * diag;
+    if (!closed) {
+      const a = p[0], b = p[p.length - 1], L = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      const dev = Math.max(...p.map(q => Math.abs((b.x - a.x) * (a.y - q.y) - (a.x - q.x) * (b.y - a.y)) / L));
+      if (dev / L < 0.08) return { kind: 'line', pts: [a, b] };
+      return { kind: 'path', pts: this.simplify(p, diag * 0.02) };
+    }
+    const c = { x: xs.reduce((s, v) => s + v, 0) / p.length, y: ys.reduce((s, v) => s + v, 0) / p.length };
+    const rs = p.map(q => Math.hypot(q.x - c.x, q.y - c.y)), m = rs.reduce((s, v) => s + v, 0) / rs.length;
+    const sd = Math.sqrt(rs.reduce((s, v) => s + (v - m) * (v - m), 0) / rs.length);
+    if (sd / m < 0.13) return { kind: 'circle', c, r: m, pts: p };
+    let poly = this.simplify(p.concat([p[0]]), diag * 0.07);
+    if (poly.length > 1 && Math.hypot(poly[0].x - poly[poly.length - 1].x, poly[0].y - poly[poly.length - 1].y) < diag * 0.1) poly = poly.slice(0, -1);
+    if (poly.length === 4) {
+      const ang = i => { const a = poly[(i + 3) % 4], b = poly[i], d = poly[(i + 1) % 4]; const v1 = { x: a.x - b.x, y: a.y - b.y }, v2 = { x: d.x - b.x, y: d.y - b.y }; return Math.acos(Math.max(-1, Math.min(1, (v1.x * v2.x + v1.y * v2.y) / (Math.hypot(v1.x, v1.y) * Math.hypot(v2.x, v2.y) || 1)))) * 180 / Math.PI; };
+      if ([0, 1, 2, 3].every(i => Math.abs(ang(i) - 90) < 25)) return { kind: 'rect', pts: poly };
+    }
+    if (poly.length < 3) poly = this.simplify(p, diag * 0.03);
+    return { kind: 'polygon', pts: poly.length >= 3 ? poly : p };
+  }
+};
+const KIND_AR = { circle: 'دائرة', rect: 'مستطيل', polygon: 'شكل مغلق', line: 'خط', path: 'مسار' };
+
+/* screen → ground (y = the orbit target's height, clamped to ≥ 0) */
+function toGround(pts) {
+  const eng = E(), y = Math.max(0, +(eng.orbit.target.y || 0) - 0.8 > 0 ? 0 : 0);
+  const plane = new THREE.Plane(V3(0, 1, 0), -y);
+  const out = [];
+  for (const q of pts) { const w = eng._planePoint(q.x, q.y, plane); if (!w) return null; out.push(w); }
+  return out;
+}
+/* the recognised shape → an entity description (in metres, on the ground) */
+function defFromDrawing(rec, freehand) {
+  let kind = rec.kind;
+  if (freehand && (kind === 'circle' || kind === 'rect')) kind = 'polygon';
+  const src = kind === 'circle' && !freehand ? rec.pts : rec.pts;
+  const w = toGround(src); if (!w || w.length < 2) return null;
+  const cx = w.reduce((s, v) => s + v.x, 0) / w.length, cz = w.reduce((s, v) => s + v.z, 0) / w.length;
+  if (kind === 'circle') {
+    const r = w.reduce((s, v) => s + Math.hypot(v.x - cx, v.z - cz), 0) / w.length;
+    return { name: 'Circle', type: 'primitive', props: { shape: 'circle', r: r2(Math.max(0.05, r)), color: '#7cc7ff' }, position: [r2(cx), 0, r2(cz)] };
+  }
+  if (kind === 'rect') {
+    const [a, b, c, d] = w;
+    const wLen = (a.distanceTo(b) + c.distanceTo(d)) / 2, dLen = (b.distanceTo(c) + d.distanceTo(a)) / 2;
+    const ang = Math.atan2(b.z - a.z, b.x - a.x);
+    const mx = (a.x + b.x + c.x + d.x) / 4, mz = (a.z + b.z + c.z + d.z) / 4;
+    return { name: 'Rectangle', type: 'primitive', props: { shape: 'rect', w: r2(Math.max(0.05, wLen)), d: r2(Math.max(0.05, dLen)), color: '#7cc7ff' }, position: [r2(mx), 0, r2(mz)], rotation: [0, r2(-ang), 0] };
+  }
+  const closed = kind === 'polygon';
+  const pts = []; w.forEach(v => pts.push(r2(v.x - cx), r2(v.z - cz)));      // flat [x0, z0, x1, z1, …] (Firestore: no nested arrays)
+  return { name: closed ? 'Shape' : kind === 'line' ? 'Line' : 'Path', type: 'primitive',
+    props: closed ? { shape: 'shape2d', closed: true, points: pts, depth: 0, color: '#7cc7ff' } : { shape: 'shape2d', closed: false, points: pts, thickness: 0.06, color: '#7cc7ff' },
+    position: [r2(cx), 0, r2(cz)] };
+}
+
+/* ================================================================
+   THE UI
+   ================================================================ */
+const UI = {
+  studio: null,
+  attach(studio) {
+    this.studio = studio;
+    const eng = studio.engine;
+    if (!eng || eng.__edUI) { this.paintBar(); return; }
+    eng.__edUI = true;
+    const wrap = document.getElementById('vp-wrap');
+    wrap.classList.add('ed-on');
+    /* the bottom toolbar */
+    this.bar = el('div', { class: 'ed-bar', id: 'ed-bar' });
+    wrap.appendChild(this.bar);
+    /* the selection bar: duplicate + the object's menu */
+    const sb = document.getElementById('sel-bar'), insp = document.getElementById('sel-insp');
+    if (sb && !document.getElementById('sel-dup')) {
+      const dup = iconBtn('copy', { label: 'duplicate', onclick: () => Ops.duplicate() }); dup.id = 'sel-dup';
+      const more = iconBtn('dots', { label: 'menu', onclick: () => this.openMenu() }); more.id = 'sel-more';
+      sb.insertBefore(dup, insp); sb.insertBefore(more, insp);
+    }
+    /* the mode pill (EDIT / PLAY) */
+    this.pill = el('div', { class: 'ed-pill', id: 'ed-pill', text: '✎ وضع التعديل · EDIT' });
+    wrap.appendChild(this.pill);
+    /* events */
+    eng.on('longpress', ({ entity }) => { if (studio.playing) return; if (entity) this.openMenu(); else this.openCreate(); });
+    eng.on('selectionSet', ids => {
+      if (ids.length > 1) { const nm = document.getElementById('sel-name'); nm.firstChild.textContent = ids.length + ' عناصر محدّدة'; document.getElementById('sel-id').textContent = 'multi-select'; }
+    });
+    window.addEventListener('nx:history', () => this.paintBar());
+    window.addEventListener('nx:mode', () => this.paintBar());
+    document.addEventListener('keydown', ev => this.keys(ev));
+    this.paintBar();
+  },
+  /* the bottom toolbar (beginner: fewer, bigger tools) */
+  paintBar() {
+    const S_ = this.studio, eng = S_ && S_.engine; if (!this.bar || !eng) return;
+    this.bar.textContent = '';
+    const b = (ic, label, fn, cls, id) => { const x = el('button', { class: 'ed-t' + (cls ? ' ' + cls : ''), onclick: fn, type: 'button' }, [typeof ic === 'string' && ic.length > 2 ? icon(ic) : el('span', { class: 'ed-ic', text: ic }), el('small', { text: label })]); if (id) x.id = id; this.bar.appendChild(x); return x; };
+    b('plus', 'إنشاء', () => this.openCreate(), 'hl', 'ed-create');
+    b('✎', 'رسم', () => this.openDraw(), '', 'ed-draw');
+    const u = b('undo', 'تراجع', () => S_.undo(), '', 'ed-undo'); u.disabled = !S_.undoStack.length;
+    const r = b('redo', 'إعادة', () => S_.redo(), '', 'ed-redo'); r.disabled = !S_.redoStack.length;
+    if (!beginner()) {
+      b('🧲', 'Snap', () => this.openSnap(), eng.snapOn ? 'on' : '', 'ed-snap');
+      b('☑', 'تحديد متعدد', () => { eng.multiSelect = !eng.multiSelect; Toast.show(eng.multiSelect ? 'التحديد المتعدد: المس العناصر لإضافتها أو إزالتها' : 'التحديد المتعدد متوقف'); this.paintBar(); }, eng.multiSelect ? 'on' : '', 'ed-multi');
+      b('layers', 'المشهد', () => this.openHierarchy(), '', 'ed-tree');
+      b('grid', 'أدوات', () => this.openTools(), '', 'ed-tools');
+    } else {
+      b('cube', 'الأصول', () => S_.openAssets(), '', 'ed-assets');
+    }
+  },
+  syncTool() {
+    const eng = E(); if (!eng) return;
+    document.querySelectorAll('#sel-bar [data-gizmo]').forEach(x => x.classList.toggle('on', x.dataset.gizmo === eng.gizmo));
+  },
+  keys(ev) {
+    const S_ = this.studio;
+    if (!S_ || !S_.engine || NX.Screen.current() !== 'studio' || S_.playing) return;
+    if (/^(input|textarea|select)$/i.test((ev.target && ev.target.tagName) || '') || (ev.target && ev.target.isContentEditable)) return;
+    if (document.querySelector('.sheet.in, .modal')) return;
+    const k = ev.key.toLowerCase(), mod = ev.ctrlKey || ev.metaKey, eng = S_.engine;
+    const go = fn => { ev.preventDefault(); fn(); };
+    if (mod && k === 'z' && !ev.shiftKey) return go(() => S_.undo());
+    if (mod && (k === 'y' || (k === 'z' && ev.shiftKey))) return go(() => S_.redo());
+    if (mod && k === 'd') return go(() => Ops.duplicate());
+    if (mod && k === 'c') return go(() => Toast.ok('نُسخ ' + Ops.copy() + ' عنصر'));
+    if (mod && k === 'v') return go(() => Ops.paste());
+    if (mod && k === 'g') return go(() => ev.shiftKey ? Ops.ungroup() : Ops.group());
+    if (k === 'delete' || k === 'backspace') return go(() => Ops.remove());
+    if (k === 'w' || k === 'e' || k === 'r') return go(() => { eng.gizmo = { w: 'move', e: 'rotate', r: 'scale' }[k]; this.syncTool(); });
+    if (k === 'f') return go(() => Ops.frame());
+  },
+
+  /* ---------------- CREATE ---------------- */
+  openCreate(after) {
+    const body = el('div', { class: 'ed-create' });
+    body.appendChild(el('div', { class: 'ttl', text: 'أشكال · Create' }));
+    const g = el('div', { class: 'ed-grid' });
+    PRIMS.forEach(([k, ar, en, glyph, props]) => g.appendChild(el('button', { class: 'ed-tile', dataset: { shape: k }, type: 'button', onclick: async () => {
+      sheet.close();
+      const e = await Ops.create({ name: en, type: 'primitive', props: Object.assign({ color: '#8b93b8' }, props) });
+      Toast.ok(ar + ' أُضيف إلى المشهد — اسحبه أو غيّره');
+      after && after();
+      if (!beginner() && e && e.entity) this.hint(e.entity);
+    } }, [el('span', { class: 'ed-glyph', text: glyph }), el('b', { text: ar }), el('small', { text: en })])));
+    body.appendChild(g);
+    body.appendChild(btn('✎ ارسم شكلًا بإصبعك · DRAW', { cls: 'block', style: {}, onclick: () => { sheet.close(); this.openDraw(); } }));
+    body.appendChild(el('div', { class: 'ttl', style: { marginTop: '14px' }, text: 'عناصر تقنية · Engine' }));
+    const t = el('div', { class: 'ed-grid sm' });
+    TECH.forEach(([gl, label, mk]) => t.appendChild(el('button', { class: 'ed-tile sm', type: 'button', onclick: async () => { sheet.close(); await Ops.create(mk(), { ground: false }); Toast.ok(label.split(' · ')[0] + ' أُضيف'); after && after(); } }, [el('span', { class: 'ed-glyph', text: gl }), el('small', { text: label })])));
+    body.appendChild(t);
+    body.appendChild(btn('مجسمات من مكتبة الأصول', { cls: 'primary block', icon: 'cube', onclick: () => { sheet.close(); S().openAssets(); } }));
+    const sheet = Sheet.open({ title: '➕ إنشاء · CREATE', body, id: 'addobj' });
+    return sheet;
+  },
+  hint(e) { if (LS.get('edHint', 0) > 2) return; LS.set('edHint', LS.get('edHint', 0) + 1); Toast.show('اسحب المقابض الملوّنة: الأسهم للنقل · الحلقات للتدوير · المكعبات للحجم. مطوّلًا على المجسم = قائمته', '', 6000); },
+
+  /* ---------------- DRAW ---------------- */
+  openDraw() {
+    const S_ = this.studio, eng = S_.engine;
+    if (S_.playing) return;
+    const wrap = document.getElementById('vp-wrap');
+    const layer = el('div', { class: 'draw-layer' });
+    const cv = el('canvas', { class: 'draw-cv' });
+    const tip = el('div', { class: 'draw-tip', text: '✎ ارسم بإصبعك: دائرة · مستطيل · خط · شكل مغلق · مسار' });
+    const bar = el('div', { class: 'draw-bar' });
+    layer.append(cv, tip, bar);
+    wrap.appendChild(layer);
+    const dpr = Math.min(2, window.devicePixelRatio || 1), R = wrap.getBoundingClientRect();
+    cv.width = R.width * dpr; cv.height = R.height * dpr;
+    const g = cv.getContext('2d'); g.scale(dpr, dpr);
+    let pts = [], drawing = false, rec = null, ghost = null, freehand = false;
+    const clearGhost = () => { if (ghost) { eng.helpers.remove(ghost); ghost.geometry.dispose(); ghost.material.dispose(); ghost = null; } };
+    const close = () => { clearGhost(); layer.remove(); };
+    const paint = () => {
+      g.clearRect(0, 0, R.width, R.height);
+      g.lineWidth = 4; g.lineCap = 'round'; g.lineJoin = 'round';
+      g.strokeStyle = rec ? 'rgba(255,255,255,.25)' : '#facc15';
+      g.beginPath(); pts.forEach((q, i) => i ? g.lineTo(q.x - R.left, q.y - R.top) : g.moveTo(q.x - R.left, q.y - R.top)); g.stroke();
+      if (!rec) return;
+      g.strokeStyle = '#22d3ee'; g.lineWidth = 3; g.setLineDash([8, 6]); g.beginPath();
+      const k = freehand && (rec.kind === 'circle' || rec.kind === 'rect') ? 'polygon' : rec.kind;
+      if (k === 'circle') g.arc(rec.c.x - R.left, rec.c.y - R.top, rec.r, 0, Math.PI * 2);
+      else { const P = freehand ? Rec.simplify(Rec.resample(pts, 64), 3) : rec.pts; P.forEach((q, i) => i ? g.lineTo(q.x - R.left, q.y - R.top) : g.moveTo(q.x - R.left, q.y - R.top)); if (k !== 'line' && k !== 'path') g.closePath(); }
+      g.stroke(); g.setLineDash([]);
+    };
+    const preview = () => {
+      clearGhost();
+      const src = freehand && rec ? Object.assign({}, rec, { pts: Rec.simplify(Rec.resample(pts, 64), 3) }) : rec;
+      const def = src && defFromDrawing(src, freehand);
+      if (!def) { tip.textContent = 'ارسم فوق الأرض (ليس في السماء)'; return null; }
+      const geo = NX.Shapes.primGeometry(def.props);
+      ghost = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false }));
+      ghost.position.fromArray(def.position); if (def.rotation) ghost.rotation.fromArray(def.rotation);
+      eng.helpers.add(ghost);
+      const p = def.props;
+      const info = p.shape === 'circle' ? 'نصف القطر ' + p.r + ' م' : p.shape === 'rect' ? p.w + ' × ' + p.d + ' م' : (p.points.length / 2) + ' نقطة';
+      tip.textContent = '✓ ' + (KIND_AR[freehand ? (rec.kind === 'line' || rec.kind === 'path' ? rec.kind : 'polygon') : rec.kind]) + ' · ' + info + ' — معاينة في المشهد';
+      return def;
+    };
+    const buttons = () => {
+      bar.textContent = '';
+      if (!rec) { bar.appendChild(btn('إلغاء', { cls: 'ghost sm', onclick: close })); return; }
+      bar.append(
+        btn('➕ أضف إلى اللعبة', { cls: 'primary sm draw-add', onclick: async () => {
+          const def = preview(); if (!def) return;
+          close();
+          const r = await Ops.create(def, { ground: false });
+          Toast.ok((def.name) + ' أُضيف إلى المشهد — عدّله من محرّر الشكل');
+          if (r && r.entity) this.openShape(r.entity);
+        } }),
+        btn(freehand ? 'الشكل المتعرَّف عليه' : 'كما رسمته', { cls: 'sm', onclick: () => { freehand = !freehand; paint(); preview(); buttons(); } }),
+        btn('↺ أعد الرسم', { cls: 'ghost sm', onclick: () => { rec = null; pts = []; freehand = false; clearGhost(); paint(); tip.textContent = '✎ ارسم من جديد'; buttons(); } }),
+        btn('إلغاء', { cls: 'ghost sm', onclick: close }));
+    };
+    cv.addEventListener('pointerdown', ev => { if (rec) return; cv.setPointerCapture(ev.pointerId); drawing = true; pts = [{ x: ev.clientX, y: ev.clientY }]; paint(); });
+    cv.addEventListener('pointermove', ev => { if (!drawing) return; const l = pts[pts.length - 1]; if (Math.hypot(ev.clientX - l.x, ev.clientY - l.y) > 2) { pts.push({ x: ev.clientX, y: ev.clientY }); paint(); } });
+    cv.addEventListener('pointerup', () => {
+      if (!drawing) return; drawing = false;
+      rec = Rec.recognize(pts);
+      if (!rec) { tip.textContent = 'قصير جدًا — ارسم أكبر'; pts = []; paint(); return; }
+      paint(); preview(); buttons();
+    });
+    buttons();
+    this._draw = { layer, recognize: raw => { pts = raw; rec = Rec.recognize(raw); paint(); const d = preview(); buttons(); return { kind: rec && rec.kind, def: d }; } };
+    return this._draw;
+  },
+
+  /* ---------------- SHAPE EDITOR ---------------- */
+  openShape(e) {
+    const eng = E(); e = e || eng.getEntity(eng.selection);
+    if (!e || e.type !== 'primitive') { Toast.show('محرّر الشكل للأشكال الأولية'); return; }
+    const p = e.props, o = e.object3D;
+    const rec = S().begin('تعديل شكل ' + e.name, [e.id]);
+    const body = el('div', { class: 'ed-shape' });
+    let raf = 0;
+    const apply = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { eng.rebuild(e.id); }); };
+    const slider = (label, key, min, max, step, def, fmt) => {
+      const v = p[key] == null ? def : +p[key];
+      const out = el('b', { text: (fmt ? fmt(v) : r2(v)) });
+      const r = el('input', { type: 'range', class: 'input', min, max, step, value: v, dataset: { key } });
+      r.addEventListener('input', () => { p[key] = +r.value; out.textContent = fmt ? fmt(+r.value) : r2(+r.value); apply(); });
+      body.appendChild(el('div', { class: 'ed-slider' }, [el('div', { class: 'ed-sl-top' }, [el('span', { text: label }), out]), r]));
+      return r;
+    };
+    const sh = p.shape;
+    const TITLE = { box: 'مكعب', sphere: 'كرة', plane: 'أرضية', cylinder: 'أسطوانة', cone: 'مخروط', capsule: 'كبسولة', torus: 'حلقة مجوّفة', circle: 'دائرة', ring: 'حلقة', rect: 'مستطيل', shape2d: p.closed ? 'شكل مغلق' : 'مسار' }[sh] || sh;
+    body.appendChild(el('div', { class: 'tiny', style: { marginBottom: '8px' }, text: TITLE + ' — التغيير يظهر مباشرة في المشهد' }));
+    if (sh === 'box' || !sh) { slider('العرض · Width', 'w', 0.05, 20, 0.05, 1); slider('الارتفاع · Height', 'h', 0.05, 20, 0.05, 1); slider('العمق · Depth', 'd', 0.05, 20, 0.05, 1); }
+    if (sh === 'plane' || sh === 'rect') { slider('العرض · Width', 'w', 0.1, 100, 0.1, 1); slider('الطول · Length', 'd', 0.1, 100, 0.1, 1); }
+    if (['sphere', 'cylinder', 'cone', 'capsule', 'torus', 'circle', 'ring'].includes(sh)) slider('نصف القطر · Radius', 'r', 0.05, 20, 0.05, sh === 'capsule' ? 0.35 : 0.5);
+    if (['cylinder', 'cone', 'capsule'].includes(sh)) slider('الارتفاع · Height', 'h', 0.05, 30, 0.05, sh === 'capsule' ? 0.8 : 1);
+    if (sh === 'cylinder') slider('نصف القطر العلوي · Top radius', 'rTop', 0, 20, 0.05, p.r == null ? 0.5 : p.r);
+    if (sh === 'torus') slider('السُّمك · Thickness', 'tube', 0.01, 5, 0.01, 0.16);
+    if (sh === 'ring') slider('الفتحة · Inner radius', 'inner', 0.01, 20, 0.01, 0.3);
+    if (sh === 'shape2d' && !p.closed) slider('السُّمك · Thickness', 'thickness', 0.01, 2, 0.01, 0.06);
+    if (['sphere', 'cylinder', 'cone', 'capsule', 'torus', 'circle', 'ring'].includes(sh)) slider('التقسيمات · Segments', 'segments', 3, 96, 1, 0, v => v ? String(v) : 'تلقائي');
+    /* EXTRUDE: a flat shape becomes a solid */
+    if (['circle', 'rect', 'ring'].includes(sh) || (sh === 'shape2d' && p.closed)) {
+      const to = { circle: 'أسطوانة · Cylinder', rect: 'صندوق · Box', ring: 'أنبوب · Tube', shape2d: 'مجسم مرفوع · Extruded mesh' }[sh];
+      const card = el('div', { class: 'card ed-extrude' }, [el('b', { text: '↥ ارتفاع الشكل · Extrude' }), el('div', { class: 'tiny', text: 'صفر = مسطّح على الأرض. أكبر من صفر = ' + to })]);
+      body.appendChild(card);
+      const r = slider('الارتفاع · Depth / Height', 'depth', 0, 20, 0.05, 0);
+      card.appendChild(el('div', { class: 'row', style: { marginTop: '6px', gap: '6px', flexWrap: 'wrap' } }, [
+        btn('مسطّح', { cls: 'sm ghost', onclick: () => { r.value = 0; r.dispatchEvent(new Event('input')); } }),
+        btn('↥ 1 م', { cls: 'sm', onclick: () => { r.value = 1; r.dispatchEvent(new Event('input')); } }),
+        btn('↥ 3 م', { cls: 'sm', onclick: () => { r.value = 3; r.dispatchEvent(new Event('input')); } })]));
+    }
+    /* the transform, here too */
+    body.appendChild(el('div', { class: 'ttl', style: { marginTop: '12px' }, text: 'الموضع والدوران والحجم' }));
+    const tr = (label, get, set, min, max, step) => {
+      const r = el('input', { type: 'range', class: 'input', min, max, step, value: get() });
+      const out = el('b', { text: r2(get()) });
+      r.addEventListener('input', () => { set(+r.value); out.textContent = r2(+r.value); eng.refreshSelBox(); eng.emit('transform', e); eng.emit('changed'); });
+      body.appendChild(el('div', { class: 'ed-slider' }, [el('div', { class: 'ed-sl-top' }, [el('span', { text: label }), out]), r]));
+    };
+    tr('الدوران · Rotation Y (°)', () => r2(o.rotation.y * 180 / Math.PI), v => { o.rotation.y = v * Math.PI / 180; }, -180, 180, 1);
+    tr('الحجم · Scale', () => r2(o.scale.x), v => o.scale.setScalar(Math.max(0.01, v)), 0.05, 10, 0.05);
+    ['x', 'y', 'z'].forEach(a => tr('الموضع · Position ' + a.toUpperCase(), () => r2(o.position[a]), v => { o.position[a] = v; }, -50, 50, 0.05));
+    body.appendChild(el('div', { class: 'row', style: { marginTop: '10px', gap: '8px' } }, [
+      btn('🎨 المادة واللون', { cls: 'sm', onclick: () => { sh_.close(); this.openMaterial([e.id]); } }),
+      btn('⬇ على الأرض', { cls: 'sm ghost', onclick: () => { Ops.dropToGround(e); eng.refreshSelBox(); eng.emit('changed'); } })]));
+    const sh_ = Sheet.open({ title: '◇ محرّر الشكل · ' + e.name, body, id: 'ed-shape', onClose: () => { if (eng.getEntity(e.id)) rec.commit(); } });
+    return sh_;
+  },
+
+  /* ---------------- MATERIAL EDITOR ---------------- */
+  openMaterial(ids) {
+    const eng = E();
+    ids = (ids && ids.length ? ids : [...eng.selected]).filter(id => { const x = eng.getEntity(id); return x && ['primitive', 'model', 'light'].includes(x.type); });
+    if (!ids.length) { Toast.show('اختر شكلًا أو مجسمًا أو ضوءًا'); return; }
+    const ents = ids.map(id => eng.getEntity(id)), first = ents[0], light = first.type === 'light';
+    const rec = S().begin('تغيير المادة · ' + Ops.names(ids), ids);
+    const set = patch => ents.forEach(e => Ops.setProps(e.id, patch));
+    const body = el('div', { class: 'ed-mat' });
+    const SW = ['#ffffff', '#1f2937', '#8b93b8', '#ef4444', '#f97316', '#facc15', '#22c55e', '#14b8a6', '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#92400e', '#65a30d', '#0ea5e9', '#e5e7eb'];
+    body.appendChild(el('div', { class: 'ttl', text: 'اللون · Color' }));
+    const sw = el('div', { class: 'ed-swatches' });
+    const custom = el('input', { type: 'color', class: 'ed-custom', value: first.props.color || (light ? '#ffffff' : '#8b93b8') });
+    const pickC = c => { set({ color: c }); custom.value = c; sw.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.c === c)); };
+    SW.forEach(c => sw.appendChild(el('button', { type: 'button', class: 'ed-sw' + (first.props.color === c ? ' on' : ''), dataset: { c }, style: { background: c }, onclick: () => pickC(c), 'aria-label': c })));
+    custom.addEventListener('input', () => pickC(custom.value));
+    sw.appendChild(el('label', { class: 'ed-sw ed-sw-custom', title: 'لون آخر' }, [custom, el('span', { text: '＋' })]));
+    body.appendChild(sw);
+    const slider = (label, key, min, max, step, def) => {
+      const v = first.props[key] == null ? def : +first.props[key];
+      const out = el('b', { text: r2(v) });
+      const r = el('input', { type: 'range', class: 'input', min, max, step, value: v, dataset: { key } });
+      r.addEventListener('input', () => { set({ [key]: +r.value }); out.textContent = r2(+r.value); });
+      body.appendChild(el('div', { class: 'ed-slider' }, [el('div', { class: 'ed-sl-top' }, [el('span', { text: label }), out]), r]));
+    };
+    if (light) slider('الشدّة · Intensity', 'intensity', 0, 8, 0.05, 1.6);
+    else {
+      slider('معدني · Metallic', 'metalness', 0, 1, 0.02, 0.05);
+      slider('الخشونة · Roughness', 'roughness', 0, 1, 0.02, 0.85);
+      slider('الشفافية · Opacity', 'opacity', 0.05, 1, 0.01, 1);
+      body.appendChild(el('div', { class: 'ttl', style: { marginTop: '10px' }, text: 'التوهّج · Emissive' }));
+      const glow = el('input', { type: 'color', class: 'input', value: first.props.emissive || '#000000', style: { height: '44px' } });
+      glow.addEventListener('input', () => set({ emissive: glow.value === '#000000' ? null : glow.value }));
+      body.appendChild(glow);
+      slider('قوة التوهّج · Glow', 'emissiveIntensity', 0, 5, 0.05, 1);
+      if (first.type === 'primitive') {
+        body.appendChild(el('div', { class: 'ttl', style: { marginTop: '10px' }, text: 'صورة على السطح · Texture' }));
+        const tInfo = el('div', { class: 'tiny', text: first.props.texture ? '✓ صورة مختارة' : 'بلا صورة' });
+        body.appendChild(tInfo);
+        body.appendChild(el('div', { class: 'row', style: { gap: '8px', marginTop: '6px' } }, [
+          btn('اختر صورة من الأصول', { cls: 'sm', icon: 'image', onclick: () => NX.openAssetLibrary({ title: 'صورة للسطح', scope: 'mine', onAdd: async a => {
+            if (a.kind !== 'image') { Toast.err('اختر صورة (PNG / JPG / WebP)'); return; }
+            set({ texture: { assetId: a.assetId }, color: '#ffffff' }); tInfo.textContent = '✓ ' + a.name; Toast.ok('وُضعت الصورة على السطح');
+          } }) }),
+          btn('بلا صورة', { cls: 'sm ghost', onclick: () => { set({ texture: null }); tInfo.textContent = 'بلا صورة'; } })]));
+        slider('تكرار الصورة · Tiling', 'texRepeat', 1, 20, 1, 1);
+      }
+    }
+    return Sheet.open({ title: '🎨 المادة · Material', body, id: 'ed-mat', onClose: () => rec.commit() });
+  },
+
+  /* ---------------- the object's menu (long press / ⋯) ---------------- */
+  openMenu() {
+    const eng = E(), sel = eng.selectedEntities();
+    if (!sel.length) { this.openCreate(); return; }
+    const one = sel.length === 1 ? sel[0] : null;
+    const body = el('div', { class: 'ed-menu' });
+    const grid = el('div', { class: 'ed-grid menu' });
+    const it = (glyph, label, fn, cls) => grid.appendChild(el('button', { class: 'ed-tile sm' + (cls ? ' ' + cls : ''), type: 'button', onclick: async () => { sheet.close(); await fn(); } }, [el('span', { class: 'ed-glyph', text: glyph }), el('small', { text: label })]));
+    const locked = sel.every(e => e.locked), hidden = sel.every(e => e.object3D && e.object3D.visible === false);
+    it('⧉', 'تكرار', () => Ops.duplicate());
+    it('⧉→', 'تكرار ونقل', () => Ops.duplicate(null, { move: true }).then(() => Toast.show('اسحب النسخة إلى مكانها')));
+    it('🗑', 'حذف', () => Ops.remove(), 'danger');
+    it('🎨', 'المادة واللون', () => this.openMaterial());
+    if (one && one.type === 'primitive') it('◇', 'محرّر الشكل', () => this.openShape(one));
+    it('⬇', 'على الأرض', () => Ops.snapToGround());
+    it('⟲', 'إعادة الضبط', () => this.openReset());
+    it(locked ? '🔓' : '🔒', locked ? 'فتح القفل' : 'قفل', () => Ops.lock(null, !locked));
+    it(hidden ? '👁' : '🙈', hidden ? 'إظهار' : 'إخفاء', () => Ops.hide(null, !hidden));
+    if (!beginner()) {
+      it('⁂', 'نسخ متعدّد (صف/دائرة)', () => this.openArray());
+      it('📋', 'نسخ', () => Toast.ok('نُسخ ' + Ops.copy() + ' عنصر — «لصق» من القائمة'));
+      it('📌', 'لصق', () => Ops.paste());
+      it('⬚', 'تجميع · Group', () => Ops.group());
+      if (sel.some(e => e.type === 'group')) it('⬚✕', 'فكّ التجميع', () => Ops.ungroup());
+      if (sel.length > 1) it('⇤', 'محاذاة · Align', () => this.openAlign());
+      if (sel.length > 2) it('⇹', 'توزيع · Distribute', () => this.openAlign(true));
+      it('⊕', 'توسيط · Center', () => Ops.center());
+      it('⚙', 'كل الخصائص', () => S().openInspector(E().getEntity(E().selection)));
+    }
+    it('◎', 'تركيز · Focus', () => Ops.frame());
+    body.appendChild(grid);
+    const sheet = Sheet.open({ title: one ? one.name : sel.length + ' عناصر', body, id: 'ed-menu' });
+    return sheet;
+  },
+  openReset() {
+    const body = el('div', { class: 'ed-grid menu' });
+    [['⌖', 'الموضع · Position', 'position'], ['⟳', 'الدوران · Rotation', 'rotation'], ['⤢', 'الحجم · Scale', 'scale'], ['⟲', 'الكل · All', 'all']].forEach(([g, l, w]) =>
+      body.appendChild(el('button', { class: 'ed-tile sm', type: 'button', onclick: () => { sh.close(); Ops.reset(null, w); } }, [el('span', { class: 'ed-glyph', text: g }), el('small', { text: l })])));
+    const sh = Sheet.open({ title: 'إعادة الضبط · Reset', body, id: 'ed-reset' });
+  },
+  openAlign(distribute) {
+    const body = el('div');
+    body.appendChild(el('p', { class: 'tiny', text: distribute ? 'مسافات متساوية بين العناصر المحددة (من الأول إلى الأخير).' : 'تتحاذى العناصر مع العنصر الرئيسي (آخر ما حددته).' }));
+    ['x', 'y', 'z'].forEach(a => {
+      const row = el('div', { class: 'row', style: { gap: '6px', margin: '8px 0', alignItems: 'center' } }, [el('b', { style: { width: '26px' }, text: a.toUpperCase() })]);
+      if (distribute) row.appendChild(btn('توزيع على ' + a.toUpperCase(), { cls: 'sm', onclick: () => { sh.close(); Ops.distribute(null, a); } }));
+      else [['min', 'البداية'], ['center', 'الوسط'], ['max', 'النهاية']].forEach(([m, l]) => row.appendChild(btn(l, { cls: 'sm', onclick: () => { sh.close(); Ops.align(null, a, m); } })));
+      body.appendChild(row);
+    });
+    const sh = Sheet.open({ title: distribute ? 'توزيع · Distribute' : 'محاذاة · Align', body, id: 'ed-align' });
+  },
+  openArray() {
+    const eng = E(), e = eng.getEntity(eng.selection); if (!e) return;
+    const body = el('div');
+    let pattern = 'line';
+    const count = el('input', { type: 'number', class: 'input', value: 5, min: 1, max: 100 });
+    const seg = el('div', { class: 'seg' }, [['line', 'صف'], ['circle', 'دائرة'], ['grid', 'شبكة']].map(([k, l]) => el('button', { class: k === pattern ? 'on' : '', text: l, onclick: ev => { pattern = k; seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === ev.target)); dist.previousSibling && null; } })));
+    const dist = el('input', { type: 'number', class: 'input', placeholder: 'تلقائي', step: 0.1 });
+    body.append(NX.field('عدد النسخ', count), NX.field('الشكل', seg), NX.field('المسافة بين النسخ / نصف قطر الدائرة (م)', dist),
+      el('p', { class: 'tiny', text: 'الدائرة حول الأصل، والنسخ تواجه المركز. خطوة تراجع واحدة تلغيها كلها.' }));
+    const sh = Sheet.open({ title: '⁂ نسخ متعدّد · ' + e.name, body, id: 'ed-array', foot: [btn('إنشاء النسخ', { cls: 'primary', onclick: async () => {
+      sh.close();
+      const v = +dist.value || 0;
+      const r = await Ops.array([e.id], { count: +count.value || 5, pattern, spacing: pattern !== 'circle' ? v : 0, radius: pattern === 'circle' ? v : 0 });
+      if (r) Toast.ok('أُنشئت ' + r.created.length + ' نسخة');
+    } })] });
+  },
+  openSnap() {
+    const eng = E(), body = el('div');
+    const on = el('div', { class: 'switch' }, [el('span', { text: 'تشغيل Snap (نقل · دوران · حجم)' })]);
+    const tg = el('div', { class: 'tgl' + (eng.snapOn ? ' on' : '') });
+    tg.onclick = () => { eng.snapOn = !eng.snapOn; tg.classList.toggle('on', eng.snapOn); save(); };
+    on.appendChild(tg); body.appendChild(on);
+    const num = (label, key, step) => { const i = el('input', { type: 'number', class: 'input', step, value: eng[key] }); i.addEventListener('change', () => { const v = +i.value; if (v > 0) { eng[key] = v; save(); } }); body.appendChild(NX.field(label, i)); };
+    num('Move Snap — خطوة الشبكة (م)', 'snapMove', 0.05);
+    num('Rotation Snap — خطوة الدوران (°)', 'snapRot', 1);
+    num('Scale Snap — خطوة الحجم', 'snapScale', 0.05);
+    const save = () => { LS.set('editorSnap', { on: eng.snapOn, move: eng.snapMove, rot: eng.snapRot, scale: eng.snapScale }); this.paintBar(); };
+    Sheet.open({ title: '🧲 Snap', body, id: 'ed-snap' });
+  },
+  openTools() {
+    const body = el('div', { class: 'ed-grid menu' });
+    const it = (g, l, fn) => body.appendChild(el('button', { class: 'ed-tile sm', type: 'button', onclick: () => { sh.close(); fn(); } }, [el('span', { class: 'ed-glyph', text: g }), el('small', { text: l })]));
+    it('⧉', 'تكرار', () => Ops.duplicate());
+    it('⧉→', 'تكرار ونقل', () => Ops.duplicate(null, { move: true }));
+    it('⁂', 'نسخ متعدّد', () => this.openArray());
+    it('⇤', 'محاذاة', () => this.openAlign());
+    it('⇹', 'توزيع', () => this.openAlign(true));
+    it('⊕', 'توسيط', () => Ops.center());
+    it('⬇', 'على الأرض', () => Ops.snapToGround());
+    it('⟲', 'إعادة الضبط', () => this.openReset());
+    it('◎', 'تركيز على المحدد', () => Ops.frame());
+    it('⛶', 'عرض كل المشهد', () => E().focusAll());
+    it('📋', 'نسخ', () => Toast.ok('نُسخ ' + Ops.copy() + ' عنصر'));
+    it('📌', 'لصق', () => Ops.paste());
+    it('⬚', 'تجميع', () => Ops.group());
+    it('⬚✕', 'فكّ التجميع', () => Ops.ungroup());
+    it('🧲', 'إعدادات Snap', () => this.openSnap());
+    const sh = Sheet.open({ title: 'أدوات · Tools', body, id: 'ed-tools' });
+  },
+
+  /* ---------------- SCENE HIERARCHY ---------------- */
+  openHierarchy() {
+    const eng = E(), S_ = S();
+    const body = el('div', { class: 'ed-tree' });
+    const q = el('input', { class: 'input', placeholder: 'ابحث في المشهد…', type: 'search' });
+    body.appendChild(q);
+    const list = el('div');
+    body.appendChild(list);
+    const open = LS.get('treeOpen', {});
+    const CATS = [
+      ['env', '🌍 البيئة · Environment'], ['player', '🧍 اللاعب · Player'], ['objects', '▣ الأشكال · Objects'], ['models', '◆ المجسمات · Models'],
+      ['groups', '⬚ المجموعات · Groups'], ['lights', '☀ الإضاءة · Lights'], ['cameras', '🎥 الكاميرات · Cameras'], ['audio', '♪ الأصوات · Audio'], ['ui', '▤ الواجهة · UI']];
+    const catOf = e => e.tag === 'player' || e.type === 'spawn' || /player|لاعب/i.test(e.name) ? 'player' : e.type === 'primitive' ? 'objects' : e.type === 'model' ? 'models'
+      : e.type === 'group' ? 'groups' : e.type === 'light' ? 'lights' : e.type === 'camera' ? 'cameras' : e.type === 'audio' ? 'audio' : 'objects';
+    const ICON = { light: '☀', camera: '🎥', spawn: '⚑', model: '◆', primitive: '▣', audio: '♪', group: '⬚' };
+    const draw = () => {
+      list.textContent = '';
+      const f = q.value.trim().toLowerCase();
+      const all = Array.from(eng.entities.values());
+      const match = e => !f || e.name.toLowerCase().includes(f) || eng.descendants(e.id).some(d => d.name.toLowerCase().includes(f));
+      list.appendChild(el('div', { class: 'tr-root', text: '▾ Scene · ' + all.length + ' عنصر' }));
+      CATS.forEach(([k, label]) => {
+        const roots = all.filter(e => !e.parentId && catOf(e) === k && match(e));
+        const extra = k === 'env' ? 1 : k === 'ui' ? 1 : 0;
+        if (!roots.length && !extra) return;
+        const isOpen = open[k] !== false;
+        const head = el('button', { class: 'tr-cat', type: 'button', onclick: () => { open[k] = !isOpen; LS.set('treeOpen', open); draw(); } }, [el('span', { text: (isOpen ? '▾ ' : '▸ ') + label }), el('small', { text: roots.length ? String(roots.length) : '' })]);
+        list.appendChild(head);
+        if (!isOpen) return;
+        if (k === 'env') list.appendChild(el('button', { class: 'tr-row', type: 'button', style: { paddingInlineStart: '26px' }, onclick: () => { sh.close(); S_.openWorld(); } }, [el('span', { class: 'ic', text: '🌤' }), el('span', { class: 'nm', text: 'السماء والضباب والظلال · World' })]));
+        if (k === 'ui') list.appendChild(el('div', { class: 'tr-note', text: 'واجهة اللعبة (النصوص والأزرار) تُصنع بالكود: UI.text(…) — افتح «الكود».' }));
+        const row = (e, depth) => {
+          const on = eng.selected.has(e.id);
+          const r = el('div', { class: 'tr-row' + (on ? ' on' : '') + (e.locked ? ' locked' : '') + (e.object3D && e.object3D.visible === false ? ' hidden' : ''), dataset: { id: e.id }, style: { paddingInlineStart: (12 + depth * 18) + 'px' } });
+          if (eng.multiSelect) r.appendChild(el('span', { class: 'tr-chk', text: on ? '☑' : '☐' }));
+          r.appendChild(el('span', { class: 'ic', text: ICON[e.type] || '⬚' }));
+          r.appendChild(el('span', { class: 'nm', text: e.name }));
+          const lock = el('button', { class: 'tr-b', type: 'button', text: e.locked ? '🔒' : '🔓', 'aria-label': 'lock', onclick: async ev => { ev.stopPropagation(); await Ops.lock([e.id], !e.locked); draw(); } });
+          const eye = el('button', { class: 'tr-b', type: 'button', text: e.object3D && e.object3D.visible === false ? '🙈' : '👁', 'aria-label': 'visible', onclick: async ev => { ev.stopPropagation(); await Ops.hide([e.id], e.object3D.visible !== false); draw(); } });
+          r.append(lock, eye);
+          let t = 0;
+          r.addEventListener('pointerdown', () => { t = setTimeout(() => { t = -1; eng.select(e.id, { add: eng.multiSelect }); sh.close(); this.openMenu(); }, 520); });
+          r.addEventListener('pointerup', () => { if (t > 0) clearTimeout(t); });
+          r.addEventListener('pointerleave', () => { if (t > 0) clearTimeout(t); });
+          r.onclick = () => { if (t === -1) return; if (eng.multiSelect) eng.select(e.id, { add: true, toggle: true }); else { eng.select(e.id); Ops.frame([e.id]); } draw(); };
+          r.ondblclick = () => { sh.close(); S_.openInspector(e); };
+          list.appendChild(r);
+          all.filter(c => c.parentId === e.id && match(c)).forEach(c => row(c, depth + 1));
+        };
+        roots.forEach(e => row(e, 1));
+      });
+    };
+    q.addEventListener('input', draw);
+    const off = eng.on('selectionSet', () => { if (list.isConnected) draw(); });
+    draw();
+    const sh = Sheet.open({ title: '🗂 المشهد · Hierarchy', body, id: 'hierarchy', onClose: off,
+      foot: [btn('إنشاء', { cls: 'primary', icon: 'plus', onclick: () => this.openCreate(() => draw()) }), btn(eng.multiSelect ? 'إنهاء التحديد المتعدد' : 'تحديد متعدد', { cls: 'ghost', onclick: () => { eng.multiSelect = !eng.multiSelect; this.paintBar(); sh.close(); this.openHierarchy(); } })] });
+    return sh;
+  },
+
+  /* ---------------- the Inspector's first rows (PART 7 builds the rest) ---------------- */
+  inspectorTop(e, body, rec) {
+    const eng = E();
+    const card = el('div', { class: 'card ed-insp' });
+    card.appendChild(el('div', { class: 'kv' }, [el('span', { text: 'النوع · Type' }), el('span', { text: e.type + (e.props && e.props.shape ? ' · ' + e.props.shape : '') })]));
+    const tog = (label, get, set) => {
+      const r = el('div', { class: 'switch' }, [el('span', { text: label })]);
+      const t = el('div', { class: 'tgl' + (get() ? ' on' : '') });
+      t.onclick = () => { set(!get()); t.classList.toggle('on', get()); eng.refreshSelBox(); eng.emit('changed'); };
+      r.appendChild(t); card.appendChild(r);
+    };
+    tog('ظاهر · Visible', () => e.object3D && e.object3D.visible !== false, v => { e.object3D.visible = v; });
+    tog('مقفل · Locked', () => !!e.locked, v => { e.locked = v; });
+    /* parent */
+    const par = el('select', { class: 'select' }, [el('option', { value: '', text: '— المشهد (بلا أب)' })].concat(Array.from(eng.entities.values()).filter(x => x.id !== e.id && (x.type === 'group' || x.type === 'model' || x.type === 'primitive') && !eng.descendants(e.id).some(d => d.id === x.id)).map(x => el('option', { value: x.id, text: x.name }))));
+    par.value = e.parentId || '';
+    par.addEventListener('change', () => { eng.reparent(e.id, par.value || null); });
+    card.appendChild(NX.field('الأب · Parent', par));
+    const acts = el('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap' } });
+    if (['primitive', 'model', 'light'].includes(e.type)) acts.appendChild(btn('🎨 المادة · Material', { cls: 'sm', onclick: () => this.openMaterial([e.id]) }));
+    if (e.type === 'primitive') acts.appendChild(btn('◇ الشكل · Shape', { cls: 'sm', onclick: () => this.openShape(e) }));
+    card.appendChild(acts);
+    const rb = (e.components || []).find(c => c.type === 'Rigidbody');
+    card.appendChild(el('div', { class: 'tiny', style: { marginTop: '8px' }, text: 'Collider: ' + (rb ? 'صندوق حول المجسم (AABB) — جسم ' + rb.data.type : 'بلا — اختر «Physics» بالأسفل ليصطدم') }));
+    body.appendChild(card);
+  }
+};
+
+/* ================================================================
+   PLAY ▶ · PAUSE ⏸ · STOP ⏹ · RESTART 🔄 (around the Studio's own play)
+   ================================================================ */
+(function playControls() {
+  const St = NX.Studio;
+  if (!St || St.__edPlay) return;
+  St.__edPlay = true;
+  const play0 = St.play.bind(St), stop0 = St.stopPlay.bind(St);
+  let bar = null;
+  const pill = t => { const p = document.getElementById('ed-pill'); if (p) { p.textContent = t; p.classList.toggle('play', /PLAY/.test(t)); } };
+  const showBar = () => {
+    const wrap = document.getElementById('vp-wrap');
+    if (bar) bar.remove();
+    const pause = el('button', { class: 'pb-b', type: 'button', id: 'pb-pause', onclick: () => St.togglePause() }, [icon('pause'), el('small', { text: 'إيقاف مؤقت' })]);
+    bar = el('div', { class: 'play-bar', id: 'play-bar' }, [pause,
+      el('button', { class: 'pb-b', type: 'button', id: 'pb-stop', onclick: () => St.stopPlay() }, [icon('stop'), el('small', { text: 'إيقاف' })]),
+      el('button', { class: 'pb-b', type: 'button', id: 'pb-restart', onclick: () => St.restartPlay() }, [el('span', { class: 'ed-ic', text: '🔄' }), el('small', { text: 'من جديد' })])]);
+    wrap.appendChild(bar);
+  };
+  St.play = async function () {
+    const r = await play0();
+    if (this.playing) { this.paused = false; showBar(); pill('▶ وضع اللعب · PLAY'); document.getElementById('vp-wrap').classList.add('playing'); }
+    return r;
+  };
+  St.stopPlay = async function () {
+    if (this.engine) this.engine.time.scale = 1;
+    this.paused = false;
+    if (bar) { bar.remove(); bar = null; }
+    const r = await stop0();
+    pill('✎ وضع التعديل · EDIT');
+    const w = document.getElementById('vp-wrap'); if (w) w.classList.remove('playing');
+    return r;
+  };
+  /* pause: the game's time stands still (physics, animations and update() get dt = 0) */
+  St.togglePause = function () {
+    if (!this.playing) return;
+    this.paused = !this.paused;
+    this.engine.time.scale = this.paused ? 0 : 1;
+    try { const ac = NX.Audio && NX.Audio.ctx; if (ac) this.paused ? ac.suspend() : ac.resume(); } catch { }
+    const b = document.getElementById('pb-pause');
+    if (b) { b.textContent = ''; b.append(icon(this.paused ? 'play' : 'pause'), el('small', { text: this.paused ? 'متابعة' : 'إيقاف مؤقت' })); }
+    pill(this.paused ? '⏸ متوقف مؤقتًا · PAUSED' : '▶ وضع اللعب · PLAY');
+  };
+  St.restartPlay = async function () { await this.stopPlay(); await this.play(); };
+})();
+
+NX.EditorOps = Ops;
+NX.EditorUI = UI;
+NX.EditorRecognize = Rec;
+</script>
+<!-- /NX-PART:35 -->
 <script type="module">
 /* ============================================================
    PART 8/18 · GAME PLATFORM + BOOT
