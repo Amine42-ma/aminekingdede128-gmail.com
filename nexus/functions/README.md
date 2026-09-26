@@ -70,4 +70,4 @@ Authorization: Bearer <Firebase ID token>
 ```
 firebase emulators:start --only auth,firestore,functions
 ```
-المحاكي يقرأ `functions/.env.local` (مثلًا `GROQ_BASE=http://127.0.0.1:8099/groq` لمزوّد تجريبي)، وافتح `client/example.html?emulators=1`.
+المحاكي يقرأ `functions/.env.local` (مثلًا `GROQ_BASE=http://127.0.0.1:8097/groq` لمزوّد تجريبي)، وافتح `client/example.html?emulators=1`.

@@ -13,6 +13,16 @@ service firebase.storage {
     function under(mb)        { return request.resource.size < mb * 1024 * 1024; }
     function typeIs(pattern)  { return request.resource.contentType.matches(pattern); }
     function docVis(col, id)  { return firestore.get(/databases/(default)/documents/$(col)/$(id)).data.visibility; }
+    // age ratings (see firestore.rules → ages): 3+ for everyone; above that an
+    // account whose birth month makes the player old enough
+    function hasAccount()     { return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'; }
+    function ageOf(col, id)   { return firestore.get(/databases/(default)/documents/$(col)/$(id)).data.get('ageRating', '3'); }
+    function yearsOld() {
+      let b = firestore.get(/databases/(default)/documents/ages/$(request.auth.uid)).data;
+      return request.time.year() - b.y - (request.time.month() < b.m ? 1 : 0);
+    }
+    function ageAllows(r)     { return r == '3' || (hasAccount() && yearsOld() >= int(r)); }
+    function isImage()        { return resource.contentType.matches('image/.*'); }
 
     // user assets: models / images / audio / data — never executable code
     match /assets/{userId}/{assetId}/{file} {
@@ -36,10 +46,12 @@ service firebase.storage {
 
     // published games: cover, compiled WebAssembly, large build snapshots.
     // Readable by others only while the game record is not private.
+    // What runs (not the pictures) only for players its age rating allows.
     match /games/{userId}/{gameId}/{rest=**} {
       allow read: if owner(userId)
                   || (firestore.exists(/databases/(default)/documents/games/$(gameId))
-                      && docVis('games', gameId) != 'private');
+                      && docVis('games', gameId) != 'private'
+                      && (isImage() || ageAllows(ageOf('games', gameId))));
       allow create, update: if owner(userId) && under(24)
                     && (typeIs('image/.*') || typeIs('application/wasm') || typeIs('application/octet-stream')
                         || typeIs('application/json'));
@@ -48,10 +60,12 @@ service firebase.storage {
 
     // HTML apps & websites: the site's files packed in one ZIP, and its icon.
     // Readable by others only while the app record is not private.
+    // The files (not the icon and image) only for players its age rating allows.
     match /apps/{userId}/{appId}/{file} {
       allow read: if owner(userId)
                   || (firestore.exists(/databases/(default)/documents/apps/$(appId))
-                      && docVis('apps', appId) != 'private');
+                      && docVis('apps', appId) != 'private'
+                      && (isImage() || ageAllows(ageOf('apps', appId))));
       allow create, update: if owner(userId)
                     && ((typeIs('application/zip') && under(25)) || (typeIs('image/.*') && under(2)));
       allow delete: if owner(userId);

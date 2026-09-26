@@ -3376,6 +3376,7 @@ function cleanShowcase(sc) {
   };
   SHOWCASE_SECTIONS.forEach(s => { if (!out.sections.includes(s)) out.sections.push(s); });
   if (['3', '7', '12', '16', '18'].includes(String(sc.ageRating))) out.ageRating = String(sc.ageRating);   // who it is for (PART 30)
+  if (['3', '7', '12', '16', '18'].includes(String(sc.ageSuggested))) out.ageSuggested = String(sc.ageSuggested);   // the least its content allows
   return out;
 }
 
@@ -3727,6 +3728,15 @@ service cloud.firestore {
     function validVis(v)     { return v in ['public', 'unlisted', 'private']; }
     // who a game / app is for: 3+ · 7+ · 12+ · 16+ · 18+ (none = everyone)
     function validAge(d)     { return !('ageRating' in d) || d.ageRating in ['3', '7', '12', '16', '18']; }
+    // the player's age, from the birth month their account gave once (ages/{uid})
+    function hasAccount()    { return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'; }
+    function yearsOld() {
+      let b = get(/databases/$(database)/documents/ages/$(request.auth.uid)).data;
+      return request.time.year() - b.y - (request.time.month() < b.m ? 1 : 0);
+    }
+    // may this player run something rated r? 3+ is for everyone (guests too);
+    // above that: an account whose birth month makes them old enough
+    function ageAllows(r)    { return r == '3' || (hasAccount() && exists(/databases/$(database)/documents/ages/$(request.auth.uid)) && yearsOld() >= int(r)); }
     function onlyChanged(ks) { return incoming().diff(existing()).affectedKeys().hasOnly(ks); }
     // a counter may move by exactly 'by', and nothing else in the doc may change
     function bumped(f, by)   { return incoming()[f] == existing()[f] + by && onlyChanged([f]); }
@@ -4047,8 +4057,10 @@ service cloud.firestore {
     // the runnable snapshot of a game follows the game's visibility; only the
     // owner of the game record may write it (getAfter also works in a batch)
     match /builds/{gameId} {
+      // the runnable game: only for players the game's age rating allows
       allow get: if resource == null || isOwner(existing())
-                 || get(/databases/$(database)/documents/games/$(gameId)).data.visibility in ['public', 'unlisted'];
+                 || (get(/databases/$(database)/documents/games/$(gameId)).data.visibility in ['public', 'unlisted']
+                     && ageAllows(get(/databases/$(database)/documents/games/$(gameId)).data.get('ageRating', '3')));
       allow create: if signedIn() && incoming().ownerId == me() && incoming().gameId == gameId
                     && getAfter(/databases/$(database)/documents/games/$(gameId)).data.ownerId == me();
       allow update: if (isOwner(existing()) && incoming().ownerId == me() && incoming().gameId == gameId)
@@ -4094,6 +4106,23 @@ service cloud.firestore {
     // the pool's per-player request counter — server only
     match /api_usage/{uid} {
       allow read, write: if false;
+    }
+
+    // A player's birth month (year + month — never the day), given once.
+    // Only they can read it; nobody can change or delete it from a browser
+    // (a mistake is corrected by the site owner in the Firebase console).
+    // Games and apps above 3+ are checked against it here and in storage.rules.
+    match /ages/{uid} {
+      allow get: if signedIn() && me() == uid;
+      allow create: if hasAccount() && me() == uid
+                    && incoming().keys().hasAll(['y', 'm', 'at']) && incoming().keys().hasOnly(['y', 'm', 'at'])
+                    && incoming().y is int && incoming().m is int
+                    && incoming().m >= 1 && incoming().m <= 12
+                    && incoming().y >= request.time.year() - 120
+                    && (incoming().y < request.time.year()
+                        || (incoming().y == request.time.year() && incoming().m <= request.time.month()))
+                    && incoming().at == request.time;
+      allow list, update, delete: if false;
     }
 
     // ---------------------------------------------------------------- HTML apps & websites
@@ -4316,6 +4345,16 @@ service firebase.storage {
     function under(mb)        { return request.resource.size < mb * 1024 * 1024; }
     function typeIs(pattern)  { return request.resource.contentType.matches(pattern); }
     function docVis(col, id)  { return firestore.get(/databases/(default)/documents/$(col)/$(id)).data.visibility; }
+    // age ratings (see firestore.rules → ages): 3+ for everyone; above that an
+    // account whose birth month makes the player old enough
+    function hasAccount()     { return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'; }
+    function ageOf(col, id)   { return firestore.get(/databases/(default)/documents/$(col)/$(id)).data.get('ageRating', '3'); }
+    function yearsOld() {
+      let b = firestore.get(/databases/(default)/documents/ages/$(request.auth.uid)).data;
+      return request.time.year() - b.y - (request.time.month() < b.m ? 1 : 0);
+    }
+    function ageAllows(r)     { return r == '3' || (hasAccount() && yearsOld() >= int(r)); }
+    function isImage()        { return resource.contentType.matches('image/.*'); }
 
     // user assets: models / images / audio / data — never executable code
     match /assets/{userId}/{assetId}/{file} {
@@ -4339,10 +4378,12 @@ service firebase.storage {
 
     // published games: cover, compiled WebAssembly, large build snapshots.
     // Readable by others only while the game record is not private.
+    // What runs (not the pictures) only for players its age rating allows.
     match /games/{userId}/{gameId}/{rest=**} {
       allow read: if owner(userId)
                   || (firestore.exists(/databases/(default)/documents/games/$(gameId))
-                      && docVis('games', gameId) != 'private');
+                      && docVis('games', gameId) != 'private'
+                      && (isImage() || ageAllows(ageOf('games', gameId))));
       allow create, update: if owner(userId) && under(24)
                     && (typeIs('image/.*') || typeIs('application/wasm') || typeIs('application/octet-stream')
                         || typeIs('application/json'));
@@ -4351,10 +4392,12 @@ service firebase.storage {
 
     // HTML apps & websites: the site's files packed in one ZIP, and its icon.
     // Readable by others only while the app record is not private.
+    // The files (not the icon and image) only for players its age rating allows.
     match /apps/{userId}/{appId}/{file} {
       allow read: if owner(userId)
                   || (firestore.exists(/databases/(default)/documents/apps/$(appId))
-                      && docVis('apps', appId) != 'private');
+                      && docVis('apps', appId) != 'private'
+                      && (isImage() || ageAllows(ageOf('apps', appId))));
       allow create, update: if owner(userId)
                     && ((typeIs('application/zip') && under(25)) || (typeIs('image/.*') && under(2)));
       allow delete: if owner(userId);
@@ -8609,9 +8652,11 @@ const Studio = {
     const genre = el('select', { class: 'select' }, ['Action', 'Adventure', 'Racing', 'Puzzle', 'Simulation', 'RPG', 'Sandbox', 'Other']
       .map(g => el('option', { value: g, text: g })));
     genre.value = prev.genre || 'Other';
-    const age = NX.Age ? NX.Age.field(prev.ageRating || (p.showcase && p.showcase.ageRating) || '3') : null;
+    const age = NX.Age ? NX.Age.field(prev.ageRating || (p.showcase && p.showcase.ageRating) || '3', null, (p.showcase && p.showcase.ageSuggested) || '3') : null;
     body.append(NX.field('اسم اللعبة', title), NX.field(T('description'), desc), NX.field('التصنيف', genre));
-    if (age) body.appendChild(age.field);
+    /* who it is for: the content is checked (and read by the AI when one is connected) */
+    const gatherAge = () => NX.Age.gatherGame(p, { title: title.value, description: desc.value, genre: genre.value });
+    if (age) { body.appendChild(age.field); NX.Age.auto(age, gatherAge); }
 
     /* the store page people see before they play (GAME MEDIA) */
     const sc = p.showcase || {}, shots = (sc.screenshots || []).length;
@@ -8730,6 +8775,12 @@ const Studio = {
           this._guestPublishOK = true;
         }
         await autoMedia;
+        if (age) {
+          if (age.pending) { say('تحديد الفئة العمرية من المحتوى…'); await age.pending; say(''); }
+          /* what was typed since: checked again (words only) */
+          const quick = NX.Age.scan(gatherAge());
+          if (+quick.rating > +age.select.value) { NX.Age.setFloor(age.select, quick.rating); say('الفئة العمرية رُفعت إلى ' + NX.Age.label(quick.rating) + ' حسب النص الجديد — راجعها ثم اضغط PUBLISH.'); return; }
+        }
         const need = current();
         if (!need.icon || !need.cover) {
           say('أضف ' + (!need.icon && !need.cover ? 'أيقونة وصورة' : !need.icon ? 'أيقونة' : 'صورة') + ' للعبة أولًا (رفع من جهازك أو من المشهد).');
@@ -8749,7 +8800,7 @@ const Studio = {
           if (!build || !build.ok) { say(''); Toast.err('لا يمكن النشر: البناء فاشل'); if (NX.IDE) NX.IDE.open(p, { panel: 'problems' }); return; }
           say('الإرسال إلى الخادم والتحقق…');
           const meta = { title: title.value.trim() || p.name, description: desc.value.trim(), genre: genre.value, visibility: vis, cover: prev.cover || null, coverURL: prev.coverURL || null, ageRating: age ? age.select.value : '3' };
-          if (age) { p.showcase = Object.assign({}, p.showcase || {}, { ageRating: age.select.value }); }
+          if (age) { p.showcase = Object.assign({}, p.showcase || {}, { ageRating: age.select.value, ageSuggested: age.select.dataset.floor || '3' }); }
           const rec = await Games.publish(p, meta, build, { coverBlob: need.cover.blob || null, iconBlob: need.icon.blob || null });
           say('');
           sheet.close();
@@ -15400,7 +15451,7 @@ const GameMedia = {
       const tg = el('input', { class: 'input', value: (sc.tags || []).join('، '), placeholder: 'سباق، مدينة، سيارات' });
       const ds = el('textarea', { class: 'textarea', value: (p.publishMeta && p.publishMeta.description != null ? p.publishMeta.description : p.description) || '', placeholder: 'ما هي اللعبة؟ كيف تُلعب؟ ما الذي يميّزها؟', style: { minHeight: '110px' }, dataset: { focus: 'description' } });
       body.append(field('وصف مختصر · Short Description', tl), field('الوسوم · Tags (افصل بفاصلة)', tg), field('الوصف · Description', ds));
-      const age = NX.Age ? NX.Age.field(NX.Age.of({ showcase: sc, ageRating: p.publishMeta && p.publishMeta.ageRating })) : null;
+      const age = NX.Age ? NX.Age.field(NX.Age.of({ showcase: sc, ageRating: p.publishMeta && p.publishMeta.ageRating }), 'أقل عمر يُختار هو ما حدّده فحص المحتوى عند النشر' + (sc.ageSuggested && sc.ageSuggested !== '3' ? ' (' + NX.Age.label(sc.ageSuggested) + ')' : '') + '.', sc.ageSuggested || '3') : null;
       if (age) { age.select.dataset.focus = 'age'; body.appendChild(age.field); }
       body.appendChild(btn('حفظ النصوص والفئة العمرية', { cls: 'sm', icon: 'save', onclick: async e => {
         const b = e.currentTarget; b.disabled = true;
@@ -26272,6 +26323,7 @@ const HtmlApps = {
       description: String(meta.description || '').slice(0, LIMIT.desc),
       visibility: ['public', 'unlisted', 'private'].includes(meta.visibility) ? meta.visibility : 'public',
       ageRating: NX.Age && NX.Age.valid(meta.ageRating) ? String(meta.ageRating) : (existing && existing.ageRating) || '3',
+      ageSuggested: NX.Age && NX.Age.valid(meta.ageSuggested) ? String(meta.ageSuggested) : (existing && existing.ageSuggested) || '3',
       entry: read.entry, files: read.files.length, bytes: read.bytes,
       bundle: { path: up.path, url: up.url || null }, icon, cover,
       opens: existing ? existing.opens || 0 : 0, createdAt: existing ? existing.createdAt : now, updatedAt: now, v: 1
@@ -26437,7 +26489,7 @@ function editInfo(app, after) {
   const vis = el('select', { class: 'select' }, Object.keys(VIS).map(v => el('option', { value: v, text: VIS[v][0] + ' — ' + VIS[v][1] })));
   vis.value = app.visibility;
   body.append(NX.field('الاسم', name), NX.field('الوصف', desc), NX.field('من يراه', vis));
-  const age = NX.Age ? NX.Age.field(NX.Age.of(app), 'لمن يناسب هذا التطبيق أو الموقع؟ «18+» يُسأل الزائر عن عمره قبل أن يفتحه.') : null;
+  const age = NX.Age ? NX.Age.field(NX.Age.of(app), 'لمن يناسب هذا التطبيق أو الموقع؟ أقل عمر يُختار هو ما حدّده فحص المحتوى' + (app.ageSuggested && app.ageSuggested !== '3' ? ' (' + NX.Age.label(app.ageSuggested) + ')' : '') + '. فوق 3+ يحتاج الزائر حسابًا يُعرف منه عمره.', app.ageSuggested || '3') : null;
   if (age) body.appendChild(age.field);
   const sh = Sheet.open({ title: 'معلومات التطبيق', body, id: 'htmlapp-info', foot: [btn('حفظ', { cls: 'primary', icon: 'save', onclick: async e => {
     e.currentTarget.disabled = true;
@@ -26465,9 +26517,11 @@ async function uploadFlow(existing = null, how = 'files') {
   const desc = el('textarea', { class: 'textarea', value: existing ? existing.description || '' : '', placeholder: 'ما هو التطبيق أو الموقع؟ كيف يُستعمل؟', style: { minHeight: '90px' } });
   const vis = el('select', { class: 'select' }, Object.keys(VIS).map(v => el('option', { value: v, text: VIS[v][0] + ' — ' + VIS[v][1] })));
   vis.value = existing ? existing.visibility : 'public';
-  const age = NX.Age ? NX.Age.field(existing ? NX.Age.of(existing) : '3', 'لمن يناسب هذا التطبيق أو الموقع؟ «18+» يُسأل الزائر عن عمره قبل أن يفتحه.') : null;
+  const age = NX.Age ? NX.Age.field(existing ? NX.Age.of(existing) : '3', 'لمن يناسب هذا التطبيق أو الموقع؟ فوق 3+ يحتاج الزائر حسابًا يُعرف منه عمره.') : null;
   if (!existing) { body.append(NX.field('الاسم', name), NX.field('الوصف', desc), NX.field('من يراه', vis)); if (age) body.appendChild(age.field); }
-  else body.appendChild(el('p', { class: 'tiny', text: 'تُستبدل ملفات «' + existing.name + '» بهذه، ويبقى الاسم والرابط كما هما.' }));
+  else { body.appendChild(el('p', { class: 'tiny', text: 'تُستبدل ملفات «' + existing.name + '» بهذه، ويبقى الاسم والرابط كما هما.' })); if (age) body.appendChild(age.field); }
+  const gatherAge = () => NX.Age.gatherApp(read.files, { title: existing ? existing.name : name.value, description: existing ? existing.description || '' : desc.value });
+  if (age) NX.Age.auto(age, gatherAge, { what: 'التطبيق' });
   /* every app has an ICON and an IMAGE: the owner's own, the ones the site's
      files already have, the app's current ones, or — last — ones drawn from
      its name (said so here, and replaceable any time) */
@@ -26537,11 +26591,13 @@ async function uploadFlow(existing = null, how = 'files') {
       const b = e.currentTarget;
       busy = true; b.disabled = true;
       await filled; clearTimeout(redraw);
+      if (age && age.pending) await age.pending;
+      if (age) { const q = NX.Age.scan(gatherAge()); if (+q.rating > +age.select.value) NX.Age.setFloor(age.select, q.rating); }
       if (!media.icon || !media.cover) await fill();
       if (!media.icon || !media.cover) { busy = false; b.disabled = false; Toast.err('أضف أيقونة وصورة للتطبيق أولًا'); mediaCard.scrollIntoView({ block: 'center' }); return; }
       prog.classList.remove('hide');
       try {
-        const rec = await HtmlApps.save(read, { name: name.value, description: desc.value, visibility: vis.value, ageRating: age ? age.select.value : null }, { existing, iconBlob: media.icon.blob || null, coverBlob: media.cover.blob || null, onProgress: f => { prog.firstChild.style.width = Math.round(f * 100) + '%'; } });
+        const rec = await HtmlApps.save(read, { name: name.value, description: desc.value, visibility: vis.value, ageRating: age ? age.select.value : null, ageSuggested: age ? age.select.dataset.floor : null }, { existing, iconBlob: media.icon.blob || null, coverBlob: media.cover.blob || null, onProgress: f => { prog.firstChild.style.width = Math.round(f * 100) + '%'; } });
         sheet.close();
         Toast.ok(existing ? 'حُدّث التطبيق' : 'رُفع التطبيق ✓');
         window.dispatchEvent(new CustomEvent('nx:platformRefresh'));
@@ -26832,14 +26888,24 @@ NX.KeyBox = KeyBox;
 /* ============================================================
    PART 30 · AGE RATINGS — every game and every HTML app / site says
    who it is for: 3+ (everyone) · 7+ · 12+ · 16+ · 18+ (adults only).
-   The creator picks it when publishing / uploading (and can change
-   it later); the page and the cards show it; an 18+ game or site
-   asks once on this device «are you 18 or older?» before it runs,
-   and someone who answered «no» does not see 18+ in the lists.
-   (The answer is the player's own word — nothing is verified.)
+   • WHO DECIDES: when a game is published or an app uploaded, its
+     content is checked (names, descriptions, the text and strings in
+     its code) and — when an AI model is connected — the model reads
+     the same and says who it is for. The higher answer is the least
+     the creator can choose; they can always choose higher.
+     (Neither looks at pictures or plays the game — the creator sees
+     the reasons and is responsible for the rating.)
+   • WHO MAY PLAY: 3+ is for everyone, guests included. Anything above
+     3+ needs an account with a birth month (month + year, given once,
+     kept in ages/{uid} — only its owner can read it, nobody can change
+     it from a browser). The server checks it before sending a game's
+     build or an app's files (firestore.rules / storage.rules).
+   • What this is not: an identity check. A birth month is the player's
+     own word; parents' consent and verified ages need more than a
+     website can do on its own.
    ============================================================ */
 const NX = window.NX;
-const { el, btn, Modal, Toast, LS } = NX;
+const { el, btn, Modal, Toast } = NX;
 
 const AGES = [
   ['3', '3+', 'لكل الأعمار (من 3 سنوات)'],
@@ -26848,6 +26914,32 @@ const AGES = [
   ['16', '16+', 'من 16 سنة'],
   ['18', '18+', 'للبالغين فقط (18 سنة فأكثر)']
 ];
+
+/* ---------------- what the content says (no AI needed) ----------------
+   Arabic words get their own edges: «دم» must not match «استخدم». */
+const AR = '\\u0600-\\u06FF';
+const ar = words => '(?<![' + AR + '])(?:ال|وال|بال|و|ب|لل)?(?:' + words + ')(?:ات|ة|ين|ون|ها|هم|اء)?(?![' + AR + '])';
+const rx = (en, arw) => new RegExp('\\b(?:' + en + ')\\b' + (arw ? '|' + ar(arw) : ''), 'i');
+const SIGNALS = [
+  ['7', 'قتال أو عنف خفيف', rx('fight(?:ing|er)?s?|punch|kick|battle|combat|sword|swords|enemy|enemies|attack|kill(?:s|ed|ing)?', 'قتال|معركة|عدو|أعداء|هجوم|سيف|قتل')],
+  ['12', 'أسلحة نارية أو إطلاق نار', rx('guns?|shoot(?:er|ing)?|rifle|pistol|bullets?|sniper|grenade|weapons?|shotgun', 'سلاح|أسلحة|مسدس|بندقية|رصاص|رصاصة|قنبلة|قناص|إطلاق نار')],
+  ['12', 'رعب أو مشاهد مخيفة', rx('horror|zombies?|ghosts?|demons?|scary|creepy|jump ?scare', 'رعب|زومبي|شبح|أشباح|شيطان|مخيف')],
+  ['16', 'دم أو عنف واقعي', rx('blood(?:y)?|gore|murder(?:er)?|dismember\\w*|decapitat\\w*|corpse', 'دم|دماء|ذبح|جثة|جثث')],
+  ['16', 'كحول أو تدخين أو مخدرات', rx('beer|wine|vodka|whisk(?:e)?y|alcohol|drunk|cigarettes?|smoking|drugs?|cocaine|weed', 'خمر|كحول|سجائر|سيجارة|تدخين|مخدرات|حشيش')],
+  ['18', 'قمار أو مراهنات', rx('casino|gambl\\w*|poker|roulette|slot machines?|betting|jackpot', 'قمار|كازينو|مراهنة|مراهنات|رهان|روليت')],
+  ['18', 'محتوى جنسي أو عُري', rx('sex|sexy|nude|nudity|porn\\w*|erotic|nsfw|xxx', 'جنس|جنسي|عاري|عري|إباحي|إباحية')]
+];
+/* the text a player would see: string literals in code, visible page text, names */
+function playerText(code) {
+  const out = [];
+  let m; const re = /(["'`])((?:\\.|(?!\1)[^\\\n]){2,200})\1/g;
+  while ((m = re.exec(code)) && out.length < 4000) out.push(m[2]);
+  return out.join(' \n ');
+}
+function htmlText(html) {
+  return String(html || '').replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+}
+
 const Age = {
   list: AGES,
   valid(v) { return AGES.some(a => a[0] === String(v)); },
@@ -26858,52 +26950,230 @@ const Age = {
   },
   label(v) { return (AGES.find(a => a[0] === String(v)) || AGES[0])[1]; },
   text(v) { return (AGES.find(a => a[0] === String(v)) || AGES[0])[2]; },
+  max(...v) { return String(Math.max(...v.map(x => this.valid(x) ? +x : 3))); },
   badge(x, cls = '') {
     const v = typeof x === 'object' ? this.of(x) : (this.valid(x) ? String(x) : '3');
     return el('span', { class: 'age-badge age-' + v + (cls ? ' ' + cls : ''), text: this.label(v), title: this.text(v) });
   },
-  /* the creator's choice, with each option spelled out */
-  select(value) {
+  /* the creator's choice, with each option spelled out; options below `floor` are closed */
+  select(value, floor = '3') {
     const s = el('select', { class: 'select age-select' }, AGES.map(([v, l, t]) => el('option', { value: v, text: l + ' — ' + t })));
-    s.value = this.valid(value) ? String(value) : '3';
+    this.setFloor(s, floor);
+    s.value = this.max(value, floor);
     return s;
   },
-  field(value, note) {
-    const s = this.select(value);
+  setFloor(s, floor) {
+    [...s.options].forEach(o => { o.disabled = +o.value < +floor; });
+    if (+s.value < +floor) s.value = String(floor);
+    s.dataset.floor = String(floor);
+  },
+  field(value, note, floor = '3') {
+    const s = this.select(value, floor);
     const f = NX.field('الفئة العمرية · Age rating', s);
-    f.appendChild(el('span', { class: 'tiny', style: { display: 'block', marginTop: '4px' }, text: note || 'لمن تناسب هذه اللعبة؟ تظهر على صفحتها وبطاقتها. «18+» يُسأل اللاعب عن عمره قبل أن يلعب.' }));
-    return { field: f, select: s };
+    f.appendChild(el('span', { class: 'tiny', style: { display: 'block', marginTop: '4px' }, text: note || 'لمن تناسب هذه اللعبة؟ تظهر على صفحتها وبطاقتها. فوق 3+ يحتاج اللاعب حسابًا يُعرف منه عمره.' }));
+    const auto = el('div', { class: 'age-auto tiny' });
+    f.appendChild(auto);
+    return { field: f, select: s, auto };
   },
-  /* this device: 'adult' · 'minor' · null (not asked yet) */
-  mode() { const m = LS.get('ageMode', null); return m === 'adult' || m === 'minor' ? m : null; },
-  setMode(m) { if (m) LS.set('ageMode', m); else LS.del('ageMode'); },
-  hidden(x) { return this.mode() === 'minor' && this.of(x) === '18'; },
-  /* before an 18+ game or site runs: asked once on this device */
-  allow(x, what = 'هذه اللعبة') {
-    if (this.of(x) !== '18') return Promise.resolve(true);
-    const me = NX.Backend && NX.Backend.user;
-    if (me && x.ownerId && x.ownerId === me.uid) return Promise.resolve(true);   // your own
-    if (this.mode() === 'adult') return Promise.resolve(true);
-    if (this.mode() === 'minor') {
-      Modal.open({ title: '🔞 للبالغين فقط', body: what + ' مخصّصة لمن عمرهم 18 سنة أو أكثر.', actions: [{ label: 'حسنًا', cls: 'primary' }] });
-      return Promise.resolve(false);
+
+  /* ================= who the content is for =================
+     input: { title, description, genre, tags[], names[], code, html }
+     → { rating, reasons[], by: 'ai' | 'scan', aiError? } */
+  scan(input) {
+    const text = [input.title, input.description, input.genre, (input.tags || []).join(' '), (input.names || []).join(' '),
+      playerText(input.code || ''), htmlText(input.html || '')].join(' \n ');
+    let rating = '3';
+    const reasons = [];
+    for (const [r, why, re] of SIGNALS) {
+      const m = re.exec(text);
+      if (!m) continue;
+      reasons.push({ rating: r, why, word: m[0].trim() });
+      rating = this.max(rating, r);
     }
-    return new Promise(res => Modal.open({ title: '🔞 ' + what + ' للبالغين فقط (18+)', dismissable: false,
-      body: 'صاحبها حدّدها لمن عمرهم 18 سنة أو أكثر. هل عمرك 18 سنة أو أكثر؟ (يُحفظ جوابك على هذا الجهاز، وتغيّره من الإعدادات.)',
-      actions: [
-        { label: 'لا، عمري أقل من 18', cls: 'ghost', onclick: () => { this.setMode('minor'); res(false); } },
-        { label: 'نعم، عمري 18 أو أكثر', cls: 'primary', onclick: () => { this.setMode('adult'); res(true); } }] }));
+    return { rating, reasons, text };
   },
-  /* Settings: the answer, changeable */
-  openSettings() {
+  async suggest(input, { useAI = true, timeoutMs = 25000 } = {}) {
+    const s = this.scan(input);
+    const out = { rating: s.rating, reasons: s.reasons.map(r => r.why + ' («' + r.word + '») → ' + this.label(r.rating)), by: 'scan' };
+    if (!useAI || !NX.AIConfig || !NX.AIConfig.isReady()) return out;
+    const facts = {
+      title: String(input.title || '').slice(0, 120), description: String(input.description || '').slice(0, 1500),
+      genre: input.genre || '', tags: (input.tags || []).slice(0, 20), names: (input.names || []).slice(0, 80),
+      text_players_see: s.text.slice(0, 5000), found_by_scan: s.reasons.map(r => r.why + ': ' + r.word)
+    };
+    const system = 'You rate games and web apps for age like PEGI / IARC. Read the facts (titles, descriptions, names, the text players see) and answer ONE JSON object only: {"rating":"3|7|12|16|18","reasons":["short reasons in Arabic"]}. 3 = suitable for everyone; 7 = mild cartoon violence or mildly scary; 12 = fantasy violence, weapons, horror; 16 = realistic violence, blood, alcohol, drugs, strong language; 18 = gambling, sexual content, extreme violence. Rate only what the facts show; you cannot see images.';
+    try {
+      const raw = await Promise.race([NX.AI.raw(system, JSON.stringify(facts), { _cfg: { maxTokens: 300 } }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('انتهى الوقت')), timeoutMs))]);
+      const j = JSON.parse(String(raw).slice(String(raw).indexOf('{'), String(raw).lastIndexOf('}') + 1));
+      if (this.valid(j.rating)) {
+        out.by = 'ai';
+        out.aiRating = String(j.rating);
+        if (+j.rating > +out.rating) out.rating = String(j.rating);
+        (Array.isArray(j.reasons) ? j.reasons : []).slice(0, 4).forEach(r => out.reasons.push('🤖 ' + String(r).slice(0, 160)));
+      }
+    } catch (e) { out.aiError = (e.info && e.info.title) || e.message || String(e); }
+    return out;
+  },
+  /* run it for an age field: shows the result and closes the options below it */
+  auto(f, gather, { useAI = true, what = 'اللعبة' } = {}) {
+    const box = f.auto;
+    const run = async (ai = useAI) => {
+      box.textContent = '';
+      box.appendChild(el('span', { text: '🤖 يحدّد العمر من محتوى ' + what + '…' }));
+      let r;
+      try { r = await this.suggest(await gather(), { useAI: ai }); }
+      catch (e) { box.textContent = 'تعذّر فحص المحتوى: ' + (e.message || e); return null; }
+      const before = f.select.value;
+      this.setFloor(f.select, r.rating);
+      f.select.dataset.by = r.by;
+      box.textContent = '';
+      box.append(el('b', { text: (r.by === 'ai' ? '🤖 الذكاء + فحص المحتوى: ' : '🔍 فحص المحتوى: ') + this.label(r.rating) + ' على الأقل' }),
+        el('div', { text: r.reasons.length ? r.reasons.join(' · ') : 'لم يُعثر على عنف أو رعب أو قمار أو محتوى للكبار في النصوص والأسماء.' }),
+        el('div', { style: { opacity: '.75' }, text: (r.by === 'ai' ? 'قرأ الأسماء والوصف ونصوص الكود — لا يرى الصور ولا يلعب اللعبة. ' : (r.aiError ? 'الذكاء لم يُجب (' + r.aiError + ') — ' : 'الذكاء غير متصل — ') + 'فحص كلمات فقط. ') + 'تستطيع اختيار عمر أعلى، لا أقل.' }),
+        btn('أعد التحديد', { cls: 'sm ghost', style: { marginTop: '4px' }, onclick: () => run(true) }));
+      if (before !== f.select.value) Toast.ok('الفئة العمرية صارت ' + this.label(f.select.value) + ' حسب المحتوى');
+      f.result = r;
+      return r;
+    };
+    f.pending = run();
+    return f.pending;
+  },
+  /* what a NEXUS project shows its players */
+  gatherGame(p, extra = {}) {
+    const names = [];
+    const walk = list => (list || []).forEach(o => { if (o && o.name) names.push(o.name); if (o && o.children) walk(o.children); });
+    walk(p.scene && p.scene.objects);
+    (p.files || []).forEach(f => names.push(f.path));
+    const code = (p.files || []).map(f => f.code || '').join('\n') + '\n' + (p.scripts || []).map(s => s.code || '').join('\n');
+    const sc = p.showcase || {};
+    return Object.assign({ title: p.name, description: p.description || '', genre: '', tags: sc.tags || [], names: names.slice(0, 200), code: code.slice(0, 400000) }, extra);
+  },
+
+  /* what an HTML app / site shows: its pages' text, the strings in its scripts, its file names */
+  gatherApp(files, extra = {}) {
+    const list = files instanceof Map ? [...files].map(([path, bytes]) => ({ path, bytes })) : Array.isArray(files) ? files : Object.keys(files || {}).map(path => ({ path, bytes: files[path] }));
+    const dec = new TextDecoder();
+    let html = '', code = '';
+    for (const f of list) {
+      if (/\.html?$/i.test(f.path) && html.length < 400000) html += dec.decode(f.bytes) + '\n';
+      else if (/\.(m?js|json)$/i.test(f.path) && code.length < 400000) code += dec.decode(f.bytes) + '\n';
+    }
+    return Object.assign({ title: '', description: '', names: list.map(f => f.path).slice(0, 300), html, code: code + html.replace(/[\s\S]*?<script[^>]*>([\s\S]*?)<\/script>|[\s\S]+$/gi, '$1\n') }, extra);
+  },
+
+  /* ================= the player's age (their account) ================= */
+  _me: { uid: null, v: undefined },
+  async birth() {
+    const B = NX.Backend, u = B && B.user;
+    if (!u || !B.hasAccount() || !B.isOnline()) return null;
+    if (this._me.uid === u.uid && this._me.v !== undefined) return this._me.v;
+    let v = null;
+    try { const d = await B.fb.F.getDoc(B.fb.F.doc(B.fb.db, 'ages', u.uid)); v = d.exists() ? d.data() : null; }
+    catch (e) { console.warn('[age] read', e && e.code); v = null; }
+    this._me = { uid: u.uid, v };
+    return v;
+  },
+  yearsOf(b, now = new Date()) { return b ? now.getFullYear() - b.y - ((now.getMonth() + 1) < b.m ? 1 : 0) : null; },
+  async years() { return this.yearsOf(await this.birth()); },
+  /* the birth month, asked once (the server refuses a second write) */
+  askBirth(why) {
+    const B = NX.Backend;
+    return new Promise(res => {
+      const now = new Date(), Y = now.getFullYear();
+      const month = el('select', { class: 'select age-m' }, [el('option', { value: '', text: 'الشهر' })].concat(Array.from({ length: 12 }, (_, i) => el('option', { value: String(i + 1), text: String(i + 1) }))));
+      const year = el('select', { class: 'select age-y' }, [el('option', { value: '', text: 'السنة' })].concat(Array.from({ length: 101 }, (_, i) => el('option', { value: String(Y - i), text: String(Y - i) }))));
+      const line = el('div', { class: 'tiny', style: { minHeight: '20px', marginTop: '8px' } });
+      const show = () => { const b = { y: +year.value, m: +month.value }; line.textContent = b.y && b.m ? 'عمرك: ' + this.yearsOf(b) + ' سنة' : ''; };
+      month.onchange = year.onchange = show;
+      const body = el('div', {}, [
+        el('p', { class: 'muted', style: { fontSize: '13px', lineHeight: '1.75', margin: '0 0 10px' }, text: (why ? why + '\n' : '') + 'أدخل شهر وسنة ميلادك مرة واحدة. تُحفظ في حسابك، ولا يراها أحد غيرك، ولا تُغيَّر بعد الحفظ (إن أخطأت يصحّحها صاحب الموقع).' }),
+        el('div', { class: 'row', style: { gap: '8px' } }, [month, year]), line]);
+      Modal.open({ title: '🎂 كم عمرك؟', body, actions: [
+        { label: 'ليس الآن', cls: 'ghost', onclick: () => res(null) },
+        { label: 'حفظ', cls: 'primary age-save', onclick: async () => {
+          const b = { y: +year.value, m: +month.value };
+          if (!b.y || !b.m) { Toast.err('اختر الشهر والسنة'); res(null); return; }
+          if (b.y === Y && b.m > now.getMonth() + 1) { Toast.err('تاريخ في المستقبل'); res(null); return; }
+          try {
+            await B.serverWrite(B.fb.F.setDoc(B.fb.F.doc(B.fb.db, 'ages', B.user.uid), { y: b.y, m: b.m, at: B.fb.F.serverTimestamp() }));
+            this._me = { uid: B.user.uid, v: b };
+            Toast.ok('حُفظ: عمرك ' + this.yearsOf(b) + ' سنة');
+            window.dispatchEvent(new CustomEvent('nx:platformRefresh'));
+            res(b);
+          } catch (e) {
+            /* already there (another device): read it */
+            this._me = { uid: null, v: undefined };
+            const had = await this.birth();
+            if (had) { Toast.ok('تاريخ ميلادك محفوظ في حسابك من قبل'); res(had); }
+            else { Toast.err('تعذّر الحفظ: ' + NX.describeFirebaseError(e)); res(null); }
+          }
+        } }] });
+    });
+  },
+  /* hidden from this player's lists: older than their account says */
+  hidden(x) {
+    const r = +this.of(x);
+    if (r <= 3) return false;
+    const me = NX.Backend && NX.Backend.user;
+    if (me && x.ownerId === me.uid) return false;
+    const y = this._me.uid && me && this._me.uid === me.uid ? this.yearsOf(this._me.v) : null;
+    return y != null && y < r;
+  },
+  /* before a game or site above 3+ runs */
+  async allow(x, what = 'هذه اللعبة') {
+    const r = this.of(x);
+    if (r === '3') return true;
+    const B = NX.Backend, me = B && B.user;
+    if (me && x.ownerId && x.ownerId === me.uid) return true;                       // your own
+    if (!me || !B.hasAccount()) {
+      const go = await new Promise(res => Modal.open({ title: '🔒 ' + what + ' لعمر ' + this.label(r),
+        body: 'الألعاب والمواقع فوق 3+ تحتاج حسابًا يُعرف منه عمرك. سجّل الدخول (Google أو البريد) ثم أدخل شهر وسنة ميلادك مرة واحدة.',
+        actions: [{ label: 'ليس الآن', cls: 'ghost', onclick: () => res(false) }, { label: 'تسجيل الدخول', cls: 'primary', onclick: () => res(true) }] }));
+      if (go) NX.promptSignIn(what + ' لعمر ' + this.label(r) + ' — سجّل الدخول ليُعرف عمرك.');
+      return false;
+    }
+    let b = await this.birth();
+    if (!b) b = await this.askBirth(what + ' لعمر ' + this.label(r) + '.');
+    if (!b) return false;
+    const y = this.yearsOf(b);
+    if (y >= +r) return true;
+    Modal.open({ title: '🔞 ' + what + ' لعمر ' + this.label(r), body: 'حسب تاريخ ميلادك في حسابك عمرك ' + y + ' سنة — ' + what + ' لمن عمرهم ' + r + ' سنة أو أكثر.', actions: [{ label: 'حسنًا', cls: 'primary' }] });
+    return false;
+  },
+  /* kept for older callers: 'adult' · 'minor' · null */
+  mode() { const y = this._me.v ? this.yearsOf(this._me.v) : null; return y == null ? null : y >= 18 ? 'adult' : 'minor'; },
+
+  /* Settings: the account's age */
+  async openSettings() {
     const body = el('div');
-    body.appendChild(el('p', { class: 'muted', style: { fontSize: '13px', lineHeight: '1.7', marginBottom: '12px' }, text: 'الألعاب والمواقع المحدّدة «18+» تسألك عن عمرك مرة واحدة على هذا الجهاز. إذا اخترت «أقل من 18» لا تظهر لك في القوائم ولا تُفتح.' }));
-    const cur = this.mode();
-    [['adult', 'عمري 18 سنة أو أكثر'], ['minor', 'عمري أقل من 18 — أخفِ محتوى 18+'], ['', 'اسألني عندما أفتح شيئًا 18+']].forEach(([m, t]) => body.appendChild(
-      btn((cur === (m || null) ? '✓ ' : '') + t, { cls: 'block' + (cur === (m || null) ? ' primary' : ''), style: { marginBottom: '8px' }, onclick: () => { this.setMode(m || null); Toast.ok('حُفظ'); sheet.close(); window.dispatchEvent(new CustomEvent('nx:platformRefresh')); } })));
-    const sheet = NX.Sheet.open({ title: '🔞 العمر والمحتوى', body, id: 'agemode' });
+    const B = NX.Backend;
+    body.appendChild(el('p', { class: 'muted', style: { fontSize: '13px', lineHeight: '1.7', marginBottom: '12px' },
+      text: 'كل لعبة وموقع له فئة عمرية (3+ · 7+ · 12+ · 16+ · 18+) يحدّدها فحص المحتوى والذكاء عند النشر. 3+ للجميع؛ ما فوقها يحتاج حسابًا فيه شهر وسنة ميلادك، ويتحقّق الخادم منها قبل أن يرسل اللعبة.' }));
+    const line = el('div', { class: 'card', style: { fontSize: '14px', lineHeight: '1.8' } });
+    body.appendChild(line);
+    const sheet = NX.Sheet.open({ title: '🎂 العمر والمحتوى', body, id: 'agemode' });
+    if (!B.user || !B.hasAccount()) {
+      line.append(el('div', { text: 'أنت غير مسجّل — تلعب ألعاب 3+ فقط.' }), btn('تسجيل الدخول', { cls: 'sm primary', style: { marginTop: '8px' }, onclick: () => { sheet.close(); NX.promptSignIn('سجّل الدخول ليُعرف عمرك.'); } }));
+      return sheet;
+    }
+    const b = await this.birth();
+    if (b) line.append(el('div', { text: 'عمرك في حسابك: ' + this.yearsOf(b) + ' سنة (مواليد ' + b.m + '/' + b.y + ')' }),
+      el('div', { class: 'tiny', text: 'لا يُغيَّر من الموقع — إن كان خطأً راسل صاحب الموقع.' }));
+    else line.append(el('div', { text: 'لم تُدخل تاريخ ميلادك بعد — ستلعب 3+ فقط حتى تُدخله.' }),
+      btn('إدخال شهر وسنة الميلاد', { cls: 'sm primary', style: { marginTop: '8px' }, onclick: async () => { if (await this.askBirth()) { sheet.close(); this.openSettings(); } } }));
+    return sheet;
   }
 };
+/* the signed-in account's age, read once per account (a new sign-in forgets the last one) */
+setInterval(() => {
+  const B = NX.Backend, u = B && B.user;
+  if (Age._me.uid && (!u || u.uid !== Age._me.uid)) Age._me = { uid: null, v: undefined };
+  if (u && B.hasAccount() && B.isOnline() && Age._me.uid !== u.uid && !Age._loading) {
+    Age._loading = true;
+    Age.birth().then(v => { if (v) window.dispatchEvent(new CustomEvent('nx:platformRefresh')); }).finally(() => { Age._loading = false; });
+  }
+}, 1500);
 NX.Age = Age;
 </script>
 <!-- /NX-PART:30 -->
@@ -29344,7 +29614,13 @@ ${ctx.text}${ctx.skipped.length ? '\n(not shown: ' + ctx.skipped.join(', ') + ')
       try {
         const list = [...files].map(([path, bytes]) => ({ path, bytes }));
         const read = { files: list, entry, title: app.name, iconPath: null, coverPath: null, bytes: list.reduce((n, f) => n + f.bytes.length, 0) };
-        const rec = await NX.HtmlApps.save(read, { name: app.name, description: app.description || '', visibility: app.visibility, ageRating: app.ageRating }, { existing: app,
+        /* the new content decides the least age again (the AI too, when connected) */
+        let ageRating = NX.Age.of(app), ageSuggested = app.ageSuggested || '3';
+        state.textContent = '🤖 يحدّد العمر من المحتوى الجديد…';
+        const r = await NX.Age.suggest(NX.Age.gatherApp(list, { title: app.name, description: app.description || '' }));
+        ageSuggested = r.rating;
+        if (+r.rating > +ageRating) { ageRating = r.rating; Toast.ok('الفئة العمرية صارت ' + NX.Age.label(r.rating) + ' حسب المحتوى الجديد', 5000); }
+        const rec = await NX.HtmlApps.save(read, { name: app.name, description: app.description || '', visibility: app.visibility, ageRating, ageSuggested }, { existing: app,
           onProgress: f => { state.textContent = 'جارٍ الحفظ… ' + Math.round(f * 100) + '%'; } });
         Object.assign(app, rec);
         original.clear(); files.forEach((v, k) => original.set(k, v));
@@ -30634,7 +30910,7 @@ function openSettings() {
   if (NX.KeyBox) opt('shield', '🔑 مفاتيح الذكاء المجاني — لصاحب الموقع', 'ضع مفاتيحك مرة واحدة على خادم الموقع: كل الناس يستعملون الذكاء المجاني دون أن يروها', () => NX.KeyBox.open());
   if (NX.KeyPool) opt('spark', '🤝 تبرّع بمفتاح للذكاء المجاني', 'لأي لاعب: مفتاحك يساعد الجميع ولا يستطيع أحد قراءته — وتسحبه متى شئت', () => NX.KeyPool.open());
   body.appendChild(el('div', { class: 'opt-sec', text: 'الحساب والأمان' }));
-  if (NX.Age) opt('user', '🔞 العمر والمحتوى', 'عمرك على هذا الجهاز: يحدّد إن كانت ألعاب ومواقع 18+ تظهر وتُفتح', () => NX.Age.openSettings());
+  if (NX.Age) opt('user', '🎂 العمر والمحتوى', 'عمرك في حسابك: يحدّد أي ألعاب ومواقع (فوق 3+) تظهر لك وتُفتح', () => NX.Age.openSettings());
   if (NX.Passkeys && NX.Passkeys.supported()) opt('user', '🔑 مفاتيح المرور · Passkeys', 'ادخل ببصمتك أو وجهك بدل كلمة المرور (اختياري)', () => NX.Passkeys.open());
   opt('shield', 'الأمان وقواعد الحماية', 'القواعد التي تحمي بيانات موقعك (لمالك الموقع)', () => openSecurityPanel());
   body.appendChild(el('div', { class: 'opt-sec', text: 'إذا حدثت مشكلة' }));

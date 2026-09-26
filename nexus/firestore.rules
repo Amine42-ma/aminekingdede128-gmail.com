@@ -15,6 +15,15 @@ service cloud.firestore {
     function validVis(v)     { return v in ['public', 'unlisted', 'private']; }
     // who a game / app is for: 3+ · 7+ · 12+ · 16+ · 18+ (none = everyone)
     function validAge(d)     { return !('ageRating' in d) || d.ageRating in ['3', '7', '12', '16', '18']; }
+    // the player's age, from the birth month their account gave once (ages/{uid})
+    function hasAccount()    { return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'; }
+    function yearsOld() {
+      let b = get(/databases/$(database)/documents/ages/$(request.auth.uid)).data;
+      return request.time.year() - b.y - (request.time.month() < b.m ? 1 : 0);
+    }
+    // may this player run something rated r? 3+ is for everyone (guests too);
+    // above that: an account whose birth month makes them old enough
+    function ageAllows(r)    { return r == '3' || (hasAccount() && exists(/databases/$(database)/documents/ages/$(request.auth.uid)) && yearsOld() >= int(r)); }
     function onlyChanged(ks) { return incoming().diff(existing()).affectedKeys().hasOnly(ks); }
     // a counter may move by exactly 'by', and nothing else in the doc may change
     function bumped(f, by)   { return incoming()[f] == existing()[f] + by && onlyChanged([f]); }
@@ -335,8 +344,10 @@ service cloud.firestore {
     // the runnable snapshot of a game follows the game's visibility; only the
     // owner of the game record may write it (getAfter also works in a batch)
     match /builds/{gameId} {
+      // the runnable game: only for players the game's age rating allows
       allow get: if resource == null || isOwner(existing())
-                 || get(/databases/$(database)/documents/games/$(gameId)).data.visibility in ['public', 'unlisted'];
+                 || (get(/databases/$(database)/documents/games/$(gameId)).data.visibility in ['public', 'unlisted']
+                     && ageAllows(get(/databases/$(database)/documents/games/$(gameId)).data.get('ageRating', '3')));
       allow create: if signedIn() && incoming().ownerId == me() && incoming().gameId == gameId
                     && getAfter(/databases/$(database)/documents/games/$(gameId)).data.ownerId == me();
       allow update: if (isOwner(existing()) && incoming().ownerId == me() && incoming().gameId == gameId)
@@ -382,6 +393,23 @@ service cloud.firestore {
     // the pool's per-player request counter — server only
     match /api_usage/{uid} {
       allow read, write: if false;
+    }
+
+    // A player's birth month (year + month — never the day), given once.
+    // Only they can read it; nobody can change or delete it from a browser
+    // (a mistake is corrected by the site owner in the Firebase console).
+    // Games and apps above 3+ are checked against it here and in storage.rules.
+    match /ages/{uid} {
+      allow get: if signedIn() && me() == uid;
+      allow create: if hasAccount() && me() == uid
+                    && incoming().keys().hasAll(['y', 'm', 'at']) && incoming().keys().hasOnly(['y', 'm', 'at'])
+                    && incoming().y is int && incoming().m is int
+                    && incoming().m >= 1 && incoming().m <= 12
+                    && incoming().y >= request.time.year() - 120
+                    && (incoming().y < request.time.year()
+                        || (incoming().y == request.time.year() && incoming().m <= request.time.month()))
+                    && incoming().at == request.time;
+      allow list, update, delete: if false;
     }
 
     // ---------------------------------------------------------------- HTML apps & websites
