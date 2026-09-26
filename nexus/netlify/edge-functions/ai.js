@@ -22,6 +22,13 @@
    Nobody ever gets a key back, the owner included: only «Groq ••••a1b2».
    Who the owner is: ADMIN_EMAILS (comma list) if set; otherwise the first
    verified Google account that saves a key claims the box.
+   THE KEY POOL (players' donated keys): Firestore api_keys — the rules let
+   a signed-in player add a key and delete their own, and let NO browser read
+   one. With FIREBASE_SERVICE_ACCOUNT this function reads the active ones
+   (after the site's own keys), marks a key the provider refuses as
+   status «disabled», and tells the donor only «Groq ••••a1b2 — active».
+   The same pool is served by the Cloud Function processRequest
+   (functions/index.js) when the Firebase project is on the Blaze plan.
    The page calls /api/ai/… with the player's Firebase sign-in token.
    This function checks the token, picks a key, and when a key is out
    of quota or refused it moves to the next key, then to the other
@@ -30,8 +37,8 @@
 const env = k => { try { return (globalThis.Netlify && Netlify.env.get(k)) || ''; } catch { return ''; } };
 const list = k => env(k).split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
 const VAR = { gemini: 'GEMINI_KEYS', groq: 'GROQ_KEYS', openrouter: 'OPENROUTER_KEYS' };
-/* a provider's keys: the site's variables, then the owner's key box */
-const keysOf = p => Array.from(new Set(list(VAR[p]).concat(box.keys.filter(k => k.provider === p).map(k => k.key))));
+/* a provider's keys: the site's variables, the owner's key box, then the keys players donated (api_keys) */
+const keysOf = p => Array.from(new Set(list(VAR[p]).concat(box.keys.filter(k => k.provider === p).map(k => k.key), pool.keys.filter(k => k.provider === p).map(k => k.key))));
 
 const P = {
   gemini: { label: 'Gemini', base: () => env('GEMINI_BASE') || 'https://generativelanguage.googleapis.com/v1beta/openai',
@@ -280,6 +287,41 @@ async function saveBox(next) {
   box = Object.assign({ at: Date.now() }, next);
 }
 const boxReady = () => !!(blobsCtx() || sa() || env('FIRESTORE_EMULATOR_HOST'));
+
+/* ---------- the donated key pool: Firestore «api_keys» — players write a key once, no browser can
+   read it (firestore.rules); read here with the service account (the rules do not bind it) ---------- */
+let pool = { at: 0, keys: [], readable: false };
+const fsDocs = () => (env('FIRESTORE_EMULATOR_HOST') ? 'http://' + env('FIRESTORE_EMULATOR_HOST') : 'https://firestore.googleapis.com') + '/v1/projects/' + fsProject() + '/databases/(default)/documents';
+const poolReady = () => !!(sa() || env('FIRESTORE_EMULATOR_HOST'));
+async function poolQuery(field, value) {
+  const r = await fetch(fsDocs() + ':runQuery', { method: 'POST', headers: { authorization: 'Bearer ' + await adminToken(), 'content-type': 'application/json' },
+    body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'api_keys' }], where: { fieldFilter: { field: { fieldPath: field }, op: 'EQUAL', value: { stringValue: value } } }, limit: 500 } }) });
+  if (!r.ok) throw new Error('firestore ' + r.status);
+  return (await r.json()).filter(x => x.document).map(x => {
+    const f = x.document.fields || {};
+    return { id: x.document.name.split('/').pop(), key: (f.key || {}).stringValue || '', status: (f.status || {}).stringValue || '', reason: (f.disabledReason || {}).stringValue || null };
+  });
+}
+async function loadPool(force) {
+  if (!poolReady()) return pool;
+  if (!force && Date.now() - pool.at < 60e3) return pool;
+  try {
+    const rows = await poolQuery('status', 'active');
+    pool = { at: Date.now(), readable: true, keys: rows.map(k => Object.assign(k, { provider: providerOf(k.key) })).filter(k => k.provider) };
+  } catch { pool = Object.assign({}, pool, { at: Date.now(), readable: false }); }
+  return pool;
+}
+/* a donated key the provider refused: disabled for good (the donor sees it on their page) */
+async function poolDisable(key, reason) {
+  const k = pool.keys.find(x => x.key === key);
+  if (!k) return;
+  pool.keys = pool.keys.filter(x => x !== k);
+  try {
+    await fetch(fsDocs() + '/api_keys/' + encodeURIComponent(k.id) + '?updateMask.fieldPaths=status&updateMask.fieldPaths=disabledReason&updateMask.fieldPaths=disabledAt', {
+      method: 'PATCH', headers: { authorization: 'Bearer ' + await adminToken(), 'content-type': 'application/json' },
+      body: JSON.stringify({ fields: { status: { stringValue: 'disabled' }, disabledReason: { stringValue: reason }, disabledAt: { timestampValue: new Date().toISOString() } } }) });
+  } catch { /* it rests here anyway */ }
+}
 /* why the box is (not) ready — said plainly, never showing the secret itself */
 async function boxCheck() {
   const c = blobsCtx();
@@ -413,6 +455,8 @@ async function chat(req, body) {
         return new Response(t, { status: r.status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
       /* the service is overloaded: the other provider, the keys are fine */
       if (r.status >= 500) { why = 'مشغول الآن'; break; }
+      /* a donated key that is refused is disabled in the pool, not only rested here */
+      if (keyIssue) poolDisable(key, 'invalid');
       /* this key: out of quota, rate-limited or refused — it rests, the next key is tried */
       rest.set(keyIssue || r.status === 402 ? key : key + '|' + model, Date.now() + (restFor(r.status, t, r.headers) || 15e3));
     }
@@ -428,13 +472,21 @@ export default async (req) => {
   const origin = req.headers.get('origin');
   if (origin && origin !== url.origin) return fail(403, 'origin', 'غير مسموح');
   await loadBox();
+  await loadPool();
   if (req.method === 'GET' && path === '/health') {
     const providers = Object.keys(P).filter(p => P[p].keys().length);
-    return json(200, { free: providers.length > 0, providers, signin: 'google', keyBox: boxReady() });
+    return json(200, { free: providers.length > 0, providers, signin: 'google', keyBox: boxReady(), pool: { readable: pool.readable, active: pool.keys.length } });
   }
   const me = await who(req);
   if (me.error) return fail(401, 'signin', 'سجّل الدخول بحساب Google لاستعمال الذكاء المجاني');
   if (req.method === 'POST' && path.startsWith('/keys/')) return keyBox(path, me, req);
+  /* the donor's own donated keys: provider, last four characters, state — never a key */
+  if (req.method === 'GET' && path === '/pool') {
+    const out = { readable: poolReady() && pool.readable, active: pool.keys.length, providers: {} };
+    pool.keys.forEach(k => { out.providers[k.provider] = (out.providers[k.provider] || 0) + 1; });
+    if (out.readable) { try { out.mine = (await poolQuery('donorUid', me.uid)).map(k => ({ id: k.id, provider: providerOf(k.key), tail: '••••' + k.key.slice(-4), status: k.status, reason: k.reason })); } catch { out.mine = null; } }
+    return json(200, out);
+  }
   if (req.method === 'GET' && path === '/models') {
     /* every model of every provider that has keys here, grouped by provider (the page shows the groups) */
     const data = [{ id: 'auto', owned_by: 'nexus', provider: 'NEXUS' }];

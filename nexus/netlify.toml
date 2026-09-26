@@ -18,6 +18,14 @@
   to = "/index.html"
   status = 200
 
+# functions/ is the Cloud Function's source (processRequest, deployed to
+# Firebase with «firebase deploy --only functions») — this site never serves it.
+[[redirects]]
+  from = "/functions/*"
+  to = "/404"
+  status = 404
+  force = true
+
 # Optional — only if Google sign-in by REDIRECT fails on some phones
 # (browsers that block third-party storage). Proxy Firebase's auth helper
 # through this site, then set authDomain in the NEXUS_FIREBASE block of

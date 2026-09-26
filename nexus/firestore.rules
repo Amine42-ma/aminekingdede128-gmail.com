@@ -352,6 +352,38 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ---------------------------------------------------------------- the API key pool (donated keys)
+    // Players donate their own AI keys for the site's free AI. A key is
+    // written ONCE from the browser and can never be read back by anyone —
+    // not the donor, not another player, not a bot. Only the server code
+    // (functions/index.js «processRequest», or the Netlify function with a
+    // service account) reads it, with the admin SDK, which these rules do
+    // not bind. Each account has five slots: "<uid>_0" … "<uid>_4" (so
+    // nobody can flood the pool); the donor may withdraw their own key.
+    match /api_keys/{keyId} {
+      function poolKey(k) {
+        return k is string && k.size() >= 20 && k.size() <= 200
+               && k.matches('(AIza[0-9A-Za-z_-]+|AQ[.][0-9A-Za-z_.-]+|gsk_[A-Za-z0-9]+|sk-or-[A-Za-z0-9_-]+)');
+      }
+      allow read: if false;
+      allow create: if signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'
+                    && keyId.matches(me() + '_[0-4]')
+                    && incoming().keys().hasAll(['key', 'createdAt', 'status', 'failCount', 'donorUid'])
+                    && incoming().keys().hasOnly(['key', 'createdAt', 'status', 'failCount', 'donorUid', 'provider'])
+                    && poolKey(incoming().key)
+                    && incoming().createdAt == request.time
+                    && incoming().status == 'active'
+                    && incoming().failCount == 0
+                    && incoming().donorUid == me()
+                    && (!('provider' in incoming()) || incoming().provider in ['gemini', 'groq', 'openrouter']);
+      allow update: if false;
+      allow delete: if signedIn() && existing().donorUid == me();
+    }
+    // the pool's per-player request counter — server only
+    match /api_usage/{uid} {
+      allow read, write: if false;
+    }
+
     // ---------------------------------------------------------------- HTML apps & websites
     // The owner's own pages / sites (the files live in the file host as one
     // ZIP; this is the record). They run in a sandboxed opaque-origin frame.

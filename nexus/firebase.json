@@ -6,10 +6,19 @@
   "storage": {
     "rules": "storage.rules"
   },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "nexus",
+      "runtime": "nodejs22",
+      "ignore": ["node_modules", ".env.example", "*.local"]
+    }
+  ],
   "emulators": {
     "auth": { "port": 9099 },
     "firestore": { "port": 8080 },
     "storage": { "port": 9199 },
+    "functions": { "port": 5001 },
     "ui": { "enabled": false },
     "singleProjectMode": true
   }

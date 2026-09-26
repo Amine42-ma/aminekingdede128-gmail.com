@@ -4028,6 +4028,38 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ---------------------------------------------------------------- the API key pool (donated keys)
+    // Players donate their own AI keys for the site's free AI. A key is
+    // written ONCE from the browser and can never be read back by anyone —
+    // not the donor, not another player, not a bot. Only the server code
+    // (functions/index.js «processRequest», or the Netlify function with a
+    // service account) reads it, with the admin SDK, which these rules do
+    // not bind. Each account has five slots: "<uid>_0" … "<uid>_4" (so
+    // nobody can flood the pool); the donor may withdraw their own key.
+    match /api_keys/{keyId} {
+      function poolKey(k) {
+        return k is string && k.size() >= 20 && k.size() <= 200
+               && k.matches('(AIza[0-9A-Za-z_-]+|AQ[.][0-9A-Za-z_.-]+|gsk_[A-Za-z0-9]+|sk-or-[A-Za-z0-9_-]+)');
+      }
+      allow read: if false;
+      allow create: if signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'
+                    && keyId.matches(me() + '_[0-4]')
+                    && incoming().keys().hasAll(['key', 'createdAt', 'status', 'failCount', 'donorUid'])
+                    && incoming().keys().hasOnly(['key', 'createdAt', 'status', 'failCount', 'donorUid', 'provider'])
+                    && poolKey(incoming().key)
+                    && incoming().createdAt == request.time
+                    && incoming().status == 'active'
+                    && incoming().failCount == 0
+                    && incoming().donorUid == me()
+                    && (!('provider' in incoming()) || incoming().provider in ['gemini', 'groq', 'openrouter']);
+      allow update: if false;
+      allow delete: if signedIn() && existing().donorUid == me();
+    }
+    // the pool's per-player request counter — server only
+    match /api_usage/{uid} {
+      allow read, write: if false;
+    }
+
     // ---------------------------------------------------------------- HTML apps & websites
     // The owner's own pages / sites (the files live in the file host as one
     // ZIP; this is the record). They run in a sandboxed opaque-origin frame.
@@ -16696,6 +16728,7 @@ function openAISettings() {
         : !F.signedIn() ? 'الذكاء المجاني لمن سجّل الدخول بحساب Google أو بالبريد — حتى لا يستهلكه أحد من خارج المنصة.'
         : 'اختر النموذج أدناه أو اتركه «auto». إذا انتهى حدّ مفتاح ينتقل وحده إلى التالي، ثم إلى النموذج الآخر، ويخبرك بذلك.' + (F.providers.length ? ' المتاح: ' + F.providers.map(x => x === 'gemini' ? 'Gemini' : x === 'groq' ? 'Groq' : x === 'openrouter' ? 'OpenRouter' : x).join(' · ') : '') }));
       if (NX.KeyBox) st.appendChild(btn('🔑 مفاتيح الذكاء المجاني — لصاحب الموقع', { cls: 'sm', style: { marginTop: '8px', display: 'flex' }, onclick: () => NX.KeyBox.open() }));
+      if (NX.KeyPool) st.appendChild(btn('🤝 تبرّع بمفتاحك للذكاء المجاني', { cls: 'sm ghost', style: { marginTop: '8px', display: 'flex' }, onclick: () => NX.KeyPool.open() }));
       if (F.state !== 'off' && !F.signedIn()) st.appendChild(btn('تسجيل الدخول', { cls: 'sm primary', icon: 'user', style: { marginTop: '8px' }, onclick: () => NX.promptSignIn('الذكاء المجاني لمن سجّل الدخول.', () => { drawProvider(); paintGrid(); }) }));
       pane.appendChild(st);
     }
@@ -28633,6 +28666,214 @@ if (!window.NX_SANDBOX) {
 NX.EditorAgent = EditorAgent;
 </script>
 <!-- /NX-PART:31 -->
+<!-- NX-PART:32 -->
+<script type="module">
+/* ============================================================
+   PART 32 · THE API KEY POOL — players donate their own AI keys so the
+   site's free AI keeps working for everyone.
+   • The key is written ONCE into Firestore «api_keys» (slot "<uid>_0…4").
+     firestore.rules let nobody read it back — not the donor, not another
+     player, not a bot. This page keeps only its last four characters.
+   • Only server code uses it: the Cloud Function «processRequest»
+     (functions/index.js) and the site's AI function (Netlify, with a
+     service account). A key the provider refuses is disabled there.
+   • The donor sees their keys' state (provider, ••••last4, active or
+     disabled) and can withdraw them at any time.
+   • KeyPool.process() sends a request to processRequest and returns the
+     answer only.
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, Sheet, Modal, Toast, LS } = NX;
+const { Backend } = NX;
+
+const KINDS = [
+  ['groq', /^gsk_[A-Za-z0-9]{20,}$/, 'Groq'],
+  ['openrouter', /^sk-or-[A-Za-z0-9_-]{20,}$/, 'OpenRouter'],
+  ['gemini', /^(AIza[0-9A-Za-z_-]{30,}|AQ\.[0-9A-Za-z_.-]{20,})$/, 'Gemini']
+];
+const providerOf = k => (KINDS.find(([, re]) => re.test(k)) || [])[0] || null;
+const LABEL = { gemini: 'Gemini', groq: 'Groq', openrouter: 'OpenRouter' };
+const REASON = { invalid: 'رفضه المزوّد', 'rate-limit': 'وصل حدّه — يعود وحده', 'too-many-failures': 'فشل مرات كثيرة' };
+const clean = raw => String(raw || '').trim().replace(/\s+/g, '');
+/* the site's own AI function (Netlify) — it also uses the pool when it can read it */
+const SITE_AI = /^https?:$/.test(location.protocol) ? location.origin + location.pathname.replace(/[^/]*$/, '') + 'api/ai' : '';
+
+const KeyPool = {
+  SLOTS: 5,
+
+  /* the Cloud Function's address: window.NEXUS_KEYPOOL_URL (set by the owner at the top of
+     index.html), else the address Firebase gives «processRequest» in us-central1 */
+  url() {
+    if (window.NEXUS_KEYPOOL_URL) return String(window.NEXUS_KEYPOOL_URL);
+    const pid = Backend.projectId || '';
+    if (NX.EMULATORS) return 'http://127.0.0.1:5001/' + pid + '/us-central1/processRequest';
+    return 'https://us-central1-' + pid + '.cloudfunctions.net/processRequest';
+  },
+  providerOf,
+
+  /* what this browser remembers of its own donations: provider + last four characters, never the key */
+  local() { return LS.get('keyPool.mine.' + (Backend.user ? Backend.user.uid : ''), []); },
+  remember(slot, provider, key) {
+    const list = this.local().filter(x => x.slot !== slot);
+    list.push({ slot, provider, tail: '••••' + key.slice(-4), at: Date.now() });
+    LS.set('keyPool.mine.' + Backend.user.uid, list);
+  },
+  forget(slot) { LS.set('keyPool.mine.' + Backend.user.uid, this.local().filter(x => x.slot !== slot)); },
+
+  /* ---- donate: the first free slot "<uid>_0…4" (a taken slot is refused by the rules) ---- */
+  async donate(raw) {
+    const key = clean(raw);
+    const provider = providerOf(key);
+    if (!provider) throw Object.assign(new Error('هذا لا يشبه مفتاح Gemini (يبدأ بـ AIza أو AQ.) أو Groq (gsk_) أو OpenRouter (sk-or-)'), { code: 'format' });
+    if (!Backend.isOnline()) throw Object.assign(new Error('التبرّع يحتاج اتصال الموقع بالسحابة'), { code: 'offline' });
+    if (!Backend.hasAccount()) throw Object.assign(new Error('سجّل الدخول بحساب (Google أو البريد) أولًا'), { code: 'signin' });
+    const { F, db } = Backend.fb, uid = Backend.user.uid;
+    const used = new Set(this.local().map(x => x.slot));
+    const order = [...Array(this.SLOTS).keys()].sort((a, b) => used.has(a) - used.has(b));
+    for (const i of order) {
+      try {
+        await Backend.serverWrite(F.setDoc(F.doc(db, 'api_keys', uid + '_' + i), {
+          key, provider, createdAt: F.serverTimestamp(), status: 'active', failCount: 0, donorUid: uid
+        }));
+        this.remember(i, provider, key);
+        return { slot: i, provider, tail: '••••' + key.slice(-4) };
+      } catch (e) {
+        /* a slot that already holds a key cannot be written again: the next one */
+        if (e && e.code === 'permission-denied') continue;
+        throw e;
+      }
+    }
+    throw Object.assign(new Error('لكل حساب ' + this.SLOTS + ' مفاتيح كحدّ أقصى — اسحب مفتاحًا أولًا'), { code: 'full' });
+  },
+
+  /* ---- withdraw: the donor deletes their own slot (the rules allow only them) ---- */
+  async withdraw(slot) {
+    const { F, db } = Backend.fb, uid = Backend.user.uid;
+    try { await Backend.serverWrite(F.deleteDoc(F.doc(db, 'api_keys', uid + '_' + slot))); }
+    catch (e) { if (!(e && e.code === 'permission-denied')) throw e; }   // nothing there any more
+    this.forget(slot);
+  },
+
+  async token() {
+    const u = Backend.fb && Backend.fb.auth && Backend.fb.auth.currentUser;
+    return u ? u.getIdToken() : null;
+  },
+
+  /* ---- the pool as the servers see it: counts, and the donor's own keys' state ---- */
+  async status() {
+    const out = { fn: null, site: null };
+    const tok = await this.token().catch(() => null);
+    const H = tok ? { authorization: 'Bearer ' + tok } : {};
+    try {
+      const r = await fetch(this.url() + '?mine=' + (tok ? '1' : ''), { headers: H });
+      const j = await r.json().catch(() => null);
+      out.fn = r.ok && j && j.ok ? j : { error: j && j.error ? j.error.message : 'HTTP ' + r.status };
+    } catch (e) { out.fn = { error: 'غير منشورة أو لا يمكن الوصول إليها' }; }
+    if (SITE_AI) {
+      try {
+        const r = await fetch(SITE_AI + '/pool', { headers: H });
+        out.site = r.ok ? await r.json() : null;
+      } catch { out.site = null; }
+    }
+    return out;
+  },
+
+  /* ---- a request through processRequest: the answer comes back, the key never does ---- */
+  async process({ messages, provider = null, model = null, max_tokens = 1024, temperature } = {}) {
+    if (!Array.isArray(messages) || !messages.length) throw new Error('لا توجد رسالة');
+    const tok = await this.token();
+    if (!tok) throw Object.assign(new Error('سجّل الدخول أولًا'), { code: 'signin' });
+    let r;
+    try {
+      r = await fetch(this.url(), { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok },
+        body: JSON.stringify({ messages, provider, model, max_tokens, temperature }) });
+    } catch (e) {
+      throw Object.assign(new Error('تعذّر الوصول إلى processRequest — الدالة غير منشورة (تحتاج خطة Blaze) أو الشبكة مقطوعة'), { code: 'unreachable' });
+    }
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j || !j.ok) throw Object.assign(new Error((j && j.error && j.error.message) || ('HTTP ' + r.status)), { code: (j && j.error && j.error.code) || 'http_' + r.status, status: r.status });
+    return j;          // { ok, text, provider, model, usage }
+  },
+
+  /* ---------------------------------------------------------------- the sheet */
+  open() {
+    const body = el('div', { class: 'kp' });
+    body.appendChild(el('p', { class: 'muted', style: { fontSize: '13px', lineHeight: '1.75' },
+      text: 'تبرّع بمفتاح Gemini أو Groq أو OpenRouter الخاص بك ليبقى الذكاء المجاني في هذا الموقع يعمل للجميع.' }));
+    body.appendChild(el('div', { class: 'card kp-safe', style: { fontSize: '12.5px', lineHeight: '1.75', marginBottom: '12px' } }, [
+      el('b', { text: '🔒 ماذا يحدث لمفتاحك؟' }),
+      el('div', { text: '• يُكتب مرة واحدة في قاعدة بيانات الموقع، ولا يستطيع أحد قراءته بعدها: لا الزوار ولا البوتات ولا أنت (هذه الصفحة تحفظ آخر 4 أحرف فقط).' }),
+      el('div', { text: '• يستعمله خادم الموقع وحده ليجيب الذكاء المجاني؛ لا يصل إلى أي متصفح في أي رد أو رسالة خطأ.' }),
+      el('div', { text: '• إن رفضه المزوّد يُعطَّل وحده، وإن وصل حدّه يرتاح ثم يعود. تسحبه متى شئت.' }),
+      el('div', { style: { color: '#fcd77a' }, text: '• مالك الموقع يصل إلى قاعدة البيانات من لوحة Firebase — تبرّع لموقع تثق بصاحبه، وتأكّد أن شروط مزوّدك تسمح بمشاركة المفتاح.' })]));
+
+    const input = el('input', { class: 'input', type: 'password', placeholder: 'الصق المفتاح هنا (gsk_… أو AIza… أو AQ.… أو sk-or-…)', autocomplete: 'off', spellcheck: 'false', style: { direction: 'ltr' } });
+    const kind = el('div', { class: 'tiny', style: { minHeight: '18px', marginTop: '4px' } });
+    input.addEventListener('input', () => { const p = providerOf(clean(input.value)); kind.textContent = !input.value ? '' : p ? '✓ مفتاح ' + LABEL[p] : '✗ لا يشبه مفتاحًا مدعومًا'; kind.style.color = p ? '#9ae6b4' : '#ff9aa8'; });
+    const agree = el('input', { type: 'checkbox', id: 'kp-agree' });
+    const agreeRow = el('label', { class: 'tiny', for: 'kp-agree', style: { display: 'flex', gap: '8px', alignItems: 'flex-start', margin: '10px 0', lineHeight: '1.6' } },
+      [agree, el('span', { text: 'المفتاح ملكي، وأسمح باستعماله للذكاء المجاني في هذا الموقع، وأعرف أنني أستطيع سحبه متى شئت.' })]);
+    const give = btn('🤝 تبرّع بالمفتاح', { cls: 'primary block', onclick: async e => {
+      const b = e.currentTarget;
+      if (!agree.checked) { Toast.err('وافق أولًا على استعمال المفتاح'); return; }
+      b.disabled = true;
+      try {
+        const r = await this.donate(input.value);
+        input.value = ''; kind.textContent = '';
+        Toast.ok('شكرًا! أُضيف مفتاح ' + LABEL[r.provider] + ' ' + r.tail + ' إلى المجمّع');
+        draw();
+      } catch (err) {
+        if (err.code === 'signin') NX.promptSignIn('التبرّع بمفتاح يحتاج حسابًا (Google أو البريد) — حتى تستطيع سحبه لاحقًا.');
+        else Toast.err(err.message || NX.describeFirebaseError(err));
+      } finally { b.disabled = false; }
+    } });
+    body.append(NX.field('مفتاحك', input), kind, agreeRow, give);
+
+    const state = el('div', { style: { marginTop: '16px' } });
+    body.appendChild(state);
+    const draw = async () => {
+      state.textContent = '';
+      state.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' }), el('span', { text: 'أقرأ حالة المجمّع…' })]));
+      const s = Backend.user ? await this.status() : { fn: null, site: null };
+      state.textContent = '';
+      const src = s.fn && !s.fn.error ? s.fn : s.site && s.site.readable ? s.site : null;
+      /* my keys: the server's view when it can read the pool, else what this browser remembers */
+      state.appendChild(el('div', { class: 'ttl', text: 'مفاتيحك' }));
+      const mine = src && Array.isArray(src.mine) ? src.mine.map(k => ({ slot: +String(k.id).split('_').pop(), provider: k.provider, tail: k.tail, status: k.status, reason: k.reason }))
+        : this.local().map(x => Object.assign({ status: null }, x));
+      if (!mine.length) state.appendChild(el('p', { class: 'tiny', text: Backend.hasAccount && Backend.hasAccount() ? 'لم تتبرّع بمفتاح بعد.' : 'سجّل الدخول لترى مفاتيحك.' }));
+      mine.forEach(k => state.appendChild(el('div', { class: 'comp-row kp-row' }, [
+        el('b', { text: (LABEL[k.provider] || k.provider || '?') + ' ' + (k.tail || '') }),
+        el('span', { class: 'tiny', style: { flex: '1' }, text: k.status === 'active' ? '🟢 يعمل' : k.status === 'disabled' ? '🔴 معطّل — ' + (REASON[k.reason] || k.reason || '') : '— (الحالة يعرفها الخادم)' }),
+        btn('سحب', { cls: 'sm danger', onclick: async ev => {
+          const me = ev.currentTarget;              // (currentTarget is gone after the first await)
+          if (!(await Modal.confirm('سحب المفتاح؟', 'يُحذف من المجمّع فورًا ولا يُستعمل بعد الآن.', 'سحب'))) return;
+          me.disabled = true;
+          try { await this.withdraw(k.slot); Toast.ok('سُحب'); draw(); } catch (err) { Toast.err(NX.describeFirebaseError(err)); me.disabled = false; }
+        } })])));
+      /* where the pool is used */
+      const count = src ? src.active + ' مفتاحًا نشطًا' + (src.providers && Object.keys(src.providers).length ? ' (' + Object.entries(src.providers).map(([p, n]) => LABEL[p] + ' ' + n).join(' · ') + ')' : '') : 'غير معروف';
+      state.appendChild(el('div', { class: 'card', style: { marginTop: '12px', fontSize: '12.5px', lineHeight: '1.8' } }, [
+        el('div', { text: 'في المجمّع الآن: ' + count }),
+        el('div', { text: 'الدالة processRequest: ' + (s.fn && !s.fn.error ? '🟢 منشورة وتعمل' : '⚪ ' + ((s.fn && s.fn.error) || 'لم تُفحص') + ' — تحتاج خطة Blaze في Firebase ثم: firebase deploy --only functions') }),
+        el('div', { text: 'خادم الذكاء في الموقع (Netlify): ' + (s.site ? (s.site.readable ? '🟢 يستعمل المفاتيح المتبرَّع بها' : '⚪ لا يقرأ المجمّع — يحتاج FIREBASE_SERVICE_ACCOUNT في Netlify') : '⚪ غير متاح هنا') })]));
+      const test = btn('جرّب المجمّع عبر processRequest', { cls: 'sm', onclick: async ev => {
+        const me = ev.currentTarget;
+        me.disabled = true;
+        try { const r = await this.process({ messages: [{ role: 'user', content: 'قل «مرحبًا من NEXUS» فقط.' }], max_tokens: 64 }); Toast.ok('✓ ' + LABEL[r.provider] + ' · ' + r.model + ': ' + String(r.text).slice(0, 80)); }
+        catch (err) { Toast.err(err.message); }
+        finally { me.disabled = false; }
+      } });
+      state.appendChild(el('div', { class: 'row', style: { marginTop: '10px', flexWrap: 'wrap' } }, [test]));
+    };
+    Sheet.open({ title: '🤝 تبرّع بمفتاح للذكاء المجاني', body, id: 'keypool' });
+    draw();
+  }
+};
+
+NX.KeyPool = KeyPool;
+</script>
+<!-- /NX-PART:32 -->
 <script type="module">
 /* ============================================================
    PART 8/18 · GAME PLATFORM + BOOT
@@ -29832,6 +30073,7 @@ function openSettings() {
   body.appendChild(el('div', { class: 'opt-sec', text: 'الذكاء الاصطناعي' }));
   opt('spark', 'مزوّدو الذكاء الاصطناعي', 'اختر النموذج، أو أضف مفتاحك الخاص (يبقى في هذا المتصفح فقط)', () => NX.openAISettings());
   if (NX.KeyBox) opt('shield', '🔑 مفاتيح الذكاء المجاني — لصاحب الموقع', 'ضع مفاتيحك مرة واحدة على خادم الموقع: كل الناس يستعملون الذكاء المجاني دون أن يروها', () => NX.KeyBox.open());
+  if (NX.KeyPool) opt('spark', '🤝 تبرّع بمفتاح للذكاء المجاني', 'لأي لاعب: مفتاحك يساعد الجميع ولا يستطيع أحد قراءته — وتسحبه متى شئت', () => NX.KeyPool.open());
   body.appendChild(el('div', { class: 'opt-sec', text: 'الحساب والأمان' }));
   if (NX.Age) opt('user', '🔞 العمر والمحتوى', 'عمرك على هذا الجهاز: يحدّد إن كانت ألعاب ومواقع 18+ تظهر وتُفتح', () => NX.Age.openSettings());
   if (NX.Passkeys && NX.Passkeys.supported()) opt('user', '🔑 مفاتيح المرور · Passkeys', 'ادخل ببصمتك أو وجهك بدل كلمة المرور (اختياري)', () => NX.Passkeys.open());

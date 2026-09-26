@@ -1,2 +1,6 @@
 # Firebase emulator logs
 *-debug.log
+# Cloud Functions packages (npm install)
+functions/node_modules/
+functions/.env
+functions/.env.local
