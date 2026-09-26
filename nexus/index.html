@@ -1240,6 +1240,12 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 .ha-entry b { display: block; font-size: 14.5px; }
 .ha-cover { display: flex; align-items: center; justify-content: center; }
 .ha-cover .ha-icon { width: 64px; height: 64px; border-radius: 16px; }
+/* an app with its own image: the image fills the card, the icon sits in a corner */
+.ha-cover.has-img { position: relative; overflow: hidden; }
+.ha-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ha-cover.has-img .ha-icon { position: absolute; bottom: 8px; inset-inline-start: 8px; width: 40px; height: 40px; border-radius: 11px; box-shadow: 0 2px 10px rgba(0,0,0,.45); }
+.ha-banner { position: relative; margin: -4px 0 14px; border-radius: 14px; overflow: hidden; aspect-ratio: 16 / 9; background: #11142a; }
+.ha-banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ha-head { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
 .ha-hinfo { min-width: 0; flex: 1; }
 .ha-hinfo h2 { font-size: 20px; margin: 0 0 2px; overflow-wrap: anywhere; }
@@ -1259,6 +1265,25 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 .ha-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .ha-acts > .btn { width: 100%; min-width: 0; white-space: normal; line-height: 1.3; min-height: 40px; justify-content: center; text-align: center; }
 .ha-acts > .btn:only-child { grid-column: 1 / -1; }
+/* PART 33 · editing an uploaded app / 2D game */
+.ae-note { margin-bottom: 10px; line-height: 1.7; }
+.ae-state { margin: 4px 0 8px; }
+.ae-files { display: flex; flex-direction: column; gap: 4px; max-height: 190px; overflow: auto; margin-bottom: 8px; }
+.ae-file { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06); color: inherit; font: inherit; text-align: start; cursor: pointer; }
+.ae-file b { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; direction: ltr; text-align: start; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ae-file.on { border-color: var(--cyan, #22d3ee); background: rgba(34,211,238,.1); }
+.ae-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.ae-ed { min-height: 300px; height: 46vh; display: flex; flex-direction: column; margin-bottom: 10px; }
+.ae-ed .ed-wrap { flex: 1; min-height: 0; }
+.ae-media { margin-bottom: 10px; }
+.ae-img { max-width: 100%; max-height: 240px; border-radius: 10px; background: repeating-conic-gradient(#222 0 25%, #2c2c2c 0 50%) 0 0 / 16px 16px; }
+.ae-ai { margin-bottom: 10px; padding: 12px; border-radius: 14px; background: rgba(124,92,255,.08); border: 1px solid rgba(124,92,255,.25); }
+.ae-ai > b { display: block; margin-bottom: 6px; }
+.ae-sum { margin: 8px 0 4px; font-size: 13.5px; line-height: 1.7; }
+.ae-preview { border-radius: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,.08); margin-bottom: 10px; }
+.ae-pv-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: rgba(255,255,255,.04); }
+.ae-pv-bar span { flex: 1; }
+.ae-frame { min-height: 52vh; }
 /* /NX-CSS:28 */
 /* NX-CSS:29 */
 /* PART 29 · every icon has a size (zero specificity: any real rule wins) — menus used to show giant black icons and no text */
@@ -3432,6 +3457,14 @@ const Games = {
         try { const up = await Backend.upload(`${base}/cover.webp`, opts.coverBlob); cover = up.path; coverURL = up.url; }
         catch (e) { warnings.push('لم يُرفع الغلاف: ' + describeFirebaseError(e) + ' — نُشرت اللعبة بدون غلاف جديد.'); }
       }
+      /* the icon: the owner's (GAME MEDIA) → the cover's small copy → one made
+         in the publish dialog (icon.webp) → the one this game already has */
+      let thumb = scThumb ? { path: scThumb.path, url: scThumb.url || null } : null;
+      if (!thumb && opts.iconBlob) {
+        try { const up = await Backend.upload(`${base}/icon.webp`, opts.iconBlob); thumb = { path: up.path, url: up.url, auto: true }; }
+        catch (e) { warnings.push('لم تُرفع الأيقونة: ' + describeFirebaseError(e)); }
+      }
+      if (!thumb && prev && prev.thumb && prev.thumbAuto) thumb = { path: prev.thumb, url: prev.thumbURL || null, auto: true };
 
       /* a Firestore document holds at most 1 MiB; a bigger snapshot is kept
          in Storage and the build document points at it */
@@ -3454,7 +3487,7 @@ const Games = {
         genre: meta.genre || 'Other', icon: meta.icon || null,
         ageRating: ['3', '7', '12', '16', '18'].includes(String(meta.ageRating || (sc && sc.ageRating))) ? String(meta.ageRating || sc.ageRating) : '3',
         cover, coverURL, visibility,
-        thumb: scThumb ? scThumb.path : null, thumbURL: scThumb ? scThumb.url : null,
+        thumb: thumb ? thumb.path : null, thumbURL: thumb ? thumb.url : null, thumbAuto: !!(thumb && thumb.auto),
         showcase: sc,
         updatedAt: now, publishedAt: now,
         version: ((prev && prev.version) || 0) + 1,
@@ -3485,7 +3518,7 @@ const Games = {
       if (!b || b.updatedAt !== now) throw coded('publish-not-confirmed', 'BUILD_NOT_ON_SERVER');
 
       project.publishedId = gameId;
-      project.publishMeta = { title, description: rec.description, genre: rec.genre, ageRating: rec.ageRating, visibility, cover, coverURL };
+      project.publishMeta = { title, description: rec.description, genre: rec.genre, ageRating: rec.ageRating, visibility, cover, coverURL, thumb: rec.thumb, thumbURL: rec.thumbURL };
       try { await Projects.save(project); }
       catch (e) { warnings.push('نُشرت اللعبة، لكن تعذّر حفظ المشروع: ' + describeFirebaseError(e)); }
       return Object.assign({}, g, { verified: true, warnings, link: gameLink(gameId) });
@@ -3503,6 +3536,9 @@ const Games = {
     const sc = cleanShowcase(project.showcase);
     const th = sc && (sc.thumbnail || (sc.cover && sc.cover.thumb));
     const patch = { showcase: sc, thumb: th ? th.path : null, thumbURL: th ? th.url : null, updatedAt: Date.now() };
+    /* an icon made in the publish dialog stays until GAME MEDIA has one */
+    if (th) patch.thumbAuto = false;
+    else if (g.thumb && g.thumbAuto) { delete patch.thumb; delete patch.thumbURL; }
     if (sc && sc.ageRating) patch.ageRating = sc.ageRating;
     if (sc && sc.cover) { patch.cover = sc.cover.path; patch.coverURL = sc.cover.url || null; }
     else if (g.showcase && g.showcase.cover && g.cover === g.showcase.cover.path) { patch.cover = null; patch.coverURL = null; }
@@ -8587,21 +8623,79 @@ const Studio = {
       btn('معاينة', { cls: 'sm ghost', icon: 'eye', onclick: () => { sheet.close(); NX.GameMedia.preview(p); } })]));
     body.appendChild(scCard);
 
+    /* every published game has an ICON (the game lists) and an IMAGE (its card
+       and the top of its page). The owner uploads their own — they go to GAME
+       MEDIA like any other media — or, when there is none yet, both are taken
+       from the scene when this opens (a real frame of the game, shown here). */
     let coverBlob = null, iconBlob = null;
-    const shot = el('div', { class: 'row', style: { marginBottom: '12px' } });
-    const coverImg = el('img', { style: { width: '92px', height: '58px', objectFit: 'cover', borderRadius: '8px', background: '#11142a' } });
-    if (sc.cover) Backend.fileURL(sc.cover.path, sc.cover.url).then(u => { if (u) coverImg.src = u; });
-    else if (prev.coverURL) coverImg.src = prev.coverURL;
-    shot.append(coverImg, el('div', { style: { flex: '1' } }, [
-      el('div', { class: 'tiny', text: sc.cover ? 'الغلاف من «وسائط اللعبة» — الالتقاط لا يُستعمل ما دام موجودًا' : 'الغلاف يُلتقط من مساحة العرض الحالية' }),
-      btn('التقاط الآن', { cls: 'sm', onclick: async () => {
-        this.engine.renderer.render(this.engine.scene, this.engine.activeCamera);
-        coverBlob = await new Promise(r => this.engine.canvas.toBlob(r, 'image/webp', 0.85));
-        coverImg.src = URL.createObjectURL(coverBlob);
-        Toast.ok('التُقط الغلاف');
-      }})
-    ]));
-    body.appendChild(shot);
+    const G = NX.GameMedia;
+    const tile = (w, h) => el('div', { style: { width: w, height: h, flex: '0 0 auto', borderRadius: '10px', background: '#11142a', overflow: 'hidden', display: 'grid', placeItems: 'center', fontSize: '22px', opacity: '.95' } });
+    const iconBox = tile('64px', '64px'), coverBox = tile('114px', '64px');
+    const iconNote = el('div', { class: 'tiny pub-icon-note' }), coverNote = el('div', { class: 'tiny pub-cover-note' });
+    const put = (box, src) => { box.textContent = ''; if (src) box.appendChild(el('img', { src, style: { width: '100%', height: '100%', objectFit: 'cover' } })); else box.textContent = '＋'; };
+    const putFile = (box, m) => { put(box, null); Backend.fileURL(m.path, m.url).then(u => { if (u) put(box, u); }).catch(() => {}); };
+    const pm = p.publishMeta || {};
+    /* what the game will be published with, and where it comes from */
+    const current = () => {
+      const s = p.showcase || {};
+      return {
+        cover: s.cover ? { m: s.cover, from: '✓ صورتك (وسائط اللعبة)' } : coverBlob ? { blob: coverBlob, from: '✓ التُقطت من المشهد — ارفع صورتك إن أردت' }
+          : pm.cover ? { m: { path: pm.cover, url: pm.coverURL }, from: '✓ صورة اللعبة الحالية' } : null,
+        icon: s.thumbnail ? { m: s.thumbnail, from: '✓ أيقونتك (وسائط اللعبة)' } : s.cover && s.cover.thumb ? { m: s.cover.thumb, from: '✓ من صورة الغلاف' }
+          : iconBlob ? { blob: iconBlob, from: '✓ من المشهد — ارفع أيقونتك إن أردت' } : pm.thumb ? { m: { path: pm.thumb, url: pm.thumbURL }, from: '✓ أيقونة اللعبة الحالية' } : null
+      };
+    };
+    const drawMedia = () => {
+      const c = current();
+      [[c.icon, iconBox, iconNote], [c.cover, coverBox, coverNote]].forEach(([x, box, note]) => {
+        if (!x) { put(box, null); note.textContent = '✗ مطلوبة'; note.style.color = '#ff9aa8'; return; }
+        if (x.blob) put(box, URL.createObjectURL(x.blob)); else putFile(box, x.m);
+        note.textContent = x.from; note.style.color = '';
+      });
+    };
+    const grab = async () => {
+      this.engine.renderer.render(this.engine.scene, this.engine.activeCamera);
+      return new Promise(r => this.engine.canvas.toBlob(r, 'image/webp', 0.85));
+    };
+    /* the owner's own image (a file, or a frame of the scene) → GAME MEDIA */
+    const store = async (role, file, note) => {
+      if (!G.ready('رفع ' + (role === 'cover' ? 'الصورة' : 'الأيقونة'))) return;
+      try {
+        if (role === 'thumbnail') file = new File([await G.square(file, 512)], 'icon.webp', { type: 'image/webp' });
+        note.textContent = 'جارٍ الرفع…';
+        await G.setImage(p, role, file, f => { note.textContent = 'جارٍ الرفع… ' + Math.round(f * 100) + '%'; }, { confirmSize: false });
+        Toast.ok(role === 'cover' ? 'حُفظت صورة اللعبة' : 'حُفظت أيقونة اللعبة');
+      } catch (e) { Toast.err(e.message || NX.describeFirebaseError(e)); }
+      drawMedia();
+    };
+    const pick = async (role, note) => { const [f] = await G.pickFiles('image/png,image/jpeg,image/webp,image/gif'); if (f) store(role, f, note); };
+    const fromScene = async (role, note) => { const b = await grab(); if (b) store(role, new File([b], role + '.webp', { type: 'image/webp' }), note); };
+    const mediaCard = el('div', { class: 'card pub-media', style: { marginBottom: '12px' } }, [
+      el('b', { text: 'الأيقونة والصورة · Icon & Image' }),
+      el('p', { class: 'tiny', style: { margin: '4px 0 10px' }, text: 'مطلوبتان لكل لعبة منشورة: الأيقونة في قوائم الألعاب، والصورة في بطاقتها وأعلى صفحتها.' }),
+      el('div', { class: 'row', style: { alignItems: 'center', gap: '10px', marginBottom: '10px' } }, [iconBox, el('div', { style: { flex: '1', minWidth: '0' } }, [
+        el('div', { text: 'الأيقونة', style: { fontWeight: '600' } }), iconNote,
+        el('div', { class: 'row', style: { flexWrap: 'wrap', marginTop: '4px' } }, [
+          btn('رفع أيقونة', { cls: 'sm pub-icon-up', icon: 'image', onclick: () => pick('thumbnail', iconNote) }),
+          btn('من المشهد', { cls: 'sm ghost', onclick: () => fromScene('thumbnail', iconNote) })])])]),
+      el('div', { class: 'row', style: { alignItems: 'center', gap: '10px' } }, [coverBox, el('div', { style: { flex: '1', minWidth: '0' } }, [
+        el('div', { text: 'صورة اللعبة (الغلاف)', style: { fontWeight: '600' } }), coverNote,
+        el('div', { class: 'row', style: { flexWrap: 'wrap', marginTop: '4px' } }, [
+          btn('رفع صورة', { cls: 'sm pub-cover-up', icon: 'image', onclick: () => pick('cover', coverNote) }),
+          btn('التقاط الآن', { cls: 'sm ghost', onclick: () => fromScene('cover', coverNote) })])])])]);
+    body.appendChild(mediaCard);
+    /* nothing chosen yet: a frame of the scene for both */
+    const autoMedia = (async () => {
+      const c = current();
+      if (c.cover && c.icon) return;
+      try {
+        const frame = await grab();
+        if (!frame) return;
+        if (!c.cover) coverBlob = frame;
+        if (!c.icon) iconBlob = await G.square(frame, 256);
+      } catch (e) { console.warn('[publish] scene capture', e); }
+    })().then(drawMedia);
+    drawMedia();
 
     /* every published game is public */
     const vis = 'public';
@@ -8635,6 +8729,13 @@ const Studio = {
           if (go === 'signin') { NX.promptSignIn('سجّل الدخول لتبقى لعبتك لك على كل أجهزتك — ثم اضغط PUBLISH.'); return; }
           this._guestPublishOK = true;
         }
+        await autoMedia;
+        const need = current();
+        if (!need.icon || !need.cover) {
+          say('أضف ' + (!need.icon && !need.cover ? 'أيقونة وصورة' : !need.icon ? 'أيقونة' : 'صورة') + ' للعبة أولًا (رفع من جهازك أو من المشهد).');
+          mediaCard.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          return;
+        }
         busy = true;
         try {
           if (NX.Profiles) await NX.Profiles.ensure().catch(() => {});
@@ -8649,7 +8750,7 @@ const Studio = {
           say('الإرسال إلى الخادم والتحقق…');
           const meta = { title: title.value.trim() || p.name, description: desc.value.trim(), genre: genre.value, visibility: vis, cover: prev.cover || null, coverURL: prev.coverURL || null, ageRating: age ? age.select.value : '3' };
           if (age) { p.showcase = Object.assign({}, p.showcase || {}, { ageRating: age.select.value }); }
-          const rec = await Games.publish(p, meta, build, { coverBlob });
+          const rec = await Games.publish(p, meta, build, { coverBlob: need.cover.blob || null, iconBlob: need.icon.blob || null });
           say('');
           sheet.close();
           window.dispatchEvent(new CustomEvent('nx:platformRefresh'));
@@ -15054,6 +15155,17 @@ async function compressImage(file, max, quality = 0.86) {
   if (k === 1 && blob.size >= file.size && /jpeg|webp|png/.test(file.type)) return { blob: file, w, h, same: true };
   return { blob, w, h };
 }
+/* the middle square of an image, as a small WebP — a game or app icon */
+async function squareImage(blob, size = 256) {
+  const bmp = await createImageBitmap(blob);
+  const s = Math.min(bmp.width, bmp.height);
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  c.getContext('2d').drawImage(bmp, (bmp.width - s) / 2, (bmp.height - s) / 2, s, s, 0, 0, size, size);
+  bmp.close && bmp.close();
+  let out = await new Promise(r => c.toBlob(r, 'image/webp', 0.86));
+  if (!out || baseType(out.type) !== 'image/webp') out = await new Promise(r => c.toBlob(r, 'image/png'));
+  return out;
+}
 const pickFiles = (accept, multiple = false) => new Promise(res => {
   const inp = el('input', { type: 'file', accept });
   if (multiple) inp.multiple = true;
@@ -15758,6 +15870,8 @@ NX.Community = {
   openNotifications, openGoLive, openLivePage, openCreatorStudio, openReport,
   postCard, FeedView, videoPlayer, share, updateNotifBadge, fmtDur
 };
+GameMedia.square = squareImage;
+GameMedia.pickFiles = pickFiles;
 NX.GameMedia = GameMedia;
 NX.Showcase = { open: openGamePage, openLightbox, openVideo, preview: p => GameMedia.preview(p) };
 </script>
@@ -26008,7 +26122,15 @@ async function readPicked(picked) {
     if (h && !/^[a-z]+:|^\/\//i.test(h)) { const p = h.replace(/^\.?\//, '').split('?')[0]; if (IMG.test(p) && files.some(f => f.path === p)) iconPath = p; }
   }
   if (!iconPath) iconPath = (files.find(f => /^(icon|favicon|logo|apple-touch-icon)[\w-]*\.(png|jpe?g|webp|svg)$/i.test(f.path)) || {}).path || null;
-  return { files, entry, title, iconPath, bytes: files.reduce((n, f) => n + f.bytes.length, 0) };
+  /* an image the site already uses when it is shared (og:image / twitter:image), or a file named like one */
+  let coverPath = null;
+  const og = /<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]*>/ig;
+  while (!coverPath && (m = og.exec(html))) {
+    const c = (/content=["']([^"']+)["']/i.exec(m[0]) || [])[1];
+    if (c && !/^[a-z]+:|^\/\//i.test(c)) { const p = c.replace(/^\.?\//, '').split('?')[0]; if (/\.(png|jpe?g|webp)$/i.test(p) && files.some(f => f.path === p)) coverPath = p; }
+  }
+  if (!coverPath) coverPath = (files.find(f => /(^|\/)(cover|screenshot|preview|banner|og-image|social)[\w-]*\.(png|jpe?g|webp)$/i.test(f.path)) || {}).path || null;
+  return { files, entry, title, iconPath, coverPath, bytes: files.reduce((n, f) => n + f.bytes.length, 0) };
 }
 /* a small square icon (256 px) from an image file */
 async function makeIcon(bytes, name) {
@@ -26021,6 +26143,43 @@ async function makeIcon(bytes, name) {
     g.drawImage(img, ((img.naturalWidth || 256) - s) / 2, ((img.naturalHeight || 256) - s) / 2, s, s, 0, 0, 256, 256);
     return await new Promise(r => c.toBlob(r, 'image/webp', 0.9));
   } catch { return null; } finally { URL.revokeObjectURL(u); }
+}
+/* the app's image (its card and the top of its page): 16:9, at most 1280 px, WebP */
+async function makeCover(blob) {
+  const bmp = await createImageBitmap(blob);
+  let sw = bmp.width, sh = Math.round(bmp.width * 9 / 16);
+  if (sh > bmp.height) { sh = bmp.height; sw = Math.round(bmp.height * 16 / 9); }
+  const w = Math.min(1280, sw), h = Math.round(w * 9 / 16);
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  c.getContext('2d').drawImage(bmp, (bmp.width - sw) / 2, (bmp.height - sh) / 2, sw, sh, 0, 0, w, h);
+  bmp.close && bmp.close();
+  return new Promise(r => c.toBlob(r, 'image/webp', 0.85));
+}
+/* an app with no icon or image of its own: ones drawn from its name (said so on screen) */
+const hueOf = t => { let h = 0; for (const ch of String(t)) h = (h * 31 + ch.codePointAt(0)) % 360; return h; };
+function paintBack(g, w, h, name) {
+  const hue = hueOf(name), gr = g.createLinearGradient(0, 0, w, h);
+  gr.addColorStop(0, 'hsl(' + hue + ',70%,46%)'); gr.addColorStop(1, 'hsl(' + ((hue + 60) % 360) + ',70%,30%)');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+}
+async function drawnIcon(name) {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d');
+  paintBack(g, 256, 256, name);
+  g.fillStyle = '#fff'; g.font = 'bold 128px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(Array.from(String(name || '?').trim())[0] || '?', 128, 138);
+  return new Promise(r => c.toBlob(r, 'image/webp', 0.9));
+}
+async function drawnCover(name, iconBlob) {
+  const W = 1280, H = 720, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  paintBack(g, W, H, name + '·');
+  if (iconBlob) {
+    try { const b = await createImageBitmap(iconBlob); g.save(); g.beginPath(); g.roundRect ? g.roundRect(W / 2 - 110, 150, 220, 220, 48) : g.rect(W / 2 - 110, 150, 220, 220); g.clip(); g.drawImage(b, W / 2 - 110, 150, 220, 220); g.restore(); b.close && b.close(); } catch { }
+  }
+  g.fillStyle = '#fff'; g.font = 'bold 64px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(String(name || '').slice(0, 40), W / 2, 480, W - 120);
+  return new Promise(r => c.toBlob(r, 'image/webp', 0.85));
 }
 /* a file's bytes on their own buffer: a view into the whole ZIP would be copied whole into the frame */
 const own = u => (u.byteOffset || u.byteLength !== u.buffer.byteLength ? u.slice() : u);
@@ -26085,7 +26244,7 @@ const HtmlApps = {
     return z;
   },
   /* pack → upload → record. meta: { name, description, visibility } */
-  async save(read, meta, { existing = null, onProgress } = {}) {
+  async save(read, meta, { existing = null, onProgress, iconBlob = null, coverBlob = null } = {}) {
     const { zipSync } = await import('fflate');
     const me = Backend.user;
     const map = {};
@@ -26096,9 +26255,15 @@ const HtmlApps = {
     const stamp = Date.now().toString(36);
     const up = await Backend.upload(dir + 'bundle-' + stamp + '.zip', new File([zip], 'bundle.zip', { type: 'application/zip' }), f => onProgress && onProgress(f * 0.92));
     let icon = existing ? existing.icon || null : null;
-    if (read.iconPath) {
+    if (iconBlob) {
+      try { const r = await Backend.upload(dir + 'icon-' + stamp + '.webp', new File([iconBlob], 'icon.webp', { type: 'image/webp' })); icon = { path: r.path, url: r.url || null }; } catch (e) { console.warn('[apps] icon', e); }
+    } else if (read.iconPath) {
       const b = await makeIcon(read.files.find(f => f.path === read.iconPath).bytes, read.iconPath);
       if (b) { try { const r = await Backend.upload(dir + 'icon-' + stamp + '.webp', new File([b], 'icon.webp', { type: 'image/webp' })); icon = { path: r.path, url: r.url || null }; } catch (e) { console.warn('[apps] icon', e); } }
+    }
+    let cover = existing ? existing.cover || null : null;
+    if (coverBlob) {
+      try { const r = await Backend.upload(dir + 'cover-' + stamp + '.webp', new File([coverBlob], 'cover.webp', { type: 'image/webp' })); cover = { path: r.path, url: r.url || null }; } catch (e) { console.warn('[apps] cover', e); }
     }
     const now = Date.now();
     const rec = {
@@ -26108,13 +26273,14 @@ const HtmlApps = {
       visibility: ['public', 'unlisted', 'private'].includes(meta.visibility) ? meta.visibility : 'public',
       ageRating: NX.Age && NX.Age.valid(meta.ageRating) ? String(meta.ageRating) : (existing && existing.ageRating) || '3',
       entry: read.entry, files: read.files.length, bytes: read.bytes,
-      bundle: { path: up.path, url: up.url || null }, icon,
+      bundle: { path: up.path, url: up.url || null }, icon, cover,
       opens: existing ? existing.opens || 0 : 0, createdAt: existing ? existing.createdAt : now, updatedAt: now, v: 1
     };
     const { F, db } = Backend.fb;
     await Backend.serverWrite(F.setDoc(F.doc(db, 'apps', appId), rec));
     if (existing && existing.bundle && existing.bundle.path !== up.path) Backend.removeFile(existing.bundle.path).catch(() => {});
     if (existing && existing.icon && icon && existing.icon.path !== icon.path) Backend.removeFile(existing.icon.path).catch(() => {});
+    if (existing && existing.cover && cover && existing.cover.path !== cover.path) Backend.removeFile(existing.cover.path).catch(() => {});
     onProgress && onProgress(1);
     return rec;
   },
@@ -26126,6 +26292,7 @@ const HtmlApps = {
     if (patch.visibility) p.visibility = patch.visibility;
     if (patch.ageRating && NX.Age && NX.Age.valid(patch.ageRating)) p.ageRating = String(patch.ageRating);
     if (patch.icon !== undefined) p.icon = patch.icon;
+    if (patch.cover !== undefined) p.cover = patch.cover;
     await Backend.serverWrite(F.updateDoc(F.doc(db, 'apps', app.appId), p));
     return Object.assign(app, p);
   },
@@ -26134,6 +26301,7 @@ const HtmlApps = {
     await Backend.serverWrite(F.deleteDoc(F.doc(db, 'apps', app.appId)));
     if (app.bundle) Backend.removeFile(app.bundle.path).catch(() => {});
     if (app.icon) Backend.removeFile(app.icon.path).catch(() => {});
+    if (app.cover) Backend.removeFile(app.cover.path).catch(() => {});
   },
   bump(app) {
     if (!Backend.isOnline() || !Backend.user || app.ownerId === Backend.user.uid) return;
@@ -26152,6 +26320,26 @@ function iconEl(app, cls = 'ha-icon') {
   if (app.icon) { const im = el('img', { alt: '', loading: 'lazy' }); Backend.fileURL(app.icon.path, app.icon.url).then(u => { if (u) im.src = u; }); box.appendChild(im); }
   else box.appendChild(el('span', { text: '</>' }));
   return box;
+}
+function coverImg(app, cls = 'ha-cover-img') {
+  const im = el('img', { class: cls, alt: '', loading: 'lazy', decoding: 'async' });
+  Backend.fileURL(app.cover.path, app.cover.url).then(u => { if (u) im.src = u; });
+  return im;
+}
+/* the owner replaces the icon or the image (the old file is removed once the record points at the new one) */
+async function replaceImage(app, role) {
+  const [f] = await pick('image/png,image/jpeg,image/webp' + (role === 'icon' ? ',image/svg+xml' : ''), { multiple: false });
+  if (!f) return false;
+  try {
+    const b = role === 'icon' ? await makeIcon(new Uint8Array(await f.arrayBuffer()), f.name) : await makeCover(f);
+    if (!b) throw new Error('تعذّرت قراءة الصورة');
+    const u = await Backend.upload('apps/' + Backend.user.uid + '/' + app.appId + '/' + role + '-' + Date.now().toString(36) + '.webp', new File([b], role + '.webp', { type: 'image/webp' }));
+    const old = app[role];
+    await HtmlApps.update(app, { [role]: { path: u.path, url: u.url || null } });
+    if (old) Backend.removeFile(old.path).catch(() => {});
+    Toast.ok(role === 'icon' ? 'تغيّرت أيقونة التطبيق' : 'تغيّرت صورة التطبيق');
+    return true;
+  } catch (e) { Toast.err('تعذّر: ' + (e.message || NX.describeFirebaseError(e))); return false; }
 }
 async function share(app) {
   const url = appLink(app.appId);
@@ -26205,6 +26393,7 @@ async function openAppPage(app) {
   const mine = Backend.user && app.ownerId === Backend.user.uid;
   const draw = () => {
     body.textContent = '';
+    if (app.cover) body.appendChild(el('div', { class: 'ha-banner' }, [coverImg(app, 'ha-banner-img')]));
     const head = el('div', { class: 'ha-head' }, [iconEl(app, 'ha-icon big'), el('div', { class: 'ha-hinfo' }, [
       el('h2', { text: app.name }),
       NX.Age ? NX.Age.badge(app, 'ha-age') : el('span'),
@@ -26223,20 +26412,10 @@ async function openAppPage(app) {
       const r = el('div', { class: 'ha-acts' });
       r.append(
         btn('✎ الاسم والوصف والظهور', { cls: 'sm primary', onclick: () => editInfo(app, draw) }),
+        btn('✎ تعديل الملفات والكود', { cls: 'sm ha-edit', onclick: () => NX.AppEditor && NX.AppEditor.open(app, { onClose: draw }) }),
         btn('⬆ تحديث الملفات', { cls: 'sm', onclick: () => { sheet.close(); uploadFlow(app); } }),
-        btn('صورة التطبيق', { cls: 'sm ghost', icon: 'image', onclick: async () => {
-          const [f] = await pick('image/png,image/jpeg,image/webp,image/svg+xml', { multiple: false });
-          if (!f) return;
-          try {
-            const b = await makeIcon(new Uint8Array(await f.arrayBuffer()), f.name);
-            if (!b) throw new Error('تعذّرت قراءة الصورة');
-            const u = await Backend.upload('apps/' + Backend.user.uid + '/' + app.appId + '/icon-' + Date.now().toString(36) + '.webp', new File([b], 'icon.webp', { type: 'image/webp' }));
-            const old = app.icon;
-            await HtmlApps.update(app, { icon: { path: u.path, url: u.url || null } });
-            if (old) Backend.removeFile(old.path).catch(() => {});
-            Toast.ok('تغيّرت صورة التطبيق'); draw();
-          } catch (e) { Toast.err('تعذّر: ' + (e.message || NX.describeFirebaseError(e))); }
-        } }),
+        btn('أيقونة التطبيق', { cls: 'sm ghost ha-set-icon', icon: 'image', onclick: async () => { if (await replaceImage(app, 'icon')) draw(); } }),
+        btn('صورة التطبيق', { cls: 'sm ghost ha-set-cover', icon: 'image', onclick: async () => { if (await replaceImage(app, 'cover')) draw(); } }),
         btn('حذف', { cls: 'sm danger', icon: 'trash', onclick: async () => {
           if (!(await Modal.confirm('حذف «' + app.name + '»؟', 'يُحذف التطبيق وملفاته، ويتوقّف رابطه.', 'حذف'))) return;
           try { await HtmlApps.remove(app); Toast.ok('حُذف'); sheet.close(); window.dispatchEvent(new CustomEvent('nx:platformRefresh')); }
@@ -26289,6 +26468,61 @@ async function uploadFlow(existing = null, how = 'files') {
   const age = NX.Age ? NX.Age.field(existing ? NX.Age.of(existing) : '3', 'لمن يناسب هذا التطبيق أو الموقع؟ «18+» يُسأل الزائر عن عمره قبل أن يفتحه.') : null;
   if (!existing) { body.append(NX.field('الاسم', name), NX.field('الوصف', desc), NX.field('من يراه', vis)); if (age) body.appendChild(age.field); }
   else body.appendChild(el('p', { class: 'tiny', text: 'تُستبدل ملفات «' + existing.name + '» بهذه، ويبقى الاسم والرابط كما هما.' }));
+  /* every app has an ICON and an IMAGE: the owner's own, the ones the site's
+     files already have, the app's current ones, or — last — ones drawn from
+     its name (said so here, and replaceable any time) */
+  const media = { icon: null, cover: null };
+  const fileBytes = p => read.files.find(f => f.path === p).bytes;
+  const tile = (w, h) => el('div', { style: { width: w, height: h, flex: '0 0 auto', borderRadius: '10px', background: '#11142a', overflow: 'hidden', display: 'grid', placeItems: 'center' } });
+  const iconBox = tile('64px', '64px'), coverBox = tile('114px', '64px');
+  const iconNote = el('div', { class: 'tiny ha-icon-note' }), coverNote = el('div', { class: 'tiny ha-cover-note' });
+  const drawMedia = () => [[media.icon, iconBox, iconNote], [media.cover, coverBox, coverNote]].forEach(([x, box, note]) => {
+    box.textContent = '';
+    if (!x) { note.textContent = '✗ مطلوبة'; return; }
+    const im = el('img', { style: { width: '100%', height: '100%', objectFit: 'cover' } });
+    if (x.blob) im.src = URL.createObjectURL(x.blob); else Backend.fileURL(x.m.path, x.m.url).then(u => { if (u) im.src = u; });
+    box.appendChild(im); note.textContent = x.from;
+  });
+  const appName = () => (existing ? existing.name : name.value) || 'تطبيقي';
+  const fill = async () => {
+    if (!media.icon || media.icon.drawn) {
+      const b = read.iconPath ? await makeIcon(fileBytes(read.iconPath), read.iconPath) : null;
+      media.icon = b ? { blob: b, from: '✓ من ملفات التطبيق (' + read.iconPath + ')' }
+        : existing && existing.icon ? { m: existing.icon, from: '✓ الأيقونة الحالية' }
+        : { blob: await drawnIcon(appName()), from: 'مرسومة من الاسم — ارفع أيقونتك إن أردت', drawn: true };
+    }
+    if (!media.cover || media.cover.drawn) {
+      const b = read.coverPath ? await makeCover(new Blob([fileBytes(read.coverPath)])).catch(() => null) : null;
+      media.cover = b ? { blob: b, from: '✓ من ملفات التطبيق (' + read.coverPath + ')' }
+        : existing && existing.cover ? { m: existing.cover, from: '✓ الصورة الحالية' }
+        : { blob: await drawnCover(appName(), media.icon && media.icon.blob), from: 'مرسومة من الاسم والأيقونة — ارفع صورة من تطبيقك إن أردت', drawn: true };
+    }
+    drawMedia();
+  };
+  const choose = async role => {
+    const [f] = await pick('image/png,image/jpeg,image/webp' + (role === 'icon' ? ',image/svg+xml' : ''), { multiple: false });
+    if (!f) return;
+    try {
+      const b = role === 'icon' ? await makeIcon(new Uint8Array(await f.arrayBuffer()), f.name) : await makeCover(f);
+      if (!b) throw new Error('تعذّرت قراءة الصورة');
+      media[role] = { blob: b, from: '✓ ' + (role === 'icon' ? 'أيقونتك' : 'صورتك') + ' (' + f.name + ')' };
+      if (role === 'icon' && media.cover && media.cover.drawn) media.cover = null;   // the drawn image carries the icon
+      await fill();
+    } catch (e) { Toast.err(e.message || String(e)); }
+  };
+  const mediaCard = el('div', { class: 'card ha-media', style: { marginTop: '10px' } }, [
+    el('b', { text: 'الأيقونة والصورة' }),
+    el('p', { class: 'tiny', style: { margin: '4px 0 10px' }, text: 'مطلوبتان: الأيقونة في القوائم، والصورة في بطاقة التطبيق وأعلى صفحته.' }),
+    el('div', { class: 'row', style: { alignItems: 'center', gap: '10px', marginBottom: '10px' } }, [iconBox, el('div', { style: { flex: '1', minWidth: '0' } }, [
+      el('div', { text: 'الأيقونة', style: { fontWeight: '600' } }), iconNote,
+      btn('رفع أيقونة', { cls: 'sm ha-up-icon', icon: 'image', onclick: () => choose('icon') })])]),
+    el('div', { class: 'row', style: { alignItems: 'center', gap: '10px' } }, [coverBox, el('div', { style: { flex: '1', minWidth: '0' } }, [
+      el('div', { text: 'صورة التطبيق', style: { fontWeight: '600' } }), coverNote,
+      btn('رفع صورة', { cls: 'sm ha-up-cover', icon: 'image', onclick: () => choose('cover') })])])]);
+  body.appendChild(mediaCard);
+  let redraw = null;
+  name.addEventListener('input', () => { clearTimeout(redraw); redraw = setTimeout(() => { if (media.icon && media.icon.drawn) media.icon = null; if (media.cover && media.cover.drawn) media.cover = null; fill(); }, 400); });
+  const filled = fill().catch(e => console.warn('[apps] media', e));
   body.appendChild(el('p', { class: 'tiny', style: { marginTop: '8px' }, text: '🔒 كل تطبيق يعمل في صندوق معزول: لا يصل إلى حسابك ولا إلى الموقع، ولا يستطيع تغيير الصفحة.' }));
   const prog = el('div', { class: 'gm-prog hide' }, [el('i')]);
   body.appendChild(prog);
@@ -26300,15 +26534,20 @@ async function uploadFlow(existing = null, how = 'files') {
     } }),
     btn(existing ? 'رفع التحديث' : 'رفع ونشر', { cls: 'primary', icon: 'upload', onclick: async e => {
       if (busy) return;
-      busy = true; e.currentTarget.disabled = true; prog.classList.remove('hide');
+      const b = e.currentTarget;
+      busy = true; b.disabled = true;
+      await filled; clearTimeout(redraw);
+      if (!media.icon || !media.cover) await fill();
+      if (!media.icon || !media.cover) { busy = false; b.disabled = false; Toast.err('أضف أيقونة وصورة للتطبيق أولًا'); mediaCard.scrollIntoView({ block: 'center' }); return; }
+      prog.classList.remove('hide');
       try {
-        const rec = await HtmlApps.save(read, { name: name.value, description: desc.value, visibility: vis.value, ageRating: age ? age.select.value : null }, { existing, onProgress: f => { prog.firstChild.style.width = Math.round(f * 100) + '%'; } });
+        const rec = await HtmlApps.save(read, { name: name.value, description: desc.value, visibility: vis.value, ageRating: age ? age.select.value : null }, { existing, iconBlob: media.icon.blob || null, coverBlob: media.cover.blob || null, onProgress: f => { prog.firstChild.style.width = Math.round(f * 100) + '%'; } });
         sheet.close();
         Toast.ok(existing ? 'حُدّث التطبيق' : 'رُفع التطبيق ✓');
         window.dispatchEvent(new CustomEvent('nx:platformRefresh'));
         openAppPage(rec);
       } catch (err) {
-        busy = false; e.currentTarget.disabled = false; prog.classList.add('hide');
+        busy = false; b.disabled = false; prog.classList.add('hide');
         if (!NX.handleAuthError(err)) Toast.err('تعذّر الرفع: ' + (err.code === 'storage-not-enabled' ? 'تخزين الملفات غير مفعّل في هذا الموقع (Storage — لمالك الموقع)' : NX.describeFirebaseError(err)));
       }
     } })] });
@@ -26345,7 +26584,7 @@ function row(a, onclick) {
 }
 function card(a) {
   return el('div', { class: 'gcard ha-card', dataset: { app: a.appId }, onclick: () => openAppPage(a) }, [
-    el('div', { class: 'cover ha-cover' }, [iconEl(a)].concat(NX.Age && NX.Age.of(a) !== '3' ? [NX.Age.badge(a, 'on-cover')] : [])),
+    el('div', { class: 'cover ha-cover' + (a.cover ? ' has-img' : '') }, (a.cover ? [coverImg(a)] : []).concat([iconEl(a)], NX.Age && NX.Age.of(a) !== '3' ? [NX.Age.badge(a, 'on-cover')] : [])),
     el('div', { class: 'meta' }, [el('b', { text: a.name }), el('span', { class: 'by', text: '@' + (a.creatorName || 'creator') }), el('div', { class: 'stats' }, [el('span', { text: '▶ ' + fmtNum(a.opens || 0) })])])]);
 }
 
@@ -26354,6 +26593,7 @@ Object.assign(HtmlApps, { open: openAppPage, run: openViewer, manager: openManag
   try { a = await HtmlApps.get(id); } catch (e) { Toast.err('تعذّر جلب التطبيق: ' + NX.describeFirebaseError(e)); return; }
   if (a) openAppPage(a); else Toast.err(Backend.isOnline() ? 'التطبيق غير موجود أو خاص' : 'فتح رابط تطبيق يحتاج اتصال الموقع بالسحابة');
 } });
+HtmlApps.Frame = AppFrame;
 NX.HtmlApps = HtmlApps;
 
 /* ---------------- where it shows up (called from «مشاريعي» and the home page, PART 8) ---------------- */
@@ -28874,6 +29114,325 @@ const KeyPool = {
 NX.KeyPool = KeyPool;
 </script>
 <!-- /NX-PART:32 -->
+<!-- NX-PART:33 -->
+<script type="module">
+/* ============================================================
+   PART 33 · EDIT AN UPLOADED APP / 2D GAME INSIDE NEXUS
+   An HTML app, site or 2D game that was uploaded as files is edited
+   here, by its owner, without leaving NEXUS:
+   • its files: open any text file (html · css · js · json · svg …) in
+     the code editor; replace an image or a sound (a sprite, a
+     background) by picking a new file; add, rename or delete files
+   • ▶ run: the edited files run in the same sandboxed frame as the app
+     (nothing is saved yet)
+   • 🤖 ask the AI: the model reads the files and answers with exact
+     find/replace edits — shown as a diff, applied only on «تطبيق»,
+     undone with «تراجع». Nothing it writes runs on this page: it only
+     becomes file text, and files only run inside the sandboxed frame.
+   • 💾 save: the files are packed and uploaded as the app's new version
+     (same link, same icon and image).
+   What it does not do: a visual scene editor for arbitrary HTML games —
+   their objects exist only in their own code, so they are edited as code
+   (the NEXUS scene editor is for games made in NEXUS).
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, Sheet, Modal, Toast, fmtBytes } = NX;
+const { Backend } = NX;
+
+const TEXT = /\.(html?|css|m?js|cjs|json|txt|svg|xml|csv|md|glsl|frag|vert|webmanifest)$/i;
+const IMG = /\.(png|jpe?g|gif|webp|svg|ico|avif|bmp)$/i;
+const AUDIO = /\.(mp3|ogg|wav|m4a|aac)$/i;
+const AI_BUDGET = 60000;           // characters of file text sent to the model
+const enc = new TextEncoder(), dec = new TextDecoder();
+const extOf = p => (/\.([a-z0-9]+)$/i.exec(p) || [, ''])[1].toLowerCase();
+const cleanPath = p => String(p || '').trim().replace(/\\/g, '/').replace(/^\/+/, '').replace(/\.\.\//g, '').replace(/[^\w.\-\/ ]/g, '');
+
+const AppEditor = {
+  async open(app, opts = {}) {
+    if (!app || !Backend.user || app.ownerId !== Backend.user.uid) { Toast.err('تعديل التطبيق لصاحبه فقط'); return null; }
+    let loaded;
+    try { loaded = await NX.HtmlApps.files(app); }
+    catch (e) { Toast.err('تعذّر تحميل الملفات: ' + (e.message || e)); return null; }
+
+    /* the working copy (the loader's cache is left as it is) */
+    const files = new Map(Object.keys(loaded).sort().map(p => [p, loaded[p]]));
+    const original = new Map(files);
+    let entry = app.entry, cur = null, editor = null, frame = null, undoAI = null;
+    const changed = () => {
+      const all = new Set([...files.keys(), ...original.keys()]);
+      return [...all].filter(p => files.get(p) !== original.get(p)).length;
+    };
+
+    const body = el('div', { class: 'ae' });
+    body.appendChild(el('div', { class: 'card ae-note tiny' }, [
+      el('b', { text: 'تعديل «' + app.name + '»' }),
+      el('div', { text: 'هذا تطبيق/لعبة HTML: يُعدَّل بالكود — افتح ملفًا، أو بدّل صورة أو صوتًا، أو اطلب التعديل من الذكاء. جرّبه بـ «▶ تشغيل» ثم «💾 حفظ» ليصل إلى كل من يفتحه. (محرّر المشهد المرئي للألعاب المصنوعة داخل NEXUS.)' })]));
+
+    const state = el('div', { class: 'tiny ae-state' });
+    const list = el('div', { class: 'ae-files' });
+    const edHost = el('div', { class: 'ae-ed' });
+    const media = el('div', { class: 'ae-media hide' });
+    const pvHost = el('div', { class: 'ae-preview hide' });
+    const aiBox = el('div', { class: 'ae-ai hide' });
+
+    const setState = () => { const n = changed(); state.textContent = n ? '● ' + n + ' ملف تغيّر — لم يُحفظ بعد' : '✓ لا تغييرات غير محفوظة'; state.style.color = n ? '#fcd77a' : ''; };
+    /* the editor's text back into the working copy */
+    const keep = () => { if (cur && editor && TEXT.test(cur)) { const t = editor.value; if (t !== dec.decode(files.get(cur))) files.set(cur, enc.encode(t)); } };
+
+    const drawList = () => {
+      list.textContent = '';
+      for (const [p, bytes] of files) {
+        const kind = TEXT.test(p) ? '📝' : IMG.test(p) ? '🖼' : AUDIO.test(p) ? '🔊' : '📦';
+        const edited = files.get(p) !== original.get(p);
+        list.appendChild(el('button', { class: 'ae-file' + (p === cur ? ' on' : ''), dataset: { path: p }, onclick: () => openFile(p) }, [
+          el('span', { text: kind }), el('b', { text: p + (p === entry ? ' ⌂' : '') }),
+          el('span', { class: 'tiny', text: (edited ? '● ' : '') + fmtBytes(bytes.length) })]));
+      }
+      setState();
+    };
+
+    const openFile = p => {
+      keep();
+      cur = p;
+      edHost.classList.add('hide'); media.classList.add('hide');
+      if (TEXT.test(p)) {
+        edHost.classList.remove('hide');
+        if (!editor) {
+          editor = new NX.CodeEditor(edHost, { value: dec.decode(files.get(p)), name: p, onSave: () => { keep(); drawList(); run(); }, onRun: () => { keep(); run(); } });
+          let t = null;
+          editor.ta.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { keep(); drawList(); }, 400); });
+        }
+        else { editor.value = dec.decode(files.get(p)); editor.setName(p); }
+      } else {
+        media.classList.remove('hide'); media.textContent = '';
+        const bytes = files.get(p);
+        if (IMG.test(p)) {
+          const u = URL.createObjectURL(new Blob([bytes], { type: extOf(p) === 'svg' ? 'image/svg+xml' : 'image/' + extOf(p) }));
+          media.appendChild(el('img', { src: u, class: 'ae-img', alt: p }));
+        } else if (AUDIO.test(p)) media.appendChild(el('audio', { controls: true, src: URL.createObjectURL(new Blob([bytes], { type: 'audio/' + extOf(p) })) }));
+        media.appendChild(el('div', { class: 'tiny', style: { margin: '6px 0' }, text: p + ' · ' + fmtBytes(bytes.length) }));
+        media.appendChild(btn(IMG.test(p) ? 'استبدال الصورة' : 'استبدال الملف', { cls: 'sm ae-replace', icon: 'upload', onclick: async () => {
+          const [f] = await pickFiles(IMG.test(p) ? 'image/*' : AUDIO.test(p) ? 'audio/*' : '');
+          if (!f) return;
+          files.set(p, new Uint8Array(await f.arrayBuffer()));
+          Toast.ok('استُبدل ' + p + ' — «▶ تشغيل» لتراه');
+          drawList(); openFile(p); run();
+        } }));
+      }
+      drawList();
+    };
+
+    /* add · rename · delete */
+    const addFile = async () => {
+      const name = cleanPath(await Modal.prompt('اسم الملف الجديد (مثل level2.js أو style.css)', '', 'level2.js'));
+      if (!name) return;
+      if (files.has(name)) { Toast.err('الملف موجود'); return; }
+      files.set(name, enc.encode(''));
+      openFile(name);
+    };
+    const upload = async () => {
+      const picked = await pickFiles('', true);
+      for (const f of picked) files.set(cleanPath(f.name), new Uint8Array(await f.arrayBuffer()));
+      if (picked.length) { Toast.ok('أُضيف ' + picked.length + ' ملف'); drawList(); }
+    };
+    const rename = async () => {
+      if (!cur) return;
+      const to = cleanPath(await Modal.prompt('اسم جديد لـ ' + cur + ' (الصفحات التي تشير إليه بالاسم القديم تحتاج تعديلًا)', cur));
+      if (!to || to === cur) return;
+      if (files.has(to)) { Toast.err('يوجد ملف بهذا الاسم'); return; }
+      keep();
+      files.set(to, files.get(cur)); files.delete(cur);
+      if (entry === cur) entry = to;
+      cur = to; drawList(); openFile(to);
+    };
+    const remove = async () => {
+      if (!cur) return;
+      if (cur === entry) { Toast.err('هذه الصفحة الرئيسية — لا تُحذف'); return; }
+      if (!(await Modal.confirm('حذف ' + cur + '؟', 'يُحذف من الملفات (يمكن الرجوع قبل الحفظ بإغلاق المحرّر دون حفظ).', 'حذف'))) return;
+      files.delete(cur); cur = null; edHost.classList.add('hide'); media.classList.add('hide'); drawList();
+    };
+    const revert = () => {
+      if (!cur || !original.has(cur)) return;
+      files.set(cur, original.get(cur)); openFile(cur); Toast.ok('رجع ' + cur + ' كما كان');
+    };
+
+    /* ▶ run the working copy in the app's own sandboxed frame */
+    const run = () => {
+      keep(); drawList();
+      pvHost.classList.remove('hide');
+      if (frame) frame.stop();
+      pvHost.textContent = '';
+      const host = el('div', { class: 'ha-frame ae-frame' });
+      pvHost.append(el('div', { class: 'tiny ae-pv-bar' }, [el('span', { text: '▶ معاينة التعديلات (غير محفوظة) — 🔒 معزولة' }),
+        btn('↻', { cls: 'sm ghost', onclick: run }), btn('إخفاء', { cls: 'sm ghost', onclick: () => { if (frame) frame.stop(); frame = null; pvHost.classList.add('hide'); } })]), host);
+      const obj = {}; files.forEach((v, k) => { obj[k] = v; });
+      if (!obj[entry]) { host.appendChild(el('div', { class: 'ha-status err', text: '✕ الصفحة الرئيسية ' + entry + ' غير موجودة' })); return; }
+      frame = new NX.HtmlApps.Frame(host, Object.assign({}, app, { appId: app.appId + '-edit', entry }), obj, {
+        error: m => host.appendChild(el('div', { class: 'ha-status err', text: '✕ ' + m }))
+      });
+      frame.start(entry);
+    };
+
+    /* 🤖 the AI edits the files (find/replace, shown as a diff first) */
+    const aiInput = el('textarea', { class: 'textarea ae-ai-in', placeholder: 'ماذا تريد أن تغيّر؟ مثل: اجعل اللاعب أسرع · غيّر لون الخلفية إلى الأزرق · أضف عدّادًا للنقاط', style: { minHeight: '70px' } });
+    const aiOut = el('div', { class: 'ae-ai-out' });
+    const askAI = async () => {
+      keep();
+      const want = aiInput.value.trim();
+      if (!want) { Toast.err('اكتب ما تريد تغييره'); return; }
+      if (!NX.AIConfig.isReady()) { aiOut.textContent = 'الذكاء غير متصل — اختر نموذجًا من ⚙ الإعدادات ← الذكاء (المجاني يعمل بعد تسجيل الدخول).'; return; }
+      aiOut.textContent = '';
+      aiOut.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' }), el('span', { text: 'النموذج يقرأ الملفات ويكتب التعديل…' })]));
+      const ctx = context(files, cur, entry);
+      const system = `You edit the files of a small web app or 2D HTML game. Answer with ONE JSON object only:
+{"summary":"one or two sentences in Arabic: what you changed","edits":[{"path":"file","find":"text copied EXACTLY from that file","replace":"new text"}],"create":[{"path":"new/file.js","code":"complete file"}]}
+Rules:
+- Change only what the request needs; keep everything else byte-for-byte.
+- "find" must be copied exactly from the file shown and occur ONCE in it (include surrounding lines to make it unique).
+- Plain HTML/CSS/JavaScript for a browser page. The app runs in a sandboxed frame: no network calls to other sites, no cookies, no parent window.
+- Never invent image or sound files that are not listed; draw with canvas/CSS instead.
+FILES IN THE APP: ${[...files.keys()].join(', ')}
+ENTRY PAGE: ${entry}
+${ctx.text}${ctx.skipped.length ? '\n(not shown: ' + ctx.skipped.join(', ') + ')' : ''}`;
+      let raw;
+      try { raw = await NX.AI.raw(system, want); }
+      catch (e) { aiOut.textContent = '✕ ' + ((e.info && e.info.title) || e.message || e); return; }
+      const plan = parsePlan(raw, files);
+      drawPlan(plan);
+    };
+    const drawPlan = plan => {
+      aiOut.textContent = '';
+      if (!plan) { aiOut.appendChild(el('div', { class: 'tiny', style: { color: '#ff9aa8' }, text: '✕ ردّ النموذج لم يكن تعديلًا صالحًا — لم يتغيّر شيء.' })); return; }
+      if (plan.summary) aiOut.appendChild(el('p', { class: 'ae-sum', text: plan.summary }));
+      plan.changes.forEach(c => {
+        aiOut.appendChild(el('div', { class: 'tiny', style: { margin: '6px 0 4px', fontWeight: '800' }, text: (c.kind === 'create' ? '+ ملف جديد: ' : '~ تعديل: ') + c.path }));
+        const pre = el('div', { class: 'agent-diff' });
+        NX.diffLines(c.before, c.after).forEach(d => pre.appendChild(el('span', { class: 'd-' + d.t, text: (d.t === 'add' ? '+ ' : d.t === 'del' ? '- ' : '  ') + d.s })));
+        aiOut.appendChild(pre);
+      });
+      plan.rejected.forEach(r => aiOut.appendChild(el('div', { class: 'tiny', style: { color: '#ff9aa8', marginTop: '4px' }, text: '✗ ' + r })));
+      if (!plan.changes.length) { aiOut.appendChild(el('div', { class: 'tiny', text: 'لا تعديل قابل للتطبيق — لم يتغيّر شيء.' })); return; }
+      aiOut.appendChild(el('div', { class: 'row', style: { marginTop: '8px' } }, [
+        btn('تطبيق', { cls: 'sm primary ae-apply', onclick: () => {
+          undoAI = plan.changes.map(c => ({ path: c.path, before: files.has(c.path) ? files.get(c.path) : null }));
+          plan.changes.forEach(c => files.set(c.path, enc.encode(c.after)));
+          aiOut.textContent = '';
+          aiOut.append(el('div', { class: 'tiny', text: '✓ طُبّق على ' + plan.changes.length + ' ملف — جرّبه ثم احفظ.' }),
+            btn('↶ تراجع عن تعديل الذكاء', { cls: 'sm ghost ae-undo', onclick: () => {
+              (undoAI || []).forEach(u => { if (u.before) files.set(u.path, u.before); else files.delete(u.path); });
+              undoAI = null; aiOut.textContent = '↶ رجعت الملفات كما كانت قبل التعديل.';
+              if (cur && files.has(cur)) openFile(cur); else drawList();
+              run();
+            } }));
+          if (cur && files.has(cur)) openFile(cur); else drawList();
+          run();
+        } }),
+        btn('إلغاء', { cls: 'sm ghost', onclick: () => { aiOut.textContent = 'أُلغي — لم يتغيّر أي ملف.'; } })]));
+    };
+    aiBox.append(el('b', { text: '🤖 عدّل بالذكاء' }), aiInput, el('div', { class: 'row', style: { marginTop: '6px' } }, [btn('اطلب التعديل', { cls: 'sm primary ae-ask', onclick: askAI })]), aiOut);
+
+    /* 💾 save: the app's new version, same link / icon / image */
+    let saving = false;
+    const save = async ev => {
+      if (saving) return;
+      keep();
+      if (!changed()) { Toast.ok('لا تغييرات للحفظ'); return; }
+      if (!files.has(entry)) { Toast.err('الصفحة الرئيسية ' + entry + ' غير موجودة'); return; }
+      const b = ev && ev.currentTarget;
+      saving = true; if (b) b.disabled = true;
+      state.textContent = 'جارٍ الحفظ…';
+      try {
+        const list = [...files].map(([path, bytes]) => ({ path, bytes }));
+        const read = { files: list, entry, title: app.name, iconPath: null, coverPath: null, bytes: list.reduce((n, f) => n + f.bytes.length, 0) };
+        const rec = await NX.HtmlApps.save(read, { name: app.name, description: app.description || '', visibility: app.visibility, ageRating: app.ageRating }, { existing: app,
+          onProgress: f => { state.textContent = 'جارٍ الحفظ… ' + Math.round(f * 100) + '%'; } });
+        Object.assign(app, rec);
+        original.clear(); files.forEach((v, k) => original.set(k, v));
+        Toast.ok('حُفظ — كل من يفتح «' + app.name + '» يرى النسخة الجديدة');
+        window.dispatchEvent(new CustomEvent('nx:platformRefresh'));
+      } catch (e) {
+        if (!NX.handleAuthError(e)) Toast.err('تعذّر الحفظ: ' + NX.describeFirebaseError(e));
+      } finally { saving = false; if (b) b.disabled = false; drawList(); }
+    };
+
+    const tools = el('div', { class: 'ae-tools' }, [
+      btn('+ ملف', { cls: 'sm ghost', onclick: addFile }),
+      btn('⬆ إضافة ملفات', { cls: 'sm ghost', onclick: upload }),
+      btn('✎ إعادة تسمية', { cls: 'sm ghost', onclick: rename }),
+      btn('↺ كما كان', { cls: 'sm ghost', onclick: revert }),
+      btn('🗑 حذف', { cls: 'sm ghost danger', onclick: remove })]);
+    body.append(state, list, tools, edHost, media, aiBox, pvHost);
+
+    const sheet = Sheet.open({ title: '✎ ' + app.name, body, full: true, id: 'htmlapp-edit',
+      onClose: () => { if (frame) frame.stop(); if (opts.onClose) opts.onClose(); },
+      foot: [
+        btn('▶ تشغيل', { cls: 'ghost ae-run', onclick: run }),
+        btn('🤖 الذكاء', { cls: 'ghost ae-ai-toggle', onclick: () => { aiBox.classList.toggle('hide'); if (!aiBox.classList.contains('hide')) aiInput.focus(); } }),
+        btn('💾 حفظ', { cls: 'primary ae-save', onclick: save })] });
+    sheet.el.classList.add('ae-sheet');
+    /* closing with unsaved edits asks first */
+    const close = sheet.close.bind(sheet);
+    sheet.close = async (...a) => {
+      keep();
+      if (changed() && !sheet._all && !(await Modal.confirm('إغلاق دون حفظ؟', changed() + ' ملف تغيّر ولم يُحفظ — ستضيع التعديلات.', 'إغلاق'))) return;
+      return close(...a);
+    };
+    openFile(files.has(entry) ? entry : [...files.keys()].find(p => TEXT.test(p)) || [...files.keys()][0]);
+    return { sheet, files, run, save, openFile };
+  }
+};
+
+/* which files the model sees: the open one, the entry page, then the smaller text files first */
+function context(files, cur, entry) {
+  const order = [cur, entry].concat([...files.keys()].filter(p => TEXT.test(p)).sort((a, b) => files.get(a).length - files.get(b).length));
+  const seen = new Set(), skipped = [];
+  let text = '', left = AI_BUDGET;
+  for (const p of order) {
+    if (!p || seen.has(p) || !files.has(p) || !TEXT.test(p)) continue;
+    seen.add(p);
+    const t = dec.decode(files.get(p));
+    if (t.length > left) { skipped.push(p); continue; }
+    text += '--- ' + p + ' ---\n' + t + '\n\n';
+    left -= t.length;
+  }
+  return { text, skipped };
+}
+/* the model's JSON → checked changes (a find that is missing or repeated is refused, not guessed) */
+function parsePlan(raw, files) {
+  let j = null;
+  try { const fence = /```(?:json)?\s*([\s\S]*?)```/.exec(raw); const src = fence ? fence[1] : raw; j = JSON.parse(src.slice(src.indexOf('{'), src.lastIndexOf('}') + 1)); } catch { }
+  if (!j || (!Array.isArray(j.edits) && !Array.isArray(j.create))) return null;
+  const changes = [], rejected = [];
+  const count = (hay, n) => { if (!n) return 0; let k = 0, i = 0; while ((i = hay.indexOf(n, i)) >= 0) { k++; i += n.length; } return k; };
+  for (const ed of j.edits || []) {
+    const path = cleanPath(ed && ed.path);
+    if (!files.has(path) || !TEXT.test(path)) { rejected.push(path + ': ليس ملفًا نصيًا في التطبيق'); continue; }
+    let ch = changes.find(c => c.path === path);
+    const now = ch ? ch.after : dec.decode(files.get(path));
+    const n = count(now, String(ed.find || ''));
+    if (n !== 1) { rejected.push(path + ': النص المراد تغييره ' + (n ? 'يتكرّر ' + n + ' مرات' : 'غير موجود في الملف') + ' — لم أطبّق هذا الجزء'); continue; }
+    const after = now.replace(String(ed.find), () => String(ed.replace == null ? '' : ed.replace));
+    if (ch) ch.after = after; else changes.push({ path, kind: 'edit', before: now, after });
+  }
+  for (const c of j.create || []) {
+    const path = cleanPath(c && c.path);
+    if (!path || !TEXT.test(path) || !String(c.code || '').trim()) continue;
+    if (files.has(path)) { rejected.push(path + ': موجود — يُعدَّل بدل إنشائه'); continue; }
+    changes.push({ path, kind: 'create', before: '', after: String(c.code) });
+  }
+  return { summary: String(j.summary || '').slice(0, 400), changes, rejected };
+}
+const pickFiles = (accept, multiple = false) => new Promise(res => {
+  const inp = el('input', { type: 'file', accept });
+  inp.multiple = multiple;
+  inp.onchange = () => res(Array.from(inp.files || []));
+  inp.click();
+});
+
+AppEditor._parsePlan = parsePlan;
+NX.AppEditor = AppEditor;
+</script>
+<!-- /NX-PART:33 -->
 <script type="module">
 /* ============================================================
    PART 8/18 · GAME PLATFORM + BOOT
