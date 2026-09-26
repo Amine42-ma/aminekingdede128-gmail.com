@@ -16,7 +16,7 @@
                                     { url: 'https://us-central1-<project>.cloudfunctions.net/processRequest' });
      console.log(r.text);
    ============================================================ */
-import { doc, setDoc, deleteDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { doc, getDoc, writeBatch, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 /* each account has five slots: api_keys/<uid>_0 … <uid>_4 */
 export const SLOTS = 5;
@@ -55,17 +55,26 @@ export async function donateKey(db, auth, rawKey) {
   const user = auth.currentUser;
   if (!user || user.isAnonymous) throw new PoolError('signin', 'سجّل الدخول بحساب أولًا (حتى تستطيع سحب المفتاح لاحقًا)');
 
+  /* the key's SHA-256 — the rules compute it again from the key and refuse a key already in the pool */
+  const hash = await sha256hex(key);
+  if ((await getDoc(doc(db, 'api_key_hashes', hash)).catch(() => null))?.exists()) throw new PoolError('duplicate', 'هذا المفتاح في المجمّع من قبل');
+
   for (let i = 0; i < SLOTS; i++) {
     try {
-      await setDoc(doc(db, 'api_keys', user.uid + '_' + i), {
+      const b = writeBatch(db);
+      b.set(doc(db, 'api_keys', user.uid + '_' + i), {
         key,
         provider,
+        keyHash: hash,
         createdAt: serverTimestamp(),   // the rules require the server's time
         status: 'active',
         failCount: 0,
         donorUid: user.uid
       });
-      return { slot: i, provider, tail: '••••' + key.slice(-4) };
+      /* in the same batch: the hash, so nobody can give this key again while it is in the pool */
+      b.set(doc(db, 'api_key_hashes', hash), { slot: user.uid + '_' + i, donorUid: user.uid, at: serverTimestamp() });
+      await b.commit();
+      return { slot: i, provider, tail: '••••' + key.slice(-4), hash };
     } catch (e) {
       if (e && e.code === 'permission-denied') continue;     // taken slot → the next one
       if (e && e.code === 'unavailable') throw new PoolError('offline', 'لا يوجد اتصال بقاعدة البيانات');
@@ -75,12 +84,20 @@ export async function donateKey(db, auth, rawKey) {
   throw new PoolError('full', 'لكل حساب ' + SLOTS + ' مفاتيح كحدّ أقصى — اسحب مفتاحًا أولًا');
 }
 
-/* withdrawKey — the donor deletes their own slot (the only thing the rules let them do with it) */
-export async function withdrawKey(db, auth, slot) {
+/* withdrawKey — the donor deletes their own slot (and its hash, given back by donateKey) */
+export async function withdrawKey(db, auth, slot, hash) {
   const user = auth.currentUser;
   if (!user) throw new PoolError('signin', 'سجّل الدخول أولًا');
-  try { await deleteDoc(doc(db, 'api_keys', user.uid + '_' + slot)); }
-  catch (e) { if (!(e && e.code === 'permission-denied')) throw e; }   // already gone
+  try {
+    const b = writeBatch(db);
+    b.delete(doc(db, 'api_keys', user.uid + '_' + slot));
+    if (hash) b.delete(doc(db, 'api_key_hashes', hash));
+    await b.commit();
+  } catch (e) { if (!(e && e.code === 'permission-denied')) throw e; }   // already gone
+}
+async function sha256hex(s) {
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(d), b => b.toString(16).padStart(2, '0')).join('');
 }
 
 /* ----------------------------------------------------------------

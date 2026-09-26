@@ -71,6 +71,21 @@ service firebase.storage {
       allow delete: if owner(userId);
     }
 
+    // hosted files with a direct link (PART 34): the server charges the points
+    // first and opens a ticket (Firestore hosting_tickets/<fileId>); only a file
+    // matching that ticket — same owner, same name, no bigger — can be written.
+    // Pages and SVG are stored as plain text, so a direct link never runs them
+    // on this bucket's address (they run in NEXUS's sandbox: …/f/<fileId>).
+    match /hosting/{userId}/{fileId}/{name} {
+      function ticket() { return firestore.get(/databases/(default)/documents/hosting_tickets/$(fileId)).data; }
+      allow read: if true;
+      allow create: if owner(userId) && ticket().uid == userId && ticket().name == name && ticket().state == 'open'
+                    && request.resource.size <= ticket().bytes
+                    && (!name.lower().matches('.*[.](html?|xhtml|svg|xml)$') || typeIs('text/plain.*'));
+      allow update: if false;
+      allow delete: if owner(userId);
+    }
+
     // diagnostics probe: proves the bucket answers (holds no files)
     match /_nexus/{file} {
       allow read: if true;

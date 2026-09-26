@@ -410,6 +410,46 @@ function allowed(uid) {
   return 0;
 }
 
+/* ---------- the day's requests per player (PART 34): AI_FREE_PER_DAY free (20), more bought
+   with points (points.js adds to «extra»), Pro PRO_AI_PER_DAY (150). Counted in Firestore usage/<uid>
+   with the service account — no browser can write it. No service account: no daily counter. ---------- */
+const numEnv = (k, d) => { const v = env(k); return v !== '' && Number.isFinite(+v) ? +v : d; };
+const dayNow = () => new Date().toISOString().slice(0, 10);
+async function fsGetDoc(path) {
+  const r = await fetch(fsDocs() + '/' + path, { headers: { authorization: 'Bearer ' + await adminToken() } });
+  if (r.status === 404) return { exists: false, data: {} };
+  if (!r.ok) throw new Error('firestore ' + r.status);
+  const d = await r.json(), f = d.fields || {}, n = k => f[k] ? +(f[k].integerValue || f[k].doubleValue || 0) : 0;
+  return { exists: true, updateTime: d.updateTime, data: { day: (f.day || {}).stringValue || '', used: n('used'), extra: n('extra'), proUntil: n('proUntil') } };
+}
+async function aiQuota(uid) {
+  if (!poolReady()) return { ok: true };
+  const day = dayNow(), name = 'projects/' + fsProject() + '/databases/(default)/documents/usage/' + uid;
+  try {
+    for (let i = 0; i < 4; i++) {
+      const [u, w] = await Promise.all([fsGetDoc('usage/' + uid), fsGetDoc('wallets/' + uid)]);
+      const pro = w.data.proUntil > Date.now();
+      const cur = u.data.day === day ? u.data : { day, used: 0, extra: 0 };
+      const limit = pro ? numEnv('PRO_AI_PER_DAY', 150) : numEnv('AI_FREE_PER_DAY', 20) + (cur.extra || 0);
+      if (cur.used >= limit) return { ok: false, pro, limit };
+      const r = await fetch(fsDocs() + ':commit', { method: 'POST', headers: { authorization: 'Bearer ' + await adminToken(), 'content-type': 'application/json' },
+        body: JSON.stringify({ writes: [{ update: { name, fields: { day: { stringValue: day }, used: { integerValue: String(cur.used + 1) }, extra: { integerValue: String(cur.extra || 0) } } },
+          currentDocument: u.exists ? { updateTime: u.updateTime } : { exists: false } }] }) });
+      if (r.ok) return { ok: true, pro, limit, left: limit - cur.used - 1 };
+    }
+  } catch (e) { console.warn('[ai] usage', e && e.message); }
+  return { ok: true };                     // the counter is busy or unreachable: the player is not blocked for it
+}
+/* a request no provider could answer does not count */
+async function aiRefund(uid) {
+  if (!poolReady()) return;
+  try {
+    const name = 'projects/' + fsProject() + '/databases/(default)/documents/usage/' + uid;
+    await fetch(fsDocs() + ':commit', { method: 'POST', headers: { authorization: 'Bearer ' + await adminToken(), 'content-type': 'application/json' },
+      body: JSON.stringify({ writes: [{ transform: { document: name, fieldTransforms: [{ fieldPath: 'used', increment: { integerValue: '-1' } }] }, currentDocument: { exists: true } }] }) });
+  } catch { }
+}
+
 async function chat(req, body) {
   const msgs = Array.isArray(body.messages) ? body.messages : null;
   if (!msgs || !msgs.length || msgs.length > 60) return fail(400, 'bad_request', 'طلب غير صالح');
@@ -499,7 +539,14 @@ export default async (req) => {
     if (wait) return fail(429, 'rate_limit', 'طلبات كثيرة — انتظر قليلًا. Please try again in ' + wait + 's.');
     let body;
     try { body = await req.json(); } catch { return fail(400, 'bad_request', 'طلب غير صالح'); }
-    return chat(req, body);
+    const q = await aiQuota(me.uid);
+    if (!q.ok) return fail(429, 'daily_limit', q.pro
+      ? 'وصلت حدّ Pro اليومي (' + q.limit + ' طلبًا) — يتجدّد غدًا.'
+      : 'انتهت طلبات الذكاء المجانية اليوم (' + q.limit + '). من «💰 نقاطي»: اشترِ ' + numEnv('AI_PACK_REQUESTS', 10) + ' طلبات بـ' + numEnv('AI_PACK_POINTS', 10) + ' نقاط (شاهد إعلانًا لتجمعها)، أو اشترك في Pro.');
+    const res = await chat(req, body);
+    if (res.status === 503) aiRefund(me.uid);
+    else if (q.left != null) res.headers.set('x-nexus-left', String(q.left));
+    return res;
   }
   return fail(404, 'not_found', 'غير موجود');
 };

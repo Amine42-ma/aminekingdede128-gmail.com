@@ -18,6 +18,12 @@
   to = "/index.html"
   status = 200
 
+# A hosted file's page — https://YOUR-SITE.netlify.app/f/<fileId> (PART 34)
+[[redirects]]
+  from = "/f/*"
+  to = "/index.html"
+  status = 200
+
 # functions/ is the Cloud Function's source (processRequest, deployed to
 # Firebase with «firebase deploy --only functions») — this site never serves it.
 [[redirects]]

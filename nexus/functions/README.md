@@ -26,6 +26,7 @@ processRequest ──(الجواب فقط)──▶ المتصفح
 - **رمز تسجيل دخول Firebase مطلوب** والضيوف مرفوضون (إلا بـ `POOL_ALLOW_ANONYMOUS=1`)، و**حدّ لكل لاعب في الدقيقة** (`POOL_PER_MINUTE`، افتراضيًا 20).
 - **أي نص يشبه مفتاحًا يُحذف من رسائل الخطأ** قبل إرجاعها، والسجلات تذكر رقم المستند فقط.
 - **5 مفاتيح كحدّ أقصى لكل حساب** (`<uid>_0` … `<uid>_4`)، فلا يستطيع أحد إغراق المجمّع.
+- **المفتاح نفسه لا يُقبل مرتين:** مع المفتاح تُرسل بصمته SHA-256 (`keyHash`) ويُكتب `api_key_hashes/<hash>` في نفس العملية؛ القواعد تحسب البصمة من المفتاح بنفسها (`hashing.sha256`) وترفض بصمة موجودة. البصمة لا تكشف شيئًا من المفتاح.
 
 ## النشر
 
@@ -70,4 +71,4 @@ Authorization: Bearer <Firebase ID token>
 ```
 firebase emulators:start --only auth,firestore,functions
 ```
-المحاكي يقرأ `functions/.env.local` (مثلًا `GROQ_BASE=http://127.0.0.1:8097/groq` لمزوّد تجريبي)، وافتح `client/example.html?emulators=1`.
+المحاكي يقرأ `functions/.env.local` (مثلًا `GROQ_BASE=http://127.0.0.1:8091/groq` لمزوّد تجريبي)، وافتح `client/example.html?emulators=1`.

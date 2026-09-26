@@ -376,12 +376,18 @@ service cloud.firestore {
         return k is string && k.size() >= 20 && k.size() <= 200
                && k.matches('(AIza[0-9A-Za-z_-]+|AQ[.][0-9A-Za-z_.-]+|gsk_[A-Za-z0-9]+|sk-or-[A-Za-z0-9_-]+)');
       }
+      // the key's SHA-256, computed HERE from the key itself: a key already in
+      // the pool (api_key_hashes/<hash>) cannot be given again, by anyone
+      function keyHash()   { return hashing.sha256(incoming().key).toHexString().lower(); }
       allow read: if false;
       allow create: if signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'
                     && keyId.matches(me() + '_[0-4]')
-                    && incoming().keys().hasAll(['key', 'createdAt', 'status', 'failCount', 'donorUid'])
-                    && incoming().keys().hasOnly(['key', 'createdAt', 'status', 'failCount', 'donorUid', 'provider'])
+                    && incoming().keys().hasAll(['key', 'createdAt', 'status', 'failCount', 'donorUid', 'keyHash'])
+                    && incoming().keys().hasOnly(['key', 'createdAt', 'status', 'failCount', 'donorUid', 'provider', 'keyHash'])
                     && poolKey(incoming().key)
+                    && incoming().keyHash == keyHash()
+                    && !exists(/databases/$(database)/documents/api_key_hashes/$(keyHash()))
+                    && getAfter(/databases/$(database)/documents/api_key_hashes/$(keyHash())).data.slot == keyId
                     && incoming().createdAt == request.time
                     && incoming().status == 'active'
                     && incoming().failCount == 0
@@ -390,6 +396,56 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if signedIn() && existing().donorUid == me();
     }
+    // one document per donated key's SHA-256 (never the key): written in the
+    // same batch as the key; anyone signed in may ask «is this hash taken?»
+    match /api_key_hashes/{h} {
+      allow get: if signedIn();
+      allow create: if hasAccount() && incoming().keys().hasOnly(['slot', 'donorUid', 'at'])
+                    && incoming().donorUid == me() && incoming().slot.matches(me() + '_[0-4]')
+                    && incoming().at == request.time
+                    && getAfter(/databases/$(database)/documents/api_keys/$(incoming().slot)).data.keyHash == h;
+      allow delete: if signedIn() && existing().donorUid == me();
+      allow list, update: if false;
+    }
+
+    // ---------------------------------------------------------------- points (PART 34)
+    // The balance, its history, the AI counter: written ONLY by the site's
+    // server (netlify/edge-functions/points.js and ai.js, with the service
+    // account — rules do not bind it). A browser can read its own, never write.
+    match /wallets/{uid} {
+      allow get: if signedIn() && me() == uid;
+      allow list, write: if false;
+      match /ledger/{id} {
+        allow read: if signedIn() && me() == uid;
+        allow write: if false;
+      }
+    }
+    match /usage/{uid} {
+      allow get: if signedIn() && me() == uid;
+      allow list, write: if false;
+    }
+    // hosted files (direct links): created by the server after it charged the
+    // points; anyone with the link can open the record, the owner lists and deletes
+    match /files/{fileId} {
+      allow get: if true;
+      allow list: if signedIn() && resource.data.ownerId == me();
+      allow delete: if signedIn() && existing().ownerId == me();
+      allow create, update: if false;
+    }
+    // minutes others played each game (the creator earns points per 10 minutes)
+    match /playtime/{gameId} {
+      allow get: if true;
+      allow list, write: if false;
+    }
+    // the server's own bookkeeping: ad sessions, AdMob transactions, upload
+    // tickets, play marks, Stripe events — no browser reads or writes them
+    match /ad_sessions/{id}     { allow read, write: if false; }
+    match /ad_tx/{id}           { allow read, write: if false; }
+    match /hosting_tickets/{id} { allow read, write: if false; }
+    match /play_marks/{id}      { allow read, write: if false; }
+    match /stripe_events/{id}   { allow read, write: if false; }
+    match /stripe_subs/{id}     { allow read, write: if false; }
+
     // the pool's per-player request counter — server only
     match /api_usage/{uid} {
       allow read, write: if false;
@@ -508,14 +564,19 @@ service cloud.firestore {
 
     // ---------------------------------------------------------------- creator profiles
     match /users/{uid} {
+      function slotAfter(i) { return existsAfter(/databases/$(database)/documents/api_keys/$(uid + '_' + i)); }
+      function donorNow()   { return slotAfter('0') || slotAfter('1') || slotAfter('2') || slotAfter('3') || slotAfter('4'); }
       allow read: if true;
       allow create: if signedIn() && me() == uid && incoming().uid == uid
-                    && incoming().followers == 0 && incoming().following == 0;
+                    && incoming().followers == 0 && incoming().following == 0
+                    && (incoming().get('donor', false) == false || donorNow());
       allow update: if signedIn() && (
            // the owner edits the profile; 'followers' is never theirs to write,
            // 'following' only ever moves by one (their own follow action)
            (me() == uid && incoming().uid == uid
               && incoming().followers == existing().followers
+              // «🤝 متبرّع»: set only while one of their slots holds a donated key
+              && (incoming().get('donor', false) == existing().get('donor', false) || incoming().get('donor', false) == false || donorNow())
               && (incoming().following == existing().following
                   || incoming().following == existing().following + 1
                   || incoming().following == existing().following - 1))

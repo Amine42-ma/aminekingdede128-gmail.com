@@ -9,7 +9,7 @@ window.NX_SANDBOX = location.hash === '#nx-sandbox' && window.parent !== window;
 /* a pretty game link (…/game/<id>, sent to this page by netlify.toml)
    becomes the app's own route (…/#game/<id>) before anything relative loads */
 (function () {
-  var m = /^(.*\/)(game|app)\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname);
+  var m = /^(.*\/)(game|app|f)\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname);
   if (m) history.replaceState(null, '', m[1] + location.search + '#' + m[2] + '/' + m[3]);
 })();
 </script>
@@ -67,6 +67,21 @@ window.NEXUS_FIREBASE = {
                 Cloud project, and the apiKey above allowed to call it.
    "firebase" — Firebase Storage (needs the Blaze plan). */
 window.NEXUS_FILES = "drive";
+
+/* Rewarded ads (PART 34) — 5 points for an ad watched to the end.
+   AdMob serves Android / iOS apps only, not web pages: in the NEXUS app
+   (a WebView) the app shows the rewarded ad and Google confirms each
+   reward to this site's server (/api/points/admob-ssv).
+   In a browser: AdSense H5 games rewarded ads, once Google has approved
+   them for this site — then set web: true (and ADS_WEB=1 in Netlify).
+   adsenseClient: check it is YOUR publisher ID (AdSense → Account →
+   Account information); it is usually the same number as AdMob's. */
+window.NEXUS_ADS = {
+  admobApp: "ca-app-pub-4399025548645078~4423456507",
+  admobRewarded: "ca-app-pub-4399025548645078/3848566420",
+  adsenseClient: "ca-pub-4399025548645078",
+  web: false
+};
 </script>
 
 <!-- ============================================================
@@ -1362,6 +1377,27 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 .ea-card .ea-test.bad{color:#ff9aa8}
 .ea-card.done{border-color:rgba(52,211,153,.35)}
 /* /NX-CSS:31 */
+/* NX-CSS:34 */
+/* PART 34 · points */
+.pts-chip{display:inline-flex;align-items:center;gap:4px;height:34px;padding:0 10px;border-radius:999px;border:1px solid rgba(250,204,21,.35);background:rgba(250,204,21,.1);color:#fde68a;font:700 13px/1 var(--font-en,system-ui);cursor:pointer;margin-inline-start:auto}
+.pts-chip b{font-weight:800}
+.pts-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.pts-big{font:800 38px/1.1 var(--font-en,system-ui);color:#fde68a}
+.pts-big small{font-size:14px;color:var(--ink-dim);font-weight:600}
+.pts-pro{padding:4px 10px;border-radius:999px;background:linear-gradient(90deg,#f59e0b,#eab308);color:#1a1300;font-weight:800;font-size:12px}
+.pts-card{margin-bottom:10px}
+.pts-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.06)}
+.pts-row:first-of-type{border-top:0}
+.pts-hist{display:flex;flex-direction:column;gap:2px}
+.pts-line{display:grid;grid-template-columns:1fr auto;gap:0 10px;padding:7px 2px;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px}
+.pts-line small{grid-column:1/-1;color:var(--ink-dim);font-size:11px}
+.pts-line .plus{color:#86efac}.pts-line .minus{color:#fca5a5}
+.pts-file{margin-top:10px}
+.pts-fname{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}
+.pts-fname b{overflow-wrap:anywhere}
+.pts-pre{max-height:50vh;overflow:auto;background:rgba(0,0,0,.35);padding:10px;border-radius:10px;font-size:12px;white-space:pre-wrap;direction:ltr;text-align:left}
+.donor-badge{display:inline-block;margin:4px 0 0;padding:2px 9px;border-radius:999px;background:rgba(34,197,94,.14);color:#86efac;font-size:12px;font-weight:700}
+/* /NX-CSS:34 */
 </style>
 </head>
 <body>
@@ -1437,6 +1473,7 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
           <span class="dot"><svg viewBox="0 0 24 24"><use href="#i-cube"/></svg></span>
           <b>NEXUS</b>
         </div>
+        <button class="pts-chip hide" id="btn-points" aria-label="points" title="نقاطي">💰 <b id="pts-val">0</b></button>
         <button class="icon-btn" id="btn-search" aria-label="search"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg></button>
         <button class="icon-btn" id="btn-notif" aria-label="notifications"><svg viewBox="0 0 24 24"><use href="#i-heart"/></svg></button>
         <button class="icon-btn" id="btn-settings" aria-label="settings"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
@@ -4089,12 +4126,18 @@ service cloud.firestore {
         return k is string && k.size() >= 20 && k.size() <= 200
                && k.matches('(AIza[0-9A-Za-z_-]+|AQ[.][0-9A-Za-z_.-]+|gsk_[A-Za-z0-9]+|sk-or-[A-Za-z0-9_-]+)');
       }
+      // the key's SHA-256, computed HERE from the key itself: a key already in
+      // the pool (api_key_hashes/<hash>) cannot be given again, by anyone
+      function keyHash()   { return hashing.sha256(incoming().key).toHexString().lower(); }
       allow read: if false;
       allow create: if signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'
                     && keyId.matches(me() + '_[0-4]')
-                    && incoming().keys().hasAll(['key', 'createdAt', 'status', 'failCount', 'donorUid'])
-                    && incoming().keys().hasOnly(['key', 'createdAt', 'status', 'failCount', 'donorUid', 'provider'])
+                    && incoming().keys().hasAll(['key', 'createdAt', 'status', 'failCount', 'donorUid', 'keyHash'])
+                    && incoming().keys().hasOnly(['key', 'createdAt', 'status', 'failCount', 'donorUid', 'provider', 'keyHash'])
                     && poolKey(incoming().key)
+                    && incoming().keyHash == keyHash()
+                    && !exists(/databases/$(database)/documents/api_key_hashes/$(keyHash()))
+                    && getAfter(/databases/$(database)/documents/api_key_hashes/$(keyHash())).data.slot == keyId
                     && incoming().createdAt == request.time
                     && incoming().status == 'active'
                     && incoming().failCount == 0
@@ -4103,6 +4146,56 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if signedIn() && existing().donorUid == me();
     }
+    // one document per donated key's SHA-256 (never the key): written in the
+    // same batch as the key; anyone signed in may ask «is this hash taken?»
+    match /api_key_hashes/{h} {
+      allow get: if signedIn();
+      allow create: if hasAccount() && incoming().keys().hasOnly(['slot', 'donorUid', 'at'])
+                    && incoming().donorUid == me() && incoming().slot.matches(me() + '_[0-4]')
+                    && incoming().at == request.time
+                    && getAfter(/databases/$(database)/documents/api_keys/$(incoming().slot)).data.keyHash == h;
+      allow delete: if signedIn() && existing().donorUid == me();
+      allow list, update: if false;
+    }
+
+    // ---------------------------------------------------------------- points (PART 34)
+    // The balance, its history, the AI counter: written ONLY by the site's
+    // server (netlify/edge-functions/points.js and ai.js, with the service
+    // account — rules do not bind it). A browser can read its own, never write.
+    match /wallets/{uid} {
+      allow get: if signedIn() && me() == uid;
+      allow list, write: if false;
+      match /ledger/{id} {
+        allow read: if signedIn() && me() == uid;
+        allow write: if false;
+      }
+    }
+    match /usage/{uid} {
+      allow get: if signedIn() && me() == uid;
+      allow list, write: if false;
+    }
+    // hosted files (direct links): created by the server after it charged the
+    // points; anyone with the link can open the record, the owner lists and deletes
+    match /files/{fileId} {
+      allow get: if true;
+      allow list: if signedIn() && resource.data.ownerId == me();
+      allow delete: if signedIn() && existing().ownerId == me();
+      allow create, update: if false;
+    }
+    // minutes others played each game (the creator earns points per 10 minutes)
+    match /playtime/{gameId} {
+      allow get: if true;
+      allow list, write: if false;
+    }
+    // the server's own bookkeeping: ad sessions, AdMob transactions, upload
+    // tickets, play marks, Stripe events — no browser reads or writes them
+    match /ad_sessions/{id}     { allow read, write: if false; }
+    match /ad_tx/{id}           { allow read, write: if false; }
+    match /hosting_tickets/{id} { allow read, write: if false; }
+    match /play_marks/{id}      { allow read, write: if false; }
+    match /stripe_events/{id}   { allow read, write: if false; }
+    match /stripe_subs/{id}     { allow read, write: if false; }
+
     // the pool's per-player request counter — server only
     match /api_usage/{uid} {
       allow read, write: if false;
@@ -4221,14 +4314,19 @@ service cloud.firestore {
 
     // ---------------------------------------------------------------- creator profiles
     match /users/{uid} {
+      function slotAfter(i) { return existsAfter(/databases/$(database)/documents/api_keys/$(uid + '_' + i)); }
+      function donorNow()   { return slotAfter('0') || slotAfter('1') || slotAfter('2') || slotAfter('3') || slotAfter('4'); }
       allow read: if true;
       allow create: if signedIn() && me() == uid && incoming().uid == uid
-                    && incoming().followers == 0 && incoming().following == 0;
+                    && incoming().followers == 0 && incoming().following == 0
+                    && (incoming().get('donor', false) == false || donorNow());
       allow update: if signedIn() && (
            // the owner edits the profile; 'followers' is never theirs to write,
            // 'following' only ever moves by one (their own follow action)
            (me() == uid && incoming().uid == uid
               && incoming().followers == existing().followers
+              // «🤝 متبرّع»: set only while one of their slots holds a donated key
+              && (incoming().get('donor', false) == existing().get('donor', false) || incoming().get('donor', false) == false || donorNow())
               && (incoming().following == existing().following
                   || incoming().following == existing().following + 1
                   || incoming().following == existing().following - 1))
@@ -4400,6 +4498,21 @@ service firebase.storage {
                       && (isImage() || ageAllows(ageOf('apps', appId))));
       allow create, update: if owner(userId)
                     && ((typeIs('application/zip') && under(25)) || (typeIs('image/.*') && under(2)));
+      allow delete: if owner(userId);
+    }
+
+    // hosted files with a direct link (PART 34): the server charges the points
+    // first and opens a ticket (Firestore hosting_tickets/<fileId>); only a file
+    // matching that ticket — same owner, same name, no bigger — can be written.
+    // Pages and SVG are stored as plain text, so a direct link never runs them
+    // on this bucket's address (they run in NEXUS's sandbox: …/f/<fileId>).
+    match /hosting/{userId}/{fileId}/{name} {
+      function ticket() { return firestore.get(/databases/(default)/documents/hosting_tickets/$(fileId)).data; }
+      allow read: if true;
+      allow create: if owner(userId) && ticket().uid == userId && ticket().name == name && ticket().state == 'open'
+                    && request.resource.size <= ticket().bytes
+                    && (!name.lower().matches('.*[.](html?|xhtml|svg|xml)$') || typeIs('text/plain.*'));
+      allow update: if false;
       allow delete: if owner(userId);
     }
 
@@ -14786,6 +14899,7 @@ async function openCreator(uidStr) {
   const info = el('div', { style: { flex: '1', minWidth: '0' } });
   info.append(el('b', { text: '@' + prof.name, style: { fontSize: '17px' } }),
     el('div', { class: 'tiny', text: `${fmtNum(prof.followers || 0)} متابع · ${fmtNum(prof.following || 0)} يتابع · ${fmtNum(prof.posts || 0)} منشور` }));
+  if (prof.donor) info.appendChild(el('span', { class: 'donor-badge', title: 'تبرّع بمفتاح للذكاء المجاني في الموقع', text: '🤝 متبرّع' }));
   if (prof.bio) info.appendChild(el('p', { class: 'tiny', style: { marginTop: '4px' }, text: prof.bio }));
   head.append(av, info);
   body.appendChild(head);
@@ -26650,6 +26764,7 @@ Object.assign(HtmlApps, { open: openAppPage, run: openViewer, manager: openManag
   if (a) openAppPage(a); else Toast.err(Backend.isOnline() ? 'التطبيق غير موجود أو خاص' : 'فتح رابط تطبيق يحتاج اتصال الموقع بالسحابة');
 } });
 HtmlApps.Frame = AppFrame;
+HtmlApps.readPicked = readPicked;      // a hosted ZIP or page runs the same way (PART 34)
 NX.HtmlApps = HtmlApps;
 
 /* ---------------- where it shows up (called from «مشاريعي» and the home page, PART 8) ---------------- */
@@ -29223,9 +29338,9 @@ const KeyPool = {
 
   /* what this browser remembers of its own donations: provider + last four characters, never the key */
   local() { return LS.get('keyPool.mine.' + (Backend.user ? Backend.user.uid : ''), []); },
-  remember(slot, provider, key) {
+  remember(slot, provider, key, hash) {
     const list = this.local().filter(x => x.slot !== slot);
-    list.push({ slot, provider, tail: '••••' + key.slice(-4), at: Date.now() });
+    list.push({ slot, provider, tail: '••••' + key.slice(-4), hash, at: Date.now() });
     LS.set('keyPool.mine.' + Backend.user.uid, list);
   },
   forget(slot) { LS.set('keyPool.mine.' + Backend.user.uid, this.local().filter(x => x.slot !== slot)); },
@@ -29238,14 +29353,21 @@ const KeyPool = {
     if (!Backend.isOnline()) throw Object.assign(new Error('التبرّع يحتاج اتصال الموقع بالسحابة'), { code: 'offline' });
     if (!Backend.hasAccount()) throw Object.assign(new Error('سجّل الدخول بحساب (Google أو البريد) أولًا'), { code: 'signin' });
     const { F, db } = Backend.fb, uid = Backend.user.uid;
+    /* the key's SHA-256 (the rules compute it again from the key): a key already in the pool is refused */
+    const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key))), b => b.toString(16).padStart(2, '0')).join('');
+    const taken = await F.getDoc(F.doc(db, 'api_key_hashes', hash)).then(d => d.exists(), () => false);
+    if (taken) throw Object.assign(new Error('هذا المفتاح في المجمّع من قبل — لا يُتبرَّع بالمفتاح نفسه مرتين.'), { code: 'duplicate' });
     const used = new Set(this.local().map(x => x.slot));
     const order = [...Array(this.SLOTS).keys()].sort((a, b) => used.has(a) - used.has(b));
     for (const i of order) {
       try {
-        await Backend.serverWrite(F.setDoc(F.doc(db, 'api_keys', uid + '_' + i), {
-          key, provider, createdAt: F.serverTimestamp(), status: 'active', failCount: 0, donorUid: uid
-        }));
-        this.remember(i, provider, key);
+        const b = F.writeBatch(db);
+        b.set(F.doc(db, 'api_keys', uid + '_' + i), { key, provider, keyHash: hash, createdAt: F.serverTimestamp(), status: 'active', failCount: 0, donorUid: uid });
+        b.set(F.doc(db, 'api_key_hashes', hash), { slot: uid + '_' + i, donorUid: uid, at: F.serverTimestamp() });
+        await Backend.serverWrite(b.commit());
+        this.remember(i, provider, key, hash);
+        /* «🤝 متبرّع» on the profile (the rules allow it only while a key is donated) */
+        Backend.serverWrite(F.updateDoc(F.doc(db, 'users', uid), { donor: true })).catch(() => {});
         return { slot: i, provider, tail: '••••' + key.slice(-4) };
       } catch (e) {
         /* a slot that already holds a key cannot be written again: the next one */
@@ -29259,7 +29381,13 @@ const KeyPool = {
   /* ---- withdraw: the donor deletes their own slot (the rules allow only them) ---- */
   async withdraw(slot) {
     const { F, db } = Backend.fb, uid = Backend.user.uid;
-    try { await Backend.serverWrite(F.deleteDoc(F.doc(db, 'api_keys', uid + '_' + slot))); }
+    const hash = (this.local().find(x => x.slot === slot) || {}).hash;
+    try {
+      const b = F.writeBatch(db);
+      b.delete(F.doc(db, 'api_keys', uid + '_' + slot));
+      if (hash) b.delete(F.doc(db, 'api_key_hashes', hash));      // the same key may be given again later
+      await Backend.serverWrite(b.commit());
+    }
     catch (e) { if (!(e && e.code === 'permission-denied')) throw e; }   // nothing there any more
     this.forget(slot);
   },
@@ -29315,6 +29443,7 @@ const KeyPool = {
       el('div', { text: '• يُكتب مرة واحدة في قاعدة بيانات الموقع، ولا يستطيع أحد قراءته بعدها: لا الزوار ولا البوتات ولا أنت (هذه الصفحة تحفظ آخر 4 أحرف فقط).' }),
       el('div', { text: '• يستعمله خادم الموقع وحده ليجيب الذكاء المجاني؛ لا يصل إلى أي متصفح في أي رد أو رسالة خطأ.' }),
       el('div', { text: '• إن رفضه المزوّد يُعطَّل وحده، وإن وصل حدّه يرتاح ثم يعود. تسحبه متى شئت.' }),
+      el('div', { text: '• المفتاح نفسه لا يُقبل مرتين (تُحفظ بصمته SHA-256، لا المفتاح). التبرّع تطوّعي بلا نقاط ولا مال — شكرًا لك تظهر شارة «🤝 متبرّع» في ملفك.' }),
       el('div', { style: { color: '#fcd77a' }, text: '• مالك الموقع يصل إلى قاعدة البيانات من لوحة Firebase — تبرّع لموقع تثق بصاحبه، وتأكّد أن شروط مزوّدك تسمح بمشاركة المفتاح.' })]));
 
     const input = el('input', { class: 'input', type: 'password', placeholder: 'الصق المفتاح هنا (gsk_… أو AIza… أو AQ.… أو sk-or-…)', autocomplete: 'off', spellcheck: 'false', style: { direction: 'ltr' } });
@@ -29709,6 +29838,362 @@ AppEditor._parsePlan = parsePlan;
 NX.AppEditor = AppEditor;
 </script>
 <!-- /NX-PART:33 -->
+<!-- NX-PART:34 -->
+<script type="module">
+/* ============================================================
+   PART 34 · POINTS — the site's own currency (not money).
+   The balance and its history live in Firestore wallets/<uid>; this page
+   can only READ them. Every change is made by the site's server
+   (netlify/edge-functions/points.js) and the rules refuse any browser write.
+   • Earn: a rewarded ad watched to the end (+5, 60 s apart, 15 a day) ·
+     the welcome gift (+50, once) · every 10 minutes others play your
+     game (+5 to its creator).
+   • Spend: hosted files with a direct link (10 per MB) · 10 more AI
+     requests today (10 points).
+   • Pro ($20 / month, paid on Stripe's own page): files free, 150 AI
+     requests a day. Pro starts only when Stripe tells the server it was paid.
+   Ads: in the NEXUS Android app, AdMob (Google confirms each reward to the
+   server); in a browser, AdSense H5 games rewarded ads once approved
+   (NEXUS_ADS.web). Nowhere else — the button says which applies.
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, Sheet, Modal, Toast, fmtBytes, timeAgo } = NX;
+const { Backend } = NX;
+
+const API = /^https?:$/.test(location.protocol) ? location.origin + location.pathname.replace(/[^/]*$/, '') + 'api/points' : '';
+const ADS = Object.assign({ web: false }, window.NEXUS_ADS || {});
+const HOSTED = /\.(html?|png|jpe?g|gif|webp|svg|json|js|css|zip|txt|mp3|ogg|wav|glb|gltf)$/i;
+const AS_TEXT = /\.(html?|xhtml|svg|xml)$/i;                   // stored as text/plain: they run in NEXUS's sandbox, not on the bucket
+const REASON = { welcome: '🎁 هدية الترحيب', ad: '📺 إعلان', upload: '📎 رفع ملف', refund: '↩ استرجاع', ai: '🤖 طلبات ذكاء', play: '🎮 وقت لعب لعبتك', pro: '⭐ Pro' };
+const fmtDate = t => { try { return new Date(t).toLocaleDateString('ar', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return ''; } };
+
+const Points = {
+  me: null,            // the server's view (/me): prices, limits, today's counters, Pro
+  wallet: null,        // the live balance (Firestore snapshot)
+  _unsub: null, _uid: null,
+
+  /* ---------------- the server ---------------- */
+  async token() { const u = Backend.fb && Backend.fb.auth && Backend.fb.auth.currentUser; return u && !u.isAnonymous ? u.getIdToken() : null; },
+  async api(path, body) {
+    if (!API) throw Object.assign(new Error('النقاط تعمل على الموقع المنشور فقط'), { code: 'off' });
+    const tok = await this.token();
+    if (!tok) throw Object.assign(new Error('النقاط لأصحاب الحسابات — سجّل الدخول (Google أو البريد).'), { code: 'signin' });
+    let r;
+    try { r = await fetch(API + path, { method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: body ? JSON.stringify(body) : undefined }); }
+    catch { throw Object.assign(new Error('خادم النقاط لا يجيب — تحقّق من الاتصال'), { code: 'net' }); }
+    const j = await r.json().catch(() => null);
+    if (!j) throw Object.assign(new Error(r.status === 404 ? 'خادم النقاط غير موجود على هذا الموقع (يعمل على Netlify)' : 'HTTP ' + r.status), { code: 'off', status: r.status });
+    if (!r.ok || j.ok === false) throw Object.assign(new Error((j.error && j.error.message) || 'HTTP ' + r.status), { code: j.error && j.error.code, status: r.status, data: j });
+    return j;
+  },
+  async refresh() { try { this.me = await this.api('/me'); } catch (e) { this.me = { error: e }; } return this.me; },
+
+  /* the live balance in the top bar (accounts only) */
+  watch() {
+    const u = Backend.user;
+    const uid = u && Backend.hasAccount() && Backend.isOnline() ? u.uid : null;
+    if (uid === this._uid) return;
+    if (this._unsub) { this._unsub(); this._unsub = null; }
+    this._uid = uid; this.wallet = null;
+    const chip = document.getElementById('btn-points');
+    if (chip) chip.classList.add('hide');
+    if (!uid) return;
+    const { F, db } = Backend.fb;
+    this._unsub = F.onSnapshot(F.doc(db, 'wallets', uid), d => {
+      this.wallet = d.exists() ? d.data() : null;
+      this.paint();
+    }, () => { this._unsub = null; this._uid = null; });      // refused while the sign-in settles: tried again in 2 s
+    /* the first visit creates the wallet (with the welcome gift) */
+    this.refresh().then(() => this.paint());
+  },
+  paint() {
+    const chip = document.getElementById('btn-points'), v = document.getElementById('pts-val');
+    if (!chip || !v) return;
+    const pts = this.wallet ? this.wallet.points || 0 : this.me && !this.me.error ? this.me.points : null;
+    chip.classList.toggle('hide', pts == null);
+    if (pts != null) v.textContent = NX.fmtNum ? NX.fmtNum(pts) : String(pts);
+    document.querySelectorAll('.pts-live').forEach(n => { n.textContent = pts == null ? '—' : String(pts); });
+  },
+  isPro() { return !!(this.wallet && this.wallet.proUntil > Date.now()); },
+
+  /* ---------------- ads ---------------- */
+  adMode() {
+    if (window.NexusAndroid && typeof window.NexusAndroid.showRewarded === 'function') return 'admob';
+    if (ADS.web && this.me && this.me.adsWeb) return 'web';
+    return null;
+  },
+  /* the NEXUS Android app shows the AdMob ad; Google tells the server (SSV); the balance moves by itself */
+  async adAdmob(t) {
+    const before = (this.wallet && this.wallet.points) || 0;
+    window.NexusAndroid.showRewarded(JSON.stringify({ unit: ADS.admobRewarded, userId: Backend.user.uid, customData: t.nonce }));
+    for (let i = 0; i < 60; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      if (((this.wallet && this.wallet.points) || 0) > before) return true;
+    }
+    return false;
+  },
+  /* a browser: AdSense H5 games rewarded ad (Google's Ad Placement API) */
+  loadAdSense() {
+    if (this._ads) return this._ads;
+    this._ads = new Promise((res, rej) => {
+      window.adsbygoogle = window.adsbygoogle || [];
+      window.adBreak = window.adConfig = function (o) { window.adsbygoogle.push(o); };
+      const s = document.createElement('script');
+      s.async = true; s.crossOrigin = 'anonymous';
+      s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=' + encodeURIComponent(ADS.adsenseClient);
+      s.setAttribute('data-ad-client', ADS.adsenseClient);
+      s.onload = () => { window.adConfig({ preloadAdBreaks: 'on', sound: 'on' }); res(); };
+      s.onerror = () => { this._ads = null; rej(new Error('تعذّر تحميل إعلانات Google — مانع إعلانات؟')); };
+      document.head.appendChild(s);
+    });
+    return this._ads;
+  },
+  adWeb(t) {
+    return new Promise(async res => {
+      try { await this.loadAdSense(); } catch (e) { Toast.err(e.message); return res(false); }
+      let viewed = false;
+      window.adBreak({ type: 'reward', name: 'nexus-points',
+        beforeReward: showAdFn => showAdFn(),
+        adViewed: () => { viewed = true; },
+        adDismissed: () => { viewed = false; },
+        adBreakDone: async info => {
+          if (!viewed) { if (info && info.breakStatus && info.breakStatus !== 'dismissed') Toast.err('لا يوجد إعلان متاح الآن — جرّب بعد قليل'); return res(false); }
+          /* the server accepts the reward no sooner than an ad could have run */
+          const wait = t.minSeconds * 1000 - (Date.now() - t.at);
+          if (wait > 0) await new Promise(r => setTimeout(r, wait + 200));
+          try { await this.api('/ad/claim', { nonce: t.nonce }); res(true); }
+          catch (e) { Toast.err(e.message); res(false); }
+        } });
+    });
+  },
+  async watchAd(btnEl) {
+    const mode = this.adMode();
+    if (!mode) { this.adsHelp(); return; }
+    if (btnEl) btnEl.disabled = true;
+    try {
+      const t = Object.assign(await this.api('/ad/start', { via: mode }), { at: Date.now() });
+      const ok = mode === 'admob' ? await this.adAdmob(t) : await this.adWeb(t);
+      if (ok) Toast.ok('+' + t.points + ' نقاط — شكرًا!');
+      else if (mode === 'admob') Toast.err('لم يُحتسب الإعلان (لم يكتمل، أو لم تصل مكافأته بعد)');
+    } catch (e) { Toast.err(e.message); }
+    finally { if (btnEl) btnEl.disabled = false; await this.refresh(); this.redraw && this.redraw(); }
+  },
+  adsHelp() {
+    Modal.open({ title: '📺 الإعلانات بمكافأة', body: el('div', { class: 'muted', style: { fontSize: '13.5px', lineHeight: '1.8' } }, [
+      el('p', { text: 'الإعلانات بمكافأة غير مفعّلة في هذا المتصفح بعد:' }),
+      el('p', { text: '• في تطبيق NEXUS على Android: إعلانات AdMob (Google يؤكّد كل مكافأة لخادم الموقع).' }),
+      el('p', { text: '• في المتصفح: إعلانات AdSense للألعاب (H5 Games Ads) — تعمل بعد أن توافق Google عليها لهذا الموقع ويفعّلها صاحبه.' }),
+      el('p', { text: 'حتى ذلك الحين: هدية الترحيب، ونقاط وقت لعب ألعابك.' })]), actions: [{ label: 'حسنًا', cls: 'primary' }] });
+  },
+
+  /* ---------------- AI packs and Pro ---------------- */
+  async buyAI(b) {
+    const m = this.me || {};
+    if (!(await Modal.confirm('طلبات ذكاء إضافية', m.aiPack + ' طلبات إضافية لليوم مقابل ' + m.aiPackPrice + ' نقاط.', 'اشترِ'))) return;
+    b && (b.disabled = true);
+    try { const r = await this.api('/ai/buy', {}); Toast.ok('+' + m.aiPack + ' طلبات — رصيدك ' + r.points); }
+    catch (e) { Toast.err(e.message); }
+    finally { b && (b.disabled = false); await this.refresh(); this.redraw && this.redraw(); }
+  },
+  async pro(action, b) {
+    b && (b.disabled = true);
+    try { const r = await this.api(action === 'manage' ? '/pro/portal' : '/pro/checkout', {}); location.href = r.url; }    // Stripe's own page
+    catch (e) { Toast.err(e.message); b && (b.disabled = false); }
+  },
+
+  /* ---------------- the wallet sheet ---------------- */
+  async open() {
+    if (!Backend.user || !Backend.hasAccount()) { NX.promptSignIn('النقاط لأصحاب الحسابات — سجّل الدخول (Google أو البريد).'); return; }
+    const body = el('div', { class: 'pts' });
+    const sheet = Sheet.open({ title: '💰 نقاطي', body, id: 'points' });
+    this.redraw = async () => {
+      if (!body.isConnected) { this.redraw = null; return; }
+      const m = this.me && !this.me.error ? this.me : await this.refresh();
+      body.textContent = '';
+      if (!m || m.error) {
+        body.appendChild(el('div', { class: 'card', style: { lineHeight: '1.8' } }, [el('b', { text: 'نظام النقاط غير متاح هنا' }), el('div', { class: 'tiny', text: (m && m.error && m.error.message) || '' })]));
+        return;
+      }
+      const pro = m.pro && m.pro.active;
+      body.appendChild(el('div', { class: 'pts-head' }, [
+        el('div', { class: 'pts-big' }, [el('span', { class: 'pts-live', text: String(m.points) }), el('small', { text: ' نقطة' })]),
+        pro ? el('span', { class: 'pts-pro', text: '⭐ Pro حتى ' + fmtDate(m.pro.until) }) : el('span')]));
+      body.appendChild(el('p', { class: 'tiny', style: { margin: '2px 0 12px' }, text: 'النقاط داخل الموقع فقط — ليست مالًا ولا تُحوَّل إلى مال.' }));
+
+      /* earn */
+      const ad = el('div', { class: 'card pts-card' });
+      const mode = this.adMode();
+      const adBtn = btn('▶ شاهد إعلانًا · +' + m.ad, { cls: 'primary block pts-ad', onclick: e => this.watchAd(e.currentTarget) });
+      if (!m.ads.left) { adBtn.disabled = true; adBtn.lastChild.textContent = 'انتهت إعلانات اليوم (' + m.adsPerDay + ')'; }
+      ad.append(el('b', { text: '📺 إعلان بمكافأة' }), el('div', { class: 'tiny', style: { margin: '4px 0 8px' },
+        text: m.ads.today + '/' + m.adsPerDay + ' اليوم · +' + m.ad + ' لكل إعلان كامل · ' + m.adCooldown + ' ثانية بين إعلانين' + (mode ? '' : ' · غير مفعّلة في هذا المتصفح') }), adBtn);
+      if (m.ads.wait > 0 && m.ads.left) {
+        let w = m.ads.wait; adBtn.disabled = true;
+        const tick = () => { if (!body.isConnected) return; if (w <= 0) { adBtn.disabled = false; adBtn.lastChild.textContent = '▶ شاهد إعلانًا · +' + m.ad; return; } adBtn.lastChild.textContent = 'الإعلان التالي بعد ' + w + ' ث'; w--; setTimeout(tick, 1000); };
+        setTimeout(tick, 0);                 // once the button is on the page
+      }
+      body.appendChild(ad);
+
+      /* spend */
+      const sp = el('div', { class: 'card pts-card' }, [el('b', { text: '🛒 استعمل نقاطك' })]);
+      sp.appendChild(el('div', { class: 'pts-row' }, [el('div', {}, [el('div', { text: '🤖 طلبات الذكاء اليوم' }), el('div', { class: 'tiny', text: 'استعملت ' + m.ai.used + ' من ' + m.ai.limit + (pro ? ' (Pro)' : ' (' + m.aiFree + ' مجانًا' + (m.ai.extra ? ' + ' + m.ai.extra + ' مشتراة' : '') + ')') })]),
+        pro ? el('span', { class: 'tiny', text: 'Pro' }) : btn('+' + m.aiPack + ' بـ' + m.aiPackPrice, { cls: 'sm pts-buyai', onclick: e => this.buyAI(e.currentTarget) })]));
+      sp.appendChild(el('div', { class: 'pts-row' }, [el('div', {}, [el('div', { text: '📎 ملفاتي — روابط مباشرة' }), el('div', { class: 'tiny', text: pro ? 'مجانًا مع Pro' : m.mb + ' نقاط لكل 1 ميجابايت (حتى ' + m.fileMaxMB + ' ميجابايت)' })]),
+        btn('فتح', { cls: 'sm pts-files', onclick: () => this.openFiles() })]));
+      body.appendChild(sp);
+
+      /* Pro */
+      const pc = el('div', { class: 'card pts-card pts-procard' }, [el('b', { text: '⭐ Pro — ' + m.proPrice + ' شهريًا' }),
+        el('div', { class: 'tiny', style: { margin: '4px 0 8px', lineHeight: '1.7' }, text: m.proAI + ' طلب ذكاء يوميًا بلا نقاط · رفع الملفات مجانًا · الدفع على صفحة Stripe نفسها (NEXUS لا يرى بطاقتك).' })]);
+      if (pro) pc.appendChild(m.pro.manage ? btn('إدارة الاشتراك أو إلغاؤه', { cls: 'sm', onclick: e => this.pro('manage', e.currentTarget) }) : el('div', { class: 'tiny', text: '✓ مفعّل' }));
+      else if (m.stripe) pc.appendChild(btn('اشترك الآن', { cls: 'primary sm pts-subscribe', onclick: e => this.pro('checkout', e.currentTarget) }));
+      else pc.appendChild(el('div', { class: 'tiny pts-prooff', text: 'غير مفعّل بعد على هذا الموقع — يحتاج صاحبه إلى ربط حساب Stripe.' }));
+      body.appendChild(pc);
+
+      /* creators */
+      body.appendChild(el('div', { class: 'card pts-card tiny', style: { lineHeight: '1.8' }, text: '🎮 ألعابك تكسب لك: كل ' + m.playMinutes + ' دقائق يلعبها الآخرون (أصحاب الحسابات) في لعبتك المنشورة = +' + m.playPoints + ' نقاط. لا تُحسب دقائقك أنت، وتُحسب لكل لاعب حتى ' + m.playCap + ' دقيقة يوميًا في كل لعبة.' }));
+
+      /* history */
+      body.appendChild(el('div', { class: 'ttl', text: 'السجلّ' }));
+      const hist = el('div', { class: 'pts-hist' });
+      body.appendChild(hist);
+      try {
+        const { F, db } = Backend.fb;
+        const q = await F.getDocs(F.query(F.collection(db, 'wallets', Backend.user.uid, 'ledger'), F.orderBy('at', 'desc'), F.limit(30)));
+        if (q.empty) hist.appendChild(el('p', { class: 'tiny', text: 'لا حركات بعد.' }));
+        q.forEach(d => { const x = d.data(); hist.appendChild(el('div', { class: 'pts-line' }, [
+          el('span', { text: (REASON[x.reason] || x.reason) + (x.note && x.reason !== 'welcome' ? ' — ' + x.note : '') }),
+          el('b', { class: x.delta >= 0 ? 'plus' : 'minus', text: (x.delta >= 0 ? '+' : '') + x.delta }),
+          el('small', { text: timeAgo(x.at) })])); });
+      } catch (e) { hist.appendChild(el('p', { class: 'tiny', text: 'تعذّر تحميل السجلّ: ' + NX.describeFirebaseError(e) })); }
+      this.paint();
+    };
+    await this.refresh();
+    this.redraw();
+    return sheet;
+  },
+
+  /* ---------------- hosted files with a direct link ---------------- */
+  costOf(bytes) { const m = this.me || {}; return this.isPro() ? 0 : Math.max(1, Math.ceil(bytes / 1048576)) * (m.mb || 10); },
+  linkOf(f) { return location.origin + location.pathname.replace(/[^/]*$/, '') + 'f/' + f.fileId; },
+  async upload(file, onProgress) {
+    if (!HOSTED.test(file.name)) throw new Error('نوع غير مدعوم — html · png · jpg · gif · webp · svg · json · js · css · zip · txt · mp3 · ogg · wav · glb · gltf');
+    const t = await this.api('/upload/start', { name: file.name, bytes: file.size });
+    try {
+      const blob = AS_TEXT.test(file.name) ? new File([file], t.name, { type: 'text/plain' }) : new File([file], t.name, { type: file.type || 'application/octet-stream' });
+      const up = await Backend.upload(t.path, blob, onProgress);
+      const url = up.url || await Backend.fileURL(up.path);
+      const r = await this.api('/upload/done', { fileId: t.fileId, url, bytes: file.size });
+      return Object.assign(r.file, { cost: t.cost });
+    } catch (e) {
+      /* nothing was stored: the points come back */
+      await this.api('/upload/cancel', { fileId: t.fileId }).catch(() => {});
+      throw e;
+    }
+  },
+  async openFiles() {
+    if (!Backend.user || !Backend.hasAccount()) { NX.promptSignIn('الملفات لأصحاب الحسابات.'); return; }
+    if (!this.me || this.me.error) await this.refresh();
+    const body = el('div', { class: 'pts' });
+    const sheet = Sheet.open({ title: '📎 ملفاتي — روابط مباشرة', body, full: true, id: 'points-files' });
+    const draw = async () => {
+      body.textContent = '';
+      const m = this.me || {};
+      body.appendChild(el('div', { class: 'card tiny', style: { lineHeight: '1.8', marginBottom: '10px' } }, [
+        el('div', { text: 'ارفع ملف لعبة أو كود (html · zip · png · json · js …) واحصل على رابط تشاركه أو تفتحه في المتصفح.' }),
+        el('div', { text: (this.isPro() ? '⭐ Pro: الرفع مجاني.' : 'التكلفة: ' + (m.mb || 10) + ' نقاط لكل 1 ميجابايت · رصيدك: ') }, this.isPro() ? [] : [el('b', { class: 'pts-live', text: String((this.wallet && this.wallet.points) || m.points || 0) })]),
+        el('div', { text: '🔒 صفحات HTML و ZIP تعمل داخل صندوق NEXUS المعزول (رابط …/f/<رقم>)؛ الرابط المباشر للملف نفسه يعطي محتواه كما هو.' })]));
+      const prog = el('div', { class: 'gm-prog hide' }, [el('i')]);
+      body.append(btn('⬆ رفع ملف', { cls: 'primary block pts-upload', onclick: async e => {
+        const b = e.currentTarget;
+        const f = await new Promise(res => { const i = el('input', { type: 'file' }); i.onchange = () => res(i.files[0]); i.click(); });
+        if (!f) return;
+        if (!HOSTED.test(f.name)) { Toast.err('نوع غير مدعوم: ' + f.name); return; }
+        const cost = this.costOf(f.size);
+        if (!(await Modal.confirm('رفع ' + f.name, fmtBytes(f.size) + ' — ' + (cost ? cost + ' نقطة (رصيدك ' + ((this.wallet && this.wallet.points) || 0) + ')' : 'مجانًا (Pro)'), 'رفع'))) return;
+        b.disabled = true; prog.classList.remove('hide');
+        try {
+          const rec = await this.upload(f, p => { prog.firstChild.style.width = Math.round(p * 100) + '%'; });
+          Toast.ok('رُفع ' + rec.name + (rec.cost ? ' — ' + rec.cost + ' نقطة' : ''));
+          await draw();
+        } catch (err) { Toast.err(err.message || NX.describeFirebaseError(err)); }
+        finally { b.disabled = false; prog.classList.add('hide'); }
+      } }), prog);
+      const list = el('div', { class: 'pts-files-list' });
+      body.appendChild(list);
+      try {
+        const { F, db } = Backend.fb;
+        const q = await F.getDocs(F.query(F.collection(db, 'files'), F.where('ownerId', '==', Backend.user.uid)));
+        const rows = q.docs.map(d => d.data()).sort((a, b) => b.at - a.at);
+        if (!rows.length) list.appendChild(el('p', { class: 'tiny', style: { textAlign: 'center', padding: '14px' }, text: 'لم ترفع ملفًا بعد.' }));
+        rows.forEach(f => list.appendChild(this.fileRow(f, draw)));
+      } catch (e) { list.appendChild(el('p', { class: 'tiny', text: 'تعذّر التحميل: ' + NX.describeFirebaseError(e) })); }
+    };
+    await draw();
+    return sheet;
+  },
+  fileRow(f, after) {
+    const copy = async (text, what) => { try { await navigator.clipboard.writeText(text); Toast.ok('نُسخ ' + what); } catch { Modal.open({ title: what, body: el('input', { class: 'input', value: text, readonly: true, style: { direction: 'ltr' } }), actions: [{ label: 'إغلاق', cls: 'primary' }] }); } };
+    const runnable = /\.(html?|zip)$/i.test(f.name);
+    return el('div', { class: 'card pts-file', dataset: { file: f.fileId } }, [
+      el('div', { class: 'pts-fname' }, [el('b', { text: f.name }), el('span', { class: 'tiny', text: fmtBytes(f.bytes) + ' · ' + (f.cost ? f.cost + ' نقطة' : 'مجانًا') + ' · ' + timeAgo(f.at) })]),
+      el('input', { class: 'input pts-link', readonly: true, value: runnable ? this.linkOf(f) : f.url, style: { direction: 'ltr', fontSize: '12px' } }),
+      el('div', { class: 'row', style: { flexWrap: 'wrap', gap: '6px', marginTop: '6px' } }, [
+        btn(runnable ? 'نسخ رابط التشغيل' : 'نسخ الرابط المباشر', { cls: 'sm pts-copy', onclick: () => copy(runnable ? this.linkOf(f) : f.url, 'الرابط') }),
+        runnable ? btn('نسخ رابط الملف الخام', { cls: 'sm ghost', onclick: () => copy(f.url, 'رابط الملف') }) : null,
+        btn(runnable ? '▶ تشغيل' : 'فتح', { cls: 'sm ghost', onclick: () => this.openFile(f.fileId, f) }),
+        btn('حذف', { cls: 'sm danger', onclick: async () => {
+          if (!(await Modal.confirm('حذف ' + f.name + '؟', 'يتوقّف رابطه. النقاط لا تُسترجع.', 'حذف'))) return;
+          try { const { F, db } = Backend.fb; await Backend.serverWrite(F.deleteDoc(F.doc(db, 'files', f.fileId))); Backend.removeFile(f.path).catch(() => {}); Toast.ok('حُذف'); after && after(); }
+          catch (e) { Toast.err(NX.describeFirebaseError(e)); }
+        } })].filter(Boolean))]);
+  },
+  /* …/f/<fileId>: the file's page — a page or a ZIP runs in the sandbox, an image shows, text is read */
+  async openFile(id, known) {
+    let f = known;
+    try { if (!f) f = await Backend.getDoc('files', String(id).replace(/[^\w]/g, '')); }        // works for visitors too
+    catch (e) { Toast.err('تعذّر فتح الملف: ' + NX.describeFirebaseError(e)); return; }
+    if (!f) { Toast.err('الملف غير موجود أو حُذف'); return; }
+    const url = f.url;
+    if (/\.(html?|zip)$/i.test(f.name)) {
+      let bytes;
+      try { const r = await fetch(url); if (!r.ok) throw new Error('HTTP ' + r.status); bytes = new Uint8Array(await r.arrayBuffer()); }
+      catch (e) { Toast.err('تعذّر تنزيل الملف: ' + e.message); return; }
+      let files, entry;
+      if (/\.zip$/i.test(f.name)) {
+        try { const read = await NX.HtmlApps.readPicked([new File([bytes], f.name, { type: 'application/zip' })]); files = {}; read.files.forEach(x => { files[x.path] = x.bytes; }); entry = read.entry; }
+        catch (e) { Toast.err(e.message || String(e)); return; }
+      } else { files = { [f.name]: bytes }; entry = f.name; }
+      return NX.HtmlApps.run({ appId: 'file-' + f.fileId, name: f.name, entry, ownerId: f.ownerId, creatorName: '' }, { files });
+    }
+    const body = el('div');
+    if (/\.(png|jpe?g|gif|webp)$/i.test(f.name)) body.appendChild(el('img', { src: url, style: { maxWidth: '100%', borderRadius: '10px' } }));
+    else if (/\.(json|js|css|txt|svg)$/i.test(f.name)) {
+      const pre = el('pre', { class: 'pts-pre', text: '…' });
+      body.appendChild(pre);
+      fetch(url).then(r => r.text()).then(t => { pre.textContent = t.slice(0, 20000) + (t.length > 20000 ? '\n…' : ''); }).catch(() => { pre.textContent = 'تعذّر التحميل'; });
+    } else if (/\.(mp3|ogg|wav)$/i.test(f.name)) body.appendChild(el('audio', { controls: true, src: url, style: { width: '100%' } }));
+    body.appendChild(el('div', { class: 'tiny', style: { margin: '10px 0' }, text: f.name + ' · ' + fmtBytes(f.bytes) }));
+    body.appendChild(el('a', { class: 'btn sm', href: url, target: '_blank', rel: 'noopener', text: 'الرابط المباشر (تنزيل)' }));
+    Sheet.open({ title: f.name, body, id: 'points-file' });
+  },
+
+  /* ---------------- play time: one minute at a time, while a game is really on screen ---------------- */
+  beat() {
+    const P = NX.GamePlayer;
+    if (!API || !P || !P.gameId || NX.Screen.current() !== 'player' || document.visibilityState !== 'visible') return;
+    if (!Backend.hasAccount() || !Backend.isOnline()) return;
+    this.api('/play', { gameId: P.gameId }).catch(() => {});
+  }
+};
+
+/* the chip, the account, the minute */
+document.getElementById('btn-points') && document.getElementById('btn-points').addEventListener('click', () => Points.open());
+setInterval(() => Points.watch(), 2000);
+setInterval(() => Points.beat(), 60000);
+NX.Points = Points;
+</script>
+<!-- /NX-PART:34 -->
 <script type="module">
 /* ============================================================
    PART 8/18 · GAME PLATFORM + BOOT
@@ -30898,6 +31383,7 @@ function openSettings() {
 
   const opt = (ic, t, d, fn) => body.appendChild(NX.optionRow ? NX.optionRow(ic, t, d, fn) : btn(t, { cls: 'block', style: { marginTop: '8px' }, onclick: fn }));
   if (NX.Theme) opt('grid', '🎨 ألوان واجهتي · My colours', 'اختر ألوان NEXUS كما تحبها — تتبعك على كل أجهزتك', () => NX.Theme.openMine());
+  if (NX.Points) opt('spark', '💰 نقاطي', 'رصيدك، إعلانات بمكافأة، رفع ملفات بروابط مباشرة، طلبات ذكاء إضافية، واشتراك Pro', () => NX.Points.open());
   body.appendChild(el('div', { class: 'ttl', text: 'الاتصال' }));
   /* read-only: the Firebase project belongs to the platform owner and is
      built into the code — visitors never configure it */
@@ -31066,6 +31552,10 @@ NX.registerOfflineSupport = registerOfflineSupport;
       else Toast.err(Backend.isOnline() ? 'اللعبة غير موجودة أو خاصة' : 'فتح رابط لعبة يحتاج اتصال الموقع بالسحابة — ' + (Backend.reason || 'الوضع المحلي'));
     } else if (h.startsWith('app/')) {
       if (NX.HtmlApps) NX.HtmlApps.openById(h.slice(4));
+    } else if (h.startsWith('f/')) {
+      if (NX.Points) NX.Points.openFile(h.slice(2));      // a hosted file's page (PART 34)
+    } else if (h === 'wallet') {
+      if (NX.Points) NX.Points.open();
     } else if (h.startsWith('post/')) {
       const p = await NX.Posts.get(h.slice(5));
       if (p) NX.Community.openPost(p);
