@@ -1334,7 +1334,7 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 .kb-key{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--glass);border:1px solid var(--line);margin-bottom:8px}
 .kb-key b{font-family:var(--mono,monospace);direction:ltr;flex:1}
 .kb-prov{font-size:11px;font-weight:800;padding:3px 8px;border-radius:99px;background:rgba(124,92,255,.18)}
-.kb-prov.groq{background:rgba(249,115,22,.18);color:#fdba74}.kb-prov.gemini{background:rgba(59,130,246,.18);color:#93c5fd}.kb-prov.openrouter{background:rgba(34,197,94,.16);color:#86efac}
+.kb-prov.groq{background:rgba(249,115,22,.18);color:#fdba74}.kb-prov.gemini{background:rgba(59,130,246,.18);color:#93c5fd}.kb-prov.openrouter{background:rgba(34,197,94,.16);color:#86efac}.kb-prov.anthropic{background:rgba(217,119,87,.2);color:#f5b89f}
 /* GAME MEDIA: the five things people add most, one tap each */
 .gm-quick{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-bottom:14px}
 .gm-tile{display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 6px 10px;border-radius:14px;border:1.5px dashed rgba(var(--brand-rgb,124,92,255),.55);background:rgba(var(--brand-rgb,124,92,255),.08);color:var(--ink);font:inherit;cursor:pointer;text-align:center}
@@ -1491,6 +1491,60 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 @media (min-width:700px){.ed-bar{inset-inline:auto;left:50%;transform:translateX(-50%);bottom:10px;border:1px solid var(--line-2);border-radius:var(--r-lg);max-width:calc(100% - 20px)}
   .ed-on .sel-bar{bottom:82px}.ed-t{min-width:60px}}
 /* /NX-CSS:35 */
+/* NX-CSS:36 */
+/* PART 36 · the Multi-AI Council: live progress, details, settings */
+.cc-live{border:1px solid rgba(124,92,255,.38);background:rgba(124,92,255,.08);border-radius:14px;padding:9px 11px;margin:4px 0 8px;font-size:12.5px;line-height:1.5}
+.cc-head{display:flex;align-items:center;gap:8px;font-weight:800;margin-bottom:5px}
+.cc-head .cc-t{flex:1;min-width:0}
+.cc-head .cc-clock{font:600 11.5px var(--mono,ui-monospace,monospace);color:var(--ink-dim);direction:ltr;unicode-bidi:isolate}
+.cc-row{display:grid;grid-template-columns:12px 1fr;gap:1px 8px;padding:4px 0;border-top:1px solid rgba(255,255,255,.05)}
+.cc-row:first-child{border-top:0}
+.cc-dot{width:9px;height:9px;border-radius:50%;margin-top:5px;background:#6b7280}
+.cc-row[data-state="thinking"] .cc-dot,.cc-row[data-state="processing"] .cc-dot{background:#fcd77a;animation:ccpulse 1s ease-in-out infinite}
+.cc-row[data-state="retrying"] .cc-dot,.cc-row[data-state="fallback"] .cc-dot{background:#fb923c;animation:ccpulse .7s ease-in-out infinite}
+.cc-row[data-state="done"] .cc-dot{background:#34d399}
+.cc-row[data-state="failed"] .cc-dot{background:#f87171}
+.cc-row[data-state="skipped"] .cc-dot{background:#94a3b8}
+@keyframes ccpulse{50%{opacity:.3}}
+.cc-name{min-width:0;overflow-wrap:anywhere}
+.cc-name .cc-m{display:block;color:var(--ink-dim);font-size:11.5px;direction:ltr;unicode-bidi:isolate;text-align:end}
+.cc-state{grid-column:2;font-size:11.5px;color:var(--ink-dim);overflow-wrap:anywhere}
+.cc-row[data-state="done"] .cc-state{color:#9ae6b4}
+.cc-row[data-state="failed"] .cc-state{color:#ff9aa8}
+.cc-row[data-state="retrying"] .cc-state,.cc-row[data-state="fallback"] .cc-state{color:#fdba74}
+.cc-note{font-size:11.5px;color:#fcd77a;margin-top:6px;line-height:1.6}
+.cc-final{margin-top:7px;font-weight:800;color:#86efac}
+.cc-final.warn{color:#fcd77a}
+.cc-final.bad{color:#ff9aa8}
+.cc-det{margin-top:8px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03);font-size:12.5px}
+.cc-det>summary{cursor:pointer;padding:7px 10px;font-size:12px;font-weight:700;color:var(--ink-soft,#aab);list-style:none}
+.cc-det>summary::-webkit-details-marker{display:none}
+.cc-det>summary::before{content:'▸ ';}
+.cc-det[open]>summary::before{content:'▾ ';}
+.cc-det[open]>summary{border-bottom:1px solid var(--line)}
+.cc-det .cc-body{padding:8px 10px;line-height:1.6}
+.cc-contrib{margin:8px 0 10px}
+.cc-contrib .cc-ch{display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;font-size:12px}
+.cc-contrib pre{max-height:240px;overflow:auto;background:rgba(0,0,0,.3);padding:8px;border-radius:9px;font-size:11.5px;white-space:pre-wrap;word-break:break-word;unicode-bidi:plaintext;text-align:start;margin:4px 0 0}
+.cc-chip{flex:0 0 auto;font-size:11.5px;white-space:nowrap}
+.cc-chip.on{border-color:rgba(124,92,255,.7);background:rgba(124,92,255,.18)}
+.cc-panelrow{display:flex;gap:6px;align-items:center;margin:0 0 8px;flex-wrap:wrap}
+.cc-modes{display:grid;gap:8px;margin:6px 0 12px}
+.cc-mode{text-align:start;padding:10px 12px;border-radius:12px;border:1px solid var(--line-2);background:var(--glass-2);color:var(--ink);font:inherit;cursor:pointer}
+.cc-mode.on{border-color:rgba(124,92,255,.75);background:rgba(124,92,255,.16)}
+.cc-mode[disabled]{opacity:.55;cursor:not-allowed}
+.cc-mode b{display:block;font-size:13.5px}
+.cc-mode span{font-size:12px;color:var(--ink-dim)}
+.cc-picks{display:flex;flex-direction:column;gap:6px;margin:6px 0 10px}
+.cc-pick{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:10px;background:var(--glass-2);border:1px solid var(--line)}
+.cc-pick .n{font:800 12px var(--mono,ui-monospace,monospace);color:var(--ink-dim)}
+.cc-pick .w{flex:1;min-width:0;overflow-wrap:anywhere;direction:ltr;text-align:start;unicode-bidi:isolate;font-size:12.5px}
+.cc-pick .r{font-size:11px;color:var(--ink-dim)}
+.cc-lock{display:inline-block;padding:2px 9px;border-radius:999px;background:linear-gradient(90deg,#f59e0b,#eab308);color:#1a1300;font-weight:800;font-size:11.5px}
+.cc-limits{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:12px}
+.cc-limits .k{color:var(--ink-dim)}
+.cc-limits b{direction:ltr;unicode-bidi:isolate;text-align:start}
+/* /NX-CSS:36 */
 </style>
 </head>
 <body>
@@ -12847,6 +12901,12 @@ const Planner = {
      the real project (scene, files, assets, memory) and the real API. */
   async model(prompt, ctx, project) {
     if (!(NX.AIConfig && NX.AIConfig.isReady())) return null;
+    /* the Multi-AI Council (NEXUS Pro) plans with REAL assets that Assets.search found for the request
+       (the user's files first, then the public library), and may hand the layout to GameComposer */
+    let councilInfo = null;
+    const council = NX.Council && NX.Council.on() ? { kind: 'plan', text: prompt, origin: 'builder', onEvent: ev => { if (ev.type === 'final') councilInfo = ev.details; } } : null;
+    let found = [];
+    if (council && NX.CouncilAssets) { try { found = await NX.CouncilAssets.enrich(prompt, ctx); } catch (e) { console.warn('[council] assets', e); } }
     const api = NX.API_DOCS.map(d => d.ns + ': ' + d.m.map(m => m[0]).join(' | ')).join('\n');
     const sys = `You plan and write changes inside the NEXUS browser game engine and answer ONLY with JSON.
 Analyze the PROJECT CONTEXT first: reuse existing objects, files and assets; never duplicate a system that already exists.
@@ -12855,24 +12915,29 @@ Built-in worlds: ${Object.keys(Worlds).join(', ')}.
 Return exactly:
 {"title":"...","summary":"short arabic summary of what will change and why","steps":[
   {"title":"...","why":"...","kind":"world","world":"city"},
-  {"title":"...","why":"...","kind":"system","system":"vehicle"},
+  {"title":"...","why":"...","kind":"system","system":"vehicle"},${council ? `
+  {"title":"...","why":"...","kind":"compose","genre":"driving|walker|null","items":[{"concept":"road","assetId":null,"relation":"center","target":null,"count":1},{"concept":"house","assetId":"<exact id from PROJECT CONTEXT.assets>","relation":"sides","target":null,"count":6}]},` : ''}
   {"title":"...","why":"...","kind":"custom","files":[{"path":"X.js","role":"script","attachTo":null,"code":"..."}],
    "actions":[{"op":"scene.create","objectType":"primitive","shape":"box","name":"X","position":[0,1,0],"scale":[1,1,1],"color":"#ffffff","tag":"x","physics":"static"}]},
   {"title":"بناء واختبار","why":"...","kind":"verify"}]}
 Allowed action ops: scene.create, scene.spawn (assetId from PROJECT CONTEXT.assets only), scene.delete, scene.transform, scene.environment, file.create, file.edit (path,find,replace or path,code), component.add, note.
 Rules:
-- NEVER invent an assetId, object name, file or API. Only ids in PROJECT CONTEXT.assets exist; if the needed asset is missing, use a primitive and say so in "why".
+- NEVER invent an assetId, object name, file or API. Only ids in PROJECT CONTEXT.assets exist; if the needed asset is missing, use a primitive and say so in "why".${council ? `
+- A "compose" step lays out MANY real assets at once with NEXUS's GameComposer (real sizes, no overlaps): road in the center, buildings on the sides, trees around, the vehicle or the player at the start. concept is one of: ${(NX.Agent && NX.Agent.nlp ? NX.Agent.nlp.CONCEPTS.filter(c => !c.noAsset).map(c => c.id) : ['road', 'house', 'building', 'tree', 'car', 'character']).join('|')}; relation: center|sides|around|start|end|beside|front|behind|left|right. assetId: an exact id from PROJECT CONTEXT.assets, or null to let NEXUS find a real one (never invent one). Scripts that drive the placed objects come in a "custom" step after it.` : ''}
 - Custom code: plain JavaScript using ONLY this engine API (no window/document/fetch/import). A script defines start(), update(dt), destroy().
-${api}
+${api}${found.length ? `
+REAL ASSETS FOUND FOR THIS REQUEST with Assets.search (also in PROJECT CONTEXT.assets — use these exact ids):
+${found.map(a => a.assetId + ' · «' + a.name + '» · ' + (a.type || a.kind) + ' · for ' + a.forConcept + (a.size ? ' · ' + a.size.map(v => (+v).toFixed(1)).join('×') + ' m' : '') + ' · ' + a.source).join('\n')}` : ''}
 PROJECT CONTEXT:
-${JSON.stringify(ctx).slice(0, 14000)}`;
+${JSON.stringify(ctx).slice(0, council ? 20000 : 14000)}`;
     const read = raw => { try { return JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1).replace(/,\s*([\]}])/g, '$1')); } catch { return null; } };
     const valid = pl => pl && Array.isArray(pl.steps) && pl.steps.length;
-    let plan = read(await NX.AI.raw(sys, prompt));
-    /* smaller models sometimes answer in prose or break the JSON: asked once more, strictly */
+    let plan = read(await NX.AI.raw(sys, prompt, council ? { council } : {}));
+    /* smaller models sometimes answer in prose or break the JSON: asked once more, strictly (one model) */
     if (!valid(plan)) plan = read(await NX.AI.raw(sys, prompt + '\n\nReply with ONLY the JSON object described above — no prose, no markdown fences.'));
     if (!valid(plan)) throw new Error('ردّ النموذج لم يكن خطة صالحة');
-    plan.steps = plan.steps.filter(st => ['world', 'system', 'custom', 'verify'].includes(st.kind));
+    plan.steps = plan.steps.filter(st => ['world', 'system', 'custom', 'verify'].includes(st.kind) || (st.kind === 'compose' && Array.isArray(st.items) && st.items.length));
+    if (councilInfo) plan.council = councilInfo;
     plan.steps.forEach(st => st.id = uid('st'));
     if (!plan.steps.some(st => st.kind === 'verify')) plan.steps.push({ id: uid('st'), title: 'بناء واختبار', why: 'ترجمة المشروع وتشغيله والتقاط الأخطاء.', kind: 'verify' });
     plan.source = 'model';
@@ -13002,10 +13067,21 @@ const Executor = {
     } else if (step.kind === 'custom') {
       (step.files || []).forEach(f => out.files.push(f));
       out.actions.push(...(step.actions || []));
+    } else if (step.kind === 'compose') {
+      /* the layout goes to GameComposer: real assets only (an id given is checked, a missing one is searched) */
+      out.actions.push({ op: 'compose', title: step.title, genre: step.genre, items: step.items });
     }
     (out.files || []).forEach(f => out.actions.unshift({ op: 'file.create', path: f.path, code: f.code, role: f.role, attachTo: f.attachTo }));
     return out;
   }
+};
+/* a council plan's «compose» step (PART 17B lays the assets out) */
+const _apply = Executor.apply;
+Executor.apply = async function (action, env) {
+  if (action.op !== 'compose') return _apply.call(this, action, env);
+  if (!NX.GameComposer || !NX.GameComposer.compose) throw new Error('UNKNOWN_ACTION: compose');
+  const r = await NX.GameComposer.compose(action, env);
+  return { spawned: r.summary };
 };
 
 /* ------------------------------------------------------------
@@ -13250,7 +13326,8 @@ ${numbered}
 
 ERRORS:
 ${errors.map(e => (e.line ? 'line ' + e.line + ': ' : '') + e.message).join('\n')}`;
-    const raw = await NX.AI.raw(system, prompt);
+    /* the Multi-AI Council (Pro) may repair it: Smart gives several errors a second model */
+    const raw = await NX.AI.raw(system, prompt, { council: { kind: 'fix', text: errors.map(e => e.message).join('\n'), origin: 'builder' } });
     let obj = null;
     try { obj = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch {}
     if (!obj || typeof obj.code !== 'string') {
@@ -17063,6 +17140,7 @@ const AIClient = {
     return { provider: cur.provider.name, badge: cur.provider.badge, model: cur.cfg.model, id: cur.provider.id };
   },
   abort() { if (this._controller) { this._controller.abort(); this._controller = null; } },
+  _release(ctrl) { if (this._controller === ctrl) this._controller = null; },
 
   endpoint(provider, cfg, stream) {
     const A = Adapters[provider.shape];
@@ -17075,9 +17153,16 @@ const AIClient = {
     return A.url(provider, cfg, '/chat/completions');
   },
 
-  /* messages: [{role:'user'|'assistant', content}] */
-  async chat(messages, { system = '', onDelta = null, signal = null, stream = true, _cfg = null, _tries = 0 } = {}) {
-    const cur = AIConfig.current();
+  /* messages: [{role:'user'|'assistant', content}]
+     council: { kind, text, origin, onEvent } — this call may go to the Multi-AI Council
+     (NEXUS Pro, below): several models, one final answer in the same shape as a single one.
+     _pid: a council member on the player's own key (not the active provider). */
+  async chat(messages, { system = '', onDelta = null, signal = null, stream = true, _cfg = null, _tries = 0, council = null, _pid = null, _quiet = false } = {}) {
+    if (council && !_pid && !_tries) {
+      const plan = await Council.decide(messages, council).catch(() => null);
+      if (plan) return this.council(messages, { system, signal, _cfg, council }, plan);
+    }
+    const cur = _pid ? (PROVIDERS[_pid] ? { provider: PROVIDERS[_pid], cfg: AIConfig.get(_pid) } : null) : AIConfig.current();
     if (!cur) throw Object.assign(new Error('NO_PROVIDER'), { info: { code: 'none', title: 'لم تختر مزوّد AI', detail: 'افتح إعدادات المساعد واختر مزوّدًا.' } });
     const provider = cur.provider, cfg = Object.assign({}, cur.cfg, _cfg || {});
     if (!cfg.model) throw Object.assign(new Error('NO_MODEL'), { info: { code: 'model', title: 'لم تختر نموذجًا', detail: '' } });
@@ -17088,7 +17173,7 @@ const AIClient = {
     const A = Adapters[provider.shape];
     const useStream = stream && !!onDelta;
     const ctrl = new AbortController();
-    this._controller = ctrl;
+    if (!_quiet) this._controller = ctrl;   // a council member on its own key leaves the council's STOP in place
     if (signal) signal.addEventListener('abort', () => ctrl.abort());
     const sig = ctrl.signal;
     /* a provider that stops sending is reported, never waited on forever */
@@ -17107,7 +17192,7 @@ const AIClient = {
         signal: sig
       });
     } catch (e) {
-      this._controller = null; clearTimeout(idle);
+      this._release(ctrl); clearTimeout(idle);
       throw Object.assign(new Error('FETCH_FAILED'), { info: timedOut ? timeoutInfo() : classify(e, 0, '') });
     }
     touch();
@@ -17118,12 +17203,12 @@ const AIClient = {
     if (!res.ok) {
       clearTimeout(idle);
       const body = await res.text().catch(() => '');
-      this._controller = null;
+      this._release(ctrl);
       const info = classify(null, res.status, body);
       /* a model that is gone, a request over the per-minute budget, a short
          rate limit: fixed here once instead of failing the user */
       const again = _tries < 2 && !sig.aborted ? await this.recover(provider, cfg, res.status, body, info) : null;
-      if (again) return this.chat(messages, { system, onDelta, signal, stream, _cfg: Object.assign({}, _cfg || {}, again), _tries: _tries + 1 });
+      if (again) return this.chat(messages, { system, onDelta, signal, stream, _cfg: Object.assign({}, _cfg || {}, again), _tries: _tries + 1, _pid, _quiet });
       throw Object.assign(new Error('HTTP_' + res.status), { info, status: res.status });
     }
 
@@ -17146,7 +17231,7 @@ const AIClient = {
             const payload = t.slice(5).trim();
             if (!payload || payload === '[DONE]') continue;
             let j; try { j = JSON.parse(payload); } catch { continue; }
-            if (j.error) { this._controller = null; throw Object.assign(new Error('STREAM_ERROR'), { info: classify(null, 0, JSON.stringify(j)) }); }
+            if (j.error) { this._release(ctrl); throw Object.assign(new Error('STREAM_ERROR'), { info: classify(null, 0, JSON.stringify(j)) }); }
             const piece = A.parseDelta(j);
             if (piece) { text += piece; onDelta(piece, text); }
             const u = A.usage(j); if (u) usage = u;
@@ -17154,7 +17239,7 @@ const AIClient = {
           }
         }
       } catch (e) {
-        this._controller = null; clearTimeout(idle);
+        this._release(ctrl); clearTimeout(idle);
         if (timedOut) throw Object.assign(new Error('TIMEOUT'), { info: timeoutInfo() });
         if (e.name === 'AbortError') return { text, usage, aborted: true, model: cfg.model, provider: provider.name };
         if (e.info) throw e;
@@ -17164,7 +17249,7 @@ const AIClient = {
       let j;
       try { j = await res.json(); }
       catch (e) {
-        this._controller = null; clearTimeout(idle);
+        this._release(ctrl); clearTimeout(idle);
         if (timedOut) throw Object.assign(new Error('TIMEOUT'), { info: timeoutInfo() });
         if (e.name === 'AbortError') return { text: '', usage: null, aborted: true, model: cfg.model, provider: provider.name };
         throw Object.assign(new Error('BAD_JSON'), { info: { code: 'provider', title: 'ردّ غير مفهوم من المزوّد', detail: '' } });
@@ -17174,11 +17259,141 @@ const AIClient = {
       stop = A.stopReason ? A.stopReason(j) : null;
       if (onDelta && text) onDelta(text, text);
     }
-    this._controller = null; clearTimeout(idle);
+    this._release(ctrl); clearTimeout(idle);
     /* reasoning models (qwen3, deepseek-r1 …) may put their thinking in the text */
     text = text.replace(/<think>[\s\S]*?<\/think>\s*/g, '').replace(/^[\s\S]*?<\/think>\s*/, '');
     if (stop === 'refusal' && !text) throw Object.assign(new Error('REFUSAL'), { info: { code: 'refusal', title: 'رفض النموذج هذا الطلب', detail: 'أعد صياغة الطلب.' } });
     return { text, usage, model: served ? served.replace(':', ' · ') : cfg.model, provider: provider.name, stop, truncated: /^(length|max_tokens|MAX_TOKENS)$/.test(stop || '') };
+  },
+
+  /* ---- MULTI-AI COUNCIL: the plan (Council.decide, below) carried out. The server's members
+     run on the site's server; the members on the player's own keys run here, beside them.
+     The answer has the shape of chat()'s — its text goes wherever a single model's would. ---- */
+  async council(messages, { system = '', signal = null, _cfg = null, council = {} } = {}, plan) {
+    const t0 = performance.now(), cid = uid('council');
+    const emit = ev => Council.emit(council, Object.assign({ cid }, ev));
+    const ctrl = new AbortController();
+    this._controller = ctrl;                                     // the chat's STOP ends the whole council
+    if (signal) signal.addEventListener('abort', () => ctrl.abort());
+    const cur = AIConfig.current();
+    const sys = [cur && cur.cfg.systemPrompt, system].filter(Boolean).join('\n\n');
+    const maxTokens = (_cfg && _cfg.maxTokens) || (cur && cur.cfg.maxTokens) || 4000;
+    const members = plan.members, own = members.filter(m => m.pick.pid !== 'nexus'), srv = members.filter(m => m.pick.pid === 'nexus');
+    const wire = m => ({ role: m.role, title: m.title, brief: m.brief, lead: !!m.lead, after: m.after || [], model: m.pick.model });
+    const lead0 = members[0].pick;
+    const synthesis = { model: Council.synth() !== 'auto' ? Council.synth() : lead0.pid === 'nexus' ? lead0.model : 'auto', brief: plan.synthBrief };
+    emit({ type: 'start', mode: plan.mode, kind: plan.kind, n: members.length, members: members.map(m => ({ id: m.id, role: m.role, title: m.title, lead: !!m.lead,
+      source: m.pick.pid === 'nexus' ? 'nexus' : 'own', provider: m.pick.pid === 'nexus' ? 'NEXUS' : PROVIDERS[m.pick.pid].name, model: m.pick.model })) });
+    try {
+      let fin, got = [], reduced = null;
+      if (!own.length) {
+        const r = await this._council({ phase: 'all', mode: plan.mode, kind: plan.kind, system: sys, messages, members: srv.map(wire), synthesis, maxTokens }, srv, emit, ctrl);
+        fin = r.final; got = fin.members || []; reduced = r.plan && r.plan.reduced;
+      } else {
+        const [a, mine] = await Promise.all([
+          srv.length ? this._council({ phase: 'members', external: own.length, mode: plan.mode, kind: plan.kind, system: sys, messages, members: srv.map(wire), maxTokens }, srv, emit, ctrl)
+            : Promise.resolve({ final: { members: [] } }),
+          Promise.all(own.map(m => this._ownMember(m, members.length, system, messages, maxTokens, emit, ctrl)))
+        ]);
+        got = members.map(m => m.pick.pid === 'nexus' ? (a.final.members || []).find(x => x.id === m.id) : mine[own.indexOf(m)]).filter(Boolean);
+        reduced = a.plan && a.plan.reduced;
+        const ok = got.filter(r => r.state === 'done' && r.text);
+        if (!ok.length) throw Object.assign(new Error('COUNCIL_FAILED'), { info: { code: 'provider', title: 'لم يُجب أي نموذج في المجلس الآن', detail: got.map(r => r.title + ': ' + (r.error || '—')).join('\n') }, fallback: true });
+        fin = (await this._council({ phase: 'synthesis', mode: plan.mode, kind: plan.kind, system: sys, messages, synthesis, maxTokens,
+          contributions: ok.map(r => ({ role: r.role, title: r.title, lead: r.lead, provider: r.provider, model: r.model, text: r.text })) }, [], emit, ctrl)).final;
+        fin.usage = [fin.usage].concat(ok.map(r => r.usage)).reduce((u, x) => x ? { in: u.in + (x.in || 0), out: u.out + (x.out || 0) } : u, { in: 0, out: 0 });
+      }
+      const ms = Math.round(performance.now() - t0);
+      const text = String(fin.text || '').replace(/<think>[\s\S]*?<\/think>\s*/g, '');
+      /* what each member contributed — «AI Council Details» (kept short in the saved chat) */
+      const details = { cid, mode: plan.mode, kind: plan.kind, ms, degraded: !!fin.degraded, note: fin.note || null, reduced: reduced || null,
+        synthesis: fin.synthesis ? { provider: fin.synthesis.provider, model: fin.synthesis.model } : null,
+        members: members.map(m => { const r = got.find(x => x.id === m.id) || {}; return { id: m.id, role: m.role, title: m.title, lead: !!m.lead, source: m.pick.pid === 'nexus' ? 'nexus' : 'own',
+          state: r.state || (reduced ? 'skipped' : 'failed'), provider: r.provider || null, model: r.model || m.pick.model, ms: r.ms || 0, error: r.error || null, text: r.text ? String(r.text).slice(0, 6000) : null }; }) };
+      emit({ type: 'final', degraded: details.degraded, note: details.note, provider: fin.provider, model: fin.model, ms, details });
+      return { text, usage: fin.usage || null, model: '🧠 AI Council · ' + fin.provider + ' · ' + fin.model, provider: 'NEXUS AI Council', stop: fin.stop || null, truncated: !!fin.truncated, council: details };
+    } catch (e) {
+      if (ctrl.signal.aborted) { emit({ type: 'error', aborted: true, message: 'أُوقف' }); return { text: '', usage: null, aborted: true, model: 'AI Council', provider: 'NEXUS AI Council' }; }
+      const i = e.info || { title: String(e.message || e) };
+      /* the council could not run (switched off, busy, not Pro any more, every member down):
+         one model answers instead — said, not hidden. The day's limit is not worked around. */
+      const again = e.fallback || ['council_off', 'council_busy', 'pro_required', 'council_failed', 'synthesis_failed'].includes(e.code || (e.council && e.council.code));
+      emit({ type: 'error', message: i.title + (again ? ' — يجيب نموذج واحد بدلًا من المجلس' : '') });
+      if (!again) throw e;
+      this._release(ctrl);
+      const r = await this.chat(messages, { system, signal, stream: false, _cfg });
+      return Object.assign(r, { council: { cid, mode: plan.mode, kind: plan.kind, fallback: i.title, members: [] } });
+    } finally { this._release(ctrl); }
+  },
+
+  /* one POST /api/ai/council, read to its end: the server's member ids (m1…) become this plan's */
+  async _council(body, srv, emit, ctrl) {
+    const tok = await FreeAI.token();
+    if (!tok) throw Object.assign(new Error('SIGN_IN'), { info: { code: 'signin', title: 'سجّل الدخول بحساب Google لاستعمال الذكاء المجاني', detail: '' } });
+    let res;
+    try { res = await fetch(FREE_AI_BASE + '/council', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: JSON.stringify(body), signal: ctrl.signal }); }
+    catch (e) { throw Object.assign(new Error('COUNCIL_FETCH'), { info: classify(e, 0, '') }); }
+    if (!res.ok) {
+      const t = await res.text().catch(() => '');
+      let code = ''; try { code = JSON.parse(t).error.code || ''; } catch {}
+      throw Object.assign(new Error('HTTP_' + res.status), { info: classify(null, res.status, t), status: res.status, code });
+    }
+    const idOf = sid => { const m = srv[+String(sid).replace(/\D/g, '') - 1]; return m ? m.id : sid; };
+    const out = { plan: null, final: null, error: null };
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = '', idle = null;
+    const touch = () => { clearTimeout(idle); idle = setTimeout(() => ctrl.abort(), 90000); };   // the server pings every 10 s
+    touch();
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        touch();
+        buf += dec.decode(value, { stream: true });
+        let at;
+        while ((at = buf.indexOf('\n\n')) >= 0) {
+          const block = buf.slice(0, at); buf = buf.slice(at + 2);
+          const e = /^event: (.+)$/m.exec(block), d = /^data: (.+)$/m.exec(block);
+          if (!e || !d) continue;
+          let j; try { j = JSON.parse(d[1]); } catch { continue; }
+          if (j.id) j.id = idOf(j.id);
+          if (Array.isArray(j.members)) j.members = j.members.map(m => Object.assign({}, m, { id: idOf(m.id) }));
+          if (e[1] === 'plan') { out.plan = j; emit(Object.assign({ type: 'plan', phase: body.phase }, j)); }
+          else if (e[1] === 'member' || e[1] === 'synthesis') emit(Object.assign({ type: e[1] }, j));
+          else if (e[1] === 'final') out.final = j;
+          else if (e[1] === 'error') out.error = j;
+        }
+      }
+    } catch (e) {
+      if (ctrl.signal.aborted) throw Object.assign(new Error('ABORTED'), { info: { code: 'aborted', title: 'أُوقف الطلب', detail: '' } });
+      throw Object.assign(new Error('COUNCIL_STREAM'), { info: classify(e, 0, '') });
+    } finally { clearTimeout(idle); }
+    if (!out.final) {
+      const er = out.error || {};
+      throw Object.assign(new Error('COUNCIL_FAILED'), { info: { code: 'provider', title: er.message || 'انقطع اتصال المجلس قبل النتيجة', detail: '' }, code: er.code || 'council_failed', council: er });
+    }
+    return out;
+  },
+
+  /* a council member on the player's own key: asked from this browser, like any request of theirs */
+  async _ownMember(m, n, system, messages, maxTokens, emit, ctrl) {
+    const P = PROVIDERS[m.pick.pid], t = performance.now();
+    const base = { id: m.id, role: m.role, title: m.title, lead: !!m.lead, provider: P.name, model: m.pick.model };
+    emit({ type: 'member', id: m.id, state: 'thinking', provider: P.name, model: m.pick.model });
+    const role = '\n\n---\nNEXUS AI COUNCIL — Multi-AI collaboration: ' + n + ' AI models work on this request, each from its own role; NEXUS reviews and merges their results into ONE final answer for the user.\nYOUR ROLE: '
+      + m.title + '. ' + m.brief + '\n' + (m.lead ? '' : 'Contribute only your part, concisely — the other members cover the rest; do not write the whole final answer.\n')
+      + 'Use only what the context above really contains — never invent asset ids, handles, files, objects or APIs.';
+    try {
+      const r = await this.chat(messages, { system: system + role, stream: false, signal: ctrl.signal, _pid: m.pick.pid, _quiet: true, _cfg: { model: m.pick.model, maxTokens: m.lead ? maxTokens : Math.min(1536, maxTokens) } });
+      if (r.aborted || !String(r.text || '').trim()) throw Object.assign(new Error('EMPTY'), { info: { title: r.aborted ? 'أُوقف' : 'ردّ فارغ' } });
+      const ms = Math.round(performance.now() - t);
+      emit({ type: 'member', id: m.id, state: 'done', provider: P.name, model: r.model || m.pick.model, ms, usage: r.usage });
+      return Object.assign(base, { state: 'done', text: r.text, usage: r.usage, ms });
+    } catch (e) {
+      const ms = Math.round(performance.now() - t), error = (e.info && e.info.title) || String(e.message || e);
+      emit({ type: 'member', id: m.id, state: 'failed', error, ms });
+      return Object.assign(base, { state: 'failed', error, ms });
+    }
   },
 
   /* returns config overrides for one more try, or null */
@@ -17299,6 +17514,155 @@ const AIClient = {
 };
 
 /* ------------------------------------------------------------
+   MULTI-AI COUNCIL (NEXUS Pro) — the same client, several models.
+   • Single AI: one model · Smart Council (the default for Pro): NEXUS
+     decides how many models the task needs — a greeting, a question or
+     a small edit stays ONE model · Full Council: up to 4.
+   • The members work from their roles (plan · assets · code · review…),
+     then one model reviews every result and writes the ONE final answer,
+     in the very shape a single model's answer has: the agent, the game
+     builder and the code agent check and execute it as they always do
+     (real assets only, validated code, preview → APPLY, undo).
+   • Several models collaborating — not a new, stronger model.
+   • Pro and every limit (models, parallel calls, tokens, time, retries)
+     are decided by the site's server (netlify/edge-functions/ai.js);
+     nothing here can raise them. This page only plans the roles.
+   ------------------------------------------------------------ */
+const COUNCIL_ROLES = {
+  /* the chat's answer, which may carry a nexus-actions block (and the editor agent's operations) */
+  act: {
+    lead: { title: 'المنفّذ · Builder', lead: true, brief: 'Write the COMPLETE reply exactly as the rules above require: one or two sentences for the user, then — when the user asked to change the project — ONE nexus-actions block with every operation needed. It is the draft the final answer is built on.' },
+    planner: { title: 'المخطّط · Planner', brief: 'Break the request into what the project needs: which objects, files (A-handles), scripts or editor operations, in which order; what already exists and must be reused; what could go wrong. Bullets — no nexus-actions block.' },
+    assets: { title: 'الأصول · Assets', brief: 'Pick the files for this request ONLY from YOUR FILES above, by their A-handle — or give the word ADD_ASSET should search with (NEXUS then searches the user\'s files and the public library for a REAL file). One line per need: handle or search word · count · where. Say plainly what is missing; never invent a handle, an id or a file.' },
+    reviewer: { title: 'المراجع · Reviewer', after: ['lead', 'planner'], brief: 'Check the drafts below against the context: every A-handle and object name must exist, every operation must be an allowed one with valid fields, scripts may use the engine API only (no window, document, fetch, storage, eval). List every problem with its exact fix.' }
+  },
+  /* a question about the project — an answer, no actions */
+  ask: {
+    lead: { title: 'المجيب · Answer', lead: true, brief: 'Answer the question completely and clearly, as the rules above require.' },
+    analyst: { title: 'المحلّل · Analyst', brief: 'List the facts from the project context that the answer depends on (files, functions, objects, values) and what it must not get wrong. Bullets.' },
+    tester: { title: 'المدقّق · Checker', brief: 'List the mistakes an answer to this question is most likely to make here, and the alternatives or trade-offs worth mentioning. Bullets.' },
+    reviewer: { title: 'المراجع · Reviewer', after: ['lead'], brief: 'Check the draft answer below against the context: wrong facts, invented files / functions / objects, missing steps. List every problem with its fix.' }
+  },
+  /* the game builder's plan (Planner.model): worlds, built-in systems, custom files, actions */
+  plan: {
+    lead: { title: 'المبرمج · Coder', lead: true, brief: 'Write the COMPLETE plan JSON exactly as required above — every step, custom files with their full code, actions. It is the draft the final plan is built on.' },
+    assets: { title: 'الأصول · Assets', brief: 'Match every thing the game needs (buildings, trees, roads, vehicles, characters, props…) to assets in PROJECT CONTEXT.assets — by their exact assetId — with how many and where (scene.spawn). What has no asset gets a primitive (scene.create): say so. Never invent an assetId.' },
+    planner: { title: 'المخطّط · Planner', brief: 'Analyse the game request: the world, the built-in systems that fit (by id), the custom logic still needed, the order of the steps, what the project already has and must not be rebuilt. A short plan in bullets — no JSON, no code.' },
+    reviewer: { title: 'المراجع · Reviewer', after: ['lead', 'planner'], brief: 'Check the draft plan below: valid JSON in the required shape, allowed ops only, assetIds only from PROJECT CONTEXT.assets, the engine API only in code (start/update/destroy; no window, document, fetch, import), no system that already exists rebuilt. List every problem with its exact fix.' }
+  },
+  /* a code edit (the code agent / a script suggestion) */
+  code: {
+    lead: { title: 'المبرمج · Coder', lead: true, brief: 'Write the COMPLETE answer JSON exactly as required above. It is the draft the final edit is built on.' },
+    analyst: { title: 'المحلّل · Analyst', brief: 'Read the relevant files: where exactly the change goes (file, function, the exact lines to use as "find"), what must stay untouched, which objects and assets exist. Bullets — no JSON.' },
+    tester: { title: 'المختبر · Tester', brief: 'List how this change could fail when NEXUS builds or runs it (errors, nulls, engine-API misuse, a "find" that is not unique) and what the edit must check. Bullets.' },
+    reviewer: { title: 'المراجع · Reviewer', after: ['lead', 'analyst'], brief: 'Check the draft below: each "find" copied exactly and unique in its file, the engine API only, nothing unrelated changed, the JSON valid. List every problem with its exact fix.' }
+  },
+  /* repairing a failing file (the builder's fixer) */
+  fix: {
+    lead: { title: 'المصلح · Fixer', lead: true, brief: 'Write the COMPLETE corrected file as the JSON required above. It is the draft the final fix is built on.' },
+    analyst: { title: 'المحلّل · Analyst', brief: 'Explain the root cause of each error (file and line) and the smallest change that fixes it without changing the author\'s intent. Bullets.' },
+    tester: { title: 'المختبر · Tester', brief: 'List what else in this file would still fail after the obvious fix (other errors, runtime nulls, API misuse). Bullets.' },
+    reviewer: { title: 'المراجع · Reviewer', after: ['lead', 'analyst'], brief: 'Check the draft fix below against the errors and the engine API; list every remaining problem with its exact fix.' }
+  }
+};
+/* who joins first: the second model adds the most (for a game: the real assets), the reviewer comes fourth */
+const COUNCIL_ORDER = { act: ['lead', 'planner', 'assets', 'reviewer'], ask: ['lead', 'analyst', 'tester', 'reviewer'], plan: ['lead', 'assets', 'planner', 'reviewer'],
+  code: ['lead', 'analyst', 'tester', 'reviewer'], fix: ['lead', 'analyst', 'tester', 'reviewer'] };
+/* what the final answer must be — the caller's own format, nothing about the council */
+const COUNCIL_FINAL = {
+  act: 'The final reply: one or two sentences for the user and — only when the user asked for a change — ONE nexus-actions block with the corrected, complete list of operations.',
+  ask: 'The final answer only.',
+  plan: 'Output ONLY the final plan JSON object in the required shape — no prose, no markdown fences.',
+  code: 'Output ONLY the final JSON object in the required shape — no prose around it.',
+  fix: 'Output ONLY the final JSON object {"path","code","cause","explanation"} with the complete corrected file.'
+};
+const Council = {
+  caps: null, _at: 0, _p: null,
+  MODES: { single: 'Single AI', smart: 'Smart Council', full: 'Full Council' },
+  mode() { const m = LS.get('council.mode', 'smart'); return this.MODES[m] ? m : 'smart'; },
+  setMode(m) { if (this.MODES[m]) LS.set('council.mode', m); this.changed(); },
+  /* the models chosen for the council, in order (the first writes the lead draft):
+     { pid: 'nexus' (the site's server, its keys and the donated pool) | a provider of the player's own keys, model } */
+  picks() { return (LS.get('council.models', []) || []).filter(x => x && PROVIDERS[x.pid] && x.model && (x.pid === 'nexus' || this.ownReady(x.pid))).slice(0, 4); },
+  setPicks(list) { LS.set('council.models', (list || []).slice(0, 4)); this.changed(); },
+  synth() { return LS.get('council.synth', 'auto'); },
+  setSynth(m) { LS.set('council.synth', m || 'auto'); this.changed(); },
+  ownReady(pid) { const P = PROVIDERS[pid], c = AIConfig.get(pid); return !!(P && !P.builtin && c.model && c.baseURL && (P.needsKey === false || c.apiKey)); },
+  changed() { window.dispatchEvent(new CustomEvent('nx:council', { detail: { type: 'settings' } })); },
+
+  /* what the server says this account may use — Pro is read there, never here */
+  async config(force) {
+    if (!FREE_AI_BASE || !FreeAI.signedIn()) { this.caps = null; return null; }
+    if (!force && this.caps && Date.now() - this._at < 60000) return this.caps;
+    if (this._p) return this._p;
+    this._p = (async () => {
+      try {
+        const tok = await FreeAI.token();
+        const r = await fetch(FREE_AI_BASE + '/council/config', { headers: { authorization: 'Bearer ' + tok }, cache: 'no-store' });
+        this.caps = r.ok && /json/.test(r.headers.get('content-type') || '') ? await r.json() : null;
+      } catch { this.caps = null; }
+      this._at = Date.now();
+      return this.caps;
+    })().finally(() => { this._p = null; });
+    return this._p;
+  },
+  /* Pro, a council-capable server, and a mode that is not «Single AI» */
+  on() { const c = this.caps; return !!(c && c.enabled && c.pro && c.maxModels > 1 && this.mode() !== 'single' && FreeAI.ready()); },
+
+  /* Smart Council: how many models this task needs. A greeting, a short question or one small
+     change → one model; several systems, a whole game or city → up to four. The server caps it. */
+  estimate(kind, text) {
+    const t = String(text || ''), n = t.trim().split(/\s+/).filter(Boolean).length;
+    let s = 0;
+    if (n > 25) s++;
+    if (n > 60) s++;
+    if (t.split(/[.،,؛;!?؟\n]+|\s(?:ثم|وبعدها|وبعدين|then|and then)\s/i).filter(x => x.trim().split(/\s+/).length >= 2).length >= 3) s++;
+    /* several things asked at once («أضف… وضع…», «تضيف… وتضع…», «add … and make …») */
+    if ((t.match(/(^|\s)و?(أضف|اضف|اجعل|ضع|غيّر|غير|احذف|انقل|حرّك|حرك|اكتب|أنشئ|انشئ|اصنع|ابن|صمّم|صمم|تضيف|تضع|تجعل|تكتب|تنشئ|تصنع|تبني|تغيّر|تغير|تحذف|تنقل|تصمم)(\s|$)|\b(add|make|put|change|remove|create|build|write|design)\b/gi) || []).length >= 2) s++;
+    /* a whole game, city or world is the council's work: every role */
+    if (/(كامل|كاملة|كاملًا|كاملا|complete|full|entire|whole)/i.test(t) && /(لعب|مدين|عالم|مستوى|مرحل|game|city|world|level|map)/i.test(t)) s += 3;
+    else if (/(مدينة|مدينه|عالم مفتوح|open world|city)/i.test(t)) s++;
+    if (/(نظام|أنظمة|انظمة|انظمه|system|multiplayer|متعدد اللاعبين|أعداء|اعداء|enem|مخزون|inventory|متجر|shop|مهام|quest|حفظ اللعب|save)/i.test(t)) s++;
+    if (/(كود|سكربت|سكريبت|برمج|منطق|script|code|logic|function|دالة)/i.test(t)) s++;
+    const cap = { ask: 3, act: 4, code: 3, fix: 2, plan: 4 }[kind] || 2;
+    return Math.max(1, Math.min(cap, 1 + (s >= 3 ? 3 : s)));
+  },
+
+  /* the models to use when the player chose none: the model in use leads, the server's «auto»
+     fills the rest (it spreads them over its providers) */
+  pool() {
+    const picks = this.picks();
+    if (picks.length) return picks;
+    const cur = AIConfig.current();
+    const lead = cur && !cur.provider.builtin && AIConfig.isReady() ? { pid: cur.provider.id, model: cur.cfg.model }
+      : { pid: 'nexus', model: (cur && cur.provider.builtin && cur.cfg.model) || 'auto' };
+    return [lead, { pid: 'nexus', model: 'auto' }, { pid: 'nexus', model: 'auto' }, { pid: 'nexus', model: 'auto' }];
+  },
+
+  /* one call's plan — or null: one model is enough, or the council is not for this account now */
+  async decide(messages, c) {
+    if (!c || !COUNCIL_ROLES[c.kind] || this.mode() === 'single' || FreeAI.state !== 'on' || !FreeAI.signedIn()) return null;
+    const caps = await this.config();
+    if (!caps || !caps.enabled || !caps.pro || caps.maxModels < 2) return null;
+    const pool = this.pool();
+    const text = c.text || (messages.filter(m => m.role === 'user').slice(-1)[0] || {}).content || '';
+    /* Full: every model chosen — but a repair (the builder may run several in a row) never needs more than two */
+    const want = this.mode() === 'full' ? Math.min(pool.length, c.kind === 'fix' ? 2 : 4) : this.estimate(c.kind, String(text).slice(0, 3000));
+    const n = Math.min(want, pool.length, caps.maxModels);
+    if (n < 2) { this.emit(c, { type: 'single', reason: 'smart' }); return null; }
+    const roles = COUNCIL_ORDER[c.kind].slice(0, n);
+    return { mode: this.mode(), kind: c.kind, n, synthBrief: COUNCIL_FINAL[c.kind],
+      members: roles.map((r, i) => { const R = COUNCIL_ROLES[c.kind][r]; return { id: 'c' + (i + 1), role: r, title: R.title, brief: R.brief, lead: !!R.lead,
+        after: n === 4 && pool[i].pid === 'nexus' ? (R.after || []) : [], pick: pool[i] }; }) };
+  },
+  emit(c, ev) {
+    ev.origin = (c && c.origin) || 'global';
+    try { if (c && c.onEvent) c.onEvent(ev); } catch (e) { console.warn('[council]', e); }
+    window.dispatchEvent(new CustomEvent('nx:council', { detail: ev }));
+  }
+};
+
+/* ------------------------------------------------------------
    The AI object (PART 7) gets its connection from here: one client,
    every provider. raw() is what the planner / fixer / chat use.
    ------------------------------------------------------------ */
@@ -17318,13 +17682,13 @@ legacy.isReady = () => AIConfig.isReady();
 /* raw system+prompt call — what the planner actually needs */
 legacy.raw = async function (system, prompt, opts = {}) {
   let r = await AIClient.chat([{ role: 'user', content: prompt }], { system, stream: false, ...opts });
-  /* a small answer room that was not enough (a thinking model): once more, full room */
-  if (r.truncated && opts._cfg && opts._cfg.maxTokens) r = await AIClient.chat([{ role: 'user', content: prompt }], { system, stream: false, ...opts, _cfg: null });
+  /* a small answer room that was not enough (a thinking model): once more, full room (a council is never run twice) */
+  if (r.truncated && !r.council && opts._cfg && opts._cfg.maxTokens) r = await AIClient.chat([{ role: 'user', content: prompt }], { system, stream: false, ...opts, _cfg: null, council: null });
   return r.text;
 };
 legacy.ask = async function (prompt, project, engine) {
   if (!AIConfig.isReady()) return legacy.local(prompt, project, engine);
-  const text = await legacy.raw(legacy.systemPrompt(project, engine), prompt);
+  const text = await legacy.raw(legacy.systemPrompt(project, engine), prompt, { council: { kind: 'code', text: prompt, origin: 'builder' } });
   return legacy.parse(text, 'model');
 };
 
@@ -17334,10 +17698,11 @@ NX.providerForKey = providerForKey;
 NX.pickModel = pickModel;
 NX.AIConfig = AIConfig;
 NX.AIClient = AIClient;
-/* the free AI: asked at start, and again whenever the player signs in or out */
+NX.Council = Council;
+/* the free AI: asked at start, and again whenever the player signs in or out (with what the council allows them) */
 if (!window.NX_SANDBOX) {
-  FreeAI.probe().then(() => FreeAI.adopt());
-  if (NX.Backend && NX.Backend.onAuth) NX.Backend.onAuth(() => FreeAI.probe().then(() => FreeAI.adopt()));
+  FreeAI.probe().then(() => FreeAI.adopt()).then(() => Council.config(true)).then(() => Council.changed()).catch(() => {});
+  if (NX.Backend && NX.Backend.onAuth) NX.Backend.onAuth(() => FreeAI.probe().then(() => FreeAI.adopt()).then(() => Council.config(true)).then(() => Council.changed()).catch(() => {}));
 }
 NX.AIAdapters = Adapters;
 NX.classifyAIError = classify;
@@ -17636,7 +18001,8 @@ function openAISettings() {
       st.appendChild(el('b', { text: F.state === 'off' ? '⚪ غير مفعّل على هذا الموقع' : !F.signedIn() ? '🔒 سجّل الدخول لتستعمله — مجاني' : '🟢 متاح لك مجانًا' }));
       st.appendChild(el('div', { class: 'tiny', text: F.state === 'off' ? F.offText() + ' حتى ذلك الحين تستطيع استعمال مفتاحك الخاص من البطاقات الأخرى.'
         : !F.signedIn() ? 'الذكاء المجاني لمن سجّل الدخول بحساب Google أو بالبريد — حتى لا يستهلكه أحد من خارج المنصة.'
-        : 'اختر النموذج أدناه أو اتركه «auto». إذا انتهى حدّ مفتاح ينتقل وحده إلى التالي، ثم إلى النموذج الآخر، ويخبرك بذلك.' + (F.providers.length ? ' المتاح: ' + F.providers.map(x => x === 'gemini' ? 'Gemini' : x === 'groq' ? 'Groq' : x === 'openrouter' ? 'OpenRouter' : x).join(' · ') : '') }));
+        : 'اختر النموذج أدناه أو اتركه «auto». إذا انتهى حدّ مفتاح ينتقل وحده إلى التالي، ثم إلى النموذج الآخر، ويخبرك بذلك.' + (F.providers.length ? ' المتاح: ' + F.providers.map(x => x === 'gemini' ? 'Gemini' : x === 'groq' ? 'Groq' : x === 'openrouter' ? 'OpenRouter' : x === 'anthropic' ? 'Claude' : x).join(' · ') : '') }));
+      if (NX.CouncilUI) st.appendChild(btn('🧠 مجلس الذكاء · AI Council (Pro)', { cls: 'sm ghost', style: { marginTop: '8px', display: 'flex' }, onclick: () => NX.CouncilUI.open() }));
       if (NX.KeyBox) st.appendChild(btn('🔑 مفاتيح الذكاء المجاني — لصاحب الموقع', { cls: 'sm', style: { marginTop: '8px', display: 'flex' }, onclick: () => NX.KeyBox.open() }));
       if (NX.KeyPool) st.appendChild(btn('🤝 تبرّع بمفتاحك للذكاء المجاني', { cls: 'sm ghost', style: { marginTop: '8px', display: 'flex' }, onclick: () => NX.KeyPool.open() }));
       if (F.state !== 'off' && !F.signedIn()) st.appendChild(btn('تسجيل الدخول', { cls: 'sm primary', icon: 'user', style: { marginTop: '8px' }, onclick: () => NX.promptSignIn('الذكاء المجاني لمن سجّل الدخول.', () => { drawProvider(); paintGrid(); }) }));
@@ -17946,6 +18312,8 @@ const Chat = {
     b.appendChild(txt);
     /* the agent's real results: assets, questions, previews, diffs … */
     if (m.cards && m.cards.length && NX.Agent) NX.Agent.renderCards(m).forEach(n => b.appendChild(n));
+    /* a Multi-AI Council answer: one final result — each model's part only when opened */
+    if (m.council && NX.CouncilUI) b.appendChild(NX.CouncilUI.details(m.council));
     const acts = el('div', { class: 'chat-acts' });
     const mk = (label, ic, fn) => { const x = el('button', { title: label }); x.appendChild(icon(ic)); x.onclick = fn; acts.appendChild(x); };
     mk('نسخ', 'copy', async () => { try { await navigator.clipboard.writeText(m.content); Toast.ok('نُسخ'); } catch { Toast.err('تعذّر النسخ'); } });
@@ -17957,7 +18325,7 @@ const Chat = {
     mk('حذف', 'trash', () => this.deleteMsg(m));
     b.appendChild(acts);
     /* which model answered (the free AI may have switched), and the tokens when the provider says */
-    if (m.usage || (m.model && m.role === 'assistant')) b.appendChild(el('div', { class: 'chat-meta', text: (m.model || '') + (m.usage ? ` · ${m.usage.in || 0}→${m.usage.out || 0} tokens` : '') }));
+    if (m.usage || (m.model && m.role === 'assistant')) b.appendChild(el('div', { class: 'chat-meta', text: (m.smartSingle ? '🧠 Smart Council: نموذج واحد يكفي · ' : '') + (m.model || '') + (m.usage ? ` · ${m.usage.in || 0}→${m.usage.out || 0} tokens` : '') }));
     return b;
   },
 
@@ -18168,17 +18536,28 @@ ${sel.files.map(f => `--- ${f.path} ---\n${f.code}`).join('\n\n')}` : '');
       const want = kind === 'talk' ? 800 : kind === 'ask' ? 2000 : 0;
       const has = (AIConfig.current() || { cfg: {} }).cfg.maxTokens || 4000;
       const capped = !!(want && want < has);
+      /* a question or a change may go to the Multi-AI Council (NEXUS Pro) — never small talk;
+         its progress shows in this bubble, its answer is handled exactly like one model's */
+      let live = null;
+      const council = kind === 'talk' ? null : { kind: kind === 'act' ? 'act' : 'ask', text: q, origin: 'chat', onEvent: ev => {
+        if (ev.type === 'single') { assistant.smartSingle = true; return; }        // Smart Council: one model is enough here
+        if (ev.type === 'settings' || !NX.CouncilUI) return;
+        if (!live && node && node.isConnected) { live = NX.CouncilUI.live(); node.insertBefore(live.node, txt); if (txt) txt.textContent = ''; }
+        if (live) { live.update(ev); this.toBottom(); }
+      } };
       const call = cfg => AIClient.chat(history.concat([{ role: 'user', content: q }]), {
         _cfg: cfg,
         system,
+        council,
         onDelta: (piece, full) => {
           assistant.content = full;
           if (txt) { if (!firstToken) { firstToken = true; txt.style.opacity = ''; } txt.textContent = full.replace(/```[ \t]*nexus-actions[\s\S]*$/i, '⏳ أجهّز التعديلات…'); this.toBottom(); }
         }
       });
       let r = await call(capped ? { maxTokens: want } : null);
-      /* the short room was not enough (a thinking model, a long answer): once more, full room */
-      if (capped && r.truncated && !r.aborted) { assistant.content = ''; r = await call(null); }
+      /* the short room was not enough (a thinking model, a long answer): once more, full room (a council is not run twice) */
+      if (capped && r.truncated && !r.aborted && !r.council) { assistant.content = ''; r = await call(null); }
+      if (r.council) assistant.council = r.council;
       assistant.content = r.text || assistant.content || (r.aborted ? '' : '(ردّ فارغ من النموذج)');
       /* the model asked to change the project: every operation checked → preview → APPLY */
       if (NX.ModelActions && !r.aborted) {
@@ -20204,6 +20583,38 @@ ${assets.slice(0, 40).map(x => `ASSET: name=${x.name} · type=${x.type} · size=
     plan.ui.say((errors.length ? 'تمّ جزئيًا. ' : 'تمّ. ') + where, [{ type: 'result', title: errors.length ? 'نُفّذ مع مشاكل' : 'ما الذي بنيته', undoable: true, canPlay: true,
       lines: lines.concat(errors.map(x => '✗ ' + x)), ids: touched.filter(id => eng.entities.has(id)), used: Array.from(used.values()) }]);
     return { lines, errors, used: Array.from(used.values()), test, saved };
+  },
+
+  /* a builder plan's «compose» step (the Multi-AI Council's game plans): the models said WHAT goes
+     WHERE — concepts, relations, counts, and an assetId or none. Here the assets are made real: an id
+     given is checked (it must exist and be usable by this user), a missing one is found with
+     Assets.search (the user's files first, then the public library) — never invented — and the
+     same layout as «اصنع لي لعبة…» places them with their real sizes. */
+  async compose(step, env) {
+    const S = NX.Studio, me = Backend.user && Backend.user.uid;
+    const usable = await this.usableAssets().catch(() => []);
+    const items = [], missing = [], notes = [];
+    for (const it of (Array.isArray(step.items) ? step.items : []).slice(0, 12)) {
+      const concept = CONCEPTS.find(c => c.id === String((it && it.concept) || '') && !c.noAsset);
+      if (!concept) { notes.push('«' + ((it && it.concept) || '?') + '» ليس نوعًا يعرفه NEXUS — تُرك'); continue; }
+      let pick = null;
+      if (it.assetId) {
+        try { const a = await GameOps.usableAsset(String(it.assetId)); pick = { a, scope: a.ownerId === me ? 'mine' : 'public' }; }
+        catch (e) { notes.push('✗ ' + e.message + ' — بحثت عن أصل حقيقي بدلًا منه'); }
+      }
+      if (!pick) pick = await this.choose(concept, usable).catch(() => null);
+      if (!pick && concept.id !== 'road') { missing.push(concept); continue; }
+      items.push({ concept, pick, relation: RELATION_AR[it.relation] ? it.relation : null, target: CONCEPTS.find(c => c.id === it.target && !c.noAsset) || null,
+        count: Number.isFinite(+it.count) && +it.count > 0 ? Math.min(40, Math.round(+it.count)) : null });
+    }
+    if (!items.some(i => i.pick)) return { summary: 'لم أجد أصلًا حقيقيًا لهذه الخطوة — لم أضع شيئًا' + (missing.length ? ' (' + missing.map(c => c.label).join('، ') + ')' : ''), errors: [], notes };
+    items.sort((a, b) => (a.concept.id === 'road' ? 0 : 1) - (b.concept.id === 'road' ? 0 : 1));
+    const genre = GENRES.find(g => g.id === step.genre) || null;
+    const plan = { id: uid('plan'), game: true, text: String(step.title || 'compose').slice(0, 80), ui: Agent.panelUI(), items, genre, missing, unused: [], done: false };
+    const r = await this.execute(plan);
+    const used = (r && r.used) || [];
+    return { summary: used.map(u => u.name + (u.count > 1 ? ' ×' + u.count : '')).join('، ') + (missing.length ? ' — ✗ بلا أصل: ' + missing.map(c => c.label).join('، ') : ''),
+      errors: (r && r.errors) || [], notes, used };
   }
 };
 
@@ -21138,7 +21549,10 @@ RELEVANT FILES:
 ${sel.files.map(f => '--- ' + f.path + ' ---\n' + f.code).join('\n\n') || '(no files yet)'}`;
     ui.busy('النموذج يقرأ الملفات المرتبطة ويكتب التعديل…');
     let raw;
-    try { raw = await NX.AI.raw(system, text); }
+    /* the Multi-AI Council (Pro) may write it: coder · analyst · tester · reviewer, then one final edit */
+    let councilInfo = null;
+    const council = { kind: 'code', text, origin: ui.surface || 'builder', onEvent: ev => { if (ev.type === 'final') councilInfo = ev.details; } };
+    try { raw = await NX.AI.raw(system, text, { council }); }
     catch (e) { ui.say('✕ ' + ((e.info && e.info.title) || e.message || e) + ((e.info && e.info.detail) ? '\n' + e.info.detail : ''), [], { error: true }); return; }
     finally { ui.busy(null); }
     let j = null;
@@ -21177,7 +21591,7 @@ ${sel.files.map(f => '--- ' + f.path + ' ---\n' + f.code).join('\n\n') || '(no f
     this.pending.set(id, { changes: ok, summary: j.summary || '', text });
     ui.say((j.summary || 'التعديل المقترح') + '\nراجع الفرق ثم اضغط APPLY.', [{ type: 'diff', planId: id,
       files: ok.map(c => ({ path: c.path, kind: c.kind, diff: diffLines(c.before, c.after), warnings: (c.warnings || []).map(w => `سطر ${w.line}: ${w.message}`) })),
-      rejected }]);
+      rejected }], councilInfo ? { council: councilInfo } : {});
   },
 
   async apply(id, ui) {
@@ -21362,9 +21776,10 @@ const busyNode = el('div', { class: 'ai-status' });
 function chatUI() {
   const C = NX.Chat;
   const ui = {
+    surface: 'agent-chat',              // where a Multi-AI Council shows its progress
     say(text, cards = [], opts = {}) {
       ui.busy(null);
-      C.push('assistant', text, Object.assign(cards && cards.length ? { cards } : {}, opts.error ? { error: true } : {}));
+      C.push('assistant', text, Object.assign(cards && cards.length ? { cards } : {}, opts.error ? { error: true } : {}, opts.council ? { council: opts.council } : {}));
       C.render();
     },
     busy(text) {
@@ -21380,11 +21795,13 @@ function chatUI() {
 function panelUI() {
   const A = NX.AIPanel;
   const ui = {
-    say(text, cards = []) {
+    surface: 'builder',
+    say(text, cards = [], opts = {}) {
       ui.busy(null);
       if (!A.log) return;
       A.say('ai', text);
       (cards || []).forEach(c => A.log.appendChild(renderCard(c, ui)));
+      if (opts.council && NX.CouncilUI) A.log.appendChild(NX.CouncilUI.details(opts.council));
       A.log.scrollTop = A.log.scrollHeight;
     },
     busy(text) {
@@ -26520,7 +26937,7 @@ const NX = window.NX;
 const { el, btn, Sheet, Toast } = NX;
 const { AIConfig, AIClient, PROVIDERS } = NX;
 
-const LABEL = { nexus: 'تلقائي', NEXUS: 'تلقائي', gemini: 'Gemini', groq: 'Groq', openrouter: 'OpenRouter' };
+const LABEL = { nexus: 'تلقائي', NEXUS: 'تلقائي', gemini: 'Gemini', groq: 'Groq', openrouter: 'OpenRouter', anthropic: 'Claude' };
 const ModelPicker = {
   /* the free AI's list as the server groups it: [{ name, models: [] }] */
   groups(list, owners) {
@@ -27530,7 +27947,7 @@ const KeyBox = {
     const body = el('div', { class: 'kb' });
     body.appendChild(el('div', { class: 'card kb-intro' }, [
       el('b', { text: 'ذكاء مجاني لكل من يستعمل موقعك' }),
-      el('p', { text: 'ضع هنا مفاتيح Gemini (Google AI Studio) أو Groq أو OpenRouter مرة واحدة. تُحفظ على خادم الموقع فقط: لا يراها أحد، ولا تُرسل إلى أي صفحة — ولا حتى إليك بعد الحفظ (يظهر آخر 4 أحرف فقط). كل من ليس لديه مفتاح يحصل على الذكاء المجاني ويختار النموذج فقط. إذا انتهى حدّ مفتاح يُستعمل التالي تلقائيًا، ثم Groq، ثم «غير متاح الآن».' }),
+      el('p', { text: 'ضع هنا مفاتيح Gemini (Google AI Studio) أو Groq أو OpenRouter أو Claude (Anthropic — مدفوع، ولا يستعمله «auto» إلا إذا اختار اللاعب نموذج Claude أو ANTHROPIC_AUTO=1) مرة واحدة. تُحفظ على خادم الموقع فقط: لا يراها أحد، ولا تُرسل إلى أي صفحة — ولا حتى إليك بعد الحفظ (يظهر آخر 4 أحرف فقط). كل من ليس لديه مفتاح يحصل على الذكاء المجاني ويختار النموذج فقط. إذا انتهى حدّ مفتاح يُستعمل التالي تلقائيًا، ثم Groq، ثم «غير متاح الآن».' }),
       btn('أو: مفتاح لي أنا فقط (في هذا المتصفح)', { cls: 'sm ghost', icon: 'user', style: { marginTop: '8px' }, onclick: () => { sheet.close(); NX.openAISettings(); } })]));
     const host = el('div');
     body.appendChild(host);
@@ -27565,7 +27982,7 @@ const KeyBox = {
       }
       if (st.ready && st.canClaim && !st.owner) host.appendChild(el('p', { class: 'tiny kb-claim', text: 'لا صاحب للصندوق بعد: أول حساب يحفظ مفتاحًا يصبح صاحبه — هذا أنت (' + (Backend.user.email || '') + '). بعدها لا يستطيع غيرك إضافة المفاتيح أو حذفها.' }));
       /* 5. add keys */
-      const ta = el('textarea', { class: 'textarea kb-in', placeholder: 'الصق مفتاحًا أو أكثر — كل مفتاح في سطر\nAQ.…  أو  AIza…  (Gemini)\ngsk_…  (Groq)\nsk-or-…  (OpenRouter)', spellcheck: 'false', autocapitalize: 'off', autocomplete: 'off', style: { direction: 'ltr', minHeight: '110px' } });
+      const ta = el('textarea', { class: 'textarea kb-in', placeholder: 'الصق مفتاحًا أو أكثر — كل مفتاح في سطر\nAQ.…  أو  AIza…  (Gemini)\ngsk_…  (Groq)\nsk-or-…  (OpenRouter)\nsk-ant-…  (Claude)', spellcheck: 'false', autocapitalize: 'off', autocomplete: 'off', style: { direction: 'ltr', minHeight: '110px' } });
       const res = el('div', { class: 'kb-res' });
       const add = btn('حفظ على الخادم', { cls: 'primary block', icon: 'save', onclick: async () => {
         const v = ta.value.trim();
@@ -27575,7 +27992,7 @@ const KeyBox = {
           const r = await this.call('/keys/add', { keys: v });
           ta.value = '';
           res.textContent = '';
-          const say = { ok: '✓ حُفظ ويعمل', limit: '✓ حُفظ — وصل حدّه الآن وسيُستعمل عندما يتجدّد', unknown: '✓ حُفظ (لم يُتأكَّد منه الآن)', refused: '✕ رفضه المزوّد — لم يُحفظ', duplicate: '• موجود من قبل', unknown_provider: '✕ ليس مفتاح Gemini أو Groq أو OpenRouter' };
+          const say = { ok: '✓ حُفظ ويعمل', limit: '✓ حُفظ — وصل حدّه الآن وسيُستعمل عندما يتجدّد', unknown: '✓ حُفظ (لم يُتأكَّد منه الآن)', refused: '✕ رفضه المزوّد — لم يُحفظ', duplicate: '• موجود من قبل', unknown_provider: '✕ ليس مفتاح Gemini أو Groq أو OpenRouter أو Claude' };
           (r.results || []).forEach(x => res.appendChild(el('div', { class: 'kb-r ' + (/^(ok|limit|unknown)$/.test(x.status) ? 'good' : x.status === 'duplicate' ? '' : 'bad'), text: (x.label ? x.label + ' ' : '') + (x.tail || '') + ' — ' + (say[x.status] || x.status) })));
           if (NX.FreeAI) { NX.FreeAI._probe = null; NX.FreeAI.probe().then(() => NX.FreeAI.adopt()); }
           setTimeout(draw, 1400);
@@ -27628,10 +28045,10 @@ const KeyBox = {
   netlifyText(value, out) {
     out.textContent = '';
     const keys = String(value || '').split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
-    const g = { GEMINI_KEYS: [], GROQ_KEYS: [], OPENROUTER_KEYS: [] }, other = [];
-    keys.forEach(k => (/^gsk_/.test(k) ? g.GROQ_KEYS : /^sk-or-/.test(k) ? g.OPENROUTER_KEYS : /^(AIza|AQ\.)/.test(k) ? g.GEMINI_KEYS : other).push(k));
+    const g = { GEMINI_KEYS: [], GROQ_KEYS: [], OPENROUTER_KEYS: [], ANTHROPIC_KEYS: [] }, other = [];
+    keys.forEach(k => (/^gsk_/.test(k) ? g.GROQ_KEYS : /^sk-or-/.test(k) ? g.OPENROUTER_KEYS : /^sk-ant-/.test(k) ? g.ANTHROPIC_KEYS : /^(AIza|AQ\.)/.test(k) ? g.GEMINI_KEYS : other).push(k));
     const text = Object.keys(g).filter(n => g[n].length).map(n => n + '=' + Array.from(new Set(g[n])).join(',')).join('\n');
-    if (!text) { Toast.err(keys.length ? 'هذه ليست مفاتيح Gemini أو Groq أو OpenRouter' : 'الصق مفاتيحك أولًا'); return; }
+    if (!text) { Toast.err(keys.length ? 'هذه ليست مفاتيح Gemini أو Groq أو OpenRouter أو Claude' : 'الصق مفاتيحك أولًا'); return; }
     const box = el('textarea', { class: 'textarea kb-env', readonly: true, value: text, style: { direction: 'ltr', minHeight: '90px', marginTop: '10px' } });
     const copy = btn('نسخ النص', { cls: 'sm', icon: 'copy', style: { marginTop: '8px' }, onclick: async () => { try { await navigator.clipboard.writeText(text); Toast.ok('نُسخ — الصقه في Netlify'); } catch { box.select(); document.execCommand && document.execCommand('copy'); Toast.show('حدّد النص وانسخه'); } } });
     out.append(box, copy, el('div', { class: 'card', style: { marginTop: '10px' } }, [el('b', { text: 'ثم في Netlify:' }), this.steps([
@@ -27639,11 +28056,11 @@ const KeyBox = {
       'الصق النص ← Import variables',
       'Deploys ← Trigger deploy ← Deploy site',
       'بعدها يحصل كل من يستعمل موقعك على الذكاء المجاني بمفاتيحك، ولا يرى أحد المفاتيح'])]));
-    if (other.length) out.appendChild(el('p', { class: 'tiny', style: { color: '#ff9aa8', marginTop: '6px' }, text: other.length + ' سطر ليس مفتاح Gemini أو Groq أو OpenRouter — تُرك.' }));
+    if (other.length) out.appendChild(el('p', { class: 'tiny', style: { color: '#ff9aa8', marginTop: '6px' }, text: other.length + ' سطر ليس مفتاح Gemini أو Groq أو OpenRouter أو Claude — تُرك.' }));
   },
   fromVars(host, st) {
     const v = st.fromVariables || {};
-    const parts = [['Gemini', v.gemini], ['Groq', v.groq], ['OpenRouter', v.openrouter]].filter(x => x[1]);
+    const parts = [['Gemini', v.gemini], ['Groq', v.groq], ['OpenRouter', v.openrouter], ['Claude', v.anthropic]].filter(x => x[1]);
     if (parts.length) host.appendChild(el('p', { class: 'tiny', style: { marginTop: '12px' }, text: 'ومن إعدادات Netlify (Environment variables): ' + parts.map(x => x[0] + ' ' + x[1]).join(' · ') + ' — تُعدَّل هناك.' }));
   }
 };
@@ -30036,10 +30453,11 @@ const { Backend } = NX;
 const KINDS = [
   ['groq', /^gsk_[A-Za-z0-9]{20,}$/, 'Groq'],
   ['openrouter', /^sk-or-[A-Za-z0-9_-]{20,}$/, 'OpenRouter'],
-  ['gemini', /^(AIza[0-9A-Za-z_-]{30,}|AQ\.[0-9A-Za-z_.-]{20,})$/, 'Gemini']
+  ['gemini', /^(AIza[0-9A-Za-z_-]{30,}|AQ\.[0-9A-Za-z_.-]{20,})$/, 'Gemini'],
+  ['anthropic', /^sk-ant-[A-Za-z0-9_-]{20,}$/, 'Claude']
 ];
 const providerOf = k => (KINDS.find(([, re]) => re.test(k)) || [])[0] || null;
-const LABEL = { gemini: 'Gemini', groq: 'Groq', openrouter: 'OpenRouter' };
+const LABEL = { gemini: 'Gemini', groq: 'Groq', openrouter: 'OpenRouter', anthropic: 'Claude' };
 const REASON = { invalid: 'رفضه المزوّد', 'rate-limit': 'وصل حدّه — يعود وحده', 'too-many-failures': 'فشل مرات كثيرة' };
 const clean = raw => String(raw || '').trim().replace(/\s+/g, '');
 /* the site's own AI function (Netlify) — it also uses the pool when it can read it */
@@ -30071,7 +30489,7 @@ const KeyPool = {
   async donate(raw) {
     const key = clean(raw);
     const provider = providerOf(key);
-    if (!provider) throw Object.assign(new Error('هذا لا يشبه مفتاح Gemini (يبدأ بـ AIza أو AQ.) أو Groq (gsk_) أو OpenRouter (sk-or-)'), { code: 'format' });
+    if (!provider) throw Object.assign(new Error('هذا لا يشبه مفتاح Gemini (يبدأ بـ AIza أو AQ.) أو Groq (gsk_) أو OpenRouter (sk-or-) أو Claude (sk-ant-)'), { code: 'format' });
     if (!Backend.isOnline()) throw Object.assign(new Error('التبرّع يحتاج اتصال الموقع بالسحابة'), { code: 'offline' });
     if (!Backend.hasAccount()) throw Object.assign(new Error('سجّل الدخول بحساب (Google أو البريد) أولًا'), { code: 'signin' });
     const { F, db } = Backend.fb, uid = Backend.user.uid;
@@ -30159,16 +30577,18 @@ const KeyPool = {
   open() {
     const body = el('div', { class: 'kp' });
     body.appendChild(el('p', { class: 'muted', style: { fontSize: '13px', lineHeight: '1.75' },
-      text: 'تبرّع بمفتاح Gemini أو Groq أو OpenRouter الخاص بك ليبقى الذكاء المجاني في هذا الموقع يعمل للجميع.' }));
+      text: 'تبرّع بمفتاح Gemini أو Groq أو OpenRouter أو Claude الخاص بك ليبقى الذكاء المجاني في هذا الموقع (ومجلس الذكاء لمشتركي Pro) يعمل للجميع.' }));
     body.appendChild(el('div', { class: 'card kp-safe', style: { fontSize: '12.5px', lineHeight: '1.75', marginBottom: '12px' } }, [
       el('b', { text: '🔒 ماذا يحدث لمفتاحك؟' }),
       el('div', { text: '• يُكتب مرة واحدة في قاعدة بيانات الموقع، ولا يستطيع أحد قراءته بعدها: لا الزوار ولا البوتات ولا أنت (هذه الصفحة تحفظ آخر 4 أحرف فقط).' }),
       el('div', { text: '• يستعمله خادم الموقع وحده ليجيب الذكاء المجاني؛ لا يصل إلى أي متصفح في أي رد أو رسالة خطأ.' }),
       el('div', { text: '• إن رفضه المزوّد يُعطَّل وحده، وإن وصل حدّه يرتاح ثم يعود. تسحبه متى شئت.' }),
       el('div', { text: '• المفتاح نفسه لا يُقبل مرتين (تُحفظ بصمته SHA-256، لا المفتاح). التبرّع تطوّعي بلا نقاط ولا مال — شكرًا لك تظهر شارة «🤝 متبرّع» في ملفك.' }),
+      el('div', { text: '• يُستعمل بقدر: في مجلس الذكاء يخدم مفتاحك المتبرَّع به نموذجًا واحدًا في كل مرة (لا طلبات متوازية عليه)، والمفتاح الذي يصل حدّه يرتاح حتى يسمح المزوّد. صاحب الموقع يستطيع إبعاد المفاتيح المتبرَّع بها عن المجلس (COUNCIL_USE_DONATED=0).' }),
+      el('div', { style: { color: '#fcd77a' }, text: '• مفتاح Claude (Anthropic) مدفوع: كل طلب يُخصم من رصيدك عند Anthropic — لا تتبرّع به إلا إن كنت تقبل ذلك، ويمكنك سحبه متى شئت. OpenRouter: النماذج المجانية فقط.' }),
       el('div', { style: { color: '#fcd77a' }, text: '• مالك الموقع يصل إلى قاعدة البيانات من لوحة Firebase — تبرّع لموقع تثق بصاحبه، وتأكّد أن شروط مزوّدك تسمح بمشاركة المفتاح.' })]));
 
-    const input = el('input', { class: 'input', type: 'password', placeholder: 'الصق المفتاح هنا (gsk_… أو AIza… أو AQ.… أو sk-or-…)', autocomplete: 'off', spellcheck: 'false', style: { direction: 'ltr' } });
+    const input = el('input', { class: 'input', type: 'password', placeholder: 'الصق المفتاح هنا (gsk_… أو AIza… أو AQ.… أو sk-or-… أو sk-ant-…)', autocomplete: 'off', spellcheck: 'false', style: { direction: 'ltr' } });
     const kind = el('div', { class: 'tiny', style: { minHeight: '18px', marginTop: '4px' } });
     input.addEventListener('input', () => { const p = providerOf(clean(input.value)); kind.textContent = !input.value ? '' : p ? '✓ مفتاح ' + LABEL[p] : '✗ لا يشبه مفتاحًا مدعومًا'; kind.style.color = p ? '#9ae6b4' : '#ff9aa8'; });
     const agree = el('input', { type: 'checkbox', id: 'kp-agree' });
@@ -30766,7 +31186,8 @@ const Points = {
 
       /* Pro */
       const pc = el('div', { class: 'card pts-card pts-procard' }, [el('b', { text: '⭐ Pro — ' + m.proPrice + ' شهريًا' }),
-        el('div', { class: 'tiny', style: { margin: '4px 0 8px', lineHeight: '1.7' }, text: m.proAI + ' طلب ذكاء يوميًا بلا نقاط · رفع الملفات مجانًا · الدفع على صفحة Stripe نفسها (NEXUS لا يرى بطاقتك).' })]);
+        el('div', { class: 'tiny', style: { margin: '4px 0 8px', lineHeight: '1.7' }, text: m.proAI + ' طلب ذكاء يوميًا بلا نقاط · 🧠 مجلس الذكاء (Multi-AI Council): حتى 4 نماذج تتعاون في المهمة الواحدة ثم نتيجة واحدة · رفع الملفات مجانًا · الدفع على صفحة Stripe نفسها (NEXUS لا يرى بطاقتك).' })]);
+      if (NX.CouncilUI) pc.appendChild(btn('🧠 مجلس الذكاء', { cls: 'sm ghost', style: { marginBottom: '6px' }, onclick: () => NX.CouncilUI.open() }));
       if (pro) pc.appendChild(m.pro.manage ? btn('إدارة الاشتراك أو إلغاؤه', { cls: 'sm', onclick: e => this.pro('manage', e.currentTarget) }) : el('div', { class: 'tiny', text: '✓ مفعّل' }));
       else if (m.stripe) pc.appendChild(btn('اشترك الآن', { cls: 'primary sm pts-subscribe', onclick: e => this.pro('checkout', e.currentTarget) }));
       else pc.appendChild(el('div', { class: 'tiny pts-prooff', text: 'غير مفعّل بعد على هذا الموقع — يحتاج صاحبه إلى ربط حساب Stripe.' }));
@@ -31805,6 +32226,373 @@ NX.EditorUI = UI;
 NX.EditorRecognize = Rec;
 </script>
 <!-- /NX-PART:35 -->
+<!-- NX-PART:36 -->
+<script type="module">
+/* ============================================================
+   PART 36 · MULTI-AI COUNCIL (NEXUS Pro) — what the player sees of the
+   council that PART 16 plans (AIClient + Council) and the site's server
+   (netlify/edge-functions/ai.js) checks and runs:
+   • 🧠 the mode — Single AI · Smart Council (the default for Pro) · Full
+     Council — and up to 4 models from the REAL model lists (the server's
+     and the player's own keys). Pro is shown as the server says; the
+     server enforces it, whatever this page is made to send.
+   • while it works: each model's state (thinking · retrying and why ·
+     completed · failed), then the review & synthesis, then «✓ Final result
+     ready». No key is ever shown, and never four separate answers.
+   • «AI Council Details» opens each model's contribution, on request.
+   • the game builder's council gets REAL assets from Assets.search.
+   Several models collaborating — not a new model «stronger than Claude».
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, Sheet, Toast } = NX;
+const { AIConfig, AIClient, PROVIDERS, Council, FreeAI } = NX;
+
+const MODE_TEXT = {
+  single: ['Single AI', 'نموذج واحد لكل مهمة.'],
+  smart: ['Smart Council', 'NEXUS يقرّر كم نموذجًا تحتاج المهمة: البسيطة (تحية، سؤال قصير، تعديل صغير) بنموذج واحد، والكبيرة (لعبة كاملة، أنظمة كثيرة) حتى 4 — أقل تكلفة وانتظار.'],
+  full: ['Full Council', 'حتى 4 نماذج في كل مهمة يرسلها المساعد — أبطأ ويستهلك طلبات أكثر.']
+};
+const STATE_AR = { waiting: 'ينتظر', thinking: 'يفكّر… · thinking', retrying: 'يعيد المحاولة', done: 'اكتمل · completed', failed: 'فشل · failed',
+  processing: 'يراجع ويدمج · processing', fallback: 'نموذج آخر يكمل الدمج', skipped: 'لا حاجة للدمج' };
+const REDUCED = {
+  pro_required: 'Multi-AI Council من مزايا NEXUS Pro — تحقّق الخادم من حسابك وأجاب نموذج واحد.',
+  pro_unverified: 'لا يستطيع خادم الموقع التحقق من Pro الآن — أجاب نموذج واحد.',
+  daily_limit: 'طلبات اليوم المتبقية لا تكفي لكل النماذج — مجلس أصغر.',
+  limit: 'حدّ الخادم للنماذج في الطلب الواحد — مجلس أصغر.'
+};
+const secs = ms => ms ? (ms / 1000).toFixed(1) + 's' : '';
+const who = (provider, model) => [provider, model === 'auto' ? (provider === 'NEXUS' ? 'auto' : '') : model].filter(Boolean).join(' · ');
+
+const CouncilUI = {
+  /* one council's progress, live: a row per model, then the synthesis, then the result */
+  live({ details = false } = {}) {
+    const node = el('div', { class: 'cc-live', role: 'status', 'aria-live': 'polite' });
+    const title = el('span', { class: 'cc-t', text: '🧠 AI Council' }), clock = el('span', { class: 'cc-clock', text: '0.0s' });
+    const rows = el('div', { class: 'cc-rows' }), foot = el('div');
+    node.append(el('div', { class: 'cc-head' }, [title, clock]), rows, foot);
+    const t0 = Date.now();
+    const timer = setInterval(() => { if (!node.isConnected && Date.now() - t0 > 3000) clearInterval(timer); else clock.textContent = ((Date.now() - t0) / 1000).toFixed(1) + 's'; }, 250);
+    const byId = new Map(), info = new Map();
+    const row = id => {
+      let r = byId.get(id);
+      if (!r) { r = el('div', { class: 'cc-row', dataset: { state: 'waiting', id } }, [el('i', { class: 'cc-dot' }), el('div', { class: 'cc-name' }), el('div', { class: 'cc-state', text: STATE_AR.waiting })]); byId.set(id, r); rows.appendChild(r); }
+      return r;
+    };
+    const name = (id, t, provider, model) => {
+      const n = row(id).children[1];
+      n.textContent = '';
+      n.appendChild(el('b', { text: t }));
+      const m = who(provider, model);
+      if (m) n.appendChild(el('span', { class: 'cc-m', text: m }));
+    };
+    const state = (id, s, extra) => { const r = row(id); r.dataset.state = s; r.children[2].textContent = (STATE_AR[s] || s) + (extra ? ' · ' + extra : ''); };
+    const member = (id, patch) => {
+      const i = info.get(id) || {};
+      Object.keys(patch).forEach(k => { if (patch[k] != null) i[k] = patch[k]; });         // what is not said stays as it was
+      info.set(id, i);
+      name(id, i.title + (i.lead ? ' ★' : ''), i.provider, i.model);
+    };
+    const synthName = 'Synthesis · المراجعة والدمج';
+    return { node, update(ev) {
+      if (ev.type === 'start') {
+        title.textContent = '🧠 AI Council · ' + (MODE_TEXT[ev.mode] || [ev.mode])[0] + ' · ' + ev.n + ' نماذج';
+        ev.members.forEach(m => member(m.id, { title: m.title, lead: m.lead, provider: m.provider, model: m.model, source: m.source }));
+        name('synthesis', synthName, '', '');
+      } else if (ev.type === 'plan') {
+        (ev.members || []).forEach(m => { if (!byId.has(m.id)) return; member(m.id, { provider: m.provider, model: m.model }); if (m.note) row(m.id).title = m.note; });
+        if (ev.phase !== 'synthesis') {
+          /* the members the server will not run (not Pro, the day's requests): skipped, not failed */
+          const ran = new Set((ev.members || []).map(m => m.id));
+          info.forEach((i, id) => { if (i.source !== 'own' && !ran.has(id)) state(id, 'skipped', 'لم يُشغَّل'); });
+          if (ev.phase === 'all' && (ev.members || []).length < 2) state('synthesis', 'skipped', 'نموذج واحد');
+        }
+        if (ev.reduced && REDUCED[ev.reduced]) foot.appendChild(el('div', { class: 'cc-note', text: REDUCED[ev.reduced] }));
+      } else if (ev.type === 'member' && byId.has(ev.id)) {
+        if (ev.provider || ev.model) member(ev.id, { provider: ev.provider, model: ev.model });
+        state(ev.id, ev.state, ev.state === 'done' ? secs(ev.ms) : ev.state === 'retrying' ? ev.note : ev.state === 'failed' ? ev.error : '');
+      } else if (ev.type === 'synthesis') {
+        if (ev.provider || ev.model) name('synthesis', synthName, ev.provider, ev.model);
+        state('synthesis', ev.state, ev.state === 'done' ? secs(ev.ms) : ev.state === 'skipped' ? ev.note : ev.note || ev.error || '');
+      } else if (ev.type === 'final') {
+        clearInterval(timer);
+        const d = ev.details || {};
+        foot.appendChild(el('div', { class: 'cc-final' + (d.degraded ? ' warn' : ''), text: d.degraded ? '⚠ النتيجة جاهزة بما توفّر — ' + (d.note || 'بعض النماذج لم تُجب') : '✓ Final result ready · النتيجة النهائية جاهزة' }));
+        if (details) node.appendChild(CouncilUI.details(d));
+      } else if (ev.type === 'error') {
+        clearInterval(timer);
+        foot.appendChild(el('div', { class: 'cc-final bad', text: (ev.aborted ? '⏹ ' : '✕ ') + (ev.message || '') }));
+      }
+    } };
+  },
+
+  /* a finished council: ONE result above; each model's own part only when this is opened */
+  details(d) {
+    d = d || {};
+    const ms = d.members || [], ok = ms.filter(m => m.state === 'done').length;
+    const box = el('details', { class: 'cc-det' });
+    box.appendChild(el('summary', { text: '🧠 AI Council Details · ' + (d.fallback ? 'أجاب نموذج واحد' : ok + '/' + ms.length + ' نماذج')
+      + (d.synthesis ? ' · الدمج: ' + who(d.synthesis.provider, d.synthesis.model) : '') + (d.ms ? ' · ' + secs(d.ms) : '') }));
+
+    box.addEventListener('toggle', () => {
+      if (!box.open || box._built) return;
+      box._built = true;
+      const body = el('div', { class: 'cc-body' });
+      body.appendChild(el('div', { class: 'tiny', text: 'Multi-AI collaboration: عدة نماذج عملت معًا على هذه النتيجة، كلٌّ بدوره، ثم راجع أحدها كل المساهمات وكتب النتيجة النهائية أعلاه. ليس نموذجًا جديدًا — وهذه مساهمة كل نموذج كما كتبها.' }));
+      if (d.fallback) body.appendChild(el('div', { class: 'cc-note', text: 'المجلس لم يعمل هذه المرة (' + d.fallback + ') — أجاب نموذج واحد.' }));
+      if (d.degraded) body.appendChild(el('div', { class: 'cc-note', text: d.note || 'بعض النماذج لم تُجب — استُعمل ما توفّر.' }));
+      ms.forEach(m => {
+        const c = el('div', { class: 'cc-contrib' });
+        c.appendChild(el('div', { class: 'cc-ch' }, [el('b', { text: (m.state === 'done' ? '● ' : m.state === 'skipped' ? '○ ' : '✗ ') + m.title + (m.lead ? ' ★' : '') }),
+          el('span', { class: 'cc-m', text: who(m.provider, m.model) + (m.source === 'own' ? ' · مفتاحك' : '') }), el('span', { class: 'tiny', text: m.state === 'done' ? secs(m.ms) : m.state === 'skipped' ? 'لم يُشغَّل' : 'فشل' })]));
+        if (m.state !== 'skipped') c.appendChild(el('pre', { text: m.state === 'done' ? (m.text || '') : (m.error || 'لم يُجب') }));
+        body.appendChild(c);
+      });
+      box.appendChild(body);
+    });
+    /* what the server decided for this account (Pro, the day's requests) — shown, never folded away */
+    if (!(d.reduced && REDUCED[d.reduced])) return box;
+    return el('div', { class: 'cc-wrap' }, [el('div', { class: 'cc-note', text: '🧠 ' + REDUCED[d.reduced] }), box]);
+  },
+
+  /* ---------------- the settings: mode, models, synthesis, the server's limits ---------------- */
+  async open() {
+    const body = el('div', { class: 'cc-sheet' });
+    const sheet = Sheet.open({ title: '🧠 مجلس الذكاء · Multi-AI Council', body, full: true, id: 'council' });
+    body.appendChild(el('div', { class: 'card', style: { fontSize: '13px', lineHeight: '1.8', marginBottom: '12px' } }, [
+      el('b', { text: 'NEXUS Pro · Multi-AI collaboration' }),
+      el('div', { text: '• حتى 4 نماذج ذكاء اصطناعي تعمل على المهمة الواحدة، كلٌّ بدوره: الخطة، الأصول الحقيقية، الكود، المراجعة.' }),
+      el('div', { text: '• ثم يراجع أحدها كل النتائج ويكتب نتيجة نهائية واحدة — تُنفَّذ في مشروعك كما تُنفَّذ نتيجة نموذج واحد: معاينة ثم APPLY، أصول حقيقية فقط، وتراجع بخطوة واحدة.' }),
+      el('div', { text: '• إذا فشل نموذج يكمل الباقون، وإذا فشل الدمج يكمله نموذج آخر.' }),
+      el('div', { style: { color: '#fcd77a' }, text: '• هذا تعاون بين نماذج موجودة، وليس نموذجًا جديدًا ولا «أقوى من Claude».' })]));
+    const status = el('div', { class: 'card', style: { fontSize: '13px', lineHeight: '1.7', marginBottom: '12px' }, text: 'أسأل الخادم عن حسابك…' });
+    const main = el('div');
+    body.append(status, main);
+    const caps = await Council.config(true);
+    status.textContent = '';
+    const pro = !!(caps && caps.pro), usable = !!(caps && caps.enabled);
+    if (!FreeAI.signedIn()) {
+      status.append(el('b', { text: '🔒 سجّل الدخول أولًا' }), el('div', { class: 'tiny', text: 'المجلس يعمل عبر الذكاء المجاني في الموقع، لأصحاب الحسابات.' }),
+        btn('تسجيل الدخول', { cls: 'sm primary', style: { marginTop: '8px' }, onclick: () => NX.promptSignIn('مجلس الذكاء لأصحاب الحسابات.', () => { sheet.close(); this.open(); }) }));
+    } else if (!caps) {
+      status.append(el('b', { text: '⚪ المجلس غير متاح على هذا الموقع' }), el('div', { class: 'tiny', text: FreeAI.state === 'off' ? FreeAI.offText() : 'خادم الموقع لا يجيب الآن — جرّب بعد قليل.' }));
+    } else if (!usable) {
+      status.append(el('b', { text: '⚪ صاحب الموقع أوقف المجلس أو لم يضع مفاتيح بعد' }));
+    } else if (pro) {
+      status.append(el('span', { class: 'cc-lock', text: '⭐ Pro' }), ' ', el('b', { text: 'حسابك يستطيع استعمال حتى ' + caps.maxModels + ' نماذج في المهمة الواحدة.' }),
+        el('div', { class: 'tiny', text: 'الخادم يتحقّق من اشتراكك في كل طلب — الصفحة لا تقرّر ذلك.' }));
+    } else {
+      status.append(el('b', { text: 'حسابك مجاني: نموذج واحد لكل مهمة (Single AI).' }),
+        el('div', { class: 'tiny', text: caps.verified ? 'Multi-AI Council من مزايا NEXUS Pro. الخادم يعطي الحساب المجاني نموذجًا واحدًا مهما أُرسل من المتصفح.' : 'لا يستطيع خادم الموقع التحقق من Pro الآن (يحتاج FIREBASE_SERVICE_ACCOUNT) — نموذج واحد فقط.' }),
+        NX.Points ? btn('⭐ اشترك في NEXUS Pro', { cls: 'sm primary', style: { marginTop: '8px' }, onclick: () => { sheet.close(); NX.Points.open(); } }) : el('span'));
+    }
+    const lock = !(pro && usable);
+
+    /* the mode */
+    main.appendChild(el('div', { class: 'ttl', text: 'الوضع' }));
+    const modes = el('div', { class: 'cc-modes' });
+    const paintModes = () => {
+      modes.textContent = '';
+      Object.keys(MODE_TEXT).forEach(k => {
+        const on = (lock ? 'single' : Council.mode()) === k;
+        modes.appendChild(el('button', { class: 'cc-mode' + (on ? ' on' : ''), type: 'button', disabled: lock && k !== 'single', dataset: { mode: k },
+          onclick: () => { if (lock) return; Council.setMode(k); paintModes(); Toast.ok('المجلس: ' + MODE_TEXT[k][0]); } }, [
+          el('b', { text: MODE_TEXT[k][0] + (k === 'smart' ? ' — موصى به' : '') + (lock && k !== 'single' ? ' 🔒 Pro' : '') }), el('span', { text: MODE_TEXT[k][1] })]));
+      });
+    };
+    paintModes();
+    main.appendChild(modes);
+
+    /* the models: up to maxModels, chosen from the REAL lists */
+    const max = (caps && caps.proMaxModels) || 4;
+    main.appendChild(el('div', { class: 'ttl', text: 'النماذج (حتى ' + max + ') — الأول يكتب المسودة الرئيسية' }));
+    main.appendChild(el('p', { class: 'tiny', style: { margin: '-2px 0 6px' }, text: 'بلا اختيار: النموذج الذي تستعمله يقود، و«NEXUS · auto» للبقية (يوزّعها الخادم على مزوّدين مختلفين). نماذج مفاتيحك الخاصة تعمل من متصفحك — مفاتيحك لا تغادره.' }));
+    const picksBox = el('div', { class: 'cc-picks' }), synthRow = el('div');
+    main.append(picksBox, synthRow);
+    const addBox = el('div');
+    main.appendChild(addBox);
+    const ROLE_SAMPLE = ['المسودة الرئيسية', 'الخطة / التحليل', 'الأصول / الاختبار', 'المراجعة'];
+    const paintPicks = () => {
+      picksBox.textContent = '';
+      const picks = Council.picks();
+      if (!picks.length) picksBox.appendChild(el('div', { class: 'tiny', text: 'تلقائي: ' + Council.pool().map(p => (p.pid === 'nexus' ? 'NEXUS' : PROVIDERS[p.pid].name) + ' · ' + p.model).join(' ← ') }));
+      picks.forEach((p, i) => picksBox.appendChild(el('div', { class: 'cc-pick', dataset: { pick: p.pid + '|' + p.model } }, [
+        el('span', { class: 'n', text: '#' + (i + 1) }),
+        el('span', { class: 'w', text: (p.pid === 'nexus' ? 'NEXUS · ' : PROVIDERS[p.pid].name + ' (مفتاحك) · ') + p.model }),
+        el('span', { class: 'r', text: ROLE_SAMPLE[i] }),
+        i ? el('button', { class: 'chip', type: 'button', text: '↑', title: 'قدّمه', disabled: lock, onclick: () => { const l = Council.picks(); [l[i - 1], l[i]] = [l[i], l[i - 1]]; Council.setPicks(l); paintPicks(); } }) : null,
+        el('button', { class: 'chip', type: 'button', text: '✕', title: 'أزله', disabled: lock, onclick: () => { Council.setPicks(Council.picks().filter((x, j) => j !== i)); paintPicks(); } })])));
+      /* who merges: the lead's model by default (another takes over when it fails) — the server's models only */
+      synthRow.textContent = '';
+      const srv = picks.filter(p => p.pid === 'nexus' && p.model !== 'auto');
+      const sel = el('select', { class: 'select', disabled: lock, style: { direction: 'ltr' } }, [el('option', { value: 'auto', text: 'auto — نموذج المسودة الرئيسية، ثم غيره إن فشل' })].concat(srv.map(p => el('option', { value: p.model, text: p.model }))));
+      sel.value = srv.some(p => p.model === Council.synth()) ? Council.synth() : 'auto';
+      sel.onchange = () => Council.setSynth(sel.value);
+      synthRow.appendChild(NX.field('نموذج المراجعة والدمج (Synthesis)', sel));
+    };
+    paintPicks();
+
+    /* what can be added: the server's real model list (grouped by provider) + the models of the player's own keys */
+    const drawAdd = (list, owners) => {
+      addBox.textContent = '';
+      if (lock) return;
+      addBox.appendChild(el('div', { class: 'ttl', style: { marginTop: '10px' }, text: 'أضف نموذجًا' }));
+      const add = (pid, model) => {
+        const l = Council.picks();
+        if (l.length >= max) { Toast.err('حتى ' + max + ' نماذج'); return; }
+        if (model !== 'auto' && l.some(x => x.pid === pid && x.model === model)) { Toast.show('مضاف من قبل — اختر نموذجًا آخر ليعمل كل نموذج بدور مختلف'); return; }
+        l.push({ pid, model }); Council.setPicks(l); paintPicks();
+      };
+      const groups = new Map();
+      (list || ['auto']).forEach(m => { const g = m === 'auto' ? 'NEXUS' : ((owners && owners[m]) || 'NEXUS'); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(m); });
+      groups.forEach((ms, g) => {
+        const box = el('div', { class: 'mp-box' }, [el('div', { class: 'mp-grp', text: (g === 'NEXUS' || g === 'nexus' ? 'NEXUS — تلقائي' : g + ' · خادم الموقع') })]);
+        const chips = el('div', { class: 'chips', style: { flexWrap: 'wrap' } });
+        ms.slice(0, 60).forEach(m => chips.appendChild(el('button', { class: 'chip', type: 'button', text: m === 'auto' ? 'auto — مزوّد مختلف لكل عضو' : m, dataset: { add: 'nexus|' + m }, onclick: () => add('nexus', m) })));
+        box.appendChild(chips); addBox.appendChild(box);
+      });
+      Object.values(PROVIDERS).filter(P => !P.builtin && Council.ownReady(P.id)).forEach(P => {
+        const c = AIConfig.get(P.id), ms = (c.models && c.models.length ? c.models : [c.model]).filter(Boolean);
+        const box = el('div', { class: 'mp-box' }, [el('div', { class: 'mp-grp', text: P.name + ' · مفتاحك (من متصفحك)' })]);
+        const chips = el('div', { class: 'chips', style: { flexWrap: 'wrap' } });
+        ms.slice(0, 40).forEach(m => chips.appendChild(el('button', { class: 'chip', type: 'button', text: m, dataset: { add: P.id + '|' + m }, onclick: () => add(P.id, m) })));
+        box.appendChild(chips); addBox.appendChild(box);
+      });
+    };
+    const saved = AIConfig.all().nexus || {};
+    drawAdd(saved.models && saved.models.length ? saved.models : ['auto'], saved.modelOwners);
+    if (!lock && FreeAI.ready()) AIClient.listModels('nexus').then(l => drawAdd(Array.from(l), l.owners)).catch(() => {});
+
+    /* the server's limits — shown, never set here */
+    if (caps && caps.limits) {
+      const L = caps.limits;
+      main.appendChild(el('div', { class: 'ttl', style: { marginTop: '14px' }, text: 'حدود الخادم' }));
+      main.appendChild(el('div', { class: 'card cc-limits' }, [
+        el('span', { class: 'k', text: 'maxModelsPerRequest' }), el('b', { text: String(L.maxModelsPerRequest) + (pro ? '' : ' (حسابك: 1)') }),
+        el('span', { class: 'k', text: 'maxParallelRequests' }), el('b', { text: String(L.maxParallelRequests) }),
+        el('span', { class: 'k', text: 'maxSynthesisTokens' }), el('b', { text: String(L.maxSynthesisTokens) }),
+        el('span', { class: 'k', text: 'maxRequestTime' }), el('b', { text: Math.round(L.maxRequestTime / 1000) + 's' }),
+        el('span', { class: 'k', text: 'maxRetries' }), el('b', { text: String(L.maxRetries) })]));
+      main.appendChild(el('p', { class: 'tiny', style: { marginTop: '6px', lineHeight: '1.7' }, text: 'يضبطها صاحب الموقع على خادمه (COUNCIL_* في Netlify)، والمتصفح لا يستطيع تجاوزها. كل استدعاء نموذج يُحسب طلبًا من طلبات ذكاء اليوم، وما لم يُستعمل يُعاد.' }));
+    }
+    return sheet;
+  },
+
+  /* the builder's council: REAL assets for what the request names — found with Assets.search (the
+     user's files first, then the public library), added to PROJECT CONTEXT.assets with their real ids.
+     The executor checks every id again before anything is placed; nothing is invented. */
+  async enrich(prompt, ctx) {
+    const A = NX.Agent, G = NX.GameComposer;
+    if (!A || !A.nlp || !G || !ctx) return [];
+    const { words, detectConcept, CONCEPTS } = A.nlp;
+    const want = new Map();
+    words(prompt).forEach(w => { const c = detectConcept(w); if (c && !c.concept.noAsset) want.set(c.concept.id, c.concept); });
+    /* a whole game, a city or a village: what such a scene is usually made of */
+    if (G.isRequest(prompt) || /(مدين|قري|عالم|city|town|village|world)/i.test(prompt))
+      ['road', 'building', 'house', 'tree', 'car', 'character', 'lamp'].forEach(id => { const c = CONCEPTS.find(x => x.id === id); if (c && !want.has(id)) want.set(id, c); });
+    if (!want.size) return [];
+    const usable = await G.usableAssets().catch(() => []);
+    const have = new Set((ctx.assets || []).map(a => a.assetId)), found = [];
+    for (const c of Array.from(want.values()).slice(0, 10)) {
+      const pick = await G.choose(c, usable).catch(() => null);
+      [pick].concat((pick && pick.alternatives) || []).filter(x => x && x.a).slice(0, 2).forEach(x => {
+        if (have.has(x.a.assetId)) return;
+        have.add(x.a.assetId);
+        const t = NX.assetTypeOf ? NX.assetTypeOf(x.a) || {} : {};
+        found.push({ assetId: x.a.assetId, name: x.a.name, kind: x.a.kind, category: x.a.category || null, type: t.type || null,
+          size: x.a.stats ? x.a.stats.size : null, forConcept: c.id, source: x.scope === 'public' ? 'public library' + (x.a.creatorName ? ' @' + x.a.creatorName : '') : 'your files', inProject: false });
+      });
+    }
+    ctx.assets = (ctx.assets || []).concat(found);
+    return found;
+  }
+};
+
+/* ---------------- 🧠 the chip beside the model badge (chat) and in the assistant panel ---------------- */
+const SHORT = { single: '1', smart: 'Smart', full: 'Full' };
+const Chip = {
+  nodes: new Set(),
+  /* the full label — and a short one where room is scarce (the chat bar, beside the model badge) */
+  text(short) {
+    const c = Council.caps;
+    if (!FreeAI.ready() || !c || !c.enabled) return null;           // no council here (or not signed in): nothing to tap
+    if (short) return c.pro ? '🧠 ' + SHORT[Council.mode()] : '🧠 Pro';
+    return c.pro ? '🧠 ' + MODE_TEXT[Council.mode()][0] : '🧠 AI Council · Pro';
+  },
+  make(short) { const b = el('button', { class: 'chip cc-chip hide', type: 'button', onclick: () => CouncilUI.open() }); b._short = !!short; this.nodes.add(b); this.paint(b); return b; },
+  paint(b) {
+    const t = this.text(b._short), full = this.text(false);
+    b.classList.toggle('hide', !t);
+    if (t) { b.textContent = t; b.title = 'Multi-AI Council · ' + full.replace(/^🧠 /, ''); b.setAttribute('aria-label', b.title); }
+    b.classList.toggle('on', !!(Council.caps && Council.caps.pro && Council.mode() !== 'single'));
+  },
+  paintAll() { this.nodes.forEach(b => { if (!b.isConnected) this.nodes.delete(b); else this.paint(b); }); }
+};
+
+if (!window.NX_SANDBOX) {
+  /* the chat bar: the chip after the model badge */
+  if (NX.Chat) {
+    const _rb = NX.Chat.refreshBadge;
+    NX.Chat.refreshBadge = function () {
+      _rb.apply(this, arguments);
+      if (!this.badge) return;
+      if (!this._ccChip || this._ccChip.parentNode !== this.badge.parentNode) { this._ccChip = Chip.make(true); this.badge.after(this._ccChip); }
+      Chip.paint(this._ccChip);
+    };
+    if (NX.Chat.badge) NX.Chat.refreshBadge();
+  }
+  /* the assistant panel: the chip under «محادثة · بناء» */
+  if (NX.AIPanel) {
+    const A = NX.AIPanel, _open = A.open;
+    A.open = function () {
+      const r = _open.apply(this, arguments);
+      try { if (this.modeSeg && this.modeSeg.parentNode && !this.modeSeg.parentNode.querySelector('.cc-panelrow')) this.modeSeg.after(el('div', { class: 'cc-panelrow' }, [Chip.make()])); } catch (e) { console.warn('[council] chip', e); }
+      return r;
+    };
+  }
+  /* the model picker: the council at the top */
+  if (NX.ModelPicker) {
+    const _mp = NX.ModelPicker.open;
+    NX.ModelPicker.open = function () {
+      const sheet = _mp.apply(this, arguments);
+      try {
+        const mp = sheet && sheet.body && sheet.body.querySelector('.mp');
+        if (mp) mp.insertBefore(el('div', { class: 'card', style: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' } }, [
+          el('div', { style: { flex: '1', minWidth: '180px', fontSize: '12.5px', lineHeight: '1.6' } }, [el('b', { text: '🧠 Multi-AI Council — NEXUS Pro' }), el('div', { class: 'tiny', text: 'حتى 4 نماذج تتعاون في المهمة الواحدة، ثم نتيجة نهائية واحدة.' })]),
+          btn('اختر نماذج المجلس', { cls: 'sm', onclick: () => { sheet.close(); CouncilUI.open(); } })]), mp.firstChild);
+      } catch (e) { console.warn('[council] picker', e); }
+      return sheet;
+    };
+  }
+  /* a council not started from the chat bubble (the builder, the code agent): its progress in the log where it runs */
+  const lives = new Map();
+  window.addEventListener('nx:council', e => {
+    const ev = e.detail || {};
+    if (ev.type === 'settings') { Chip.paintAll(); return; }
+    if (!ev.cid || ev.origin === 'chat') return;
+    let L = lives.get(ev.cid);
+    if (!L) {
+      if (ev.type !== 'start') return;
+      const host = ev.origin === 'agent-chat' ? NX.Chat && NX.Chat.log : NX.AIPanel && NX.AIPanel.log;
+      if (!host || !host.isConnected) return;
+      L = CouncilUI.live({ details: ev.origin !== 'agent-chat' });
+      lives.set(ev.cid, L);
+      host.appendChild(L.node);
+      host.scrollTop = host.scrollHeight;
+    }
+    L.update(ev);
+    if (L.node.parentNode) L.node.parentNode.scrollTop = L.node.parentNode.scrollHeight;
+    if (ev.type === 'final' || ev.type === 'error') lives.delete(ev.cid);
+  });
+  window.addEventListener('nx:aiProvider', () => Chip.paintAll());
+  NX.Commands && NX.Commands.register([
+    { label: 'مجلس الذكاء · Multi-AI Council (Pro)', icon: 'spark', keywords: 'council ai multi models pro مجلس نماذج', run: () => CouncilUI.open() }
+  ]);
+}
+
+NX.CouncilUI = CouncilUI;
+NX.CouncilAssets = { enrich: (p, c) => CouncilUI.enrich(p, c) };
+</script>
+<!-- /NX-PART:36 -->
 <script type="module">
 /* ============================================================
    PART 8/18 · GAME PLATFORM + BOOT

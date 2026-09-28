@@ -32,6 +32,13 @@
   status = 404
   force = true
 
+# tests/ holds the test suites (run with Node on a computer) — never served.
+[[redirects]]
+  from = "/tests/*"
+  to = "/404"
+  status = 404
+  force = true
+
 # Optional — only if Google sign-in by REDIRECT fails on some phones
 # (browsers that block third-party storage). Proxy Firebase's auth helper
 # through this site, then set authDomain in the NEXUS_FIREBASE block of

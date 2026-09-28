@@ -25,7 +25,8 @@ export const SLOTS = 5;
 const KINDS = [
   ['groq', /^gsk_[A-Za-z0-9]{20,}$/],
   ['openrouter', /^sk-or-[A-Za-z0-9_-]{20,}$/],
-  ['gemini', /^(AIza[0-9A-Za-z_-]{30,}|AQ\.[0-9A-Za-z_.-]{20,})$/]
+  ['gemini', /^(AIza[0-9A-Za-z_-]{30,}|AQ\.[0-9A-Za-z_.-]{20,})$/],
+  ['anthropic', /^sk-ant-[A-Za-z0-9_-]{20,}$/]              // Claude — paid: every request is billed to the donor
 ];
 
 /* an error with a short machine-readable code next to a readable message */
@@ -49,7 +50,7 @@ export function providerOf(key) {
 export async function donateKey(db, auth, rawKey) {
   const key = String(rawKey || '').trim().replace(/\s+/g, '');
   const provider = providerOf(key);
-  if (!provider) throw new PoolError('format', 'هذا لا يشبه مفتاح Gemini (AIza… أو AQ.…) أو Groq (gsk_…) أو OpenRouter (sk-or-…)');
+  if (!provider) throw new PoolError('format', 'هذا لا يشبه مفتاح Gemini (AIza… أو AQ.…) أو Groq (gsk_…) أو OpenRouter (sk-or-…) أو Claude (sk-ant-…)');
   if (key.length > 200) throw new PoolError('format', 'المفتاح أطول من اللازم');
 
   const user = auth.currentUser;
@@ -147,7 +148,7 @@ export function mountDonateForm(container, { db, auth, onDonated } = {}) {
   form.className = 'key-pool-form';
   form.innerHTML =
     '<label>مفتاحك<br><input type="password" name="key" autocomplete="off" spellcheck="false" ' +
-    'placeholder="gsk_… / AIza… / AQ.… / sk-or-…" style="width:100%;direction:ltr"></label>' +
+    'placeholder="gsk_… / AIza… / AQ.… / sk-or-… / sk-ant-…" style="width:100%;direction:ltr"></label>' +
     '<div class="kind" aria-live="polite"></div>' +
     '<label><input type="checkbox" name="agree"> المفتاح ملكي، وأسمح باستعماله للذكاء المجاني في هذا الموقع، وأعرف أنني أستطيع سحبه متى شئت.</label><br>' +
     '<button type="submit">🤝 تبرّع بالمفتاح</button>' +

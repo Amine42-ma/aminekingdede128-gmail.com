@@ -1,8 +1,10 @@
 /* ============================================================
    NEXUS · API KEY POOL — the Cloud Function «processRequest»
 
-   Players may donate their own AI keys (Gemini · Groq · OpenRouter) so
-   the site's free AI keeps working for everyone. A donated key is written
+   Players may donate their own AI keys (Gemini · Groq · OpenRouter ·
+   Claude) so the site's free AI keeps working for everyone. (A Claude key
+   is paid: every request is billed to the donor — the donation sheet says
+   so.) A donated key is written
    by the browser ONCE into Firestore «api_keys» (firestore.rules: nobody
    can read it back — not the donor, not another player, not a bot) and
    is only ever used HERE, on the server:
@@ -31,6 +33,8 @@
      POOL_ALLOW_ANONYMOUS  1 = guest sessions may use it too      (off)
      POOL_ALLOWED_ORIGINS  the site's address(es), comma separated (any)
      GEMINI_MODEL · GROQ_MODEL · OPENROUTER_MODEL   the default models
+     ANTHROPIC_MODEL       Claude's default (unset: the first Sonnet of Anthropic's own list)
+     GEMINI_BASE · GROQ_BASE · OPENROUTER_BASE · ANTHROPIC_BASE   another address for the same API
    ============================================================ */
 'use strict';
 
@@ -65,13 +69,16 @@ const CFG = {
 const PROVIDERS = {
   gemini: { label: 'Gemini', base: () => env('GEMINI_BASE', 'https://generativelanguage.googleapis.com/v1beta/openai'), model: () => env('GEMINI_MODEL', 'gemini-3.6-flash') },
   groq: { label: 'Groq', base: () => env('GROQ_BASE', 'https://api.groq.com/openai/v1'), model: () => env('GROQ_MODEL', 'llama-3.3-70b-versatile') },
-  openrouter: { label: 'OpenRouter', base: () => env('OPENROUTER_BASE', 'https://openrouter.ai/api/v1'), model: () => env('OPENROUTER_MODEL', 'meta-llama/llama-3.3-70b-instruct:free') }
+  openrouter: { label: 'OpenRouter', base: () => env('OPENROUTER_BASE', 'https://openrouter.ai/api/v1'), model: () => env('OPENROUTER_MODEL', 'meta-llama/llama-3.3-70b-instruct:free') },
+  /* Claude: the Messages API (translated below); no model name is assumed — its own list decides */
+  anthropic: { label: 'Claude', shape: 'anthropic', base: () => env('ANTHROPIC_BASE', 'https://api.anthropic.com'), model: () => env('ANTHROPIC_MODEL', '') }
 };
 /* which provider a key belongs to — decided here from the key itself, never trusted from the browser */
 function providerOf(key) {
   const k = String(key || '');
   if (/^gsk_[A-Za-z0-9]{20,}$/.test(k)) return 'groq';
   if (/^sk-or-[A-Za-z0-9_-]{20,}$/.test(k)) return 'openrouter';
+  if (/^sk-ant-[A-Za-z0-9_-]{20,}$/.test(k)) return 'anthropic';
   if (/^(AIza[0-9A-Za-z_-]{30,}|AQ\.[0-9A-Za-z_.-]{20,})$/.test(k)) return 'gemini';
   return null;
 }
@@ -199,10 +206,53 @@ function used(k) {
 }
 
 /* ---------------------------------------------------------------- one call to a provider */
+const antHeaders = key => ({ 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': env('ANTHROPIC_VERSION', '2023-06-01') });
+/* Claude's model list, from Anthropic itself (Sonnet first, newest first), asked once an hour */
+let antModels = { at: 0, ids: null };
+async function anthropicModels(key) {
+  if (antModels.ids && Date.now() - antModels.at < 3600e3) return antModels.ids;
+  try {
+    const r = await fetch(PROVIDERS.anthropic.base() + '/v1/models?limit=1000', { headers: antHeaders(key) });
+    if (!r.ok) return antModels.ids || [];
+    const ids = ((await r.json()).data || []).map(m => m && m.id).filter(Boolean);
+    const fam = id => /sonnet/i.test(id) ? 0 : /opus/i.test(id) ? 1 : /haiku/i.test(id) ? 2 : 3;
+    antModels = { at: Date.now(), ids: ids.map((id, i) => [id, i]).sort((a, b) => fam(a[0]) - fam(b[0]) || a[1] - b[1]).map(x => x[0]) };
+  } catch { /* the cached list, or none */ }
+  return antModels.ids || [];
+}
+async function modelFor(k, q) {
+  if (q.model) return q.model;
+  const m = PROVIDERS[k.provider].model();
+  if (m || k.provider !== 'anthropic') return m;
+  return (await anthropicModels(k.key))[0] || null;
+}
+/* the OpenAI-shaped body → Claude's Messages API, and its answer back to the OpenAI shape */
+function toAnthropic(body) {
+  const system = body.messages.filter(m => m.role === 'system').map(m => m.content).join('\n\n');
+  const turns = [];
+  body.messages.filter(m => m.role !== 'system' && String(m.content || '').trim()).forEach(m => {
+    const role = m.role === 'assistant' ? 'assistant' : 'user', last = turns[turns.length - 1];
+    if (last && last.role === role) last.content += '\n\n' + m.content; else turns.push({ role, content: m.content });
+  });
+  if (!turns.length || turns[0].role !== 'user') turns.unshift({ role: 'user', content: '…' });
+  const out = { model: body.model, max_tokens: body.max_tokens, messages: turns };
+  if (system) out.system = system;
+  return out;
+}
 async function callProvider(p, key, body) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), CFG.timeoutMs);
   try {
+    if (PROVIDERS[p].shape === 'anthropic') {
+      const r = await fetch(PROVIDERS[p].base() + '/v1/messages', { method: 'POST', headers: antHeaders(key), body: JSON.stringify(toAnthropic(body)), signal: ctrl.signal });
+      let text = await r.text();
+      if (r.ok) {
+        const j = JSON.parse(text);
+        text = JSON.stringify({ model: j.model || body.model, choices: [{ message: { role: 'assistant', content: (j.content || []).filter(b => b && b.type === 'text').map(b => b.text || '').join('') } }],
+          usage: j.usage ? { prompt_tokens: j.usage.input_tokens || 0, completion_tokens: j.usage.output_tokens || 0 } : null });
+      }
+      return { status: r.status, text, retryAfter: +(r.headers.get('retry-after') || 0) };
+    }
     const headers = { 'content-type': 'application/json', authorization: 'Bearer ' + key };
     if (p === 'openrouter') { headers['X-Title'] = 'NEXUS'; }
     const r = await fetch(PROVIDERS[p].base() + '/chat/completions', { method: 'POST', headers, body: JSON.stringify(body), signal: ctrl.signal });
@@ -227,9 +277,10 @@ async function answer(q) {
   const tries = pool.slice(0, CFG.maxTries);
   const notes = [];
   for (const k of tries) {
-    const model = q.model || PROVIDERS[k.provider].model();
+    const model = await modelFor(k, q);
+    if (!model) { notes.push(PROVIDERS[k.provider].label + ': لا نموذج متاح'); continue; }
     const body = { model, messages: q.messages, max_tokens: q.max_tokens, stream: false };
-    if (q.temperature != null) body.temperature = q.temperature;
+    if (q.temperature != null && PROVIDERS[k.provider].shape !== 'anthropic') body.temperature = q.temperature;
     const r = await callProvider(k.provider, k.key, body);
     if (r.status >= 200 && r.status < 300) {
       let j = null;
@@ -241,7 +292,9 @@ async function answer(q) {
     }
     const refused = r.status === 401 || r.status === 403 || (r.status === 400 && KEY_WORDS.test(r.text));
     if (refused) { await disable(k, 'invalid', 0); notes.push(PROVIDERS[k.provider].label + ': مفتاح مرفوض — عُطّل'); continue; }
-    if (r.status === 429 || r.status === 402) { await disable(k, 'rate-limit', restFor(r)); notes.push(PROVIDERS[k.provider].label + ': وصل حدّه — عُطّل مؤقتًا'); continue; }
+    /* out of quota, rate-limited, or (Claude) «Your credit balance is too low» — it rests, then comes back */
+    const noCredit = r.status === 400 && /credit balance|insufficient[_ ]?(credit|funds|balance)/i.test(r.text);
+    if (r.status === 429 || r.status === 402 || noCredit) { await disable(k, 'rate-limit', restFor(r)); notes.push(PROVIDERS[k.provider].label + ': ' + (noCredit ? 'بلا رصيد' : 'وصل حدّه') + ' — عُطّل مؤقتًا'); continue; }
     /* the model named in the request does not exist there: the request's fault, no key is to blame */
     if ((r.status === 404 || r.status === 400) && /model/i.test(r.text) && q.model) throw new HttpError(400, 'bad_model', 'النموذج «' + scrub(q.model) + '» غير متاح لدى ' + PROVIDERS[k.provider].label);
     if (r.status === 400 || r.status === 413 || r.status === 422) throw new HttpError(r.status, 'provider_rejected', 'رفض المزوّد الطلب: ' + scrub((/"message"\s*:\s*"([^"]*)"/.exec(r.text) || [])[1] || 'طلب غير صالح'));

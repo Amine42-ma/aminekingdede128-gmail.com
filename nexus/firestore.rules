@@ -374,7 +374,7 @@ service cloud.firestore {
     match /api_keys/{keyId} {
       function poolKey(k) {
         return k is string && k.size() >= 20 && k.size() <= 200
-               && k.matches('(AIza[0-9A-Za-z_-]+|AQ[.][0-9A-Za-z_.-]+|gsk_[A-Za-z0-9]+|sk-or-[A-Za-z0-9_-]+)');
+               && k.matches('(AIza[0-9A-Za-z_-]+|AQ[.][0-9A-Za-z_.-]+|gsk_[A-Za-z0-9]+|sk-or-[A-Za-z0-9_-]+|sk-ant-[A-Za-z0-9_-]+)');
       }
       // the key's SHA-256, computed HERE from the key itself: a key already in
       // the pool (api_key_hashes/<hash>) cannot be given again, by anyone
@@ -392,7 +392,7 @@ service cloud.firestore {
                     && incoming().status == 'active'
                     && incoming().failCount == 0
                     && incoming().donorUid == me()
-                    && (!('provider' in incoming()) || incoming().provider in ['gemini', 'groq', 'openrouter']);
+                    && (!('provider' in incoming()) || incoming().provider in ['gemini', 'groq', 'openrouter', 'anthropic']);
       allow update: if false;
       allow delete: if signedIn() && existing().donorUid == me();
     }
@@ -420,6 +420,8 @@ service cloud.firestore {
         allow write: if false;
       }
     }
+    // the day's AI requests (a Multi-AI Council counts each model call) and
+    // councilUntil (one council at a time) — the page cannot reset either
     match /usage/{uid} {
       allow get: if signedIn() && me() == uid;
       allow list, write: if false;
