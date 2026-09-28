@@ -71,8 +71,10 @@ test('«credit balance is too low»: that key rests (disabled until reviveAt), t
   keys.set('d1_0', { key: KEYS.a1, status: 'active', donorUid: 'd1', failCount: 0 });
   keys.set('d2_0', { key: KEYS.a2, status: 'active', donorUid: 'd2', failCount: 0 });
   W.keys = { [KEYS.a1]: 'nocredit' };
+  // processRequest takes the keys in a random order: call until the empty key has had its turn
   let r = null;
-  for (let i = 0; i < 4 && !(r && r.code === 200 && W.calls.some(c => c.key === KEYS.a1)); i++) r = await call({ messages: [{ role: 'user', content: 'hi' }], provider: 'anthropic' });
+  for (let i = 0; i < 60 && !(r && r.code === 200 && W.calls.some(c => c.key === KEYS.a1)); i++) r = await call({ messages: [{ role: 'user', content: 'hi' }], provider: 'anthropic' });
+  assert.ok(W.calls.some(c => c.key === KEYS.a1), 'the empty key was never tried');
   assert.equal(r.code, 200);
   const u = updates.find(x => x.id === 'd1_0');
   assert.ok(u && u.p.status === 'disabled' && u.p.disabledReason === 'rate-limit' && u.p.reviveAt, JSON.stringify(updates));
