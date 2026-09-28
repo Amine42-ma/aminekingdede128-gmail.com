@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Key Pool example</title>
+<style>
+  body { font: 15px/1.6 system-ui, sans-serif; max-width: 640px; margin: 24px auto; padding: 0 16px; background: #fff; color: #222; }
+  section { border: 1px solid #ddd; border-radius: 10px; padding: 14px; margin: 14px 0; }
+  textarea, input[type=password] { box-sizing: border-box; width: 100%; font: inherit; padding: 8px; }
+  button { font: inherit; padding: 8px 14px; margin-top: 6px; }
+  pre { white-space: pre-wrap; background: #f5f5f5; padding: 10px; border-radius: 8px; min-height: 1.6em; }
+</style>
+</head>
+<body>
+<!-- A minimal page for the API key pool: sign in, donate a key, ask
+     processRequest. Fill FIREBASE_CONFIG with your own project's web config
+     (Firebase console → Project settings → Your apps) and PROCESS_URL with
+     the address «firebase deploy» printed. ?emulators=1 uses the local
+     Firebase emulators instead (project demo-nexus). -->
+<h1>🤝 مجمّع مفاتيح الذكاء</h1>
+<section>
+  <div id="who">غير مسجّل</div>
+  <button id="signin">تسجيل الدخول بـ Google</button>
+</section>
+<section>
+  <h2>تبرّع بمفتاح</h2>
+  <div id="pool"></div>
+</section>
+<section>
+  <h2>اسأل عبر processRequest</h2>
+  <textarea id="q" rows="3">قل مرحبا</textarea>
+  <button id="ask">إرسال</button>
+  <pre id="out"></pre>
+</section>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, connectAuthEmulator } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getFirestore, connectFirestoreEmulator } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { mountDonateForm, processRequest } from './key-pool-client.js';
+
+const EMULATORS = new URLSearchParams(location.search).has('emulators');
+
+/* your project's web config — these values identify the project, they are not secrets */
+const FIREBASE_CONFIG = EMULATORS
+  ? { apiKey: 'demo-key', authDomain: 'demo-nexus.firebaseapp.com', projectId: 'demo-nexus' }
+  : { apiKey: 'PASTE_API_KEY', authDomain: 'PASTE_PROJECT_ID.firebaseapp.com', projectId: 'PASTE_PROJECT_ID', appId: 'PASTE_APP_ID' };
+const PROCESS_URL = EMULATORS
+  ? 'http://127.0.0.1:5001/demo-nexus/us-central1/processRequest'
+  : 'https://us-central1-' + FIREBASE_CONFIG.projectId + '.cloudfunctions.net/processRequest';
+
+const out = document.getElementById('out');
+if (/^PASTE_/.test(FIREBASE_CONFIG.apiKey)) {
+  out.textContent = 'املأ FIREBASE_CONFIG في هذا الملف بإعدادات مشروعك أولًا.';
+  throw new Error('FIREBASE_CONFIG is not filled in');
+}
+
+const app = initializeApp(FIREBASE_CONFIG);
+const auth = getAuth(app);
+const db = getFirestore(app);
+if (EMULATORS) {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+}
+
+onAuthStateChanged(auth, u => {
+  document.getElementById('who').textContent = u ? 'مسجّل: ' + (u.email || u.uid) : 'غير مسجّل';
+});
+document.getElementById('signin').onclick = () =>
+  signInWithPopup(auth, new GoogleAuthProvider()).catch(e => { out.textContent = 'تعذّر تسجيل الدخول: ' + e.message; });
+
+/* 1 — the donate form (a field + a button → Firestore api_keys) */
+mountDonateForm(document.getElementById('pool'), { db, auth });
+
+/* 2 — a request through the Cloud Function: only the answer comes back */
+async function ask(text) {
+  return processRequest(auth, { messages: [{ role: 'user', content: text }], max_tokens: 512 }, { url: PROCESS_URL });
+}
+document.getElementById('ask').onclick = async ev => {
+  const b = ev.currentTarget;
+  b.disabled = true;
+  out.textContent = '…';
+  try {
+    const r = await ask(document.getElementById('q').value);
+    out.textContent = r.text + '\n\n— ' + r.provider + ' · ' + r.model;
+  } catch (e) {
+    out.textContent = '✗ ' + e.message + ' (' + e.code + ')';
+  } finally {
+    b.disabled = false;
+  }
+};
+
+/* for the browser console / tests */
+window.keyPoolDemo = { auth, db, ask };
+</script>
+</body>
+</html>

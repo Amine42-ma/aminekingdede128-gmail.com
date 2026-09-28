@@ -1,0 +1,104 @@
+rules_version = '2';
+// NEXUS — Cloud Storage security rules.
+// Deploy:  firebase deploy --only storage
+// Large files (models, images, audio, video, WASM) live here; Firestore only
+// stores their path + metadata. Private content stays private: reads of
+// someone else's file are checked against the Firestore document it belongs
+// to (cross-service rules — accept the permission prompt when deploying).
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn()       { return request.auth != null; }
+    function owner(userId)    { return signedIn() && request.auth.uid == userId; }
+    function under(mb)        { return request.resource.size < mb * 1024 * 1024; }
+    function typeIs(pattern)  { return request.resource.contentType.matches(pattern); }
+    function docVis(col, id)  { return firestore.get(/databases/(default)/documents/$(col)/$(id)).data.visibility; }
+    // age ratings (see firestore.rules → ages): 3+ for everyone; above that an
+    // account whose birth month makes the player old enough
+    function hasAccount()     { return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'; }
+    function ageOf(col, id)   { return firestore.get(/databases/(default)/documents/$(col)/$(id)).data.get('ageRating', '3'); }
+    function yearsOld() {
+      let b = firestore.get(/databases/(default)/documents/ages/$(request.auth.uid)).data;
+      return request.time.year() - b.y - (request.time.month() < b.m ? 1 : 0);
+    }
+    function ageAllows(r)     { return r == '3' || (hasAccount() && yearsOld() >= int(r)); }
+    function isImage()        { return resource.contentType.matches('image/.*'); }
+
+    // user assets: models / images / audio / data — never executable code
+    match /assets/{userId}/{assetId}/{file} {
+      allow read: if owner(userId) || docVis('assets', assetId) != 'private';
+      allow create, update: if owner(userId) && under(64)
+                    && (typeIs('model/.*') || typeIs('image/.*') || typeIs('audio/.*')
+                        || typeIs('application/octet-stream') || typeIs('text/plain') || typeIs('application/json'));
+      allow delete: if owner(userId);
+    }
+
+    // a game's showcase (GAME MEDIA): cover, banner, background, screenshots
+    // up to 12 MB each, the gameplay video up to 128 MB. Same readers as below.
+    match /games/{userId}/{gameId}/showcase/{file} {
+      allow read: if owner(userId)
+                  || (firestore.exists(/databases/(default)/documents/games/$(gameId))
+                      && docVis('games', gameId) != 'private');
+      allow create, update: if owner(userId)
+                    && ((typeIs('image/.*') && under(12)) || (typeIs('video/.*') && under(128)));
+      allow delete: if owner(userId);
+    }
+
+    // published games: cover, compiled WebAssembly, large build snapshots.
+    // Readable by others only while the game record is not private.
+    // What runs (not the pictures) only for players its age rating allows.
+    match /games/{userId}/{gameId}/{rest=**} {
+      allow read: if owner(userId)
+                  || (firestore.exists(/databases/(default)/documents/games/$(gameId))
+                      && docVis('games', gameId) != 'private'
+                      && (isImage() || ageAllows(ageOf('games', gameId))));
+      allow create, update: if owner(userId) && under(24)
+                    && (typeIs('image/.*') || typeIs('application/wasm') || typeIs('application/octet-stream')
+                        || typeIs('application/json'));
+      allow delete: if owner(userId);
+    }
+
+    // HTML apps & websites: the site's files packed in one ZIP, and its icon.
+    // Readable by others only while the app record is not private.
+    // The files (not the icon and image) only for players its age rating allows.
+    match /apps/{userId}/{appId}/{file} {
+      allow read: if owner(userId)
+                  || (firestore.exists(/databases/(default)/documents/apps/$(appId))
+                      && docVis('apps', appId) != 'private'
+                      && (isImage() || ageAllows(ageOf('apps', appId))));
+      allow create, update: if owner(userId)
+                    && ((typeIs('application/zip') && under(25)) || (typeIs('image/.*') && under(2)));
+      allow delete: if owner(userId);
+    }
+
+    // hosted files with a direct link (PART 34): the server charges the points
+    // first and opens a ticket (Firestore hosting_tickets/<fileId>); only a file
+    // matching that ticket — same owner, same name, no bigger — can be written.
+    // Pages and SVG are stored as plain text, so a direct link never runs them
+    // on this bucket's address (they run in NEXUS's sandbox: …/f/<fileId>).
+    match /hosting/{userId}/{fileId}/{name} {
+      function ticket() { return firestore.get(/databases/(default)/documents/hosting_tickets/$(fileId)).data; }
+      allow read: if true;
+      allow create: if owner(userId) && ticket().uid == userId && ticket().name == name && ticket().state == 'open'
+                    && request.resource.size <= ticket().bytes
+                    && (!name.lower().matches('.*[.](html?|xhtml|svg|xml)$') || typeIs('text/plain.*'));
+      allow update: if false;
+      allow delete: if owner(userId);
+    }
+
+    // diagnostics probe: proves the bucket answers (holds no files)
+    match /_nexus/{file} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // posts · videos · clips · stories
+    match /media/{userId}/{postId}/{file} {
+      allow read: if owner(userId) || docVis('posts', postId) != 'private';
+      allow create, update: if owner(userId) && under(128) && (typeIs('video/.*') || typeIs('image/.*'));
+      allow delete: if owner(userId);
+    }
+
+    // everything else: denied (Storage denies by default; no open rule)
+  }
+}
