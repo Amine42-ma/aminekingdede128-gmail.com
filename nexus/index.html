@@ -31255,10 +31255,9 @@ const Rec = {
 };
 const KIND_AR = { circle: 'دائرة', rect: 'مستطيل', polygon: 'شكل مغلق', line: 'خط', path: 'مسار' };
 
-/* screen → ground (y = the orbit target's height, clamped to ≥ 0) */
+/* screen → the world's ground (y = 0) */
 function toGround(pts) {
-  const eng = E(), y = Math.max(0, +(eng.orbit.target.y || 0) - 0.8 > 0 ? 0 : 0);
-  const plane = new THREE.Plane(V3(0, 1, 0), -y);
+  const eng = E(), plane = new THREE.Plane(V3(0, 1, 0), 0);
   const out = [];
   for (const q of pts) { const w = eng._planePoint(q.x, q.y, plane); if (!w) return null; out.push(w); }
   return out;
@@ -31267,8 +31266,7 @@ function toGround(pts) {
 function defFromDrawing(rec, freehand) {
   let kind = rec.kind;
   if (freehand && (kind === 'circle' || kind === 'rect')) kind = 'polygon';
-  const src = kind === 'circle' && !freehand ? rec.pts : rec.pts;
-  const w = toGround(src); if (!w || w.length < 2) return null;
+  const w = toGround(rec.pts); if (!w || w.length < 2) return null;
   const cx = w.reduce((s, v) => s + v.x, 0) / w.length, cz = w.reduce((s, v) => s + v.z, 0) / w.length;
   if (kind === 'circle') {
     const r = w.reduce((s, v) => s + Math.hypot(v.x - cx, v.z - cz), 0) / w.length;
@@ -31623,7 +31621,7 @@ const UI = {
     const body = el('div');
     let pattern = 'line';
     const count = el('input', { type: 'number', class: 'input', value: 5, min: 1, max: 100 });
-    const seg = el('div', { class: 'seg' }, [['line', 'صف'], ['circle', 'دائرة'], ['grid', 'شبكة']].map(([k, l]) => el('button', { class: k === pattern ? 'on' : '', text: l, onclick: ev => { pattern = k; seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === ev.target)); dist.previousSibling && null; } })));
+    const seg = el('div', { class: 'seg' }, [['line', 'صف'], ['circle', 'دائرة'], ['grid', 'شبكة']].map(([k, l]) => el('button', { class: k === pattern ? 'on' : '', text: l, onclick: ev => { pattern = k; seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === ev.target)); } })));
     const dist = el('input', { type: 'number', class: 'input', placeholder: 'تلقائي', step: 0.1 });
     body.append(NX.field('عدد النسخ', count), NX.field('الشكل', seg), NX.field('المسافة بين النسخ / نصف قطر الدائرة (م)', dist),
       el('p', { class: 'tiny', text: 'الدائرة حول الأصل، والنسخ تواجه المركز. خطوة تراجع واحدة تلغيها كلها.' }));
