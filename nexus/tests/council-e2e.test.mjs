@@ -139,13 +139,35 @@ test('Council settings: Pro unlocks the modes; the server\'s limits are shown, n
 });
 
 /* ================================================================ Game Builder + Assets.search + Council */
-test('Game Builder + Asset search + AI Council: «أنشئ مدينة كاملة في لعبتي» → a real city in the project', async () => {
+/* ================================================================ Smart Council's analysis, in the page, with the server's points */
+test('Smart Council decides from the task (not its length): 1 · 2 · 4 models for the examples, thresholds from the server', async () => {
+  const { page } = S.pro;
+  const r = await page.evaluate(() => {
+    const a = (kind, text, extra) => { const x = NX.Council.analyze(Object.assign({ kind }, extra || {}), text); return { n: x.n, why: NX.Council.why(x) }; };
+    return { th: NX.Council.caps.smart.thresholds,
+      color: a('act', 'غير لون الزر إلى أزرق'),
+      save: a('act', 'أضف نظام حفظ للعبة'),
+      medium: a('act', 'أضف عدوًا يطارد اللاعب مع شريط صحة ونظام نقاط'),
+      city: a('act', 'ابنِ مدينة كاملة، استخدم Assets، أضف NPCs وسيارات وطرق ونظام مهام.'),
+      builder: a('plan', 'أنشئ مدينة كاملة في لعبتي', { origin: 'builder', assets: 6 }),
+      hello: a('ask', 'مرحبا'),
+      fix: a('fix', 'TypeError: x is undefined\nReferenceError: y\nSyntaxError', { errors: 3, files: 1 }) };
+  });
+  assert.deepEqual(r.th, [2, 4, 6], 'the thresholds the server sent');
+  assert.equal(r.color.n, 1, 'a colour change: one model — ' + r.color.why); assert.match(r.color.why, /تعديل صغير/);
+  assert.ok(r.save.n >= 1 && r.save.n <= 2, 'a save system: one or two — ' + r.save.n);
+  assert.ok(r.medium.n >= 2 && r.medium.n <= 3, 'a medium task: 2–3 — ' + r.medium.n + ' ' + r.medium.why);
+  assert.equal(r.city.n, 4, 'a whole city with assets, NPCs, cars, roads, quests: 4 — ' + r.city.why);
+  assert.equal(r.builder.n, 4); assert.equal(r.hello.n, 1); assert.equal(r.fix.n, 2, 'a repair never needs more than two');
+});
+
+test('Game Builder + Asset search + AI Council: «ابنِ مدينة كاملة، استخدم Assets، أضف NPCs وسيارات وطرق ونظام مهام.» → 4 models, a real city in the project', async () => {
   const { page } = S.pro;
   await page.evaluate(async () => { await NX.Platform.createProject('E2E City'); });
   await until(page, () => NX.Studio.project && NX.Studio.engine);
   await page.evaluate(() => { NX.Studio.openAI(); NX.AIPanel.setMode('build'); });
   const n0 = W.calls.length;
-  await page.evaluate(() => NX.AIPanel.send('أنشئ مدينة كاملة في لعبتي'));
+  await page.evaluate(() => NX.AIPanel.send('ابنِ مدينة كاملة، استخدم Assets، أضف NPCs وسيارات وطرق ونظام مهام.'));
   await until(page, () => !NX.Builder.running && NX.AIPanel.log && NX.AIPanel.log.querySelector('.report-card'), null, 180000);
   const calls = callsSince(n0).filter(c => /You plan and write changes inside the NEXUS/.test(c.system));
   const roles = calls.map(roleOf);
@@ -159,6 +181,7 @@ test('Game Builder + Asset search + AI Council: «أنشئ مدينة كاملة
   assert.ok(t('المراجع · Reviewer').t0 >= t('المبرمج · Coder').t1 && t('المراجع · Reviewer').t0 >= t('المخطّط · Planner').t1);
   const log = await page.evaluate(() => NX.AIPanel.log.innerText);
   assert.match(log, /Final result ready/);
+  assert.match(log, /لماذا 4؟[^\n]*لعبة \/ مدينة \/ عالم كامل/, 'the panel says why Smart chose four');
   const r = await page.evaluate(() => ({ assets: Array.from(NX.Studio.engine.entities.values()).map(e => e.assetId).filter(Boolean), files: NX.Studio.project.files.map(f => f.path) }));
   ['asset_e2e_road', 'asset_e2e_house', 'asset_e2e_tree', 'asset_e2e_car'].forEach(id => assert.ok(r.assets.includes(id), id + ' placed: ' + r.assets));
   assert.ok(r.assets.includes('asset_e2e_lamp'), 'the invented lamp id was replaced by a real lamp found with Assets.search');
@@ -209,6 +232,55 @@ test('Code agent + AI Council: the final edit is a real diff, applied to the fil
   await until(page, () => /city ready: /.test((NX.Studio.project.files.find(f => f.path === 'CityLife.js') || {}).code || ''));
   await until(page, () => { const c = NX.Chat.ensure(), m = c.messages[c.messages.length - 1]; return m && /طُبّق التعديل/.test(m.content || ''); }, null, 60000);
   await page.evaluate(() => NX.Council.setMode('smart'));
+});
+
+/* ================================================================ AI MODE, inside the assistant panel */
+test('AI MODE in the assistant panel: Single AI · Smart Council · Full Council — Pro + Single AI runs ONE model', async () => {
+  const { page } = S.pro;
+  await page.evaluate(() => { NX.Sheet.closeAll(); NX.Studio.engine.select(null); NX.Studio.openAI(); });
+  await until(page, () => document.querySelectorAll('.cc-inline').length === 1);
+  await page.click('.cc-inline > summary');
+  await until(page, () => document.querySelectorAll('.cc-inline .cc-radio').length === 3);
+  const txt = await page.evaluate(() => document.querySelector('.cc-inline').innerText);
+  assert.match(txt, /Single AI/); assert.match(txt, /Smart Council/); assert.match(txt, /Full Council/);
+  assert.match(txt, /يختار NEXUS عدد النماذج تلقائيًا حسب تعقيد المهمة/); assert.match(txt, /اختر حتى 4 نماذج/);
+  assert.ok(await page.evaluate(() => document.querySelector('.cc-inline .cc-radio[data-mode="smart"] input').checked), 'Smart is the default for Pro');
+  await page.click('.cc-inline .cc-radio[data-mode="single"] input');
+  try {
+    assert.equal(await page.evaluate(() => NX.Council.mode()), 'single');
+    const n0 = W.calls.length;
+    await page.evaluate(() => NX.CodeAgent.edit('أضف عدوًا يطارد اللاعب مع شريط صحة ونظام نقاط', NX.Agent.panelUI()));
+    const calls = callsSince(n0).filter(c => /You edit the code of a game made with NEXUS/.test(c.system));
+    assert.equal(calls.length, 1, 'Single AI: one call — ' + calls.map(roleOf)); assert.ok(!/YOUR ROLE|REVIEW & SYNTHESIS/.test(calls[0].system));
+  } finally {
+    await page.click('.cc-inline .cc-radio[data-mode="smart"] input');
+  }
+  assert.equal(await page.evaluate(() => NX.Council.mode()), 'smart');
+});
+
+/* the same two sentences to the code agent (a model always writes its edit): what Smart decides */
+test('Pro + Smart Council: «غير لون الزر إلى أزرق» → one model; a medium task → 2–3 models — and it says why', async () => {
+  const { page } = S.pro;
+  const seen = [];
+  await page.exposeFunction('__smartSeen', ev => seen.push(ev));
+  await page.evaluate(() => window.addEventListener('nx:council', e => { if (e.detail && (e.detail.type === 'single' || e.detail.type === 'start')) window.__smartSeen(JSON.parse(JSON.stringify(e.detail))); }));
+  const code = c => /You edit the code of a game made with NEXUS/.test(c.system);
+  let n0 = W.calls.length;
+  await page.evaluate(() => NX.CodeAgent.edit('غير لون الزر إلى أزرق', NX.Agent.panelUI()));
+  let calls = callsSince(n0).filter(code);
+  assert.equal(calls.length, 1, 'one model: ' + calls.map(roleOf)); assert.ok(!/YOUR ROLE/.test(calls[0].system));
+  const single = seen.find(e => e.type === 'single');
+  assert.ok(single && single.analysis && single.analysis.n === 1, 'Smart said: one model');
+  assert.ok(single.analysis.factors.some(f => f.id === 'simple'), 'because it is one small change: ' + JSON.stringify(single.analysis.factors));
+  n0 = W.calls.length;
+  await page.evaluate(() => NX.CodeAgent.edit('أضف عدوًا يطارد اللاعب مع شريط صحة ونظام نقاط', NX.Agent.panelUI()));
+  calls = callsSince(n0).filter(code);
+  const members = calls.filter(c => roleOf(c) !== 'synthesis');
+  assert.ok(members.length >= 2 && members.length <= 3, 'a medium task: 2–3 members — ' + calls.map(roleOf));
+  assert.equal(calls.filter(c => roleOf(c) === 'synthesis').length, 1, 'then ONE synthesis');
+  const start = seen.filter(e => e.type === 'start').pop();
+  assert.ok(start && start.analysis && start.analysis.factors.some(f => f.id === 'systems'), 'the reasons travel with the council: ' + JSON.stringify(start && start.analysis));
+  assert.match(await page.evaluate(() => NX.AIPanel.log.innerText), /لماذا [23]؟/);
 });
 
 /* ================================================================ Smart: one model when that is enough */
@@ -268,6 +340,48 @@ test('Key Pool: a donated Claude key (sk-ant-) is accepted by the rules and serv
   await page.evaluate(() => { NX.Council.setPicks([]); NX.Council.setMode('smart'); });
 });
 
+/* ================================================================ Full Council, chosen in AI MODE's checklist */
+test('Full Council from AI MODE: Claude + Gemini + OpenRouter + Groq ticked (maximum 4) → exactly those four, then one synthesis', async () => {
+  const { page } = S.pro;
+  await page.evaluate(() => { NX.Council.setPicks([]); NX.Sheet.closeAll(); NX.Studio.openAI(); });
+  await until(page, () => document.querySelectorAll('.cc-inline').length === 1);            // the closed panel has slid away
+  await page.evaluate(() => { const d = document.querySelector('.cc-inline'); if (!d.open) d.querySelector('summary').click(); });
+  await until(page, () => document.querySelector('.cc-inline .cc-radio[data-mode="full"] input'));
+  /* what is on top of the radio (an open dialog would be) */
+  const top = await page.evaluate(() => { const r = document.querySelector('.cc-inline .cc-radio[data-mode="full"] input').getBoundingClientRect(); const e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e ? e.tagName + '.' + e.className + ' · modals: ' + document.querySelectorAll('.modal').length : 'nothing'; });
+  await page.click('.cc-inline .cc-radio[data-mode="full"] input', { timeout: 5000 }).catch(e => { throw new Error('cannot click Full (' + top + '): ' + e.message.split('\n')[0]); });
+  const want = ['claude-sonnet-test-1', 'gemini-3.6-flash', 'deepseek/deepseek-chat-v3:free', 'llama-3.3-70b-versatile'];
+  await until(page, w => w.every(m => document.querySelector('.cc-inline .cc-check[data-pick="nexus|' + m + '"]')), want, 30000)
+    .catch(async () => { throw new Error('the checklist shows: ' + JSON.stringify(await page.evaluate(() => ({ mode: NX.Council.mode(), picks: Array.from(document.querySelectorAll('.cc-inline .cc-check')).map(x => x.dataset.pick), body: (document.querySelector('.cc-inline') || {}).innerText })))); });
+  for (const m of want) await page.click('.cc-inline .cc-check[data-pick="nexus|' + m + '"] input');
+  const ui = await page.evaluate(() => ({ head: document.querySelector('.cc-inline .cc-max').innerText, picks: NX.Council.picks().map(p => p.model),
+    fifth: Array.from(document.querySelectorAll('.cc-inline .cc-check input')).filter(i => !i.checked).every(i => i.disabled),
+    labels: Array.from(document.querySelectorAll('.cc-inline .cc-check.on .cc-cm')).map(x => x.textContent) }));
+  assert.deepEqual(ui.picks, want); assert.match(ui.head, /Maximum: 4 · المختار 4\/4/);
+  assert.ok(ui.fifth, 'a fifth model cannot be ticked');
+  assert.deepEqual(ui.labels.map(l => l.split(' — ')[0]).sort(), ['Claude', 'Gemini', 'Groq', 'OpenRouter'], 'grouped by the real provider: ' + ui.labels);
+  const n0 = W.calls.length;
+  await page.evaluate(() => NX.CodeAgent.edit('عدّل رسالة البدء في CityLife.js لتطبع الثواني', NX.Agent.chatUI()));
+  const calls = callsSince(n0).filter(c => /You edit the code of a game made with NEXUS/.test(c.system));
+  assert.deepEqual(calls.filter(c => roleOf(c) !== 'synthesis').map(c => c.model).sort(), want.slice().sort(), 'the four ticked models: ' + calls.map(c => c.provider + ':' + c.model + '/' + roleOf(c)));
+  assert.equal(calls.filter(c => roleOf(c) === 'synthesis').length, 1);
+  await page.evaluate(() => { NX.Council.setPicks([]); NX.Council.setMode('smart'); NX.Sheet.closeAll(); });
+});
+
+test('maxModels raised in the page, or 8 members sent by hand to the server: at most 4 run (the server\'s maximum)', async () => {
+  const { page } = S.pro;
+  const r = await page.evaluate(async () => {
+    NX.Council.caps = Object.assign({}, NX.Council.caps, { maxModels: 8, proMaxModels: 8 });
+    const members = Array.from({ length: 8 }, (_, i) => ({ role: 'r' + i, title: 'M' + i, lead: i === 0, model: 'auto' }));
+    const res = await fetch('/api/ai/council', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + await NX.FreeAI.token() },
+      body: JSON.stringify({ mode: 'full', system: 'x', messages: [{ role: 'user', content: 'hi' }], members }) });
+    const text = await res.text();
+    const plan = JSON.parse((/event: plan\ndata: (.*)/.exec(text) || [])[1] || 'null');
+    return { status: res.status, members: plan && plan.members.length, allowed: plan && plan.allowed, reduced: plan && plan.reduced, max: (await NX.Council.config(true)).maxModels };
+  });
+  assert.deepEqual(r, { status: 200, members: 4, allowed: 4, reduced: 'limit', max: 4 });
+});
+
 /* ================================================================ the player's own key beside the server's models */
 test('Own key + server models: the own-key member runs in the browser (its key never reaches the server)', async () => {
   const { page } = S.pro;
@@ -309,11 +423,12 @@ test('Free account: one model — the UI says so, and the server enforces it eve
     NX.Studio.openAI(); NX.AIPanel.setMode('chat');
   });
   await until(page, () => NX.Studio.project && NX.Chat.log);
-  const n0 = W.calls.length;
+  const n0 = W.calls.length, l0 = site.log.length;
   await page.evaluate(() => NX.Chat.send('هل يمكنك أن تضيف شجرة كبيرة في المنتصف وتكتب سكربت يدوّرها؟'));
   await until(page, () => !NX.Chat.streaming, null, 120000);
   const calls = callsSince(n0);
-  assert.equal(calls.length, 1, 'the server ran ONE model: ' + calls.map(roleOf));
+  assert.deepEqual(site.log.slice(l0).filter(x => x.path === '/api/ai/council').map(x => x.status), [403], 'the server refused the council request (Free: one model)');
+  assert.equal(calls.length, 1, 'ONE model answered instead: ' + calls.map(roleOf));
   const last = await page.evaluate(() => { const c = NX.Chat.ensure(); return c.messages[c.messages.length - 1]; });
   assert.equal(last.council && last.council.reduced, 'pro_required', 'the server said why: ' + JSON.stringify(last.council || null).slice(0, 400));
   assert.match(await page.evaluate(() => NX.Chat.log.lastElementChild.innerText), /NEXUS Pro/);

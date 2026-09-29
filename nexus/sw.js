@@ -7,7 +7,10 @@
 const V = 'v1';
 const SHELL = 'nexus-shell-' + V;   // index.html
 const LIBS = 'nexus-libs-' + V;     // three.js, Firebase SDK, fonts — versioned URLs, never change
-const MEDIA = 'nexus-media-' + V;   // game files (Firebase Storage or Google Drive): models, textures, sounds, covers, snapshots
+/* game files and asset icons (Firebase Storage or Google Drive): models, textures, sounds, covers,
+   snapshots. v2: v1 could hold a host's refusals saved as if they were files (see media()) — it is
+   deleted when this worker starts */
+const MEDIA = 'nexus-media-v2';
 const KEEP = [SHELL, LIBS, MEDIA];
 const MEDIA_MAX = 400;              // entries kept; the oldest go first
 
@@ -96,19 +99,29 @@ async function staleWhileRevalidate(req, e) {
   return net;
 }
 
-/* game files (Storage / Drive): always the current file when online (a
-   republished game may reuse a path), the saved copy when offline */
+/* game files and asset icons (Storage / Drive): the current file whenever the host gives it (a
+   republished game may reuse a path); the saved copy when there is no network OR the host refuses
+   for now — Google Drive's download limits (403 / 429), a busy server (5xx). Only real files are
+   saved: an <img> asks «no-cors», and that answer is opaque — a refusal would look exactly like a
+   file (v1 saved it over the good copy). So the file is asked with CORS (Drive answers it; Storage
+   with cors.json), where the status can be read. */
+/* «not now»: busy (5xx), too many (429), too slow (408) — and Drive's 403 (its download limits). A 403
+   from Firebase Storage means «not allowed» (storage.rules: private, age rating): never covered up. */
+const LATER = (s, drive) => s === 408 || s === 429 || s >= 500 || (drive && s === 403);
 async function media(req, e) {
   const cache = await caches.open(MEDIA);
-  try {
-    const r = await fetch(req);
-    if (r.status === 200 || r.type === 'opaque') e.waitUntil(cache.put(req, r.clone()).then(() => trim(cache)).catch(() => {}));
-    return r;
-  } catch (err) {
-    const hit = await cache.match(req);
+  const saved = () => cache.match(req.url, { ignoreVary: true });
+  let r;
+  try { r = await fetch(req.mode === 'no-cors' ? new Request(req.url, { mode: 'cors', credentials: 'omit' }) : req); }
+  catch (err) {
+    const hit = await saved();
     if (hit) return hit;
+    if (req.mode === 'no-cors') return fetch(req);        // a host without CORS for this site: the <img>'s own request, never saved
     throw err;
   }
+  if (r.status === 200) { e.waitUntil(cache.put(req.url, r.clone()).then(() => trim(cache)).catch(() => {})); return r; }
+  if (LATER(r.status, new URL(req.url).hostname === 'www.googleapis.com')) { const hit = await saved(); if (hit) return hit; }
+  return r;
 }
 
 async function trim(cache) {

@@ -421,7 +421,8 @@ html[data-theme=light] #p-tabs{background:rgba(255,255,255,.93)}
 .acard .thumb{aspect-ratio:1;background:#0a0c14;position:relative;display:grid;place-items:center;overflow:hidden}
 .acard .thumb img{width:100%;height:100%;object-fit:cover}
 .acard .thumb .kind{position:absolute;top:6px;inset-inline-start:6px}
-.acard .thumb .ph{font-size:26px;opacity:.3}
+.acard .thumb .ph{font-size:26px;opacity:.3;position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
+.acard .thumb.thumb-wait .ph::after{content:'↻';position:absolute;bottom:6px;inset-inline-end:8px;font-size:12px;opacity:.9}
 .acard .ainfo{padding:9px 10px;display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
 .acard .ainfo b{font-size:12.5px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .acard .ainfo .by{font-size:10.5px;color:var(--ink-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1495,6 +1496,7 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 /* PART 36 · the Multi-AI Council: live progress, details, settings */
 .cc-live{border:1px solid rgba(124,92,255,.38);background:rgba(124,92,255,.08);border-radius:14px;padding:9px 11px;margin:4px 0 8px;font-size:12.5px;line-height:1.5}
 .cc-head{display:flex;align-items:center;gap:8px;font-weight:800;margin-bottom:5px}
+.cc-why{opacity:.82;margin:0 0 6px;line-height:1.6}
 .cc-head .cc-t{flex:1;min-width:0}
 .cc-head .cc-clock{font:600 11.5px var(--mono,ui-monospace,monospace);color:var(--ink-dim);direction:ltr;unicode-bidi:isolate}
 .cc-row{display:grid;grid-template-columns:12px 1fr;gap:1px 8px;padding:4px 0;border-top:1px solid rgba(255,255,255,.05)}
@@ -1529,6 +1531,26 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 .cc-chip{flex:0 0 auto;font-size:11.5px;white-space:nowrap}
 .cc-chip.on{border-color:rgba(124,92,255,.7);background:rgba(124,92,255,.18)}
 .cc-panelrow{display:flex;gap:6px;align-items:center;margin:0 0 8px;flex-wrap:wrap}
+.cc-inline{border:1px solid rgba(124,92,255,.38);background:rgba(124,92,255,.07);border-radius:12px;margin:0 0 8px;font-size:12.5px}
+.cc-inline>summary{cursor:pointer;padding:7px 10px;font-weight:800;list-style:none}
+.cc-inline>summary::-webkit-details-marker{display:none}
+.cc-inline>summary::before{content:'▸ '}
+.cc-inline[open]>summary::before{content:'▾ '}
+.cc-inbody{padding:2px 10px 10px;display:grid;gap:6px}
+.cc-radio{display:flex;gap:9px;align-items:flex-start;padding:8px 10px;border-radius:11px;border:1px solid var(--line-2);background:var(--glass-2);cursor:pointer}
+.cc-radio input{margin-top:3px;accent-color:#7c5cff}
+.cc-radio b{display:block;font-size:12.5px}
+.cc-radio .tiny{display:block;line-height:1.55}
+.cc-radio.on{border-color:rgba(124,92,255,.75);background:rgba(124,92,255,.16)}
+.cc-radio.locked{opacity:.55;cursor:not-allowed}
+.cc-checks{border:1px solid var(--line);border-radius:11px;padding:8px;background:rgba(0,0,0,.18)}
+.cc-max{font-weight:700;font-size:12px;margin-bottom:6px}
+.cc-grp{margin:4px 0 6px}
+.cc-check{display:flex;align-items:center;gap:8px;padding:4px 2px;cursor:pointer;min-width:0}
+.cc-check input{accent-color:#7c5cff;flex:0 0 auto}
+.cc-check .cc-cm{flex:1;min-width:0;overflow-wrap:anywhere;direction:ltr;unicode-bidi:isolate;text-align:start;font-size:12px}
+.cc-check .cc-n{font:700 11px var(--mono,ui-monospace,monospace);color:#c4b5fd}
+.cc-check input:disabled+.cc-cm{opacity:.5}
 .cc-modes{display:grid;gap:8px;margin:6px 0 12px}
 .cc-mode{text-align:start;padding:10px 12px;border-radius:12px;border:1px solid var(--line-2);background:var(--glass-2);color:var(--ink);font:inherit;cursor:pointer}
 .cc-mode.on{border-color:rgba(124,92,255,.75);background:rgba(124,92,255,.16)}
@@ -2285,24 +2307,25 @@ function scoreAsset(a, qRaw) {
 /* ============================================================
    LOCAL FALLBACK STORE (IndexedDB) — used only when Firebase is
    unavailable. Every surface that runs on it is labelled LOCAL.
+   «nexus-cache» is another database: copies this device keeps only to
+   be faster (asset icons) — deleting it loses nothing.
    ============================================================ */
-const IDB = (() => {
+const idbStores = (name, stores) => {
   let dbp = null;
   /* memory fallback: data lives until the page is closed */
-  const mem = { docs: new Map(), blobs: new Map() };
+  const mem = Object.fromEntries(stores.map(s => [s, new Map()]));
   const memStore = m => ({
     put: (v, k) => ({ result: (m.set(k, v), k) }), get: k => ({ result: m.get(k) }),
-    delete: k => ({ result: (m.delete(k), undefined) }),
+    delete: k => ({ result: (m.delete(k), undefined) }), clear: () => ({ result: (m.clear(), undefined) }),
     getAll: () => ({ result: [...m.values()] }), getAllKeys: () => ({ result: [...m.keys()] })
   });
   function open() {
     if (dbp) return dbp;
     dbp = Promise.race([new Promise((res, rej) => {
-      const r = indexedDB.open('nexus-engine', 1);
+      const r = indexedDB.open(name, 1);
       r.onupgradeneeded = () => {
         const d = r.result;
-        if (!d.objectStoreNames.contains('docs')) d.createObjectStore('docs');
-        if (!d.objectStoreNames.contains('blobs')) d.createObjectStore('blobs');
+        stores.forEach(s => { if (!d.objectStoreNames.contains(s)) d.createObjectStore(s); });
       };
       r.onsuccess = () => res(r.result);
       r.onerror = () => rej(r.error);
@@ -2327,10 +2350,13 @@ const IDB = (() => {
     put: (store, key, val) => tx(store, 'readwrite', s => s.put(val, key)),
     get: (store, key) => tx(store, 'readonly', s => s.get(key)),
     del: (store, key) => tx(store, 'readwrite', s => s.delete(key)),
+    clear: (store) => tx(store, 'readwrite', s => s.clear()),
     all: (store) => tx(store, 'readonly', s => s.getAll()),
     keys: (store) => tx(store, 'readonly', s => s.getAllKeys())
   };
-})();
+};
+const IDB = idbStores('nexus-engine', ['docs', 'blobs']);
+const CacheDB = idbStores('nexus-cache', ['thumbs']);
 
 const blobURLCache = new Map();
 async function localURL(path) {
@@ -2671,7 +2697,12 @@ const Backend = {
          then: the call loads Google's sign-in helper over the network */
       if (LS.get('authRedirect', 0) > Date.now() - 15 * 60000) {
         LS.del('authRedirect');
-        try { Drive.remember(await gate(withTimeout(A.getRedirectResult(auth), 8000))); } catch (e) { if (e && e.code && e.code !== 'timeout') console.warn('[nexus] redirect sign-in:', e.code); }
+        try {
+          const back = await gate(withTimeout(A.getRedirectResult(auth), 8000));
+          Drive.remember(back);
+          /* an account made by this sign-in: its birth month is asked once (PART 30) */
+          if (back && (A.getAdditionalUserInfo(back) || {}).isNewUser) { this.newAccount = back.user.uid; LS.set('ageWelcome', back.user.uid); }
+        } catch (e) { if (e && e.code && e.code !== 'timeout') console.warn('[nexus] redirect sign-in:', e.code); }
       }
       if (auth.authStateReady) await gate(withTimeout(auth.authStateReady(), 10000).catch(() => {}));
 
@@ -2916,7 +2947,7 @@ const Backend = {
         const cur = auth.currentUser;
         try {
           if (cur && cur.isAnonymous) {
-            try { const r = await A.linkWithPopup(cur, p); Drive.remember(r); Backend._refreshUser(); return r.user; }
+            try { const r = await A.linkWithPopup(cur, p); Drive.remember(r); Backend.newAccount = r.user.uid; Backend._refreshUser(); return r.user; }
             catch (e) {
               if (e.code !== 'auth/credential-already-in-use') throw e;
               const cred = A.GoogleAuthProvider.credentialFromError(e);
@@ -2930,6 +2961,7 @@ const Backend = {
           }
           const r = await A.signInWithPopup(auth, p);
           Drive.remember(r);
+          if ((A.getAdditionalUserInfo(r) || {}).isNewUser) Backend.newAccount = r.user.uid;
           return r.user;
         } catch (e) {
           /* Android in-app browsers block popups — the redirect flow works there */
@@ -2947,10 +2979,13 @@ const Backend = {
           /* linking keeps the same uid, so every project stays attached */
           const cred = A.EmailAuthProvider.credential(email, pass);
           const linked = (await A.linkWithCredential(cur, cred)).user;
+          Backend.newAccount = linked.uid;
           Backend._refreshUser();
           return linked;
         }
-        return (await A.createUserWithEmailAndPassword(auth, email, pass)).user;
+        const made = (await A.createUserWithEmailAndPassword(auth, email, pass)).user;
+        Backend.newAccount = made.uid;
+        return made;
       }
       return this._carryAnonymousProjects(async () => (await A.signInWithEmailAndPassword(auth, email, pass)).user);
     },
@@ -4692,6 +4727,7 @@ NX.buildSearchTokens = buildSearchTokens;
 NX.scoreAsset = scoreAsset;
 NX.SECURITY_RULES = SECURITY_RULES;
 NX.IDB = IDB;
+NX.CacheDB = CacheDB;
 NX.FB_CONFIG = FB_CONFIG;
 NX.FB_OWNER_CONFIGURED = FB_OWNER_CONFIGURED;
 NX.configProblems = configProblems;
@@ -7163,7 +7199,7 @@ NX.SHADOWED = SHADOWED;
 import * as THREE from 'three';
 const NX = window.NX;
 const { $, el, btn, iconBtn, icon, Sheet, Modal, Toast, T, fmtNum, fmtBytes, timeAgo, debounce, clamp } = NX;
-const { Assets, Backend, Loaders, AssetCache } = NX;
+const { Assets, Backend, Loaders, AssetCache, CacheDB } = NX;
 
 const ACCEPT = '.glb,.gltf,.obj,.fbx,.png,.jpg,.jpeg,.webp,.mp3,.wav,.ogg,.json,.txt,model/gltf-binary,image/*,audio/*';
 
@@ -7612,28 +7648,189 @@ function statRows(s) {
 }
 
 /* ------------------------------------------------------------
-   LAZY THUMBNAILS (rule 47)
+   ASSET ICONS (rule 47) — three layers, kept apart:
+   • the asset's RECORD (Firestore assets/<id>: thumbnail + thumbnailURL,
+     storagePath + downloadURL) and its FILES (Google Drive / Storage):
+     permanent — the only truth;
+   • the icon's LOCAL COPY (IndexedDB «nexus-cache», this device only): an
+     icon is downloaded once, then shown from here. Deleting it loses
+     nothing: it is fetched again from the record — or drawn again from
+     the asset's own file when the icon file itself is gone;
+   • temporary copies: models in memory (AssetCache), sw.js's offline copies.
+   Why: Google Drive sends every file with «cache-control: private,
+   max-age=0, must-revalidate» and no ETag, so a browser never keeps a
+   Drive icon — every view downloaded it again. The only copy on the
+   device was sw.js's offline cache: used only when the network throws,
+   overwritten by Drive's refusals (403 / 429 — an <img> cannot see them),
+   and emptied by «clear cache». An icon that Drive refused (its download
+   limits) or a weak network did not deliver stayed empty for the whole
+   visit (never asked again), and came back by itself once Drive answered
+   again — nothing had been deleted.
    ------------------------------------------------------------ */
+const THUMB_GLYPH = { model: '🧊', image: '🖼️', audio: '🔊', data: '📄' };
+const AssetThumbs = {
+  _urls: new Map(),               // local-copy key → the blob: URL this page shows
+  _pending: new Map(),            // key → the one lookup in flight
+  _waiting: new Set(),            // cards whose icon is asked again later
+  _repaired: new Set(),           // records given their icon back during this visit
+  _draws: Promise.resolve(),      // icons drawn from models: one at a time
+  RETRY: [3000, 12000, 45000, 180000],
+  /* the local copy follows the record: another icon file → another key */
+  key(a) { return a.assetId + '@' + (a.thumbnail || 'drawn:' + (a.storagePath || '')); },
+  async _keep(a, blob, from) {
+    const k = this.key(a);
+    try { await CacheDB.put('thumbs', k, { blob, assetId: a.assetId, from, at: Date.now() }); } catch { }
+    const old = this._urls.get(k);
+    if (old) URL.revokeObjectURL(old);
+    const u = URL.createObjectURL(blob);
+    this._urls.set(k, u);
+    return u;
+  },
+  async _local(a) {
+    const k = this.key(a);
+    if (this._urls.has(k)) return this._urls.get(k);
+    let hit = null;
+    try { hit = await CacheDB.get('thumbs', k); } catch { }
+    if (!hit || !hit.blob) return null;
+    const u = URL.createObjectURL(hit.blob);
+    this._urls.set(k, u);
+    return u;
+  },
+  /* the icon file the record names → { blob } · { gone } · { failed, url } */
+  async _remote(a) {
+    if (!a.thumbnail && !a.thumbnailURL) return { gone: 'no-icon' };
+    const url = await Assets.thumbURL(a).catch(() => null);
+    if (!url) return { failed: 'no-url' };
+    let r;
+    try { r = await fetch(url, { mode: 'cors', credentials: 'omit', cache: 'no-store' }); }
+    catch { return { failed: 'network', url }; }            // offline — or a host without CORS: the <img> itself may still load it
+    if (r.ok) {
+      const b = await r.blob().catch(() => null);
+      if (b && b.size && /^image\//.test(b.type || r.headers.get('content-type') || '')) return { blob: b };
+      return { failed: 'not-an-image' };
+    }
+    if (r.status === 404 || r.status === 410) return { gone: 'http-' + r.status };
+    /* Firebase Storage's 403 is «not allowed» (its rules) — not asked again; Drive's 403 / 429 are its
+       download limits and a 5xx is a busy host — asked again later */
+    if (r.status === 403 && !/^https:\/\/www\.googleapis\.com\//.test(url)) return { failed: 'denied', final: true };
+    return { failed: 'http-' + r.status };
+  },
+  /* drawn again from the asset's own file: the model rendered, the picture scaled */
+  _draw(a) {
+    const run = async () => {
+      if (a.kind === 'model') return Thumbs.fromObject((await AssetCache.instantiate(a)).object);
+      if (a.kind === 'image') {
+        const url = await Assets.url(a);
+        const r = url ? await fetch(url, { mode: 'cors', credentials: 'omit' }) : null;
+        return r && r.ok ? Thumbs.fromImageFile(await r.blob()) : null;
+      }
+      return null;
+    };
+    const p = this._draws.then(run, run).catch(() => null);
+    this._draws = p;
+    return p;
+  },
+  /* the owner's record gets an icon again — only when its icon file is gone, and only when
+     uploading asks nothing (a Drive permission already given, or Firebase Storage) */
+  async _repair(a, blob) {
+    const me = Backend.user;
+    if (!me || me.uid !== a.ownerId || !Backend.isOnline() || this._repaired.has(a.assetId)) return;
+    if (NX.FILE_HOST === 'drive' && !(NX.Drive && NX.Drive.token())) return;
+    this._repaired.add(a.assetId);
+    try {
+      const t = await Backend.upload('assets/' + me.uid + '/' + a.assetId + '/thumb.webp', new File([blob], 'thumb.webp', { type: 'image/webp' }));
+      await Assets.update(a.assetId, { thumbnail: t.path, thumbnailURL: t.url });
+    } catch (e) { console.warn('[icons] repair', a.assetId, e && (e.code || e.message)); }
+  },
+  /* an asset's icon: the local copy · else the record's icon file (kept) · else drawn from the
+     asset's own file (kept) → { url, from } — or { url: null, retry, remote } */
+  get(a, { draw = true } = {}) {
+    const k = this.key(a);
+    if (this._pending.has(k)) return this._pending.get(k);
+    const p = (async () => {
+      const local = await this._local(a);
+      if (local) return { url: local, from: 'local' };
+      const r = await this._remote(a);
+      if (r.blob) return { url: await this._keep(a, r.blob, 'remote'), from: 'remote' };
+      if (r.gone && draw) {
+        const b = await this._draw(a);
+        if (b) { this._repair(a, b); return { url: await this._keep(a, b, 'drawn'), from: 'drawn' }; }
+        return { url: null, gone: true };
+      }
+      return { url: null, retry: !r.gone && !r.final, why: r.failed || r.gone, remote: r.url || null };
+    })().finally(() => this._pending.delete(k));
+    this._pending.set(k, p);
+    return p;
+  },
+  /* a card's picture: a placeholder (the asset's kind) until the icon is there — never an empty
+     square — and an icon that could not be fetched is asked again (at once when the network is back) */
+  attach(img, a, holder) {
+    const ph = el('span', { class: 'ph', text: THUMB_GLYPH[a.kind] || '📦' });
+    holder.insertBefore(ph, img);
+    img.style.opacity = '0';
+    let tries = 0, timer = null;
+    img.addEventListener('load', () => { if (!img.naturalWidth) return; img.style.opacity = '1'; ph.remove(); holder.classList.remove('thumb-wait'); this._waiting.delete(load); });
+    const again = () => {
+      if (!img.isConnected) { this._waiting.delete(load); return; }
+      holder.classList.add('thumb-wait');
+      this._waiting.add(load);
+      clearTimeout(timer);
+      timer = setTimeout(load, this.RETRY[Math.min(tries++, this.RETRY.length - 1)]);
+    };
+    const load = async () => {
+      clearTimeout(timer);
+      const r = await this.get(a).catch(() => ({ url: null, retry: true }));
+      /* a copy the page can no longer read, or a host that refuses the <img> too: asked again */
+      img.onerror = () => { img.onerror = null; if (r.url) this._urls.delete(this.key(a)); again(); };
+      if (r.url || r.remote) { img.src = r.url || r.remote; return; }
+      img.onerror = null;
+      if (r.retry) again();
+    };
+    load.now = () => { tries = 0; load(); };
+    img.__load = load;
+    thumbObserver.observe(img);
+  },
+  /* «clear cache»: the copies only — never a record, never a file */
+  async clearTemporary() {
+    const n = { models: AssetCache._mem.size, icons: 0, offline: 0 };
+    AssetCache.clear();
+    try { n.icons = (await CacheDB.keys('thumbs')).length; await CacheDB.clear('thumbs'); } catch { }
+    this._urls.forEach(u => URL.revokeObjectURL(u));
+    this._urls.clear();
+    try {
+      if (window.caches) for (const k of await caches.keys()) if (/^nexus-media-/.test(k)) { n.offline += (await (await caches.open(k)).keys()).length; await caches.delete(k); }
+    } catch { }
+    return n;
+  },
+  /* the local copies built again from the permanent records: Firestore → the icon files */
+  async rebuild({ limit = 60, onProgress } = {}) {
+    const me = Backend.user;
+    if (!me || !Backend.isOnline()) return { done: 0, total: 0 };
+    const mine = ((await Assets.search({ scope: 'mine', ownerId: me.uid, limit, sort: 'new' }).catch(() => null)) || { items: [] }).items;
+    const queue = mine.slice();
+    let done = 0, got = 0;
+    const worker = async () => { for (let a; (a = queue.shift());) { const r = await this.get(a, { draw: false }).catch(() => null); if (r && r.url) got++; onProgress && onProgress(++done, mine.length); } };
+    await Promise.all([worker(), worker(), worker()]);
+    return { done: got, total: mine.length };
+  }
+};
 const thumbObserver = new IntersectionObserver(entries => {
-  entries.forEach(async e => {
+  entries.forEach(e => {
     if (!e.isIntersecting) return;
     thumbObserver.unobserve(e.target);
-    const img = e.target;
-    const asset = img.__asset;
-    if (!asset) return;
-    try { const u = await Assets.thumbURL(asset); if (u) { img.src = u; img.style.opacity = '1'; } } catch {}
+    e.target.__load && e.target.__load();
   });
 }, { rootMargin: '220px' });
+window.addEventListener('online', () => AssetThumbs._waiting.forEach(load => load.now()));
 
 function assetCard(asset, { onAdd, onOpen } = {}) {
   const card = el('div', { class: 'acard' });
   const thumb = el('div', { class: 'thumb' });
   const img = el('img', { alt: asset.name, style: { opacity: '0', transition: 'opacity .3s' } });
-  img.__asset = asset;
   thumb.appendChild(img);
   thumb.appendChild(el('span', { class: 'badge kind', text: (asset.fileType || '').toUpperCase() }));
   if (asset.visibility === 'private') thumb.appendChild(el('span', { class: 'badge priv', style: { position: 'absolute', top: '6px', insetInlineEnd: '6px' }, text: 'PRIVATE' }));
-  thumbObserver.observe(img);
+  AssetThumbs.attach(img, asset, thumb);
   thumb.addEventListener('click', () => onOpen ? onOpen(asset) : openAssetDetails(asset, { onAdd }));
 
   const info = el('div', { class: 'ainfo' }, [
@@ -7874,8 +8071,8 @@ function openAssetLibrary({ onAdd, scope = 'public', title } = {}) {
     host.textContent = '';
     view = new LibraryView(host, { onAdd, scope: s });
   };
-  const tPub = el('button', { class: 'on', text: 'PUBLIC LIBRARY', onclick: e => { segPick(tabs, e.target); mk('public'); } });
-  const tMine = el('button', { text: 'MY ASSETS', onclick: e => { segPick(tabs, e.target); mk('mine'); } });
+  const tPub = el('button', { class: scope === 'mine' ? '' : 'on', text: 'PUBLIC LIBRARY', onclick: e => { segPick(tabs, e.target); mk('public'); } });
+  const tMine = el('button', { class: scope === 'mine' ? 'on' : '', text: 'MY ASSETS', onclick: e => { segPick(tabs, e.target); mk('mine'); } });
   tabs.append(tPub, tMine);
   body.append(tabs, host);
   mk(scope);
@@ -7886,6 +8083,7 @@ function openAssetLibrary({ onAdd, scope = 'public', title } = {}) {
 }
 
 NX.Thumbs = Thumbs;
+NX.AssetThumbs = AssetThumbs;
 NX.PreviewView = PreviewView;
 NX.LibraryView = LibraryView;
 NX.openUploadSheet = openUploadSheet;
@@ -12907,6 +13105,7 @@ const Planner = {
     const council = NX.Council && NX.Council.on() ? { kind: 'plan', text: prompt, origin: 'builder', onEvent: ev => { if (ev.type === 'final') councilInfo = ev.details; } } : null;
     let found = [];
     if (council && NX.CouncilAssets) { try { found = await NX.CouncilAssets.enrich(prompt, ctx); } catch (e) { console.warn('[council] assets', e); } }
+    if (council) council.assets = found.length;          // Smart Council counts the real assets the task will place
     const api = NX.API_DOCS.map(d => d.ns + ': ' + d.m.map(m => m[0]).join(' | ')).join('\n');
     const sys = `You plan and write changes inside the NEXUS browser game engine and answer ONLY with JSON.
 Analyze the PROJECT CONTEXT first: reuse existing objects, files and assets; never duplicate a system that already exists.
@@ -13327,7 +13526,7 @@ ${numbered}
 ERRORS:
 ${errors.map(e => (e.line ? 'line ' + e.line + ': ' : '') + e.message).join('\n')}`;
     /* the Multi-AI Council (Pro) may repair it: Smart gives several errors a second model */
-    const raw = await NX.AI.raw(system, prompt, { council: { kind: 'fix', text: errors.map(e => e.message).join('\n'), origin: 'builder' } });
+    const raw = await NX.AI.raw(system, prompt, { council: { kind: 'fix', text: errors.map(e => e.message).join('\n'), origin: 'builder', errors: errors.length, files: 1 } });
     let obj = null;
     try { obj = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)); } catch {}
     if (!obj || typeof obj.code !== 'string') {
@@ -17282,7 +17481,7 @@ const AIClient = {
     const wire = m => ({ role: m.role, title: m.title, brief: m.brief, lead: !!m.lead, after: m.after || [], model: m.pick.model });
     const lead0 = members[0].pick;
     const synthesis = { model: Council.synth() !== 'auto' ? Council.synth() : lead0.pid === 'nexus' ? lead0.model : 'auto', brief: plan.synthBrief };
-    emit({ type: 'start', mode: plan.mode, kind: plan.kind, n: members.length, members: members.map(m => ({ id: m.id, role: m.role, title: m.title, lead: !!m.lead,
+    emit({ type: 'start', mode: plan.mode, kind: plan.kind, n: members.length, analysis: plan.analysis || null, members: members.map(m => ({ id: m.id, role: m.role, title: m.title, lead: !!m.lead,
       source: m.pick.pid === 'nexus' ? 'nexus' : 'own', provider: m.pick.pid === 'nexus' ? 'NEXUS' : PROVIDERS[m.pick.pid].name, model: m.pick.model })) });
     try {
       let fin, got = [], reduced = null;
@@ -17322,7 +17521,7 @@ const AIClient = {
       if (!again) throw e;
       this._release(ctrl);
       const r = await this.chat(messages, { system, signal, stream: false, _cfg });
-      return Object.assign(r, { council: { cid, mode: plan.mode, kind: plan.kind, fallback: i.title, members: [] } });
+      return Object.assign(r, { council: { cid, mode: plan.mode, kind: plan.kind, fallback: i.title, reduced: e.code === 'pro_required' ? 'pro_required' : null, members: [] } });
     } finally { this._release(ctrl); }
   },
 
@@ -17335,8 +17534,10 @@ const AIClient = {
     catch (e) { throw Object.assign(new Error('COUNCIL_FETCH'), { info: classify(e, 0, '') }); }
     if (!res.ok) {
       const t = await res.text().catch(() => '');
-      let code = ''; try { code = JSON.parse(t).error.code || ''; } catch {}
-      throw Object.assign(new Error('HTTP_' + res.status), { info: classify(null, res.status, t), status: res.status, code });
+      let code = '', said = ''; try { const j = JSON.parse(t).error; code = j.code || ''; said = j.message || ''; } catch {}
+      /* the server's own words when it refuses the council (not Pro, busy, switched off) */
+      const info = Object.assign(classify(null, res.status, t), said && /^(pro_required|council_busy|council_off)$/.test(code) ? { title: said } : {});
+      throw Object.assign(new Error('HTTP_' + res.status), { info, status: res.status, code });
     }
     const idOf = sid => { const m = srv[+String(sid).replace(/\D/g, '') - 1]; return m ? m.id : sid; };
     const out = { plan: null, final: null, error: null };
@@ -17576,6 +17777,24 @@ const COUNCIL_FINAL = {
   code: 'Output ONLY the final JSON object in the required shape — no prose around it.',
   fix: 'Output ONLY the final JSON object {"path","code","cause","explanation"} with the complete corrected file.'
 };
+/* Smart Council's defaults — the site's server may send others (COUNCIL_SMART_*) */
+const SMART_DEFAULT = { thresholds: [2, 4, 6],
+  weights: { size: 1, operations: 1, files: 1, wholeGame: 4, builder: 1, assets: 1, systems: 1, code: 1, errors: 1, existing: 1, review: 1, simple: 2 } };
+const SMART_RE = {
+  /* what is asked for, as commands («أضف… وضع…», «تضيف… وتضع…», «add … and make …») */
+  ops: /(?:^|[\s،,؛.])و?(?:أضف|اضف|اجعل|ضع|غيّر|غير|احذف|انقل|حرّك|حرك|اكتب|أنشئ|انشئ|اصنع|ابنِ|ابن|صمّم|صمم|استخدم|استعمل|أصلح|اصلح|عدّل|عدل|تضيف|تضع|تجعل|تكتب|تنشئ|تصنع|تبني|تغيّر|تغير|تحذف|تنقل|تصمم|تستخدم|تصلح|تعدل|add|make|put|change|remove|create|build|write|design|use|fix|refactor|implement)(?=[\s،,؛.!?؟]|$)/gi,
+  file: /\b[\w-]+\.(?:js|mjs|ts|json|html|css|glsl|lua|py)\b/gi,
+  whole: /(كامل|كاملة|كاملًا|كاملا|بالكامل|complete|full|entire|whole)/i,
+  world: /(لعب|مدين|قري|عالم|مستوى|مرحل|خريطة|game|city|town|village|world|level|map)/i,
+  assets: /(\bassets?\b|أصول|اصول|مجسم|مجسمات|\b3d\b|\bmodels?\b|سيار|مبان|مبنى|منازل|بيوت|أشجار|اشجار|شجر|طرق|طريق|شخصيات|\bnpcs?\b)/i,
+  systems: [/(\bnpcs?\b|شخصيات|سكان|مشاة)/i, /(مهام|مهمة|quests?|missions?)/i, /(أعداء|اعداء|عدو|\benem)/i, /(مخزون|inventory)/i, /(متجر|shop|store)/i,
+    /(حفظ|save|load game)/i, /(متعدد اللاعبين|multiplayer|online)/i, /(قيادة|سيارات|driving|vehicles?)/i, /(صحة|حياة|health|\bhp\b)/i, /(نقاط|نتيجة|score|points)/i,
+    /(ذكاء الأعداء|\bai\b|pathfind|مسار)/i, /(فيزياء|physics|قفز|jump)/i, /(واجهة|قائمة|\bui\b|\bhud\b|menu)/i, /(صوت|موسيقى|sound|music|audio)/i],
+  code: /(كود|سكربت|سكريبت|برمج|منطق|نظام|أنظمة|انظمة|دالة|\bscript|\bcode\b|logic|function|\bsystem)/i,
+  error: /(خطأ|أخطاء|اخطاء|لا يعمل|لا تعمل|خربان|يتعطل|\berrors?\b|\bbugs?\b|crash|exception|undefined|not working|broken)/i,
+  review: /(راجع|مراجعة|اختبر|اختبار|تأكد|افحص|\breview|\btest|verify|debug)/i,
+  simple: /(لون|colou?r|اسم|rename|name|حجم|size|نص|text|عنوان|title|مكان|position|أزرق|ازرق|أحمر|احمر|أخضر|اخضر|أصفر|اصفر|أبيض|أسود|blue|red|green|yellow|white|black|أكبر|أصغر|bigger|smaller)/i
+};
 const Council = {
   caps: null, _at: 0, _p: null,
   MODES: { single: 'Single AI', smart: 'Smart Council', full: 'Full Council' },
@@ -17587,46 +17806,75 @@ const Council = {
   setPicks(list) { LS.set('council.models', (list || []).slice(0, 4)); this.changed(); },
   synth() { return LS.get('council.synth', 'auto'); },
   setSynth(m) { LS.set('council.synth', m || 'auto'); this.changed(); },
-  ownReady(pid) { const P = PROVIDERS[pid], c = AIConfig.get(pid); return !!(P && !P.builtin && c.model && c.baseURL && (P.needsKey === false || c.apiKey)); },
+  /* a provider of the player's own: a key — or, for one that needs none (a model on this computer), one
+     the player really set up (its models listed, or in use) — never a default nobody configured */
+  ownReady(pid) { const P = PROVIDERS[pid], c = AIConfig.get(pid); return !!(P && !P.builtin && c.model && c.baseURL && (P.needsKey === false ? (c.models && c.models.length) || AIConfig.active() === pid : c.apiKey)); },
   changed() { window.dispatchEvent(new CustomEvent('nx:council', { detail: { type: 'settings' } })); },
 
   /* what the server says this account may use — Pro is read there, never here */
   async config(force) {
     if (!FREE_AI_BASE || !FreeAI.signedIn()) { this.caps = null; return null; }
     if (!force && this.caps && Date.now() - this._at < 60000) return this.caps;
-    if (this._p) return this._p;
-    this._p = (async () => {
+    /* a forced read never takes an answer asked before it (Pro may have started since) — and only the
+       newest answer is kept */
+    if (this._p && !force) return this._p;
+    const seq = this._seq = (this._seq || 0) + 1;
+    const p = (async () => {
+      let caps = null;
       try {
         const tok = await FreeAI.token();
         const r = await fetch(FREE_AI_BASE + '/council/config', { headers: { authorization: 'Bearer ' + tok }, cache: 'no-store' });
-        this.caps = r.ok && /json/.test(r.headers.get('content-type') || '') ? await r.json() : null;
-      } catch { this.caps = null; }
-      this._at = Date.now();
+        caps = r.ok && /json/.test(r.headers.get('content-type') || '') ? await r.json() : null;
+      } catch { }
+      if (seq === this._seq) { this.caps = caps; this._at = Date.now(); }
       return this.caps;
-    })().finally(() => { this._p = null; });
-    return this._p;
+    })().finally(() => { if (this._p === p) this._p = null; });
+    this._p = p;
+    return p;
   },
   /* Pro, a council-capable server, and a mode that is not «Single AI» */
   on() { const c = this.caps; return !!(c && c.enabled && c.pro && c.maxModels > 1 && this.mode() !== 'single' && FreeAI.ready()); },
 
-  /* Smart Council: how many models this task needs. A greeting, a short question or one small
-     change → one model; several systems, a whole game or city → up to four. The server caps it. */
-  estimate(kind, text) {
-    const t = String(text || ''), n = t.trim().split(/\s+/).filter(Boolean).length;
-    let s = 0;
-    if (n > 25) s++;
-    if (n > 60) s++;
-    if (t.split(/[.،,؛;!?؟\n]+|\s(?:ثم|وبعدها|وبعدين|then|and then)\s/i).filter(x => x.trim().split(/\s+/).length >= 2).length >= 3) s++;
-    /* several things asked at once («أضف… وضع…», «تضيف… وتضع…», «add … and make …») */
-    if ((t.match(/(^|\s)و?(أضف|اضف|اجعل|ضع|غيّر|غير|احذف|انقل|حرّك|حرك|اكتب|أنشئ|انشئ|اصنع|ابن|صمّم|صمم|تضيف|تضع|تجعل|تكتب|تنشئ|تصنع|تبني|تغيّر|تغير|تحذف|تنقل|تصمم)(\s|$)|\b(add|make|put|change|remove|create|build|write|design)\b/gi) || []).length >= 2) s++;
-    /* a whole game, city or world is the council's work: every role */
-    if (/(كامل|كاملة|كاملًا|كاملا|complete|full|entire|whole)/i.test(t) && /(لعب|مدين|عالم|مستوى|مرحل|game|city|world|level|map)/i.test(t)) s += 3;
-    else if (/(مدينة|مدينه|عالم مفتوح|open world|city)/i.test(t)) s++;
-    if (/(نظام|أنظمة|انظمة|انظمه|system|multiplayer|متعدد اللاعبين|أعداء|اعداء|enem|مخزون|inventory|متجر|shop|مهام|quest|حفظ اللعب|save)/i.test(t)) s++;
-    if (/(كود|سكربت|سكريبت|برمج|منطق|script|code|logic|function|دالة)/i.test(t)) s++;
-    const cap = { ask: 3, act: 4, code: 3, fix: 2, plan: 4 }[kind] || 2;
-    return Math.max(1, Math.min(cap, 1 + (s >= 3 ? 3 : s)));
+  /* Smart Council: how many models THIS task needs — from what it asks, not from its length alone.
+     Each factor that is really there adds its points; the site's server sets the points and the
+     thresholds (COUNCIL_SMART_WEIGHTS · COUNCIL_SMART_THRESHOLDS, sent with /council/config).
+     c: { kind, text, origin, files (files the task touches), errors, assets (real assets found) } */
+  analyze(c, text) {
+    const t = String(text || '').slice(0, 4000);
+    const S = (this.caps && this.caps.smart) || SMART_DEFAULT, W = Object.assign({}, SMART_DEFAULT.weights, S.weights || {});
+    const th = Array.isArray(S.thresholds) && S.thresholds.length === 3 ? S.thresholds : SMART_DEFAULT.thresholds;
+    const factors = [];
+    const add = (id, times, why) => { const pts = (W[id] || 0) * times; if (pts) factors.push({ id, pts, why }); };
+    const words = t.trim().split(/\s+/).filter(Boolean).length;
+    const ops = new Set((t.match(SMART_RE.ops) || []).map(v => v.replace(/^[\s،,؛.]+/, '').replace(/^و(?=..)/, '').toLowerCase())).size;
+    const named = new Set(t.match(SMART_RE.file) || []).size, files = Math.max(named, +c.files || 0);
+    const systems = SMART_RE.systems.filter(re => re.test(t)).length;
+    const builds = c.kind !== 'ask';
+    const whole = SMART_RE.whole.test(t) && SMART_RE.world.test(t);
+    const p = NX.Studio && NX.Studio.project, objects = NX.Studio && NX.Studio.engine ? NX.Studio.engine.entities.size : 0;
+    const existing = builds && !!p && ((p.files || []).length >= 2 || objects >= 8);
+    const errors = +c.errors || (SMART_RE.error.test(t) ? 1 : 0);
+    add('size', words > 60 ? 2 : words > 25 ? 1 : 0, words + ' كلمة');
+    add('operations', ops >= 4 ? 2 : ops >= 2 ? 1 : 0, ops + ' عمليات مطلوبة');
+    add('files', files >= 4 ? 2 : files >= 2 ? 1 : 0, files + ' ملفات تتغيّر');
+    add('wholeGame', whole ? (builds ? 1 : 0.25) : 0, 'لعبة / مدينة / عالم كامل');
+    add('builder', c.origin === 'builder' && c.kind === 'plan' ? 1 : 0, 'Game Builder');
+    add('assets', (+c.assets > 0 || SMART_RE.assets.test(t)) && builds ? 1 : 0, 'Asset Search — أصول حقيقية');
+    add('systems', systems >= 3 ? 2 : systems ? 1 : 0, systems + ' أنظمة لعب');
+    add('code', c.kind === 'code' || (builds && SMART_RE.code.test(t)) ? 1 : 0, 'كود ومنطق');
+    add('errors', c.kind === 'fix' || errors ? (errors >= 3 ? 2 : 1) : 0, (errors || 1) + ' أخطاء تحتاج تحليلًا');
+    add('existing', existing && (ops || c.kind === 'code' || c.kind === 'fix') ? 1 : 0, 'تعديل مشروع موجود');
+    add('review', SMART_RE.review.test(t) ? 1 : 0, 'مراجعة واختبار');
+    /* one small change of one thing (a colour, a name, a size, a text): one model is enough */
+    add('simple', words <= 14 && ops <= 1 && !systems && !whole && files <= 1 && SMART_RE.simple.test(t) ? -1 : 0, 'تعديل صغير واحد');
+    const score = factors.reduce((n, f) => n + f.pts, 0);
+    const want = score >= th[2] ? 4 : score >= th[1] ? 3 : score >= th[0] ? 2 : 1;
+    const cap = { ask: 3, act: 4, code: 3, fix: 2, plan: 4 }[c.kind] || 2;
+    return { n: Math.max(1, Math.min(cap, want)), score: Math.round(score * 100) / 100, factors, thresholds: th };
   },
+  estimate(kind, text) { return this.analyze({ kind }, text).n; },
+  /* the reasons, in a line the player can read: «مدينة كاملة +4 · أصول +1» */
+  why(a) { return a && a.factors && a.factors.length ? a.factors.map(f => f.why + ' ' + (f.pts > 0 ? '+' : '') + f.pts).join(' · ') : (a ? 'مهمة بسيطة' : ''); },
 
   /* the models to use when the player chose none: the model in use leads, the server's «auto»
      fills the rest (it spreads them over its providers) */
@@ -17647,11 +17895,12 @@ const Council = {
     const pool = this.pool();
     const text = c.text || (messages.filter(m => m.role === 'user').slice(-1)[0] || {}).content || '';
     /* Full: every model chosen — but a repair (the builder may run several in a row) never needs more than two */
-    const want = this.mode() === 'full' ? Math.min(pool.length, c.kind === 'fix' ? 2 : 4) : this.estimate(c.kind, String(text).slice(0, 3000));
+    const analysis = this.mode() === 'full' ? null : this.analyze(c, text);
+    const want = analysis ? analysis.n : Math.min(pool.length, c.kind === 'fix' ? 2 : 4);
     const n = Math.min(want, pool.length, caps.maxModels);
-    if (n < 2) { this.emit(c, { type: 'single', reason: 'smart' }); return null; }
+    if (n < 2) { this.emit(c, { type: 'single', reason: 'smart', analysis }); return null; }
     const roles = COUNCIL_ORDER[c.kind].slice(0, n);
-    return { mode: this.mode(), kind: c.kind, n, synthBrief: COUNCIL_FINAL[c.kind],
+    return { mode: this.mode(), kind: c.kind, n, analysis, synthBrief: COUNCIL_FINAL[c.kind],
       members: roles.map((r, i) => { const R = COUNCIL_ROLES[c.kind][r]; return { id: 'c' + (i + 1), role: r, title: R.title, brief: R.brief, lead: !!R.lead,
         after: n === 4 && pool[i].pid === 'nexus' ? (R.after || []) : [], pick: pool[i] }; }) };
   },
@@ -18325,7 +18574,7 @@ const Chat = {
     mk('حذف', 'trash', () => this.deleteMsg(m));
     b.appendChild(acts);
     /* which model answered (the free AI may have switched), and the tokens when the provider says */
-    if (m.usage || (m.model && m.role === 'assistant')) b.appendChild(el('div', { class: 'chat-meta', text: (m.smartSingle ? '🧠 Smart Council: نموذج واحد يكفي · ' : '') + (m.model || '') + (m.usage ? ` · ${m.usage.in || 0}→${m.usage.out || 0} tokens` : '') }));
+    if (m.usage || (m.model && m.role === 'assistant')) b.appendChild(el('div', { class: 'chat-meta', title: m.smartWhy || '', text: (m.smartSingle ? '🧠 Smart Council: نموذج واحد يكفي' + (m.smartWhy ? ' (' + m.smartWhy + ')' : '') + ' · ' : '') + (m.model || '') + (m.usage ? ` · ${m.usage.in || 0}→${m.usage.out || 0} tokens` : '') }));
     return b;
   },
 
@@ -18540,7 +18789,7 @@ ${sel.files.map(f => `--- ${f.path} ---\n${f.code}`).join('\n\n')}` : '');
          its progress shows in this bubble, its answer is handled exactly like one model's */
       let live = null;
       const council = kind === 'talk' ? null : { kind: kind === 'act' ? 'act' : 'ask', text: q, origin: 'chat', onEvent: ev => {
-        if (ev.type === 'single') { assistant.smartSingle = true; return; }        // Smart Council: one model is enough here
+        if (ev.type === 'single') { assistant.smartSingle = true; assistant.smartWhy = NX.Council.why(ev.analysis); return; }        // Smart Council: one model is enough here
         if (ev.type === 'settings' || !NX.CouncilUI) return;
         if (!live && node && node.isConnected) { live = NX.CouncilUI.live(); node.insertBefore(live.node, txt); if (txt) txt.textContent = ''; }
         if (live) { live.update(ev); this.toBottom(); }
@@ -19471,7 +19720,8 @@ const Agent = {
   looksLikeScene(text) {
     const ws = words(text);
     const verb = ws.some(w => { const v = detectVerb(w); return v && ['add', 'move', 'scale', 'rotate', 'delete', 'duplicate', 'replace', 'search', 'make'].includes(v.verb); });
-    const code = words(text).some(w => /^(نظام|سكربت|كود|برمجه|system|script|code|function|داله|عندما|when|اذا|if)$/.test(w));
+    /* «… ونظام مهام»: a word counts with its prefix off (و · ف · ب · ال) */
+    const code = words(text).some(w => stems(w).some(s => /^(نظام|انظمه|سكربت|كود|برمجه|system|script|code|function|داله|عندما|when|اذا|if)$/.test(s)));
     return verb && !code;
   },
 
@@ -20659,12 +20909,15 @@ function update(dt) {
 }
 
 /* route: «اصنع لي لعبة …» → the composer; «أعد» → redo */
+/* «ابنِ مدينة كاملة، أضف …» — a whole city / world / level is the game builder's (its planner, the
+   Multi-AI Council, the real assets and GameComposer), never a list of objects to drop in */
+const WHOLE_WORLD = t => /(كامل|كاملة|كاملًا|كاملا|بالكامل|complete|entire|whole)/i.test(t) && /(مدين|قري|عالم|مستوى|خريطة|city|town|village|world|level|map)/i.test(t);
 const REDO_RE = /^\s*(redo|أعد|اعد|إعادة|اعاده|استرجع)(\s+(التغيير|الخطوة|الخطوه|آخر تغيير|اخر تغيير|ما تراجعت عنه))?\s*[.!؟?]*\s*$/i;
 const _claims = Agent.claims;
 Agent.claims = function (text) {
   if (GameComposer.claims(text) || REDO_RE.test(text)) return true;
   /* «اصنع لي لعبة منصات»: a whole game, not a search for a file called «لعبة منصات» */
-  if (GameComposer.isRequest(text)) return false;
+  if (GameComposer.isRequest(text) || WHOLE_WORLD(text)) return false;
   return _claims.call(this, text);
 };
 const _handle2 = Agent.handle;
@@ -20677,7 +20930,7 @@ Agent.handle = async function (text, ui) {
     if (done !== false) return true;
     return false;          // the recipe builder takes it
   }
-  if (GameComposer.isRequest(text)) return false;
+  if (GameComposer.isRequest(text) || WHOLE_WORLD(text)) return false;
   return _handle2.call(this, text, ui);
 };
 Agent.redo = async function (ui) {
@@ -21551,7 +21804,7 @@ ${sel.files.map(f => '--- ' + f.path + ' ---\n' + f.code).join('\n\n') || '(no f
     let raw;
     /* the Multi-AI Council (Pro) may write it: coder · analyst · tester · reviewer, then one final edit */
     let councilInfo = null;
-    const council = { kind: 'code', text, origin: ui.surface || 'builder', onEvent: ev => { if (ev.type === 'final') councilInfo = ev.details; } };
+    const council = { kind: 'code', text, origin: ui.surface || 'builder', files: sel.files.length, onEvent: ev => { if (ev.type === 'final') councilInfo = ev.details; } };
     try { raw = await NX.AI.raw(system, text, { council }); }
     catch (e) { ui.say('✕ ' + ((e.info && e.info.title) || e.message || e) + ((e.info && e.info.detail) ? '\n' + e.info.detail : ''), [], { error: true }); return; }
     finally { ui.busy(null); }
@@ -21647,7 +21900,7 @@ function renderCard(card, ui) {
     (card.items || []).forEach((it, i) => {
       const row = el('div', { class: 'ac-row' });
       const th = el('div', { class: 'ac-thumb' }, [icon('cube')]);
-      if (it.thumbnail || it.thumbnailURL) Backend.fileURL(it.thumbnail, it.thumbnailURL).then(u => { if (u) { th.textContent = ''; th.appendChild(el('img', { src: u, alt: it.name })); } }).catch(() => {});
+      if (it.thumbnail || it.thumbnailURL) (it.assetId ? NX.AssetThumbs.get(it, { draw: false }).then(r => r.url || r.remote) : Backend.fileURL(it.thumbnail, it.thumbnailURL)).then(u => { if (u) { th.textContent = ''; th.appendChild(el('img', { src: u, alt: it.name })); } }).catch(() => {});
       const info = el('div', { class: 'ac-info' });
       info.append(el('b', { text: (i === 0 && card.items.length > 1 ? '★ ' : '') + it.name }),
         el('span', { text: `@${it.creatorName || '—'} · ${String(it.fileType || '').toUpperCase()} · ${it.category || ''} · ${it.scope === 'mine' ? 'أصولي' : 'المكتبة العامة'}${it.triangles ? ' · ' + fmtNum(it.triangles) + ' مثلث' : ''}` }),
@@ -24131,7 +24384,7 @@ const FileExplorer = {
     }
     const body = el('div');
     const img = el('img', { style: { width: '100%', maxHeight: '220px', objectFit: 'contain', background: '#0b0d16', borderRadius: '10px' } });
-    NX.Assets.thumbURL(a).then(u => { if (u) img.src = u; else img.remove(); });
+    NX.AssetThumbs.get(a).then(r => { if (r.url || r.remote) img.src = r.url || r.remote; else img.remove(); }).catch(() => img.remove());
     body.append(img, el('p', { class: 'tiny', text: [a.kind, a.fileType, NX.fmtBytes(a.bytes || 0), a.creatorName ? '@' + a.creatorName : ''].filter(Boolean).join(' · ') }),
       el('p', { class: 'tiny', text: 'غير مستخدم في المشهد بعد. أضفه من «الأصول».' }));
     Sheet.open({ title: a.name, body, id: 'fx-asset' });
@@ -28080,10 +28333,13 @@ NX.KeyBox = KeyBox;
      (Neither looks at pictures or plays the game — the creator sees
      the reasons and is responsible for the rating.)
    • WHO MAY PLAY: 3+ is for everyone, guests included. Anything above
-     3+ needs an account with a birth month (month + year, given once,
-     kept in ages/{uid} — only its owner can read it, nobody can change
-     it from a browser). The server checks it before sending a game's
-     build or an app's files (firestore.rules / storage.rules).
+     3+ needs an account with a birth month (month + year, given once —
+     asked when the account is created — kept in ages/{uid}: only its
+     owner can read it, nobody can change it from a browser). The age is
+     never stored: it is computed each time (here from today's date, in
+     the rules from request.time), so 15 becomes 16 by itself, on every
+     phone signed in to the account. The server checks it before sending
+     a game's build or an app's files (firestore.rules / storage.rules).
    • What this is not: an identity check. A birth month is the player's
      own word; parents' consent and verified ages need more than a
      website can do on its own.
@@ -28295,6 +28551,15 @@ const Age = {
         } }] });
     });
   },
+  /* an account made just now (the sign-up form, Google): its birth month right away — optional,
+     kept in the account (ages/{uid}), so every phone that signs in to it knows the same age */
+  async welcome() {
+    const B = NX.Backend, u = B && B.user;
+    if (!u || !B.hasAccount() || B.newAccount !== u.uid || this._welcomed === u.uid) return null;
+    this._welcomed = u.uid;
+    if (await this.birth()) return null;
+    return this.askBirth('حساب جديد 🎉 — شهر وسنة ميلادك (اختياري الآن): يُحفظان في حسابك لا في هذا الجهاز، ويُحسب عمرك منهما تلقائيًا كل سنة. الألعاب فوق 3+ تحتاجهما.');
+  },
   /* hidden from this player's lists: older than their account says */
   hidden(x) {
     const r = +this.of(x);
@@ -28353,6 +28618,8 @@ const Age = {
 setInterval(() => {
   const B = NX.Backend, u = B && B.user;
   if (Age._me.uid && (!u || u.uid !== Age._me.uid)) Age._me = { uid: null, v: undefined };
+  /* back from a Google sign-in by redirect that made a new account */
+  if (u && B.hasAccount() && NX.LS.get('ageWelcome', '') === u.uid) { NX.LS.del('ageWelcome'); B.newAccount = u.uid; Age.welcome(); }
   if (u && B.hasAccount() && B.isOnline() && Age._me.uid !== u.uid && !Age._loading) {
     Age._loading = true;
     Age.birth().then(v => { if (v) window.dispatchEvent(new CustomEvent('nx:platformRefresh')); }).finally(() => { Age._loading = false; });
@@ -32241,6 +32508,9 @@ NX.EditorRecognize = Rec;
      ready». No key is ever shown, and never four separate answers.
    • «AI Council Details» opens each model's contribution, on request.
    • the game builder's council gets REAL assets from Assets.search.
+   • «🧠 AI MODE» inside the assistant panel: ○ Single AI ○ Smart Council
+     ○ Full Council — Full with the real models as checkboxes (maximum 4).
+     Smart shows why it chose that many models (Council.analyze).
    Several models collaborating — not a new model «stronger than Claude».
    ============================================================ */
 const NX = window.NX;
@@ -32296,6 +32566,7 @@ const CouncilUI = {
     return { node, update(ev) {
       if (ev.type === 'start') {
         title.textContent = '🧠 AI Council · ' + (MODE_TEXT[ev.mode] || [ev.mode])[0] + ' · ' + ev.n + ' نماذج';
+        if (ev.analysis) rows.before(el('div', { class: 'cc-why tiny', text: 'لماذا ' + ev.n + '؟ ' + Council.why(ev.analysis) + ' — المجموع ' + ev.analysis.score + ' (العتبات ' + ev.analysis.thresholds.join(' / ') + ')' }));
         ev.members.forEach(m => member(m.id, { title: m.title, lead: m.lead, provider: m.provider, model: m.model, source: m.source }));
         name('synthesis', synthName, '', '');
       } else if (ev.type === 'plan') {
@@ -32528,6 +32799,102 @@ const Chip = {
   paintAll() { this.nodes.forEach(b => { if (!b.isConnected) this.nodes.delete(b); else this.paint(b); }); }
 };
 
+/* ---------------- AI MODE inside the assistant panel: the mode, and Full Council's models ----------------
+   The same settings as the sheet (Council.mode / picks): Pro and the maximum are the server's answer. */
+const INLINE_TEXT = {
+  single: 'نموذج واحد لكل مهمة — متاح للجميع.',
+  smart: 'يختار NEXUS عدد النماذج تلقائيًا حسب تعقيد المهمة (نموذج واحد للمهمة البسيطة، حتى 4 للكبيرة).',
+  full: 'اختر حتى 4 نماذج — كلها تعمل على كل مهمة، ثم نتيجة واحدة مدمجة.'
+};
+let radioSeq = 0;
+const ModeBox = {
+  nodes: new Set(),
+  _at: 0,
+  make() {
+    const box = el('details', { class: 'cc-inline' }, [el('summary'), el('div', { class: 'cc-inbody' })]);
+    box.addEventListener('toggle', () => this.paint(box));
+    this.nodes.add(box);
+    this.paint(box);
+    return box;
+  },
+  max() { return (Council.caps && Council.caps.proMaxModels) || 4; },
+  paint(box) {
+    const c = Council.caps, sum = box.firstChild, body = box.lastChild;
+    const usable = !!(c && c.enabled && FreeAI.ready());
+    box.classList.toggle('hide', !usable);
+    if (!usable) return;
+    const pro = !!c.pro, mode = pro ? Council.mode() : 'single', max = this.max();
+    sum.textContent = '🧠 AI MODE · ' + MODE_TEXT[mode][0] + (mode === 'full' ? ' · ' + (Council.picks().length || 'auto') + '/' + max : '') + (pro ? ' · ⭐ Pro' : ' · Pro 🔒');
+    if (!box.open) return;                                   // the options are built when it is opened
+    body.textContent = '';
+    const name = 'cc-mode-' + (++radioSeq);
+    Object.keys(MODE_TEXT).forEach(k => {
+      const locked = !pro && k !== 'single';
+      const inp = el('input', { type: 'radio', name, value: k, disabled: locked });
+      inp.checked = mode === k;
+      inp.onchange = () => { if (inp.checked && !locked) { Council.setMode(k); Toast.ok('AI MODE: ' + MODE_TEXT[k][0]); } };
+      body.appendChild(el('label', { class: 'cc-radio' + (mode === k ? ' on' : '') + (locked ? ' locked' : ''), dataset: { mode: k } }, [inp,
+        el('div', {}, [el('b', { text: MODE_TEXT[k][0] + (k === 'smart' ? ' (الافتراضي لـ Pro)' : '') + (locked ? ' 🔒 Pro' : '') }), el('span', { class: 'tiny', text: INLINE_TEXT[k] })])]));
+    });
+    if (!pro) {
+      body.appendChild(el('div', { class: 'cc-note', text: c.verified ? 'حسابك مجاني: Single AI. الخادم يتحقّق من الاشتراك في كل طلب — تغيير الصفحة لا يفتح أكثر من نموذج.' : 'لا يستطيع خادم الموقع التحقق من Pro الآن — نموذج واحد فقط.' }));
+      if (NX.Points) body.appendChild(btn('⭐ اشترك في NEXUS Pro', { cls: 'sm primary', onclick: () => NX.Points.open() }));
+      return;
+    }
+    if (mode === 'full') body.appendChild(this.models(max));
+    body.appendChild(el('button', { class: 'chip', type: 'button', text: 'كل إعدادات المجلس (نموذج الدمج، حدود الخادم)…', onclick: () => CouncilUI.open() }));
+  },
+  /* Full Council: the REAL models — the server's list (by provider) and the models of the player's own keys */
+  models(max) {
+    const wrap = el('div', { class: 'cc-checks' });
+    const head = el('div', { class: 'cc-max' }), list = el('div');
+    wrap.append(head, list);
+    const draw = (models, owners) => {
+      list.textContent = '';
+      const picks = Council.picks();
+      head.textContent = 'Maximum: ' + max + ' · المختار ' + picks.length + '/' + max + (picks.length ? ' — #1 ★ يكتب المسودة الرئيسية' : ' — بلا اختيار: نموذجك الحالي ثم «auto» على مزوّدين مختلفين');
+      const groups = new Map();
+      const put = (g, pid, model) => { if (!groups.has(g)) groups.set(g, []); groups.get(g).push({ pid, model }); };
+      (models || []).filter(m => m && m !== 'auto').forEach(m => put((owners && owners[m]) || 'NEXUS', 'nexus', m));
+      Object.values(PROVIDERS).filter(P => !P.builtin && Council.ownReady(P.id)).forEach(P => {
+        const cfg = AIConfig.get(P.id);
+        (cfg.models && cfg.models.length ? cfg.models : [cfg.model]).filter(Boolean).forEach(m => put(P.name + ' · مفتاحك', P.id, m));
+      });
+      if (!groups.size) list.appendChild(el('div', { class: 'tiny', text: 'قائمة النماذج تُجلب من خادم الموقع…' }));
+      groups.forEach((items, g) => {
+        const grp = el('div', { class: 'cc-grp' }, [el('div', { class: 'mp-grp', text: g })]);
+        const chosen = items.filter(x => picks.some(p => p.pid === x.pid && p.model === x.model));
+        const shown = grp._all ? items : chosen.concat(items.filter(x => !chosen.includes(x))).slice(0, Math.max(5, chosen.length));
+        const row = ({ pid, model }) => {
+          const i = picks.findIndex(p => p.pid === pid && p.model === model);
+          const cb = el('input', { type: 'checkbox', disabled: i < 0 && picks.length >= max });
+          cb.checked = i >= 0;
+          cb.onchange = () => {
+            let l = Council.picks();
+            if (cb.checked) { if (l.length >= max) { cb.checked = false; Toast.err('Maximum: ' + max + ' نماذج'); return; } l.push({ pid, model }); }
+            else l = l.filter(p => !(p.pid === pid && p.model === model));
+            Council.setPicks(l);
+          };
+          return el('label', { class: 'cc-check' + (i >= 0 ? ' on' : ''), dataset: { pick: pid + '|' + model } }, [cb,
+            el('span', { class: 'cc-cm', text: g.replace(/ · .*$/, '') + ' — ' + model }), i >= 0 ? el('span', { class: 'cc-n', text: '#' + (i + 1) + (i === 0 ? ' ★' : '') }) : el('span')]);
+        };
+        shown.forEach(x => grp.appendChild(row(x)));
+        if (items.length > shown.length) grp.appendChild(el('button', { class: 'chip', type: 'button', text: '+ ' + (items.length - shown.length) + ' نماذج أخرى', onclick: () => { grp._all = true; grp.textContent = ''; grp.appendChild(el('div', { class: 'mp-grp', text: g })); items.forEach(x => grp.appendChild(row(x))); } }));
+        list.appendChild(grp);
+      });
+    };
+    /* the list NEXUS received last (every listing saves it), asked again at most once a minute */
+    const saved = () => AIConfig.all().nexus || {};
+    draw(saved().models, saved().modelOwners);
+    if (FreeAI.ready() && Date.now() - this._at > 60000) {
+      this._at = Date.now();
+      AIClient.listModels('nexus').then(() => { if (wrap.isConnected) draw(saved().models, saved().modelOwners); }).catch(() => {});
+    }
+    return wrap;
+  },
+  paintAll() { this.nodes.forEach(b => { if (!b.isConnected) this.nodes.delete(b); else this.paint(b); }); }
+};
+
 if (!window.NX_SANDBOX) {
   /* the chat bar: the chip after the model badge */
   if (NX.Chat) {
@@ -32545,7 +32912,7 @@ if (!window.NX_SANDBOX) {
     const A = NX.AIPanel, _open = A.open;
     A.open = function () {
       const r = _open.apply(this, arguments);
-      try { if (this.modeSeg && this.modeSeg.parentNode && !this.modeSeg.parentNode.querySelector('.cc-panelrow')) this.modeSeg.after(el('div', { class: 'cc-panelrow' }, [Chip.make()])); } catch (e) { console.warn('[council] chip', e); }
+      try { if (this.modeSeg && this.modeSeg.parentNode && !this.modeSeg.parentNode.querySelector('.cc-inline')) this.modeSeg.after(ModeBox.make()); } catch (e) { console.warn('[council] AI MODE', e); }
       return r;
     };
   }
@@ -32567,7 +32934,7 @@ if (!window.NX_SANDBOX) {
   const lives = new Map();
   window.addEventListener('nx:council', e => {
     const ev = e.detail || {};
-    if (ev.type === 'settings') { Chip.paintAll(); return; }
+    if (ev.type === 'settings') { Chip.paintAll(); ModeBox.paintAll(); return; }
     if (!ev.cid || ev.origin === 'chat') return;
     let L = lives.get(ev.cid);
     if (!L) {
@@ -32583,13 +32950,14 @@ if (!window.NX_SANDBOX) {
     if (L.node.parentNode) L.node.parentNode.scrollTop = L.node.parentNode.scrollHeight;
     if (ev.type === 'final' || ev.type === 'error') lives.delete(ev.cid);
   });
-  window.addEventListener('nx:aiProvider', () => Chip.paintAll());
+  window.addEventListener('nx:aiProvider', () => { Chip.paintAll(); ModeBox.paintAll(); });
   NX.Commands && NX.Commands.register([
     { label: 'مجلس الذكاء · Multi-AI Council (Pro)', icon: 'spark', keywords: 'council ai multi models pro مجلس نماذج', run: () => CouncilUI.open() }
   ]);
 }
 
 NX.CouncilUI = CouncilUI;
+NX.CouncilModeBox = ModeBox;
 NX.CouncilAssets = { enrich: (p, c) => CouncilUI.enrich(p, c) };
 </script>
 <!-- /NX-PART:36 -->
@@ -33359,7 +33727,9 @@ const Platform = {
       msg.textContent = 'جارٍ…';
       try {
         await Backend.auth.signInEmail(e, pw, create);
-        Toast.ok('أهلًا بك'); sheet.close(); this.render(); after && after();
+        Toast.ok('أهلًا بك'); sheet.close(); this.render();
+        if (create && NX.Age) await NX.Age.welcome();
+        after && after();
       } catch (err) { msg.textContent = authMessage(err); }
     };
     const sheet = Sheet.open({
@@ -33488,7 +33858,7 @@ function promptSignIn(reason, after) {
   body.appendChild(el('p', { class: 'muted', style: { fontSize: '13.5px', marginBottom: '12px', lineHeight: '1.7' },
     text: reason || 'سجّل الدخول ليُحفظ عملك باسمك ويظهر على أجهزتك الأخرى. مشاريعك في هذه الجلسة تنتقل معك.' }));
   body.appendChild(btn('المتابعة مع Google', { cls: 'block primary', icon: 'user', style: { marginBottom: '8px' }, onclick: async () => {
-    try { const u = await Backend.auth.signInGoogle(); if (u) { Toast.ok('أهلًا ' + (Backend.user ? Backend.user.name : '')); sheet.close(); Platform.render(); after && after(); } }
+    try { const u = await Backend.auth.signInGoogle(); if (u) { Toast.ok('أهلًا ' + (Backend.user ? Backend.user.name : '')); sheet.close(); Platform.render(); if (NX.Age) await NX.Age.welcome(); after && after(); } }
     catch (e) { Toast.err(authMessage(e)); }
   }}));
   body.appendChild(btn('البريد وكلمة المرور', { cls: 'block', icon: 'book', onclick: () => { sheet.close(); Platform.openEmailAuth(after); } }));
@@ -33801,7 +34171,11 @@ function openSettings() {
   body.appendChild(el('div', { class: 'opt-sec', text: 'إذا حدثت مشكلة' }));
   opt('shield', 'التشخيص', 'يفحص الاتصال والتخزين والنشر، ويقول ما الذي لا يعمل ولماذا', () => openDiagnostics());
   opt('book', 'سجلّ الأخطاء والتشخيص', 'آخر الأخطاء التي حدثت مع المساعد والأدوات', () => NX.AIDebug.open());
-  opt('trash', 'مسح ذاكرة الأصول المؤقتة', 'يحذف النسخ المحفوظة من المجسمات والصور على هذا الجهاز (تُحمّل من جديد)', () => { NX.AssetCache.clear(); Toast.ok('مُسحت'); });
+  opt('trash', 'مسح ذاكرة الأصول المؤقتة', 'يحذف النسخ المؤقتة على هذا الجهاز فقط (المجسمات في الذاكرة، أيقونات الأصول، نسخ العمل دون إنترنت). الأصول نفسها — سجلّاتها في Firebase وملفاتها في Drive — لا تُمس، وتُعاد أيقوناتها منها', async () => {
+    const n = await NX.AssetThumbs.clearTemporary();
+    Toast.ok('مُسحت النسخ المؤقتة (' + n.icons + ' أيقونة · ' + n.models + ' مجسم في الذاكرة · ' + n.offline + ' نسخة دون إنترنت). أصولك محفوظة — تُعاد الأيقونات من Firebase الآن', 6000);
+    NX.AssetThumbs.rebuild().then(r => { if (r.total) Toast.ok('أُعيد بناء ' + r.done + ' من ' + r.total + ' أيقونة من سجلات أصولك'); }).catch(() => {});
+  });
 
 
   Sheet.open({ title: T('settings'), body, id: 'settings' });

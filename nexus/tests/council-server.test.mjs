@@ -62,16 +62,65 @@ test('config: free = 1 model, Pro = 4, limits come from the server', async () =>
   assert.equal(p.limits.maxParallelRequests, 3); assert.equal(p.limits.maxSynthesisTokens, 2000); assert.equal(p.limits.maxModelsPerRequest, 4);
 });
 
-test('Free + 1 model: four members asked, the server runs one — no synthesis', async () => {
+test('Free + Single AI: one model, counted once — no synthesis', async () => {
   const h = await fn();
-  const r = await council(h, 'free1', four());
+  const r = await council(h, 'free1', [Object.assign({}, M.lead)], { mode: 'single' });
   assert.equal(r.status, 200);
   const list = await readSSE(r), plan = ev(list, 'plan')[0], fin = final(list);
-  assert.equal(plan.allowed, 1); assert.equal(plan.pro, false); assert.equal(plan.reduced, 'pro_required'); assert.equal(plan.members.length, 1);
+  assert.equal(plan.allowed, 1); assert.equal(plan.pro, false); assert.equal(plan.reduced, null); assert.equal(plan.members.length, 1);
   assert.equal(W.calls.length, 1, 'one provider call');
   assert.ok(!W.calls.some(c => /REVIEW & SYNTHESIS/.test(c.system)));
   assert.match(fin.text, /^Coder by gemini:/);
   assert.equal(used('free1'), 1, 'counted once');
+});
+
+for (const n of [2, 4]) test('Free asks for ' + n + ' models (a page changed in DevTools / a forged request): refused by the server, nothing runs, nothing counted', async () => {
+  const h = await fn();
+  const r = await council(h, 'free1', four().slice(0, n), { mode: 'full' });
+  assert.equal(r.status, 403);
+  const e = (await r.json()).error;
+  assert.equal(e.code, 'pro_required'); assert.match(e.message, /NEXUS Pro/);
+  assert.equal(W.calls.length, 0, 'no provider was called'); assert.equal(used('free1'), 0, 'nothing counted');
+  /* own-key members beside it («members» phase) are the same request for more models */
+  const r2 = await ask(h, '/council', { uid: 'free1', body: { phase: 'members', mode: 'full', system: SYS, messages: MSG, members: [Object.assign({}, M.lead)], external: 1 } });
+  assert.equal(r2.status, 403); assert.equal(W.calls.length, 0);
+});
+
+test('Pro + Single AI: the mode is honoured — one model even when several are sent', async () => {
+  const h = await fn();
+  const one = await readSSE(await council(h, 'pro1', [Object.assign({}, M.lead)], { mode: 'single' }));
+  assert.equal(ev(one, 'plan')[0].members.length, 1); assert.equal(ev(one, 'plan')[0].pro, true);
+  assert.equal(W.calls.length, 1); assert.ok(!W.calls.some(c => /REVIEW & SYNTHESIS/.test(c.system)));
+  W.calls.length = 0;
+  const four1 = await readSSE(await council(h, 'pro1', four(), { mode: 'single' }));
+  assert.equal(ev(four1, 'plan')[0].members.length, 1); assert.equal(ev(four1, 'plan')[0].reduced, 'limit'); assert.equal(W.calls.length, 1);
+});
+
+test('Pro raises maxModels from the browser (8 members sent): the server runs its own maximum', async () => {
+  let h = await fn();
+  const eight = four().concat(four().map(m => Object.assign({}, m, { role: m.role + '2', lead: false })));
+  let list = await readSSE(await council(h, 'pro1', eight));
+  assert.equal(ev(list, 'plan')[0].members.length, 4); assert.equal(ev(list, 'plan')[0].reduced, 'limit');
+  assert.equal(W.calls.filter(c => !/REVIEW & SYNTHESIS/.test(c.system)).length, 4, 'four members, never eight');
+  h = await fn({ COUNCIL_MAX_MODELS: '2' });
+  list = await readSSE(await council(h, 'pro1', eight));
+  assert.equal(ev(list, 'plan')[0].members.length, 2, 'the owner\'s COUNCIL_MAX_MODELS');
+  const cfg = await (await ask(h, '/council/config', { method: 'GET', uid: 'pro1' })).json();
+  assert.equal(cfg.maxModels, 2);
+});
+
+test('Smart Council\'s points and thresholds come from the server (COUNCIL_SMART_*)', async () => {
+  let h = await fn();
+  let c = await (await ask(h, '/council/config', { method: 'GET', uid: 'pro1' })).json();
+  assert.deepEqual(c.smart.thresholds, [2, 4, 6]); assert.equal(c.smart.weights.wholeGame, 4); assert.deepEqual(c.modes, ['single', 'smart', 'full']);
+  h = await fn({ COUNCIL_SMART_THRESHOLDS: '3, 5, 8', COUNCIL_SMART_WEIGHTS: 'wholeGame=6, assets=2, bogus=9, code=x' });
+  c = await (await ask(h, '/council/config', { method: 'GET', uid: 'pro1' })).json();
+  assert.deepEqual(c.smart.thresholds, [3, 5, 8]); assert.equal(c.smart.weights.wholeGame, 6); assert.equal(c.smart.weights.assets, 2);
+  assert.ok(!('bogus' in c.smart.weights)); assert.equal(c.smart.weights.code, 1, 'a value that is not a number is ignored');
+  h = await fn({ COUNCIL_SMART_THRESHOLDS: '9,2,1' });
+  c = await (await ask(h, '/council/config', { method: 'GET', uid: 'free1' })).json();
+  assert.deepEqual(c.smart.thresholds, [2, 4, 6], 'thresholds out of order fall back to the defaults');
+  assert.deepEqual(c.modes, ['single'], 'a free account is offered Single AI');
 });
 
 for (const n of [2, 3, 4]) test('Pro + ' + n + ' models: ' + n + ' members on different providers, then one synthesis', async () => {
@@ -373,8 +422,10 @@ test('No way to check Pro (no service account / Firestore): everyone gets one mo
   const h = await fn({ FIRESTORE_EMULATOR_HOST: '' });
   const cfg = await (await ask(h, '/council/config', { method: 'GET', uid: 'pro1' })).json();
   assert.equal(cfg.verified, false); assert.equal(cfg.maxModels, 1);
-  const list = await readSSE(await council(h, 'pro1', four()));
-  assert.equal(ev(list, 'plan')[0].reduced, 'pro_unverified'); assert.equal(W.calls.length, 1);
+  const r = await council(h, 'pro1', four());
+  assert.equal(r.status, 403); assert.match((await r.json()).error.message, /FIREBASE_SERVICE_ACCOUNT/); assert.equal(W.calls.length, 0);
+  const list = await readSSE(await council(h, 'pro1', [Object.assign({}, M.lead)]));
+  assert.equal(ev(list, 'plan')[0].members.length, 1); assert.equal(W.calls.length, 1, 'one model still answers');
 });
 
 test('Guests and forged tokens are refused', async () => {

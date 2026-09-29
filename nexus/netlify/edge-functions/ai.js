@@ -35,6 +35,8 @@
      COUNCIL_MEMBER_TIMEOUT_MS (60000)  one provider call
      COUNCIL_MAX_RETRIES (2)          maxRetries — more keys / providers per member
      COUNCIL_USE_DONATED=0            council members use the site's keys only
+     COUNCIL_SMART_THRESHOLDS ("2,4,6")  Smart Council: the points needed for 2 · 3 · 4 models
+     COUNCIL_SMART_WEIGHTS ("wholeGame=4,assets=1,…")  the points of each factor Smart reads
    THE OWNER'S KEY BOX: instead of (or besides) the variables above, the
    site owner can type keys inside NEXUS (⚙ ← «مفاتيح الذكاء المجاني»).
    They are sent here once, tested, and kept in the site's own Netlify Blobs
@@ -659,6 +661,20 @@ const councilCfg = () => ({
   maxRetries: clampEnv('COUNCIL_MAX_RETRIES', 2, 0, 5),                  // maxRetries
   donated: env('COUNCIL_USE_DONATED') !== '0'
 });
+/* Smart Council: the points of each factor and the thresholds for 2 · 3 · 4 models — the page reads
+   them from /council/config, so the owner tunes Smart here without a new upload.
+   COUNCIL_SMART_THRESHOLDS="2,4,6"   COUNCIL_SMART_WEIGHTS="wholeGame=4,assets=1,…" */
+const SMART_WEIGHTS = { size: 1, operations: 1, files: 1, wholeGame: 4, builder: 1, assets: 1, systems: 1, code: 1, errors: 1, existing: 1, review: 1, simple: 2 };
+const smartCfg = () => {
+  const th = String(env('COUNCIL_SMART_THRESHOLDS') || '').split(',').map(x => x.trim()).filter(Boolean).map(Number);
+  const thresholds = th.length === 3 && th.every(Number.isFinite) && th[0] <= th[1] && th[1] <= th[2] ? th : [2, 4, 6];
+  const weights = Object.assign({}, SMART_WEIGHTS);
+  String(env('COUNCIL_SMART_WEIGHTS') || '').split(',').forEach(pair => {
+    const [k, v] = pair.split('=').map(x => String(x || '').trim());
+    if (k in weights && v !== '' && Number.isFinite(+v)) weights[k] = Math.max(-10, Math.min(10, +v));
+  });
+  return { thresholds, weights };
+};
 const councilPub = C => ({ maxModelsPerRequest: C.maxModels, maxParallelRequests: C.maxParallel, maxSynthesisTokens: C.maxSynthesisTokens,
   maxMemberTokens: C.maxMemberTokens, maxRequestTime: C.maxRequestMs, memberTimeout: C.memberMs, maxRetries: C.maxRetries });
 
@@ -820,9 +836,12 @@ async function council(req, me, body) {
     : fail(429, 'daily_limit', q.pro ? 'وصلت حدّ Pro اليومي (' + q.limit + ' طلبًا) — يتجدّد غدًا.' : 'انتهت طلبات الذكاء المجانية اليوم (' + q.limit + ').');
   const pro = !!(q.verified && q.pro), S = size(pro), took = q.took || 0;
   const release = n => aiRefund(me.uid, n, !!q.locked);
-  if (phase === 'synthesis' && contributions.length > S.allowedN) {
+  /* more than one model for an account that is not Pro (read above, from its wallet — whatever the
+     page was made to send): refused, nothing runs, nothing is counted */
+  const several = phase === 'synthesis' ? contributions.length > S.allowedN : !pro && (asked.length > 1 || external > 0);
+  if (several) {
     await release(took);
-    return fail(403, 'pro_required', q.verified ? 'دمج نتائج عدة نماذج (Multi-AI Council) من مزايا NEXUS Pro.' : 'لا يستطيع الخادم التحقق من اشتراك Pro هنا (يحتاج FIREBASE_SERVICE_ACCOUNT) — يعمل نموذج واحد فقط.');
+    return fail(403, 'pro_required', q.verified ? 'Multi-AI Council (أكثر من نموذج في المهمة الواحدة) من مزايا NEXUS Pro — الحساب المجاني: نموذج واحد.' : 'لا يستطيع الخادم التحقق من اشتراك Pro هنا (يحتاج FIREBASE_SERVICE_ACCOUNT) — يعمل نموذج واحد فقط.');
   }
   /* the day's requests may allow fewer calls than planned: a smaller council (two members need three calls) */
   let n = S.members;
@@ -994,7 +1013,7 @@ export default async (req) => {
   if (req.method === 'GET' && path === '/council/config') {
     const C = councilCfg(), t = await tierOf(me.uid), providers = ORDER.filter(p => P[p].keys().length);
     return json(200, { enabled: C.enabled && providers.length > 0, pro: t.pro, verified: t.verified, maxModels: t.pro ? C.maxModels : 1, proMaxModels: C.maxModels, freeMaxModels: 1,
-      limits: councilPub(C), providers: providers.map(p => P[p].label), modes: ['single', 'smart', 'full'], donated: C.donated });
+      limits: councilPub(C), smart: smartCfg(), providers: providers.map(p => P[p].label), modes: t.pro ? ['single', 'smart', 'full'] : ['single'], donated: C.donated });
   }
   if (req.method === 'POST' && path === '/council') {
     const wait = allowed(me.uid);
