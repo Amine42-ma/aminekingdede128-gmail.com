@@ -74,7 +74,7 @@ const browser = await chromium.launch();
 const pageLogs = [];
 
 async function newPage() {
-  const ctx = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 1280, height: 900 } });
+  const ctx = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 1280, height: 900 }, locale: 'ar' });
   await ctx.route('**/*', route => {
     const u = new URL(route.request().url());
     if (u.hostname === '127.0.0.1' || u.hostname === 'localhost') return route.continue();

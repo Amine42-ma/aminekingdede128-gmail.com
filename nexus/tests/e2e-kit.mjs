@@ -48,7 +48,8 @@ export async function resetEmulators() {
    device's clock is that many ms off (Date.now) */
 export async function newDevice(browser, site, logs = [], opts = {}) {
   const { clockShift = 0, ...ctxOpts } = opts;
-  const ctx = await browser.newContext(Object.assign({ serviceWorkers: 'block', viewport: { width: 1280, height: 900 } }, ctxOpts));
+  /* locale: the language NEXUS detects on a first visit (the players of these tests read Arabic) */
+  const ctx = await browser.newContext(Object.assign({ serviceWorkers: 'block', viewport: { width: 1280, height: 900 }, locale: 'ar' }, ctxOpts));
   if (clockShift) await ctx.addInitScript(ms => { const real = Date.now.bind(Date); Date.now = () => real() + ms; }, clockShift);
   await ctx.route('**/*', route => {
     const u = new URL(route.request().url());

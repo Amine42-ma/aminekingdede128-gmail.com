@@ -13,6 +13,8 @@ window.NX_SANDBOX = location.hash === '#nx-sandbox' && window.parent !== window;
   if (m) history.replaceState(null, '', m[1] + location.search + '#' + m[2] + '/' + m[3]);
 })();
 </script>
+<!-- the interface in العربية · English · हिन्दी (i18n) — without it NEXUS stays in Arabic -->
+<script src="translations.js" defer></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <meta name="google" content="notranslate">
@@ -1779,6 +1781,56 @@ button.chg-chip:hover,button.chg-chip:focus-visible{border-color:rgba(var(--bran
   .chg-big b{font-size:38px}
 }
 /* /NX-CSS:37 */
+/* NX-CSS:38 */
+/* PART 38 · the language switcher · the AI live tutor */
+html[lang="hi"]{--font:'Hind','Noto Sans Devanagari','Nirmala UI','Mangal',system-ui,-apple-system,'Segoe UI',sans-serif}
+#btn-lang .ib-cap{font-family:var(--font-en);font-weight:800}
+/* a phone's top bar: the 🌐 fits beside the others — longer captions (English, Hindi) are shortened, the wordmark
+   gives way to the logo on the narrowest screens */
+@media (max-width:480px){
+  .p-top{gap:6px;padding-inline:10px}
+  .p-top .icon-btn.has-cap{min-width:38px;padding-inline:3px}
+  .p-top .icon-btn.has-cap .ib-cap{max-width:54px;overflow:hidden;text-overflow:ellipsis}
+}
+@media (max-width:420px){ .p-top .brandmark b{display:none} }
+.lang-menu{position:fixed;z-index:88;min-width:220px;max-width:min(300px,calc(100vw - 16px));padding:10px;border-radius:16px;background:var(--panel);border:1px solid var(--line-2);box-shadow:var(--shadow-2);display:flex;flex-direction:column;gap:6px;animation:ttin .16s ease}
+.lang-h{font-size:14px}
+.lang-hint,.lang-note{font-size:11.5px;color:var(--ink-dim);line-height:1.5}
+.lang-opt{display:flex;align-items:center;gap:10px;min-height:46px;padding:8px 10px;border-radius:12px;background:var(--glass);border:1px solid var(--line);text-align:start;font:inherit;color:var(--ink);cursor:pointer}
+.lang-opt.on{border-color:rgba(var(--brand-rgb),.6);background:rgba(var(--brand-rgb),.12)}
+.lang-opt:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.lang-opt b{flex:1;font-size:14.5px}
+.lang-opt[lang="hi"] b{font-family:'Hind','Noto Sans Devanagari',system-ui,sans-serif}
+.lang-opt i{font-style:normal;color:var(--cyan);font-weight:800}
+.lang-code{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--glass-2);font:800 12px var(--font-en)}
+.tt-root{position:fixed;inset:0;z-index:85;pointer-events:none}
+.tt-ring{position:fixed;left:0;top:0;border-radius:14px;border:2px solid var(--cyan);opacity:0;transition:left .45s cubic-bezier(.2,.8,.2,1),top .45s cubic-bezier(.2,.8,.2,1),width .45s,height .45s,opacity .3s}
+.tt-ring.on{opacity:1;animation:ttpulse 1.6s ease-in-out infinite}
+.tt-hand{position:fixed;left:0;top:0;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;display:grid;place-items:center;font-size:21px;background:var(--grad);box-shadow:0 8px 24px -6px rgba(124,92,255,.75);transition:transform .6s cubic-bezier(.2,.8,.2,1)}
+.tt-hand.typing{animation:tttype .45s ease-in-out infinite}
+.tt-bubble{position:fixed;inset-inline:0;margin:0 auto;width:min(420px,calc(100vw - 24px));padding:12px 14px;border-radius:16px;background:var(--panel);border:1px solid rgba(var(--brand-rgb),.55);box-shadow:var(--shadow-2);pointer-events:auto}
+.tt-bubble.top{top:calc(var(--sat,0px) + 12px)}
+.tt-bubble.bottom{bottom:calc(var(--sab) + 80px)}
+.tt-bubble small{display:block;font-size:11px;font-weight:800;color:var(--cyan);margin-bottom:4px}
+.tt-bubble p{margin:0;font-size:14px;line-height:1.7}
+.tt-bar{position:fixed;left:50%;bottom:calc(var(--sab) + 12px);transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px;padding:6px;border-radius:26px;background:var(--panel);border:1px solid var(--line-2);box-shadow:var(--shadow-2);pointer-events:auto;width:max-content;max-width:calc(100vw - 16px)}
+.tt-bar button{min-width:42px;height:42px;padding:0 10px;border-radius:999px;display:grid;place-items:center;background:var(--glass);border:1px solid var(--line);color:var(--ink);font:700 14px var(--font-en);cursor:pointer}
+.tt-bar .tt-exit{background:var(--grad);border:0;color:#fff;font:800 13px var(--font);white-space:nowrap}
+.tt-bar .tt-exit.pulse{animation:ttpulse 1.6s ease-in-out infinite}
+.tt-bar button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+@keyframes ttpulse{0%,100%{box-shadow:0 0 0 3px rgba(34,211,238,.22),0 0 22px rgba(34,211,238,.4)}50%{box-shadow:0 0 0 7px rgba(34,211,238,.08),0 0 32px rgba(34,211,238,.6)}}
+@keyframes tttype{0%,100%{transform:translate(var(--x),var(--y)) scale(1)}50%{transform:translate(var(--x),var(--y)) scale(.86)}}
+@keyframes ttin{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.tt-ring,.tt-hand,.tt-bar .tt-exit.pulse{transition:none;animation:none}}
+.tt-howto{display:flex;flex-direction:column;gap:10px}
+.tt-intro{margin:0;font-size:13.5px;line-height:1.7;color:var(--ink-soft)}
+.tt-basic{display:flex;flex-direction:column;gap:4px}
+.tt-basic .tiny{margin:0}
+.tt-code{display:block;padding:8px 10px;border-radius:10px;background:#0b0d18;color:#9fe7ff;font:12px var(--mono);white-space:pre-wrap;word-break:break-word;text-align:left}
+.tt-ai{display:flex;flex-direction:column;gap:8px}
+.tt-ai .tiny{margin:0}
+.tt-askq{margin:0 0 8px;font-size:14.5px;line-height:1.7;font-weight:700}
+/* /NX-CSS:38 */
 </style>
 </head>
 <body>
@@ -1855,12 +1907,13 @@ button.chg-chip:hover,button.chg-chip:focus-visible{border-color:rgba(var(--bran
           <b>NEXUS</b>
         </div>
         <button class="pts-chip hide" id="btn-points" aria-label="points" title="نقاطي">💰 <b id="pts-val">0</b></button>
+        <button class="icon-btn" id="btn-lang" aria-label="language" aria-haspopup="menu"><svg viewBox="0 0 24 24"><use href="#i-globe"/></svg></button>
         <button class="icon-btn" id="btn-search" aria-label="search"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg></button>
         <button class="icon-btn" id="btn-notif" aria-label="notifications"><svg viewBox="0 0 24 24"><use href="#i-heart"/></svg></button>
         <button class="icon-btn" id="btn-settings" aria-label="settings"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
         <button class="avatar" id="btn-me">?</button>
       </header>
-      <main id="p-body" class="scroll"><div id="boot-wait" style="padding:70px 10px;text-align:center;color:#a0a7c8;font-size:13.5px;line-height:1.8"><div class="spin"></div><b style="color:#e9ecff">جارٍ تشغيل NEXUS…</b><div id="boot-msg">تحميل المحرك</div></div></main>
+      <main id="p-body" class="scroll"><div id="boot-wait" style="padding:70px 10px;text-align:center;color:#a0a7c8;font-size:13.5px;line-height:1.8"><div class="spin"></div><b style="color:#e9ecff" data-i18n="BOOT_STARTING">جارٍ تشغيل NEXUS…</b><div id="boot-msg">تحميل المحرك</div></div></main>
     </div>
   </section>
 
@@ -1879,8 +1932,8 @@ button.chg-chip:hover,button.chg-chip:focus-visible{border-color:rgba(var(--bran
       <div class="vp-hud" id="vp-hud"></div>
       <div class="vp-empty" id="vp-empty">
         <div>
-          <b data-t="emptyTitle">عالم فارغ</b>
-          <p data-t="emptyBody">لا توجد مكتبة مجسمات جاهزة. افتح «الأصول» لرفع مجسماتك أو لإضافة أصل عام من المكتبة، أو افتح «الكود» وابدأ البرمجة.</p>
+          <b data-i18n="emptyTitle">عالم فارغ</b>
+          <p data-i18n="emptyBody">لا توجد مكتبة مجسمات جاهزة. افتح «الأصول» لرفع مجسماتك أو لإضافة أصل عام من المكتبة، أو افتح «الكود» وابدأ البرمجة.</p>
         </div>
       </div>
       <div class="vp-tools">
@@ -1980,14 +2033,9 @@ const fmtBytes = b => {
 };
 const timeAgo = ts => {
   if (!ts) return '—';
-  const s = Math.max(1, (Date.now() - ts) / 1000);
-  const L = NX.i18n.lang === 'ar'
-    ? [[31536e3,'سنة'],[2592e3,'شهر'],[86400,'يوم'],[3600,'ساعة'],[60,'دقيقة'],[1,'ثانية']]
-    : [[31536e3,'y'],[2592e3,'mo'],[86400,'d'],[3600,'h'],[60,'m'],[1,'s']];
-  for (const [sec, unit] of L) if (s >= sec) {
-    const v = Math.floor(s / sec);
-    return NX.i18n.lang === 'ar' ? `قبل ${v} ${unit}` : `${v}${unit} ago`;
-  }
+  const s = Math.max(1, (Date.now() - ts) / 1000), units = NX.i18n.t('UNITS').split('|');
+  const L = [31536e3, 2592e3, 86400, 3600, 60, 1];
+  for (let i = 0; i < L.length; i++) if (s >= L[i]) return NX.i18n.t('AGO', { n: Math.floor(s / L[i]), u: units[i] });
   return '—';
 };
 const uid = (p = 'id') => p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -2026,7 +2074,12 @@ const LS = {
   }
 };
 
-/* ---------- i18n ---------- */
+/* ---------- i18n: العربية · English · हिन्दी ----------
+   The dictionary is translations.js (window.NX_I18N): keys for data-i18n="KEY" (and the older
+   data-t) and for T()/NX.t(); phrases for the rest of the interface, which is written in Arabic and
+   is translated where it appears (Phrases). Without translations.js NEXUS stays in Arabic, as before. */
+const I18N = window.NX_I18N || { langs: { ar: { name: 'العربية', short: 'ع', dir: 'rtl' } }, keys: {}, phrases: {} };
+const LANG_IX = { ar: 0, en: 1, hi: 2 };
 const DICT = {
   ar: {
     games:'الألعاب', discover:'استكشاف', create:'إنشاء', mygames:'ألعابي', assets:'الأصول', profile:'الحساب',
@@ -2042,37 +2095,108 @@ const DICT = {
     signOut:'خروج', newProject:'مشروع جديد', open:'فتح', play:'تشغيل', plays:'تشغيل', likes:'إعجاب',
     created:'أُنشئ', updated:'حُدّث', position:'الموقع', rotation:'الدوران', scale:'الحجم', components:'المكونات',
     scripts:'السكربتات', addComponent:'إضافة مكون', newScript:'سكربت جديد', run:'تشغيل', apiDocs:'توثيق الـAPI',
-    settings:'الإعدادات', local:'محلي', online:'متصل', loading:'تحميل…', confirm:'تأكيد', yes:'نعم', no:'لا'
+    settings:'الإعدادات', local:'محلي', online:'متصل', loading:'تحميل…', confirm:'تأكيد', yes:'نعم', no:'لا',
+    AGO:'قبل {n} {u}', UNITS:'سنة|شهر|يوم|ساعة|دقيقة|ثانية', APP_TITLE:'NEXUS · محرك ألعاب فارغ — أنت من يبنيه'
+  }
+};
+/* the interface as written in Arabic → [ar, en, hi]; every known wording (in any of the three) leads to its row,
+   so a text shown in one language goes to another directly. Arabic is the source: it needs no work at all. */
+const Phrases = {
+  map: null, obs: null, texts: new WeakMap(), attrs: new WeakMap(),
+  ATTRS: ['placeholder', 'title', 'aria-label'],
+  /* never translated: code, the code editor, a game's own interface, what a player types */
+  SKIP: 'script,style,textarea,code,pre,.ed-wrap,.mono,[contenteditable="true"],[data-no-i18n],#game-ui-layer',
+  build() {
+    const m = new Map(), add = row => row.forEach(v => { if (v && !m.has(v)) m.set(v, row); });
+    for (const [ar, t] of Object.entries(I18N.phrases || {})) add([ar, t[0] || ar, t[1] || t[0] || ar]);
+    for (const r of Object.values(I18N.keys || {})) if (Array.isArray(r) && r[0] && !/[{|]/.test(r[0])) add([r[0], r[1] || r[0], r[2] || r[1] || r[0]]);
+    return (this.map = m);
   },
-  en: {
-    games:'Games', discover:'Discover', create:'Create', mygames:'My Games', assets:'Assets', profile:'Profile',
-    search:'Search', searchAssets:'Search assets…', searchGames:'Search games…', all:'All', audio:'Audio', textures:'Textures',
-    other:'Other', add:'ADD', added:'Added', upload:'Upload', uploadAsset:'UPLOAD ASSET', cancel:'Cancel', save:'Save',
-    delete:'Delete', close:'Close', apply:'Apply', undo:'Undo', redo:'Redo', preview:'Preview', publish:'Publish',
-    name:'Name', description:'Description', category:'Category', tags:'Tags', license:'License', visibility:'Visibility',
-    public:'Public', private:'Private', creator:'Creator', usage:'Usage', newest:'Newest', mostUsed:'Most Used',
-    relevance:'Relevance', scene:'Scene', code:'Code', world:'World', ai:'AI', more:'More',
-    inspector:'Inspector', hierarchy:'Hierarchy', emptyTitle:'Empty world',
-    emptyBody:'No bundled model library. Open Assets to upload your own or add a public asset, or open Code and start programming.',
-    noResults:'No results', noAssetsYet:'No assets yet — be the first to upload', signIn:'Sign in',
-    signOut:'Sign out', newProject:'New project', open:'Open', play:'Play', plays:'plays', likes:'likes',
-    created:'Created', updated:'Updated', position:'Position', rotation:'Rotation', scale:'Scale', components:'Components',
-    scripts:'Scripts', addComponent:'Add component', newScript:'New script', run:'Run', apiDocs:'API Docs',
-    settings:'Settings', local:'Local', online:'Online', loading:'Loading…', confirm:'Confirm', yes:'Yes', no:'No'
+  to(s, lang) { const row = (this.map || this.build()).get(String(s == null ? '' : s).trim()); return row ? row[LANG_IX[lang] || 0] : s; },
+  swap(src, ix) { const k = src.trim(), row = k && k.length < 400 && this.map.get(k); return row ? src.replace(k, row[ix]) : null; },
+  text(n, ix, checked) {
+    const p = n.parentElement;
+    if (!p || (!checked && p.closest(this.SKIP)) || p.hasAttribute('data-i18n') || p.hasAttribute('data-t')) return;
+    const cur = n.nodeValue, rec = this.texts.get(n), src = rec && rec.out === cur ? rec.src : cur, want = this.swap(src, ix);
+    if (want == null) { if (rec) this.texts.delete(n); return; }
+    if (want !== cur) n.nodeValue = want;
+    this.texts.set(n, { src, out: want });
+  },
+  attr(e, name, ix) {
+    const cur = e.getAttribute(name);
+    if (cur == null || e.hasAttribute('data-i18n')) return;
+    let recs = this.attrs.get(e);
+    const rec = recs && recs[name], src = rec && rec.out === cur ? rec.src : cur, want = this.swap(src, ix);
+    if (want == null) { if (rec) delete recs[name]; return; }
+    if (want !== cur) e.setAttribute(name, want);
+    if (!recs) this.attrs.set(e, recs = {});
+    recs[name] = { src, out: want };
+  },
+  walk(root, ix) {
+    if (!root) return;
+    if (root.nodeType === 3) { this.text(root, ix); return; }
+    if (root.nodeType !== 1 || root.closest(this.SKIP)) return;
+    const attrs = e => this.ATTRS.forEach(a => { if (e.hasAttribute(a)) this.attr(e, a, ix); });
+    attrs(root);
+    const tw = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+      { acceptNode: n => n.nodeType === 1 && n.matches(this.SKIP) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+    for (let n = tw.nextNode(); n; n = tw.nextNode()) n.nodeType === 3 ? this.text(n, ix, true) : attrs(n);
+  },
+  /* what appears later (a sheet, a list, a toast) is translated the moment it appears */
+  watch(on) {
+    if (!on) { if (this.obs) this.obs.disconnect(); this.obs = null; return; }
+    if (this.obs) return;
+    this.obs = new MutationObserver(list => {
+      const ix = LANG_IX[i18n.lang] || 0;
+      for (const m of list) {
+        if (m.type === 'childList') m.addedNodes.forEach(n => this.walk(n, ix));
+        else if (m.type === 'characterData') this.text(m.target, ix);
+        else if (!m.target.closest(this.SKIP)) this.attr(m.target, m.attributeName, ix);
+      }
+    });
+    this.obs.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: this.ATTRS });
   }
 };
 const i18n = {
-  lang: LS.get('lang', 'ar'),
-  t(k) { return (DICT[this.lang] && DICT[this.lang][k]) || (DICT.ar[k]) || k; },
-  set(l) {
-    this.lang = l; LS.set('lang', l);
-    document.documentElement.lang = l;
-    document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr';
-    $$('[data-t]').forEach(n => n.textContent = this.t(n.dataset.t));
-    window.dispatchEvent(new CustomEvent('nx:lang'));
-  }
+  lang: 'ar',
+  langs() { return Object.keys(I18N.langs).filter(l => l in LANG_IX); },
+  t(k, vars) {
+    const row = I18N.keys[k];
+    let s = row ? (row[LANG_IX[this.lang]] || row[0]) : (DICT.ar[k] || k);
+    if (vars) for (const v in vars) s = s.split('{' + v + '}').join(String(vars[v]));
+    return s;
+  },
+  /* an Arabic text of the interface in the current language (itself when the dictionary does not have it) */
+  tr(s) { return this.lang === 'ar' ? s : Phrases.to(s, this.lang); },
+  /* the visitor's choice, else their browser's language on the first visit (Arabic · English · Hindi; others: English) */
+  detect() {
+    const saved = LS.get('lang', null);
+    if (saved && I18N.langs[saved] && saved in LANG_IX) return saved;
+    for (const x of (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''])) {
+      const b = String(x).toLowerCase().split('-')[0];
+      if (I18N.langs[b] && b in LANG_IX) return b;
+    }
+    return I18N.langs.en ? 'en' : 'ar';
+  },
+  set(l) { setLanguage(l); }
 };
-const T = k => i18n.t(k);
+/* the language: every text on screen at once — no reload — the direction, the font, the choice kept */
+function setLanguage(l) {
+  if (!(l in LANG_IX) || !I18N.langs[l]) l = 'ar';
+  i18n.lang = l; LS.set('lang', l);
+  const h = document.documentElement, ix = LANG_IX[l];
+  h.lang = l; h.dir = I18N.langs[l].dir || (l === 'ar' ? 'rtl' : 'ltr');
+  if (l === 'hi' && !document.getElementById('nx-font-hi'))        // Devanagari, only for those who read it
+    document.head.appendChild(Object.assign(document.createElement('link'), { id: 'nx-font-hi', rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&display=swap' }));
+  $$('[data-i18n],[data-t]').forEach(n => { const k = n.dataset.i18n || n.dataset.t; if ((I18N.keys[k] || DICT.ar[k]) && !n.closest('#game-ui-layer')) n.textContent = i18n.t(k); });
+  $$('[data-i18n-placeholder]').forEach(n => { n.placeholder = i18n.t(n.dataset.i18nPlaceholder); });
+  $$('[data-i18n-title]').forEach(n => { n.title = i18n.t(n.dataset.i18nTitle); });
+  document.title = i18n.t('APP_TITLE');
+  if (Phrases.map || Phrases.build()) { if (document.body) Phrases.walk(document.body, ix); Phrases.watch(l !== 'ar'); }
+  window.dispatchEvent(new CustomEvent('nx:lang', { detail: { lang: l } }));
+}
+i18n.lang = i18n.detect();
+const T = (k, vars) => i18n.t(k, vars);
 
 /* ---------- theme ---------- */
 const theme = {
@@ -2278,7 +2402,8 @@ i18n.set(i18n.lang);
 installViewportFix();
 Nav.install();
 
-Object.assign(NX, { $, $$, el, esc, icon, btn, iconBtn, fmtNum, fmtBytes, timeAgo, uid, clamp, debounce, sleep, LS, i18n, T, theme, Toast, Sheet, Modal, Screen, Nav });
+Object.assign(NX, { $, $$, el, esc, icon, btn, iconBtn, fmtNum, fmtBytes, timeAgo, uid, clamp, debounce, sleep, LS, i18n, T, t: T, setLanguage, I18N, theme, Toast, Sheet, Modal, Screen, Nav });
+window.setLanguage = setLanguage;
 </script>
 <script type="module">
 /* ============================================================
@@ -9765,6 +9890,7 @@ const Studio = {
       '🧹 تحسين المشروع · Optimize': 'يجعل لعبتك أخفّ وأسرع'
     };
     DESC[T('apiDocs')] = 'مرجع الأوامر التي يستعملها كود اللعبة';
+    DESC[T('TUTOR')] = T('TUTOR_SUB');
     DESC[T('settings')] = 'اللغة والألوان والحساب والذكاء الاصطناعي';
     const item = (ic, label, fn, cls) => NX.optionRow(ic, label, DESC[label] || '', () => { sheet.close(); fn(); }, { cls: cls || '' });
     const Team = NX.Team, owner = !Team || Team.isOwner(this.project);
@@ -9782,6 +9908,7 @@ const Studio = {
     body.append(
       item('undo', 'تراجع عن آخر تغيير في المشهد', () => this.undo()),
       item('book', T('apiDocs'), () => this.openAPIDocs()),
+      item('spark', T('TUTOR'), () => NX.Tutor && NX.Tutor.openHowTo()),
       item('code', 'الكود ومتعدّد اللغات', () => NX.IDE.open(this.project)),
       item('box', 'بناء المشروع · BUILD', () => this.buildProject()),
       item('gear', 'سلاسل الأدوات · Toolchains', () => NX.IDE.openToolchains()),
@@ -11512,7 +11639,9 @@ const IDE = {
     this.runBtn = btn('RUN', { cls: 'sm ok', icon: 'play', onclick: () => this.doRun() });
     this.stopBtn = btn('STOP', { cls: 'sm danger', icon: 'stop', onclick: () => this.doStop() });
     this.langBadge = el('span', { class: 'badge brand', text: '—' });
-    this.toolbar.append(this.buildBtn, this.runBtn, this.stopBtn, el('span', { style: { flex: '1' } }), this.langBadge);
+    this.tutorBtn = btn('🎓', { cls: 'sm ghost ide-tutor', onclick: () => NX.Tutor && NX.Tutor.openHowTo() });
+    this.tutorBtn.title = T('TUTOR'); this.tutorBtn.setAttribute('aria-label', T('TUTOR'));
+    this.toolbar.append(this.buildBtn, this.runBtn, this.stopBtn, el('span', { style: { flex: '1' } }), this.tutorBtn, this.langBadge);
 
     this.edHost = el('div', { class: 'ide-editor' });
 
@@ -28439,18 +28568,22 @@ const CAPTIONS = {
   'sel-ai': ['اسأل الذكاء', 'اطلب من المساعد أن يعدّل هذا الكائن أو يصلحه'],
   'sel-dup': ['تكرار', 'نسخة من الكائن بجانبه مباشرة'], 'sel-more': ['قائمة', 'كل أوامر الكائن: حذف، قفل، إخفاء، تجميع، محاذاة…'],
   'btn-search': ['بحث', 'ابحث عن لعبة أو صانع أو أصل'], 'btn-notif': ['التنبيهات', 'الإعجابات والمتابعات والدعوات'],
-  'btn-settings': ['الإعدادات', 'اللغة والألوان والحساب والذكاء الاصطناعي']
+  'btn-settings': ['الإعدادات', 'اللغة والألوان والحساب والذكاء الاصطناعي'],
+  'btn-lang': ['اللغة', 'العربية · English · हिन्दी']
 };
 const GIZMO = { move: ['تحريك', 'حرّك الكائن بالسحب'], rotate: ['تدوير', 'دوّر الكائن'], scale: ['الحجم', 'كبّر أو صغّر الكائن'] };
-function caption(b) {
-  if (!b || b.classList.contains('has-cap')) return;
+function caption(b, again) {
+  if (!b || (b.classList.contains('has-cap') && !again)) return;
   const c = CAPTIONS[b.id] || GIZMO[b.dataset.gizmo];
   if (!c) return;
+  const tr = x => NX.i18n.tr(x);                     // in the interface's language (i18n)
   b.classList.add('has-cap');
-  b.title = c[1];
-  b.setAttribute('aria-label', c[0] + ' — ' + c[1]);
-  b.appendChild(el('span', { class: 'ib-cap', text: c[0] }));
+  b.title = tr(c[1]);
+  b.setAttribute('aria-label', tr(c[0]) + ' — ' + tr(c[1]));
+  const cap = b.querySelector('.ib-cap') || b.appendChild(el('span', { class: 'ib-cap' }));
+  cap.textContent = tr(c[0]);
 }
+window.addEventListener('nx:lang', () => document.querySelectorAll('.has-cap').forEach(b => caption(b, true)));
 function captionAll() {
   document.querySelectorAll('#s-top .icon-btn, .vp-tools .icon-btn, #sel-bar .icon-btn, .p-top .icon-btn').forEach(caption);
 }
@@ -34208,6 +34341,360 @@ NX.Commands && NX.Commands.register([
 ]);
 </script>
 <!-- /NX-PART:37 -->
+<!-- NX-PART:38 -->
+<script type="module">
+/* ============================================================
+   PART 38 · 🌐 the language switcher · 🎓 «كيف أبرمج؟» — the AI live tutor
+   • The top bar's 🌐: العربية · English · हिन्दी — NX.setLanguage (PART 2)
+     changes every text at once from translations.js, no reload.
+   • «كيف أبرمج؟» (the studio's «المزيد», the code editor, the commands):
+     the tutor first ASKS («هل تسمح للذكاء الاصطناعي بفتح القوائم وكتابة
+     الكود أمامك؟»). With a yes, NEXUS AI's pointer opens the menus (Assets,
+     the scene, the code editor), types a real NEXUS script live into a new
+     lesson file of the project (never into the player's files) and explains
+     each step in a bubble — in the interface's language. The bar below gives
+     the player the control: pause / play · replay the step · next step ·
+     speed 0.5x · 1x · 2x · exit & practice. NEXUS AI can also make a lesson
+     on the player's own question (the same AI client as the assistant).
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, Sheet, Modal, Toast } = NX;
+const t = (k, v) => NX.T(k, v);
+const STOP = Symbol('stop');
+
+/* ---------------- 🌐 the language switcher ---------------- */
+const Lang = {
+  menu: null,
+  label() {
+    const cap = document.querySelector('#btn-lang .ib-cap'), l = NX.I18N.langs[NX.i18n.lang];
+    if (cap && l) { cap.textContent = l.short; cap.setAttribute('data-no-i18n', ''); }
+  },
+  close() {
+    if (!this.menu) return;
+    this.menu.remove(); this.menu = null;
+    document.removeEventListener('pointerdown', this._out, true);
+  },
+  open(anchor) {
+    if (this.menu) { this.close(); return; }
+    const cur = NX.i18n.lang;
+    const m = el('div', { class: 'lang-menu', role: 'menu', 'data-no-i18n': '', onkeydown: e => { if (e.key === 'Escape') { this.close(); anchor.focus(); } } }, [
+      el('b', { class: 'lang-h', text: '🌐 ' + t('LANG') }), el('small', { class: 'lang-hint', text: t('LANG_HINT') }),
+      ...NX.i18n.langs().map(l => el('button', { class: 'lang-opt' + (l === cur ? ' on' : ''), type: 'button', role: 'menuitemradio', 'aria-checked': String(l === cur), lang: l, dir: NX.I18N.langs[l].dir,
+        onclick: () => { this.close(); if (l !== NX.i18n.lang) { NX.setLanguage(l); Toast.ok(t('LANG_CHANGED')); } } },
+        [el('span', { class: 'lang-code', text: NX.I18N.langs[l].short }), el('b', { text: NX.I18N.langs[l].name }), l === cur ? el('i', { text: '✓' }) : null])),
+      el('small', { class: 'lang-note', text: t('LANG_NOTE') })]);
+    document.body.appendChild(m);
+    const r = anchor.getBoundingClientRect(), w = m.offsetWidth;
+    m.style.top = Math.round(r.bottom + 8) + 'px';
+    m.style.left = Math.round(Math.min(innerWidth - w - 8, Math.max(8, r.left + r.width / 2 - w / 2))) + 'px';
+    this.menu = m;
+    this._out = e => { if (!m.contains(e.target) && !anchor.contains(e.target)) this.close(); };
+    document.addEventListener('pointerdown', this._out, true);
+    (m.querySelector('.lang-opt.on') || m.querySelector('.lang-opt')).focus();
+  }
+};
+const langBtn = document.getElementById('btn-lang');
+if (langBtn) { langBtn.onclick = e => Lang.open(e.currentTarget); Lang.label(); }
+window.addEventListener('nx:lang', () => { Lang.label(); Tutor.repaint(); });
+
+/* ---------------- 🎓 the lessons ---------------- */
+/* «your first script»: variables, a button bound to the game, movement — real NEXUS code (API: PART 3),
+   its comments and every explanation in the interface's language */
+function lessonFirst() {
+  return { title: t('TL1_TITLE'), steps: [
+    { say: 'TL1_1' },
+    { open: 'assets', say: 'TL1_2' },
+    { add: 'Player', say: 'TL1_3' },
+    { open: 'code', say: 'TL1_4' },
+    { say: 'TL1_5', type: () => '// 1) ' + t('TL1_C1') + '\nlet speed = 5;\nlet score = 0;\nlet label;\n\n' },
+    { say: 'TL1_6', type: () => '// 2) ' + t('TL1_C2') + '\nfunction start() {\n  label = UI.text("Score: 0", { x: 16, y: 16, size: 20 });\n  // 3) ' + t('TL1_C3')
+      + '\n  UI.button("JUMP", pressed => {\n    if (!pressed) return;\n    score += 1;\n    label.set("Score: " + score);\n    Audio.beep(660, 0.1);\n  }, { id: "jump", right: 24, bottom: 40 });\n}\n\n' },
+    { say: 'TL1_7', type: () => '// 4) ' + t('TL1_C4') + '\nfunction update(dt) {\n  const player = Scene.find("Player");\n  if (!player) return;\n'
+      + '  player.position.x += Input.axis("horizontal") * speed * dt;\n  player.position.z -= Input.axis("vertical") * speed * dt;\n}\n' },
+    { run: true, say: 'TL1_8' },
+    { say: 'TL1_9', end: true }
+  ] };
+}
+/* a lesson NEXUS AI writes for the player's own question — its steps played the same way (the code is typed,
+   never run by the tutor: the player runs it) */
+const AI_SYSTEM = lang => 'You are NEXUS AI, a friendly programming teacher inside the NEXUS browser game engine. Teach the player\'s question with a tiny working example. '
+  + 'Write every explanation and every code comment in ' + lang + '. Answer with ONE JSON object only, no markdown: {"title":"short","steps":[{"say":"one or two short sentences","code":"code to add, or empty"}]} '
+  + '— 3 to 7 steps; together the code of the steps is ONE valid NEXUS script (JavaScript): function start() {…} runs once, function update(dt) {…} every frame. '
+  + 'Only these APIs: Scene.find(name) → object with position/rotation/scale {x,y,z}; Input.axis("horizontal"|"vertical"); Input.isDown(key); UI.text(str,{x,y,size}) → {set(v)}; '
+  + 'UI.button(label, pressed => {}, {id,right,bottom}); Audio.beep(freq,dur); Engine.log(…); Player.jump(force); Physics.setGravity(x,y,z). The scene has a cube named "Player".';
+async function aiLesson(topic) {
+  const lang = NX.I18N.langs[NX.i18n.lang] ? NX.I18N.langs[NX.i18n.lang].name + ' (' + NX.i18n.lang + ')' : 'Arabic';
+  const r = await NX.AIClient.chat([{ role: 'user', content: String(topic).slice(0, 400) }], { system: AI_SYSTEM(lang), stream: false, _quiet: true });
+  const text = typeof r === 'string' ? r : (r && (r.text || r.content)) || '';
+  const j = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+  const steps = (Array.isArray(j.steps) ? j.steps : []).slice(0, 7)
+    .map(s => ({ text: String(s && s.say || '').slice(0, 400), code: String(s && s.code || '').slice(0, 1500) })).filter(s => s.text);
+  if (!steps.length) throw new Error('empty');
+  const title = String(j.title || topic).slice(0, 80);
+  return { title, steps: [
+    { add: 'Player', text: '🧠 ' + title },
+    ...steps.map((s, i) => Object.assign({ text: s.text }, i === 0 ? { open: 'code' } : {}, s.code ? { type: () => s.code.replace(/\n*$/, '\n\n') } : {})),
+    { say: 'TUTOR_PRACTICE', end: true }
+  ] };
+}
+
+/* ---------------- 🎓 the tutor ---------------- */
+const Tutor = {
+  on: false, lesson: null, i: 0, speed: 1, paused: false, gen: 0, file: null, ui: null, target: null, _loop: 0,
+
+  /* «كيف أبرمج؟»: the basics — and the tutor asks first */
+  openHowTo() {
+    const topic = el('input', { class: 'input tt-topic', placeholder: t('TUTOR_AI_PH'), maxlength: '300' });
+    const note = el('p', { class: 'tiny tt-ainote' });
+    const code = s => el('code', { class: 'tt-code', dir: 'ltr', 'data-no-i18n': '', text: s });
+    const body = el('div', { class: 'tt-howto', 'data-no-i18n': '' }, [
+      el('p', { class: 'tt-intro', text: t('TUTOR_INTRO') }),
+      el('b', { class: 'ttl', text: t('TUTOR_BASICS') }),
+      el('div', { class: 'card tt-basic' }, [el('b', { text: '1 · ' + t('TUTOR_B1') }), el('p', { class: 'tiny', text: t('TUTOR_B1_T') }), code('let speed = 5;')]),
+      el('div', { class: 'card tt-basic' }, [el('b', { text: '2 · ' + t('TUTOR_B2') }), el('p', { class: 'tiny', text: t('TUTOR_B2_T') }), code('player.position.x += Input.axis("horizontal") * speed * dt;')]),
+      el('div', { class: 'card tt-basic' }, [el('b', { text: '3 · ' + t('TUTOR_B3') }), el('p', { class: 'tiny', text: t('TUTOR_B3_T') }), code('UI.button("JUMP", pressed => { score += 1; });')]),
+      btn(t('TUTOR_START'), { cls: 'primary block tt-go', onclick: () => this.ask(() => { sheet.close(); this.start(lessonFirst()); }) }),
+      el('div', { class: 'card tt-ai' }, [el('b', { text: t('TUTOR_AI_LESSON') }), topic,
+        btn(t('TUTOR_AI_MAKE'), { cls: 'tt-aimake', onclick: async ev => {
+          const b = ev.currentTarget, q = topic.value.trim();
+          if (!q) { topic.focus(); return; }
+          b.disabled = true; note.textContent = t('TUTOR_AI_MAKING');
+          let lesson = null;
+          try { lesson = await aiLesson(q); note.textContent = ''; }
+          catch (e) { console.warn('[tutor] ai lesson', e); note.textContent = t('TUTOR_AI_FAIL'); }
+          b.disabled = false;
+          if (lesson) this.ask(() => { sheet.close(); this.start(lesson); });
+        } }), note])]);
+    const sheet = Sheet.open({ title: t('TUTOR'), body, id: 'howto' });
+    /* the section opens: NEXUS AI asks before it touches anything */
+    this.ask(() => { sheet.close(); this.start(lessonFirst()); });
+  },
+  ask(yes) {
+    Modal.open({ title: '🎓 ' + t('TUTOR_ASK_TITLE'), body: el('div', { class: 'tt-ask', 'data-no-i18n': '' }, [el('p', { class: 'tt-askq', text: t('TUTOR_ASK') }), el('p', { class: 'tiny', text: t('TUTOR_ASK_NOTE') })]),
+      actions: [{ label: t('TUTOR_NO'), cls: 'ghost tt-no' }, { label: t('TUTOR_OK'), cls: 'primary tt-yes', onclick: () => { setTimeout(yes, 0); } }] });
+  },
+
+  /* ---------------- the show ---------------- */
+  async start(lesson) {
+    this.stop(true);
+    const S = NX.Studio;
+    /* a project to teach in: the one open in the editor, or a new one for the lesson */
+    if (!(NX.Screen.current() === 'studio' && S.project)) {
+      const p = await NX.Platform.createProject('🎓 ' + t('TUTOR_NEED_PROJECT')).catch(e => { Toast.err(e.message || String(e)); return null; });
+      if (!p) return;
+      await new Promise(r => setTimeout(r, 500));
+    }
+    if (S.playing) S.stopPlay();
+    Object.assign(this, { on: true, lesson, i: 0, paused: false, file: null });
+    this.build();
+    this.play(0);
+  },
+  build() {
+    const b = (cls, fn) => el('button', { class: cls, type: 'button', onclick: fn });
+    const ui = this.ui = {
+      root: el('div', { class: 'tt-root', 'data-no-i18n': '' }),
+      ring: el('div', { class: 'tt-ring' }), hand: el('div', { class: 'tt-hand', 'aria-hidden': 'true', text: '✨' }),
+      bubble: el('div', { class: 'tt-bubble bottom', role: 'status', 'aria-live': 'polite' }, [el('small'), el('p')]),
+      bar: el('div', { class: 'tt-bar', role: 'toolbar' }),
+      pp: b('tt-pp', () => this.toggle()), replay: b('tt-replay', () => this.replay()), next: b('tt-next', () => this.next()),
+      speed: b('tt-speed', () => this.cycleSpeed()), exit: b('tt-exit', () => this.exit())
+    };
+    ui.bar.append(ui.pp, ui.replay, ui.next, ui.speed, ui.exit);
+    ui.root.append(ui.ring, ui.hand, ui.bubble, ui.bar);
+    document.body.appendChild(ui.root);
+    this.moveHand(innerWidth / 2, innerHeight / 2);
+    clearInterval(this._loop);
+    this._loop = setInterval(() => this.track(), 250);          // sheets slide in, the page scrolls: the ring follows
+    this.repaint();
+  },
+  /* every label of the bar and the bubble, in the current language (i18n: a language change repaints them) */
+  repaint() {
+    const ui = this.ui;
+    if (!ui || !this.on) return;
+    const set = (n, label, txt) => { n.textContent = txt; n.title = label; n.setAttribute('aria-label', label); };
+    set(ui.pp, this.paused ? t('TUTOR_PLAY') : t('TUTOR_PAUSE'), this.paused ? '▶' : '⏸');
+    set(ui.replay, t('TUTOR_REPLAY'), '⟲');
+    set(ui.next, t('TUTOR_NEXT'), '⏭');
+    set(ui.speed, t('TUTOR_SPEED') + ' ' + this.speed + 'x', this.speed + 'x');
+    set(ui.exit, t('TUTOR_EXIT'), '🏁 ' + t('TUTOR_EXIT'));
+    ui.bar.setAttribute('aria-label', t('TUTOR'));
+    ui.root.dir = document.documentElement.dir;
+    const s = this.lesson && this.lesson.steps[this.i];
+    ui.bubble.firstChild.textContent = '🎓 ' + (this.lesson ? this.lesson.title + ' · ' : '') + t('TUTOR_STEP', { i: Math.min(this.i + 1, this.lesson ? this.lesson.steps.length : 1), n: this.lesson ? this.lesson.steps.length : 1 });
+    ui.bubble.lastChild.textContent = this.paused ? t('TUTOR_PAUSED') + ' — ' + this.sayOf(s) : this.sayOf(s);
+  },
+  sayOf(s) { return !s ? '' : s.text || (s.say ? t(s.say) : ''); },
+  moveHand(x, y) {
+    const h = this.ui && this.ui.hand;
+    if (!h) return;
+    h.style.setProperty('--x', Math.round(x) + 'px'); h.style.setProperty('--y', Math.round(y) + 'px');
+    h.style.transform = 'translate(' + Math.round(x) + 'px,' + Math.round(y) + 'px)';
+  },
+  /* the element this step is about: ringed, pointed at, and the bubble kept out of its way */
+  point(target) { this.target = target || null; this.track(); },
+  track() {
+    const ui = this.ui;
+    if (!ui) return;
+    const tg = typeof this.target === 'function' ? this.target() : typeof this.target === 'string' ? document.querySelector(this.target) : this.target;
+    const r = tg && tg.isConnected ? tg.getBoundingClientRect() : null;
+    /* the bubble never under the bar (the bar may take two rows on a phone) */
+    ui.bubble.style.bottom = ui.bubble.classList.contains('bottom') ? Math.round(innerHeight - ui.bar.getBoundingClientRect().top + 10) + 'px' : '';
+    if (!r || !r.width) { ui.ring.classList.remove('on'); ui.bubble.className = 'tt-bubble bottom'; return; }
+    const pad = 6;
+    Object.assign(ui.ring.style, { left: r.left - pad + 'px', top: r.top - pad + 'px', width: r.width + pad * 2 + 'px', height: r.height + pad * 2 + 'px' });
+    ui.ring.classList.add('on');
+    if (!ui.hand.classList.contains('typing')) this.moveHand(Math.min(innerWidth - 28, r.left + Math.min(r.width - 10, Math.max(24, r.width * 0.5))), Math.min(innerHeight - 28, r.top + Math.min(r.height - 10, Math.max(22, r.height * 0.35))));
+    ui.bubble.className = 'tt-bubble ' + (r.top + r.height / 2 > innerHeight * 0.52 ? 'top' : 'bottom');
+    ui.bubble.style.bottom = ui.bubble.classList.contains('bottom') ? Math.round(innerHeight - ui.bar.getBoundingClientRect().top + 10) + 'px' : '';
+  },
+
+  /* time, as the player wants it: slower, faster, paused — and stopped when the player moves on */
+  async wait(ms, gen) {
+    let left = ms;
+    while (left > 0) {
+      if (gen !== this.gen) throw STOP;
+      await new Promise(r => setTimeout(r, 40));
+      if (!this.paused) left -= 40 * this.speed;
+    }
+    if (gen !== this.gen) throw STOP;
+  },
+  readMs(s) { return Math.min(9000, 1700 + 42 * this.sayOf(s).length); },
+  async play(from) {
+    const gen = ++this.gen;
+    try {
+      for (this.i = from; this.lesson && this.i < this.lesson.steps.length; this.i++) {
+        const s = this.lesson.steps[this.i];
+        if (s.before === undefined) s.before = this.file ? this.file.code : null;
+        this.repaint();
+        await this.act(s, gen);
+        this.repaint();
+        await this.wait(this.readMs(s), gen);
+        if (s.end) break;
+      }
+      this.ui && this.ui.exit.classList.add('pulse');
+    } catch (e) { if (e !== STOP) { console.warn('[tutor]', e); Toast.err(String(e && e.message || e)); } }
+  },
+  /* one step, as NEXUS AI does it in front of the player */
+  async act(s, gen, instant = false) {
+    const S = NX.Studio, IDE = NX.IDE;
+    const pause = ms => instant ? null : this.wait(ms, gen);
+    const live = () => { if (gen !== this.gen) throw STOP; };      // the player moved on while something loaded
+    if (s.open === 'assets') {
+      NX.Sheet.closeAll(); await pause(350);
+      this.point('#s-tabs'); await pause(700);
+      S.openAssets();
+      this.point(() => { const all = document.querySelectorAll('#sheet-root .sheet'); return all[all.length - 1]; });
+    } else if (s.add) {
+      NX.Sheet.closeAll(); await pause(350);
+      this.point('#vt-add'); await pause(900);
+      const eng = S.engine;
+      if (eng && !eng.findByName(s.add)) {
+        const e = await eng.addEntity({ name: s.add, type: 'primitive', props: { shape: 'box', color: '#22d3ee' }, position: [0, 0.5, 0] });
+        if (e && eng.select) { try { eng.select(e.id); } catch { } }
+        S.dirty = true;
+      }
+      live();
+      this.point('#viewport');
+    } else if (s.open === 'code') {
+      NX.Sheet.closeAll(); await pause(350);
+      this.openCode();
+      this.point('.ide-editor');
+    } else if (s.run) {
+      this.openCode(); this.flush();
+      this.point(() => IDE.runBtn); await pause(1200);
+      if (!instant) { await IDE.doRun(); live(); this.point('#viewport'); }
+    }
+    if (s.type) { live(); await this.type(s.type(), gen, instant); }
+  },
+  /* the lesson's own file: a new one, never the player's */
+  openCode() {
+    const S = NX.Studio, IDE = NX.IDE;
+    IDE.open(S.project);
+    if (!this.file || !(IDE.project.files || []).includes(this.file)) {
+      const names = new Set((IDE.project.files || []).map(f => f.path));
+      let n = 1, name = 'Tutor_Lesson.js';
+      while (names.has(name)) name = 'Tutor_Lesson_' + (++n) + '.js';
+      this.file = IDE.addFile(name, '', { silent: true });
+      IDE.renderTabs && IDE.renderTabs();
+    }
+    if (IDE.current !== this.file) IDE.openFile(this.file);
+  },
+  show(code) {
+    const IDE = NX.IDE, ed = IDE.editor;
+    this.file.code = code; NX.Studio.dirty = true;
+    if (!ed || IDE.current !== this.file) return;
+    ed.ta.value = code; ed.render();
+    ed.ta.scrollTop = ed.ta.scrollHeight; if (ed.scroll) ed.scroll.scrollTop = ed.ta.scrollTop;
+  },
+  flush() { if (this.file && NX.IDE.editor && NX.IDE.current === this.file) NX.IDE.editor.value = this.file.code; },
+  /* typed live, character by character — in real time, at the player's speed */
+  async type(text, gen, instant) {
+    this.openCode();
+    this.point('.ide-editor');
+    const base = this.file.code || '';
+    if (instant) { this.show(base + text); this.flush(); return; }
+    const hand = this.ui.hand;
+    hand.classList.add('typing'); hand.textContent = '⌨️';
+    try {
+      for (let k = 1; k <= text.length; k++) {
+        if (gen !== this.gen) throw STOP;
+        this.show(base + text.slice(0, k));
+        const ch = text[k - 1];
+        await this.wait(ch === '\n' ? 130 : 38, gen);
+      }
+    } finally { hand.classList.remove('typing'); hand.textContent = '✨'; }
+    this.flush();
+  },
+
+  /* ---------------- the player's controls ---------------- */
+  toggle() { this.paused = !this.paused; this.repaint(); },
+  cycleSpeed() { this.speed = this.speed === 1 ? 2 : this.speed === 2 ? 0.5 : 1; this.repaint(); },
+  /* the step again: what it typed is taken back, then it is done again */
+  replay() {
+    if (!this.lesson) return;
+    const s = this.lesson.steps[this.i] || this.lesson.steps[this.lesson.steps.length - 1];
+    this.gen++;
+    if (s && s.before != null && this.file) { this.show(s.before); this.flush(); }
+    if (s) delete s.before;
+    this.paused = false;
+    this.play(Math.min(this.i, this.lesson.steps.length - 1));
+  },
+  /* the step finished at once (all its code), then the next one */
+  async next() {
+    if (!this.lesson) return;
+    const gen = ++this.gen, s = this.lesson.steps[this.i];
+    this.paused = false;
+    if (s) {
+      if (s.type && s.before != null && this.file) { this.show(s.before); }
+      try { await this.act(s, gen, true); } catch { }
+    }
+    if (this.i + 1 < this.lesson.steps.length) this.play(this.i + 1); else this.exit();
+  },
+  /* the end: the player's turn — the lesson's code open in the editor, ready to change and run */
+  async exit() {
+    const had = this.on && this.file;
+    this.stop();
+    if (!had) return;
+    const S = NX.Studio;
+    if (S.playing) S.stopPlay();
+    try { this.openCode(); this.flush(); await S.save(true); } catch { }
+    Toast.ok(t('TUTOR_PRACTICE'));
+  },
+  stop(quiet) {
+    this.gen++; this.on = false; this.paused = false;
+    clearInterval(this._loop);
+    if (this.ui) { this.ui.root.remove(); this.ui = null; }
+    if (!quiet) this.target = null;
+  }
+};
+Tutor.lessons = { first: lessonFirst, fromAI: aiLesson };
+NX.Tutor = Tutor;
+NX.Commands && NX.Commands.register([
+  { label: '🎓 كيف أبرمج؟ · How do I code?', icon: 'spark', keywords: 'tutor learn code coding lesson تعلم برمجة درس كيف أبرمج सीखें', run: () => Tutor.openHowTo() },
+  { label: '🌐 اللغة · Language · भाषा', icon: 'globe', keywords: 'language lang عربي english hindi हिन्दी لغة', run: () => { const b = document.getElementById('btn-lang'); if (b && b.offsetParent) Lang.open(b); else NX.setLanguage(NX.i18n.lang === 'ar' ? 'en' : NX.i18n.lang === 'en' ? 'hi' : 'ar'); } }
+]);
+</script>
+<!-- /NX-PART:38 -->
 <script type="module">
 /* ============================================================
    PART 8/18 · GAME PLATFORM + BOOT
@@ -35387,10 +35874,8 @@ function openSettings() {
   const body = el('div');
 
   body.appendChild(el('div', { class: 'ttl', text: 'اللغة والمظهر' }));
-  const langSeg = el('div', { class: 'seg', style: { marginBottom: '12px' } }, [
-    el('button', { class: NX.i18n.lang === 'ar' ? 'on' : '', text: 'العربية', onclick: e => { segPick(langSeg, e.target); NX.i18n.set('ar'); Toast.ok('أعد فتح الصفحة لتحديث كل الواجهة'); } }),
-    el('button', { class: NX.i18n.lang === 'en' ? 'on' : '', text: 'English', onclick: e => { segPick(langSeg, e.target); NX.i18n.set('en'); Toast.ok('Reload to refresh all labels'); } })
-  ]);
+  const langSeg = el('div', { class: 'seg', style: { marginBottom: '12px' }, 'data-no-i18n': '' }, NX.i18n.langs().map(l =>
+    el('button', { class: NX.i18n.lang === l ? 'on' : '', lang: l, text: NX.I18N.langs[l].name, onclick: e => { segPick(langSeg, e.target); NX.setLanguage(l); Toast.ok(NX.T('LANG_CHANGED')); } })));
   body.appendChild(langSeg);
   const themeSeg = el('div', { class: 'seg', style: { marginBottom: '16px' } }, [
     el('button', { class: NX.theme.get() === 'dark' ? 'on' : '', text: 'Dark', onclick: e => { segPick(themeSeg, e.target); NX.theme.set('dark'); } }),
