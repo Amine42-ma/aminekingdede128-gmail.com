@@ -9,7 +9,7 @@ window.NX_SANDBOX = location.hash === '#nx-sandbox' && window.parent !== window;
 /* a pretty game link (…/game/<id>, sent to this page by netlify.toml)
    becomes the app's own route (…/#game/<id>) before anything relative loads */
 (function () {
-  var m = /^(.*\/)(game|app|f)\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname);
+  var m = /^(.*\/)(game|app|f|challenge)\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname);
   if (m) history.replaceState(null, '', m[1] + location.search + '#' + m[2] + '/' + m[3]);
 })();
 </script>
@@ -1567,6 +1567,161 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 .cc-limits .k{color:var(--ink-dim)}
 .cc-limits b{direction:ltr;unicode-bidi:isolate;text-align:start}
 /* /NX-CSS:36 */
+/* NX-CSS:37 */
+/* PART 37 · NEXUS CHALLENGES: the challenge card, the countdown, NEXUS AI SCORE, the leaderboard */
+.chg-home{margin-bottom:4px}
+.chg-card{position:relative;overflow:hidden;border-color:rgba(var(--brand-rgb),.3);background:linear-gradient(160deg,rgba(var(--brand-rgb),.13),transparent 55%),var(--panel)}
+.chg-card[data-d="easy"]{border-color:rgba(52,211,153,.36)}
+.chg-card[data-d="hard"]{border-color:rgba(251,113,133,.4)}
+.chg-card[data-d="special"]{border-color:rgba(34,211,238,.45);box-shadow:0 0 0 1px rgba(124,92,255,.22),0 18px 40px -26px rgba(34,211,238,.55)}
+.chg-mini{cursor:pointer;margin-bottom:6px}
+.chg-top{display:flex;align-items:center;gap:10px;min-width:0}
+.chg-emoji{flex:0 0 auto;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:26px;background:var(--glass-2);border:1px solid var(--line)}
+.chg-tt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.chg-tt b{font-size:15.5px;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.chg-badges{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:0 0 auto}
+.chg-diff,.chg-status{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;white-space:nowrap;border:1px solid transparent}
+.chg-diff[data-d="easy"]{color:#34d399;background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.3)}
+.chg-diff[data-d="medium"]{color:#f5b31c;background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.32)}
+.chg-diff[data-d="hard"]{color:#fb7185;background:rgba(251,113,133,.12);border-color:rgba(251,113,133,.32)}
+.chg-diff[data-d="special"]{color:#fff;background:var(--grad)}
+.chg-status{color:var(--ink-soft);background:var(--glass-2);border-color:var(--line)}
+.chg-status[data-s="final"]{color:#34d399}
+.chg-stats{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:12px}
+.chg-stat{background:var(--glass);border:1px solid var(--line);border-radius:12px;padding:8px 10px;min-width:0;display:flex;flex-direction:column;gap:2px}
+.chg-stat small{font-size:11px;color:var(--ink-dim)}
+.chg-stat b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chg-clock{font:700 16px var(--mono);letter-spacing:.2px;color:var(--cyan);unicode-bidi:isolate}
+.chg-clock.soon{color:var(--amber)}
+.chg-stat .chg-when{font-size:12.5px}
+.chg-act{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+.chg-act>.tiny{margin-inline-start:auto}
+.chg-my{font-size:13px;font-weight:800;color:var(--ink)}
+.chg-my[data-s="judged"]{color:#34d399}
+.chg-my[data-s="pending"],.chg-my[data-s="failed"]{color:#f5b31c}
+.chg-tabs{position:sticky;top:0;z-index:2;margin-bottom:12px}
+.chg-tabs::before{content:"";position:absolute;left:-16px;right:-16px;top:-15px;height:15px;background:var(--panel)}
+.chg-desc{margin:10px 0 0;font-size:13.3px;line-height:1.75;color:var(--ink-soft)}
+.chg-prizes{display:grid;grid-template-columns:repeat(auto-fit,minmax(68px,1fr));gap:6px;margin-top:12px}
+.chg-prize{display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 4px;border-radius:12px;background:var(--glass);border:1px solid var(--line);text-align:center;min-width:0}
+.chg-prize span{font-size:20px}
+.chg-prize b{font:700 14px var(--font-en)}
+.chg-prize small{font-size:10.5px;color:var(--ink-dim);line-height:1.3}
+.chg-pnote{margin:6px 0 0;line-height:1.55}
+.chg-actions{margin:12px 0}
+.chg-actions .tiny{margin-top:8px;line-height:1.6}
+.chg-btns{display:flex;gap:8px;flex-wrap:wrap}
+.chg-btns .btn{flex:1 1 170px}
+.chg-h{font-size:14.5px;margin:18px 0 8px}
+.chg-rubric{display:flex;flex-direction:column;gap:7px}
+.chg-crit{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) 42px;align-items:center;gap:10px;font-size:13px}
+.chg-cn{display:flex;flex-direction:column;min-width:0}
+.chg-cn small{font-size:10.5px;color:var(--ink-dim)}
+.chg-w,.chg-track{height:8px;border-radius:99px;background:var(--glass-2);overflow:hidden}
+.chg-w i,.chg-track i{display:block;height:100%;border-radius:99px;background:var(--grad)}
+.chg-wn{text-align:end;font:700 12.5px var(--font-en)}
+.chg-asks{margin-top:10px;font-size:12.5px;color:var(--ink-soft);line-height:1.6}
+.chg-asks summary{cursor:pointer;color:var(--cyan);font-weight:700}
+.chg-rules{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:6px;font-size:12.8px;line-height:1.65;color:var(--ink-soft)}
+.chg-trust{margin:14px 0 4px;text-align:center;line-height:1.6}
+.chg-entry{margin:12px 0;border-color:rgba(var(--brand-rgb),.35)}
+.chg-entry[data-s="judged"]{border-color:rgba(52,211,153,.42)}
+.chg-eh{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-bottom:4px}
+.chg-eh b{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.chg-st{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:999px;background:var(--glass-2);white-space:nowrap}
+.chg-st[data-s="judged"]{color:#34d399}
+.chg-st[data-s="pending"],.chg-st[data-s="failed"]{color:#f5b31c}
+.chg-result{margin-top:10px}
+.chg-score{text-align:center;padding:14px 10px;border-radius:16px;background:linear-gradient(135deg,rgba(124,92,255,.18),rgba(34,211,238,.12));border:1px solid rgba(124,92,255,.35)}
+.chg-score small{display:block;font:800 11.5px var(--font-en);letter-spacing:1.5px;color:var(--ink-soft)}
+.chg-big{font-family:var(--font-en);margin:2px 0;display:flex;justify-content:center;align-items:baseline;gap:2px;unicode-bidi:isolate}
+.chg-big b{font-size:44px;line-height:1.1;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.chg-big span{font-size:17px;font-weight:700;color:var(--ink-soft)}
+.chg-score .chg-100{letter-spacing:0;font-weight:600}
+.chg-rank{margin-top:8px;text-align:center;font-weight:800;font-size:14px;line-height:1.5}
+.chg-sum{margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--glass);border:1px solid var(--line)}
+.chg-sum b{font:800 12px var(--font-en);letter-spacing:.5px;color:var(--cyan)}
+.chg-sum p{margin:4px 0 0;font-size:13.2px;line-height:1.75}
+.chg-bars{display:flex;flex-direction:column;gap:9px;margin-top:12px}
+.chg-bl{display:flex;align-items:baseline;gap:6px;margin-bottom:4px;font-size:13px}
+.chg-bl small{color:var(--ink-dim);font-size:10.5px;flex:1}
+.chg-bv{font-family:var(--font-en)}
+.chg-bar.capped .chg-track i{background:linear-gradient(90deg,#fb923c,#fbbf24)}
+.chg-note{display:block;margin-top:3px;font-size:11.5px;color:var(--ink-soft);line-height:1.5}
+.chg-cap{display:block;margin-top:3px;font-size:11.2px;color:#f5b31c;line-height:1.5}
+.chg-lists{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-top:12px}
+.chg-list{padding:9px 11px;border-radius:12px;border:1px solid var(--line);background:var(--glass);font-size:12.5px}
+.chg-list ul{margin:4px 0 0;padding-inline-start:16px;line-height:1.6}
+.chg-list.good b{color:#34d399}
+.chg-list.weak b{color:#fb7185}
+.chg-warn{margin:10px 0 0;font-size:12.5px;color:#f5b31c;line-height:1.6}
+.chg-judges,.chg-evid{margin:10px 0 0;line-height:1.6}
+.chg-pending{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.3);font-size:13px;line-height:1.65}
+.chg-pending p{margin:4px 0 8px}
+.chg-pending.bad{background:rgba(251,113,133,.08);border-color:rgba(251,113,133,.3)}
+.chg-wait{margin:12px 0;font-size:13px;line-height:1.7}
+.chg-bh{display:flex;align-items:baseline;gap:10px;justify-content:space-between;flex-wrap:wrap;margin:6px 0 8px}
+.chg-bh h3{font-size:15px}
+.chg-hint{margin:0 0 10px;line-height:1.6}
+.chg-board{display:flex;flex-direction:column;gap:6px}
+.chg-row{display:grid;grid-template-columns:30px 36px minmax(0,1fr) auto auto;align-items:center;gap:9px;padding:9px 10px;border-radius:14px;background:var(--panel);border:1px solid var(--line)}
+.chg-row.rj{grid-template-columns:30px 36px minmax(0,1fr) auto auto auto}
+.chg-row.top{background:linear-gradient(90deg,rgba(251,191,36,.10),transparent 60%),var(--panel)}
+.chg-row.me{border-color:rgba(var(--brand-rgb),.5)}
+.chg-row.can-open{cursor:pointer}
+.chg-rk{font-size:18px;text-align:center;font-weight:800;font-family:var(--font-en)}
+.chg-av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:var(--glass-2);border:1px solid var(--line);font-weight:800;font-size:15px;color:var(--ink-soft);flex:0 0 auto}
+.chg-av img{width:100%;height:100%;object-fit:cover}
+.chg-av.lg{width:56px;height:56px;font-size:22px}
+.chg-who{min-width:0;display:flex;flex-direction:column;gap:1px}
+.chg-who b,.chg-who .tiny{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chg-who .chg-t{font-size:12px;color:var(--ink-soft)}
+.chg-who b{font-size:13.5px}
+.chg-who .chg-upd{color:#f5b31c;white-space:normal}
+.chg-sc{display:flex;align-items:baseline;gap:1px;font-family:var(--font-en);unicode-bidi:isolate}
+.chg-sc b{font-size:17px}
+.chg-sc small{font-size:11px;color:var(--ink-dim)}
+.chg-play{min-width:38px;padding:0 10px}
+.chg-play.off{display:inline-block;width:38px}
+.chg-rj{min-width:32px;padding:0 8px}
+.chg-rowd{margin:-2px 6px 4px;padding:10px 12px;border-radius:0 0 12px 12px;background:var(--glass);border:1px solid var(--line);border-top:0}
+.chg-sum1{margin:0 0 4px;font-size:12.8px;line-height:1.7;color:var(--ink-soft)}
+.chg-past{margin-bottom:10px;cursor:pointer;display:flex;flex-direction:column;gap:8px}
+.chg-win{display:flex;align-items:center;gap:10px;min-width:0}
+.chg-win .chg-who{flex:1}
+.chg-cup{font-size:20px}
+.chg-nowin{color:var(--ink-soft)}
+.chg-winner{margin:12px 0;border-color:rgba(251,191,36,.45);background:linear-gradient(160deg,rgba(251,191,36,.14),transparent 60%),var(--panel);display:flex;flex-direction:column;gap:10px}
+.chg-winner>small{font-weight:800;color:#f5b31c;font-size:12px}
+.chg-winner .chg-big b{font-size:34px}
+.chg-podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 12px}
+.chg-pod{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px;border-radius:14px;background:var(--panel);border:1px solid var(--line);text-align:center;min-width:0}
+.chg-pod b{font-size:12.5px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chg-pod small{font-family:var(--font-en);color:var(--ink-soft)}
+.chg-back{color:var(--cyan);font-weight:700;font-size:13px;margin:0 0 10px}
+.chg-admin{margin-bottom:12px;display:flex;flex-direction:column;gap:8px}
+.chg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 10px}
+.chg-f{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--ink-soft);min-width:0}
+.chg-f input[type="checkbox"]{width:20px;height:20px;accent-color:var(--brand)}
+.chg-log{max-height:180px;overflow:auto;display:flex;flex-direction:column;gap:3px;font-family:var(--mono)}
+.chg-steps{display:flex;flex-direction:column;gap:6px;margin:12px 0}
+.chg-step{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.55}
+.chg-step i{flex:0 0 auto;width:10px;height:10px;border-radius:50%;margin-top:5px;background:#fcd77a;animation:ccpulse 1s ease-in-out infinite}
+.chg-step[data-s="ok"] i{background:#34d399;animation:none}
+.chg-step[data-s="bad"] i{background:#f87171;animation:none}
+.chg-step[data-s="bad"] span{color:#fb7185}
+.chg-pubnote{margin-bottom:12px;border-color:rgba(var(--brand-rgb),.4);background:rgba(var(--brand-rgb),.08);display:flex;flex-direction:column;gap:4px;line-height:1.6}
+@media (max-width:420px){
+  .chg-stats{gap:6px}
+  .chg-stat{padding:7px 8px}
+  .chg-clock{font-size:14.5px}
+  .chg-crit{grid-template-columns:minmax(0,1fr) 64px 36px}
+  .chg-row{grid-template-columns:26px 32px minmax(0,1fr) auto auto;gap:7px;padding:8px}
+  .chg-row.rj{grid-template-columns:26px 32px minmax(0,1fr) auto auto auto}
+  .chg-av{width:32px;height:32px}
+  .chg-big b{font-size:38px}
+}
+/* /NX-CSS:37 */
 </style>
 </head>
 <body>
@@ -1887,13 +2042,27 @@ const Toast = {
 /* ---------- history: the phone's back button walks back through the app ---------- */
 const Nav = {
   ignore: 0,
+  _later: [],          // steps asked for while a back() was still on its way
   push(kind) {
+    /* a sheet has just closed and its back() has not arrived yet: a step pushed now would sit where
+       that back lands and be the one undone (the phone's back button would then skip this sheet, and
+       the next one would leave NEXUS) — it is pushed when that back has arrived */
+    if (this.ignore > 0) {
+      this._later.push(kind);
+      clearTimeout(this._t);
+      this._t = setTimeout(() => { if (this._later.length) { this.ignore = 0; this._flush(); } }, 700);   // a back that never came
+      return true;
+    }
     try { history.pushState({ nx: kind, t: Date.now() }, ''); return true; } catch { return false; }
   },
-  back() { if (history.state && history.state.nx) { this.ignore++; history.back(); } },
+  _flush() { this._later.splice(0).forEach(k => { try { history.pushState({ nx: k, t: Date.now() }, ''); } catch { } }); },
+  back() {
+    if (this._later.length) { this._later.pop(); return; }       // never pushed: nothing to undo
+    if (history.state && history.state.nx) { this.ignore++; history.back(); }
+  },
   install() {
     window.addEventListener('popstate', () => {
-      if (this.ignore > 0) { this.ignore--; return; }
+      if (this.ignore > 0) { this.ignore--; if (!this.ignore) { clearTimeout(this._t); this._flush(); } return; }
       const m = document.querySelector('.modal-box.in');
       if (m) { const sc = m.parentElement && m.parentElement.previousElementSibling; if (sc && sc.classList.contains('scrim')) sc.click(); return; }
       const top = Sheet.top();
@@ -4306,7 +4475,7 @@ service cloud.firestore {
     match /api_keys/{keyId} {
       function poolKey(k) {
         return k is string && k.size() >= 20 && k.size() <= 200
-               && k.matches('(AIza[0-9A-Za-z_-]+|AQ[.][0-9A-Za-z_.-]+|gsk_[A-Za-z0-9]+|sk-or-[A-Za-z0-9_-]+)');
+               && k.matches('(AIza[0-9A-Za-z_-]+|AQ[.][0-9A-Za-z_.-]+|gsk_[A-Za-z0-9]+|sk-or-[A-Za-z0-9_-]+|sk-ant-[A-Za-z0-9_-]+)');
       }
       // the key's SHA-256, computed HERE from the key itself: a key already in
       // the pool (api_key_hashes/<hash>) cannot be given again, by anyone
@@ -4324,7 +4493,7 @@ service cloud.firestore {
                     && incoming().status == 'active'
                     && incoming().failCount == 0
                     && incoming().donorUid == me()
-                    && (!('provider' in incoming()) || incoming().provider in ['gemini', 'groq', 'openrouter']);
+                    && (!('provider' in incoming()) || incoming().provider in ['gemini', 'groq', 'openrouter', 'anthropic']);
       allow update: if false;
       allow delete: if signedIn() && existing().donorUid == me();
     }
@@ -4352,6 +4521,8 @@ service cloud.firestore {
         allow write: if false;
       }
     }
+    // the day's AI requests (a Multi-AI Council counts each model call) and
+    // councilUntil (one council at a time) — the page cannot reset either
     match /usage/{uid} {
       allow get: if signedIn() && me() == uid;
       allow list, write: if false;
@@ -4600,6 +4771,32 @@ service cloud.firestore {
     // written and read ONLY by the server (netlify/edge-functions/passkeys.js,
     // with the service account); no browser ever touches them
     match /passkeys/{id} {
+      allow read, write: if false;
+    }
+
+    // ---------------------------------------------------------------- NEXUS CHALLENGES
+    // Everything here is written ONLY by the site's server
+    // (netlify/edge-functions/challenges.js, with the service account): the
+    // challenges, the entries with the AI Judge's scores, the ranks and the
+    // prizes. No browser can write a score, a rank, a winner or a prize.
+    // A challenge (title, time, rubric, winner once final) is public;
+    // an entry is read by its own player only — the others see what the
+    // server's /api/challenges board shows (results hidden until the end
+    // when the challenge's rules say so); prize markers by nobody.
+    match /challenges/{cid} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /challenges_meta/{doc} {
+      allow read: if doc == 'config';
+      allow write: if false;
+    }
+    match /challengeEntries/{eid} {
+      allow get: if signedIn() && existing().uid == me();
+      allow list: if signedIn() && existing().uid == me();
+      allow write: if false;
+    }
+    match /challengeRewards/{rid} {
       allow read, write: if false;
     }
 
@@ -9507,6 +9704,8 @@ const Studio = {
     if (owner) body.append(
       item('share', 'نشر اللعبة · Publish', () => this.openPublish()),
       item('image', 'وسائط اللعبة · GAME MEDIA', () => NX.GameMedia.open(this.project)));
+    /* NEXUS CHALLENGES (PART 37): this project, published and handed to the challenge on now */
+    if (owner && NX.Challenges) body.appendChild(NX.optionRow('spark', '🏆 تسليم اللعبة للتحدي', 'تُنشر لعبتك ثم تُسلَّم لتحدي NEXUS الحالي — ويحكم عليها NEXUS AI JUDGE', () => { sheet.close(); NX.Challenges.submitFromStudio(); }));
     body.append(
       item('undo', 'تراجع عن آخر تغيير في المشهد', () => this.undo()),
       item('book', T('apiDocs'), () => this.openAPIDocs()),
@@ -9638,11 +9837,15 @@ const Studio = {
     }
   },
 
-  openPublish() {
+  /* opts.after(rec, build): what follows a confirmed publish instead of the report — a challenge
+     submission (PART 37) publishes the same way, then hands the published game to the challenge */
+  openPublish(opts = {}) {
     NX.Drive && NX.Drive.warm();   // a cover image goes to Drive
     const p = this.project;
     const prev = p.publishMeta || {};
     const body = el('div');
+    if (opts.challenge) body.appendChild(el('div', { class: 'card chg-pubnote' }, [el('b', { text: '🏆 ' + opts.challenge.emoji + ' ' + opts.challenge.title }),
+      el('div', { class: 'tiny', text: 'بعد النشر تُسلَّم هذه النسخة المنشورة للتحدي، ويفحصها NEXUS AI JUDGE (الكود والمشهد والأصول) ويعطيها درجة من 10.' })]));
     const title = el('input', { class: 'input', value: prev.title || p.name });
     const desc = el('textarea', { class: 'textarea', value: prev.description || p.description || '' });
     const genre = el('select', { class: 'select' }, ['Action', 'Adventure', 'Racing', 'Puzzle', 'Simulation', 'RPG', 'Sandbox', 'Other']
@@ -9801,7 +10004,7 @@ const Studio = {
           say('');
           sheet.close();
           window.dispatchEvent(new CustomEvent('nx:platformRefresh'));
-          this.publishedReport(rec);
+          if (opts.after) opts.after(rec, build); else this.publishedReport(rec);
         } catch (e) {
           say('');
           if (NX.handleAuthError(e)) return;
@@ -31273,7 +31476,7 @@ const API = /^https?:$/.test(location.protocol) ? location.origin + location.pat
 const ADS = Object.assign({ web: false }, window.NEXUS_ADS || {});
 const HOSTED = /\.(html?|png|jpe?g|gif|webp|svg|json|js|css|zip|txt|mp3|ogg|wav|glb|gltf)$/i;
 const AS_TEXT = /\.(html?|xhtml|svg|xml)$/i;                   // stored as text/plain: they run in NEXUS's sandbox, not on the bucket
-const REASON = { welcome: '🎁 هدية الترحيب', ad: '📺 إعلان', upload: '📎 رفع ملف', refund: '↩ استرجاع', ai: '🤖 طلبات ذكاء', play: '🎮 وقت لعب لعبتك', pro: '⭐ Pro' };
+const REASON = { welcome: '🎁 هدية الترحيب', ad: '📺 إعلان', upload: '📎 رفع ملف', refund: '↩ استرجاع', ai: '🤖 طلبات ذكاء', play: '🎮 وقت لعب لعبتك', pro: '⭐ Pro', challenge: '🏆 جائزة تحدٍّ' };
 const fmtDate = t => { try { return new Date(t).toLocaleDateString('ar', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return ''; } };
 
 const Points = {
@@ -32961,6 +33164,726 @@ NX.CouncilModeBox = ModeBox;
 NX.CouncilAssets = { enrich: (p, c) => CouncilUI.enrich(p, c) };
 </script>
 <!-- /NX-PART:36 -->
+<!-- NX-PART:37 -->
+<script type="module">
+/* ============================================================
+   PART 37 · 🏆 NEXUS CHALLENGES — a game-making challenge every 44 hours
+   (the owner's setting), judged by the NEXUS AI JUDGE. This page SHOWS
+   what the site's server decides (netlify/edge-functions/challenges.js):
+   the challenge, the time left (by the server's clock), who takes part,
+   each entry's AI score and why, the leaderboard, the winners and their
+   prizes. A score, a rank, a winner or a prize is never computed or kept
+   here — firestore.rules refuse every browser write to them.
+   Built on what NEXUS already has: the account (Firebase sign-in); the
+   editor, the AI assistant and the assets, as always; «Publish» (PART 8)
+   publishes the game, which is then handed to the challenge; the points
+   (PART 34) receive the prizes.
+   • home: the current challenge in one card (countdown, reward, join);
+   • «🏆 NEXUS CHALLENGES»: the challenge · the entries, then the
+     leaderboard · the past challenges (their winner, «▶ Play Winner
+     Game») · the owner's panel (settings, a special challenge, end now,
+     judge now);
+   • the studio's «المزيد ← 🏆 تسليم اللعبة للتحدي»: publish → a 2-second
+     test run → submit → the judge, live → NEXUS AI SCORE x.x / 10.
+   Links: #challenges · #challenge/<id> (…/challenge/<id> too).
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, Sheet, Modal, Toast, timeAgo } = NX;
+const { Backend } = NX;
+
+const API = /^https?:$/.test(location.protocol) ? location.origin + location.pathname.replace(/[^/]*$/, '') + 'api/challenges' : '';
+const DIFF = { easy: 'سهل', medium: 'متوسط', hard: 'صعب', special: 'خاص' };
+const STATUS = { open: 'مفتوح', judging: 'التحكيم جارٍ', final: 'أُعلنت النتائج' };
+const ENTRY = { joined: 'مشارك — لم تُسلّم بعد', submitted: 'سُلّمت — بانتظار المحكّم', judging: 'NEXUS AI JUDGE يفحصها…',
+  pending: 'Judging Pending — مؤجّل', judged: 'حُكّمت ✓', failed: 'تعذّر التحكيم' };
+const CAT = { racing: 'Car Racing', survival: 'Survival', island: 'Island', fighting: 'Fighting', puzzle: 'Puzzle', horror: 'Horror', city: 'City', space: 'Space', free: 'Free' };
+const JUDGE = { thinking: 'يفحص الأدلة…', retrying: 'يعيد المحاولة', done: 'قيّم ✓', failed: 'لم يُجب' };
+const MEDAL = ['🥇', '🥈', '🥉'];
+const two = n => String(n).padStart(2, '0');
+/* 1d 04:05:09 — the digits are read left to right inside the Arabic page */
+const left = ms => { const s = Math.max(0, Math.floor(ms / 1000)), d = Math.floor(s / 86400); return (d ? d + 'd ' : '') + two(Math.floor(s % 86400 / 3600)) + ':' + two(Math.floor(s % 3600 / 60)) + ':' + two(s % 60); };
+const when = t => { try { return new Date(t).toLocaleString('ar', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
+const day = t => { try { return new Date(t).toLocaleDateString('ar', { day: 'numeric', month: 'short' }); } catch { return ''; } };
+const s10 = v => v == null ? '—' : Number(v).toFixed(1);
+const num = n => Number(n || 0).toLocaleString('en-US');
+const initial = e => (String((e && e.name) || '?').trim().charAt(0) || '?').toUpperCase();
+function avatar(e, cls = '') {
+  const a = el('span', { class: 'chg-av ' + cls, 'aria-hidden': 'true' });
+  if (e && /^https:\/\//.test(e.photo || '')) {
+    const i = el('img', { src: e.photo, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' });
+    i.onerror = () => { i.remove(); a.textContent = initial(e); };
+    a.appendChild(i);
+  } else a.textContent = initial(e);
+  return a;
+}
+
+/* ---------------- the countdowns: one timer for every clock on the page ---------------- */
+let ticking = 0;
+function clock(c) {
+  const n = el('b', { class: 'chg-clock', dir: 'ltr', dataset: { chgEnd: String(c.endTime), chgId: c.challengeId }, text: left(c.endTime - Challenges.now()) });
+  if (!ticking) ticking = setInterval(() => {
+    const all = document.querySelectorAll('[data-chg-end]');
+    if (!all.length) { clearInterval(ticking); ticking = 0; return; }
+    const now = Challenges.now();
+    all.forEach(x => {
+      const ms = +x.dataset.chgEnd - now;
+      x.textContent = left(ms);
+      x.classList.toggle('soon', ms < 3600e3);
+      if (ms <= 0 && !x.dataset.over) { x.dataset.over = '1'; Challenges.ended(x.dataset.chgId); }
+    });
+  }, 1000);
+  return n;
+}
+
+const Challenges = {
+  cur: null,            // the server's last answer to /current
+  skew: 0,              // the server's clock − this device's
+  view: null,           // the open «🏆 NEXUS CHALLENGES» sheet
+  _seq: 0, _nudged: 0, _ended: new Set(), _poll: 0,
+
+  available() { return !!API; },
+  now() { return Date.now() + this.skew; },
+  account() { return !!(Backend.user && Backend.hasAccount && Backend.hasAccount()); },
+  async token() { const u = Backend.fb && Backend.fb.auth && Backend.fb.auth.currentUser; return u && !u.isAnonymous ? u.getIdToken() : null; },
+
+  /* ---------------- the server ---------------- */
+  async call(path, body) {
+    if (!API) throw Object.assign(new Error('التحديات تعمل على الموقع المنشور على Netlify — خادمه يحكم ويحفظ النتائج.'), { code: 'off' });
+    const tok = await this.token().catch(() => null), t0 = Date.now();
+    let r;
+    try { r = await fetch(API + path, { method: body ? 'POST' : 'GET', cache: 'no-store', body: body ? JSON.stringify(body) : undefined,
+      headers: Object.assign({ 'content-type': 'application/json' }, tok ? { authorization: 'Bearer ' + tok } : {}) }); }
+    catch { throw Object.assign(new Error('خادم التحديات لا يجيب — تحقّق من الاتصال.'), { code: 'net' }); }
+    const j = await r.json().catch(() => null);
+    if (!j) throw Object.assign(new Error(r.status === 404 ? 'خادم التحديات غير موجود على هذا الموقع (يعمل على Netlify).' : 'HTTP ' + r.status), { code: 'off', status: r.status });
+    /* the countdown follows the server's clock, not this device's */
+    if (j.now) this.skew = j.now - Math.round((t0 + Date.now()) / 2);
+    if (!r.ok || j.ok === false) throw Object.assign(new Error((j.error && j.error.message) || 'HTTP ' + r.status), { code: j.error && j.error.code, status: r.status });
+    return j;
+  },
+  /* judging takes a while: the server streams its progress («event: x» + «data: {…}») */
+  async stream(path, body, on) {
+    const tok = await this.token();
+    if (!tok) throw Object.assign(new Error('التحديات لأصحاب الحسابات — سجّل الدخول.'), { code: 'signin' });
+    let r;
+    try { r = await fetch(API + path, { method: 'POST', cache: 'no-store', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: JSON.stringify(body || {}) }); }
+    catch { throw Object.assign(new Error('خادم التحديات لا يجيب — تحقّق من الاتصال.'), { code: 'net' }); }
+    if (!/event-stream/.test(r.headers.get('content-type') || '')) {
+      const j = await r.json().catch(() => null);
+      if (!r.ok || !j || j.ok === false) throw Object.assign(new Error((j && j.error && j.error.message) || 'HTTP ' + r.status), { code: j && j.error && j.error.code, status: r.status });
+      return j;
+    }
+    const rd = r.body.getReader(), dec = new TextDecoder();
+    let buf = '';
+    for (;;) {
+      const { value, done } = await rd.read();
+      if (value) buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf('\n\n')) >= 0) {
+        const part = buf.slice(0, i);
+        buf = buf.slice(i + 2);
+        const ev = (/^event: (.*)$/m.exec(part) || [])[1], data = (/^data: (.*)$/m.exec(part) || [])[1];
+        if (!ev || !data) continue;
+        try { on(ev, JSON.parse(data)); } catch (e) { console.warn('[challenges] ' + ev, e); }
+      }
+      if (done) break;
+    }
+    return { ok: true };
+  },
+  async load() {
+    const j = await this.call('/current');
+    this.cur = j;
+    this.nudge(j);
+    return j;
+  },
+  /* something is due on the server (an ended challenge to judge and rank, prizes to pay): this page asks it to
+     move along — at most once a minute from here; the server decides what, and throttles the whole site */
+  nudge(j) {
+    if (!j || !j.work || !j.signedIn || Date.now() - this._nudged < 60e3) return;
+    this._nudged = Date.now();
+    this.stream('/tick', {}, (ev, d) => { if (ev === 'tick' && (d.judged || d.paid || (d.finalized || []).length)) this.refresh(); }).catch(() => {});
+  },
+  /* the countdown reached zero: the server closes the challenge (and opens the next one) */
+  ended(cid) {
+    if (this._ended.has(cid)) return;
+    this._ended.add(cid);
+    setTimeout(() => this.refresh(), 1500);
+  },
+  /* everything on screen, again from the server (a form being filled in is left alone; view: false keeps
+     the sheet as it is — a judging the player is watching stays on screen) */
+  async refresh({ view = true } = {}) {
+    try { await this.load(); } catch (e) { console.warn('[challenges]', e && e.code); }
+    document.querySelectorAll('.chg-home').forEach(n => this.paintHome(n));
+    const v = this.view;
+    if (view && v && !v.sheet._closed && ['now', 'board', 'detail'].includes(v.tab)) this.show(v.tab, v.arg, { quiet: true });
+  },
+  fail(e) {
+    if (e && e.code === 'signin') { NX.promptSignIn(e.message, () => this.refresh()); return; }
+    Toast.err((e && e.message) || String(e));
+  },
+  signIn() { NX.promptSignIn('التحديات لأصحاب الحسابات: مشاركتك ودرجتك وجائزتك مرتبطة بحسابك، على كل أجهزتك.', () => this.refresh()); },
+
+  /* ================================================================ pieces */
+  head(c) {
+    return el('div', { class: 'chg-top' }, [
+      el('span', { class: 'chg-emoji', text: c.emoji || '🏆' }),
+      el('div', { class: 'chg-tt' }, [el('b', { text: c.title }), el('span', { class: 'tiny', text: (CAT[c.category] || c.category) + ' · التحدي #' + c.seq })]),
+      el('div', { class: 'chg-badges' }, [
+        el('span', { class: 'chg-diff', dataset: { d: c.difficulty }, text: c.difficultyLabel || DIFF[c.difficulty] || c.difficulty }),
+        c.status !== 'open' ? el('span', { class: 'chg-status', dataset: { s: c.status }, text: STATUS[c.status] || c.status }) : null])]);
+  },
+  stats(c, { mini = false } = {}) {
+    const open = c.status === 'open' && c.endTime > this.now();
+    const cell = (label, value) => el('div', { class: 'chg-stat' }, [el('small', { text: label }), value]);
+    return el('div', { class: 'chg-stats' }, [
+      open ? cell('ينتهي بعد', clock(c)) : cell(c.status === 'final' ? 'انتهى' : 'أُغلق التسليم', el('b', { class: 'chg-when', title: when(c.endTime), text: day(c.endTime) })),
+      cell('المشاركون', el('b', { text: num(c.participants) })),
+      mini ? cell('الجائزة', el('b', { text: '🥇 ' + num(c.reward && c.reward.first) })) : cell('ألعاب مسلّمة', el('b', { text: num(c.submissions) }))]);
+  },
+  rewards(c) {
+    const r = c.reward || {};
+    const box = el('div', { class: 'chg-prizes' });
+    [['🥇', 'الأول', r.first], ['🥈', 'الثاني', r.second], ['🥉', 'الثالث', r.third], ['🏅', 'كل مشاركة مُحكَّمة', r.participation]]
+      .filter(x => x[2] > 0).forEach(([m, t, v]) => box.appendChild(el('div', { class: 'chg-prize' }, [el('span', { text: m }), el('b', { text: num(v) }), el('small', { text: t })])));
+    return el('div', {}, [box, el('p', { class: 'tiny chg-pnote', text: 'نقاط NEXUS — تُضاف إلى محفظتك بعد إعلان النتائج، مرة واحدة' + (r.minScore ? ' · لا جائزة لدرجة أقل من ' + r.minScore + '/10' : '') + '.' })]);
+  },
+  rubric(c) {
+    const list = (c.judgingRubric || []).filter(x => x.weight > 0), top = Math.max(1, ...list.map(x => x.weight));
+    return el('div', { class: 'chg-rubric' }, list.map(x => el('div', { class: 'chg-crit' }, [
+      el('span', { class: 'chg-cn' }, [el('b', { text: x.ar }), el('small', { text: x.en })]),
+      el('span', { class: 'chg-w' }, [el('i', { style: { width: Math.round(x.weight / top * 100) + '%' } })]),
+      el('b', { class: 'chg-wn', dir: 'ltr', text: x.weight + '%' })])));
+  },
+  rules(c) {
+    const r = c.rules || {};
+    return el('ul', { class: 'chg-rules' }, [
+      '⚖️ يحكم NEXUS AI JUDGE وحده: ' + (r.judges > 1 ? r.judges + ' نماذج على مزوّدين مختلفين، والوسيط لكل معيار — درجة واحدة.' : 'نموذج واحد يطبّق المعايير.') + ' لا تصويت، ولا إعجابات، ولا اختيار يدوي للفائز.',
+      '📦 ' + (r.maxSubmissionsPerUser > 1 ? 'حتى ' + r.maxSubmissionsPerUser + ' تسليمات لكل لاعب — يُحكَّم آخرها.' : 'تسليم واحد لكل لاعب — ويُحكَّم مرة واحدة.'),
+      r.requireFreshBuild ? '🆕 تُنشر اللعبة خلال التحدي — نسخة نُشرت قبل بدايته لا تُقبل.' : null,
+      r.hideResultsUntilEnd ? '🙈 درجات الآخرين والترتيب بعد انتهاء التحدي — درجتك تراها فور تحكيمها.' : '👁 الدرجات تظهر فور التحكيم.',
+      r.maxParticipants ? '👥 الحد الأقصى ' + num(r.maxParticipants) + ' مشارك.' : null,
+      '🔀 التعادل: مطابقة التحدي، ثم الاكتمال، ثم اللعب، ثم الأسبق تسليمًا.',
+      r.text ? '📝 ' + r.text : null
+    ].filter(Boolean).map(t => el('li', { text: t })));
+  },
+
+  /* one entry, as its owner sees it: the score, each criterion and why, the judge's words */
+  entryCard(e, c) {
+    const box = el('div', { class: 'card chg-entry', dataset: { s: e.status } });
+    box.appendChild(el('div', { class: 'chg-eh' }, [el('b', { text: e.title ? '🎮 ' + e.title : 'مشاركتك' }), el('span', { class: 'chg-st', dataset: { s: e.status }, text: ENTRY[e.status] || e.status })]));
+    if (e.submittedAt) box.appendChild(el('div', { class: 'tiny', text: 'سُلّمت ' + when(e.submittedAt) + (e.submissions > 1 ? ' · التسليم رقم ' + e.submissions : '') }));
+    if (e.status === 'judged' && e.score10 != null) box.appendChild(this.result(e, c));
+    else if (e.status === 'pending') {
+      const wait = (e.nextTryAt || 0) - this.now();
+      const again = btn('أعد المحاولة الآن', { cls: 'sm', disabled: wait > 0, onclick: () => this.judgeInto(box, c) });
+      if (wait > 0 && wait < 864e5) setTimeout(() => { again.disabled = false; }, wait + 500);    // its time comes while the page is open
+      box.appendChild(el('div', { class: 'chg-pending' }, [
+        el('b', { text: '⏳ Judging Pending' }),
+        el('p', { text: 'لم يستطع أي نموذج ذكاء التحكيم الآن — لا درجة ولا جائزة حتى يوجد تحكيم صحيح. ' + (wait <= 0 ? 'يمكن المحاولة الآن.' : 'يُعاد تلقائيًا ' + when(e.nextTryAt) + '.') }),
+        e.lastError ? el('small', { class: 'tiny', text: 'السبب: ' + e.lastError }) : null, again]));
+    } else if (e.status === 'failed') {
+      box.appendChild(el('div', { class: 'chg-pending bad' }, [el('b', { text: 'تعذّر التحكيم بعد عدة محاولات' }),
+        el('p', { text: 'لا درجة ولا جائزة بلا تحكيم صحيح — يستطيع صاحب الموقع طلب تحكيمها من جديد قبل إعلان النتائج.' }),
+        e.lastError ? el('small', { class: 'tiny', text: 'السبب: ' + e.lastError }) : null]));
+    } else if (e.status === 'submitted' || e.status === 'judging') {
+      box.appendChild(el('div', { class: 'chg-pending' }, [el('p', { text: e.status === 'judging' ? 'NEXUS AI JUDGE يفحص لعبتك الآن — تظهر الدرجة هنا حين ينتهي.' : 'لعبتك بانتظار NEXUS AI JUDGE.' }),
+        btn(e.status === 'judging' ? 'تابع التحكيم' : '⚖️ ابدأ التحكيم', { cls: 'sm', onclick: () => this.judgeInto(box, c) })]));
+    }
+    return box;
+  },
+  result(e, c) {
+    const w = el('div', { class: 'chg-result' });
+    w.appendChild(el('div', { class: 'chg-score' }, [
+      el('small', { text: 'NEXUS AI SCORE' }),
+      el('div', { class: 'chg-big', dir: 'ltr' }, [el('b', { text: s10(e.score10) }), el('span', { text: ' / 10' })]),
+      el('small', { class: 'chg-100', dir: 'ltr', text: Number(e.total100 || 0).toFixed(1) + ' / 100' })]));
+    if (e.rank) w.appendChild(el('div', { class: 'chg-rank', text: (MEDAL[e.rank - 1] || '🏅') + ' المركز ' + e.rank
+      + (e.reward ? ' · +' + num(e.reward) + ' نقطة ' + (e.rewardPaid ? '✓ أُضيفت إلى محفظتك' : '— تُضاف قريبًا') : '') }));
+    if (e.summary) w.appendChild(el('div', { class: 'chg-sum' }, [el('b', { text: 'AI Judge Summary' }), el('p', { text: e.summary })]));
+    w.appendChild(this.bars(e, c));
+    const list = (title, items, cls) => items && items.length ? el('div', { class: 'chg-list ' + cls }, [el('b', { text: title }), el('ul', {}, items.map(t => el('li', { text: t })))]) : null;
+    const lists = el('div', { class: 'chg-lists' }, [list('نقاط القوة', e.strengths, 'good'), list('ما ينقصها', e.weaknesses, 'weak')]);
+    if (lists.children.length) w.appendChild(lists);
+    if (e.flags && e.flags.injection) w.appendChild(el('p', { class: 'chg-warn', text: '⚠ في اللعبة نص يحاول توجيه المحكّم الآلي — لا يؤخذ به، وكل المعايير حُدّت بـ 5.' }));
+    if (e.judges && e.judges.length) w.appendChild(el('p', { class: 'tiny chg-judges', text: '⚖️ ' + (e.judges.length > 1 ? e.judges.length + ' محكّمين (الوسيط لكل معيار): ' : 'المحكّم: ')
+      + e.judges.map(j => j.provider + ' · ' + j.model + ' (' + (j.total100 / 10).toFixed(1) + ')').join(' — ') + (e.partial ? ' · بعض المحكّمين لم يُجيبوا: الدرجة ممن أجاب.' : '') }));
+    const ev = e.evidence;
+    w.appendChild(el('p', { class: 'tiny chg-evid', text: 'ما قرأه المحكّم: نسخة اللعبة المنشورة من خادم NEXUS'
+      + (ev ? ' — كائنات: ' + num(ev.objects) + ' · سكربتات: ' + num(ev.scripts) + ' · أصول: ' + num(ev.assets) + ' · مثلثات: ~' + num(Math.round((ev.polygons || 0) / 1000)) + 'k' : '')
+      + (ev && ev.preview && ev.preview.runtimeErrors != null ? ' · أخطاء التشغيل التجريبي من متصفحك (غير موثّق): ' + ev.preview.runtimeErrors : '')
+      + '. المحكّم لم يلعب اللعبة ولم يرَ صورها — حكم من الكود والمشهد والأصول وصفحة المتجر.' }));
+    return w;
+  },
+  bars(e, c) {
+    const caps = new Map((e.capsApplied || []).map(x => [x.id, x]));
+    return el('div', { class: 'chg-bars' }, (c.judgingRubric || []).filter(x => x.weight > 0).map(x => {
+      const v = e.criteria ? e.criteria[x.id] : null, cap = caps.get(x.id), note = e.notes && e.notes[x.id];
+      return el('div', { class: 'chg-bar' + (cap ? ' capped' : '') }, [
+        el('div', { class: 'chg-bl' }, [el('b', { text: x.ar }), el('small', { text: x.en + ' · ' + x.weight + '%' }), el('b', { class: 'chg-bv', dir: 'ltr', text: s10(v) })]),
+        el('div', { class: 'chg-track' }, [el('i', { style: { width: Math.max(0, Math.min(100, (v || 0) * 10)) + '%' } })]),
+        note ? el('small', { class: 'chg-note', text: note }) : null,
+        cap ? el('small', { class: 'chg-cap', text: '⛔ حُدّ من ' + s10(cap.from) + ' إلى ' + s10(cap.to) + ': ' + cap.why }) : null]);
+    }));
+  },
+  /* a row of the entries / the leaderboard */
+  row(e, c, b) {
+    const mine = Backend.user && e.uid === Backend.user.uid, rank = !b.hidden && e.rank ? e.rank : null;
+    const r = el('div', { class: 'chg-row' + (mine ? ' me' : '') + (rank && rank <= 3 ? ' top' : ''), dataset: { uid: e.uid } });
+    const sc = e.score10 != null ? [el('b', { text: s10(e.score10) }), el('small', { text: '/10' })]
+      : [el('b', { text: b.hidden ? '🙈' : e.status === 'pending' || e.status === 'judging' || e.status === 'submitted' ? '⏳' : '—' })];
+    r.append(
+      el('span', { class: 'chg-rk', text: rank ? (MEDAL[rank - 1] || '#' + rank) : '•' }),
+      avatar(e),
+      el('div', { class: 'chg-who' }, [el('b', { text: (e.name || 'player') + (mine ? ' (أنت)' : '') }),
+        e.title ? el('span', { class: 'chg-t', text: '🎮 ' + e.title }) : null,
+        el('span', { class: 'tiny chg-at', title: when(e.submittedAt), text: 'سُلّمت ' + timeAgo(e.submittedAt) }),
+        e.updatedSince ? el('span', { class: 'tiny chg-upd', text: '↻ نُشرت نسخة أحدث بعد التسليم — الدرجة للإصدار ' + e.judgedVersion }) : null]),
+      el('div', { class: 'chg-sc', dir: 'ltr' }, sc),
+      e.playable ? el('button', { class: 'btn sm chg-play', type: 'button', title: 'العب', 'aria-label': 'العب «' + (e.title || '') + '»', onclick: ev => { ev.stopPropagation(); this.play(e.gameId); } }, [NX.icon('play')])
+        : el('span', { class: 'chg-play off', title: 'اللعبة غير متاحة الآن' }));
+    /* the owner's recovery: a judging that failed (or went wrong) asked again — never after the results */
+    if (this.cur && this.cur.owner && c.status !== 'final' && ['failed', 'judged', 'pending'].includes(e.status)) {
+      r.classList.add('rj');
+      r.appendChild(btn('↻', { cls: 'sm ghost chg-rj', onclick: ev => { ev.stopPropagation(); this.rejudge(e, c); } }));
+    }
+    if (e.criteria && e.score10 != null) {
+      r.classList.add('can-open');
+      let d = null;
+      r.onclick = () => {
+        if (d) { d.remove(); d = null; return; }
+        d = el('div', { class: 'chg-rowd' }, [e.summary ? el('p', { class: 'chg-sum1', text: e.summary }) : null, this.bars(e, c)]);
+        r.after(d);
+      };
+    }
+    return r;
+  },
+  myLine(me) {
+    const t = me.status === 'judged' && me.score10 != null ? '✓ سلّمت · NEXUS AI SCORE ' + s10(me.score10) + '/10' + (me.rank ? ' · ' + (MEDAL[me.rank - 1] || '#' + me.rank) : '')
+      : me.status === 'pending' ? '⏳ Judging Pending' : me.status === 'failed' ? 'تعذّر التحكيم' : '⚖️ ' + (ENTRY[me.status] || me.status);
+    return el('span', { class: 'chg-my', dataset: { s: me.status }, text: t });
+  },
+
+  /* ================================================================ the home page */
+  homeSection(host) {
+    if (!API || !Backend.isOnline()) return;
+    const sec = el('div', { class: 'chg-home' });
+    host.appendChild(sec);
+    this.load().then(() => { if (sec.isConnected) this.paintHome(sec); }).catch(e => { console.warn('[challenges] home', e && e.code); sec.remove(); });
+  },
+  paintHome(sec) {
+    const j = this.cur, c = j && j.challenge;
+    sec.textContent = '';
+    if (!c) return;
+    const open = c.status === 'open' && c.endTime > this.now(), me = j.me;
+    sec.appendChild(el('div', { class: 'sec-head' }, [el('h2', { text: '🏆 NEXUS CHALLENGES' }), el('button', { text: 'كل التحديات', onclick: () => this.open() })]));
+    const act = el('div', { class: 'chg-act' });
+    if (me && me.submitted) act.appendChild(this.myLine(me));
+    else if (open && !j.signedIn) act.appendChild(btn('شارك في التحدي', { cls: 'primary sm', onclick: () => this.signIn() }));
+    else if (open && !me) act.appendChild(btn('شارك في التحدي', { cls: 'primary sm', onclick: () => this.join() }));
+    else if (open) act.appendChild(btn('🏆 سلّم لعبتك', { cls: 'primary sm', onclick: () => this.startSubmit() }));
+    else act.appendChild(el('span', { class: 'chg-my', text: c.status === 'final' ? '🏁 أُعلنت النتائج' : '⚖️ التحكيم جارٍ' }));
+    act.appendChild(el('span', { class: 'tiny', text: 'يحكم NEXUS AI JUDGE' }));
+    sec.appendChild(el('div', { class: 'card chg-card chg-mini', dataset: { d: c.difficulty }, role: 'button', tabindex: '0',
+      onclick: ev => { if (!ev.target.closest('button')) this.open(); }, onkeydown: ev => { if (ev.key === 'Enter' && ev.target === ev.currentTarget) this.open(); } }, [this.head(c), this.stats(c, { mini: true }), act]));
+  },
+
+  /* ================================================================ «🏆 NEXUS CHALLENGES» */
+  open(cid) {
+    if (!API) { Toast.err('التحديات تعمل على الموقع المنشور على Netlify — خادمه يحكم ويحفظ النتائج.'); return; }
+    const body = el('div', { class: 'chg' });
+    const seg = el('div', { class: 'seg chg-tabs' }), pane = el('div', { class: 'chg-pane' });
+    body.append(seg, pane);
+    const sheet = Sheet.open({ title: '🏆 NEXUS CHALLENGES', body, id: 'challenges', full: true, onClose: () => { if (this.view && this.view.sheet === sheet) this.view = null; } });
+    this.view = { sheet, seg, pane, tab: null, arg: null };
+    this.show(cid ? 'detail' : 'now', cid);
+  },
+  closeView() { if (this.view) this.view.sheet.close(); },
+  tabs() {
+    const v = this.view;
+    if (!v) return;
+    v.seg.textContent = '';
+    [['now', 'التحدي'], ['board', 'المشاركات'], ['past', 'السابقة']].concat(this.cur && this.cur.owner ? [['admin', 'الإدارة']] : []).forEach(([k, t]) =>
+      v.seg.appendChild(el('button', { text: t, dataset: { tab: k }, class: v.tab === k || (k === 'past' && v.tab === 'detail') ? 'on' : '', onclick: () => this.show(k) })));
+  },
+  async show(tab, arg, { quiet = false } = {}) {
+    const v = this.view;
+    if (!v) return;
+    v.tab = tab; v.arg = arg || null;
+    this.tabs();
+    const my = ++this._seq;
+    if (!quiet) { v.pane.textContent = ''; v.pane.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' })])); }
+    const out = el('div', { class: 'chg-p', dataset: { tab } });
+    try {
+      if (tab === 'now') await this.paneNow(out);
+      else if (tab === 'board') await this.paneBoard(out, arg || (this.cur && this.cur.challenge && this.cur.challenge.challengeId) || (await this.load()).challenge.challengeId);
+      else if (tab === 'past') await this.panePast(out);
+      else if (tab === 'detail') await this.paneDetail(out, arg);
+      else if (tab === 'admin') await this.paneAdmin(out);
+    } catch (e) {
+      out.textContent = '';
+      out.appendChild(el('div', { class: 'center-note' }, [el('b', { text: e.code === 'off' ? 'التحديات غير متاحة هنا' : 'تعذّر التحميل' }),
+        el('p', { class: 'tiny', text: e.message }), btn('إعادة المحاولة', { cls: 'sm', onclick: () => this.show(tab, arg) })]));
+    }
+    if (my !== this._seq || !this.view || this.view !== v) return;
+    this.tabs();
+    v.pane.textContent = '';
+    v.pane.appendChild(out);
+  },
+
+  async paneNow(host) {
+    const j = await this.load(), c = j.challenge;
+    if (!c) { host.appendChild(el('div', { class: 'center-note' }, [el('b', { text: 'لا يوجد تحدٍّ الآن' }), el('p', { class: 'tiny', text: 'التحدي التالي يبدأ قريبًا — شاهد التحديات السابقة.' })])); return; }
+    host.appendChild(el('div', { class: 'card chg-card chg-hero', dataset: { d: c.difficulty } }, [this.head(c), el('p', { class: 'chg-desc', text: c.description }), this.stats(c), this.rewards(c)]));
+    host.appendChild(this.actions(j));
+    if (j.me && j.me.submitted) host.appendChild(this.entryCard(j.me, c));
+    host.appendChild(el('h4', { class: 'chg-h', text: '⚖️ معايير NEXUS AI JUDGE' }));
+    host.appendChild(this.rubric(c));
+    if (c.asks) host.appendChild(el('details', { class: 'chg-asks' }, [el('summary', { text: 'ما يبحث عنه المحكّم في هذا التحدي' }), el('p', { dir: 'auto', text: c.asks })]));
+    host.appendChild(el('h4', { class: 'chg-h', text: '📜 القواعد' }));
+    host.appendChild(this.rules(c));
+    host.appendChild(el('p', { class: 'tiny chg-trust', text: '🔒 الدرجة والترتيب والفائز والجوائز يحسبها ويحفظها خادم NEXUS — لا يمكن تعديلها من المتصفح.' }));
+    /* an entry being judged elsewhere (another device, the site's own round): looked at again shortly */
+    clearTimeout(this._poll);
+    if (j.me && ['submitted', 'judging'].includes(j.me.status)) this._poll = setTimeout(() => { if (this.view && this.view.tab === 'now') this.show('now', null, { quiet: true }); }, 15000);
+  },
+  actions(j) {
+    const c = j.challenge, me = j.me, box = el('div', { class: 'chg-actions' });
+    const open = c.status === 'open' && c.endTime > this.now();
+    if (!open) {
+      box.appendChild(el('div', { class: 'card chg-wait', text: c.status === 'final' ? '🏁 انتهى التحدي وأُعلنت النتائج — شاهد «المشاركات».'
+        : '⚖️ انتهى وقت التسليم — NEXUS AI JUDGE يحكّم كل المشاركات، ثم يُعلن الترتيب والفائز وتُوزَّع النقاط.' }));
+      return box;
+    }
+    if (!j.signedIn) { box.appendChild(btn('سجّل الدخول للمشاركة', { cls: 'primary block', icon: 'user', onclick: () => this.signIn() })); return box; }
+    if (!me) {
+      box.appendChild(btn('🏁 شارك في التحدي', { cls: 'primary block chg-join', onclick: () => this.join() }));
+      box.appendChild(el('p', { class: 'tiny', text: 'تصنع لعبتك في محرر NEXUS نفسه — بالمساعد الذكي والأصول كالمعتاد — ثم تسلّمها قبل انتهاء الوقت.' }));
+      return box;
+    }
+    const max = (c.rules && c.rules.maxSubmissionsPerUser) || 1, used = me.submissions || 0;
+    if (used < max) {
+      box.appendChild(el('div', { class: 'chg-btns' }, [
+        btn(used ? '🏆 سلّم نسخة أحدث (' + (max - used) + ' متبقية)' : '🏆 تسليم اللعبة للتحدي', { cls: 'primary chg-submit', onclick: () => this.startSubmit() }),
+        btn('مشروع جديد للتحدي', { icon: 'plus', onclick: () => this.newProject() })]));
+      if (!used) box.appendChild(el('p', { class: 'tiny', text: '✓ أنت مشارك. اصنع لعبتك ثم سلّمها: تُنشر، ثم يقرأ خادم NEXUS نسختها المنشورة ويحكم عليها NEXUS AI JUDGE.' }));
+    }
+    return box;
+  },
+  async paneBoard(host, cid) {
+    const j = await this.call('/c/' + encodeURIComponent(cid)), c = j.challenge, b = j.board;
+    host.appendChild(el('div', { class: 'chg-bh' }, [el('h3', { text: b.hidden ? '🎮 الألعاب المسلّمة' : '🏆 NEXUS CHALLENGE LEADERBOARD' }), el('span', { class: 'tiny', text: c.emoji + ' ' + c.title + ' · الألعاب: ' + b.entries.length })]));
+    if (b.hidden) host.appendChild(el('p', { class: 'tiny chg-hint', text: 'الترتيب ودرجات الآخرين تُعلن بعد انتهاء التحدي وتحكيم كل الألعاب (قواعد هذا التحدي). العب الألعاب المسلّمة الآن.' }));
+    else if (c.status !== 'final') host.appendChild(el('p', { class: 'tiny chg-hint', text: 'الترتيب النهائي يُعلن بعد انتهاء التحدي وتحكيم كل الألعاب.' }));
+    if (!b.entries.length) host.appendChild(el('div', { class: 'center-note', text: c.status === 'open' ? 'لم تُسلَّم ألعاب بعد — كن أول من يسلّم!' : 'لم تُسلَّم ألعاب في هذا التحدي.' }));
+    const list = el('div', { class: 'chg-board' });
+    b.entries.forEach(e => list.appendChild(this.row(e, c, b)));
+    host.appendChild(list);
+  },
+  async panePast(host) {
+    const j = await this.call('/past?limit=12');
+    host.appendChild(el('h3', { class: 'chg-h', text: '🗂 التحديات السابقة' }));
+    if (!j.challenges.length) { host.appendChild(el('div', { class: 'center-note', text: 'لا تحديات سابقة بعد — هذا أول تحدٍّ على NEXUS.' })); return; }
+    j.challenges.forEach(c => {
+      const w = c.winner;
+      host.appendChild(el('div', { class: 'card chg-past', role: 'button', tabindex: '0', dataset: { cid: c.challengeId }, onclick: () => this.show('detail', c.challengeId) }, [
+        this.head(c),
+        el('div', { class: 'tiny', title: when(c.startTime) + ' ← ' + when(c.endTime), text: day(c.startTime) + ' ← ' + day(c.endTime) + ' · المشاركون: ' + num(c.participants) + ' · الألعاب: ' + num(c.submissions) }),
+        w ? el('div', { class: 'chg-win' }, [el('span', { class: 'chg-cup', text: '🏆' }), avatar(w), el('div', { class: 'chg-who' }, [el('b', { text: w.name }), el('span', { class: 'tiny', text: w.title || '' })]),
+          el('b', { class: 'chg-sc', dir: 'ltr', text: s10(w.score10) + '/10' })])
+          : el('div', { class: 'tiny chg-nowin', text: c.status === 'final' ? 'لا فائز — لا مشاركة مُحكَّمة.' : '⚖️ التحكيم جارٍ — النتائج قريبًا.' })]));
+    });
+  },
+  async paneDetail(host, cid) {
+    const j = await this.call('/c/' + encodeURIComponent(cid)), c = j.challenge;
+    /* the challenge on now: its own page (asked of the server — the copy here may be old) */
+    if (c.status === 'open' && ((await this.load()).challenge || {}).challengeId === c.challengeId) return this.paneNow(host);
+    host.appendChild(el('button', { class: 'chg-back', text: '→ التحديات السابقة', onclick: () => this.show('past') }));
+    host.appendChild(el('div', { class: 'card chg-card', dataset: { d: c.difficulty } }, [this.head(c), el('p', { class: 'chg-desc', text: c.description }), this.stats(c)]));
+    if (c.status === 'final' && c.winner) {
+      const w = c.winner;
+      host.appendChild(el('div', { class: 'card chg-winner' }, [
+        el('small', { text: '🏆 الفائز — بقرار NEXUS AI JUDGE' }),
+        el('div', { class: 'chg-win' }, [avatar(w, 'lg'), el('div', { class: 'chg-who' }, [el('b', { text: w.name }), el('span', { text: '🎮 ' + (w.title || '') })]),
+          el('div', { class: 'chg-big', dir: 'ltr' }, [el('b', { text: s10(w.score10) }), el('span', { text: ' / 10' })])]),
+        btn('▶ Play Winner Game', { cls: 'primary block chg-playwin', onclick: () => this.play(w.gameId) })]));
+      if ((c.podium || []).length > 1) host.appendChild(el('div', { class: 'chg-podium' }, c.podium.map((p, i) => el('div', { class: 'chg-pod', dataset: { i: String(i + 1) } }, [
+        el('span', { text: MEDAL[i] }), avatar(p), el('b', { text: p.name }), el('small', { dir: 'ltr', text: s10(p.score10) + '/10' })]))));
+    } else host.appendChild(el('div', { class: 'card chg-wait', text: c.status === 'final' ? 'لا فائز — لم تُحكَّم أي مشاركة بدرجة صالحة.' : '⚖️ انتهى التسليم — NEXUS AI JUDGE يحكّم كل المشاركات، ثم يُعلن الترتيب وتُوزَّع النقاط.' }));
+    if (j.me && j.me.submitted) host.appendChild(this.entryCard(j.me, c));
+    const b = j.board;
+    host.appendChild(el('div', { class: 'chg-bh' }, [el('h3', { text: b.hidden ? '🎮 الألعاب المسلّمة' : '🏆 NEXUS CHALLENGE LEADERBOARD' }), el('span', { class: 'tiny', text: 'الألعاب: ' + b.entries.length })]));
+    const list = el('div', { class: 'chg-board' });
+    b.entries.forEach(e => list.appendChild(this.row(e, c, b)));
+    host.appendChild(list);
+  },
+
+  /* ---------------- the site's owner ---------------- */
+  async paneAdmin(host) {
+    const j = await this.call('/admin'), cfg = j.config;
+    const n = (v, a = {}) => el('input', Object.assign({ class: 'input', type: 'number', dir: 'ltr', value: String(v) }, a));
+    const ck = v => { const i = el('input', { type: 'checkbox' }); i.checked = !!v; return i; };
+    const f = (label, input, hint) => el('label', { class: 'chg-f' }, [el('span', { text: label }), input, hint ? el('small', { class: 'tiny', text: hint }) : null]);
+    const I = {
+      durationHours: n(cfg.durationHours, { min: '0.1', step: '0.5' }), autoCreate: ck(cfg.autoCreate),
+      easy: n(cfg.rewards.easy), medium: n(cfg.rewards.medium), hard: n(cfg.rewards.hard), special: n(cfg.rewards.special),
+      second: n(Math.round(cfg.placements.second * 100)), third: n(Math.round(cfg.placements.third * 100)),
+      participation: n(cfg.participation), minScore: n(cfg.minScore, { step: '0.1', min: '0', max: '10' }),
+      maxSubmissionsPerUser: n(cfg.maxSubmissionsPerUser, { min: '1', max: '10' }), maxParticipants: n(cfg.maxParticipants, { min: '0' }),
+      hideResultsUntilEnd: ck(cfg.hideResultsUntilEnd), requireFreshBuild: ck(cfg.requireFreshBuild),
+      jEasy: n(cfg.judgesFor.easy, { min: '1', max: '3' }), jMedium: n(cfg.judgesFor.medium, { min: '1', max: '3' }), jHard: n(cfg.judgesFor.hard, { min: '1', max: '3' }), jSpecial: n(cfg.judgesFor.special, { min: '1', max: '3' }),
+      judgeMaxAttempts: n(cfg.judgeMaxAttempts, { min: '1', max: '20' }),
+      judgeModels: el('input', { class: 'input', dir: 'ltr', value: (cfg.judgeModels || []).join(', '), placeholder: 'auto' })
+    };
+    const set = el('div', { class: 'card chg-admin' }, [el('b', { text: '⚙ إعدادات التحديات' }),
+      el('p', { class: 'tiny', text: 'تُحفظ على الخادم (challenges_meta/config) وتنطبق على التحديات التالية؛ متغيرات Netlify قيم افتراضية تحتها.' }),
+      el('div', { class: 'chg-grid' }, [
+        f('مدة التحدي (ساعات)', I.durationHours), f('ابدأ التالي تلقائيًا', I.autoCreate),
+        f('جائزة «سهل»', I.easy), f('جائزة «متوسط»', I.medium), f('جائزة «صعب»', I.hard), f('جائزة «خاص»', I.special),
+        f('الثاني: % من الأول', I.second), f('الثالث: % من الأول', I.third),
+        f('نقاط كل مشاركة مُحكَّمة', I.participation), f('أقل درجة لأي جائزة (/10)', I.minScore),
+        f('تسليمات كل لاعب', I.maxSubmissionsPerUser), f('أقصى عدد للمشاركين', I.maxParticipants, '0 = بلا حد'),
+        f('أخفِ النتائج حتى النهاية', I.hideResultsUntilEnd), f('يجب النشر خلال التحدي', I.requireFreshBuild),
+        f('محكّمو «سهل»', I.jEasy), f('محكّمو «متوسط»', I.jMedium), f('محكّمو «صعب»', I.jHard), f('محكّمو «خاص»', I.jSpecial),
+        f('محاولات التحكيم قبل «تعذّر»', I.judgeMaxAttempts), f('نماذج المحكّم', I.judgeModels, 'فارغ = يختار NEXUS من المزوّدين المتاحين')])]);
+    set.appendChild(btn('حفظ الإعدادات', { cls: 'primary chg-save', onclick: async ev => {
+      const b = ev.currentTarget; b.disabled = true;
+      try {
+        await this.call('/admin/config', { config: {
+          durationHours: +I.durationHours.value, autoCreate: I.autoCreate.checked,
+          rewards: { easy: +I.easy.value, medium: +I.medium.value, hard: +I.hard.value, special: +I.special.value },
+          placements: { second: +I.second.value / 100, third: +I.third.value / 100 }, participation: +I.participation.value, minScore: +I.minScore.value,
+          maxSubmissionsPerUser: +I.maxSubmissionsPerUser.value, maxParticipants: +I.maxParticipants.value,
+          hideResultsUntilEnd: I.hideResultsUntilEnd.checked, requireFreshBuild: I.requireFreshBuild.checked,
+          judgesFor: { easy: +I.jEasy.value, medium: +I.jMedium.value, hard: +I.jHard.value, special: +I.jSpecial.value },
+          judgeMaxAttempts: +I.judgeMaxAttempts.value, judgeModels: I.judgeModels.value.split(/[\s,]+/).filter(Boolean) } });
+        Toast.ok('حُفظت إعدادات التحديات على الخادم');
+      } catch (e) { this.fail(e); }
+      finally { b.disabled = false; }
+    } }));
+    host.appendChild(set);
+
+    /* a special challenge: now (it ends the current one) or as the next one */
+    const cat = el('select', { class: 'select' }, Object.entries(j.categories).map(([k, v]) => el('option', { value: k, text: v.emoji + ' ' + v.title })));
+    const diff = el('select', { class: 'select' }, Object.entries(j.difficulties).map(([k, v]) => el('option', { value: k, text: v })));
+    diff.value = 'special';
+    const N = { title: el('input', { class: 'input', placeholder: 'اتركه فارغًا لعنوان النوع' }), description: el('textarea', { class: 'textarea', placeholder: 'اتركه فارغًا لوصف النوع' }),
+      asks: el('input', { class: 'input', placeholder: 'ما يُطلب — يُرسل إلى المحكّم كما هو' }), emoji: el('input', { class: 'input', placeholder: '🏆', maxlength: '8' }),
+      hours: n(cfg.durationHours, { min: '0.1', step: '0.5' }), reward: n(cfg.rewards.special), judges: n(3, { min: '1', max: '3' }),
+      subs: n(cfg.maxSubmissionsPerUser, { min: '1', max: '10' }), maxP: n(0, { min: '0' }), hide: ck(cfg.hideResultsUntilEnd),
+      rules: el('textarea', { class: 'textarea', placeholder: 'قواعد إضافية يقرؤها اللاعبون (اختياري)' }) };
+    diff.onchange = () => { N.reward.value = String(cfg.rewards[diff.value] || 0); N.judges.value = String(cfg.judgesFor[diff.value] || 1); };
+    const create = async whenTo => {
+      try {
+        await this.call('/admin/create', { when: whenTo, category: cat.value, difficulty: diff.value, title: N.title.value.trim() || undefined, description: N.description.value.trim() || undefined,
+          asks: N.asks.value.trim() || undefined, emoji: N.emoji.value.trim() || undefined, durationHours: +N.hours.value, reward: +N.reward.value, judges: +N.judges.value,
+          maxSubmissionsPerUser: +N.subs.value, maxParticipants: +N.maxP.value, hideResultsUntilEnd: N.hide.checked, rulesText: N.rules.value.trim() || undefined });
+        Toast.ok(whenTo === 'next' ? 'سيكون التحدي التالي' : 'بدأ التحدي الجديد');
+        await this.refresh();
+        if (whenTo !== 'next') this.show('now');
+      } catch (e) { this.fail(e); }
+    };
+    host.appendChild(el('div', { class: 'card chg-admin' }, [el('b', { text: '✨ تحدٍّ خاص' }),
+      el('p', { class: 'tiny', text: 'اختر نوعه وصعوبته ومدته وجائزته. المعايير وأوزانها من نوعه، والمحكّم هو NEXUS AI JUDGE دائمًا.' }),
+      el('div', { class: 'chg-grid' }, [f('النوع', cat), f('الصعوبة', diff), f('العنوان', N.title), f('الإيموجي', N.emoji), f('المدة (ساعات)', N.hours), f('الجائزة الأولى', N.reward),
+        f('عدد المحكّمين (1–3)', N.judges), f('تسليمات كل لاعب', N.subs), f('أقصى عدد للمشاركين', N.maxP, '0 = بلا حد'), f('أخفِ النتائج حتى النهاية', N.hide)]),
+      f('الوصف', N.description), f('المطلوب', N.asks), f('قواعد إضافية', N.rules),
+      el('div', { class: 'chg-btns' }, [
+        btn('ابدأه الآن (يُنهي الحالي)', { cls: 'primary', onclick: async () => { if (await Modal.confirm('بدء تحدٍّ خاص الآن', 'يُغلَق التسليم في التحدي الحالي ويُحكَّم، ثم يبدأ هذا.', 'ابدأ الآن')) create('now'); } }),
+        btn('اجعله التحدي التالي', { onclick: () => create('next') })])]));
+
+    /* now: end the current challenge · run what is due (judging, ranking, prizes) */
+    const log = el('div', { class: 'chg-log tiny' });
+    host.appendChild(el('div', { class: 'card chg-admin' }, [el('b', { text: '⏱ الآن' }),
+      el('div', { class: 'chg-btns' }, [
+        btn('أنهِ التحدي الحالي الآن', { cls: 'danger', onclick: async () => {
+          if (!(await Modal.confirm('إنهاء التحدي الحالي', 'يُغلق التسليم فورًا، ثم تُحكَّم المشاركات ويُعلن الترتيب وتُوزَّع النقاط.', 'إنهاء الآن'))) return;
+          try { await this.call('/admin/end', {}); Toast.ok('أُغلق التحدي'); await this.refresh(); } catch (e) { this.fail(e); }
+        } }),
+        btn('حكّم ووزّع المستحق الآن', { onclick: async ev => {
+          const b = ev.currentTarget; b.disabled = true; log.textContent = '';
+          const say = t => log.appendChild(el('div', { text: t }));
+          say('…');
+          try {
+            await this.stream('/tick', {}, (e, d) => {
+              if (e === 'state') say(d.text);
+              else if (e === 'judge') say('المحكّم ' + (d.i + 1) + '/' + d.n + ': ' + (JUDGE[d.state] || d.state) + (d.provider ? ' · ' + d.provider : '') + (d.note ? ' · ' + d.note : ''));
+              else if (e === 'tick') say('✓ حُكّم ' + d.judged + ' · مؤجّل ' + d.pending + ' · أُعلنت نتائج ' + (d.finalized || []).length + ' · جوائز ' + d.paid);
+              else if (e === 'error') say('✕ ' + d.message);
+            });
+          } catch (e) { say('✕ ' + e.message); }
+          finally { b.disabled = false; this.refresh(); }
+        } })]),
+      log,
+      el('p', { class: 'tiny', text: 'الفائز لا يُختار يدويًا: الترتيب من درجات NEXUS AI JUDGE وحدها. «↻» بجانب مشاركة في «المشاركات» يطلب تحكيمها من جديد (قبل إعلان النتائج فقط).' })]));
+  },
+  async rejudge(e, c) {
+    const force = e.status === 'judged';
+    if (!(await Modal.confirm('إعادة تحكيم مشاركة', (e.name || '') + ' — «' + (e.title || '') + '»: ' + (force ? 'حُكّمت من قبل؛ ستُحكَّم من جديد وتُستبدل درجتها.' : 'تُحكَّم من جديد في الجولة التالية.'), 'أعد التحكيم'))) return;
+    try { await this.call('/admin/rejudge', { entryId: c.challengeId + '_' + e.uid, force }); Toast.ok('ستُحكَّم من جديد'); this.show(this.view.tab, this.view.arg, { quiet: true }); }
+    catch (err) { this.fail(err); }
+  },
+
+  /* ================================================================ taking part */
+  async join() {
+    if (!this.account()) { this.signIn(); return; }
+    let c = this.cur && this.cur.challenge;
+    try {
+      if (!c) c = (await this.load()).challenge;
+      await this.call('/join', { challengeId: c.challengeId });
+      Toast.ok('انضممت إلى ' + c.emoji + ' ' + c.title + ' — بالتوفيق!');
+    } catch (e) { this.fail(e); }
+    await this.refresh();
+  },
+  /* which game: the one open in the editor, a new project for the challenge, or one of the player's projects */
+  async startSubmit() {
+    if (!this.account()) { this.signIn(); return; }
+    const S = NX.Studio, uid = Backend.user.uid;
+    const inStudio = NX.Screen.current() === 'studio' && S.project && S.project.ownerId === uid;
+    const body = el('div', { class: 'chg-pick' });
+    const list = el('div', {}, [el('div', { class: 'load-row' }, [el('div', { class: 'spin' })])]);
+    if (inStudio) body.appendChild(NX.optionRow('play', 'سلّم «' + S.project.name + '»', 'المشروع المفتوح الآن في المحرر', () => { sheet.close(); this.closeView(); this.submitFromStudio(); }));
+    body.appendChild(NX.optionRow('plus', 'مشروع جديد للتحدي', 'يفتح المحرر والمساعد جاهزًا بفكرة التحدي — ثم «المزيد ← 🏆 تسليم اللعبة للتحدي»', () => { sheet.close(); this.newProject(); }));
+    body.append(el('div', { class: 'ttl', style: { margin: '12px 0 6px' }, text: 'أو سلّم أحد مشاريعك' }), list);
+    const sheet = Sheet.open({ title: '🏆 أي لعبة تسلّم؟', body, id: 'chg-pick' });
+    try {
+      const ps = await NX.Projects.list(uid);
+      list.textContent = '';
+      if (!ps.length) list.appendChild(el('p', { class: 'tiny', text: 'لا مشاريع بعد — ابدأ مشروعًا جديدًا للتحدي.' }));
+      ps.slice(0, 40).forEach(p => list.appendChild(NX.optionRow('folder', p.name, 'آخر تعديل ' + timeAgo(p.updatedAt) + (p.publishedId ? ' · منشورة من قبل' : ''),
+        async () => { sheet.close(); this.closeView(); const fresh = await NX.Projects.get(p.projectId).catch(() => null) || p; await NX.Studio.open(fresh); this.submitFromStudio(); })));
+    } catch (e) { list.textContent = ''; list.appendChild(el('p', { class: 'tiny', text: 'تعذّر جلب مشاريعك: ' + (NX.describeFirebaseError ? NX.describeFirebaseError(e) : e.message) })); }
+  },
+  async newProject() {
+    if (!this.account()) { this.signIn(); return; }
+    const c = (this.cur && this.cur.challenge) || (await this.load().catch(() => ({}))).challenge;
+    if (!c) return;
+    this.closeView();                       // first: its step in the phone's history is the one on top
+    const p = await NX.Platform.createProject(c.emoji + ' ' + c.title, { challengeId: c.challengeId });
+    if (!p) return;
+    /* the assistant, ready with the challenge's idea — nothing is sent until the player presses send */
+    setTimeout(() => {
+      NX.Studio.openAI({ firstGame: true });
+      const i = NX.AIPanel && NX.AIPanel.input;
+      if (i) { i.value = 'اصنع لعبة لتحدي «' + c.title + '»: ' + c.description; i.dispatchEvent(new Event('input')); }
+    }, 800);
+    Toast.show('اصنع لعبتك، ثم: المزيد ← 🏆 تسليم اللعبة للتحدي', '', 6000);
+  },
+  /* the studio's «🏆 تسليم اللعبة للتحدي»: the Studio's own Publish, then the published game to the challenge */
+  async submitFromStudio() {
+    const S = NX.Studio, p = S && S.project;
+    if (!p) { Toast.err('افتح مشروع لعبتك أولًا'); return; }
+    if (!Backend.isOnline()) { Toast.err('التسليم يحتاج اتصال الموقع بالسحابة — ' + (Backend.reason || 'الوضع المحلي')); return; }
+    if (!this.account()) { NX.promptSignIn('التحديات لأصحاب الحسابات — سجّل الدخول ثم سلّم لعبتك.'); return; }
+    if (p.ownerId !== Backend.user.uid) { Toast.err('تُسلَّم لعبة من مشاريعك أنت فقط'); return; }
+    let j;
+    try { j = await this.load(); } catch (e) { this.fail(e); return; }
+    const c = j.challenge, me = j.me;
+    if (!c || c.status !== 'open' || c.endTime <= this.now()) { Toast.err('لا يوجد تحدٍّ مفتوح للتسليم الآن'); this.open(); return; }
+    const max = (c.rules && c.rules.maxSubmissionsPerUser) || 1;
+    if (me && (me.submissions || 0) >= max) {
+      Modal.open({ title: 'سلّمت في هذا التحدي', body: max === 1 ? 'قواعد هذا التحدي تسمح بتسليم واحد (وتقييم واحد) — نتيجتك في صفحة التحدي.' : 'وصلت الحد الأقصى للتسليم (' + max + ').',
+        actions: [{ label: 'إغلاق', cls: 'ghost' }, { label: 'افتح التحدي', cls: 'primary', onclick: () => this.open() }] });
+      return;
+    }
+    if (me && me.submitted && me.projectId && me.projectId !== p.projectId
+      && !(await Modal.confirm('تسليم مشروع آخر؟', 'سلّمت «' + (me.title || me.projectId) + '» من قبل. يحلّ هذا محلّه ويُحكَّم من جديد.', 'سلّم هذا'))) return;
+    S.openPublish({ challenge: c, after: (rec, build) => this.afterPublish(c, rec, build) });
+  },
+  /* published: a 2-second test run → the server checks and keeps the entry → the judge, live */
+  async afterPublish(c, rec, build) {
+    const S = NX.Studio;
+    const steps = el('div', { class: 'chg-steps' }), live = el('div'), out = el('div');
+    const step = (text, s = 'run') => {
+      const r = el('div', { class: 'chg-step', dataset: { s } }, [el('i'), el('span', { text })]);
+      steps.appendChild(r);
+      return { ok: t => { r.dataset.s = 'ok'; if (t) r.lastChild.textContent = t; }, bad: t => { r.dataset.s = 'bad'; if (t) r.lastChild.textContent = t; } };
+    };
+    const body = el('div', { class: 'chg-submitting' }, [el('div', { class: 'chg-top' }, [el('span', { class: 'chg-emoji', text: c.emoji }), el('div', { class: 'chg-tt' }, [el('b', { text: c.title }), el('span', { class: 'tiny', text: '🎮 ' + rec.title + ' · الإصدار ' + (rec.version || 1) })])]), steps, live, out]);
+    Sheet.open({ title: '🏆 تسليم اللعبة للتحدي', body, id: 'chg-submit' });
+    step('نُشرت اللعبة وتأكّد الخادم منها', 'ok');
+    const t = step('تشغيل تجريبي لثانيتين (أخطاء التشغيل)…');
+    const preview = { buildOk: !!(build && build.ok), seconds: 2 };
+    try {
+      const r = await S.testRun(build), st = (S.engine && S.engine.stats) || {};
+      Object.assign(preview, { runtimeErrors: r.errors.length, errors: r.errors.slice(0, 3), entities: st.entities, tris: st.tris, calls: st.calls });
+      t.ok(r.errors.length ? '⚠ التشغيل التجريبي: ' + r.errors.length + ' خطأ (تُحسب في «الاكتمال»)' : 'التشغيل التجريبي بلا أخطاء');
+    } catch { t.bad('تعذّر التشغيل التجريبي — يُسلَّم بدونه'); }
+    const s = step('الإرسال إلى خادم NEXUS…');
+    try {
+      await this.call('/submit', { challengeId: c.challengeId, projectId: rec.projectId, gameId: rec.gameId, preview });
+      s.ok('سُلّمت — تحقّق الخادم من حسابك واللعبة والمشروع، وقرأ نسخة اللعبة المنشورة');
+    } catch (e) {
+      s.bad('✕ ' + e.message);
+      out.appendChild(btn('افتح التحدي', { cls: 'block', onclick: () => this.open() }));
+      return;
+    }
+    const entry = await this.judgeLive(c, live);
+    if (entry) out.appendChild(this.entryCard(entry, c));
+    out.appendChild(btn('صفحة التحدي', { cls: 'block chg-open', style: { marginTop: '10px' }, onclick: () => this.open() }));
+    this.refresh();
+  },
+  /* the judge, as it works: each model's state, then the entry as the server kept it */
+  async judgeLive(c, host) {
+    const title = el('span', { class: 'cc-t', text: '⚖️ NEXUS AI JUDGE' }), clk = el('span', { class: 'cc-clock', text: '0.0s' });
+    const phase = el('div', { class: 'cc-why tiny', text: 'يقرأ الأدلة من نسخة اللعبة المنشورة…' }), rows = el('div', { class: 'cc-rows' }), foot = el('div');
+    const box = el('div', { class: 'cc-live chg-judge', role: 'status', 'aria-live': 'polite' }, [el('div', { class: 'cc-head' }, [title, clk]), phase, rows, foot]);
+    host.appendChild(box);
+    const t0 = Date.now(), timer = setInterval(() => { clk.textContent = ((Date.now() - t0) / 1000).toFixed(1) + 's'; }, 250);
+    const byI = new Map();
+    const row = (i, n) => {
+      let r = byI.get(i);
+      if (!r) { r = el('div', { class: 'cc-row', dataset: { state: 'waiting' } }, [el('i', { class: 'cc-dot' }), el('div', { class: 'cc-name' }), el('div', { class: 'cc-state' })]); byI.set(i, r); rows.appendChild(r); }
+      r.children[1].textContent = 'المحكّم ' + (i + 1) + (n > 1 ? ' من ' + n : '');
+      return r;
+    };
+    let entry = null, err = null;
+    try {
+      const r = await this.stream('/judge', { challengeId: c.challengeId }, (ev, d) => {
+        if (ev === 'state') phase.textContent = d.text;
+        else if (ev === 'judge') {
+          const r = row(d.i, d.n);
+          r.dataset.state = d.state;
+          if (d.provider) { r.children[1].textContent = 'المحكّم ' + (d.i + 1) + (d.n > 1 ? ' من ' + d.n : ''); r.children[1].appendChild(el('span', { class: 'cc-m', text: d.provider + (d.model ? ' · ' + d.model : '') })); }
+          r.children[2].textContent = (JUDGE[d.state] || d.state) + (d.state === 'done' && d.total != null ? ' · ' + (d.total / 10).toFixed(1) + '/10' : '') + (d.note ? ' · ' + d.note : '');
+        } else if (ev === 'entry') entry = d;
+        else if (ev === 'error') err = d;
+      });
+      if (r && r.ok === false) err = r.error;
+    } catch (e) { err = { message: e.message }; }
+    clearInterval(timer);
+    clk.textContent = ((Date.now() - t0) / 1000).toFixed(1) + 's';
+    if (entry && entry.status === 'judged') foot.appendChild(el('div', { class: 'cc-final', text: '✓ NEXUS AI JUDGE SCORE: ' + s10(entry.score10) + ' / 10 — محفوظة على خادم NEXUS' }));
+    else if (entry && entry.status === 'judging') foot.appendChild(el('div', { class: 'cc-final warn', text: 'يُحكَّم الآن في طلب آخر — تظهر الدرجة في صفحة التحدي حين تنتهي.' }));
+    else if (entry && entry.status === 'pending') foot.appendChild(el('div', { class: 'cc-final warn', text: '⏳ Judging Pending — لا درجة الآن ولا جائزة؛ يُعاد التحكيم تلقائيًا ' + when(entry.nextTryAt) + '.' }));
+    else if (entry && entry.status === 'failed') foot.appendChild(el('div', { class: 'cc-final bad', text: 'تعذّر التحكيم بعد عدة محاولات — لا درجة ولا جائزة بلا تحكيم صحيح.' }));
+    else if (err) foot.appendChild(el('div', { class: 'cc-final bad', text: '✕ ' + (err.message || 'تعذّر التحكيم') }));
+    return entry;
+  },
+  /* «ابدأ التحكيم» / «أعد المحاولة» on an entry card: the live judge in its place */
+  async judgeInto(card, c) {
+    const host = el('div');
+    card.replaceWith(host);
+    clearTimeout(this._poll);
+    const e = await this.judgeLive(c, host);
+    if (e) host.appendChild(this.entryCard(e, c));
+    this.refresh({ view: false });
+  },
+  async play(gameId) {
+    let g = null;
+    try { g = await NX.Games.get(gameId); } catch { }
+    if (g) NX.Community.openGamePage(g); else Toast.err('اللعبة غير متاحة الآن (خاصة أو محذوفة)');
+  }
+};
+NX.Challenges = Challenges;
+
+/* a sign-in or sign-out while the sheet is open: what it shows is the account's */
+if (Backend.onAuth) Backend.onAuth(() => { if (Challenges.view) Challenges.refresh(); });
+NX.Commands && NX.Commands.register([
+  { label: '🏆 NEXUS CHALLENGES · التحدي الحالي', icon: 'flame', keywords: 'challenge challenges contest jam تحدي تحديات مسابقة جائزة', run: () => Challenges.open() },
+  { label: '🏆 تسليم اللعبة للتحدي', icon: 'share', keywords: 'submit challenge تسليم تحدي', run: () => (NX.Studio && NX.Studio.project ? Challenges.submitFromStudio() : Challenges.startSubmit()) }
+]);
+</script>
+<!-- /NX-PART:37 -->
 <script type="module">
 /* ============================================================
    PART 8/18 · GAME PLATFORM + BOOT
@@ -33439,6 +34362,7 @@ const Platform = {
       }
     }
 
+    if (NX.Challenges) NX.Challenges.homeSection(host);   // the current NEXUS challenge (PART 37)
     host.appendChild(el('div', { class: 'sec-head' }, [el('h2', { text: 'مشاريعي' })]));
     await this.projectsView(host, { full: false });
 
@@ -34312,7 +35236,7 @@ NX.registerOfflineSupport = registerOfflineSupport;
     window.addEventListener('online', () => Toast.show('عاد الاتصال — اضغط مؤشر الحالة ثم «إعادة المحاولة» للاتصال من جديد', '', 6000), { once: true });
   }
 
-  /* deep links: #game/<id> · #app/<id> · #project/<id> */
+  /* deep links: #game/<id> · #app/<id> · #project/<id> · #challenges · #challenge/<id> */
   const route = async () => {
     const h = location.hash.slice(1);
     if (h.startsWith('game/')) {
@@ -34329,6 +35253,8 @@ NX.registerOfflineSupport = registerOfflineSupport;
       if (NX.Points) NX.Points.openFile(h.slice(2));      // a hosted file's page (PART 34)
     } else if (h === 'wallet') {
       if (NX.Points) NX.Points.open();
+    } else if (h === 'challenges' || h.startsWith('challenge/')) {
+      if (NX.Challenges) NX.Challenges.open(h.startsWith('challenge/') ? h.slice(10) : null);   // PART 37
     } else if (h.startsWith('post/')) {
       const p = await NX.Posts.get(h.slice(5));
       if (p) NX.Community.openPost(p);

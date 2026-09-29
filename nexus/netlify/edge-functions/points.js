@@ -107,8 +107,10 @@ const toFs = v => v === null || v === undefined ? { nullValue: null } : typeof v
 const fromFs = f => 'nullValue' in f ? null : 'booleanValue' in f ? f.booleanValue : 'integerValue' in f ? +f.integerValue : 'doubleValue' in f ? f.doubleValue : 'stringValue' in f ? f.stringValue
   : 'timestampValue' in f ? Date.parse(f.timestampValue) : 'arrayValue' in f ? (f.arrayValue.values || []).map(fromFs) : 'mapValue' in f ? Object.fromEntries(Object.entries(f.mapValue.fields || {}).map(([k, x]) => [k, fromFs(x)])) : null;
 const fields = o => toFs(o).mapValue.fields;
-async function getDoc(path) {
-  const r = await fetch(base() + '/' + path, { headers: { authorization: 'Bearer ' + await accessToken() } });
+/* mask: only these fields (a big document — a project, a game — read for two of its fields) */
+async function getDoc(path, mask) {
+  const q = mask && mask.length ? '?' + mask.map(f => 'mask.fieldPaths=' + encodeURIComponent(f)).join('&') : '';
+  const r = await fetch(base() + '/' + path + q, { headers: { authorization: 'Bearer ' + await accessToken() } });
   if (r.status === 404) return { exists: false, data: null };
   if (!r.ok) throw coded(503, 'store', 'قاعدة البيانات لا تجيب (' + r.status + ')');
   const d = await r.json();
@@ -437,5 +439,9 @@ export default async (req) => {
     return fail(500, 'error', 'خطأ في الخادم');
   }
 };
+
+/* for the site's other server parts (challenges.js — challenge prizes): the same wallet, the same
+   ledger, the same Firestore access — never a second points system */
+export { ready, getDoc, commit, put, create, preOf, runQuery, change, wallet, coded, base as fsBase, docName, accessToken, fromFs };
 
 export const config = { path: '/api/points/*' };

@@ -673,6 +673,32 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ---------------------------------------------------------------- NEXUS CHALLENGES
+    // Everything here is written ONLY by the site's server
+    // (netlify/edge-functions/challenges.js, with the service account): the
+    // challenges, the entries with the AI Judge's scores, the ranks and the
+    // prizes. No browser can write a score, a rank, a winner or a prize.
+    // A challenge (title, time, rubric, winner once final) is public;
+    // an entry is read by its own player only — the others see what the
+    // server's /api/challenges board shows (results hidden until the end
+    // when the challenge's rules say so); prize markers by nobody.
+    match /challenges/{cid} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /challenges_meta/{doc} {
+      allow read: if doc == 'config';
+      allow write: if false;
+    }
+    match /challengeEntries/{eid} {
+      allow get: if signedIn() && existing().uid == me();
+      allow list: if signedIn() && existing().uid == me();
+      allow write: if false;
+    }
+    match /challengeRewards/{rid} {
+      allow read, write: if false;
+    }
+
     // ---------------------------------------------------------------- moderation
     match /reports/{rid} {
       allow create: if signedIn() && incoming().reporterId == me();

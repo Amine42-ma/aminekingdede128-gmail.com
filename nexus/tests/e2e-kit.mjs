@@ -43,9 +43,13 @@ export async function resetEmulators() {
   await fetch('http://127.0.0.1:9099/emulator/v1/projects/' + PROJECT + '/accounts', { method: 'DELETE' });
 }
 
-/* ---------------- a phone: its own browser storage, NEXUS open on it ---------------- */
-export async function newDevice(browser, site, logs = []) {
-  const ctx = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 1280, height: 900 } });
+/* ---------------- a phone: its own browser storage, NEXUS open on it ----------------
+   opts: the browser context's own settings (a phone's viewport, touch…); opts.clockShift: this
+   device's clock is that many ms off (Date.now) */
+export async function newDevice(browser, site, logs = [], opts = {}) {
+  const { clockShift = 0, ...ctxOpts } = opts;
+  const ctx = await browser.newContext(Object.assign({ serviceWorkers: 'block', viewport: { width: 1280, height: 900 } }, ctxOpts));
+  if (clockShift) await ctx.addInitScript(ms => { const real = Date.now.bind(Date); Date.now = () => real() + ms; }, clockShift);
   await ctx.route('**/*', route => {
     const u = new URL(route.request().url());
     if (u.hostname === '127.0.0.1' || u.hostname === 'localhost') return route.continue();

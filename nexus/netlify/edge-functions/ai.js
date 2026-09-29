@@ -1027,4 +1027,26 @@ export default async (req) => {
   return fail(404, 'not_found', 'غير موجود');
 };
 
+/* ============================================================
+   FOR THE SITE'S OTHER SERVER PARTS — the Challenges' AI Judge
+   (challenges.js) uses THESE providers, the owner's key box, the donated
+   pool, the rotation and the retries: never a second copy of them.
+   ============================================================ */
+/* who is asking (a Firebase sign-in token) — and is it the site's owner (ADMIN_EMAILS / the key box) */
+export async function aiWho(req) { return who(req); }
+export async function aiOwner(me) { await loadBox(); return !!(me && !me.error && isOwner(me)); }
+/* is any provider configured here (site variables, the key box, the pool)? */
+export async function aiReady() { await loadBox(); await loadPool(); return ORDER.some(p => P[p].keys().length); }
+/* where one call goes: the models asked for, then the first model of each other provider (avoid → last) */
+export async function aiRoute(wants = ['auto'], avoid = []) { await loadBox(); await loadPool(); return councilRoute(wants, avoid); }
+/* one call along a route, key after key, provider after provider — never streamed */
+export async function aiCall(req, route, { system, user, maxTokens = 900, temperature = 0.1, tries, ms, deadline, signal, onTry } = {}) {
+  const C = councilCfg();
+  const clean = { messages: [{ role: 'system', content: String(system || '') }, { role: 'user', content: String(user || '') }], max_tokens: maxTokens, temperature };
+  return councilCall(req, route, clean, { tries: tries || C.maxRetries + 1, ms: ms || C.memberMs, deadline: deadline || Date.now() + C.maxRequestMs,
+    signal: signal || new AbortController().signal, donatedToo: C.donated, onTry });
+}
+/* anything that looks like a key, removed from a text that may be shown */
+export const aiScrub = t => String(t || '').replace(KEY_LIKE, '[key]');
+
 export const config = { path: '/api/ai/*' };

@@ -24,6 +24,12 @@
   to = "/index.html"
   status = 200
 
+# A challenge's page — https://YOUR-SITE.netlify.app/challenge/<challengeId> (PART 37)
+[[redirects]]
+  from = "/challenge/*"
+  to = "/index.html"
+  status = 200
+
 # functions/ is the Cloud Function's source (processRequest, deployed to
 # Firebase with «firebase deploy --only functions») — this site never serves it.
 [[redirects]]
