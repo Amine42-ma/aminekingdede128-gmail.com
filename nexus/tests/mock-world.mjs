@@ -159,6 +159,9 @@ export function startWorld() {
       const pm = /^\/(gemini|groq|openrouter|anthropic|alt-gemini|alt-groq)(\/.*)$/.exec(url.pathname);
       if (pm) return await provider(req, res, pm[1].replace(/^alt-/, ''), pm[2]);
       if (url.pathname.startsWith('/v1/projects/')) return await firestore(req, res, url);
+      /* anything else a test serves (a game-news feed …): W.files[path] = { type, body, status } */
+      const f = W.files && W.files[url.pathname];
+      if (f) { W.fileHits = (W.fileHits || 0) + 1; res.writeHead(f.status || 200, { 'content-type': f.type || 'text/plain' }); return res.end(f.body); }
       send(res, 404, { error: 'no route ' + url.pathname });
     } catch (e) { if (!res.headersSent) send(res, 500, { error: String(e) }); }
   });

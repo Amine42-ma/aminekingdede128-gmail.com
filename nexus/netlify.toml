@@ -30,6 +30,12 @@
   to = "/index.html"
   status = 200
 
+# A challenge between friends — https://YOUR-SITE.netlify.app/fc/<id> (the invite link, PART 37)
+[[redirects]]
+  from = "/fc/*"
+  to = "/index.html"
+  status = 200
+
 # functions/ is the Cloud Function's source (processRequest, deployed to
 # Firebase with «firebase deploy --only functions») — this site never serves it.
 [[redirects]]

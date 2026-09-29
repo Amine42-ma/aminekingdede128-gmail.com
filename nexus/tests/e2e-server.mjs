@@ -54,6 +54,8 @@ export async function startSite({ env, files = {}, port = 0 }) {
         if (r.body) for await (const chunk of r.body) res.write(chunk);
         return res.end();
       }
+      /* netlify.toml's pretty links (…/game/<id>, …/fc/<id> …) are the page itself */
+      if (/^\/(game|app|f|challenge|fc)\/[A-Za-z0-9_-]+\/?$/.test(url.pathname) || url.pathname === '/') url.pathname = '/index.html';
       if (files[url.pathname]) { res.writeHead(200, { 'content-type': TYPES[path.extname(url.pathname)] || 'application/octet-stream', 'access-control-allow-origin': '*' }); return res.end(files[url.pathname]); }
       let p = path.normalize(path.join(ROOT, decodeURIComponent(url.pathname)));
       if (!p.startsWith(ROOT)) { res.writeHead(403); return res.end(); }

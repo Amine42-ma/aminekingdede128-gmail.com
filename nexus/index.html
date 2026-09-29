@@ -9,7 +9,7 @@ window.NX_SANDBOX = location.hash === '#nx-sandbox' && window.parent !== window;
 /* a pretty game link (…/game/<id>, sent to this page by netlify.toml)
    becomes the app's own route (…/#game/<id>) before anything relative loads */
 (function () {
-  var m = /^(.*\/)(game|app|f|challenge)\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname);
+  var m = /^(.*\/)(game|app|f|challenge|fc)\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname);
   if (m) history.replaceState(null, '', m[1] + location.search + '#' + m[2] + '/' + m[3]);
 })();
 </script>
@@ -1568,25 +1568,24 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 .cc-limits b{direction:ltr;unicode-bidi:isolate;text-align:start}
 /* /NX-CSS:36 */
 /* NX-CSS:37 */
-/* PART 37 · NEXUS CHALLENGES: the challenge card, the countdown, NEXUS AI SCORE, the leaderboard */
+/* PART 37 · NEXUS CHALLENGES: the challenge card, NEXUS AI inventing the next one, the countdown, NEXUS AI SCORE, the leaderboard, challenges with friends */
 .chg-home{margin-bottom:4px}
 .chg-card{position:relative;overflow:hidden;border-color:rgba(var(--brand-rgb),.3);background:linear-gradient(160deg,rgba(var(--brand-rgb),.13),transparent 55%),var(--panel)}
-.chg-card[data-d="easy"]{border-color:rgba(52,211,153,.36)}
-.chg-card[data-d="hard"]{border-color:rgba(251,113,133,.4)}
-.chg-card[data-d="special"]{border-color:rgba(34,211,238,.45);box-shadow:0 0 0 1px rgba(124,92,255,.22),0 18px 40px -26px rgba(34,211,238,.55)}
 .chg-mini{cursor:pointer;margin-bottom:6px}
 .chg-top{display:flex;align-items:center;gap:10px;min-width:0}
 .chg-emoji{flex:0 0 auto;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:26px;background:var(--glass-2);border:1px solid var(--line)}
 .chg-tt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .chg-tt b{font-size:15.5px;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .chg-badges{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:0 0 auto}
-.chg-diff,.chg-status{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;white-space:nowrap;border:1px solid transparent}
-.chg-diff[data-d="easy"]{color:#34d399;background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.3)}
-.chg-diff[data-d="medium"]{color:#f5b31c;background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.32)}
-.chg-diff[data-d="hard"]{color:#fb7185;background:rgba(251,113,133,.12);border-color:rgba(251,113,133,.32)}
-.chg-diff[data-d="special"]{color:#fff;background:var(--grad)}
-.chg-status{color:var(--ink-soft);background:var(--glass-2);border-color:var(--line)}
+.chg-status{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;white-space:nowrap;border:1px solid var(--line);color:var(--ink-soft);background:var(--glass-2)}
 .chg-status[data-s="final"]{color:#34d399}
+.chg-status[data-s="running"]{color:var(--cyan)}
+.chg-status[data-s="lobby"]{color:#f5b31c}
+.chg-status[data-s="judging"]{color:#a78bfa}
+.chg-status[data-s="cancelled"]{color:#fb7185}
+.chg-status[data-s="draft"]{border-style:dashed}
+.chg-hero.friend{border-color:rgba(34,211,238,.38);background:linear-gradient(160deg,rgba(34,211,238,.12),transparent 55%),var(--panel)}
+.chg-tag{margin:10px 0 0;font-size:13.6px;font-weight:700;line-height:1.6;color:var(--ink)}
 .chg-stats{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:12px}
 .chg-stat{background:var(--glass);border:1px solid var(--line);border-radius:12px;padding:8px 10px;min-width:0;display:flex;flex-direction:column;gap:2px}
 .chg-stat small{font-size:11px;color:var(--ink-dim)}
@@ -1620,8 +1619,36 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 .chg-w,.chg-track{height:8px;border-radius:99px;background:var(--glass-2);overflow:hidden}
 .chg-w i,.chg-track i{display:block;height:100%;border-radius:99px;background:var(--grad)}
 .chg-wn{text-align:end;font:700 12.5px var(--font-en)}
-.chg-asks{margin-top:10px;font-size:12.5px;color:var(--ink-soft);line-height:1.6}
-.chg-asks summary{cursor:pointer;color:var(--cyan);font-weight:700}
+.chg-details{display:flex;flex-direction:column}
+.chg-story{margin:16px 0 2px;padding:10px 14px;border-inline-start:3px solid rgba(var(--brand-rgb),.7);border-radius:12px;background:var(--glass)}
+.chg-story small{font-size:11.5px;font-weight:800;color:var(--ink-dim)}
+.chg-story p{margin:4px 0 0;font-size:13.2px;line-height:1.8;color:var(--ink-soft)}
+.chg-sec .chg-h{margin:16px 0 6px}
+.chg-p1{margin:0;font-size:13.2px;line-height:1.75;color:var(--ink-soft)}
+.chg-chips{display:flex;flex-wrap:wrap;gap:6px}
+.chg-chip{font-size:12px;padding:4px 10px;border-radius:999px;background:var(--glass-2);border:1px solid var(--line);color:var(--ink-soft);line-height:1.5;max-width:100%}
+button.chg-chip{cursor:pointer;font-weight:700;font-family:inherit;min-height:30px}
+button.chg-chip:hover,button.chg-chip:focus-visible{border-color:rgba(var(--brand-rgb),.55);color:var(--ink)}
+.chg-from{margin:14px 0 0;line-height:1.7}
+.chg-from a{color:var(--cyan)}
+.chg-genline{margin:12px 0 0;line-height:1.6;color:var(--ink-dim)}
+.chg-gen{display:flex;flex-direction:column;gap:8px;border-color:rgba(var(--brand-rgb),.35);background:linear-gradient(160deg,rgba(var(--brand-rgb),.12),transparent 60%),var(--panel)}
+.chg-gen-h{display:flex;align-items:center;gap:10px;font-size:15px}
+.chg-gen>.tiny{margin:0;line-height:1.7}
+.chg-spark{font-size:24px;animation:chgspark 1.6s ease-in-out infinite}
+@keyframes chgspark{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.14);opacity:.7}}
+@media (prefers-reduced-motion:reduce){.chg-spark{animation:none}}
+.chg-try{display:flex;flex-direction:column;gap:2px;padding:7px 10px;border-radius:10px;background:var(--glass);border:1px solid var(--line);font-size:12.5px;line-height:1.55;min-width:0}
+.chg-try b{overflow-wrap:anywhere}
+.chg-try span{color:var(--ink-soft)}
+.chg-try[data-v="approved"],.chg-try[data-v="published"]{border-color:rgba(52,211,153,.42)}
+.chg-try[data-v="rejected"],.chg-try[data-v="invalid"]{border-color:rgba(251,113,133,.32)}
+.chg-try[data-v="failed"],.chg-try[data-v="unreviewed"],.chg-try[data-v="waiting"]{border-color:rgba(251,191,36,.32)}
+.chg-last{align-self:flex-start;max-width:100%}
+.chg-last span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chg-mini-gen{cursor:pointer;margin-bottom:6px}
+.chg-cta{margin-top:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.chg-cta .tiny{margin:0}
 .chg-rules{margin:0;padding-inline-start:18px;display:flex;flex-direction:column;gap:6px;font-size:12.8px;line-height:1.65;color:var(--ink-soft)}
 .chg-trust{margin:14px 0 4px;text-align:center;line-height:1.6}
 .chg-entry{margin:12px 0;border-color:rgba(var(--brand-rgb),.35)}
@@ -1694,6 +1721,35 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 .chg-winner{margin:12px 0;border-color:rgba(251,191,36,.45);background:linear-gradient(160deg,rgba(251,191,36,.14),transparent 60%),var(--panel);display:flex;flex-direction:column;gap:10px}
 .chg-winner>small{font-weight:800;color:#f5b31c;font-size:12px}
 .chg-winner .chg-big b{font-size:34px}
+.chg-runner{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:var(--glass);border:1px solid var(--line);font-size:13px;min-width:0}
+.chg-runner>span:first-child{font-weight:800;color:var(--ink-soft);white-space:nowrap}
+.chg-runner b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chg-runner small{font-family:var(--font-en);color:var(--ink-soft)}
+.chg-runner .chg-av{width:28px;height:28px;font-size:12px}
+.chg-tie{margin:8px 0 0;line-height:1.6;color:var(--ink-soft)}
+.chg-more{margin-top:14px}
+.chg-more summary{cursor:pointer;color:var(--cyan);font-weight:700;font-size:13px}
+.chg-fcard{margin-bottom:10px;cursor:pointer}
+.chg-fcard>.tiny{margin:10px 0 0}
+.chg-lobby{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+.chg-players{display:flex;flex-wrap:wrap;gap:8px}
+.chg-pl{display:flex;align-items:center;gap:7px;padding:5px;padding-inline-end:12px;border-radius:999px;background:var(--glass);border:1px solid var(--line);font-size:12.5px;min-width:0;max-width:100%}
+.chg-pl b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chg-pl small{font-size:10.5px;color:var(--cyan);white-space:nowrap}
+.chg-pl .chg-av{width:26px;height:26px;font-size:11px}
+.chg-invite{margin-bottom:10px;display:flex;flex-direction:column;gap:8px}
+.chg-invite .tiny{margin:0}
+.chg-actions>.btn+.btn{margin-top:8px}
+.chg-fnewb{display:flex;flex-direction:column;gap:12px}
+.chg-idea{min-height:84px}
+.chg-grp{display:flex;flex-direction:column;gap:8px;padding-top:10px;border-top:1px solid var(--line)}
+.chg-grp>b{font-size:13px}
+.chg-friends{display:flex;flex-direction:column;gap:6px;max-height:240px;overflow:auto}
+.chg-friend{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:12px;background:var(--glass);border:1px solid var(--line);font-size:13px;cursor:pointer;min-width:0}
+.chg-friend input{width:18px;height:18px;accent-color:var(--brand);flex:0 0 auto}
+.chg-friend span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chg-friend .chg-av{width:28px;height:28px;font-size:12px}
+.chg-cost{margin:0;padding:8px 10px;border-radius:10px;background:rgba(34,211,238,.07);border:1px solid rgba(34,211,238,.25);line-height:1.65}
 .chg-podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 12px}
 .chg-pod{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px;border-radius:14px;background:var(--panel);border:1px solid var(--line);text-align:center;min-width:0}
 .chg-pod b{font-size:12.5px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1701,6 +1757,7 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 .chg-back{color:var(--cyan);font-weight:700;font-size:13px;margin:0 0 10px}
 .chg-admin{margin-bottom:12px;display:flex;flex-direction:column;gap:8px}
 .chg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 10px}
+.chg-grid.wide{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
 .chg-f{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--ink-soft);min-width:0}
 .chg-f input[type="checkbox"]{width:20px;height:20px;accent-color:var(--brand)}
 .chg-log{max-height:180px;overflow:auto;display:flex;flex-direction:column;gap:3px;font-family:var(--mono)}
@@ -4692,8 +4749,10 @@ service cloud.firestore {
       match /notifications/{nid} {
         allow read, delete: if signedIn() && me() == uid;
         allow update:       if signedIn() && me() == uid && onlyChanged(['read']);
-        // anyone may notify you, but only as themselves
-        allow create:       if signedIn() && incoming().actorId == me() && incoming().read == false;
+        // anyone may notify you, but only as themselves — a challenge notice (an invite, a start,
+        // a result) is written only by the challenges server, never by a browser
+        allow create:       if signedIn() && incoming().actorId == me() && incoming().read == false
+                            && incoming().get('type', '') != 'challenge';
       }
     }
     match /follows/{id} {
@@ -4777,12 +4836,16 @@ service cloud.firestore {
     // ---------------------------------------------------------------- NEXUS CHALLENGES
     // Everything here is written ONLY by the site's server
     // (netlify/edge-functions/challenges.js, with the service account): the
-    // challenges, the entries with the AI Judge's scores, the ranks and the
-    // prizes. No browser can write a score, a rank, a winner or a prize.
-    // A challenge (title, time, rubric, winner once final) is public;
-    // an entry is read by its own player only — the others see what the
-    // server's /api/challenges board shows (results hidden until the end
-    // when the challenge's rules say so); prize markers by nobody.
+    // challenges NEXUS AI invents, the friend challenges, the entries with
+    // the AI Judge's scores, the ranks, the prizes and their escrow. No
+    // browser can write a challenge, a score, a rank, a winner, a reward
+    // or a submission time.
+    // A public challenge (its idea, time, criteria, winner once final) is
+    // public; a friend challenge is read by its creator, its players and
+    // the friends invited; an entry by its own player only — the others see
+    // what the server's /api/challenges board shows (results hidden until
+    // the end when the challenge says so); prize markers, the AI's drafts
+    // and the daily counters by nobody.
     match /challenges/{cid} {
       allow read: if true;
       allow write: if false;
@@ -4791,12 +4854,22 @@ service cloud.firestore {
       allow read: if doc == 'config';
       allow write: if false;
     }
+    match /friendChallenges/{fid} {
+      allow read: if signedIn() && (existing().ownerId == me() || me() in existing().players || me() in existing().invited);
+      allow write: if false;
+    }
     match /challengeEntries/{eid} {
       allow get: if signedIn() && existing().uid == me();
       allow list: if signedIn() && existing().uid == me();
       allow write: if false;
     }
     match /challengeRewards/{rid} {
+      allow read, write: if false;
+    }
+    match /friendDrafts/{did} {
+      allow read, write: if false;
+    }
+    match /friendUsage/{uid} {
       allow read, write: if false;
     }
 
@@ -9705,7 +9778,7 @@ const Studio = {
       item('share', 'نشر اللعبة · Publish', () => this.openPublish()),
       item('image', 'وسائط اللعبة · GAME MEDIA', () => NX.GameMedia.open(this.project)));
     /* NEXUS CHALLENGES (PART 37): this project, published and handed to the challenge on now */
-    if (owner && NX.Challenges) body.appendChild(NX.optionRow('spark', '🏆 تسليم اللعبة للتحدي', 'تُنشر لعبتك ثم تُسلَّم لتحدي NEXUS الحالي — ويحكم عليها NEXUS AI JUDGE', () => { sheet.close(); NX.Challenges.submitFromStudio(); }));
+    if (owner && NX.Challenges) body.appendChild(NX.optionRow('spark', '🏆 تسليم اللعبة للتحدي', 'تُنشر لعبتك ثم تُسلَّم لتحدٍّ تشارك فيه (تحدي NEXUS أو تحدٍّ مع أصدقائك) — ويحكم عليها NEXUS AI JUDGE', () => { sheet.close(); NX.Challenges.submitFromStudio(); }));
     body.append(
       item('undo', 'تراجع عن آخر تغيير في المشهد', () => this.undo()),
       item('book', T('apiDocs'), () => this.openAPIDocs()),
@@ -16867,15 +16940,24 @@ async function openNotifications() {
     'invite-declined': n => `@${n.actorName} اعتذر عن الانضمام إلى «${n.projectName || ''}»`,
     bug: n => `@${n.actorName} أسند إليك خطأ في «${n.projectName || ''}»: ${n.preview || ''}`,
     task: n => `@${n.actorName} أسند إليك مهمة في «${n.projectName || ''}»: ${n.preview || ''}`,
-    playtest: n => `@${n.actorName} بدأ اختبارًا جماعيًا في «${n.projectName || ''}»`
+    playtest: n => `@${n.actorName} بدأ اختبارًا جماعيًا في «${n.projectName || ''}»`,
+    /* written only by the challenges server (PART 37) — firestore.rules refuse this type from a browser */
+    challenge: n => ({
+      invite: `@${n.actorName} يدعوك إلى تحدٍّ: «${n.title || ''}»`,
+      joined: `@${n.actorName} انضم إلى تحديك «${n.title || ''}»`,
+      started: `بدأ التحدي «${n.title || ''}» — سلّم لعبتك قبل انتهاء الوقت`,
+      cancelled: `أُلغي التحدي «${n.title || ''}»`,
+      result: `أُعلنت نتائج «${n.title || ''}»` + (n.winnerName ? ` — الفائز: ${n.winnerName}` : '')
+    })[n.event] || `🏆 «${n.title || ''}»`
   };
   list.forEach(n => {
     const r = el('button', { class: 'comp-row' + (n.read ? '' : ' unread'), style: { width: '100%', textAlign: 'start' } });
-    r.append(icon(n.type === 'follow' ? 'user' : n.type === 'comment' ? 'book' : 'heart'),
+    r.append(icon(n.type === 'follow' ? 'user' : n.type === 'comment' ? 'book' : n.type === 'challenge' ? 'flame' : 'heart'),
       el('b', { text: (LABEL[n.type] || (() => n.type))(n) }),
       el('span', { class: 'tiny', text: timeAgo(n.at) }));
     r.onclick = async () => {
       if (n.type === 'invite') { sheet.close(); NX.TeamUI.openInvites(); return; }
+      if (n.type === 'challenge' && n.fcId) { sheet.close(); if (NX.Challenges) NX.Challenges.openFriend(n.fcId); return; }
       if (n.postId) { const p = await Posts.get(n.postId); if (p) { sheet.close(); openPost(p); } }
       else if (n.actorId) { sheet.close(); openCreator(n.actorId); }
     };
@@ -31476,7 +31558,7 @@ const API = /^https?:$/.test(location.protocol) ? location.origin + location.pat
 const ADS = Object.assign({ web: false }, window.NEXUS_ADS || {});
 const HOSTED = /\.(html?|png|jpe?g|gif|webp|svg|json|js|css|zip|txt|mp3|ogg|wav|glb|gltf)$/i;
 const AS_TEXT = /\.(html?|xhtml|svg|xml)$/i;                   // stored as text/plain: they run in NEXUS's sandbox, not on the bucket
-const REASON = { welcome: '🎁 هدية الترحيب', ad: '📺 إعلان', upload: '📎 رفع ملف', refund: '↩ استرجاع', ai: '🤖 طلبات ذكاء', play: '🎮 وقت لعب لعبتك', pro: '⭐ Pro', challenge: '🏆 جائزة تحدٍّ' };
+const REASON = { welcome: '🎁 هدية الترحيب', ad: '📺 إعلان', upload: '📎 رفع ملف', refund: '↩ استرجاع', ai: '🤖 طلبات ذكاء', play: '🎮 وقت لعب لعبتك', pro: '⭐ Pro', challenge: '🏆 جائزة تحدٍّ', 'challenge-escrow': '🔒 جائزة تحدٍّ محجوزة' };
 const fmtDate = t => { try { return new Date(t).toLocaleDateString('ar', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return ''; } };
 
 const Points = {
@@ -33167,43 +33249,47 @@ NX.CouncilAssets = { enrich: (p, c) => CouncilUI.enrich(p, c) };
 <!-- NX-PART:37 -->
 <script type="module">
 /* ============================================================
-   PART 37 · 🏆 NEXUS CHALLENGES — a game-making challenge every 44 hours
-   (the owner's setting), judged by the NEXUS AI JUDGE. This page SHOWS
-   what the site's server decides (netlify/edge-functions/challenges.js):
-   the challenge, the time left (by the server's clock), who takes part,
-   each entry's AI score and why, the leaderboard, the winners and their
-   prizes. A score, a rank, a winner or a prize is never computed or kept
-   here — firestore.rules refuse every browser write to them.
+   PART 37 · 🏆 NEXUS CHALLENGES — a living series of challenges that
+   NEXUS AI invents one after another (no list of ideas anywhere), judged
+   by the NEXUS AI JUDGE; and challenges between friends, with a prize in
+   the creator's own points. This page SHOWS what the site's server decides
+   (netlify/edge-functions/challenges.js): the challenge (its story, rules,
+   criteria), the time left by the server's clock, the ideas NEXUS AI tried,
+   each entry's AI score and why, the leaderboard, the winners, the prizes.
+   A challenge, a score, a rank, a winner or a prize is never computed or
+   kept here — firestore.rules refuse every browser write to them.
    Built on what NEXUS already has: the account (Firebase sign-in); the
-   editor, the AI assistant and the assets, as always; «Publish» (PART 8)
-   publishes the game, which is then handed to the challenge; the points
-   (PART 34) receive the prizes.
-   • home: the current challenge in one card (countdown, reward, join);
-   • «🏆 NEXUS CHALLENGES»: the challenge · the entries, then the
-     leaderboard · the past challenges (their winner, «▶ Play Winner
-     Game») · the owner's panel (settings, a special challenge, end now,
-     judge now);
-   • the studio's «المزيد ← 🏆 تسليم اللعبة للتحدي»: publish → a 2-second
-     test run → submit → the judge, live → NEXUS AI SCORE x.x / 10.
-   Links: #challenges · #challenge/<id> (…/challenge/<id> too).
+   editor, the AI assistant and the assets, as always; «Publish» (PART 8);
+   the points (PART 34); the notifications and follows (PART 11).
+   • home: the challenge on now — or «NEXUS AI is inventing the next one»;
+   • «🏆 NEXUS CHALLENGES»: the challenge · the entries / the leaderboard ·
+     the past challenges («▶ Play Winner Game») · 👥 with friends (create
+     from an idea, invite, START, results) · the owner's panel;
+   • the studio's «المزيد ← 🏆 تسليم اللعبة للتحدي»: which challenge →
+     publish → a 2-second test run → submit → the judge, live.
+   Links: #challenges · #challenge/<id> · #fc/<id> (…/challenge/<id>, …/fc/<id>).
    ============================================================ */
 const NX = window.NX;
 const { el, btn, Sheet, Modal, Toast, timeAgo } = NX;
 const { Backend } = NX;
 
 const API = /^https?:$/.test(location.protocol) ? location.origin + location.pathname.replace(/[^/]*$/, '') + 'api/challenges' : '';
-const DIFF = { easy: 'سهل', medium: 'متوسط', hard: 'صعب', special: 'خاص' };
-const STATUS = { open: 'مفتوح', judging: 'التحكيم جارٍ', final: 'أُعلنت النتائج' };
+const STATUS = { open: 'مفتوح', running: 'جارٍ الآن', lobby: 'في الانتظار', judging: 'التحكيم جارٍ', final: 'أُعلنت النتائج', cancelled: 'أُلغي', draft: 'مسودة' };
 const ENTRY = { joined: 'مشارك — لم تُسلّم بعد', submitted: 'سُلّمت — بانتظار المحكّم', judging: 'NEXUS AI JUDGE يفحصها…',
   pending: 'Judging Pending — مؤجّل', judged: 'حُكّمت ✓', failed: 'تعذّر التحكيم' };
-const CAT = { racing: 'Car Racing', survival: 'Survival', island: 'Island', fighting: 'Fighting', puzzle: 'Puzzle', horror: 'Horror', city: 'City', space: 'Space', free: 'Free' };
+const INSP = { original: '✨ فكرة أصلية ابتكرها NEXUS AI', 'classic-game': '🎮 مستوحاة من أسلوب لعبة معروفة', trend: '🔥 من ترند ألعاب حديث', mix: '🧪 مزيج أفكار' };
+const SPLIT = { winner: 'الفائز يأخذ الجائزة كلها', '70-30': '70% للأول · 30% للثاني', '50-30-20': '50% · 30% · 20% للثلاثة الأوائل' };
 const JUDGE = { thinking: 'يفحص الأدلة…', retrying: 'يعيد المحاولة', done: 'قيّم ✓', failed: 'لم يُجب' };
+const GEN = { creating: '💡 يبتكر فكرة', reviewing: '🔎 يراجعها', approved: '✓ قُبلت', rejected: '✗ رُفضت', invalid: '✗ ليست تحديًا صالحًا', unreviewed: '… لم تُراجع',
+  failed: '⚠ لم يُجب', waiting: '⏳ ينتظر NEXUS AI', published: '🚀 نُشر' };
 const MEDAL = ['🥇', '🥈', '🥉'];
 const two = n => String(n).padStart(2, '0');
 /* 1d 04:05:09 — the digits are read left to right inside the Arabic page */
 const left = ms => { const s = Math.max(0, Math.floor(ms / 1000)), d = Math.floor(s / 86400); return (d ? d + 'd ' : '') + two(Math.floor(s % 86400 / 3600)) + ':' + two(Math.floor(s % 3600 / 60)) + ':' + two(s % 60); };
 const when = t => { try { return new Date(t).toLocaleString('ar', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
 const day = t => { try { return new Date(t).toLocaleDateString('ar', { day: 'numeric', month: 'short' }); } catch { return ''; } };
+/* a length of time: «45 د» · «3 س» · «2 ي» */
+const span = sec => { const m = Math.round((sec || 0) / 60); return m < 60 ? m + ' د' : m < 2880 || m % 1440 ? +(m / 60).toFixed(1) + ' س' : m / 1440 + ' ي'; };
 const s10 = v => v == null ? '—' : Number(v).toFixed(1);
 const num = n => Number(n || 0).toLocaleString('en-US');
 const initial = e => (String((e && e.name) || '?').trim().charAt(0) || '?').toUpperCase();
@@ -33216,6 +33302,8 @@ function avatar(e, cls = '') {
   } else a.textContent = initial(e);
   return a;
 }
+const field = (label, input, hint) => el('label', { class: 'chg-f' }, [el('span', { text: label }), input, hint ? el('small', { class: 'tiny', text: hint }) : null]);
+const live = c => (c.status === 'open' || c.status === 'running') && c.endTime > Challenges.now();
 
 /* ---------------- the countdowns: one timer for every clock on the page ---------------- */
 let ticking = 0;
@@ -33239,7 +33327,7 @@ const Challenges = {
   cur: null,            // the server's last answer to /current
   skew: 0,              // the server's clock − this device's
   view: null,           // the open «🏆 NEXUS CHALLENGES» sheet
-  _seq: 0, _nudged: 0, _ended: new Set(), _poll: 0,
+  _seq: 0, _nudged: 0, _nudgedAt: new Map(), _ended: new Set(), _poll: 0, _genPoll: 0,
 
   available() { return !!API; },
   now() { return Date.now() + this.skew; },
@@ -33261,7 +33349,7 @@ const Challenges = {
     if (!r.ok || j.ok === false) throw Object.assign(new Error((j.error && j.error.message) || 'HTTP ' + r.status), { code: j.error && j.error.code, status: r.status });
     return j;
   },
-  /* judging takes a while: the server streams its progress («event: x» + «data: {…}») */
+  /* judging and inventing take a while: the server streams its progress («event: x» + «data: {…}») */
   async stream(path, body, on) {
     const tok = await this.token();
     if (!tok) throw Object.assign(new Error('التحديات لأصحاب الحسابات — سجّل الدخول.'), { code: 'signin' });
@@ -33294,16 +33382,26 @@ const Challenges = {
     const j = await this.call('/current');
     this.cur = j;
     this.nudge(j);
+    this.watchGen(j);
     return j;
   },
-  /* something is due on the server (an ended challenge to judge and rank, prizes to pay): this page asks it to
-     move along — at most once a minute from here; the server decides what, and throttles the whole site */
-  nudge(j) {
-    if (!j || !j.work || !j.signedIn || Date.now() - this._nudged < 60e3) return;
-    this._nudged = Date.now();
-    this.stream('/tick', {}, (ev, d) => { if (ev === 'tick' && (d.judged || d.paid || (d.finalized || []).length)) this.refresh(); }).catch(() => {});
+  /* something is due on the server (a challenge to invent, one to judge and rank, prizes to pay): this page asks it
+     to move along — at most once a minute from here (every 20 s for a friends' challenge whose time is up: key);
+     the server decides what, and throttles the whole site */
+  nudge(j, key = null) {
+    if (!j || !j.work || !j.signedIn) return;
+    if (Date.now() - (key ? this._nudgedAt.get(key) || 0 : this._nudged) < (key ? 20e3 : 60e3)) return;
+    if (key) this._nudgedAt.set(key, Date.now()); else this._nudged = Date.now();
+    this.stream('/tick', {}, (ev, d) => { if (ev === 'tick' && (d.judged || d.paid || (d.finalized || []).length || d.generated === 'published')) this.refresh(); })
+      .then(r => { if (key && r && r.skipped) this._nudgedAt.delete(key); })      // another page's round had just run: asked again on the next look
+      .catch(() => { if (key) this._nudgedAt.delete(key); });
   },
-  /* the countdown reached zero: the server closes the challenge (and opens the next one) */
+  /* while NEXUS AI invents the next challenge, the page looks again every few seconds */
+  watchGen(j) {
+    clearTimeout(this._genPoll);
+    if (j && !j.challenge && j.generating && (document.querySelector('.chg-home') || this.view)) this._genPoll = setTimeout(() => this.refresh(), 6000);
+  },
+  /* the countdown reached zero: the server closes the challenge (and NEXUS AI invents the next one) */
   ended(cid) {
     if (this._ended.has(cid)) return;
     this._ended.add(cid);
@@ -33315,56 +33413,91 @@ const Challenges = {
     try { await this.load(); } catch (e) { console.warn('[challenges]', e && e.code); }
     document.querySelectorAll('.chg-home').forEach(n => this.paintHome(n));
     const v = this.view;
-    if (view && v && !v.sheet._closed && ['now', 'board', 'detail'].includes(v.tab)) this.show(v.tab, v.arg, { quiet: true });
+    if (view && v && !v.sheet._closed && ['now', 'board', 'detail', 'friend', 'friends'].includes(v.tab)) this.show(v.tab, v.arg, { quiet: true });
   },
   fail(e) {
     if (e && e.code === 'signin') { NX.promptSignIn(e.message, () => this.refresh()); return; }
     Toast.err((e && e.message) || String(e));
   },
   signIn() { NX.promptSignIn('التحديات لأصحاب الحسابات: مشاركتك ودرجتك وجائزتك مرتبطة بحسابك، على كل أجهزتك.', () => this.refresh()); },
+  linkOf(c) { return location.origin + location.pathname.replace(/[^/]*$/, '') + (c.kind === 'friend' ? 'fc/' : 'challenge/') + c.challengeId; },
 
   /* ================================================================ pieces */
   head(c) {
+    const friend = c.kind === 'friend';
+    const sub = [friend ? '👥 مع الأصدقاء' + (c.ownerName ? ' · من @' + c.ownerName : '') : c.seq ? 'التحدي #' + c.seq : c.category ? c.category : '', c.deliverableLabel].filter(Boolean).join(' · ');
+    const st = friend || c.status !== 'open' ? el('span', { class: 'chg-status', dataset: { s: c.status }, text: STATUS[c.status] || c.status }) : null;
     return el('div', { class: 'chg-top' }, [
       el('span', { class: 'chg-emoji', text: c.emoji || '🏆' }),
-      el('div', { class: 'chg-tt' }, [el('b', { text: c.title }), el('span', { class: 'tiny', text: (CAT[c.category] || c.category) + ' · التحدي #' + c.seq })]),
-      el('div', { class: 'chg-badges' }, [
-        el('span', { class: 'chg-diff', dataset: { d: c.difficulty }, text: c.difficultyLabel || DIFF[c.difficulty] || c.difficulty }),
-        c.status !== 'open' ? el('span', { class: 'chg-status', dataset: { s: c.status }, text: STATUS[c.status] || c.status }) : null])]);
+      el('div', { class: 'chg-tt' }, [el('b', { text: c.title }), el('span', { class: 'tiny', text: sub })]),
+      st ? el('div', { class: 'chg-badges' }, [st]) : null]);
   },
   stats(c, { mini = false } = {}) {
-    const open = c.status === 'open' && c.endTime > this.now();
+    const friend = c.kind === 'friend';
     const cell = (label, value) => el('div', { class: 'chg-stat' }, [el('small', { text: label }), value]);
+    const b = t => el('b', { text: t });
     return el('div', { class: 'chg-stats' }, [
-      open ? cell('ينتهي بعد', clock(c)) : cell(c.status === 'final' ? 'انتهى' : 'أُغلق التسليم', el('b', { class: 'chg-when', title: when(c.endTime), text: day(c.endTime) })),
-      cell('المشاركون', el('b', { text: num(c.participants) })),
-      mini ? cell('الجائزة', el('b', { text: '🥇 ' + num(c.reward && c.reward.first) })) : cell('ألعاب مسلّمة', el('b', { text: num(c.submissions) }))]);
+      live(c) ? cell('ينتهي بعد', clock(c)) : c.status === 'lobby' ? cell('المدة', b(span(c.duration))) : cell(c.status === 'final' || c.status === 'cancelled' ? 'انتهى' : 'أُغلق التسليم', el('b', { class: 'chg-when', title: when(c.endTime), text: c.endTime ? day(c.endTime) : '—' })),
+      friend ? cell('اللاعبون', b((c.players || []).length + '/' + (c.maxPlayers || '∞'))) : cell('المشاركون', b(num(c.participants))),
+      friend ? cell('الجائزة', b('🏆 ' + num(c.reward && c.reward.total))) : mini ? cell('الجائزة', b('🥇 ' + num(c.reward && c.reward.first))) : cell('ألعاب مسلّمة', b(num(c.submissions)))]);
   },
   rewards(c) {
     const r = c.reward || {};
+    if (c.kind === 'friend') return el('p', { class: 'tiny chg-pnote', text: '🏆 ' + num(r.total) + ' نقطة من رصيد ' + (c.ownerName || 'صاحب التحدي') + ' — ' + (SPLIT[r.split] || '') + '. ما لا يربحه أحد يعود إليه.' + (r.minScore ? ' لا جائزة لدرجة أقل من ' + r.minScore + '/10.' : '') });
     const box = el('div', { class: 'chg-prizes' });
     [['🥇', 'الأول', r.first], ['🥈', 'الثاني', r.second], ['🥉', 'الثالث', r.third], ['🏅', 'كل مشاركة مُحكَّمة', r.participation]]
       .filter(x => x[2] > 0).forEach(([m, t, v]) => box.appendChild(el('div', { class: 'chg-prize' }, [el('span', { text: m }), el('b', { text: num(v) }), el('small', { text: t })])));
     return el('div', {}, [box, el('p', { class: 'tiny chg-pnote', text: 'نقاط NEXUS — تُضاف إلى محفظتك بعد إعلان النتائج، مرة واحدة' + (r.minScore ? ' · لا جائزة لدرجة أقل من ' + r.minScore + '/10' : '') + '.' })]);
   },
+  /* what NEXUS AI wrote: the story, the objective, the rules, the mechanics, how the winner is decided, where the idea came from */
+  details(c) {
+    const box = el('div', { class: 'chg-details' });
+    const sec = (t, kids) => box.appendChild(el('div', { class: 'chg-sec' }, [el('h4', { class: 'chg-h', text: t })].concat(kids)));
+    if (c.story) box.appendChild(el('blockquote', { class: 'chg-story', dir: 'auto' }, [el('small', { text: '📖 القصة' }), el('p', { text: c.story })]));
+    if (c.objective) sec('🎯 الهدف', [el('p', { class: 'chg-p1', dir: 'auto', text: c.objective })]);
+    if ((c.rules || []).length) sec('📜 القواعد', [el('ul', { class: 'chg-rules' }, c.rules.map(t => el('li', { dir: 'auto', text: t })))]);
+    if ((c.mechanics || []).length) sec('⚙️ الميكانيكيات', [el('div', { class: 'chg-chips' }, c.mechanics.map(t => el('span', { class: 'chg-chip', dir: 'auto', text: t })))]);
+    if (c.winCondition) sec('🏁 كيف يُحدَّد الفائز', [el('p', { class: 'chg-p1', dir: 'auto', text: c.winCondition + ' — والدرجة من NEXUS AI JUDGE بالمعايير أدناه.' })]);
+    const from = [c.inspiration ? INSP[c.inspiration] || '' : '', c.gameReference ? '«' + c.gameReference + '» (الأسلوب والإحساس فقط — لا نسخ لأسمائها أو رسومها)' : '',
+      c.estimatedBuildMinutes ? '⏱ وقت البناء المتوقع ~' + span(c.estimatedBuildMinutes * 60) : ''].filter(Boolean);
+    if (from.length || c.trend) box.appendChild(el('p', { class: 'tiny chg-from' }, [from.join(' · '), c.trend ? el('span', {}, [' · 📰 ', c.trend.link ? el('a', { href: c.trend.link, target: '_blank', rel: 'noopener noreferrer', text: c.trend.title }) : c.trend.title, c.trend.source ? ' (' + c.trend.source + ')' : '']) : null]));
+    return box;
+  },
   rubric(c) {
-    const list = (c.judgingRubric || []).filter(x => x.weight > 0), top = Math.max(1, ...list.map(x => x.weight));
-    return el('div', { class: 'chg-rubric' }, list.map(x => el('div', { class: 'chg-crit' }, [
-      el('span', { class: 'chg-cn' }, [el('b', { text: x.ar }), el('small', { text: x.en })]),
+    const list = (c.judgingCriteria || []).filter(x => x.weight > 0), top = Math.max(1, ...list.map(x => x.weight));
+    return el('div', { class: 'chg-rubric' }, list.map(x => el('div', { class: 'chg-crit', title: x.what || '' }, [
+      el('span', { class: 'chg-cn' }, [el('b', { text: x.ar || x.en }), el('small', { text: x.en + (x.what ? ' — ' + x.what : '') })]),
       el('span', { class: 'chg-w' }, [el('i', { style: { width: Math.round(x.weight / top * 100) + '%' } })]),
       el('b', { class: 'chg-wn', dir: 'ltr', text: x.weight + '%' })])));
   },
-  rules(c) {
-    const r = c.rules || {};
+  policy(c) {
+    const p = c.policy || {};
     return el('ul', { class: 'chg-rules' }, [
-      '⚖️ يحكم NEXUS AI JUDGE وحده: ' + (r.judges > 1 ? r.judges + ' نماذج على مزوّدين مختلفين، والوسيط لكل معيار — درجة واحدة.' : 'نموذج واحد يطبّق المعايير.') + ' لا تصويت، ولا إعجابات، ولا اختيار يدوي للفائز.',
-      '📦 ' + (r.maxSubmissionsPerUser > 1 ? 'حتى ' + r.maxSubmissionsPerUser + ' تسليمات لكل لاعب — يُحكَّم آخرها.' : 'تسليم واحد لكل لاعب — ويُحكَّم مرة واحدة.'),
-      r.requireFreshBuild ? '🆕 تُنشر اللعبة خلال التحدي — نسخة نُشرت قبل بدايته لا تُقبل.' : null,
-      r.hideResultsUntilEnd ? '🙈 درجات الآخرين والترتيب بعد انتهاء التحدي — درجتك تراها فور تحكيمها.' : '👁 الدرجات تظهر فور التحكيم.',
-      r.maxParticipants ? '👥 الحد الأقصى ' + num(r.maxParticipants) + ' مشارك.' : null,
-      '🔀 التعادل: مطابقة التحدي، ثم الاكتمال، ثم اللعب، ثم الأسبق تسليمًا.',
-      r.text ? '📝 ' + r.text : null
+      '⚖️ يحكم NEXUS AI JUDGE وحده: ' + (p.judges > 1 ? p.judges + ' نماذج على مزوّدين مختلفين، والوسيط لكل معيار — درجة واحدة.' : 'نموذج يطبّق معايير هذا التحدي.') + ' لا تصويت، ولا إعجابات، ولا اختيار يدوي للفائز.',
+      '📦 ' + (p.maxSubmissionsPerUser > 1 ? 'حتى ' + p.maxSubmissionsPerUser + ' تسليمات لكل لاعب — يُحكَّم آخرها.' : 'تسليم واحد لكل لاعب — ويُحكَّم مرة واحدة.'),
+      p.requireFreshBuild ? '🆕 تُنشر اللعبة خلال التحدي — نسخة نُشرت قبل بدايته لا تُقبل.' : null,
+      p.hideResultsUntilEnd ? '🙈 درجات الآخرين والترتيب بعد انتهاء التحدي — درجتك تراها فور تحكيمها.' : '👁 الدرجات تظهر فور التحكيم.',
+      p.maxParticipants && c.kind !== 'friend' ? '👥 الحد الأقصى ' + num(p.maxParticipants) + ' مشارك.' : null,
+      '🔀 التعادل: معيار مطابقة التحدي، ثم أثقل معيار، ثم الاكتمال — وإن بقي التعادل على جائزة: مراجعة إضافية من NEXUS AI JUDGE للعبتين.'
     ].filter(Boolean).map(t => el('li', { text: t })));
+  },
+  genLine(c) {
+    const g = c.generation;
+    if (!g) return null;
+    return el('p', { class: 'tiny chg-genline', text: '🧠 ابتكره NEXUS AI' + (g.attempts > 1 ? ' بعد ' + g.attempts + ' أفكار' : '') + (g.reviewers > 1 ? ' · راجعه ' + g.reviewers + ' نماذج' : ' · وراجعه')
+      + (g.fallback ? ' · أفضل فكرة صالحة من المحاولات' : '') + (g.byOwner ? ' · بطلب من صاحب الموقع' : '') + ' — لا يوجد في NEXUS أي قائمة تحديات جاهزة.' });
+  },
+  /* NEXUS AI is inventing the next challenge: the ideas it tried, and why some were turned down */
+  genCard(g, last) {
+    const box = el('div', { class: 'card chg-gen', role: 'status', 'aria-live': 'polite' }, [
+      el('div', { class: 'chg-gen-h' }, [el('span', { class: 'chg-spark', text: '🧠' }), el('b', { text: g && g.autoCreate === false ? 'لا يوجد تحدٍّ الآن' : 'NEXUS AI يبتكر التحدي التالي…' })]),
+      el('p', { class: 'tiny', text: !g ? '' : g.autoCreate === false ? 'الإنشاء التلقائي متوقف — يبدأ التحدي التالي حين ينشئه صاحب الموقع.'
+        : g.waitingUntil ? 'NEXUS AI لا يجيب الآن — تُعاد المحاولة ' + when(g.waitingUntil) + '. لا يُخترع تحدٍّ بدونه.'
+        : 'يبتكر فكرة جديدة (قصة، قواعد، طريقة فوز، معايير)، ثم يراجعها: هل تكرّر تحديًا سابقًا؟ هل يمكن صنعها في NEXUS؟ — حتى ' + g.max + ' أفكار.' })]);
+    (g && g.attempts || []).forEach(a => box.appendChild(el('div', { class: 'chg-try', dataset: { v: a.verdict } }, [el('b', { text: 'فكرة ' + a.n + (a.title ? ': «' + a.title + '»' : '') }),
+      el('span', { text: (GEN[a.verdict] || a.verdict) + ((a.reasons || []).length ? ' — ' + a.reasons.join('، ') : '') })])));
+    if (last && last.challengeId) box.appendChild(btn('نتائج التحدي السابق: ' + last.emoji + ' ' + last.title, { cls: 'sm ghost chg-last', onclick: () => this.view ? this.show('detail', last.challengeId) : this.open(last.challengeId) }));
+    return box;
   },
 
   /* one entry, as its owner sees it: the score, each criterion and why, the judge's words */
@@ -33416,10 +33549,10 @@ const Challenges = {
   },
   bars(e, c) {
     const caps = new Map((e.capsApplied || []).map(x => [x.id, x]));
-    return el('div', { class: 'chg-bars' }, (c.judgingRubric || []).filter(x => x.weight > 0).map(x => {
+    return el('div', { class: 'chg-bars' }, (c.judgingCriteria || []).filter(x => x.weight > 0).map(x => {
       const v = e.criteria ? e.criteria[x.id] : null, cap = caps.get(x.id), note = e.notes && e.notes[x.id];
       return el('div', { class: 'chg-bar' + (cap ? ' capped' : '') }, [
-        el('div', { class: 'chg-bl' }, [el('b', { text: x.ar }), el('small', { text: x.en + ' · ' + x.weight + '%' }), el('b', { class: 'chg-bv', dir: 'ltr', text: s10(v) })]),
+        el('div', { class: 'chg-bl' }, [el('b', { text: x.ar || x.en }), el('small', { text: x.en + ' · ' + x.weight + '%' }), el('b', { class: 'chg-bv', dir: 'ltr', text: s10(v) })]),
         el('div', { class: 'chg-track' }, [el('i', { style: { width: Math.max(0, Math.min(100, (v || 0) * 10)) + '%' } })]),
         note ? el('small', { class: 'chg-note', text: note }) : null,
         cap ? el('small', { class: 'chg-cap', text: '⛔ حُدّ من ' + s10(cap.from) + ' إلى ' + s10(cap.to) + ': ' + cap.why }) : null]);
@@ -33457,6 +33590,25 @@ const Challenges = {
     }
     return r;
   },
+  board(host, c, b, { title } = {}) {
+    host.appendChild(el('div', { class: 'chg-bh' }, [el('h3', { text: title || (b.hidden ? '🎮 الألعاب المسلّمة' : '🏆 NEXUS CHALLENGE LEADERBOARD') }), el('span', { class: 'tiny', text: 'الألعاب: ' + b.entries.length })]));
+    if (b.hidden) host.appendChild(el('p', { class: 'tiny chg-hint', text: 'الترتيب ودرجات الآخرين تُعلن بعد انتهاء التحدي وتحكيم كل الألعاب (قواعد هذا التحدي). العب الألعاب المسلّمة الآن.' }));
+    else if (c.status !== 'final') host.appendChild(el('p', { class: 'tiny chg-hint', text: 'الترتيب النهائي يُعلن بعد انتهاء التحدي وتحكيم كل الألعاب.' }));
+    if (!b.entries.length) host.appendChild(el('div', { class: 'center-note', text: live(c) ? 'لم تُسلَّم ألعاب بعد — كن أول من يسلّم!' : 'لم تُسلَّم ألعاب في هذا التحدي.' }));
+    const list = el('div', { class: 'chg-board' });
+    b.entries.forEach(e => list.appendChild(this.row(e, c, b)));
+    host.appendChild(list);
+    (b.tieDecisions || []).filter(t => t.reason).forEach(t => host.appendChild(el('p', { class: 'tiny chg-tie', text: '🔀 تعادل حُسم ' + (t.by === 'ai' ? 'بمراجعة إضافية من NEXUS AI JUDGE' : 'بالأسبق تسليمًا') + ': ' + t.reason })));
+  },
+  winnerCard(c) {
+    const w = c.winner, r = c.runnerUp;
+    return el('div', { class: 'card chg-winner' }, [
+      el('small', { text: '🏆 الفائز — بقرار NEXUS AI JUDGE' }),
+      el('div', { class: 'chg-win' }, [avatar(w, 'lg'), el('div', { class: 'chg-who' }, [el('b', { text: w.name }), el('span', { text: '🎮 ' + (w.title || '') })]),
+        el('div', { class: 'chg-big', dir: 'ltr' }, [el('b', { text: s10(w.score10) }), el('span', { text: ' / 10' })])]),
+      r ? el('div', { class: 'chg-runner' }, [el('span', { text: '🥈 الوصيف · Runner-up' }), avatar(r), el('b', { text: r.name }), el('small', { dir: 'ltr', text: s10(r.score10) + '/10' })]) : null,
+      btn('▶ Play Winner Game', { cls: 'primary block chg-playwin', onclick: () => this.play(w.gameId) })]);
+  },
   myLine(me) {
     const t = me.status === 'judged' && me.score10 != null ? '✓ سلّمت · NEXUS AI SCORE ' + s10(me.score10) + '/10' + (me.rank ? ' · ' + (MEDAL[me.rank - 1] || '#' + me.rank) : '')
       : me.status === 'pending' ? '⏳ Judging Pending' : me.status === 'failed' ? 'تعذّر التحكيم' : '⚖️ ' + (ENTRY[me.status] || me.status);
@@ -33473,18 +33625,23 @@ const Challenges = {
   paintHome(sec) {
     const j = this.cur, c = j && j.challenge;
     sec.textContent = '';
-    if (!c) return;
-    const open = c.status === 'open' && c.endTime > this.now(), me = j.me;
+    if (!j) return;
     sec.appendChild(el('div', { class: 'sec-head' }, [el('h2', { text: '🏆 NEXUS CHALLENGES' }), el('button', { text: 'كل التحديات', onclick: () => this.open() })]));
+    if (!c) {
+      const g = el('div', { class: 'chg-mini-gen', role: 'button', tabindex: '0', onclick: () => this.open() }, [this.genCard(j.generating, null)]);
+      sec.appendChild(g);
+      return;
+    }
+    const open = live(c), me = j.me;
     const act = el('div', { class: 'chg-act' });
     if (me && me.submitted) act.appendChild(this.myLine(me));
     else if (open && !j.signedIn) act.appendChild(btn('شارك في التحدي', { cls: 'primary sm', onclick: () => this.signIn() }));
     else if (open && !me) act.appendChild(btn('شارك في التحدي', { cls: 'primary sm', onclick: () => this.join() }));
-    else if (open) act.appendChild(btn('🏆 سلّم لعبتك', { cls: 'primary sm', onclick: () => this.startSubmit() }));
-    else act.appendChild(el('span', { class: 'chg-my', text: c.status === 'final' ? '🏁 أُعلنت النتائج' : '⚖️ التحكيم جارٍ' }));
-    act.appendChild(el('span', { class: 'tiny', text: 'يحكم NEXUS AI JUDGE' }));
-    sec.appendChild(el('div', { class: 'card chg-card chg-mini', dataset: { d: c.difficulty }, role: 'button', tabindex: '0',
-      onclick: ev => { if (!ev.target.closest('button')) this.open(); }, onkeydown: ev => { if (ev.key === 'Enter' && ev.target === ev.currentTarget) this.open(); } }, [this.head(c), this.stats(c, { mini: true }), act]));
+    else if (open) act.appendChild(btn('🏆 سلّم لعبتك', { cls: 'primary sm', onclick: () => this.startSubmit(c) }));
+    act.appendChild(el('span', { class: 'tiny', text: 'ابتكره وحكّمه NEXUS AI' }));
+    sec.appendChild(el('div', { class: 'card chg-card chg-mini', role: 'button', tabindex: '0',
+      onclick: ev => { if (!ev.target.closest('button')) this.open(); }, onkeydown: ev => { if (ev.key === 'Enter' && ev.target === ev.currentTarget) this.open(); } },
+      [this.head(c), c.tagline ? el('p', { class: 'chg-tag', dir: 'auto', text: c.tagline }) : null, this.stats(c, { mini: true }), act]));
   },
 
   /* ================================================================ «🏆 NEXUS CHALLENGES» */
@@ -33495,15 +33652,17 @@ const Challenges = {
     body.append(seg, pane);
     const sheet = Sheet.open({ title: '🏆 NEXUS CHALLENGES', body, id: 'challenges', full: true, onClose: () => { if (this.view && this.view.sheet === sheet) this.view = null; } });
     this.view = { sheet, seg, pane, tab: null, arg: null };
-    this.show(cid ? 'detail' : 'now', cid);
+    this.show(cid ? (/^fc_/.test(cid) ? 'friend' : 'detail') : 'now', cid);
   },
+  openFriend(id) { if (this.view && !this.view.sheet._closed) this.show('friend', id); else this.open(id); },
   closeView() { if (this.view) this.view.sheet.close(); },
   tabs() {
     const v = this.view;
     if (!v) return;
     v.seg.textContent = '';
-    [['now', 'التحدي'], ['board', 'المشاركات'], ['past', 'السابقة']].concat(this.cur && this.cur.owner ? [['admin', 'الإدارة']] : []).forEach(([k, t]) =>
-      v.seg.appendChild(el('button', { text: t, dataset: { tab: k }, class: v.tab === k || (k === 'past' && v.tab === 'detail') ? 'on' : '', onclick: () => this.show(k) })));
+    const on = { detail: 'past', friend: 'friends' };
+    [['now', 'التحدي'], ['board', 'المشاركات'], ['past', 'السابقة']].concat(this.cur && this.cur.friendEnabled === false ? [] : [['friends', '👥 الأصدقاء']], this.cur && this.cur.owner ? [['admin', 'الإدارة']] : [])
+      .forEach(([k, t]) => v.seg.appendChild(el('button', { text: t, dataset: { tab: k }, class: v.tab === k || on[v.tab] === k ? 'on' : '', onclick: () => this.show(k) })));
   },
   async show(tab, arg, { quiet = false } = {}) {
     const v = this.view;
@@ -33515,9 +33674,11 @@ const Challenges = {
     const out = el('div', { class: 'chg-p', dataset: { tab } });
     try {
       if (tab === 'now') await this.paneNow(out);
-      else if (tab === 'board') await this.paneBoard(out, arg || (this.cur && this.cur.challenge && this.cur.challenge.challengeId) || (await this.load()).challenge.challengeId);
+      else if (tab === 'board') await this.paneBoard(out, arg || (this.cur && this.cur.challenge && this.cur.challenge.challengeId) || ((await this.load()).challenge || {}).challengeId);
       else if (tab === 'past') await this.panePast(out);
       else if (tab === 'detail') await this.paneDetail(out, arg);
+      else if (tab === 'friends') await this.paneFriends(out);
+      else if (tab === 'friend') await this.paneFriend(out, arg);
       else if (tab === 'admin') await this.paneAdmin(out);
     } catch (e) {
       out.textContent = '';
@@ -33532,15 +33693,23 @@ const Challenges = {
 
   async paneNow(host) {
     const j = await this.load(), c = j.challenge;
-    if (!c) { host.appendChild(el('div', { class: 'center-note' }, [el('b', { text: 'لا يوجد تحدٍّ الآن' }), el('p', { class: 'tiny', text: 'التحدي التالي يبدأ قريبًا — شاهد التحديات السابقة.' })])); return; }
-    host.appendChild(el('div', { class: 'card chg-card chg-hero', dataset: { d: c.difficulty } }, [this.head(c), el('p', { class: 'chg-desc', text: c.description }), this.stats(c), this.rewards(c)]));
+    if (!c) {
+      host.appendChild(this.genCard(j.generating, j.last));
+      if (j.signedIn) host.appendChild(el('div', { class: 'card chg-cta' }, [el('b', { text: '👥 لا تنتظر: تحدَّ أصدقاءك' }), el('p', { class: 'tiny', text: 'اكتب فكرة (أو دع NEXUS AI يبتكرها) وحدّد الوقت والجائزة من نقاطك.' }),
+        btn('＋ تحدٍّ مع الأصدقاء', { cls: 'sm', onclick: () => this.friendNew() })]));
+      return;
+    }
+    host.appendChild(el('div', { class: 'card chg-card chg-hero' }, [this.head(c), c.tagline ? el('p', { class: 'chg-tag', dir: 'auto', text: c.tagline }) : null,
+      el('p', { class: 'chg-desc', dir: 'auto', text: c.description }), this.stats(c), this.rewards(c)]));
     host.appendChild(this.actions(j));
     if (j.me && j.me.submitted) host.appendChild(this.entryCard(j.me, c));
-    host.appendChild(el('h4', { class: 'chg-h', text: '⚖️ معايير NEXUS AI JUDGE' }));
+    host.appendChild(this.details(c));
+    host.appendChild(el('h4', { class: 'chg-h', text: '⚖️ معايير NEXUS AI JUDGE لهذا التحدي' }));
     host.appendChild(this.rubric(c));
-    if (c.asks) host.appendChild(el('details', { class: 'chg-asks' }, [el('summary', { text: 'ما يبحث عنه المحكّم في هذا التحدي' }), el('p', { dir: 'auto', text: c.asks })]));
-    host.appendChild(el('h4', { class: 'chg-h', text: '📜 القواعد' }));
-    host.appendChild(this.rules(c));
+    host.appendChild(el('h4', { class: 'chg-h', text: '🧾 القواعد العامة' }));
+    host.appendChild(this.policy(c));
+    const g = this.genLine(c);
+    if (g) host.appendChild(g);
     host.appendChild(el('p', { class: 'tiny chg-trust', text: '🔒 الدرجة والترتيب والفائز والجوائز يحسبها ويحفظها خادم NEXUS — لا يمكن تعديلها من المتصفح.' }));
     /* an entry being judged elsewhere (another device, the site's own round): looked at again shortly */
     clearTimeout(this._poll);
@@ -33548,10 +33717,9 @@ const Challenges = {
   },
   actions(j) {
     const c = j.challenge, me = j.me, box = el('div', { class: 'chg-actions' });
-    const open = c.status === 'open' && c.endTime > this.now();
-    if (!open) {
+    if (!live(c)) {
       box.appendChild(el('div', { class: 'card chg-wait', text: c.status === 'final' ? '🏁 انتهى التحدي وأُعلنت النتائج — شاهد «المشاركات».'
-        : '⚖️ انتهى وقت التسليم — NEXUS AI JUDGE يحكّم كل المشاركات، ثم يُعلن الترتيب والفائز وتُوزَّع النقاط.' }));
+        : '⚖️ انتهى وقت التسليم — NEXUS AI JUDGE يحكّم كل المشاركات، ثم يُعلن الترتيب والفائز وتُوزَّع النقاط، ويبتكر NEXUS AI التحدي التالي.' }));
       return box;
     }
     if (!j.signedIn) { box.appendChild(btn('سجّل الدخول للمشاركة', { cls: 'primary block', icon: 'user', onclick: () => this.signIn() })); return box; }
@@ -33560,24 +33728,19 @@ const Challenges = {
       box.appendChild(el('p', { class: 'tiny', text: 'تصنع لعبتك في محرر NEXUS نفسه — بالمساعد الذكي والأصول كالمعتاد — ثم تسلّمها قبل انتهاء الوقت.' }));
       return box;
     }
-    const max = (c.rules && c.rules.maxSubmissionsPerUser) || 1, used = me.submissions || 0;
+    const max = (c.policy && c.policy.maxSubmissionsPerUser) || 1, used = me.submissions || 0;
     if (used < max) {
       box.appendChild(el('div', { class: 'chg-btns' }, [
-        btn(used ? '🏆 سلّم نسخة أحدث (' + (max - used) + ' متبقية)' : '🏆 تسليم اللعبة للتحدي', { cls: 'primary chg-submit', onclick: () => this.startSubmit() }),
-        btn('مشروع جديد للتحدي', { icon: 'plus', onclick: () => this.newProject() })]));
+        btn(used ? '🏆 سلّم نسخة أحدث (' + (max - used) + ' متبقية)' : '🏆 تسليم اللعبة للتحدي', { cls: 'primary chg-submit', onclick: () => this.startSubmit(c) }),
+        btn('مشروع جديد للتحدي', { icon: 'plus', onclick: () => this.newProject(c) })]));
       if (!used) box.appendChild(el('p', { class: 'tiny', text: '✓ أنت مشارك. اصنع لعبتك ثم سلّمها: تُنشر، ثم يقرأ خادم NEXUS نسختها المنشورة ويحكم عليها NEXUS AI JUDGE.' }));
     }
     return box;
   },
   async paneBoard(host, cid) {
-    const j = await this.call('/c/' + encodeURIComponent(cid)), c = j.challenge, b = j.board;
-    host.appendChild(el('div', { class: 'chg-bh' }, [el('h3', { text: b.hidden ? '🎮 الألعاب المسلّمة' : '🏆 NEXUS CHALLENGE LEADERBOARD' }), el('span', { class: 'tiny', text: c.emoji + ' ' + c.title + ' · الألعاب: ' + b.entries.length })]));
-    if (b.hidden) host.appendChild(el('p', { class: 'tiny chg-hint', text: 'الترتيب ودرجات الآخرين تُعلن بعد انتهاء التحدي وتحكيم كل الألعاب (قواعد هذا التحدي). العب الألعاب المسلّمة الآن.' }));
-    else if (c.status !== 'final') host.appendChild(el('p', { class: 'tiny chg-hint', text: 'الترتيب النهائي يُعلن بعد انتهاء التحدي وتحكيم كل الألعاب.' }));
-    if (!b.entries.length) host.appendChild(el('div', { class: 'center-note', text: c.status === 'open' ? 'لم تُسلَّم ألعاب بعد — كن أول من يسلّم!' : 'لم تُسلَّم ألعاب في هذا التحدي.' }));
-    const list = el('div', { class: 'chg-board' });
-    b.entries.forEach(e => list.appendChild(this.row(e, c, b)));
-    host.appendChild(list);
+    if (!cid) { host.appendChild(el('div', { class: 'center-note', text: 'لا يوجد تحدٍّ الآن — NEXUS AI يبتكر التالي.' })); return; }
+    const j = await this.call('/c/' + encodeURIComponent(cid));
+    this.board(host, j.challenge, j.board);
   },
   async panePast(host) {
     const j = await this.call('/past?limit=12');
@@ -33587,6 +33750,7 @@ const Challenges = {
       const w = c.winner;
       host.appendChild(el('div', { class: 'card chg-past', role: 'button', tabindex: '0', dataset: { cid: c.challengeId }, onclick: () => this.show('detail', c.challengeId) }, [
         this.head(c),
+        c.tagline ? el('p', { class: 'chg-tag', dir: 'auto', text: c.tagline }) : null,
         el('div', { class: 'tiny', title: when(c.startTime) + ' ← ' + when(c.endTime), text: day(c.startTime) + ' ← ' + day(c.endTime) + ' · المشاركون: ' + num(c.participants) + ' · الألعاب: ' + num(c.submissions) }),
         w ? el('div', { class: 'chg-win' }, [el('span', { class: 'chg-cup', text: '🏆' }), avatar(w), el('div', { class: 'chg-who' }, [el('b', { text: w.name }), el('span', { class: 'tiny', text: w.title || '' })]),
           el('b', { class: 'chg-sc', dir: 'ltr', text: s10(w.score10) + '/10' })])
@@ -33598,23 +33762,163 @@ const Challenges = {
     /* the challenge on now: its own page (asked of the server — the copy here may be old) */
     if (c.status === 'open' && ((await this.load()).challenge || {}).challengeId === c.challengeId) return this.paneNow(host);
     host.appendChild(el('button', { class: 'chg-back', text: '→ التحديات السابقة', onclick: () => this.show('past') }));
-    host.appendChild(el('div', { class: 'card chg-card', dataset: { d: c.difficulty } }, [this.head(c), el('p', { class: 'chg-desc', text: c.description }), this.stats(c)]));
+    host.appendChild(el('div', { class: 'card chg-card' }, [this.head(c), el('p', { class: 'chg-desc', dir: 'auto', text: c.description }), this.stats(c)]));
     if (c.status === 'final' && c.winner) {
-      const w = c.winner;
-      host.appendChild(el('div', { class: 'card chg-winner' }, [
-        el('small', { text: '🏆 الفائز — بقرار NEXUS AI JUDGE' }),
-        el('div', { class: 'chg-win' }, [avatar(w, 'lg'), el('div', { class: 'chg-who' }, [el('b', { text: w.name }), el('span', { text: '🎮 ' + (w.title || '') })]),
-          el('div', { class: 'chg-big', dir: 'ltr' }, [el('b', { text: s10(w.score10) }), el('span', { text: ' / 10' })])]),
-        btn('▶ Play Winner Game', { cls: 'primary block chg-playwin', onclick: () => this.play(w.gameId) })]));
+      host.appendChild(this.winnerCard(c));
       if ((c.podium || []).length > 1) host.appendChild(el('div', { class: 'chg-podium' }, c.podium.map((p, i) => el('div', { class: 'chg-pod', dataset: { i: String(i + 1) } }, [
         el('span', { text: MEDAL[i] }), avatar(p), el('b', { text: p.name }), el('small', { dir: 'ltr', text: s10(p.score10) + '/10' })]))));
     } else host.appendChild(el('div', { class: 'card chg-wait', text: c.status === 'final' ? 'لا فائز — لم تُحكَّم أي مشاركة بدرجة صالحة.' : '⚖️ انتهى التسليم — NEXUS AI JUDGE يحكّم كل المشاركات، ثم يُعلن الترتيب وتُوزَّع النقاط.' }));
     if (j.me && j.me.submitted) host.appendChild(this.entryCard(j.me, c));
-    const b = j.board;
-    host.appendChild(el('div', { class: 'chg-bh' }, [el('h3', { text: b.hidden ? '🎮 الألعاب المسلّمة' : '🏆 NEXUS CHALLENGE LEADERBOARD' }), el('span', { class: 'tiny', text: 'الألعاب: ' + b.entries.length })]));
-    const list = el('div', { class: 'chg-board' });
-    b.entries.forEach(e => list.appendChild(this.row(e, c, b)));
-    host.appendChild(list);
+    this.board(host, c, j.board);
+    const more = el('details', { class: 'chg-more' }, [el('summary', { text: 'التحدي كما ابتكره NEXUS AI' }), this.details(c), this.rubric(c)]);
+    host.appendChild(more);
+  },
+
+  /* ================================================================ 👥 challenges between friends */
+  async paneFriends(host) {
+    host.appendChild(el('div', { class: 'chg-bh' }, [el('h3', { text: '👥 تحدياتك مع الأصدقاء' }), btn('＋ تحدٍّ جديد', { cls: 'sm primary chg-fnew', onclick: () => this.friendNew() })]));
+    host.appendChild(el('p', { class: 'tiny chg-hint', text: 'اكتب فكرة أو دع NEXUS AI يبتكرها، حدّد الوقت والجائزة من نقاطك وادعُ من تريد. لا يُخصم شيء حتى تضغط «ابدأ» بلاعبَين على الأقل.' }));
+    if (!this.account()) { host.appendChild(btn('سجّل الدخول', { cls: 'primary block', icon: 'user', onclick: () => this.signIn() })); return; }
+    const j = await this.call('/friend/mine');
+    if (!j.challenges.length) { host.appendChild(el('div', { class: 'center-note', text: 'لا تحديات مع الأصدقاء بعد — اصنع واحدًا وأرسل الرابط.' })); return; }
+    const uid = Backend.user.uid;
+    j.challenges.forEach(c => host.appendChild(el('div', { class: 'card chg-card chg-fcard', role: 'button', tabindex: '0', dataset: { fc: c.challengeId }, onclick: () => this.show('friend', c.challengeId) }, [
+      this.head(c), this.stats(c),
+      el('p', { class: 'tiny', text: c.ownerId === uid ? 'أنت صاحب التحدي' : (c.players || []).some(p => p.uid === uid) ? 'أنت لاعب فيه' : 'دُعيت إليه — ادخل لتنضم' })])));
+  },
+  async paneFriend(host, id) {
+    /* an invite link opened before signing in */
+    if (!this.account()) {
+      host.appendChild(el('div', { class: 'card chg-cta' }, [el('b', { text: '👥 دُعيت إلى تحدٍّ على NEXUS' }),
+        el('p', { class: 'tiny', text: 'سجّل الدخول لترى التحدي وتنضم إليه — مشاركتك ودرجتك وجائزتك مرتبطة بحسابك.' }), btn('سجّل الدخول', { cls: 'primary', icon: 'user', onclick: () => this.signIn() })]));
+      return;
+    }
+    const j = await this.call('/friend/' + encodeURIComponent(id)), c = j.challenge, role = j.role, uid = Backend.user && Backend.user.uid;
+    const isOwner = role === 'owner', playing = (c.players || []).some(p => p.uid === uid);
+    host.appendChild(el('button', { class: 'chg-back', text: '→ تحدياتك مع الأصدقاء', onclick: () => this.show('friends') }));
+    host.appendChild(el('div', { class: 'card chg-card chg-hero friend' }, [this.head(c), c.tagline ? el('p', { class: 'chg-tag', dir: 'auto', text: c.tagline }) : null,
+      el('p', { class: 'chg-desc', dir: 'auto', text: c.description }), this.stats(c), this.rewards(c),
+      c.ai === false ? el('p', { class: 'tiny chg-warn', text: 'NEXUS AI لم يُجب حين أُنشئ — الفكرة كما كتبها صاحبها بالمعايير الافتراضية.' }) : null]));
+    /* who plays */
+    const ps = el('div', { class: 'chg-players' }, (c.players || []).map(p => el('div', { class: 'chg-pl' }, [avatar(p), el('b', { text: p.name || 'player' }), p.uid === c.ownerId ? el('small', { text: 'صاحب التحدي' }) : null])));
+    host.appendChild(el('div', { class: 'card chg-lobby' }, [el('b', { text: '👥 اللاعبون (' + (c.players || []).length + '/' + c.maxPlayers + ')' + (c.invitedCount ? ' · مدعوّون: ' + c.invitedCount : '') }), ps]));
+    const box = el('div', { class: 'chg-actions' });
+    const act = (label, cls, fn) => box.appendChild(btn(label, { cls, onclick: async ev => { const b = ev.currentTarget; b.disabled = true; try { await fn(); } catch (e) { this.fail(e); } finally { b.disabled = false; } } }));
+    if (c.status === 'lobby') {
+      if (isOwner) {
+        const link = el('input', { class: 'input', readonly: true, dir: 'ltr', value: this.linkOf(c) });
+        box.appendChild(el('div', { class: 'card chg-invite' }, [el('b', { text: '🔗 رابط الدعوة' }), el('p', { class: 'tiny', text: c.joinByLink ? 'من يفتح الرابط (بحساب) ينضم قبل البدء.' : 'بدعوة فقط — الرابط يفتح التحدي للمدعوّين.' }), link,
+          el('div', { class: 'chg-btns' }, [btn('نسخ الرابط', { cls: 'sm', onclick: () => { link.select(); navigator.clipboard && navigator.clipboard.writeText(link.value).then(() => Toast.ok('نُسخ الرابط')).catch(() => {}); } }),
+            navigator.share ? btn('مشاركة', { cls: 'sm ghost', icon: 'share', onclick: () => navigator.share({ title: c.title, text: '👥 ' + c.title + ' — تحدٍّ على NEXUS', url: link.value }).catch(() => {}) }) : null])]));
+        const hold = ((c.reward && c.reward.total) || 0) + ((c.reward && c.reward.fee) || 0);
+        act('▶ ابدأ التحدي', 'primary block chg-start', async () => {
+          if (!(await Modal.confirm('ابدأ التحدي', hold ? 'تُحجز الآن ' + num(hold) + ' نقطة من رصيدك (الجائزة' + (c.reward.fee ? ' + الرسوم' : '') + ')، ويبدأ الوقت (' + span(c.duration) + ') للجميع. ما لا يربحه أحد يعود إليك.' : 'يبدأ الوقت (' + span(c.duration) + ') للجميع.', 'ابدأ'))) return;
+          await this.call('/friend/start', { id: c.challengeId });
+          Toast.ok('بدأ التحدي — بالتوفيق للجميع!');
+          this.show('friend', c.challengeId, { quiet: true });
+        });
+        act('إلغاء التحدي', 'ghost', async () => { if (await Modal.confirm('إلغاء التحدي', 'لم يُخصم شيء من نقاطك بعد.', 'إلغاء التحدي')) { await this.call('/friend/cancel', { id: c.challengeId }); this.show('friends'); } });
+      } else if (!playing) act('🏁 انضم إلى التحدي', 'primary block chg-fjoin', async () => { await this.call('/friend/join', { id: c.challengeId }); Toast.ok('انضممت — ينتظر الجميع أن يبدأ ' + (c.ownerName || 'صاحب التحدي')); this.show('friend', c.challengeId, { quiet: true }); });
+      else act('مغادرة التحدي', 'ghost', async () => { await this.call('/friend/leave', { id: c.challengeId }); this.show('friends'); });
+      box.appendChild(el('p', { class: 'tiny', text: 'يبدأ التحدي حين يضغط صاحبه «ابدأ» (لاعبان على الأقل) — عندها فقط تُحجز الجائزة من رصيده.' }));
+    } else if (live(c)) {
+      if (playing) {
+        const used = (j.me && j.me.submissions) || 0;
+        if (used < ((c.policy && c.policy.maxSubmissionsPerUser) || 1)) box.appendChild(el('div', { class: 'chg-btns' }, [btn('🏆 تسليم اللعبة لهذا التحدي', { cls: 'primary chg-submit', onclick: () => this.startSubmit(c) }),
+          btn('مشروع جديد للتحدي', { icon: 'plus', onclick: () => this.newProject(c) })]));
+      }
+      if (isOwner && !(c.submissions > 0)) act('إلغاء (لم يُسلّم أحد بعد) — تعود الجائزة', 'ghost sm', async () => { if (await Modal.confirm('إلغاء التحدي', 'تعود إليك الجائزة المحجوزة كاملة.', 'إلغاء التحدي')) { const r = await this.call('/friend/cancel', { id: c.challengeId }); Toast.ok('أُلغي — عادت ' + num(r.refunded) + ' نقطة'); this.show('friends'); } });
+    } else if (c.status === 'judging' || c.status === 'running') box.appendChild(el('div', { class: 'card chg-wait', text: '⚖️ انتهى الوقت — NEXUS AI JUDGE يحكّم الألعاب، ثم يُعلن الفائز وتُوزَّع الجائزة.' }));
+    else if (c.status === 'cancelled') box.appendChild(el('div', { class: 'card chg-wait', text: 'أُلغي هذا التحدي' + (c.refundDue ? ' — عادت الجائزة (' + num(c.refundDue) + ') إلى صاحبه.' : '.') }));
+    if (c.status === 'final') {
+      if (c.winner) host.appendChild(this.winnerCard(c));
+      else box.appendChild(el('div', { class: 'card chg-wait', text: 'لا فائز — لم تُحكَّم أي لعبة بدرجة صالحة.' }));
+      if (isOwner && c.refundDue) box.appendChild(el('p', { class: 'tiny', text: '↩ عاد إليك ما لم يُربح من الجائزة: ' + num(c.refundDue) + ' نقطة' + (c.refundPaid ? ' ✓' : ' (قريبًا)') }));
+    }
+    host.appendChild(box);
+    if (j.me && j.me.submitted) host.appendChild(this.entryCard(j.me, c));
+    if (c.status !== 'lobby' && c.status !== 'cancelled') this.board(host, c, j.board, { title: c.status === 'final' ? '🏆 النتائج · Winner · Runner-up · Participants' : null });
+    host.appendChild(this.details(c));
+    host.appendChild(el('h4', { class: 'chg-h', text: '⚖️ معايير NEXUS AI JUDGE' }));
+    host.appendChild(this.rubric(c));
+    host.appendChild(this.policy(c));
+    /* its time is up: this page asks the server to judge, rank and pay now (the site's scheduled round would, a little later),
+       and looks again shortly */
+    clearTimeout(this._poll);
+    if ((c.status === 'running' && c.endTime <= this.now()) || c.status === 'judging' || (c.status === 'final' && !c.rewardsPaid)) {
+      this.nudge({ work: true, signedIn: true }, c.challengeId);
+      this._poll = setTimeout(() => { const v = this.view; if (v && v.tab === 'friend' && v.arg === c.challengeId) this.show('friend', c.challengeId, { quiet: true }); }, 15000);
+    }
+  },
+  /* a new friend challenge: the idea → NEXUS AI's challenge → the time, the prize, who plays → created (nothing taken yet) */
+  async friendNew() {
+    if (!this.account()) { this.signIn(); return; }
+    const body = el('div', { class: 'chg-fnewb' });
+    const idea = el('textarea', { class: 'textarea chg-idea', maxlength: '600', placeholder: 'فكرتك… مثال: «اصنع لعبة رعب في غرفة واحدة» — أو اتركها فارغة ليبتكر NEXUS AI فكرة.' });
+    const make = btn('🧠 اصنع التحدي', { cls: 'primary block chg-make' });
+    const preview = el('div'), setup = el('div');
+    body.append(field('الفكرة', idea), make, preview, setup);
+    const sheet = Sheet.open({ title: '👥 تحدٍّ جديد مع الأصدقاء', body, id: 'chg-fnew', full: true });
+    make.onclick = async () => {
+      make.disabled = true; preview.textContent = ''; setup.textContent = '';
+      preview.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' }), el('span', { class: 'tiny', text: ' NEXUS AI يصوغ التحدي…' })]));
+      try {
+        const d = await this.call('/friend/draft', { idea: idea.value.trim() || undefined });
+        preview.textContent = '';
+        preview.appendChild(this.draftCard(d));
+        this.friendSetup(setup, d, sheet);
+        make.lastChild.textContent = '🧠 فكرة أخرى';
+      } catch (e) { preview.textContent = ''; preview.appendChild(el('p', { class: 'tiny chg-warn', text: e.message })); }
+      finally { make.disabled = false; }
+    };
+  },
+  draftCard(d) {
+    const c = Object.assign({ kind: 'friend', status: 'draft' }, d.draft);      // not created yet
+    return el('div', { class: 'card chg-card chg-draft' }, [this.head(c), c.tagline ? el('p', { class: 'chg-tag', dir: 'auto', text: c.tagline }) : null,
+      el('p', { class: 'chg-desc', dir: 'auto', text: c.description }), this.details(c), el('h4', { class: 'chg-h', text: '⚖️ المعايير' }), this.rubric(c),
+      d.ai === false ? el('p', { class: 'tiny chg-warn', text: 'NEXUS AI لا يجيب الآن — فكرتك كما كتبتها بالمعايير الافتراضية. التحكيم نفسه ينتظر NEXUS AI.' }) : null]);
+  },
+  async friendSetup(host, d, sheet) {
+    const w = NX.Points && NX.Points.wallet, bal = w ? w.points || 0 : null;
+    const minutes = [30, 60, 120, 180, 360, 720, 1440, 2880], sug = Math.round(d.draft.durationMinutes || 180);
+    const dur = el('select', { class: 'select chg-dur' }, Array.from(new Set(minutes.concat(sug))).sort((a, b) => a - b).map(m => el('option', { value: String(m), text: span(m * 60) + (m === sug ? ' (اقتراح NEXUS AI)' : '') })));
+    dur.value = String(sug);
+    const reward = el('input', { class: 'input chg-reward', type: 'number', min: '0', step: '10', dir: 'ltr', value: String(bal == null ? 100 : Math.min(100, bal)) });
+    const chips = el('div', { class: 'chg-chips' }, [0, 10, 50, 100, 500, 1000].map(n => el('button', { class: 'chg-chip', type: 'button', text: n ? num(n) : 'بلا جائزة', onclick: () => { reward.value = String(n); paint(); } })));
+    const split = el('select', { class: 'select chg-split' }, Object.entries(SPLIT).map(([k, t]) => el('option', { value: k, text: t })));
+    const maxP = el('input', { class: 'input chg-maxp', type: 'number', min: '2', max: '100', dir: 'ltr', value: '8' });
+    const ck = (v) => { const i = el('input', { type: 'checkbox' }); i.checked = v; return i; };
+    const byLink = ck(true), plays = ck(true), hide = ck(true);
+    const friends = el('div', { class: 'chg-friends' }, [el('p', { class: 'tiny', text: 'من تتابعهم…' })]);
+    const note = el('p', { class: 'tiny chg-cost' });
+    const paint = () => { const r = Math.max(0, Math.round(+reward.value || 0)); note.textContent = 'لن يُخصم أي شيء الآن. عند «ابدأ» (بلاعبَين على الأقل) تُحجز ' + num(r) + ' نقطة من رصيدك'
+      + (bal != null ? ' (رصيدك الآن ' + num(bal) + ')' : '') + '، وما لا يربحه أحد يعود إليك. تكلفة الإنشاء: 0.'; };
+    reward.addEventListener('input', paint); paint();
+    host.textContent = '';
+    host.append(el('div', { class: 'card chg-admin' }, [el('b', { text: '⚙ الوقت والجائزة واللاعبون' }), el('div', { class: 'chg-grid wide' }, [
+      field('المدة', dur), field('الجائزة (نقاط NEXUS من رصيدك)', reward), field('التوزيع', split), field('أقصى عدد للاعبين', maxP),
+      field('من معه الرابط ينضم', byLink), field('أنا ألعب أيضًا', plays), field('أخفِ الدرجات حتى النهاية', hide)]), chips,
+      el('b', { text: '📨 ادعُ من تتابعهم (يصلهم تنبيه)' }), friends, note,
+      btn('إنشاء التحدي', { cls: 'primary block chg-create', onclick: async ev => {
+        const b = ev.currentTarget; b.disabled = true;
+        try {
+          const invited = Array.from(friends.querySelectorAll('input[type="checkbox"]:checked')).map(i => i.value);
+          const r = await this.call('/friend/create', { draftId: d.draftId, durationMinutes: +dur.value, reward: Math.max(0, Math.round(+reward.value || 0)), split: split.value,
+            maxPlayers: +maxP.value, joinByLink: byLink.checked, creatorPlays: plays.checked, hideResultsUntilEnd: hide.checked, invited });
+          sheet.close();
+          Toast.ok('أُنشئ التحدي — أرسل الرابط لأصدقائك');
+          this.openFriend(r.challenge.challengeId);
+        } catch (e) { this.fail(e); } finally { b.disabled = false; }
+      } })]));
+    try {
+      const ids = (await NX.Follows.following(Backend.user.uid)).slice(0, 40);
+      friends.textContent = '';
+      if (!ids.length) friends.appendChild(el('p', { class: 'tiny', text: 'لا تتابع أحدًا بعد — أرسل رابط الدعوة بعد الإنشاء.' }));
+      for (const id of ids) {
+        const p = await NX.Profiles.get(id).catch(() => null);
+        friends.appendChild(el('label', { class: 'chg-friend' }, [el('input', { type: 'checkbox', value: id }), avatar(p || {}), el('span', { text: (p && p.name) || id })]));
+      }
+    } catch { friends.textContent = ''; friends.appendChild(el('p', { class: 'tiny', text: 'تعذّر جلب من تتابعهم — أرسل رابط الدعوة بعد الإنشاء.' })); }
   },
 
   /* ---------------- the site's owner ---------------- */
@@ -33622,99 +33926,104 @@ const Challenges = {
     const j = await this.call('/admin'), cfg = j.config;
     const n = (v, a = {}) => el('input', Object.assign({ class: 'input', type: 'number', dir: 'ltr', value: String(v) }, a));
     const ck = v => { const i = el('input', { type: 'checkbox' }); i.checked = !!v; return i; };
-    const f = (label, input, hint) => el('label', { class: 'chg-f' }, [el('span', { text: label }), input, hint ? el('small', { class: 'tiny', text: hint }) : null]);
     const I = {
-      durationHours: n(cfg.durationHours, { min: '0.1', step: '0.5' }), autoCreate: ck(cfg.autoCreate),
-      easy: n(cfg.rewards.easy), medium: n(cfg.rewards.medium), hard: n(cfg.rewards.hard), special: n(cfg.rewards.special),
-      second: n(Math.round(cfg.placements.second * 100)), third: n(Math.round(cfg.placements.third * 100)),
-      participation: n(cfg.participation), minScore: n(cfg.minScore, { step: '0.1', min: '0', max: '10' }),
+      autoCreate: ck(cfg.autoCreate), genAttempts: n(cfg.genAttempts, { min: '1', max: '10' }), reviewersAt: n(cfg.reviewersAt, { min: '1', max: '11' }),
+      similarity: n(Math.round(cfg.similarity * 100), { min: '20', max: '95' }), historySize: n(cfg.historySize, { min: '5', max: '100' }),
+      genModels: el('input', { class: 'input', dir: 'ltr', value: (cfg.genModels || []).join(', '), placeholder: 'auto' }),
+      minH: n(cfg.minDurationHours, { step: '0.5', min: '0.1' }), maxH: n(cfg.maxDurationHours, { step: '1', min: '0.5' }), durationHours: n(cfg.durationHours, { step: '0.5', min: '0.1' }),
+      rewardMin: n(cfg.rewardMin), rewardMax: n(cfg.rewardMax), rewardDefault: n(cfg.rewardDefault),
+      second: n(Math.round(cfg.placements.second * 100)), third: n(Math.round(cfg.placements.third * 100)), participation: n(cfg.participation), minScore: n(cfg.minScore, { step: '0.1', min: '0', max: '10' }),
       maxSubmissionsPerUser: n(cfg.maxSubmissionsPerUser, { min: '1', max: '10' }), maxParticipants: n(cfg.maxParticipants, { min: '0' }),
       hideResultsUntilEnd: ck(cfg.hideResultsUntilEnd), requireFreshBuild: ck(cfg.requireFreshBuild),
-      jEasy: n(cfg.judgesFor.easy, { min: '1', max: '3' }), jMedium: n(cfg.judgesFor.medium, { min: '1', max: '3' }), jHard: n(cfg.judgesFor.hard, { min: '1', max: '3' }), jSpecial: n(cfg.judgesFor.special, { min: '1', max: '3' }),
-      judgeMaxAttempts: n(cfg.judgeMaxAttempts, { min: '1', max: '20' }),
-      judgeModels: el('input', { class: 'input', dir: 'ltr', value: (cfg.judgeModels || []).join(', '), placeholder: 'auto' })
+      two: n(cfg.judgesAt.two, { min: '1', max: '11' }), three: n(cfg.judgesAt.three, { min: '1', max: '11' }), judgeMaxAttempts: n(cfg.judgeMaxAttempts, { min: '1', max: '20' }),
+      judgeModels: el('input', { class: 'input', dir: 'ltr', value: (cfg.judgeModels || []).join(', '), placeholder: 'auto' }),
+      trendsUrl: el('input', { class: 'input', dir: 'ltr', type: 'url', value: cfg.trendsUrl || '', placeholder: 'https://…/feed.xml' }),
+      trendNotes: el('textarea', { class: 'textarea', value: cfg.trendNotes || '', placeholder: 'ما يشتهر الآن من ألعاب وأفكار (اختياري) — يقرؤه NEXUS AI كبيانات' }),
+      friendEnabled: ck(cfg.friendEnabled), friendPerDay: n(cfg.friendPerDay), friendAiPerDay: n(cfg.friendAiPerDay), friendRewardMax: n(cfg.friendRewardMax), friendFee: n(cfg.friendFee),
+      friendMaxPlayers: n(cfg.friendMaxPlayers, { min: '2' }), friendMinHours: n(cfg.friendMinHours, { step: '0.25' }), friendMaxHours: n(cfg.friendMaxHours, { step: '1' })
     };
+    const group = (t, kids) => el('div', { class: 'chg-grp' }, [el('b', { text: t }), el('div', { class: 'chg-grid' }, kids)]);
     const set = el('div', { class: 'card chg-admin' }, [el('b', { text: '⚙ إعدادات التحديات' }),
-      el('p', { class: 'tiny', text: 'تُحفظ على الخادم (challenges_meta/config) وتنطبق على التحديات التالية؛ متغيرات Netlify قيم افتراضية تحتها.' }),
-      el('div', { class: 'chg-grid' }, [
-        f('مدة التحدي (ساعات)', I.durationHours), f('ابدأ التالي تلقائيًا', I.autoCreate),
-        f('جائزة «سهل»', I.easy), f('جائزة «متوسط»', I.medium), f('جائزة «صعب»', I.hard), f('جائزة «خاص»', I.special),
-        f('الثاني: % من الأول', I.second), f('الثالث: % من الأول', I.third),
-        f('نقاط كل مشاركة مُحكَّمة', I.participation), f('أقل درجة لأي جائزة (/10)', I.minScore),
-        f('تسليمات كل لاعب', I.maxSubmissionsPerUser), f('أقصى عدد للمشاركين', I.maxParticipants, '0 = بلا حد'),
-        f('أخفِ النتائج حتى النهاية', I.hideResultsUntilEnd), f('يجب النشر خلال التحدي', I.requireFreshBuild),
-        f('محكّمو «سهل»', I.jEasy), f('محكّمو «متوسط»', I.jMedium), f('محكّمو «صعب»', I.jHard), f('محكّمو «خاص»', I.jSpecial),
-        f('محاولات التحكيم قبل «تعذّر»', I.judgeMaxAttempts), f('نماذج المحكّم', I.judgeModels, 'فارغ = يختار NEXUS من المزوّدين المتاحين')])]);
+      el('p', { class: 'tiny', text: 'تُحفظ على الخادم (challenges_meta/config). NEXUS AI يبتكر كل تحدٍّ ويحدد مدته وجائزته ومعاييره — ضمن هذه الحدود. لا توجد صعوبات (سهل/صعب): التعقيد الذي يقدّره AI يحدد عدد المحكّمين والمراجعين.' }),
+      group('🧠 NEXUS AI يبتكر', [field('يبتكر التالي تلقائيًا', I.autoCreate), field('أقصى عدد أفكار في الجولة', I.genAttempts), field('مراجعون متعددون من تعقيد', I.reviewersAt, '11 = مراجع واحد دائمًا'),
+        field('تشابه الكلمات المرفوض (%)', I.similarity), field('تحديات سابقة يراها', I.historySize), field('نماذج الابتكار', I.genModels, 'فارغ = يختار NEXUS')]),
+      group('⏱ المدة (يحددها AI ضمنها)', [field('أقل مدة (ساعات)', I.minH), field('أطول مدة (ساعات)', I.maxH), field('إن لم يحددها (ساعات)', I.durationHours)]),
+      group('🏅 الجوائز العامة', [field('أقل جائزة أولى', I.rewardMin), field('أعلى جائزة أولى', I.rewardMax), field('إن لم يقترحها AI', I.rewardDefault),
+        field('الثاني: % من الأول', I.second), field('الثالث: % من الأول', I.third), field('كل مشاركة مُحكَّمة', I.participation), field('أقل درجة لأي جائزة (/10)', I.minScore)]),
+      group('📜 القواعد', [field('تسليمات كل لاعب', I.maxSubmissionsPerUser), field('أقصى عدد للمشاركين', I.maxParticipants, '0 = بلا حد'), field('أخفِ النتائج حتى النهاية', I.hideResultsUntilEnd), field('يجب النشر خلال التحدي', I.requireFreshBuild)]),
+      group('⚖️ التحكيم', [field('محكّمان من تعقيد', I.two), field('ثلاثة من تعقيد', I.three), field('محاولات التحكيم قبل «تعذّر»', I.judgeMaxAttempts), field('نماذج المحكّم', I.judgeModels, 'فارغ = يختار NEXUS')]),
+      group('🔥 الترندات (اختياري)', [field('رابط أخبار ألعاب (RSS / Atom / JSON)', I.trendsUrl, 'يُقرأ كل 6 ساعات على الأكثر — دونه لا يدّعي AI أي ترند'), field('ملاحظاتك', I.trendNotes)]),
+      group('👥 مع الأصدقاء', [field('مفعّلة', I.friendEnabled), field('تحديات لكل حساب يوميًا', I.friendPerDay), field('أفكار AI لكل حساب يوميًا', I.friendAiPerDay), field('أعلى جائزة', I.friendRewardMax),
+        field('رسوم الإنشاء (نقاط)', I.friendFee), field('أقصى لاعبين', I.friendMaxPlayers), field('أقل مدة (ساعات)', I.friendMinHours), field('أطول مدة (ساعات)', I.friendMaxHours)])]);
+    const list = s => s.value.split(/[\s,]+/).filter(Boolean);
     set.appendChild(btn('حفظ الإعدادات', { cls: 'primary chg-save', onclick: async ev => {
       const b = ev.currentTarget; b.disabled = true;
       try {
         await this.call('/admin/config', { config: {
-          durationHours: +I.durationHours.value, autoCreate: I.autoCreate.checked,
-          rewards: { easy: +I.easy.value, medium: +I.medium.value, hard: +I.hard.value, special: +I.special.value },
-          placements: { second: +I.second.value / 100, third: +I.third.value / 100 }, participation: +I.participation.value, minScore: +I.minScore.value,
-          maxSubmissionsPerUser: +I.maxSubmissionsPerUser.value, maxParticipants: +I.maxParticipants.value,
+          autoCreate: I.autoCreate.checked, genAttempts: +I.genAttempts.value, reviewersAt: +I.reviewersAt.value, similarity: +I.similarity.value / 100, historySize: +I.historySize.value, genModels: list(I.genModels),
+          minDurationHours: +I.minH.value, maxDurationHours: +I.maxH.value, durationHours: +I.durationHours.value,
+          rewardMin: +I.rewardMin.value, rewardMax: +I.rewardMax.value, rewardDefault: +I.rewardDefault.value, placements: { second: +I.second.value / 100, third: +I.third.value / 100 },
+          participation: +I.participation.value, minScore: +I.minScore.value, maxSubmissionsPerUser: +I.maxSubmissionsPerUser.value, maxParticipants: +I.maxParticipants.value,
           hideResultsUntilEnd: I.hideResultsUntilEnd.checked, requireFreshBuild: I.requireFreshBuild.checked,
-          judgesFor: { easy: +I.jEasy.value, medium: +I.jMedium.value, hard: +I.jHard.value, special: +I.jSpecial.value },
-          judgeMaxAttempts: +I.judgeMaxAttempts.value, judgeModels: I.judgeModels.value.split(/[\s,]+/).filter(Boolean) } });
+          judgesAt: { two: +I.two.value, three: +I.three.value }, judgeMaxAttempts: +I.judgeMaxAttempts.value, judgeModels: list(I.judgeModels),
+          trendsUrl: I.trendsUrl.value.trim(), trendNotes: I.trendNotes.value,
+          friendEnabled: I.friendEnabled.checked, friendPerDay: +I.friendPerDay.value, friendAiPerDay: +I.friendAiPerDay.value, friendRewardMax: +I.friendRewardMax.value, friendFee: +I.friendFee.value,
+          friendMaxPlayers: +I.friendMaxPlayers.value, friendMinHours: +I.friendMinHours.value, friendMaxHours: +I.friendMaxHours.value } });
         Toast.ok('حُفظت إعدادات التحديات على الخادم');
       } catch (e) { this.fail(e); }
       finally { b.disabled = false; }
     } }));
     host.appendChild(set);
 
-    /* a special challenge: now (it ends the current one) or as the next one */
-    const cat = el('select', { class: 'select' }, Object.entries(j.categories).map(([k, v]) => el('option', { value: k, text: v.emoji + ' ' + v.title })));
-    const diff = el('select', { class: 'select' }, Object.entries(j.difficulties).map(([k, v]) => el('option', { value: k, text: v })));
-    diff.value = 'special';
-    const N = { title: el('input', { class: 'input', placeholder: 'اتركه فارغًا لعنوان النوع' }), description: el('textarea', { class: 'textarea', placeholder: 'اتركه فارغًا لوصف النوع' }),
-      asks: el('input', { class: 'input', placeholder: 'ما يُطلب — يُرسل إلى المحكّم كما هو' }), emoji: el('input', { class: 'input', placeholder: '🏆', maxlength: '8' }),
-      hours: n(cfg.durationHours, { min: '0.1', step: '0.5' }), reward: n(cfg.rewards.special), judges: n(3, { min: '1', max: '3' }),
-      subs: n(cfg.maxSubmissionsPerUser, { min: '1', max: '10' }), maxP: n(0, { min: '0' }), hide: ck(cfg.hideResultsUntilEnd),
-      rules: el('textarea', { class: 'textarea', placeholder: 'قواعد إضافية يقرؤها اللاعبون (اختياري)' }) };
-    diff.onchange = () => { N.reward.value = String(cfg.rewards[diff.value] || 0); N.judges.value = String(cfg.judgesFor[diff.value] || 1); };
-    const create = async whenTo => {
-      try {
-        await this.call('/admin/create', { when: whenTo, category: cat.value, difficulty: diff.value, title: N.title.value.trim() || undefined, description: N.description.value.trim() || undefined,
-          asks: N.asks.value.trim() || undefined, emoji: N.emoji.value.trim() || undefined, durationHours: +N.hours.value, reward: +N.reward.value, judges: +N.judges.value,
-          maxSubmissionsPerUser: +N.subs.value, maxParticipants: +N.maxP.value, hideResultsUntilEnd: N.hide.checked, rulesText: N.rules.value.trim() || undefined });
-        Toast.ok(whenTo === 'next' ? 'سيكون التحدي التالي' : 'بدأ التحدي الجديد');
-        await this.refresh();
-        if (whenTo !== 'next') this.show('now');
-      } catch (e) { this.fail(e); }
-    };
-    host.appendChild(el('div', { class: 'card chg-admin' }, [el('b', { text: '✨ تحدٍّ خاص' }),
-      el('p', { class: 'tiny', text: 'اختر نوعه وصعوبته ومدته وجائزته. المعايير وأوزانها من نوعه، والمحكّم هو NEXUS AI JUDGE دائمًا.' }),
-      el('div', { class: 'chg-grid' }, [f('النوع', cat), f('الصعوبة', diff), f('العنوان', N.title), f('الإيموجي', N.emoji), f('المدة (ساعات)', N.hours), f('الجائزة الأولى', N.reward),
-        f('عدد المحكّمين (1–3)', N.judges), f('تسليمات كل لاعب', N.subs), f('أقصى عدد للمشاركين', N.maxP, '0 = بلا حد'), f('أخفِ النتائج حتى النهاية', N.hide)]),
-      f('الوصف', N.description), f('المطلوب', N.asks), f('قواعد إضافية', N.rules),
+    /* the next idea: invented now (the current one closes), or the owner's wish kept for the next round */
+    const hint = el('textarea', { class: 'textarea chg-hint-in', placeholder: 'اختياري: وجّه NEXUS AI («شيء عن المطر»، «تحدٍّ صغير جدًا»، «لعبة كرة قدم»…) — هو من يبتكر التحدي نفسه.' });
+    const log = el('div', { class: 'chg-log chg-gen-log tiny' });
+    const say = t => log.appendChild(el('div', { text: t }));
+    host.appendChild(el('div', { class: 'card chg-admin' }, [el('b', { text: '🧠 التحدي التالي' }), hint,
       el('div', { class: 'chg-btns' }, [
-        btn('ابدأه الآن (يُنهي الحالي)', { cls: 'primary', onclick: async () => { if (await Modal.confirm('بدء تحدٍّ خاص الآن', 'يُغلَق التسليم في التحدي الحالي ويُحكَّم، ثم يبدأ هذا.', 'ابدأ الآن')) create('now'); } }),
-        btn('اجعله التحدي التالي', { onclick: () => create('next') })])]));
-
-    /* now: end the current challenge · run what is due (judging, ranking, prizes) */
-    const log = el('div', { class: 'chg-log tiny' });
-    host.appendChild(el('div', { class: 'card chg-admin' }, [el('b', { text: '⏱ الآن' }),
-      el('div', { class: 'chg-btns' }, [
-        btn('أنهِ التحدي الحالي الآن', { cls: 'danger', onclick: async () => {
-          if (!(await Modal.confirm('إنهاء التحدي الحالي', 'يُغلق التسليم فورًا، ثم تُحكَّم المشاركات ويُعلن الترتيب وتُوزَّع النقاط.', 'إنهاء الآن'))) return;
-          try { await this.call('/admin/end', {}); Toast.ok('أُغلق التحدي'); await this.refresh(); } catch (e) { this.fail(e); }
-        } }),
-        btn('حكّم ووزّع المستحق الآن', { onclick: async ev => {
-          const b = ev.currentTarget; b.disabled = true; log.textContent = '';
-          const say = t => log.appendChild(el('div', { text: t }));
-          say('…');
+        btn('ابتكره الآن (يُنهي الحالي)', { cls: 'primary chg-gen-now', onclick: async ev => {
+          const b = ev.currentTarget;              // (gone from the event once it awaits)
+          if (!(await Modal.confirm('ابتكار تحدٍّ الآن', 'يُغلق التسليم في التحدي الحالي ويُحكَّم، ثم يبتكر NEXUS AI تحديًا جديدًا ويراجعه وينشره.', 'ابتكر الآن'))) return;
+          b.disabled = true; log.textContent = '';
           try {
-            await this.stream('/tick', {}, (e, d) => {
-              if (e === 'state') say(d.text);
-              else if (e === 'judge') say('المحكّم ' + (d.i + 1) + '/' + d.n + ': ' + (JUDGE[d.state] || d.state) + (d.provider ? ' · ' + d.provider : '') + (d.note ? ' · ' + d.note : ''));
-              else if (e === 'tick') say('✓ حُكّم ' + d.judged + ' · مؤجّل ' + d.pending + ' · أُعلنت نتائج ' + (d.finalized || []).length + ' · جوائز ' + d.paid);
+            await this.stream('/admin/generate', { hint: hint.value.trim() || undefined, when: 'now' }, (e, d) => {
+              if (e === 'gen') say((GEN[d.phase] || d.phase) + (d.attempt ? ' · فكرة ' + d.attempt + '/' + (d.max || '') : '') + (d.title ? ': «' + d.title + '»' : '') + (d.provider ? ' · ' + d.provider : '') + ((d.reasons || []).length ? ' — ' + d.reasons.join('، ') : ''));
+              else if (e === 'result') say(d.state === 'published' ? '✓ نُشر التحدي الجديد' + (d.fallback ? ' (أفضل فكرة صالحة)' : '') : '… ' + d.state);
               else if (e === 'error') say('✕ ' + d.message);
             });
           } catch (e) { say('✕ ' + e.message); }
-          finally { b.disabled = false; this.refresh(); }
-        } })]),
+          finally { b.disabled = false; this.refresh({ view: false }); }
+        } }),
+        btn('احفظه للتحدي التالي', { onclick: async () => { try { await this.call('/admin/generate', { hint: hint.value.trim(), when: 'next' }); Toast.ok('سيقرأ NEXUS AI طلبك حين يبتكر التحدي التالي'); } catch (e) { this.fail(e); } } })]),
       log,
-      el('p', { class: 'tiny', text: 'الفائز لا يُختار يدويًا: الترتيب من درجات NEXUS AI JUDGE وحدها. «↻» بجانب مشاركة في «المشاركات» يطلب تحكيمها من جديد (قبل إعلان النتائج فقط).' })]));
+      j.trends && j.trends.items.length ? el('details', { class: 'chg-more' }, [el('summary', { text: '📰 آخر أخبار الألعاب التي يراها NEXUS AI (' + day(j.trends.fetchedAt) + ')' }),
+        el('ul', { class: 'chg-rules' }, j.trends.items.map(x => el('li', { dir: 'auto', text: x.title })))]) : null]));
+
+    /* now: end the current challenge · run what is due (inventing, judging, ranking, prizes) */
+    const log2 = el('div', { class: 'chg-log chg-tick-log tiny' });
+    host.appendChild(el('div', { class: 'card chg-admin' }, [el('b', { text: '⏱ الآن' }),
+      el('div', { class: 'chg-btns' }, [
+        btn('أنهِ التحدي الحالي الآن', { cls: 'danger', onclick: async () => {
+          if (!(await Modal.confirm('إنهاء التحدي الحالي', 'يُغلق التسليم فورًا، ثم تُحكَّم المشاركات ويُعلن الترتيب وتُوزَّع النقاط، ويبتكر NEXUS AI التالي.', 'إنهاء الآن'))) return;
+          try { await this.call('/admin/end', {}); Toast.ok('أُغلق التحدي'); await this.refresh({ view: false }); } catch (e) { this.fail(e); }
+        } }),
+        btn('حرّك المستحق الآن', { onclick: async ev => {
+          const b = ev.currentTarget; b.disabled = true; log2.textContent = '';
+          const s = t => log2.appendChild(el('div', { text: t }));
+          s('…');
+          try {
+            await this.stream('/tick', {}, (e, d) => {
+              if (e === 'state') s(d.text);
+              else if (e === 'gen') s((GEN[d.phase] || d.phase) + (d.title ? ': «' + d.title + '»' : '') + ((d.reasons || []).length ? ' — ' + d.reasons.join('، ') : ''));
+              else if (e === 'judge') s('المحكّم ' + (d.i + 1) + '/' + d.n + ': ' + (JUDGE[d.state] || d.state) + (d.provider ? ' · ' + d.provider : '') + (d.note ? ' · ' + d.note : ''));
+              else if (e === 'tick') s('✓ حُكّم ' + d.judged + ' · مؤجّل ' + d.pending + ' · أُعلنت نتائج ' + (d.finalized || []).length + ' · جوائز ' + d.paid + (d.generated ? ' · الابتكار: ' + d.generated : ''));
+              else if (e === 'error') s('✕ ' + d.message);
+            });
+          } catch (e) { s('✕ ' + e.message); }
+          finally { b.disabled = false; this.refresh({ view: false }); }
+        } })]),
+      log2,
+      el('p', { class: 'tiny', text: 'الفائز لا يُختار يدويًا: الترتيب من درجات NEXUS AI JUDGE وحدها. «↻» بجانب مشاركة يطلب تحكيمها من جديد (قبل إعلان النتائج فقط).' })]));
   },
   async rejudge(e, c) {
     const force = e.status === 'judged';
@@ -33729,20 +34038,21 @@ const Challenges = {
     let c = this.cur && this.cur.challenge;
     try {
       if (!c) c = (await this.load()).challenge;
+      if (!c) { Toast.err('NEXUS AI يبتكر التحدي التالي — لحظات'); return; }
       await this.call('/join', { challengeId: c.challengeId });
       Toast.ok('انضممت إلى ' + c.emoji + ' ' + c.title + ' — بالتوفيق!');
     } catch (e) { this.fail(e); }
     await this.refresh();
   },
   /* which game: the one open in the editor, a new project for the challenge, or one of the player's projects */
-  async startSubmit() {
+  async startSubmit(c) {
     if (!this.account()) { this.signIn(); return; }
     const S = NX.Studio, uid = Backend.user.uid;
     const inStudio = NX.Screen.current() === 'studio' && S.project && S.project.ownerId === uid;
     const body = el('div', { class: 'chg-pick' });
     const list = el('div', {}, [el('div', { class: 'load-row' }, [el('div', { class: 'spin' })])]);
-    if (inStudio) body.appendChild(NX.optionRow('play', 'سلّم «' + S.project.name + '»', 'المشروع المفتوح الآن في المحرر', () => { sheet.close(); this.closeView(); this.submitFromStudio(); }));
-    body.appendChild(NX.optionRow('plus', 'مشروع جديد للتحدي', 'يفتح المحرر والمساعد جاهزًا بفكرة التحدي — ثم «المزيد ← 🏆 تسليم اللعبة للتحدي»', () => { sheet.close(); this.newProject(); }));
+    if (inStudio) body.appendChild(NX.optionRow('play', 'سلّم «' + S.project.name + '»', 'المشروع المفتوح الآن في المحرر', () => { sheet.close(); this.closeView(); this.submitFromStudio(c); }));
+    body.appendChild(NX.optionRow('plus', 'مشروع جديد للتحدي', 'يفتح المحرر والمساعد جاهزًا بفكرة التحدي — ثم «المزيد ← 🏆 تسليم اللعبة للتحدي»', () => { sheet.close(); this.newProject(c); }));
     body.append(el('div', { class: 'ttl', style: { margin: '12px 0 6px' }, text: 'أو سلّم أحد مشاريعك' }), list);
     const sheet = Sheet.open({ title: '🏆 أي لعبة تسلّم؟', body, id: 'chg-pick' });
     try {
@@ -33750,12 +34060,12 @@ const Challenges = {
       list.textContent = '';
       if (!ps.length) list.appendChild(el('p', { class: 'tiny', text: 'لا مشاريع بعد — ابدأ مشروعًا جديدًا للتحدي.' }));
       ps.slice(0, 40).forEach(p => list.appendChild(NX.optionRow('folder', p.name, 'آخر تعديل ' + timeAgo(p.updatedAt) + (p.publishedId ? ' · منشورة من قبل' : ''),
-        async () => { sheet.close(); this.closeView(); const fresh = await NX.Projects.get(p.projectId).catch(() => null) || p; await NX.Studio.open(fresh); this.submitFromStudio(); })));
+        async () => { sheet.close(); this.closeView(); const fresh = await NX.Projects.get(p.projectId).catch(() => null) || p; await NX.Studio.open(fresh); this.submitFromStudio(c); })));
     } catch (e) { list.textContent = ''; list.appendChild(el('p', { class: 'tiny', text: 'تعذّر جلب مشاريعك: ' + (NX.describeFirebaseError ? NX.describeFirebaseError(e) : e.message) })); }
   },
-  async newProject() {
+  async newProject(c) {
     if (!this.account()) { this.signIn(); return; }
-    const c = (this.cur && this.cur.challenge) || (await this.load().catch(() => ({}))).challenge;
+    c = c || (this.cur && this.cur.challenge) || (await this.load().catch(() => ({}))).challenge;
     if (!c) return;
     this.closeView();                       // first: its step in the phone's history is the one on top
     const p = await NX.Platform.createProject(c.emoji + ' ' + c.title, { challengeId: c.challengeId });
@@ -33764,27 +34074,40 @@ const Challenges = {
     setTimeout(() => {
       NX.Studio.openAI({ firstGame: true });
       const i = NX.AIPanel && NX.AIPanel.input;
-      if (i) { i.value = 'اصنع لعبة لتحدي «' + c.title + '»: ' + c.description; i.dispatchEvent(new Event('input')); }
+      if (i) { i.value = 'اصنع لعبة لتحدي «' + c.title + '»: ' + (c.objective || c.description) + ((c.rules || []).length ? ' — القواعد: ' + c.rules.join('، ') : ''); i.dispatchEvent(new Event('input')); }
     }, 800);
     Toast.show('اصنع لعبتك، ثم: المزيد ← 🏆 تسليم اللعبة للتحدي', '', 6000);
   },
-  /* the studio's «🏆 تسليم اللعبة للتحدي»: the Studio's own Publish, then the published game to the challenge */
-  async submitFromStudio() {
+  /* the studio's «🏆 تسليم اللعبة للتحدي»: which challenge (the one on now, or a friends' one being played),
+     then the Studio's own Publish, then the published game to that challenge */
+  async submitFromStudio(target) {
     const S = NX.Studio, p = S && S.project;
     if (!p) { Toast.err('افتح مشروع لعبتك أولًا'); return; }
     if (!Backend.isOnline()) { Toast.err('التسليم يحتاج اتصال الموقع بالسحابة — ' + (Backend.reason || 'الوضع المحلي')); return; }
     if (!this.account()) { NX.promptSignIn('التحديات لأصحاب الحسابات — سجّل الدخول ثم سلّم لعبتك.'); return; }
     if (p.ownerId !== Backend.user.uid) { Toast.err('تُسلَّم لعبة من مشاريعك أنت فقط'); return; }
     let j;
-    try { j = await this.load(); } catch (e) { this.fail(e); return; }
-    const c = j.challenge, me = j.me;
-    if (!c || c.status !== 'open' || c.endTime <= this.now()) { Toast.err('لا يوجد تحدٍّ مفتوح للتسليم الآن'); this.open(); return; }
-    const max = (c.rules && c.rules.maxSubmissionsPerUser) || 1;
-    if (me && (me.submissions || 0) >= max) {
-      Modal.open({ title: 'سلّمت في هذا التحدي', body: max === 1 ? 'قواعد هذا التحدي تسمح بتسليم واحد (وتقييم واحد) — نتيجتك في صفحة التحدي.' : 'وصلت الحد الأقصى للتسليم (' + max + ').',
-        actions: [{ label: 'إغلاق', cls: 'ghost' }, { label: 'افتح التحدي', cls: 'primary', onclick: () => this.open() }] });
+    try { j = await this.call('/mine'); } catch (e) { this.fail(e); return; }
+    const can = j.list.filter(x => !(x.me && (x.me.submissions || 0) >= ((x.challenge.policy && x.challenge.policy.maxSubmissionsPerUser) || 1)));
+    let pick = target ? can.find(x => x.challenge.challengeId === target.challengeId) : can.length === 1 ? can[0] : null;
+    if (target && !pick) {
+      const was = j.list.find(x => x.challenge.challengeId === target.challengeId);
+      Modal.open({ title: was ? 'سلّمت في هذا التحدي' : 'لا يمكن التسليم الآن', body: was ? 'قواعد هذا التحدي تسمح بتسليم واحد (وتقييم واحد) — نتيجتك في صفحته.' : 'انتهى وقت هذا التحدي أو لم يبدأ بعد.',
+        actions: [{ label: 'إغلاق', cls: 'ghost' }, { label: 'افتح التحدي', cls: 'primary', onclick: () => this.open(target.challengeId) }] });
       return;
     }
+    if (!pick && !can.length) {
+      Modal.open({ title: 'لا يوجد تحدٍّ تسلّم له الآن', body: j.list.length ? 'سلّمت لعبتك في كل تحدٍّ مفتوح لك.' : 'لا يوجد تحدٍّ مفتوح الآن — NEXUS AI يبتكر التالي، أو تحدَّ أصدقاءك.',
+        actions: [{ label: 'إغلاق', cls: 'ghost' }, { label: 'التحديات', cls: 'primary', onclick: () => this.open() }] });
+      return;
+    }
+    if (!pick) pick = await new Promise(res => {
+      /* the choice first: closing the sheet answers «none» (a promise keeps its first answer) */
+      const body = el('div', {}, can.map(x => NX.optionRow('spark', x.challenge.emoji + ' ' + x.challenge.title, (x.challenge.kind === 'friend' ? '👥 مع الأصدقاء' : '🏆 التحدي العام') + ' · ينتهي ' + when(x.challenge.endTime), () => { res(x); sheet.close(); })));
+      const sheet = Sheet.open({ title: 'لأي تحدٍّ تسلّم؟', body, id: 'chg-which', onClose: () => res(null) });
+    });
+    if (!pick) return;
+    const c = pick.challenge, me = pick.me;
     if (me && me.submitted && me.projectId && me.projectId !== p.projectId
       && !(await Modal.confirm('تسليم مشروع آخر؟', 'سلّمت «' + (me.title || me.projectId) + '» من قبل. يحلّ هذا محلّه ويُحكَّم من جديد.', 'سلّم هذا'))) return;
     S.openPublish({ challenge: c, after: (rec, build) => this.afterPublish(c, rec, build) });
@@ -33792,13 +34115,13 @@ const Challenges = {
   /* published: a 2-second test run → the server checks and keeps the entry → the judge, live */
   async afterPublish(c, rec, build) {
     const S = NX.Studio;
-    const steps = el('div', { class: 'chg-steps' }), live = el('div'), out = el('div');
+    const steps = el('div', { class: 'chg-steps' }), liveBox = el('div'), out = el('div');
     const step = (text, s = 'run') => {
       const r = el('div', { class: 'chg-step', dataset: { s } }, [el('i'), el('span', { text })]);
       steps.appendChild(r);
       return { ok: t => { r.dataset.s = 'ok'; if (t) r.lastChild.textContent = t; }, bad: t => { r.dataset.s = 'bad'; if (t) r.lastChild.textContent = t; } };
     };
-    const body = el('div', { class: 'chg-submitting' }, [el('div', { class: 'chg-top' }, [el('span', { class: 'chg-emoji', text: c.emoji }), el('div', { class: 'chg-tt' }, [el('b', { text: c.title }), el('span', { class: 'tiny', text: '🎮 ' + rec.title + ' · الإصدار ' + (rec.version || 1) })])]), steps, live, out]);
+    const body = el('div', { class: 'chg-submitting' }, [el('div', { class: 'chg-top' }, [el('span', { class: 'chg-emoji', text: c.emoji }), el('div', { class: 'chg-tt' }, [el('b', { text: c.title }), el('span', { class: 'tiny', text: '🎮 ' + rec.title + ' · الإصدار ' + (rec.version || 1) })])]), steps, liveBox, out]);
     Sheet.open({ title: '🏆 تسليم اللعبة للتحدي', body, id: 'chg-submit' });
     step('نُشرت اللعبة وتأكّد الخادم منها', 'ok');
     const t = step('تشغيل تجريبي لثانيتين (أخطاء التشغيل)…');
@@ -33814,12 +34137,12 @@ const Challenges = {
       s.ok('سُلّمت — تحقّق الخادم من حسابك واللعبة والمشروع، وقرأ نسخة اللعبة المنشورة');
     } catch (e) {
       s.bad('✕ ' + e.message);
-      out.appendChild(btn('افتح التحدي', { cls: 'block', onclick: () => this.open() }));
+      out.appendChild(btn('افتح التحدي', { cls: 'block', onclick: () => this.open(c.challengeId) }));
       return;
     }
-    const entry = await this.judgeLive(c, live);
+    const entry = await this.judgeLive(c, liveBox);
     if (entry) out.appendChild(this.entryCard(entry, c));
-    out.appendChild(btn('صفحة التحدي', { cls: 'block chg-open', style: { marginTop: '10px' }, onclick: () => this.open() }));
+    out.appendChild(btn('صفحة التحدي', { cls: 'block chg-open', style: { marginTop: '10px' }, onclick: () => this.open(c.kind === 'friend' ? c.challengeId : null) }));
     this.refresh();
   },
   /* the judge, as it works: each model's state, then the entry as the server kept it */
@@ -33880,6 +34203,7 @@ NX.Challenges = Challenges;
 if (Backend.onAuth) Backend.onAuth(() => { if (Challenges.view) Challenges.refresh(); });
 NX.Commands && NX.Commands.register([
   { label: '🏆 NEXUS CHALLENGES · التحدي الحالي', icon: 'flame', keywords: 'challenge challenges contest jam تحدي تحديات مسابقة جائزة', run: () => Challenges.open() },
+  { label: '👥 تحدٍّ مع الأصدقاء', icon: 'user', keywords: 'friend challenge friends تحدي أصدقاء', run: () => Challenges.friendNew() },
   { label: '🏆 تسليم اللعبة للتحدي', icon: 'share', keywords: 'submit challenge تسليم تحدي', run: () => (NX.Studio && NX.Studio.project ? Challenges.submitFromStudio() : Challenges.startSubmit()) }
 ]);
 </script>
@@ -35236,7 +35560,7 @@ NX.registerOfflineSupport = registerOfflineSupport;
     window.addEventListener('online', () => Toast.show('عاد الاتصال — اضغط مؤشر الحالة ثم «إعادة المحاولة» للاتصال من جديد', '', 6000), { once: true });
   }
 
-  /* deep links: #game/<id> · #app/<id> · #project/<id> · #challenges · #challenge/<id> */
+  /* deep links: #game/<id> · #app/<id> · #project/<id> · #challenges · #challenge/<id> · #fc/<id> */
   const route = async () => {
     const h = location.hash.slice(1);
     if (h.startsWith('game/')) {
@@ -35255,6 +35579,8 @@ NX.registerOfflineSupport = registerOfflineSupport;
       if (NX.Points) NX.Points.open();
     } else if (h === 'challenges' || h.startsWith('challenge/')) {
       if (NX.Challenges) NX.Challenges.open(h.startsWith('challenge/') ? h.slice(10) : null);   // PART 37
+    } else if (h.startsWith('fc/')) {
+      if (NX.Challenges) NX.Challenges.openFriend(h.slice(3));      // a challenge between friends (PART 37)
     } else if (h.startsWith('post/')) {
       const p = await NX.Posts.get(h.slice(5));
       if (p) NX.Community.openPost(p);

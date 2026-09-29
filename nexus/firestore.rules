@@ -591,8 +591,10 @@ service cloud.firestore {
       match /notifications/{nid} {
         allow read, delete: if signedIn() && me() == uid;
         allow update:       if signedIn() && me() == uid && onlyChanged(['read']);
-        // anyone may notify you, but only as themselves
-        allow create:       if signedIn() && incoming().actorId == me() && incoming().read == false;
+        // anyone may notify you, but only as themselves — a challenge notice (an invite, a start,
+        // a result) is written only by the challenges server, never by a browser
+        allow create:       if signedIn() && incoming().actorId == me() && incoming().read == false
+                            && incoming().get('type', '') != 'challenge';
       }
     }
     match /follows/{id} {
@@ -676,12 +678,16 @@ service cloud.firestore {
     // ---------------------------------------------------------------- NEXUS CHALLENGES
     // Everything here is written ONLY by the site's server
     // (netlify/edge-functions/challenges.js, with the service account): the
-    // challenges, the entries with the AI Judge's scores, the ranks and the
-    // prizes. No browser can write a score, a rank, a winner or a prize.
-    // A challenge (title, time, rubric, winner once final) is public;
-    // an entry is read by its own player only — the others see what the
-    // server's /api/challenges board shows (results hidden until the end
-    // when the challenge's rules say so); prize markers by nobody.
+    // challenges NEXUS AI invents, the friend challenges, the entries with
+    // the AI Judge's scores, the ranks, the prizes and their escrow. No
+    // browser can write a challenge, a score, a rank, a winner, a reward
+    // or a submission time.
+    // A public challenge (its idea, time, criteria, winner once final) is
+    // public; a friend challenge is read by its creator, its players and
+    // the friends invited; an entry by its own player only — the others see
+    // what the server's /api/challenges board shows (results hidden until
+    // the end when the challenge says so); prize markers, the AI's drafts
+    // and the daily counters by nobody.
     match /challenges/{cid} {
       allow read: if true;
       allow write: if false;
@@ -690,12 +696,22 @@ service cloud.firestore {
       allow read: if doc == 'config';
       allow write: if false;
     }
+    match /friendChallenges/{fid} {
+      allow read: if signedIn() && (existing().ownerId == me() || me() in existing().players || me() in existing().invited);
+      allow write: if false;
+    }
     match /challengeEntries/{eid} {
       allow get: if signedIn() && existing().uid == me();
       allow list: if signedIn() && existing().uid == me();
       allow write: if false;
     }
     match /challengeRewards/{rid} {
+      allow read, write: if false;
+    }
+    match /friendDrafts/{did} {
+      allow read, write: if false;
+    }
+    match /friendUsage/{uid} {
       allow read, write: if false;
     }
 

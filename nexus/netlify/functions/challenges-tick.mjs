@@ -2,8 +2,11 @@
    NEXUS CHALLENGES · the scheduled nudge (optional).
    Every 15 minutes Netlify runs this function; it asks the site's own
    /api/challenges/tick (netlify/edge-functions/challenges.js) to move what
-   is due: close an ended challenge, judge an entry whose judging is
-   pending, rank, pay the prizes. Nothing is decided here.
+   is due: close an ended challenge, have NEXUS AI invent the next one
+   (an idea and its review fit in the 24 s with a quick model; a slower
+   one carries on in the next run), judge an entry whose judging is
+   pending, rank, pay the prizes — the friends' challenges too. Nothing
+   is decided here.
    It does nothing until CHALLENGES_CRON_SECRET is set in Netlify's
    environment variables (the same value lets /tick run without an
    account). Without it NEXUS still moves everything along: each visitor's
