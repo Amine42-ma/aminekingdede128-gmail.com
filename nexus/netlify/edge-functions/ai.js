@@ -436,7 +436,8 @@ async function loadPool(force) {
   if (!force && Date.now() - pool.at < 60e3) return pool;
   try {
     const rows = await poolQuery('status', 'active');
-    pool = { at: Date.now(), readable: true, keys: rows.map(k => Object.assign(k, { provider: k.provider === 'custom' && k.base ? 'custom' : providerOf(k.key) })).filter(k => k.provider) };
+    /* a key of another site: only at a public https address (it may have been written by a browser), never one that failed its test */
+    pool = { at: Date.now(), readable: true, keys: rows.map(k => Object.assign(k, { provider: k.provider === 'custom' ? (k.base && safeBase(k.base) && k.tier !== 'failed' ? 'custom' : null) : providerOf(k.key) })).filter(k => k.provider) };
     CUSTOM.clear();
     pool.keys.filter(k => k.provider === 'custom').forEach(k => CUSTOM.set(k.key, { base: k.base, models: k.models, id: k.id }));
   } catch { pool = Object.assign({}, pool, { at: Date.now(), readable: false }); }
@@ -504,13 +505,18 @@ async function testCustom(base, key, models) {
 async function donateCustom(me, req) {
   if (me.provider === 'anonymous') return fail(401, 'signin', 'التبرّع يحتاج حسابًا (Google أو البريد)');
   const body = await req.json().catch(() => ({}));
-  const key = String(body.key || '').trim(), base = safeBase(body.base);
+  const key = String(body.key || '').trim();
+  let base = safeBase(body.base);
   if (!/^[\x21-\x7e]{10,300}$/.test(key)) return fail(400, 'format', 'هذا لا يشبه مفتاح API');
   if (!base) return fail(400, 'base', 'Base URL يجب أن يكون عنوان https عامًّا (مثل https://api.example.com/v1)');
   if (!poolReady()) return fail(503, 'pool', 'مجمّع المفاتيح غير مُعدّ على هذا الموقع');
   const hash = await sha256hex(key);
   if (await fsExists('api_key_hashes/' + hash)) return fail(409, 'duplicate', 'هذا المفتاح في المجمّع من قبل — لا يُتبرَّع بالمفتاح نفسه مرتين.');
   let models = [];
+  /* an address pasted without its version (…/v1): the site's /v1 is tried too */
+  if (!/\/v\d+[a-z]*$/i.test(base)) {
+    try { const r = await fetch(base + '/v1/models', timed(8000, { headers: { authorization: 'Bearer ' + key } })); if (r.ok) base = base + '/v1'; } catch { }
+  }
   try {
     const r = await fetch(base + '/models', timed(10000, { headers: { authorization: 'Bearer ' + key } }));
     if (r.status === 401 || r.status === 403) return fail(400, 'refused', 'الموقع رفض المفتاح (' + r.status + ')');
@@ -543,15 +549,23 @@ async function donorRefresh(uid, { test = false } = {}) {
   const strongKeys = [];
   for (const k of rows) {
     let tier = k.tier;
-    if (!tier || (test && k.provider !== 'custom')) {
-      const p = k.provider === 'custom' ? 'custom' : providerOf(k.key);
-      tier = p === 'custom' ? (STRONG_RE.test((k.models || [])[0] || '') ? 'strong' : 'normal')
-        : (await tryKey(p, k.key)) === 'ok' && ['gemini', 'groq', 'anthropic'].includes(p) ? 'strong' : 'normal';
-      await fsWrite('api_keys/' + k.id, { tier }).catch(() => {});
+    if (!tier || (test && (k.provider !== 'custom' || tier === 'failed'))) {         // a site that failed its test is tried again when the donor asks
+      if (k.provider === 'custom') {
+        /* given by a browser (the server was off then): its address checked and a real answer asked before any tier */
+        const base = safeBase(k.base), t = base ? await testCustom(base, k.key, k.models || []) : { ok: false };
+        tier = t.ok ? (STRONG_RE.test(t.model) ? 'strong' : 'normal') : 'failed';
+        await fsWrite('api_keys/' + k.id, t.ok ? { tier, testedModel: t.model } : { tier }).catch(() => {});
+      } else {
+        const p = providerOf(k.key);
+        tier = (await tryKey(p, k.key)) === 'ok' && ['gemini', 'groq', 'anthropic'].includes(p) ? 'strong' : 'normal';
+        await fsWrite('api_keys/' + k.id, { tier }).catch(() => {});
+      }
     }
     if (tier === 'strong') strongKeys.push(k.id);
+    if (tier === 'failed') k.failed = true;
   }
-  const rec = { tier: strongKeys.length ? 'strong' : rows.length ? 'normal' : 'none', strongKeys, keys: rows.length, updatedAt: new Date() };
+  const live = rows.filter(k => !k.failed).length;
+  const rec = { tier: strongKeys.length ? 'strong' : live ? 'normal' : 'none', strongKeys, keys: live, updatedAt: new Date() };
   await fsWrite('donors/' + uid, rec).catch(() => {});
   return { tier: rec.tier, keys: rec.keys, strong: strongKeys.length };
 }

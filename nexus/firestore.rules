@@ -27,6 +27,7 @@ service cloud.firestore {
     function onlyChanged(ks) { return incoming().diff(existing()).affectedKeys().hasOnly(ks); }
     // a counter may move by exactly 'by', and nothing else in the doc may change
     function bumped(f, by)   { return incoming()[f] == existing()[f] + by && onlyChanged([f]); }
+    function bumped0(f, by)  { return incoming().get(f, 0) == existing().get(f, 0) + by && onlyChanged([f]); }
     // A game published from a guest (anonymous) session moves to the account
     // the player signs in to: just before signing in, the guest session (the
     // owner) seals the doc with the SHA-256 of a one-time secret that only
@@ -102,7 +103,8 @@ service cloud.firestore {
 
       function ownerEdit() {
         return isOwner(existing()) && incoming().ownerId == existing().ownerId
-          && validTeam() && noNewMembers() && revOk();
+          && validTeam() && noNewMembers() && revOk()
+          && incoming().get('remixedFrom', null) == existing().get('remixedFrom', null);
       }
       // ownership goes to someone already in the team; the old owner may stay
       // on as a member or leave
@@ -146,8 +148,18 @@ service cloud.firestore {
 
       allow get:    if resource == null || isOwner(existing()) || inTeam(existing());
       allow list:   if isOwner(existing()) || inTeam(existing());
+      // a remix (PART 40): only of a game whose owner allows remixes (their own, always); the credit is kept for good
+      function remixOk(d) {
+        return !('remixedFrom' in d) || d.remixedFrom == null
+               || (d.remixedFrom.gameId is string
+                   && exists(/databases/$(database)/documents/games/$(d.remixedFrom.gameId))
+                   && (get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.ownerId == me()
+                       || (get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.get('allowRemix', true) == true
+                           && get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.visibility in ['public', 'unlisted']))
+                   && d.remixedFrom.ownerId == get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.ownerId);
+      }
       allow create: if signedIn() && incoming().ownerId == me() && incoming().projectId == projectId
-                    && team(incoming()).size() == 0 && incoming().get('members', {}).size() == 0;
+                    && team(incoming()).size() == 0 && incoming().get('members', {}).size() == 0 && remixOk(incoming());
       allow update: if ownerEdit() || transfer() || memberEdit() || joining() || leaving();
       allow delete: if resource == null || isOwner(existing());
 
@@ -249,12 +261,19 @@ service cloud.firestore {
                                      && d.gameId == gameId && validVis(d.visibility) && validAge(d); }
       allow get:  if resource == null || existing().visibility in ['public', 'unlisted'] || isOwner(existing());
       allow list: if existing().visibility == 'public' || isOwner(existing());
+      // a published remix names its original exactly as its project does (PART 40)
+      function creditOk(d) {
+        return !('projectId' in d) || !(d.projectId is string) || !exists(/databases/$(database)/documents/projects/$(d.projectId))
+               || get(/databases/$(database)/documents/projects/$(d.projectId)).data.get('remixedFrom', null) == d.get('remixedFrom', null);
+      }
       allow create: if signedIn() && incoming().ownerId == me() && validGame(incoming())
-                    && incoming().plays == 0 && incoming().likes == 0;
+                    && incoming().plays == 0 && incoming().likes == 0 && incoming().get('remixes', 0) == 0 && creditOk(incoming());
       allow update: if (isOwner(existing()) && incoming().ownerId == existing().ownerId && validGame(incoming())
                         && incoming().plays == existing().plays && incoming().likes == existing().likes
+                        && incoming().get('remixes', 0) == existing().get('remixes', 0) && creditOk(incoming())
                         && incoming().createdAt == existing().createdAt)
                     || (signedIn() && bumped('plays', 1))
+                    || (signedIn() && !isOwner(existing()) && bumped0('remixes', 1))
                     || (signedIn() && bumped('likes', 1)
                         && existsAfter(/databases/$(database)/documents/games/$(gameId)/likes/$(request.auth.uid))
                         && !exists(/databases/$(database)/documents/games/$(gameId)/likes/$(request.auth.uid)))
@@ -376,6 +395,13 @@ service cloud.firestore {
         return k is string && k.size() >= 20 && k.size() <= 200
                && k.matches('(AIza[0-9A-Za-z_-]+|AQ[.][0-9A-Za-z_.-]+|gsk_[A-Za-z0-9]+|sk-or-[A-Za-z0-9_-]+|sk-ant-[A-Za-z0-9_-]+)');
       }
+      // a key of ANY OpenAI-compatible site, given with its public https address (…/v1): kept here even when
+      // the site's server does not run; the server checks the address and tests the key before using it
+      function customKey(d) {
+        return d.get('provider', '') == 'custom' && d.key is string && d.key.size() >= 10 && d.key.size() <= 300 && d.key.matches('[!-~]+')
+               && d.base is string && d.base.size() <= 200 && d.base.matches('https://[A-Za-z0-9.-]+[.][A-Za-z]{2,}(:443)?(/[A-Za-z0-9._~/-]*)?')
+               && d.models is list && d.models.size() >= 1 && d.models.size() <= 80;
+      }
       // the key's SHA-256, computed HERE from the key itself: a key already in
       // the pool (api_key_hashes/<hash>) cannot be given again, by anyone
       function keyHash()   { return hashing.sha256(incoming().key).toHexString().lower(); }
@@ -383,16 +409,17 @@ service cloud.firestore {
       allow create: if signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'
                     && keyId.matches(me() + '_[0-4]')
                     && incoming().keys().hasAll(['key', 'createdAt', 'status', 'failCount', 'donorUid', 'keyHash'])
-                    && incoming().keys().hasOnly(['key', 'createdAt', 'status', 'failCount', 'donorUid', 'provider', 'keyHash'])
-                    && poolKey(incoming().key)
+                    && incoming().keys().hasOnly(['key', 'createdAt', 'status', 'failCount', 'donorUid', 'provider', 'keyHash', 'base', 'models'])
+                    && ((poolKey(incoming().key) && !('base' in incoming()) && !('models' in incoming())
+                         && (!('provider' in incoming()) || incoming().provider in ['gemini', 'groq', 'openrouter', 'anthropic']))
+                        || customKey(incoming()))
                     && incoming().keyHash == keyHash()
                     && !exists(/databases/$(database)/documents/api_key_hashes/$(keyHash()))
                     && getAfter(/databases/$(database)/documents/api_key_hashes/$(keyHash())).data.slot == keyId
                     && incoming().createdAt == request.time
                     && incoming().status == 'active'
                     && incoming().failCount == 0
-                    && incoming().donorUid == me()
-                    && (!('provider' in incoming()) || incoming().provider in ['gemini', 'groq', 'openrouter', 'anthropic']);
+                    && incoming().donorUid == me();
       allow update: if false;
       allow delete: if signedIn() && existing().donorUid == me();
     }
@@ -718,6 +745,41 @@ service cloud.firestore {
     match /donors/{uid} {
       allow read: if true;
       allow write: if false;
+    }
+    // ---------------------------------------------------------------- mechanics (PART 40)
+    // what makes an object behave, saved by its maker — private, or public for everyone to add
+    match /mechanics/{id} {
+      function validMech(d) {
+        return d.mechId == id && d.name is string && d.name.size() > 0 && d.name.size() <= 60
+               && d.description is string && d.description.size() <= 300 && d.kind in ['component', 'script']
+               && d.type is string && d.type.size() <= 60 && d.code is string && d.code.size() <= 60000
+               && d.visibility in ['private', 'public'] && d.source in ['human', 'ai'] && d.uses is int
+               && d.keys().hasOnly(['mechId', 'ownerId', 'creatorName', 'name', 'description', 'kind', 'type', 'path', 'code', 'data', 'visibility', 'source', 'uses', 'createdAt', 'updatedAt']);
+      }
+      allow get:    if resource == null || existing().visibility == 'public' || isOwner(existing());
+      allow list:   if existing().visibility == 'public' || isOwner(existing());
+      allow create: if hasAccount() && incoming().ownerId == me() && validMech(incoming()) && incoming().uses == 0;
+      allow update: if (isOwner(existing()) && incoming().ownerId == me() && validMech(incoming()) && incoming().uses == existing().uses)
+                    || (signedIn() && !isOwner(existing()) && bumped('uses', 1));
+      allow delete: if isOwner(existing());
+    }
+    // ---------------------------------------------------------------- NEXUS Learner (Beta, PART 40)
+    // what worked — written by its maker into one of their 300 places, read by anyone signed in; others may
+    // only count it (+1 used / worked / failed)
+    match /learner/{id} {
+      function myPlace() { return signedIn() && id.matches(me() + '_[0-9]{1,3}') && int(id.split('_')[1]) < 300; }
+      function validCase(d) {
+        return d.by == me() && d.kind in ['answer', 'plan', 'mechanic', 'game2d'] && d.source in ['ai', 'human']
+               && d.prompt is string && d.prompt.size() <= 500 && d.text is string && d.text.size() >= 20 && d.text.size() <= 60000
+               && d.tokens is list && d.tokens.size() >= 1 && d.tokens.size() <= 24 && d.model is string && d.model.size() <= 80
+               && d.lang is string && d.lang.size() <= 5 && d.ok == 0 && d.fail == 0 && d.uses == 0
+               && d.keys().hasOnly(['by', 'kind', 'source', 'model', 'prompt', 'text', 'tokens', 'lang', 'ok', 'fail', 'uses', 'at']);
+      }
+      allow get, list: if signedIn();
+      allow create:    if hasAccount() && myPlace() && validCase(incoming());
+      allow update:    if (hasAccount() && myPlace() && validCase(incoming()))
+                       || (signedIn() && existing().by != me() && (bumped('uses', 1) || bumped('ok', 1) || bumped('fail', 1)));
+      allow delete:    if signedIn() && existing().by == me();
     }
     // the interface's translations (English · हिन्दी) and their daily budget: only the translation server (/api/i18n)
     match /i18n_cache/{d} {

@@ -12,6 +12,21 @@ window.NX_SANDBOX = location.hash === '#nx-sandbox' && window.parent !== window;
   var m = /^(.*\/)(game|app|f|challenge|fc)\/([A-Za-z0-9_-]+)\/?$/.exec(location.pathname);
   if (m) history.replaceState(null, '', m[1] + location.search + '#' + m[2] + '/' + m[3]);
 })();
+/* the WHOLE interface in English or हिन्दी before anything is drawn: i18n/<lang>.js (PART 2) — the visitor's
+   choice, else the browser's language on a first visit, as i18n.detect() decides */
+(function () {
+  if (window.NX_SANDBOX) return;
+  try {
+    var l = null;
+    try { l = JSON.parse(localStorage.getItem('nx.lang') || 'null'); } catch (e) { }
+    if (l !== 'ar' && l !== 'en' && l !== 'hi') {
+      l = 'en';
+      var ls = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''];
+      for (var i = 0; i < ls.length; i++) { var b = String(ls[i]).toLowerCase().split('-')[0]; if (b === 'ar' || b === 'en' || b === 'hi') { l = b; break; } }
+    }
+    if (l === 'en' || l === 'hi') document.write('<script src="i18n/' + l + '.js"><\/script>');
+  } catch (e) { }
+})();
 </script>
 <!-- the interface in العربية · English · हिन्दी (i18n) — without it NEXUS stays in Arabic -->
 <script src="translations.js" defer></script>
@@ -1832,6 +1847,27 @@ html[lang="hi"]{--font:'Hind','Noto Sans Devanagari','Nirmala UI','Mangal',syste
 .tt-ai .tiny{margin:0}
 .tt-askq{margin:0 0 8px;font-size:14.5px;line-height:1.7;font-weight:700}
 /* /NX-CSS:38 */
+/* NX-CSS:40 · Remix · Mechanics · Learner */
+.rmx-btn{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:8px 14px;font-weight:800;font-size:13px;color:#fff;background:linear-gradient(90deg,#7c5cff,#22d3ee);box-shadow:0 10px 26px -12px rgba(124,92,255,.9)}
+.rmx-float{position:absolute;top:calc(var(--sat) + 10px);inset-inline-start:12px;z-index:5}
+html[data-sandbox] #p-remix{display:none!important}
+.sc-remix{background:linear-gradient(135deg,rgba(124,92,255,.22),rgba(34,211,238,.18))!important;border-color:rgba(124,92,255,.5)!important}
+.sc-rmx-ic{font-size:20px;line-height:1}
+.rmx-credit{margin:10px 2px;font-size:12.5px;color:var(--muted)}
+.rmx-orig{color:var(--cyan);font-weight:700;background:none;border:0;padding:0;cursor:pointer}
+.rmx-bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 8px}
+.rmx-tag{font-size:12px;padding:3px 10px;border-radius:999px;background:linear-gradient(90deg,rgba(124,92,255,.3),rgba(34,211,238,.25))}
+.mech-row{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:9px 10px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:rgba(255,255,255,.02)}
+.mech-name{min-width:0;display:flex;flex-direction:column;gap:2px}
+.mech-name small{color:var(--muted);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mech-acts{display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+.mech-bar{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.lrn-beta{display:flex;align-items:center;gap:8px}
+.lrn-tag{font-size:10.5px;font-weight:900;letter-spacing:.08em;padding:2px 8px;border-radius:999px;background:#f59e0b;color:#1a1300}
+.lrn-sw{display:flex;gap:8px;align-items:center;margin:6px 0}
+.lrn-out{white-space:pre-wrap;font-size:13px;line-height:1.7;margin-top:10px}
+.kp-mode button{flex:1}
+/* /NX-CSS:40 */
 </style>
 </head>
 <body>
@@ -2106,7 +2142,7 @@ const Phrases = {
   map: null, obs: null, texts: new WeakMap(), attrs: new WeakMap(),
   ATTRS: ['placeholder', 'title', 'aria-label'],
   /* never translated: code, the code editor, a game's own interface, what a player types */
-  SKIP: 'script,style,textarea,code,pre,.ed-wrap,.mono,[contenteditable="true"],[data-no-i18n],#game-ui-layer,.ai-msg.me',
+  SKIP: 'script,style,textarea,code,pre,.ed-wrap,[contenteditable="true"],[data-no-i18n],#game-ui-layer,.ai-msg.me',
   build() {
     const m = new Map(), add = row => row.forEach(v => { if (v && !m.has(v)) m.set(v, row); });
     for (const [ar, t] of Object.entries(I18N.phrases || {})) add([ar, t[0] || ar, t[1] || t[0] || ar]);
@@ -2115,12 +2151,18 @@ const Phrases = {
   },
   to(s, lang) {
     const k = String(s == null ? '' : s).trim(), row = (this.map || this.build()).get(k);
-    return row ? row[LANG_IX[lang] || 0] : (LANG_IX[lang] && k && Remote.get(k, LANG_IX[lang])) || s;
+    if (row) return row[LANG_IX[lang] || 0];
+    if (!LANG_IX[lang] || !k || !/[\u0621-\u064A]/.test(k)) return s;
+    const f = Full.get(k, lang);
+    return f != null ? f : Remote.get(k, LANG_IX[lang]) || s;
   },
   swap(src, ix) {
     const k = src.trim(), row = k && k.length < 400 && this.map.get(k);
     if (row) return src.replace(k, row[ix]);
-    const t = ix && k && Remote.get(k, ix);      // not in translations.js: the translation service's (NEXUS AI, once, for everyone)
+    if (!ix || !k || !/[\u0621-\u064A]/.test(k)) return null;
+    const f = Full.get(k, ix === 1 ? 'en' : 'hi');     // every other text of NEXUS (i18n/<lang>.js)
+    if (f != null) return src.replace(k, f);
+    const t = Remote.get(k, ix);                       // still missing: the translation service's (NEXUS AI, once, for everyone)
     return t ? src.replace(k, t) : null;
   },
   text(n, ix, checked) {
@@ -2164,6 +2206,86 @@ const Phrases = {
       }
     });
     this.obs.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: this.ATTRS });
+  }
+};
+/* every other text of the interface: i18n/<lang>.js (window.NX_I18N_FULL[lang] = { 'النص العربي': 'translation' }),
+   written once from all the Arabic texts of NEXUS — numbers and inserted values as {0}, {1}… (a text with values
+   put in is found by its pattern, its Arabic values translated too; parts joined by « · » or « — » one by one) */
+const AR_RE = /[\u0621-\u064A]/, AR_WORD = /[\u0621-\u064A]{2,}/g;
+const Full = {
+  ix: {}, memo: {},
+  dict(lang) { return (window.NX_I18N_FULL || {})[lang] || null; },
+  load(lang, done) {
+    if (this.dict(lang)) { if (done) done(); return; }
+    if (this['_' + lang]) return;
+    this['_' + lang] = 1;
+    const s = document.createElement('script');
+    s.src = 'i18n/' + lang + '.js';
+    s.onload = () => { this.ix[lang] = null; this.memo[lang] = null; if (done) done(); };
+    s.onerror = () => { this['_' + lang] = 0; };
+    document.head.appendChild(s);
+  },
+  index(lang) {
+    if (this.ix[lang]) return this.ix[lang];
+    const d = this.dict(lang), by = new Map();
+    for (const k in d) {
+      if (!/\{\d+\}/.test(k)) continue;
+      const parts = k.split(/\{(\d+)\}/), fixed = parts.filter((_, i) => i % 2 === 0).join(' ');
+      const w = (fixed.match(AR_WORD) || [])[0];
+      if (!w || fixed.replace(/\s+/g, '').length < 3) continue;
+      let re = '^';
+      parts.forEach((p, i) => { re += i % 2 === 0 ? p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '([\\s\\S]+?)'; });
+      if (!by.has(w)) by.set(w, []);
+      by.get(w).push({ re: new RegExp(re + '$'), ord: parts.filter((_, i) => i % 2 === 1).map(Number), out: d[k] });
+    }
+    return (this.ix[lang] = by);
+  },
+  core(v, lang) { const row = Phrases.map && Phrases.map.get(v); return row ? row[LANG_IX[lang]] : null; },
+  get(k, lang, depth = 0) {
+    const d = this.dict(lang);
+    if (!d) return null;
+    if (d[k] != null) return d[k];
+    const m = this.memo[lang] || (this.memo[lang] = new Map());
+    if (m.has(k)) return m.get(k);
+    const t = this.find(k, lang, d, depth);
+    if (m.size > 5000) m.clear();
+    m.set(k, t);
+    return t;
+  },
+  find(k, lang, d, depth) {
+    if (k.includes('\n')) {                              // line by line (texts shown with their line breaks)
+      let any = false, miss = false;
+      const out = k.split('\n').map(l => { const s = l.trim(); if (!s || !AR_RE.test(s)) return l; const x = this.get(s, lang, depth + 1) || this.core(s, lang); if (x == null) { miss = true; return l; } any = true; return l.replace(s, x); });
+      return any && !miss ? out.join('\n') : null;
+    }
+    const flat = k.replace(/\s+/g, ' ');
+    if (flat !== k && d[flat] != null) return d[flat];
+    const nums = [], kn = flat.replace(/[0-9٠-٩]+(?:[.,٫][0-9٠-٩]+)*/g, x => '{' + (nums.push(x) - 1) + '}');
+    if (nums.length && d[kn] != null) return d[kn].replace(/\{(\d+)\}/g, (x, i) => nums[i] != null ? nums[i] : x);
+    if (depth > 1) return null;
+    const ix = this.index(lang), seen = new Set();
+    for (const w of flat.match(AR_WORD) || []) {
+      if (seen.has(w)) continue;
+      seen.add(w);
+      for (const c of ix.get(w) || []) {
+        const mm = c.re.exec(flat);
+        if (!mm) continue;
+        const vals = mm.slice(1).map(v => AR_RE.test(v) ? (this.get(v.trim(), lang, depth + 1) || this.core(v.trim(), lang) || v) : v);
+        return c.out.replace(/\{(\d+)\}/g, (x, i) => { const j = c.ord.indexOf(+i); return j >= 0 && vals[j] != null ? vals[j] : x; });
+      }
+    }
+    const segs = flat.split(/( · | — | – |: | \| )/);
+    if (segs.length > 1) {
+      let ok = true;
+      const out = segs.map((s, i) => {
+        if (i % 2 || !AR_RE.test(s)) return s;
+        const x = this.get(s.trim(), lang, depth + 1) || this.core(s.trim(), lang);
+        if (x == null) { ok = false; return s; }
+        return s.replace(s.trim(), x);
+      });
+      if (ok) return out.join('');
+    }
+    return null;
   }
 };
 /* the rest of the interface: a text translations.js lacks is asked of NEXUS's translation service
@@ -2254,7 +2376,10 @@ function setLanguage(l) {
   $$('[data-i18n-placeholder]').forEach(n => { n.placeholder = i18n.t(n.dataset.i18nPlaceholder); });
   $$('[data-i18n-title]').forEach(n => { n.title = i18n.t(n.dataset.i18nTitle); });
   document.title = i18n.t('APP_TITLE');
-  if (l !== 'ar') Remote.load(l);
+  if (l !== 'ar') {
+    Remote.load(l);
+    Full.load(l, () => { if (i18n.lang === l && document.body) Phrases.walk(document.body, LANG_IX[l]); });
+  }
   if (Phrases.map || Phrases.build()) { if (document.body) Phrases.walk(document.body, ix); Phrases.watch(l !== 'ar'); }
   window.dispatchEvent(new CustomEvent('nx:lang', { detail: { lang: l } }));
 }
@@ -4127,6 +4252,7 @@ const Games = {
         version: ((prev && prev.version) || 0) + 1,
         assetCount: usedIds.length, hasCode: code > 0,
         leaderboard: NX.Leaderboards ? NX.Leaderboards.clean(project.settings && project.settings.leaderboard) : null,
+        allowRemix: meta.allowRemix !== false, remixedFrom: project.remixedFrom || null,
         searchTokens: buildSearchTokens({ name: title, tags: [meta.genre || ''].concat(meta.tags || [], (sc && sc.tags) || []), category: meta.genre || '', creatorName: u.name })
       };
 
@@ -4152,7 +4278,7 @@ const Games = {
       if (!b || b.updatedAt !== now) throw coded('publish-not-confirmed', 'BUILD_NOT_ON_SERVER');
 
       project.publishedId = gameId;
-      project.publishMeta = { title, description: rec.description, genre: rec.genre, ageRating: rec.ageRating, visibility, cover, coverURL, thumb: rec.thumb, thumbURL: rec.thumbURL };
+      project.publishMeta = { title, description: rec.description, genre: rec.genre, ageRating: rec.ageRating, visibility, cover, coverURL, thumb: rec.thumb, thumbURL: rec.thumbURL, allowRemix: rec.allowRemix };
       try { await Projects.save(project); }
       catch (e) { warnings.push('نُشرت اللعبة، لكن تعذّر حفظ المشروع: ' + describeFirebaseError(e)); }
       return Object.assign({}, g, { verified: true, warnings, link: gameLink(gameId) });
@@ -4373,6 +4499,7 @@ service cloud.firestore {
     function onlyChanged(ks) { return incoming().diff(existing()).affectedKeys().hasOnly(ks); }
     // a counter may move by exactly 'by', and nothing else in the doc may change
     function bumped(f, by)   { return incoming()[f] == existing()[f] + by && onlyChanged([f]); }
+    function bumped0(f, by)  { return incoming().get(f, 0) == existing().get(f, 0) + by && onlyChanged([f]); }
     // A game published from a guest (anonymous) session moves to the account
     // the player signs in to: just before signing in, the guest session (the
     // owner) seals the doc with the SHA-256 of a one-time secret that only
@@ -4448,7 +4575,8 @@ service cloud.firestore {
 
       function ownerEdit() {
         return isOwner(existing()) && incoming().ownerId == existing().ownerId
-          && validTeam() && noNewMembers() && revOk();
+          && validTeam() && noNewMembers() && revOk()
+          && incoming().get('remixedFrom', null) == existing().get('remixedFrom', null);
       }
       // ownership goes to someone already in the team; the old owner may stay
       // on as a member or leave
@@ -4492,8 +4620,18 @@ service cloud.firestore {
 
       allow get:    if resource == null || isOwner(existing()) || inTeam(existing());
       allow list:   if isOwner(existing()) || inTeam(existing());
+      // a remix (PART 40): only of a game whose owner allows remixes (their own, always); the credit is kept for good
+      function remixOk(d) {
+        return !('remixedFrom' in d) || d.remixedFrom == null
+               || (d.remixedFrom.gameId is string
+                   && exists(/databases/$(database)/documents/games/$(d.remixedFrom.gameId))
+                   && (get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.ownerId == me()
+                       || (get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.get('allowRemix', true) == true
+                           && get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.visibility in ['public', 'unlisted']))
+                   && d.remixedFrom.ownerId == get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.ownerId);
+      }
       allow create: if signedIn() && incoming().ownerId == me() && incoming().projectId == projectId
-                    && team(incoming()).size() == 0 && incoming().get('members', {}).size() == 0;
+                    && team(incoming()).size() == 0 && incoming().get('members', {}).size() == 0 && remixOk(incoming());
       allow update: if ownerEdit() || transfer() || memberEdit() || joining() || leaving();
       allow delete: if resource == null || isOwner(existing());
 
@@ -4595,12 +4733,19 @@ service cloud.firestore {
                                      && d.gameId == gameId && validVis(d.visibility) && validAge(d); }
       allow get:  if resource == null || existing().visibility in ['public', 'unlisted'] || isOwner(existing());
       allow list: if existing().visibility == 'public' || isOwner(existing());
+      // a published remix names its original exactly as its project does (PART 40)
+      function creditOk(d) {
+        return !('projectId' in d) || !(d.projectId is string) || !exists(/databases/$(database)/documents/projects/$(d.projectId))
+               || get(/databases/$(database)/documents/projects/$(d.projectId)).data.get('remixedFrom', null) == d.get('remixedFrom', null);
+      }
       allow create: if signedIn() && incoming().ownerId == me() && validGame(incoming())
-                    && incoming().plays == 0 && incoming().likes == 0;
+                    && incoming().plays == 0 && incoming().likes == 0 && incoming().get('remixes', 0) == 0 && creditOk(incoming());
       allow update: if (isOwner(existing()) && incoming().ownerId == existing().ownerId && validGame(incoming())
                         && incoming().plays == existing().plays && incoming().likes == existing().likes
+                        && incoming().get('remixes', 0) == existing().get('remixes', 0) && creditOk(incoming())
                         && incoming().createdAt == existing().createdAt)
                     || (signedIn() && bumped('plays', 1))
+                    || (signedIn() && !isOwner(existing()) && bumped0('remixes', 1))
                     || (signedIn() && bumped('likes', 1)
                         && existsAfter(/databases/$(database)/documents/games/$(gameId)/likes/$(request.auth.uid))
                         && !exists(/databases/$(database)/documents/games/$(gameId)/likes/$(request.auth.uid)))
@@ -4722,6 +4867,13 @@ service cloud.firestore {
         return k is string && k.size() >= 20 && k.size() <= 200
                && k.matches('(AIza[0-9A-Za-z_-]+|AQ[.][0-9A-Za-z_.-]+|gsk_[A-Za-z0-9]+|sk-or-[A-Za-z0-9_-]+|sk-ant-[A-Za-z0-9_-]+)');
       }
+      // a key of ANY OpenAI-compatible site, given with its public https address (…/v1): kept here even when
+      // the site's server does not run; the server checks the address and tests the key before using it
+      function customKey(d) {
+        return d.get('provider', '') == 'custom' && d.key is string && d.key.size() >= 10 && d.key.size() <= 300 && d.key.matches('[!-~]+')
+               && d.base is string && d.base.size() <= 200 && d.base.matches('https://[A-Za-z0-9.-]+[.][A-Za-z]{2,}(:443)?(/[A-Za-z0-9._~/-]*)?')
+               && d.models is list && d.models.size() >= 1 && d.models.size() <= 80;
+      }
       // the key's SHA-256, computed HERE from the key itself: a key already in
       // the pool (api_key_hashes/<hash>) cannot be given again, by anyone
       function keyHash()   { return hashing.sha256(incoming().key).toHexString().lower(); }
@@ -4729,16 +4881,17 @@ service cloud.firestore {
       allow create: if signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'
                     && keyId.matches(me() + '_[0-4]')
                     && incoming().keys().hasAll(['key', 'createdAt', 'status', 'failCount', 'donorUid', 'keyHash'])
-                    && incoming().keys().hasOnly(['key', 'createdAt', 'status', 'failCount', 'donorUid', 'provider', 'keyHash'])
-                    && poolKey(incoming().key)
+                    && incoming().keys().hasOnly(['key', 'createdAt', 'status', 'failCount', 'donorUid', 'provider', 'keyHash', 'base', 'models'])
+                    && ((poolKey(incoming().key) && !('base' in incoming()) && !('models' in incoming())
+                         && (!('provider' in incoming()) || incoming().provider in ['gemini', 'groq', 'openrouter', 'anthropic']))
+                        || customKey(incoming()))
                     && incoming().keyHash == keyHash()
                     && !exists(/databases/$(database)/documents/api_key_hashes/$(keyHash()))
                     && getAfter(/databases/$(database)/documents/api_key_hashes/$(keyHash())).data.slot == keyId
                     && incoming().createdAt == request.time
                     && incoming().status == 'active'
                     && incoming().failCount == 0
-                    && incoming().donorUid == me()
-                    && (!('provider' in incoming()) || incoming().provider in ['gemini', 'groq', 'openrouter', 'anthropic']);
+                    && incoming().donorUid == me();
       allow update: if false;
       allow delete: if signedIn() && existing().donorUid == me();
     }
@@ -5064,6 +5217,41 @@ service cloud.firestore {
     match /donors/{uid} {
       allow read: if true;
       allow write: if false;
+    }
+    // ---------------------------------------------------------------- mechanics (PART 40)
+    // what makes an object behave, saved by its maker — private, or public for everyone to add
+    match /mechanics/{id} {
+      function validMech(d) {
+        return d.mechId == id && d.name is string && d.name.size() > 0 && d.name.size() <= 60
+               && d.description is string && d.description.size() <= 300 && d.kind in ['component', 'script']
+               && d.type is string && d.type.size() <= 60 && d.code is string && d.code.size() <= 60000
+               && d.visibility in ['private', 'public'] && d.source in ['human', 'ai'] && d.uses is int
+               && d.keys().hasOnly(['mechId', 'ownerId', 'creatorName', 'name', 'description', 'kind', 'type', 'path', 'code', 'data', 'visibility', 'source', 'uses', 'createdAt', 'updatedAt']);
+      }
+      allow get:    if resource == null || existing().visibility == 'public' || isOwner(existing());
+      allow list:   if existing().visibility == 'public' || isOwner(existing());
+      allow create: if hasAccount() && incoming().ownerId == me() && validMech(incoming()) && incoming().uses == 0;
+      allow update: if (isOwner(existing()) && incoming().ownerId == me() && validMech(incoming()) && incoming().uses == existing().uses)
+                    || (signedIn() && !isOwner(existing()) && bumped('uses', 1));
+      allow delete: if isOwner(existing());
+    }
+    // ---------------------------------------------------------------- NEXUS Learner (Beta, PART 40)
+    // what worked — written by its maker into one of their 300 places, read by anyone signed in; others may
+    // only count it (+1 used / worked / failed)
+    match /learner/{id} {
+      function myPlace() { return signedIn() && id.matches(me() + '_[0-9]{1,3}') && int(id.split('_')[1]) < 300; }
+      function validCase(d) {
+        return d.by == me() && d.kind in ['answer', 'plan', 'mechanic', 'game2d'] && d.source in ['ai', 'human']
+               && d.prompt is string && d.prompt.size() <= 500 && d.text is string && d.text.size() >= 20 && d.text.size() <= 60000
+               && d.tokens is list && d.tokens.size() >= 1 && d.tokens.size() <= 24 && d.model is string && d.model.size() <= 80
+               && d.lang is string && d.lang.size() <= 5 && d.ok == 0 && d.fail == 0 && d.uses == 0
+               && d.keys().hasOnly(['by', 'kind', 'source', 'model', 'prompt', 'text', 'tokens', 'lang', 'ok', 'fail', 'uses', 'at']);
+      }
+      allow get, list: if signedIn();
+      allow create:    if hasAccount() && myPlace() && validCase(incoming());
+      allow update:    if (hasAccount() && myPlace() && validCase(incoming()))
+                       || (signedIn() && existing().by != me() && (bumped('uses', 1) || bumped('ok', 1) || bumped('fail', 1)));
+      allow delete:    if signedIn() && existing().by == me();
     }
     // the interface's translations (English · हिन्दी) and their daily budget: only the translation server (/api/i18n)
     match /i18n_cache/{d} {
@@ -10216,6 +10404,10 @@ const Studio = {
     })().then(drawMedia);
     drawMedia();
 
+    /* 🔁 others may remix it (a copy of their own, crediting this game) — the owner decides */
+    const remixOk = el('input', { type: 'checkbox', id: 'pub-remix', checked: !(p.publishMeta && p.publishMeta.allowRemix === false) });
+    body.appendChild(el('label', { class: 'tiny pub-remix', for: 'pub-remix', style: { display: 'flex', gap: '8px', alignItems: 'center', margin: '12px 0 4px' } },
+      [remixOk, el('span', { 'data-i18n': 'REMIX_ALLOW', text: T('REMIX_ALLOW') })]));
     /* every published game is public */
     const vis = 'public';
     body.appendChild(el('p', { class: 'tiny', text: 'تُنشر لعبتك على الموقع ليلعبها الآخرون من أي جهاز — مجسماتك تُحمَّل من مكانها كما هي.' }));
@@ -10273,9 +10465,11 @@ const Studio = {
           const build = await this.buildProject({ silent: true });
           if (!build || !build.ok) { say(''); Toast.err('لا يمكن النشر: البناء فاشل'); if (NX.IDE) NX.IDE.open(p, { panel: 'problems' }); return; }
           say('الإرسال إلى الخادم والتحقق…');
-          const meta = { title: title.value.trim() || p.name, description: desc.value.trim(), genre: genre.value, visibility: vis, cover: prev.cover || null, coverURL: prev.coverURL || null, ageRating: age ? age.select.value : '3' };
+          const meta = { title: title.value.trim() || p.name, description: desc.value.trim(), genre: genre.value, visibility: vis, cover: prev.cover || null, coverURL: prev.coverURL || null, ageRating: age ? age.select.value : '3', allowRemix: remixOk.checked };
           if (age) { p.showcase = Object.assign({}, p.showcase || {}, { ageRating: age.select.value, ageSuggested: age.select.dataset.floor || '3' }); }
           const rec = await Games.publish(p, meta, build, { coverBlob: need.cover.blob || null, iconBlob: need.icon.blob || null });
+          if (NX.Learner) (p.files || []).filter(f => !f.ai && /\.(m?js|ts)$/i.test(f.path) && (f.code || '').length >= 200).slice(0, 6)
+            .forEach(f => NX.Learner.record({ kind: 'mechanic', source: 'human', prompt: f.path.replace(/\.[^.]+$/, '') + ' — ' + (rec.title || p.name), text: f.code }));
           say('');
           sheet.close();
           window.dispatchEvent(new CustomEvent('nx:platformRefresh'));
@@ -13698,7 +13892,7 @@ const Executor = {
         while (project.files.some(f => f.path === path)) path = action.path.replace(/(\.[^.]+)$/, '_' + (i++) + '$1');
         const f = {
           id: uid('f'), path, code: action.code || '', role: action.role || NX.fileRole(path),
-          entityId: null, enabled: true
+          entityId: null, enabled: true, ai: true                    // written by the assistant (the Learner tells human work from AI work)
         };
         if (action.attachTo) { const e = engine.findByName(action.attachTo); if (e) f.entityId = e.id; }
         project.files.push(f);
@@ -14144,7 +14338,7 @@ const Builder = {
   on(cb) { this.listeners.push(cb); return () => { const i = this.listeners.indexOf(cb); if (i >= 0) this.listeners.splice(i, 1); }; },
   emit(ev) { this.listeners.forEach(cb => { try { cb(ev); } catch (e) { console.error(e); } }); },
 
-  level() { return LS.get('aiLevel', 'smart'); },          // ask | smart | auto
+  level() { const P = NX.AIPanel; return (P && P.remix && P.remix.auto && P.sheet) ? 'auto' : LS.get('aiLevel', 'smart'); },          // ask | smart | auto (Remix Copilot: at once)
   setLevel(v) { LS.set('aiLevel', v); },
 
   stop() { this.stopRequested = true; this.emit({ type: 'stopping' }); },
@@ -14500,7 +14694,10 @@ const AIPanel = {
     this.status = el('div', { class: 'ai-status hide' });
 
     const quick = el('div', { class: 'quick' });
-    const qs = opts.firstGame
+    /* Remix Copilot (PART 40): quick changes to someone's game, applied at once */
+    this.remix = opts.remix ? { auto: true, live: true, title: opts.remix.title || '', creator: opts.remix.creator || '' } : null;
+    const qs = opts.remix ? ['REMIX_Q1', 'REMIX_Q2', 'REMIX_Q3', 'REMIX_Q4', 'REMIX_Q5'].map(k => NX.T(k))
+      : opts.firstGame
       ? ['اصنع لي لعبة سباق سيارات في مدينة', 'اصنع لي لعبة بقاء في جزيرة', 'اصنع لي لعبة منصات', 'اصنع لي لعبة تصويب']
       : ['أضف سيارة', 'أضف نظام وقود', 'أضف نظام أعداء', 'أضف متجرًا', 'أضف مهام', 'حلل لعبتي', 'حسّن الأداء'];
     qs.forEach(q => quick.appendChild(el('button', { text: q, onclick: () => this.send(q) })));
@@ -14512,6 +14709,11 @@ const AIPanel = {
     const row = el('div', { class: 'ai-input' }, [this.input, sendBtn]);
 
     this.buildPane.append(this.status, this.log, quick, row);
+    if (this.remix) {
+      const R = this.remix;
+      const chip = (k, key) => { const b = el('button', { class: 'chip on rmx-' + k }); const paint = () => { b.className = 'chip rmx-' + k + (R[k] ? ' on' : ''); b.textContent = (R[k] ? '✓ ' : '') + NX.T(key); }; b.onclick = () => { R[k] = !R[k]; paint(); }; paint(); return b; };
+      this.buildPane.insertBefore(el('div', { class: 'rmx-bar' }, [el('b', { class: 'rmx-tag', text: '🔁 Remix Copilot' }), chip('auto', 'REMIX_AUTO'), chip('live', 'REMIX_LIVE')]), this.status);
+    }
 
     ['chat', 'build'].forEach(m => {
       this.modeSeg.appendChild(el('button', {
@@ -14542,7 +14744,7 @@ const AIPanel = {
         iconBtn('bulb', { label: 'errors', onclick: () => NX.AIDebug.open() }),
         iconBtn('gear', { label: 'ai settings', onclick: () => this.settings() })
       ],
-      onClose: () => { if (this.unsub) this.unsub(); this.sheet = null; }
+      onClose: () => { if (this.unsub) this.unsub(); this.sheet = null; this.remix = null; }
     });
     const sb = this.sheet.body;
     sb.style.display = 'flex'; sb.style.flexDirection = 'column';
@@ -14569,7 +14771,8 @@ const AIPanel = {
       : NX.FreeAI && NX.FreeAI.state === 'on' && !NX.FreeAI.signedIn()
         ? 'الذكاء المجاني متاح لمن سجّل الدخول بحساب Google — سجّل الدخول وسيعمل وحده. حتى ذلك الحين يعمل «المخطّط المدمج».'
         : 'لا يوجد مزوّد AI: يعمل «المخطّط المدمج» — يتعرّف على كلمات مفتاحية ويبني أنظمة جاهزة حقيقية. هذا ليس ذكاءً اصطناعيًا؛ لطلبات حرّة صِلْ مزوّدًا من ⚙.');
-    this.say('ai', opts.firstGame
+    this.say('ai', opts.remix ? '🔁 ' + NX.T('REMIX_HELLO', { t: this.remix.title, c: this.remix.creator || 'creator' })
+      : opts.firstGame
       ? 'قل لي ما نوع اللعبة التي تريدها وسأخطّط لها وأبنيها وأختبرها. تستطيع إيقافي في أي لحظة، ولكل تغيير نقطة رجوع.'
       : 'اطلب ما تريد. سأقرأ مشروعك أولًا، ثم أضع خطة، ثم أنفّذ وأبني وأختبر وأصلح.');
     if (opts.autoPrompt) setTimeout(() => this.send(opts.autoPrompt), 260);
@@ -14690,10 +14893,11 @@ const AIPanel = {
     else if (ev.type === 'noplan') {
       this.setStatus(null);
       this.suggestCode(ev.prompt);
+      if (NX.Learner) NX.Learner.suggest(ev.prompt, this);
     }
     else if (ev.type === 'cancelled') { this.setStatus(null); this.say('sys', 'أُلغيت الخطة.'); }
     else if (ev.type === 'stopping') this.setStatus('إيقاف…', 'stopping');
-    else if (ev.type === 'done') { this.setStatus(null); this.renderReport(ev.report); }
+    else if (ev.type === 'done') { this.setStatus(null); this.renderReport(ev.report); if (NX.Remix) NX.Remix.afterChange(ev.report); if (NX.Learner) NX.Learner.fromReport(ev.report); }
     else if (ev.type === 'failed') { this.setStatus(null); this.say('sys', '✗ توقّفت: ' + ev.error); }
   },
 
@@ -14908,6 +15112,7 @@ const AIPanel = {
       text: 'بدون مزوّد يعمل المخطّط المدمج: يفهم الطلبات الشائعة ويبني أنظمة حقيقية، لكنه لا يفهم أي وصف حر ولا يحاور.' }));
     body.appendChild(el('hr', { class: 'sep' }));
     body.appendChild(btn('سجلّ الأخطاء والتشخيص', { cls: 'block', icon: 'shield', onclick: () => NX.AIDebug.open() }));
+    body.appendChild(btn('🧪 NEXUS Learner (Beta)', { cls: 'block ghost', style: { marginTop: '8px' }, onclick: () => NX.Learner && NX.Learner.open() }));
     Sheet.open({ title: 'إعدادات المساعد', body, id: 'aiset' });
   }
 };
@@ -16643,8 +16848,11 @@ async function openGamePage(game, opts = {}) {
     if (!needOnline('الإبلاغ')) return;
     openReport({ type: 'game', id: game.gameId, ownerId: game.ownerId });
   } }, [svgIcon('shield'), el('span', { text: 'إبلاغ' }), el('small', { text: 'REPORT' })]);
+  const remixBtn = !preview && NX.Remix && NX.Remix.allowed(game) ? el('button', { class: 'sc-remix', onclick: () => { sheet.close(); NX.Remix.start(game, 'game'); } },
+    [el('span', { class: 'sc-rmx-ic', text: '🔁' }), el('span', { 'data-i18n': 'REMIX_BTN', text: NX.T('REMIX_BTN') }), el('small', { text: 'REMIX' + (game.remixes ? ' · ' + fmtNum(game.remixes) : '') })]) : null;
   wrap.appendChild(el('div', { class: 'sc-actions' }, [
-    el('button', { onclick: doShare }, [svgIcon('share'), el('span', { text: 'مشاركة' }), el('small', { text: 'SHARE' })]), favBtn, reportBtn]));
+    el('button', { onclick: doShare }, [svgIcon('share'), el('span', { text: 'مشاركة' }), el('small', { text: 'SHARE' })]), remixBtn, favBtn, reportBtn]));
+  if (NX.Remix && game.remixedFrom) wrap.appendChild(NX.Remix.credit(game));
 
   /* the owner (and only the owner) manages the media from here */
   if (mine || preview) {
@@ -17533,9 +17741,9 @@ const PROVIDERS = {
     note: 'يعمل بلا إنترنت إذا كان الخادم يعمل على جهازك ويسمح بـCORS.'
   },
   custom: {
-    id: 'custom', name: 'مزوّد مخصّص', shape: 'openai', badge: 'Custom',
+    id: 'custom', name: 'أي موقع (Base URL)', shape: 'openai', badge: 'Base URL',
     baseURL: '', defaultModel: '', canListModels: true, custom: true,
-    note: 'أي API متوافق مع صيغة Chat Completions.'
+    note: 'أي موقع متوافق مع OpenAI (مثل cleanapis): الصق رابطه الذي ينتهي بـ /v1 ثم مفتاحه — تظهر نماذجه لتختار منها، ويُختبر بطلب حقيقي قبل الاستعمال.'
   }
 };
 
@@ -18223,7 +18431,15 @@ const AIClient = {
     if (provider.needsKey !== false && !cfg.apiKey) throw Object.assign(new Error('NO_KEY'), { info: { code: 'key', title: 'أدخل مفتاح API أولًا', detail: '' } });
     if (!cfg.baseURL) throw Object.assign(new Error('NO_URL'), { info: { code: 'url', title: 'أدخل Base URL', detail: '' } });
     try {
-      const list = await A.models(provider, cfg);
+      let list;
+      try { list = await A.models(provider, cfg); }
+      catch (e) {
+        /* an address pasted without its version: the same site's /v1 */
+        if (provider.shape !== 'openai' || provider.builtin || e.status !== 404 || /\/v\d+[a-z]*$/i.test(cfg.baseURL)) throw e;
+        const c2 = Object.assign({}, cfg, { baseURL: cfg.baseURL.replace(/\/+$/, '') + '/v1' });
+        list = await A.models(provider, c2);
+        AIConfig.set(provider.id, { baseURL: c2.baseURL });
+      }
       AIConfig.set(provider.id, list.owners ? { models: Array.from(list), modelOwners: list.owners } : { models: Array.from(list) });
       return list;
     } catch (e) {
@@ -18787,7 +19003,11 @@ function openAISettings() {
        first, so "Refresh models" never runs with a stale or empty key */
     const commit = () => {
       const patch = {};
-      if (!P.builtin) patch.baseURL = urlIn.value.trim();          // the free AI's address is the site's own
+      if (!P.builtin) {                                               // the free AI's address is the site's own
+        let u = urlIn.value.trim().replace(/\s+/g, '');
+        if (u && !/^[a-z]+:\/\//i.test(u) && /\./.test(u)) u = 'https://' + u;
+        patch.baseURL = u.replace(/\/+$/, '').replace(/\/(chat\/completions|models)$/i, '');
+      }
       if (keyIn) patch.apiKey = keyIn.value.trim();
       if (modelIn) patch.model = modelIn.value.trim();
       if (nameIn2) patch.name = nameIn2.value.trim();
@@ -19361,6 +19581,7 @@ ${sel.files.map(f => `--- ${f.path} ---\n${f.code}`).join('\n\n')}` : '');
         _cfg: cfg,
         system,
         council,
+        _learner: ['answer', 'mechanic', 'plan'],          // every model / the credit exhausted: NEXUS Learner (Beta) answers (PART 40)
         onDelta: (piece, full) => {
           assistant.content = full;
           if (txt) { if (!firstToken) { firstToken = true; txt.style.opacity = ''; } txt.textContent = full.replace(/```[ \t]*nexus-actions[\s\S]*$/i, '⏳ أجهّز التعديلات…'); this.toBottom(); }
@@ -19371,6 +19592,8 @@ ${sel.files.map(f => `--- ${f.path} ---\n${f.code}`).join('\n\n')}` : '');
       if (capped && r.truncated && !r.aborted && !r.council) { assistant.content = ''; r = await call(null); }
       if (r.council) assistant.council = r.council;
       assistant.content = r.text || assistant.content || (r.aborted ? '' : '(ردّ فارغ من النموذج)');
+      /* an answer with code: a lesson for NEXUS Learner (only from those who allow it) */
+      if (NX.Learner && !r.learner && !r.aborted && /```/.test(r.text || '')) NX.Learner.record({ kind: 'answer', source: 'ai', model: r.model || '', prompt: q, text: r.text });
       /* the model asked to change the project: every operation checked → preview → APPLY */
       if (NX.ModelActions && !r.aborted) {
         const act = await NX.ModelActions.propose(assistant.content, NX.Agent.chatUI(), q);
@@ -26672,7 +26895,11 @@ const SandboxHost = {
    Your own solo project and your own published games run as before.
    A project with a team, or anyone else's published game, runs sandboxed. */
 const Sandbox = {
-  forProject(p) { return !!(p && Backend.isOnline() && NX.Team && (NX.Team.hasTeam(p) || !NX.Team.isOwner(p))); }
+  forProject(p) {
+    /* a remix of someone else's game carries their code: sandboxed too (PART 40) */
+    if (p && p.remixedFrom && !(Backend.user && p.remixedFrom.ownerId === Backend.user.uid)) return true;
+    return !!(p && Backend.isOnline() && NX.Team && (NX.Team.hasTeam(p) || !NX.Team.isOwner(p)));
+  }
 };
 
 /* ---------------- the Studio's play / stop / AI test run ---------------- */
@@ -28293,7 +28520,7 @@ const HtmlApps = {
     return z;
   },
   /* pack → upload → record. meta: { name, description, visibility } */
-  async save(read, meta, { existing = null, onProgress, iconBlob = null, coverBlob = null } = {}) {
+  async save(read, meta, { existing = null, onProgress, iconBlob = null, coverBlob = null, extra = null } = {}) {
     const { zipSync } = await import('fflate');
     const me = Backend.user;
     const map = {};
@@ -28326,6 +28553,8 @@ const HtmlApps = {
       bundle: { path: up.path, url: up.url || null }, icon, cover,
       opens: existing ? existing.opens || 0 : 0, createdAt: existing ? existing.createdAt : now, updatedAt: now, v: 1
     };
+    if (existing && existing.remixedFrom) rec.remixedFrom = existing.remixedFrom;       // the credit stays with every update
+    if (extra) Object.assign(rec, extra);
     const { F, db } = Backend.fb;
     await Backend.serverWrite(F.setDoc(F.doc(db, 'apps', appId), rec));
     if (existing && existing.bundle && existing.bundle.path !== up.path) Backend.removeFile(existing.bundle.path).catch(() => {});
@@ -28456,7 +28685,9 @@ async function openAppPage(app) {
     const acts = el('div', { class: 'ha-acts', style: { marginTop: '14px' } });
     if (app.visibility !== 'private') acts.appendChild(btn('مشاركة الرابط', { cls: 'sm', icon: 'share', onclick: () => share(app) }));
     if (!mine) acts.appendChild(btn('إبلاغ', { cls: 'sm ghost', icon: 'shield', onclick: () => NX.Community.openReport({ type: 'app', id: app.appId, ownerId: app.ownerId }) }));
+    if (NX.Remix && NX.Remix.allowed(app)) acts.appendChild(NX.Remix.button(app, 'app', 'btn sm rmx-app'));
     body.appendChild(acts);
+    if (NX.Remix && app.remixedFrom) body.appendChild(NX.Remix.credit(app));
     if (mine) {
       const ow = el('div', { class: 'card', style: { marginTop: '14px' } }, [el('b', { text: 'تطبيقك · ' + VIS[app.visibility][0] }), el('p', { class: 'tiny', style: { margin: '4px 0 10px' }, text: VIS[app.visibility][1] + ' · الصفحة الرئيسية: ' + app.entry })]);
       const r = el('div', { class: 'ha-acts' });
@@ -31294,6 +31525,10 @@ const providerOf = k => (KINDS.find(([, re]) => re.test(k)) || [])[0] || null;
 const LABEL = { gemini: 'Gemini', groq: 'Groq', openrouter: 'OpenRouter', anthropic: 'Claude', custom: 'API متوافق مع OpenAI' };
 const REASON = { invalid: 'رفضه المزوّد', 'rate-limit': 'وصل حدّه — يعود وحده', 'too-many-failures': 'فشل مرات كثيرة' };
 const clean = raw => String(raw || '').trim().replace(/\s+/g, '');
+const t = (k, v) => NX.t(k, v), segPick = NX.segPick;
+/* a site's address as people paste it: https added, no trailing slash, no /chat/completions or /models */
+const normBase = raw => { let u = String(raw || '').trim().replace(/\s+/g, ''); if (u && !/^https?:\/\//i.test(u)) u = 'https://' + u; return u.replace(/\/+$/, '').replace(/\/chat\/completions$/i, '').replace(/\/models$/i, '').replace(/\/+$/, ''); };
+const sha256 = async k => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(k))), x => x.toString(16).padStart(2, '0')).join('');
 /* the site's own AI function (Netlify) — it also uses the pool when it can read it */
 const SITE_AI = /^https?:$/.test(location.protocol) ? location.origin + location.pathname.replace(/[^/]*$/, '') + 'api/ai' : '';
 
@@ -31357,10 +31592,47 @@ const KeyPool = {
   async server(path, body) {
     const tok = await this.token().catch(() => null);
     if (!tok) throw Object.assign(new Error('سجّل الدخول بحساب (Google أو البريد) أولًا'), { code: 'signin' });
-    const r = await fetch(SITE_AI + path, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: JSON.stringify(body || {}) });
+    let r;
+    try { r = await fetch(SITE_AI + path, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: JSON.stringify(body || {}) }); }
+    catch { throw Object.assign(new Error(t('KP_NO_SERVER')), { code: 'network' }); }
     const j = await r.json().catch(() => null);
-    if (!r.ok || !j || j.error) throw Object.assign(new Error((j && j.error && j.error.message) || 'HTTP ' + r.status), { code: j && j.error && j.error.code });
+    /* no JSON at all: the site's server functions are not running (a drag-and-drop deploy runs none) */
+    if (!j) throw Object.assign(new Error(t('KP_NO_SERVER') + ' (HTTP ' + r.status + ')'), { code: 'server' });
+    if (!r.ok || j.error) throw Object.assign(new Error((j.error && j.error.message) || 'HTTP ' + r.status), { code: j.error && j.error.code });
     return j;
+  },
+  /* the server is not there, or not set up (no service account): the key can still be given — kept in the pool */
+  serverMissing(err) { return !!err && ['pool', 'server', 'network'].includes(err.code); },
+  async donateCustomDirect(raw, base, model) {
+    if (!Backend.hasAccount()) throw Object.assign(new Error('سجّل الدخول بحساب (Google أو البريد) أولًا'), { code: 'signin' });
+    const key = String(raw || '').trim();
+    if (!/^[\x21-\x7e]{10,300}$/.test(key)) throw new Error('هذا لا يشبه مفتاح API');
+    if (!/^https:\/\/[A-Za-z0-9.-]+\.[A-Za-z]{2,}(:443)?(\/[A-Za-z0-9._~\/-]*)?$/.test(base)) throw new Error(t('KP_BAD_BASE'));
+    /* the site's models, when it lets this browser ask (many do) — else the model typed */
+    let models = [];
+    try {
+      const r = await fetch(base + '/models', { headers: { authorization: 'Bearer ' + key } });
+      if (r.status === 401 || r.status === 403) throw Object.assign(new Error('الموقع رفض المفتاح (' + r.status + ')'), { code: 'refused' });
+      const j = r.ok ? await r.json().catch(() => null) : null;
+      models = ((j && (j.data || j.models)) || []).map(m => typeof m === 'string' ? m : m && (m.id || m.name)).filter(x => typeof x === 'string' && x.length < 120).slice(0, 80);
+    } catch (e) { if (e.code === 'refused') throw e; }
+    if (model && !models.includes(model)) models.unshift(model.slice(0, 120));
+    if (!models.length) throw new Error(t('KP_NEED_MODEL'));
+    const hash = await sha256(key);
+    const { F, db } = Backend.fb, uid = Backend.user.uid;
+    if (await F.getDoc(F.doc(db, 'api_key_hashes', hash)).then(d => d.exists(), () => false)) throw Object.assign(new Error('هذا المفتاح في المجمّع من قبل — لا يُتبرَّع بالمفتاح نفسه مرتين.'), { code: 'duplicate' });
+    const used = new Set(this.local().map(x => x.slot));
+    for (const i of [...Array(this.SLOTS).keys()].sort((a, b) => used.has(a) - used.has(b))) {
+      try {
+        const b = F.writeBatch(db);
+        b.set(F.doc(db, 'api_keys', uid + '_' + i), { key, provider: 'custom', base, models: models.slice(0, 80), keyHash: hash, createdAt: F.serverTimestamp(), status: 'active', failCount: 0, donorUid: uid });
+        b.set(F.doc(db, 'api_key_hashes', hash), { slot: uid + '_' + i, donorUid: uid, at: F.serverTimestamp() });
+        await Backend.serverWrite(b.commit());
+        this.verify();                                   // tested by the server now if it runs, else when it does
+        return { slot: i, host: new URL(base).hostname, models: models.length };
+      } catch (e) { if (e && e.code === 'permission-denied') continue; throw e; }
+    }
+    throw new Error(t('KP_FULL'));
   },
   donateCustom(raw, base, model) { return this.server('/pool/donate', { key: String(raw || '').trim(), base, model: model || undefined }); },
   /* 💎 strong while a donated key serves strong models — tested on the server, never decided here */
@@ -31437,27 +31709,58 @@ const KeyPool = {
       el('div', { style: { color: '#fcd77a' }, text: '• مفتاح Claude (Anthropic) مدفوع: كل طلب يُخصم من رصيدك عند Anthropic — لا تتبرّع به إلا إن كنت تقبل ذلك، ويمكنك سحبه متى شئت. OpenRouter: النماذج المجانية فقط.' }),
       el('div', { style: { color: '#fcd77a' }, text: '• مالك الموقع يصل إلى قاعدة البيانات من لوحة Firebase — تبرّع لموقع تثق بصاحبه، وتأكّد أن شروط مزوّدك تسمح بمشاركة المفتاح.' })]));
 
+    /* which kind of key — the donor chooses: a known provider (recognised by its key) or ANY site by its address (…/v1) */
+    let mode = 'known';
+    const modeSeg = el('div', { class: 'seg kp-mode', style: { marginBottom: '10px' } });
+    const siteBox = el('div', { class: 'kp-site hide' });
     const input = el('input', { class: 'input', type: 'password', placeholder: 'الصق المفتاح هنا (gsk_… أو AIza… أو AQ.… أو sk-or-… أو sk-ant-…)', autocomplete: 'off', spellcheck: 'false', style: { direction: 'ltr' } });
     const kind = el('div', { class: 'tiny', style: { minHeight: '18px', marginTop: '4px' } });
     /* any OpenAI-compatible site: its address (and a model, when the site gives no list) */
-    const base = el('input', { class: 'input kp-base', type: 'url', dir: 'ltr', placeholder: 'اختياري: Base URL لموقع متوافق مع OpenAI — مثل https://api.example.com/v1', autocomplete: 'off', spellcheck: 'false' });
-    const model = el('input', { class: 'input kp-model', dir: 'ltr', placeholder: 'اختياري: اسم النموذج (إن لم يعطِ الموقع قائمة)', autocomplete: 'off', spellcheck: 'false' });
+    const base = el('input', { class: 'input kp-base', type: 'url', dir: 'ltr', placeholder: 'https://api.example.com/v1', autocomplete: 'off', spellcheck: 'false' });
+    const model = el('input', { class: 'input kp-model', dir: 'ltr', placeholder: 'gpt-4o · deepseek-chat · …', autocomplete: 'off', spellcheck: 'false' });
+    siteBox.append(NX.field(t('KP_BASE'), base), el('p', { class: 'tiny', style: { margin: '-4px 0 8px' }, text: t('KP_BASE_HINT') }), NX.field(t('KP_MODEL'), model));
+    const setMode = m => {
+      mode = m;
+      segPick(modeSeg, modeSeg.querySelector('[data-m="' + m + '"]'));
+      siteBox.classList.toggle('hide', m !== 'site');
+      input.placeholder = m === 'site' ? t('KP_KEY_SITE') : 'الصق المفتاح هنا (gsk_… أو AIza… أو AQ.… أو sk-or-… أو sk-ant-…)';
+      input.dispatchEvent(new Event('input'));
+      if (m === 'site') setTimeout(() => base.focus(), 30);
+    };
+    [['known', t('KP_KNOWN')], ['site', t('KP_SITE')]].forEach(([m, label]) => modeSeg.appendChild(el('button', { class: m === mode ? 'on' : '', type: 'button', dataset: { m }, text: label, onclick: () => setMode(m) })));
     base.addEventListener('input', () => input.dispatchEvent(new Event('input')));
-    input.addEventListener('input', () => { if (base.value.trim()) { kind.textContent = input.value ? '✓ مفتاح موقع متوافق مع OpenAI — يختبره الخادم' : ''; kind.style.color = '#34d399'; return; } const p = providerOf(clean(input.value)); kind.textContent = !input.value ? '' : p ? '✓ مفتاح ' + LABEL[p] : '✗ لا يشبه مفتاحًا مدعومًا'; kind.style.color = p ? '#9ae6b4' : '#ff9aa8'; });
+    input.addEventListener('input', () => {
+      if (mode === 'site') { kind.textContent = input.value ? (base.value.trim() ? '✓ ' + t('KP_SITE_OK') : '↑ ' + t('KP_NEED_BASE')) : ''; kind.style.color = base.value.trim() ? '#34d399' : '#fcd77a'; return; }
+      const p = providerOf(clean(input.value));
+      kind.textContent = !input.value ? '' : p ? '✓ مفتاح ' + LABEL[p] : '✗ ' + t('KP_UNKNOWN');
+      kind.style.color = p ? '#9ae6b4' : '#ff9aa8';
+      /* a key of another site: the choice that fits it, at once */
+      if (input.value.trim().length > 12 && !p) setMode('site');
+    });
     const agree = el('input', { type: 'checkbox', id: 'kp-agree' });
     const agreeRow = el('label', { class: 'tiny', for: 'kp-agree', style: { display: 'flex', gap: '8px', alignItems: 'flex-start', margin: '10px 0', lineHeight: '1.6' } },
       [agree, el('span', { text: 'المفتاح ملكي، وأسمح باستعماله للذكاء المجاني في هذا الموقع، وأعرف أنني أستطيع سحبه متى شئت.' })]);
     const give = btn('🤝 تبرّع بالمفتاح', { cls: 'primary block', onclick: async e => {
       const b = e.currentTarget;
       if (!agree.checked) { Toast.err('وافق أولًا على استعمال المفتاح'); return; }
+      if (mode === 'site' && !base.value.trim()) { Toast.err(t('KP_NEED_BASE')); base.focus(); return; }
       b.disabled = true;
       try {
-        if (base.value.trim()) {
-          const key = input.value.trim(), r = await this.donateCustom(key, base.value.trim(), model.value.trim());
-          const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key))), x => x.toString(16).padStart(2, '0')).join('');
+        if (mode === 'site') {
+          const key = input.value.trim(), url = normBase(base.value);
+          let r, direct = false;
+          try { r = await this.donateCustom(key, url, model.value.trim()); }
+          catch (err) {
+            /* the site's server does not run (a drag-and-drop deploy) or has no service account: the key is kept
+               in the pool all the same — the server tests it and uses it once it runs */
+            if (!this.serverMissing(err)) throw err;
+            r = await this.donateCustomDirect(key, url, model.value.trim()); direct = true;
+          }
+          const hash = await sha256(key);
           this.remember(r.slot, 'custom', key, hash);
           { const { F, db } = Backend.fb; Backend.serverWrite(F.updateDoc(F.doc(db, 'users', Backend.user.uid), { donor: true })).catch(() => {}); }
-          Toast.ok('شكرًا! نجح اختبار ' + r.host + ' · ' + r.model + ' — ' + this.tierNote(r.tier), 7000);
+          if (direct) Toast.ok(t('KP_SAVED_LATER', { h: r.host }), 9000);
+          else Toast.ok('شكرًا! نجح اختبار ' + r.host + ' · ' + r.model + ' — ' + this.tierNote(r.tier), 7000);
         } else {
           const r = await this.donate(input.value);
           Toast.ok('شكرًا! أُضيف مفتاح ' + LABEL[r.provider] + ' ' + r.tail + ' إلى المجمّع');
@@ -31471,7 +31774,7 @@ const KeyPool = {
         else Toast.err(err.message || NX.describeFirebaseError(err));
       } finally { b.disabled = false; }
     } });
-    body.append(NX.field('مفتاحك', input), kind, NX.field('موقع متوافق مع OpenAI (اختياري)', base), model, agreeRow, give);
+    body.append(el('div', { class: 'ttl', text: t('KP_WHICH') }), modeSeg, siteBox, NX.field('مفتاحك', input), kind, agreeRow, give);
 
     const state = el('div', { style: { marginTop: '16px' } });
     body.appendChild(state);
@@ -32879,6 +33182,7 @@ const UI = {
       it('⚙', 'كل الخصائص', () => S().openInspector(E().getEntity(E().selection)));
     }
     it('◎', 'تركيز · Focus', () => Ops.frame());
+    if (NX.Mechanics) it('🧩', NX.T('MECH_TITLE'), () => NX.Mechanics.open(), 'mech-tile');
     body.appendChild(grid);
     const sheet = Sheet.open({ title: one ? one.name : sel.length + ' عناصر', body, id: 'ed-menu' });
     return sheet;
@@ -34913,7 +35217,7 @@ const Game2D = {
     const lang = LANG_NAME[NX.i18n.lang] || 'Arabic';
     let r;
     try {
-      r = await NX.AIClient.chat([{ role: 'user', content: q }], { system: SYSTEM(lang), _cfg: { maxTokens: 12000 },
+      r = await NX.AIClient.chat([{ role: 'user', content: q }], { system: SYSTEM(lang), _cfg: { maxTokens: 12000 }, _learner: ['game2d'],
         onDelta: (piece, all) => { m.textContent = '🕹 ' + T('G2D_WRITING') + ' · ' + Math.round(all.length / 1024) + ' KB'; } });
     } catch (e) { m.textContent = '✕ ' + ((e.info && (e.info.title + (e.info.detail ? ' — ' + e.info.detail : ''))) || e.message); return; }
     let html = fileOf(r.text), err = html ? syntaxError(html) : 'no file';
@@ -34935,6 +35239,7 @@ const Game2D = {
       const rec = await NX.HtmlApps.save({ files: [{ path: 'index.html', bytes }], entry: 'index.html', bytes: bytes.length, title },
         { name: title, description: q.slice(0, 300), visibility: 'private' });
       m.textContent = '✓ ' + T('G2D_READY', { t: rec.name }) + (r.model ? ' · ' + r.model : '');
+      if (NX.Learner && !r.learner) NX.Learner.record({ kind: 'game2d', source: 'ai', model: r.model || '', prompt: q, text: '```html\n' + html + '\n```' });
       m.appendChild(el('div', { style: { marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' } }, [
         btn('▶ ' + T('G2D_PLAY'), { cls: 'sm primary g2d-play', onclick: () => NX.HtmlApps.openById(rec.appId) })]));
       NX.HtmlApps.openById(rec.appId);
@@ -35052,6 +35357,8 @@ const Player = {
           onclick: () => NX.Community.openRecorder({ gameId: this.gameId }) }, [icon('cam')]);
         $('#player-vp').appendChild(clip);
       }
+      /* 🔁 Remix with AI (PART 40) */
+      if (NX.Remix) NX.Remix.playerButton(game);
       /* a multiplayer game can save its last minutes as a replay */
       if (!$('#p-replay')) {
         const rb = el('button', { class: 'icon-btn hide', id: 'p-replay', 'aria-label': 'replay',
@@ -36344,6 +36651,532 @@ NX.registerOfflineSupport = registerOfflineSupport;
   });
 })();
 </script>
+<!-- NX-PART:40 -->
+<script type="module">
+/* ============================================================
+   PART 40 · 🔁 REMIX · 🧩 MECHANICS · 🧪 NEXUS LEARNER (Beta)
+   • Remix: a published game (or HTML app) whose owner allows it becomes a NEW project of the player —
+     its code, scene graph and settings copied, its assets used by reference (still their owner's),
+     «remixedFrom» kept for good (the rules refuse to change it) — the original is only read. Someone
+     else's code in a remix runs in the sandbox (PART 23). The assistant opens as «Remix Copilot».
+   • Mechanics: what makes an object behave (its components and scripts) — copied to other objects,
+     saved to «my mechanics» (private or public), added to any project; the assistant knows them.
+   • NEXUS Learner (Beta): keeps what worked — answers and plans of the models, mechanics of the
+     developers (only from those who allow it; keys, e-mails removed) — ranks them, compares the
+     human ones with the AI ones, looks things up on Wikipedia, and answers ONLY when every model or
+     the player's credit is exhausted. A memory that learns, not a model: it says so.
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, Sheet, Modal, Toast, LS, uid } = NX;
+const { Backend } = NX;
+const T = (k, v) => NX.T(k, v);
+const clone = o => o == null ? o : JSON.parse(JSON.stringify(o));
+const S = () => NX.Studio;
+const fb = () => Backend.fb;
+const fnv = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(36); };
+
+/* ================================================================ 🔁 REMIX */
+const unscope = css => String(css || '').replace(/#game-ui-layer\s+/g, '').replace(/#game-ui-layer/g, ':root');
+const Remix = {
+  /* a published game or app its owner has not closed to remixes (their own, always) */
+  allowed(rec) {
+    const me = Backend.user && Backend.user.uid;
+    return !!rec && (rec.ownerId === me || (rec.allowRemix !== false && rec.visibility !== 'private'));
+  },
+  button(rec, kind = 'game', cls = 'rmx-btn') {
+    return el('button', { class: cls, type: 'button', onclick: () => this.start(rec, kind) },
+      [el('span', { text: '🔁' }), el('span', { 'data-i18n': 'REMIX_BTN', text: T('REMIX_BTN') })]);
+  },
+  /* the player's bar: «🔁 Remix» next to ✕ */
+  playerButton(game) {
+    const vp = document.getElementById('player-vp');
+    if (!vp) return;
+    let b = document.getElementById('p-remix');
+    if (!b) { b = this.button(game, 'game', 'rmx-btn rmx-float'); b.id = 'p-remix'; vp.appendChild(b); }
+    b.onclick = () => this.start(game, 'game');
+    b.classList.toggle('hide', !this.allowed(game));
+  },
+  async start(rec, kind = 'game') {
+    if (!Backend.isOnline()) { Toast.err(T('REMIX_OFFLINE')); return; }
+    if (!Backend.user) { NX.promptSignIn(T('REMIX_SIGNIN')); return; }
+    if (!this.allowed(rec)) { Toast.err(T('REMIX_OFF')); return; }
+    if (this._busy) return;
+    this._busy = true;
+    const note = Toast.show('🔁 ' + T('REMIX_WORKING'), '', 60000);
+    try {
+      if (kind === 'app') await this.remixApp(rec);
+      else {
+        if (NX.Screen.current() === 'player' && NX.GamePlayer) NX.GamePlayer.close();
+        NX.Sheet.closeAll();
+        const p = await this.remixProject(rec.projectId || null, Backend.user.uid, { game: rec });
+        await this.open(p, rec);
+      }
+    } catch (e) {
+      Toast.err(T('REMIX_FAIL') + ': ' + (e.code === 'permission-denied' ? T('REMIX_OFF') : (e.message || NX.describeFirebaseError(e))), 7000);
+    } finally { note.remove(); this._busy = false; }
+  },
+  /* the files a player of the game gets, as project files again */
+  async filesOf(build) {
+    const a = build.artifacts || { scripts: build.scripts || [], components: build.components || [], ui: [], styles: [] };
+    const out = [], used = new Set();
+    const path = n => {
+      let p = String(n || 'Script.js').replace(/^\/+/, '').replace(/\.ts$/i, '.js');
+      if (!/\.[a-z0-9]+$/i.test(p)) p += '.js';
+      let q = p, i = 2;
+      while (used.has(q)) q = p.replace(/(\.[^.]+)$/, '_' + (i++) + '$1');
+      used.add(q); return q;
+    };
+    (a.scripts || []).forEach(s => out.push({ id: uid('f'), path: path(s.name), code: String(s.code || ''), role: 'script', entityId: s.entityId || null, enabled: s.enabled !== false }));
+    (a.components || []).forEach(c => out.push({ id: uid('f'), path: path(c.name), code: String(c.code || ''), role: 'component', entityId: null, enabled: true }));
+    (a.ui || []).forEach(u => out.push({ id: uid('f'), path: path(u.path || u.name || 'ui.html'), code: String(u.code || ''), role: 'ui', entityId: null, enabled: true }));
+    (a.styles || []).forEach(u => out.push({ id: uid('f'), path: path(u.path || u.name || 'style.css'), code: unscope(u.code), role: 'style', entityId: null, enabled: true }));
+    /* compiled modules (C / C++ / C# → WASM) travel as they are */
+    for (const w of (build.wasmRefs || []).slice(0, 8)) {
+      try {
+        const url = await Backend.fileURL(w.storagePath, w.url);
+        if (!url) continue;
+        const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
+        if (bytes.length && bytes.length < 8e6) out.push({ id: uid('f'), path: path(w.path), code: '', bytes, role: 'module', entityId: null, enabled: true });
+      } catch { }
+    }
+    return out;
+  },
+  /* remixProject(originalProjectId, currentUserId): a NEW project of the current user — the original is only read */
+  async remixProject(originalProjectId, currentUserId, { game = null } = {}) {
+    const me = Backend.user;
+    if (!me || me.uid !== currentUserId) throw new Error(T('REMIX_SIGNIN'));
+    const now = Date.now();
+    let src = game, p;
+    /* one of the player's own projects: a straight copy */
+    if (!src && originalProjectId) {
+      const own = await NX.Projects.get(originalProjectId);
+      if (!own || own.ownerId !== me.uid) throw new Error(T('REMIX_NO_BUILD'));
+      p = Object.assign(clone(Object.assign({}, own, { history: [] })), { projectId: uid('proj'), name: T('REMIX_NAME', { t: own.name }).slice(0, 80), createdAt: now, updatedAt: now });
+      ['publishedId', 'showcaseId', 'publishMeta', 'showcase', 'members', 'memberIds', 'memberNames', 'rev', 'lastEdit', 'updatedBy'].forEach(k => delete p[k]);
+    } else {
+      if (!src) throw new Error(T('REMIX_NO_BUILD'));
+      if (!this.allowed(src)) throw new Error(T('REMIX_OFF'));
+      const build = await NX.Games.build(src.gameId);
+      if (!build) throw new Error(T('REMIX_NO_BUILD'));
+      p = {
+        projectId: uid('proj'), ownerId: me.uid, ownerName: me.name,
+        name: T('REMIX_NAME', { t: src.title || 'Game' }).slice(0, 80), description: String(src.description || '').slice(0, 2000),
+        scene: clone(build.scene) || NX.emptyScene(), files: await this.filesOf(build),
+        assetRefs: Array.from(new Set(build.assetRefs || [])), history: [],
+        settings: Object.assign({ physics: true }, clone(build.settings) || {}), deps: clone(build.deps) || [],
+        remixedFrom: { gameId: src.gameId, projectId: src.projectId || originalProjectId || null, ownerId: src.ownerId,
+          creatorName: String(src.creatorName || '').slice(0, 60), title: String(src.title || '').slice(0, 120), version: src.version || 1, at: now },
+        /* the assistant knows where the game comes from (PART 13 memory) */
+        aiMemory: { systems: [], conventions: {}, notes: [{ at: now, note: 'Remix of «' + (src.title || '') + '» by @' + (src.creatorName || '') + ' — keep its structure; make the requested changes precise.' }] },
+        createdAt: now, updatedAt: now
+      };
+      if (build.i18n) p.i18n = clone(build.i18n);
+    }
+    await NX.Projects.save(p);
+    /* the original's counter: +1, nothing else (the rules allow exactly that) */
+    if (src && src.ownerId !== me.uid) {
+      const { F, db } = fb();
+      F.updateDoc(F.doc(db, 'games', src.gameId), { remixes: F.increment(1) }).catch(() => {});
+    }
+    return p;
+  },
+  async open(p, src) {
+    await NX.Studio.open(p);
+    Toast.ok('🔁 ' + T('REMIX_DONE'), 5000);
+    setTimeout(() => NX.Studio.openAI({ remix: { title: (src && (src.title || src.name)) || p.name, creator: (src && src.creatorName) || '' } }), 350);
+  },
+  /* an HTML app: its files copied into a private app of the player, then its editor */
+  async remixApp(app) {
+    if (!NX.HtmlApps || !NX.HtmlApps.ready(T('REMIX_BTN'))) return;
+    const files = await NX.HtmlApps.files(app);
+    const list = Object.entries(files).map(([path, bytes]) => ({ path, bytes }));
+    const rec = await NX.HtmlApps.save({ files: list, entry: app.entry, bytes: list.reduce((a, f) => a + f.bytes.length, 0), title: app.name },
+      { name: T('REMIX_NAME', { t: app.name }).slice(0, 80), description: String(app.description || '').slice(0, 2000), visibility: 'private' },
+      { extra: { remixedFrom: { appId: app.appId, ownerId: app.ownerId, creatorName: String(app.creatorName || '').slice(0, 60), title: String(app.name || '').slice(0, 120), at: Date.now() } } });
+    Toast.ok('🔁 ' + T('REMIX_DONE'), 5000);
+    if (NX.AppEditor) NX.AppEditor.open(rec, {});
+  },
+  /* «Remix of …» under a game or app */
+  credit(rec) {
+    const r = rec && rec.remixedFrom;
+    if (!r) return null;
+    return el('div', { class: 'rmx-credit' }, [el('span', { text: '🔁 ' + T('REMIX_OF') + ' ' }),
+      el('button', { class: 'rmx-orig', type: 'button', text: '«' + (r.title || '…') + '» @' + (r.creatorName || 'creator'),
+        onclick: () => { if (r.gameId) NX.Games.get(r.gameId).then(g => g && NX.Community.openGamePage(g)).catch(() => {}); else if (r.ownerId) NX.Community.openCreator(r.ownerId); } })]);
+  },
+  /* after the assistant changed the remix: the preview runs it at once (Remix Copilot) */
+  afterChange(report) {
+    const P = NX.AIPanel;
+    if (!P || !P.remix || !report || report.empty || report.error) return;
+    if (!(report.created.length || report.edited.length || report.objects.length)) return;
+    const m = P.say('ai', '✓ ' + T('REMIX_APPLIED'));
+    m.appendChild(el('div', { style: { marginTop: '8px' } }, [btn('▶ ' + T('REMIX_TRY'), { cls: 'sm primary rmx-try', onclick: () => NX.Studio.play() })]));
+    if (P.remix.live && report.ok !== false) setTimeout(() => { if (!NX.Studio.playing) NX.Studio.play(); }, 700);
+  }
+};
+
+/* ================================================================ 🧩 MECHANICS */
+const Mechanics = {
+  sel() { const e = S().engine; return e ? e.selectedEntities() : []; },
+  files() { NX.migrateProjectFiles(S().project); return S().project.files; },
+  /* what makes this object behave: its components (with their settings) and the scripts bound to it */
+  itemsOf(e) {
+    const files = this.files();
+    const comps = (e.components || []).map(c => {
+      const f = files.find(x => x.role === 'component' && NX.componentName(x.path) === c.type);
+      return { kind: 'component', type: c.type, name: c.name || c.type, data: clone(c.data || {}), enabled: c.enabled !== false, path: f ? f.path : null, code: f ? f.code : '', ai: !!(f && f.ai) };
+    });
+    const scripts = files.filter(f => f.entityId === e.id && f.role !== 'component')
+      .map(f => ({ kind: 'script', name: f.path.replace(/\.[^.]+$/, ''), path: f.path, code: f.code || '', ai: !!f.ai }));
+    return comps.concat(scripts);
+  },
+  label(it) { return (it.kind === 'component' ? '⚙️ ' : '📜 ') + (it.name || it.type); },
+  clip() { return LS.get('mech.clip', null); },
+  copy(items, from) {
+    LS.set('mech.clip', { from: from || '', items: clone(items), at: Date.now() });
+    Toast.ok(T('MECH_COPIED', { n: items.length }));
+  },
+  uniquePath(p) { const files = this.files(); let q = p, i = 2; while (files.some(f => f.path === q)) q = p.replace(/(\.[^.]+)$/, '_' + (i++) + '$1'); return q; },
+  /* onto every selected object, as ONE undo step */
+  apply(items, targets, label) {
+    if (!items || !items.length || !targets.length) return 0;
+    S().pushUndo(label || T('MECH_PASTED'), { files: true });
+    const files = this.files();
+    let n = 0;
+    for (const e of targets) for (const it of items) {
+      if (it.kind === 'component') {
+        if (it.code && !files.some(f => f.role === 'component' && NX.componentName(f.path) === it.type))
+          files.push({ id: uid('f'), path: this.uniquePath(it.path || it.type + '.js'), code: it.code, role: 'component', entityId: null, enabled: true });
+        e.components = (e.components || []).filter(c => c.type !== it.type);
+        e.components.push({ id: uid('c'), type: it.type, name: it.name || it.type, data: clone(it.data || {}), enabled: it.enabled !== false });
+      } else {
+        const base = String(it.name || 'Script').replace(/[^\w؀-ۿ-]+/g, '') || 'Script';
+        files.push({ id: uid('f'), path: this.uniquePath(base + '_' + (String(e.name || 'obj').replace(/[^\w؀-ۿ-]+/g, '') || 'obj') + '.js'), code: it.code, role: 'script', entityId: e.id, enabled: true });
+      }
+      n++;
+    }
+    const st = S(); st.dirty = true; st.lastBuild = null;
+    if (st.updateHud) st.updateHud();
+    return n;
+  },
+  paste() {
+    const c = this.clip(), t = this.sel();
+    if (!c || !c.items.length) { Toast.err(T('MECH_CLIP_EMPTY')); return; }
+    if (!t.length) { Toast.err(T('MECH_SELECT')); return; }
+    const n = this.apply(c.items, t);
+    Toast.ok(T('MECH_PASTED_N', { n, o: t.length }));
+  },
+  remove(e, it) {
+    S().pushUndo(T('MECH_REMOVED'), { files: true });
+    if (it.kind === 'component') e.components = (e.components || []).filter(c => c.type !== it.type);
+    else { const f = this.files().find(x => x.path === it.path && x.entityId === e.id); if (f) f.entityId = null, f.enabled = false; }
+    S().dirty = true; S().lastBuild = null;
+  },
+  /* ---- the library: «my mechanics» and the public ones ---- */
+  async save(it, { name, description = '', visibility = 'private' } = {}) {
+    if (!Backend.isOnline() || !Backend.user) throw new Error(T('MECH_NEED_ACCOUNT'));
+    const { F, db } = fb(), me = Backend.user, id = uid('mech'), now = Date.now();
+    const rec = { mechId: id, ownerId: me.uid, creatorName: String(me.name || 'creator').slice(0, 60),
+      name: String(name || it.name || it.type || 'Mechanic').slice(0, 60), description: String(description).slice(0, 300),
+      kind: it.kind, type: String(it.type || it.name || '').slice(0, 60), path: it.path || null, code: String(it.code || '').slice(0, 60000),
+      data: it.data && JSON.stringify(it.data).length <= 4000 ? it.data : {}, visibility: visibility === 'public' ? 'public' : 'private',
+      source: it.ai ? 'ai' : 'human', uses: 0, createdAt: now, updatedAt: now };
+    await Backend.serverWrite(F.setDoc(F.doc(db, 'mechanics', id), rec));
+    if (rec.code.length >= 40) Learner.record({ kind: 'mechanic', source: rec.source, prompt: rec.name + ' — ' + rec.description, text: rec.code, model: '' });
+    return rec;
+  },
+  async library(scope = 'mine') {
+    if (!Backend.isOnline() || !Backend.user) return [];
+    const { F, db } = fb(), col = F.collection(db, 'mechanics');
+    const q = scope === 'mine' ? F.query(col, F.where('ownerId', '==', Backend.user.uid), F.limit(200)) : F.query(col, F.where('visibility', '==', 'public'), F.limit(120));
+    const s = await F.getDocs(q);
+    return s.docs.map(d => d.data()).sort((a, b) => scope === 'mine' ? (b.updatedAt || 0) - (a.updatedAt || 0) : (b.uses || 0) - (a.uses || 0));
+  },
+  async insert(m, targets) {
+    const n = this.apply([{ kind: m.kind, type: m.type, name: m.type || m.name, data: m.data || {}, path: m.path, code: m.code }], targets, T('MECH_ADDED', { m: m.name }));
+    if (n && Backend.user && m.ownerId !== Backend.user.uid) { const { F, db } = fb(); F.updateDoc(F.doc(db, 'mechanics', m.mechId), { uses: F.increment(1) }).catch(() => {}); }
+    return n;
+  },
+  async setVisibility(m, v) { const { F, db } = fb(); await Backend.serverWrite(F.updateDoc(F.doc(db, 'mechanics', m.mechId), { visibility: v, updatedAt: Date.now() })); m.visibility = v; },
+  async drop(m) { const { F, db } = fb(); await Backend.serverWrite(F.deleteDoc(F.doc(db, 'mechanics', m.mechId))); },
+  /* for the assistant: the player's saved mechanics, one line each */
+  async brief() {
+    try { return (await this.library('mine')).slice(0, 20).map(m => '- ' + m.name + ' (' + m.kind + (m.type ? ' ' + m.type : '') + ')' + (m.description ? ': ' + m.description.slice(0, 80) : '')).join('\n'); }
+    catch { return ''; }
+  },
+  /* ---- the sheet of the selected object ---- */
+  open() {
+    const st = S();
+    if (!st || !st.project || !st.engine) { Toast.err(T('MECH_OPEN_PROJECT')); return; }
+    const sel = this.sel();
+    const body = el('div', { class: 'mech' });
+    const draw = () => {
+      body.textContent = '';
+      body.appendChild(el('p', { class: 'tiny', style: { marginBottom: '10px', lineHeight: '1.7' }, text: T('MECH_INTRO') }));
+      const e = sel[0];
+      if (!e) body.appendChild(el('div', { class: 'card tiny', text: T('MECH_SELECT') }));
+      else {
+        const items = this.itemsOf(e);
+        body.appendChild(el('div', { class: 'ttl', text: T('MECH_ON', { o: e.name }) }));
+        if (!items.length) body.appendChild(el('div', { class: 'card tiny', text: T('MECH_NONE') }));
+        items.forEach(it => {
+          const row = el('div', { class: 'mech-row' }, [
+            el('div', { class: 'mech-name' }, [el('b', { text: this.label(it) }), el('small', { text: it.kind === 'component' ? Object.entries(it.data || {}).slice(0, 4).map(([k, v]) => k + '=' + (typeof v === 'object' ? '…' : v)).join(' · ') : (it.code.split('\n').length + ' ' + T('MECH_LINES')) })]),
+            el('div', { class: 'mech-acts' }, [
+              btn('📋', { cls: 'sm ghost mech-copy1', title: T('MECH_COPY'), onclick: () => this.copy([it], e.name) }),
+              btn('💾', { cls: 'sm ghost mech-save1', title: T('MECH_SAVE'), onclick: () => this.saveDialog(it) }),
+              btn('✕', { cls: 'sm ghost', title: T('MECH_REMOVE'), onclick: () => { this.remove(e, it); draw(); } })])]);
+          body.appendChild(row);
+        });
+        const acts = el('div', { class: 'mech-bar' });
+        if (items.length) acts.appendChild(btn('📋 ' + T('MECH_COPY_ALL'), { cls: 'sm mech-copy', onclick: () => { this.copy(items, e.name); draw(); } }));
+        const c = this.clip();
+        if (c && c.items.length) acts.appendChild(btn('📌 ' + T('MECH_PASTE', { n: c.items.length }), { cls: 'sm primary mech-paste', onclick: () => { this.paste(); draw(); } }));
+        body.appendChild(acts);
+      }
+      const more = el('div', { class: 'mech-bar' }, [
+        btn('📚 ' + T('MECH_LIBRARY'), { cls: 'sm mech-lib', onclick: () => this.openLibrary() }),
+        btn('🧠 ' + T('MECH_ASK_AI'), { cls: 'sm ghost', onclick: () => { sheet.close(); NX.Studio.openAI({ autoPrompt: T('MECH_AI_PROMPT', { o: sel[0] ? sel[0].name : '' }) }); } })]);
+      body.appendChild(more);
+    };
+    const sheet = Sheet.open({ title: '🧩 ' + T('MECH_TITLE'), body, id: 'mech' });
+    draw();
+    return sheet;
+  },
+  saveDialog(it) {
+    if (!Backend.isOnline() || !Backend.user) { NX.promptSignIn(T('MECH_NEED_ACCOUNT')); return; }
+    const name = el('input', { class: 'input mech-sname', value: it.name || it.type || '' });
+    const desc = el('textarea', { class: 'textarea', value: '', placeholder: T('MECH_DESC_PH') });
+    const pub = el('input', { type: 'checkbox', id: 'mech-pub' });
+    const body = el('div', {}, [NX.field(T('MECH_NAME'), name), NX.field(T('MECH_DESC'), desc),
+      el('label', { class: 'tiny', for: 'mech-pub', style: { display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px' } }, [pub, el('span', { text: T('MECH_PUBLIC') })])]);
+    Modal.open({ title: '💾 ' + T('MECH_SAVE'), body, actions: [{ label: T('cancel'), cls: 'ghost' }, { label: T('save'), cls: 'primary', onclick: async () => {
+      try { const m = await this.save(it, { name: name.value.trim(), description: desc.value.trim(), visibility: pub.checked ? 'public' : 'private' }); Toast.ok(T('MECH_SAVED', { m: m.name })); }
+      catch (e) { Toast.err(e.message || NX.describeFirebaseError(e)); }
+    } }] });
+  },
+  openLibrary() {
+    const body = el('div', { class: 'mech' });
+    let scope = 'mine';
+    const seg = el('div', { class: 'seg', style: { marginBottom: '10px' } });
+    const list = el('div');
+    [['mine', T('MECH_MINE')], ['public', T('MECH_PUBLIC_LIB')]].forEach(([k, l]) => seg.appendChild(el('button', { class: k === scope ? 'on' : '', type: 'button', text: l, onclick: ev => { scope = k; NX.segPick(seg, ev.target); load(); } })));
+    const load = async () => {
+      list.textContent = '';
+      list.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' })]));
+      let rows = [];
+      try { rows = await this.library(scope); } catch (e) { list.textContent = NX.describeFirebaseError(e); return; }
+      list.textContent = '';
+      if (!rows.length) list.appendChild(el('div', { class: 'card tiny', text: scope === 'mine' ? T('MECH_LIB_EMPTY') : T('MECH_PUB_EMPTY') }));
+      const target = this.sel();
+      rows.forEach(m => {
+        const mine = Backend.user && m.ownerId === Backend.user.uid;
+        const acts = [btn('➕ ' + (target[0] ? T('MECH_ADD_TO', { o: target[0].name }) : T('MECH_ADD')), { cls: 'sm primary mech-insert', onclick: async () => {
+          const t = this.sel();
+          if (!t.length) { Toast.err(T('MECH_SELECT')); return; }
+          await this.insert(m, t); Toast.ok(T('MECH_ADDED', { m: m.name }));
+        } })];
+        if (mine) acts.push(
+          btn(m.visibility === 'public' ? '🌍' : '🔒', { cls: 'sm ghost mech-vis', title: T('MECH_PUBLIC'), onclick: async () => { try { await this.setVisibility(m, m.visibility === 'public' ? 'private' : 'public'); load(); } catch (e) { Toast.err(NX.describeFirebaseError(e)); } } }),
+          btn('🗑', { cls: 'sm ghost danger', onclick: async () => { if (await Modal.confirm(T('MECH_DELETE_Q', { m: m.name }), '', T('delete'))) { await this.drop(m).catch(e => Toast.err(NX.describeFirebaseError(e))); load(); } } }));
+        list.appendChild(el('div', { class: 'mech-row' }, [
+          el('div', { class: 'mech-name' }, [el('b', { text: (m.kind === 'component' ? '⚙️ ' : '📜 ') + m.name }),
+            el('small', { text: ['@' + (m.creatorName || 'creator'), m.source === 'ai' ? '🤖 AI' : '🧑‍💻', '↻ ' + (m.uses || 0)].join(' · ') + (m.description ? ' — ' + m.description : '') })]),
+          el('div', { class: 'mech-acts' }, acts)]));
+      });
+    };
+    body.append(seg, list);
+    Sheet.open({ title: '📚 ' + T('MECH_LIBRARY'), body, id: 'mech-lib' });
+    load();
+  }
+};
+
+/* ================================================================ 🧪 NEXUS LEARNER (Beta) */
+const AR_STOP = new Set('في من على الى عن مع هذا هذه ذلك تلك التي الذي الذين ان او ثم لا لم لن ما ماذا كيف هل كل بعض عند كان يكون قد لقد اريد اعمل اصنع اجعل لي انا انت هو هي نحن هم لكن بين حتى اذا'.split(' '));
+const EN_STOP = new Set('the a an to of in on for with and or is are be it this that i you me my make want please can how what add create game'.split(' '));
+/* the same idea, whatever the language: the words people use for the common mechanics of games */
+const CONCEPT = { سياره: 'car', سيارات: 'car', مركبه: 'car', vehicle: 'car', cars: 'car', गाड़ी: 'car', कार: 'car', وقود: 'fuel', بنزين: 'fuel', ईंधन: 'fuel',
+  عدو: 'enemy', اعداء: 'enemy', enemies: 'enemy', दुश्मन: 'enemy', قفز: 'jump', يقفز: 'jump', jumping: 'jump', कूद: 'jump', जंप: 'jump', متجر: 'shop', store: 'shop', दुकान: 'shop',
+  حقيبه: 'inventory', مخزون: 'inventory', مهام: 'quest', مهمه: 'quest', quests: 'quest', mission: 'quest', صحه: 'health', حياه: 'health', hp: 'health', سلاح: 'weapon',
+  اسلحه: 'weapon', gun: 'weapon', बंदूक: 'weapon', باب: 'door', ابواب: 'door', سباق: 'race', racing: 'race', रेस: 'race', عمله: 'coin', عملات: 'coin', coins: 'coin', نقاط: 'score',
+  points: 'score', مستوى: 'level', مستويات: 'level', levels: 'level', اضاءه: 'light', ضوء: 'light', lighting: 'light', نهار: 'day', ليل: 'night', لاعب: 'player',
+  كاميرا: 'camera', سرعه: 'speed', fast: 'speed', طائر: 'bird', كره: 'ball', متاهه: 'maze', زومبي: 'zombie', مدينه: 'city', جزيره: 'island', طيران: 'fly', flying: 'fly',
+  منصات: 'platformer', platform: 'platformer', تصويب: 'shooter', shooting: 'shooter', بقاء: 'survival', صوت: 'sound', موسيقى: 'music', مؤقت: 'timer', وقت: 'timer',
+  لفه: 'lap', خط: 'line', نهايه: 'finish', ظهور: 'spawn', جماعي: 'multiplayer', online: 'multiplayer', ثنائيه: '2d', ثلاثيه: '3d' };
+const Learner = {
+  NAME: 'NEXUS Learner (Beta)',
+  share() { return LS.get('learner.share', true) !== false; },
+  fallback() { return LS.get('learner.fallback', true) !== false; },
+  norm: s => String(s || '').toLowerCase().replace(/[ً-ٰـ]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه'),
+  /* the words that carry the meaning (≤ 24): the common ones dropped, Arabic prefixes cut, the same concept in any language */
+  tokens(text) {
+    const out = [];
+    for (let w of this.norm(text).match(/[a-z0-9]{3,}|[ء-ي]{3,}|[ऀ-ॿ]{2,}/g) || []) {
+      if (/^[ء-ي]/.test(w)) w = w.replace(/^(وال|بال|كال|فال|لل|ال)(?=[ء-ي]{3,})/, '');
+      if (AR_STOP.has(w) || EN_STOP.has(w)) continue;
+      const c = CONCEPT[w] || (/^[ء-ي]/.test(w) && CONCEPT[w.replace(/(ات|ين|ون|ها|هم)$/, '')]) || null;
+      [w, c].forEach(x => { if (x && !out.includes(x)) out.push(x); });
+      if (out.length >= 24) break;
+    }
+    return out.slice(0, 24);
+  },
+  scrub: t => String(t || '').replace(/\b(sk-ant-|sk-or-|sk-|gsk_|xai-|AIza|AQ\.)[A-Za-z0-9._-]{12,}/g, '[key]').replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[email]').replace(/([?&](key|token|sig|signature)=)[^&\s]+/gi, '$1[x]'),
+  /* one of the player's 300 places (a ring): what worked, for everyone signed in to learn from */
+  async record({ kind, source = 'ai', model = '', prompt = '', text = '' }) {
+    try {
+      if (!this.share() || !Backend.isOnline() || !Backend.user || !Backend.hasAccount()) return false;
+      text = this.scrub(text).slice(0, kind === 'game2d' ? 60000 : 20000); prompt = this.scrub(prompt).slice(0, 500);
+      if (text.length < 20) return false;
+      const seen = LS.get('learner.seen', []), h = fnv(kind + '|' + text);
+      if (seen.includes(h)) return false;
+      const tokens = this.tokens(prompt + ' ' + (kind === 'mechanic' ? text.slice(0, 1500) : ''));
+      if (!tokens.length) return false;
+      const me = Backend.user.uid, k = 'learner.slot.' + me, n = LS.get(k, 0) % 300;
+      const { F, db } = fb();
+      await Backend.serverWrite(F.setDoc(F.doc(db, 'learner', me + '_' + n), { by: me, kind, source, model: String(model || '').slice(0, 80), prompt, text, tokens,
+        lang: (NX.i18n && NX.i18n.lang) || 'ar', ok: 0, fail: 0, uses: 0, at: F.serverTimestamp() }));
+      LS.set(k, n + 1); LS.set('learner.seen', seen.concat(h).slice(-400));
+      return true;
+    } catch (e) { console.warn('[learner]', e && e.code); return false; }
+  },
+  /* what it learnt that fits: similar words × how well it worked (used, liked, failed) */
+  async find(q, kinds) {
+    if (!Backend.isOnline() || !Backend.user) return [];
+    const toks = this.tokens(q);
+    if (!toks.length) return [];
+    const { F, db } = fb();
+    const s = await F.getDocs(F.query(F.collection(db, 'learner'), F.where('tokens', 'array-contains-any', toks.slice(0, 10)), F.limit(60)));
+    const rows = s.docs.map(d => Object.assign({ id: d.id }, d.data())).filter(r => !kinds || kinds.includes(r.kind));
+    rows.forEach(r => {
+      const common = (r.tokens || []).filter(x => toks.includes(x)).length;
+      r.sim = common / Math.sqrt(Math.max(1, (r.tokens || []).length) * toks.length);
+      r.quality = (1 + (r.ok || 0) + 0.5 * (r.uses || 0)) / (1 + (r.ok || 0) + (r.uses || 0) + 2 * (r.fail || 0));
+      r.score = r.sim * (0.6 + 0.4 * r.quality);
+    });
+    return rows.filter(r => r.sim >= 0.3).sort((a, b) => b.score - a.score);
+  },
+  /* the human work and the models' work on the same thing: which did better */
+  compare(rows) {
+    const side = src => { const r = rows.filter(x => x.source === src); return { n: r.length, best: r[0] || null, q: r.length ? r.reduce((a, x) => a + x.quality, 0) / r.length : 0 }; };
+    const human = side('human'), ai = side('ai');
+    return { human, ai, winner: !human.n ? 'ai' : !ai.n ? 'human' : human.q >= ai.q ? 'human' : 'ai' };
+  },
+  /* no match: a look at Wikipedia, in the player's language */
+  async research(q) {
+    const lang = { ar: 'ar', hi: 'hi' }[NX.i18n && NX.i18n.lang] || 'en';
+    const base = 'https://' + lang + '.wikipedia.org/w/api.php?format=json&origin=*';
+    const s = await (await fetch(base + '&action=query&list=search&srlimit=1&srsearch=' + encodeURIComponent(String(q).slice(0, 120)))).json();
+    const hit = s && s.query && s.query.search && s.query.search[0];
+    if (!hit) return null;
+    const x = await (await fetch(base + '&action=query&prop=extracts&exintro=1&explaintext=1&exchars=700&titles=' + encodeURIComponent(hit.title))).json();
+    const page = Object.values((x && x.query && x.query.pages) || {})[0];
+    return page && page.extract ? { title: hit.title, extract: String(page.extract).trim(), url: 'https://' + lang + '.wikipedia.org/wiki/' + encodeURIComponent(hit.title.replace(/ /g, '_')) } : null;
+  },
+  /* every model — or the player's credit — is exhausted: the Learner answers, and says so */
+  shouldTake(err) {
+    const i = (err && err.info) || {}, code = i.code || (err && err.code) || '';
+    const s = ((i.title || '') + ' ' + (i.detail || '') + ' ' + ((err && err.message) || '')).toLowerCase();
+    if (['aborted', 'refusal', 'empty', 'size', 'request', 'model', 'cors'].includes(code)) return false;
+    return ['rate', 'network', 'url', 'provider', 'key', 'forbidden', 'signin', 'limit'].includes(code)
+      || /quota|credit|balance|billing|insufficient|exceeded|payment|daily_limit|free_ai_unavailable|limit|رصيد|حد/.test(s);
+  },
+  async answer(messages, why, kinds) {
+    const last = [...(messages || [])].reverse().find(m => m.role === 'user');
+    const q = last ? (typeof last.content === 'string' ? last.content : JSON.stringify(last.content)) : '';
+    const head = '🧪 ' + this.NAME + ' — ' + T('LEARN_WHY', { r: (why && why.info && why.info.title) || (why && why.message) || '' });
+    const rows = await this.find(q, Array.isArray(kinds) ? kinds : null).catch(() => []);
+    let body;
+    if (rows.length) {
+      const best = rows[0], cmp = this.compare(rows);
+      if (Backend.user && best.by !== Backend.user.uid) { const { F, db } = fb(); F.updateDoc(F.doc(db, 'learner', best.id), { uses: F.increment(1) }).catch(() => {}); }
+      body = best.text + '\n\n— ' + T('LEARN_FROM', { s: best.source === 'human' ? T('LEARN_HUMAN') : T('LEARN_AI') + (best.model ? ' (' + best.model + ')' : ''), n: rows.length })
+        + (cmp.human.n && cmp.ai.n ? '\n— ' + T('LEARN_CMP', { h: cmp.human.n, a: cmp.ai.n, w: cmp.winner === 'human' ? T('LEARN_HUMAN') : T('LEARN_AI') }) : '');
+    } else {
+      const w = await this.research(q).catch(() => null);
+      body = w ? T('LEARN_WIKI', { t: w.title }) + '\n\n' + w.extract + '\n\n' + w.url : T('LEARN_NOTHING');
+    }
+    return { text: head + '\n\n' + body, model: this.NAME, provider: 'NEXUS Learner', learner: true, usage: null, stop: 'stop', truncated: false };
+  },
+  /* the assistant built something that works: its plan and its code are a lesson */
+  fromReport(report) {
+    if (!report || !report.ok || !report.plan || !(report.created.length || report.edited.length)) return;
+    const files = (S().project && S().project.files) || [];
+    const code = report.created.concat(report.edited).map(p => files.find(f => f.path === p)).filter(Boolean).map(f => '// ' + f.path + '\n' + f.code).join('\n\n');
+    const i = NX.AIClient.info ? NX.AIClient.info() : {};
+    this.record({ kind: 'plan', source: 'ai', model: i.model || '', prompt: report.prompt, text: (report.plan.title || '') + '\n' + (report.plan.summary || '') + '\n\n' + code });
+  },
+  /* nothing planned for this request: what it learnt that fits, one tap to add */
+  async suggest(prompt, panel) {
+    const rows = await this.find(prompt, ['mechanic']).catch(() => []);
+    if (!rows.length || !panel) return;
+    const best = rows[0], m = panel.say('ai', '🧪 ' + T('LEARN_SUGGEST', { p: best.prompt.slice(0, 80) }));
+    m.appendChild(el('div', { style: { marginTop: '8px' } }, [btn('➕ ' + T('LEARN_ADD'), { cls: 'sm primary lrn-add', onclick: () => {
+      const name = (String(best.prompt).split(' — ')[0].replace(/[^\w]+/g, '') || 'Learned');
+      const t = Mechanics.sel();
+      const n = Mechanics.apply([{ kind: 'component', type: name, name, data: {}, path: name + '.js', code: best.text }], t.length ? t : [], T('MECH_ADDED', { m: name }));
+      if (!n) { Mechanics.files().push({ id: uid('f'), path: Mechanics.uniquePath(name + '.js'), code: best.text, role: 'component', entityId: null, enabled: true }); S().dirty = true; }
+      Toast.ok(T('MECH_ADDED', { m: name }));
+      if (Backend.user && best.by !== Backend.user.uid) { const { F, db } = fb(); F.updateDoc(F.doc(db, 'learner', best.id), { ok: F.increment(1) }).catch(() => {}); }
+    } })]));
+  },
+  /* what it has learnt so far — and the switches */
+  open() {
+    const body = el('div', { class: 'lrn' });
+    body.appendChild(el('div', { class: 'lrn-beta' }, [el('b', { text: '🧪 ' + this.NAME }), el('span', { class: 'lrn-tag', text: 'BETA' })]));
+    body.appendChild(el('p', { class: 'tiny', style: { lineHeight: '1.8', margin: '8px 0' }, text: T('LEARN_ABOUT') }));
+    const sw = (k, label) => { const c = el('input', { type: 'checkbox', checked: LS.get(k, true) !== false }); c.onchange = () => LS.set(k, c.checked); return el('label', { class: 'tiny lrn-sw' }, [c, el('span', { text: label })]); };
+    body.append(sw('learner.fallback', T('LEARN_SW_FALLBACK')), sw('learner.share', T('LEARN_SW_SHARE')));
+    const stats = el('div', { class: 'card tiny', style: { marginTop: '10px', lineHeight: '1.8' }, text: '…' });
+    body.appendChild(stats);
+    const ask = el('textarea', { class: 'textarea lrn-q', rows: 2, placeholder: T('LEARN_ASK_PH') });
+    const out = el('div', { class: 'lrn-out' });
+    body.append(el('div', { class: 'ttl', style: { marginTop: '12px' }, text: T('LEARN_TRY') }), ask,
+      btn('🧪 ' + T('LEARN_ASK'), { cls: 'sm primary lrn-ask', onclick: async () => { out.textContent = '…'; const r = await this.answer([{ role: 'user', content: ask.value }], { info: { title: T('LEARN_TEST') } }); out.textContent = r.text; } }), out);
+    Sheet.open({ title: '🧪 ' + this.NAME, body, id: 'learner' });
+    (async () => {
+      if (!Backend.isOnline() || !Backend.user) { stats.textContent = T('LEARN_NEED_ACCOUNT'); return; }
+      try {
+        const { F, db } = fb();
+        const s = await F.getDocs(F.query(F.collection(db, 'learner'), F.limit(300)));
+        const rows = s.docs.map(d => d.data());
+        rows.forEach(r => { r.quality = (1 + (r.ok || 0) + 0.5 * (r.uses || 0)) / (1 + (r.ok || 0) + (r.uses || 0) + 2 * (r.fail || 0)); });
+        const c = this.compare(rows), by = k => rows.filter(r => r.kind === k).length;
+        stats.textContent = T('LEARN_STATS', { n: rows.length, m: by('mechanic'), a: by('answer'), p: by('plan'), g: by('game2d'), h: c.human.n, i: c.ai.n })
+          + (c.human.n && c.ai.n ? '\n' + T('LEARN_CMP', { h: c.human.n, a: c.ai.n, w: c.winner === 'human' ? T('LEARN_HUMAN') : T('LEARN_AI') }) : '');
+        stats.style.whiteSpace = 'pre-line';
+      } catch (e) { stats.textContent = NX.describeFirebaseError(e); }
+    })();
+  }
+};
+
+/* ---- the models' client: when every model (or the credit) is exhausted, the Learner answers the calls that allow it ---- */
+{
+  const C = NX.AIClient, _chat = C.chat;
+  C.chat = async function (messages, opts = {}) {
+    try { return await _chat.call(this, messages, opts); }
+    catch (e) {
+      if (!opts._learner || !Learner.fallback() || !Learner.shouldTake(e)) throw e;
+      const r = await Learner.answer(messages, e, opts._learner).catch(() => null);
+      if (!r) throw e;
+      if (opts.onDelta) try { opts.onDelta(r.text, r.text); } catch { }
+      return r;
+    }
+  };
+}
+
+/* ---- the object's menu, the command palette, the assistant's settings ---- */
+if (NX.Commands) NX.Commands.register([
+  { label: '🧩 ' + T('MECH_TITLE'), icon: 'grid', keywords: 'mechanics mechanic ميكانيكيات ميكانيكية components', when: () => !!(NX.Studio && NX.Studio.project), run: () => Mechanics.open() },
+  { label: '📚 ' + T('MECH_LIBRARY'), icon: 'grid', keywords: 'mechanics library مكتبة', when: () => !!(NX.Studio && NX.Studio.project), run: () => Mechanics.openLibrary() },
+  { label: '🧪 NEXUS Learner (Beta)', icon: 'spark', keywords: 'learner المتعلم beta', run: () => Learner.open() }
+]);
+
+NX.Remix = Remix;
+NX.Mechanics = Mechanics;
+NX.Learner = Learner;
+</script>
+<!-- /NX-PART:40 -->
+
 
 <script>
 /* Plain script: if the module graph never ran (CDN blocked, no ES-module
