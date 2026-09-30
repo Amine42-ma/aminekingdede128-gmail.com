@@ -25,8 +25,10 @@ export function startWorld() {
     lists: {                   // the providers' own model lists
       groq: ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b', 'qwen/qwen3-32b'],
       openrouter: ['deepseek/deepseek-chat-v3:free', 'meta-llama/llama-3.3-70b-instruct:free'],
-      anthropic: ['claude-sonnet-test-1', 'claude-opus-test-1', 'claude-haiku-test-1']
-    }
+      anthropic: ['claude-sonnet-test-1', 'claude-opus-test-1', 'claude-haiku-test-1'],
+      reseller: ['gpt-5.5', 'think-5.5', 'gpt-4o-mini']
+    },
+    thinking: {}               // reseller: model → the budget it spends thinking before its first word (less → an empty answer, 'length')
   };
   let tick = 0;
   const stamp = () => new Date(Date.now() + (tick++)).toISOString();
@@ -69,9 +71,18 @@ export function startWorld() {
       if (k === '429') { call.status = 429; return send(res, 429, { error: { message: 'Rate limit reached. Please try again in 20s.' } }, { 'retry-after': '20' }); }
       if (k === '500') { call.status = 500; return send(res, 500, { error: { message: 'internal error' } }); }
       if (k === 'nocredit') { call.status = 400; return send(res, 400, { type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API.' } }); }
+      /* an OpenAI-compatible reseller (cleanapis and the like): its gpt-5 models refuse max_tokens and any temperature
+         but 1; a thinking model answers nothing when its budget is spent thinking; answers as content parts */
+      let empty = false;
+      if (prov === 'reseller') {
+        const strict = /gpt-5/.test(j.model || '');
+        if (strict && j.max_tokens != null) { call.status = 400; return send(res, 400, { error: { message: "Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.", type: 'invalid_request_error', param: 'max_tokens', code: 'unsupported_parameter' } }); }
+        if (strict && j.temperature != null && j.temperature !== 1) { call.status = 400; return send(res, 400, { error: { message: "Unsupported value: 'temperature' does not support " + j.temperature + ' with this model. Only the default (1) value is supported.', type: 'invalid_request_error', param: 'temperature', code: 'unsupported_value' } }); }
+        empty = (j.max_completion_tokens || j.max_tokens || 0) < (W.thinking[j.model] || 0);
+      }
       if (W.models[prov + '|' + j.model] === 'gone') { call.status = 404; return send(res, 404, { error: { message: 'The model `' + j.model + '` does not exist', code: 'model_not_found' } }); }
-      const text = (W.reply || W.defaultReply)(call);
-      call.status = 200; call.text = text;
+      const text = empty ? '' : (W.reply || W.defaultReply)(call);
+      call.status = 200; call.text = text; call.empty = empty;
       if (prov === 'anthropic') {
         if (j.stream) {
           res.writeHead(200, Object.assign({ 'content-type': 'text/event-stream' }, CORS));
@@ -89,10 +100,11 @@ export function startWorld() {
       if (j.stream) {
         res.writeHead(200, Object.assign({ 'content-type': 'text/event-stream' }, CORS));
         for (const piece of text.match(/.{1,7}/gs) || []) res.write('data: ' + JSON.stringify({ choices: [{ delta: { content: piece } }] }) + '\n\n');
+        res.write('data: ' + JSON.stringify({ choices: [{ delta: {}, finish_reason: empty ? 'length' : 'stop' }] }) + '\n\n');
         res.write('data: [DONE]\n\n');
         return res.end();
       }
-      return send(res, 200, { id: 'c1', model: j.model, choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 5 } });
+      return send(res, 200, { id: 'c1', model: j.model, choices: [{ index: 0, message: { role: 'assistant', content: prov === 'reseller' ? [{ type: 'text', text }] : text }, finish_reason: empty ? 'length' : 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 5 } });
     } finally { call.t1 = Date.now(); W.active--; }
   }
 
@@ -156,7 +168,7 @@ export function startWorld() {
   const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url, 'http://x');
-      const pm = /^\/(gemini|groq|openrouter|anthropic|alt-gemini|alt-groq)(\/.*)$/.exec(url.pathname);
+      const pm = /^\/(gemini|groq|openrouter|anthropic|reseller|alt-gemini|alt-groq)(\/.*)$/.exec(url.pathname);
       if (pm) return await provider(req, res, pm[1].replace(/^alt-/, ''), pm[2]);
       if (url.pathname.startsWith('/v1/projects/')) return await firestore(req, res, url);
       /* anything else a test serves (a game-news feed …): W.files[path] = { type, body, status } */

@@ -210,12 +210,23 @@ async function adStart(me, via) {
   const nonce = rid(24);
   const r = await commit([create('ad_sessions/' + nonce, { uid: me.uid, at: now, via, used: false })]);
   if (!r.ok) throw coded(503, 'store', 'تعذّر بدء الإعلان');
-  return { nonce, minSeconds: c.adMinSeconds, points: c.ad, left: c.adsPerDay - n };
+  const strong = await strongDonor(me.uid);
+  return { nonce, minSeconds: c.adMinSeconds, points: c.ad * (strong ? 2 : 1), strongDonor: strong, left: c.adsPerDay - n };
 }
 /* the reward: once per ticket (and per AdMob transaction), within the day's limit */
+/* a strong donor (donors/<uid>, written by ai.js): ×2 on an ad's points while one of their strong keys is still active */
+async function strongDonor(uid) {
+  const d = await getDoc('donors/' + uid).catch(() => ({ exists: false }));
+  if (!d.exists || d.data.tier !== 'strong') return false;
+  for (const id of (d.data.strongKeys || []).slice(0, 5)) {
+    const k = await getDoc('api_keys/' + id).catch(() => ({ exists: false }));
+    if (k.exists && k.data.status === 'active' && k.data.tier === 'strong') return true;
+  }
+  return false;
+}
 async function adReward(uid, nonce, via, tx) {
-  const c = cfg();
-  return change(uid, c.ad, 'ad', via === 'admob' ? 'إعلان بمكافأة (AdMob)' : 'إعلان بمكافأة', async d => {
+  const c = cfg(), strong = await strongDonor(uid);
+  return change(uid, c.ad * (strong ? 2 : 1), 'ad', (via === 'admob' ? 'إعلان بمكافأة (AdMob)' : 'إعلان بمكافأة') + (strong ? ' · ×2 💎 متبرّع قوي' : ''), async d => {
     const now = Date.now();
     const s = await getDoc('ad_sessions/' + nonce);
     if (!s.exists || s.data.uid !== uid) return { error: coded(404, 'ad_ticket', 'تذكرة الإعلان غير موجودة') };
@@ -410,7 +421,7 @@ export default async (req) => {
     if (path === '/ad/claim' && req.method === 'POST') {
       if (!c.adsWeb) return fail(403, 'ads_web_off', 'إعلانات المتصفح غير مفعّلة على هذا الموقع (ADS_WEB).');
       const r = await adReward(me.uid, String(body.nonce || '').replace(/[^\w]/g, ''), 'web', null);
-      return json(200, { ok: true, points: r.points, added: c.ad });
+      return json(200, { ok: true, points: r.points, added: r.delta != null ? r.delta : c.ad });
     }
     if (path === '/ai/buy' && req.method === 'POST') { const r = await aiBuy(me); return json(200, { ok: true, points: r.points, extra: r.result.extra }); }
     if (path === '/upload/start' && req.method === 'POST') return json(200, { ok: true, ...(await uploadStart(me, body)) });

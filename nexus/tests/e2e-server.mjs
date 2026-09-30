@@ -1,8 +1,8 @@
 /* ============================================================
    NEXUS tests · the site as Netlify would serve it, on this machine:
-   the static files of nexus/ and the two server functions
-   (netlify/edge-functions/ai.js, points.js) answering /api/ai/* and
-   /api/points/*, with the Firebase emulators as their database
+   the static files of nexus/ and the server functions
+   (netlify/edge-functions/ai.js, points.js, challenges.js, i18n.js) answering
+   /api/ai/*, /api/points/*, /api/challenges/*, /api/i18n/*, with the Firebase emulators as their database
    (FIRESTORE_EMULATOR_HOST — the real firestore.rules apply to the page)
    and fake AI providers (mock-world.mjs) instead of the real ones.
    ============================================================ */
@@ -19,30 +19,31 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '
 
 /* challenges.js imports ./ai.js and ./points.js: loaded through a copy that imports the SAME
    versioned copies (a fresh load gets fresh caches, like a new deploy) */
-export async function importChallenges(query) {
-  const src = fs.readFileSync(path.join(ROOT, 'netlify/edge-functions/challenges.js'), 'utf8')
+export async function importChallenges(query, file = 'challenges') {
+  const src = fs.readFileSync(path.join(ROOT, 'netlify/edge-functions/' + file + '.js'), 'utf8')
     .replace(/from '\.\/(ai|points)\.js'/g, (m, f) => "from '" + pathToFileURL(path.join(ROOT, 'netlify/edge-functions', f + '.js')).href + '?' + query + "'");
-  const tmp = path.join(os.tmpdir(), 'nexus-challenges-' + query.replace(/\W/g, '_') + '.mjs');
+  const tmp = path.join(os.tmpdir(), 'nexus-' + file + '-' + query.replace(/\W/g, '_') + '.mjs');
   fs.writeFileSync(tmp, src);
   return (await import(pathToFileURL(tmp).href)).default;
 }
 
 export async function startSite({ env, files = {}, port = 0 }) {
   globalThis.Netlify = { env: { get: k => env[k] } };
-  let ai, points, challenges, n = 0;
+  let ai, points, challenges, i18n, n = 0;
   /* a fresh copy of the functions (empty caches: key pool, model lists, resting keys) */
   const load = async () => {
     const v = Date.now() + '-' + (++n);
     ai = (await import(pathToFileURL(path.join(ROOT, 'netlify/edge-functions/ai.js')).href + '?e2e=' + v)).default;
     points = (await import(pathToFileURL(path.join(ROOT, 'netlify/edge-functions/points.js')).href + '?e2e=' + v)).default;
     challenges = await importChallenges('e2e=' + v);
+    i18n = await importChallenges('e2e=' + v, 'i18n');
   };
   await load();
   const log = [];
   const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url, 'http://' + req.headers.host);
-      const fn = /^\/api\/ai(\/|$)/.test(url.pathname) ? ai : /^\/api\/points(\/|$)/.test(url.pathname) ? points : /^\/api\/challenges(\/|$)/.test(url.pathname) ? challenges : null;
+      const fn = /^\/api\/ai(\/|$)/.test(url.pathname) ? ai : /^\/api\/points(\/|$)/.test(url.pathname) ? points : /^\/api\/challenges(\/|$)/.test(url.pathname) ? challenges : /^\/api\/i18n(\/|$)/.test(url.pathname) ? i18n : null;
       if (fn) {
         const chunks = [];
         for await (const c of req) chunks.push(c);

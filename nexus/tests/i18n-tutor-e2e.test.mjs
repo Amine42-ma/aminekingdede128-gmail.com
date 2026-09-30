@@ -69,7 +69,7 @@ test('1 · First visit, a browser in Hindi: हिन्दी at once — the t
   await until(page, () => document.querySelectorAll('#p-tabs button').length === 5);
   const s = await shell(page);
   assert.equal(s.lang, 'hi'); assert.equal(s.dir, 'ltr'); assert.equal(s.saved, '"hi"');
-  assert.deepEqual(s.tabs, ['Home', 'बनाएँ', 'मेरे Projects', 'Community', 'Profile']);
+  assert.deepEqual(s.tabs, ['होम', 'बनाएँ', 'मेरे प्रोजेक्ट', 'कम्युनिटी', 'प्रोफ़ाइल']);
   assert.equal(s.search, 'खोजें'); assert.equal(s.langCap, 'हि'); assert.equal(s.title, HI('APP_TITLE'));
   assert.ok(await page.evaluate(() => !!document.getElementById('nx-font-hi')), 'Hind (Devanagari) is loaded for Hindi only');
 });
@@ -109,7 +109,7 @@ test('3 · The 🌐 in the top bar: three languages; English — every text at o
 test('4 · हिन्दी, then back to العربية: every Arabic text comes back exactly; the choice survives a reload', async () => {
   const { page } = S.ar;
   await page.evaluate(() => NX.setLanguage('hi'));
-  assert.equal((await shell(page)).tabs[2], 'मेरे Projects');
+  assert.equal((await shell(page)).tabs[2], 'मेरे प्रोजेक्ट');
   await page.evaluate(() => NX.setLanguage('ar'));
   const back = await shell(page);
   assert.deepEqual(back.tabs, S.arText.tabs); assert.equal(back.search, S.arText.search); assert.equal(back.dir, 'rtl'); assert.equal(back.title, AR('APP_TITLE'));

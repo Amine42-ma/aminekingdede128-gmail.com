@@ -1400,6 +1400,7 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 .pts-fname b{overflow-wrap:anywhere}
 .pts-pre{max-height:50vh;overflow:auto;background:rgba(0,0,0,.35);padding:10px;border-radius:10px;font-size:12px;white-space:pre-wrap;direction:ltr;text-align:left}
 .donor-badge{display:inline-block;margin:4px 0 0;padding:2px 9px;border-radius:999px;background:rgba(34,197,94,.14);color:#86efac;font-size:12px;font-weight:700}
+.donor-badge.strong{background:linear-gradient(90deg,rgba(56,189,248,.18),rgba(168,85,247,.2));color:#c4b5fd;box-shadow:0 0 0 1px rgba(168,85,247,.35) inset}
 /* /NX-CSS:34 */
 /* NX-CSS:35 */
 /* PART 35 · the mobile editor: bottom tool strip, play bar, create / draw / shape / material / tree */
@@ -2105,20 +2106,28 @@ const Phrases = {
   map: null, obs: null, texts: new WeakMap(), attrs: new WeakMap(),
   ATTRS: ['placeholder', 'title', 'aria-label'],
   /* never translated: code, the code editor, a game's own interface, what a player types */
-  SKIP: 'script,style,textarea,code,pre,.ed-wrap,.mono,[contenteditable="true"],[data-no-i18n],#game-ui-layer',
+  SKIP: 'script,style,textarea,code,pre,.ed-wrap,.mono,[contenteditable="true"],[data-no-i18n],#game-ui-layer,.ai-msg.me',
   build() {
     const m = new Map(), add = row => row.forEach(v => { if (v && !m.has(v)) m.set(v, row); });
     for (const [ar, t] of Object.entries(I18N.phrases || {})) add([ar, t[0] || ar, t[1] || t[0] || ar]);
     for (const r of Object.values(I18N.keys || {})) if (Array.isArray(r) && r[0] && !/[{|]/.test(r[0])) add([r[0], r[1] || r[0], r[2] || r[1] || r[0]]);
     return (this.map = m);
   },
-  to(s, lang) { const row = (this.map || this.build()).get(String(s == null ? '' : s).trim()); return row ? row[LANG_IX[lang] || 0] : s; },
-  swap(src, ix) { const k = src.trim(), row = k && k.length < 400 && this.map.get(k); return row ? src.replace(k, row[ix]) : null; },
+  to(s, lang) {
+    const k = String(s == null ? '' : s).trim(), row = (this.map || this.build()).get(k);
+    return row ? row[LANG_IX[lang] || 0] : (LANG_IX[lang] && k && Remote.get(k, LANG_IX[lang])) || s;
+  },
+  swap(src, ix) {
+    const k = src.trim(), row = k && k.length < 400 && this.map.get(k);
+    if (row) return src.replace(k, row[ix]);
+    const t = ix && k && Remote.get(k, ix);      // not in translations.js: the translation service's (NEXUS AI, once, for everyone)
+    return t ? src.replace(k, t) : null;
+  },
   text(n, ix, checked) {
     const p = n.parentElement;
     if (!p || (!checked && p.closest(this.SKIP)) || p.hasAttribute('data-i18n') || p.hasAttribute('data-t')) return;
     const cur = n.nodeValue, rec = this.texts.get(n), src = rec && rec.out === cur ? rec.src : cur, want = this.swap(src, ix);
-    if (want == null) { if (rec) this.texts.delete(n); return; }
+    if (want == null) { if (rec) { if (src !== cur) n.nodeValue = src; this.texts.delete(n); } return; }   // no translation in this language: its own words again
     if (want !== cur) n.nodeValue = want;
     this.texts.set(n, { src, out: want });
   },
@@ -2127,7 +2136,7 @@ const Phrases = {
     if (cur == null || e.hasAttribute('data-i18n')) return;
     let recs = this.attrs.get(e);
     const rec = recs && recs[name], src = rec && rec.out === cur ? rec.src : cur, want = this.swap(src, ix);
-    if (want == null) { if (rec) delete recs[name]; return; }
+    if (want == null) { if (rec) { if (src !== cur) e.setAttribute(name, src); delete recs[name]; } return; }
     if (want !== cur) e.setAttribute(name, want);
     if (!recs) this.attrs.set(e, recs = {});
     recs[name] = { src, out: want };
@@ -2155,6 +2164,59 @@ const Phrases = {
       }
     });
     this.obs.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: this.ATTRS });
+  }
+};
+/* the rest of the interface: a text translations.js lacks is asked of NEXUS's translation service
+   (/api/i18n — NEXUS AI translates it once and keeps it for everyone). Only the interface's own words are
+   asked (every word of the text is a word of NEXUS's code; a name, a post, a chat never leave), numbers as
+   {0}, {1}…; what came back is kept in this browser too. */
+const Remote = {
+  t: {}, asked: new Set(), q: new Set(), loaded: {}, V: null, timer: 0,
+  base() { return /^https?:$/.test(location.protocol) ? location.origin + location.pathname.replace(/[^/]*$/, '') + 'api/i18n' : ''; },
+  norm: t => String(t).replace(/[\u064B-\u0670\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه'),
+  isUI(k) {
+    if (!this.V) { this.V = new Set(); $$('script:not([src])').forEach(s => (this.norm(s.textContent).match(/[ء-ي]{2,}/g) || []).forEach(w => this.V.add(w))); }
+    const w = this.norm(k).match(/[ء-ي]{2,}/g) || [];
+    return w.length > 0 && w.length <= 30 && w.filter(x => this.V.has(x)).length / w.length >= 0.85;
+  },
+  dict(lang) { return this.t[lang] || (this.t[lang] = LS.get('i18n.remote.' + lang, {}) || {}); },
+  get(s, ix) {
+    if (!/[ء-ي]/.test(s) || s.length > 200) return null;
+    const lang = ix === 1 ? 'en' : 'hi', nums = [];
+    const k = s.replace(/[0-9٠-٩]+(?:[.,٫][0-9٠-٩]+)*/g, m => '{' + (nums.push(m) - 1) + '}'), t = this.dict(lang)[k];
+    if (t == null) { this.need(k, lang); return null; }
+    return t.replace(/\{(\d+)\}/g, (m, i) => nums[i] != null ? nums[i] : m);
+  },
+  need(k, lang) {
+    const id = lang + '|' + k;
+    if (this.asked.has(id) || k.length < 2 || !this.base() || !this.isUI(k)) return;
+    this.asked.add(id); this.q.add(id);
+    clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 500);
+  },
+  merge(lang, t) {
+    const d = this.dict(lang); Object.assign(d, t);
+    const ks = Object.keys(d); if (ks.length > 3000) ks.slice(0, ks.length - 3000).forEach(x => delete d[x]);
+    LS.set('i18n.remote.' + lang, d);
+    if (i18n.lang === lang && document.body) Phrases.walk(document.body, LANG_IX[lang]);
+  },
+  /* what was translated already, for everyone: once per visit and language */
+  load(lang) {
+    this.dict(lang);
+    if (this.loaded[lang] || !this.base()) return;
+    this.loaded[lang] = 1;
+    fetch(this.base() + '/dict?lang=' + lang).then(r => r.ok ? r.json() : null).then(j => { if (j && j.t) this.merge(lang, j.t); }).catch(() => {});
+  },
+  async flush() {
+    const lang = i18n.lang, all = [...this.q], mine = all.filter(id => id.startsWith(lang + '|')), ids = mine.slice(0, 60);
+    this.q = new Set(mine.slice(60));
+    all.forEach(id => { if (!id.startsWith(lang + '|')) this.asked.delete(id); });   // another language: asked again when it is shown
+    if (this.q.size) this.timer = setTimeout(() => this.flush(), 1500);
+    if (!ids.length || lang === 'ar') return;
+    try {
+      const r = await fetch(this.base() + '/translate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lang, strings: ids.map(id => id.slice(lang.length + 1)) }) });
+      const j = r.ok ? await r.json() : null;
+      if (j && j.t && Object.keys(j.t).length) this.merge(lang, j.t);
+    } catch { }
   }
 };
 const i18n = {
@@ -2192,6 +2254,7 @@ function setLanguage(l) {
   $$('[data-i18n-placeholder]').forEach(n => { n.placeholder = i18n.t(n.dataset.i18nPlaceholder); });
   $$('[data-i18n-title]').forEach(n => { n.title = i18n.t(n.dataset.i18nTitle); });
   document.title = i18n.t('APP_TITLE');
+  if (l !== 'ar') Remote.load(l);
   if (Phrases.map || Phrases.build()) { if (document.body) Phrases.walk(document.body, ix); Phrases.watch(l !== 'ar'); }
   window.dispatchEvent(new CustomEvent('nx:lang', { detail: { lang: l } }));
 }
@@ -4995,6 +5058,18 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /friendUsage/{uid} {
+      allow read, write: if false;
+    }
+    // a donor's tier (💎 strong while a donated key serves strong models): written only by the AI server
+    match /donors/{uid} {
+      allow read: if true;
+      allow write: if false;
+    }
+    // the interface's translations (English · हिन्दी) and their daily budget: only the translation server (/api/i18n)
+    match /i18n_cache/{d} {
+      allow read, write: if false;
+    }
+    match /i18n_usage/{d} {
       allow read, write: if false;
     }
 
@@ -14523,6 +14598,18 @@ const AIPanel = {
     if (!q) return;
     this.input.value = ''; this.input.style.height = '';
 
+    /* «استخدم نماذجي» / «use my models»: the player's own model from now on — done here, no token spent */
+    if (!opts.forceAct && NX.MyModels && NX.MyModels.claims(q)) {
+      this.say('me', q);
+      const m = this.say('ai', NX.MyModels.handle(q));
+      if (!NX.AIConfig.isReady() || NX.AIConfig.active() === 'none') m.appendChild(el('div', { style: { marginTop: '8px' } }, [btn('⚙ ' + NX.T('MINE_ADD'), { cls: 'sm', onclick: () => NX.openAISettings() })]));
+      return;
+    }
+    /* a 2D game: one complete HTML5 game written by the connected model, kept as the player's own game (PART 39) */
+    if (!opts.forceAct && NX.Game2D && NX.Game2D.claims(q)) {
+      this.say('me', q);
+      return NX.Game2D.make(q, { say: t => this.say('ai', t) });
+    }
     /* the team: «اجعل يوسف يعمل على …», «أعط يوسف صلاحية …», «من متصل؟» (PART 25) */
     if (!opts.forceAct && NX.TeamAI && NX.TeamAI.claims(q)) {
       this.say('me', q);
@@ -16211,7 +16298,11 @@ async function openCreator(uidStr) {
   const info = el('div', { style: { flex: '1', minWidth: '0' } });
   info.append(el('b', { text: '@' + prof.name, style: { fontSize: '17px' } }),
     el('div', { class: 'tiny', text: `${fmtNum(prof.followers || 0)} متابع · ${fmtNum(prof.following || 0)} يتابع · ${fmtNum(prof.posts || 0)} منشور` }));
-  if (prof.donor) info.appendChild(el('span', { class: 'donor-badge', title: 'تبرّع بمفتاح للذكاء المجاني في الموقع', text: '🤝 متبرّع' }));
+  if (prof.donor) {
+    const badge = el('span', { class: 'donor-badge', title: 'تبرّع بمفتاح للذكاء المجاني في الموقع', text: '🤝 متبرّع' });
+    info.appendChild(badge);
+    Backend.getDoc('donors', prof.uid || uidStr).then(d => { if (d && d.tier === 'strong') { badge.textContent = '💎 متبرّع قوي'; badge.classList.add('strong'); badge.title = 'مفتاحه المتبرَّع به يعمل بنماذج قوية — نقاط إعلاناته ×2'; } }).catch(() => {});
+  }
   if (prof.bio) info.appendChild(el('p', { class: 'tiny', style: { marginTop: '4px' }, text: prof.bio }));
   head.append(av, info);
   body.appendChild(head);
@@ -17374,6 +17465,16 @@ const { LS, uid, Toast } = NX;
 /* ------------------------------------------------------------
    PROVIDER REGISTRY (rules 4, 5, 8)
    ------------------------------------------------------------ */
+/* an OpenAI-compatible site (a reseller, a proxy) accepts its own set of parameters: learnt once per
+   (site, model) from its own error message, kept on this device */
+const Compat = {
+  id(cfg, provider) { return String((cfg && cfg.baseURL) || (provider && provider.baseURL) || '').replace(/^https?:\/\//, '').split('/')[0] + '|' + ((cfg && cfg.model) || ''); },
+  get(cfg, provider) { return (LS.get('ai.compat', {}) || {})[this.id(cfg, provider)] || {}; },
+  set(cfg, provider, patch) { const all = LS.get('ai.compat', {}) || {}, k = this.id(cfg, provider); all[k] = Object.assign({}, all[k], patch); LS.set('ai.compat', all); }
+};
+const REASONING_RE = /(^|[\/:])(o\d|gpt-5|gpt-oss)|reason|thinking|(^|[\/:_-])r1([\/:_.-]|$)|qwq/i;
+/* a message's content: a string — or, from some sites, a list of parts */
+const partsText = c => typeof c === 'string' ? c : Array.isArray(c) ? c.map(x => typeof x === 'string' ? x : (x && (x.text || (x.type === 'text' && x.content))) || '').join('') : '';
 /* the site's own server function (netlify/edge-functions/ai.js) — only on a web address */
 const FREE_AI_BASE = /^https?:$/.test(location.protocol) ? location.origin + location.pathname.replace(/[^/]*$/, '') + 'api/ai' : '';
 const PROVIDERS = {
@@ -17637,20 +17738,24 @@ function headersFor(provider, cfg) {
 }
 
 const Adapters = {
-  /* --- OpenAI-compatible: Groq, OpenAI, OpenRouter, local, custom --- */
+  /* --- OpenAI-compatible: Groq, OpenAI, OpenRouter, local, custom (and resellers speaking the same API) --- */
   openai: {
     url(provider, cfg, path) { return String(cfg.baseURL || provider.baseURL).replace(/\/$/, '') + path; },
     body(cfg, messages, system, stream, provider) {
       const msgs = system ? [{ role: 'system', content: system }, ...messages] : messages;
       const b = { model: cfg.model, messages: msgs, stream: !!stream };
-      /* OpenAI reasoning models (o-series, gpt-5) reject temperature and
-         the old max_tokens name */
-      const reasoning = /^(o\d|gpt-5)/i.test(cfg.model || '');
-      if (cfg.temperature != null && !reasoning) b.temperature = cfg.temperature;
+      /* reasoning models (o-series, gpt-5, *-thinking, r1 — also behind a reseller's «vendor/model» name) reject
+         temperature and the old max_tokens name, and spend part of the budget thinking: room for that, at «low»
+         effort (fewer tokens). What a (site, model) really accepts is learnt from its own error (Compat). */
+      const cp = Compat.get(cfg, provider);
+      const reasoning = cp.reasoning || REASONING_RE.test(cfg.model || '');
+      if (cfg.temperature != null && !reasoning && !cp.noTemp) b.temperature = cfg.temperature;
       if (cfg.maxTokens) {
-        if (provider && provider.id === 'openai') b.max_completion_tokens = cfg.maxTokens;
-        else b.max_tokens = cfg.maxTokens;
+        const n = reasoning ? Math.min(32000, cfg.maxTokens * 2 + 2048) : cfg.maxTokens;
+        if (cp.mct != null ? cp.mct : (provider && provider.id === 'openai') || reasoning) b.max_completion_tokens = n;
+        else b.max_tokens = n;
       }
+      if (reasoning && !cp.noEffort && !(provider && provider.id === 'groq')) b.reasoning_effort = 'low';
       if (stream && provider && (provider.id === 'openai' || provider.id === 'groq')) b.stream_options = { include_usage: true };
       return b;
     },
@@ -17672,12 +17777,12 @@ const Adapters = {
     },
     parseDelta(json) {
       const c = json.choices && json.choices[0];
-      return (c && c.delta && c.delta.content) || '';
+      return partsText(c && c.delta && c.delta.content);
     },
     stopReason(json) { const c = json.choices && json.choices[0]; return c ? c.finish_reason : null; },
     parseFull(json) {
       const c = json.choices && json.choices[0];
-      return (c && c.message && c.message.content) || '';
+      return partsText(c && (c.message ? c.message.content : c.text));
     },
     usage(json) { return json.usage ? { in: json.usage.prompt_tokens, out: json.usage.completion_tokens } : null; }
   },
@@ -17875,7 +17980,17 @@ const AIClient = {
     this._release(ctrl); clearTimeout(idle);
     /* reasoning models (qwen3, deepseek-r1 …) may put their thinking in the text */
     text = text.replace(/<think>[\s\S]*?<\/think>\s*/g, '').replace(/^[\s\S]*?<\/think>\s*/, '');
-    if (stop === 'refusal' && !text) throw Object.assign(new Error('REFUSAL'), { info: { code: 'refusal', title: 'رفض النموذج هذا الطلب', detail: 'أعد صياغة الطلب.' } });
+    if (stop === 'refusal' && !text) throw Object.assign(new Error('REFUSAL'), { info: { code: 'refusal', title: 'رفض النموذج هذا الطلب', detail: 'أعد صياغة الطلب.' } })
+    /* nothing written: a reasoning model that spent the whole budget thinking — once more, as a reasoning model
+       with more room; never a silent empty answer that cost tokens for nothing */
+    if (!text.trim() && provider.shape === 'openai' && provider.id !== 'nexus') {
+      if (/^(length|max_tokens)$/.test(stop || '') && _tries < 2 && !sig.aborted) {
+        Compat.set(cfg, provider, { reasoning: true });
+        return this.chat(messages, { system, onDelta, signal, stream, _cfg: Object.assign({}, _cfg || {}, { maxTokens: Math.min(16000, (cfg.maxTokens || 4000) * 2) }), _tries: _tries + 1, _pid, _quiet });
+      }
+      throw Object.assign(new Error('EMPTY'), { info: { code: 'empty', title: 'النموذج «' + cfg.model + '» لم يكتب أي جواب',
+        detail: /^(length|max_tokens)$/.test(stop || '') ? 'صرف كل الرموز المسموحة في «التفكير». اختر نموذجًا غير thinking/reasoning من المزوّد نفسه، أو اطلب طلبًا أقصر.' : 'أعد المحاولة، أو اختر نموذجًا آخر من المزوّد نفسه.' } });
+    };
     return { text, usage, model: served ? served.replace(':', ' · ') : cfg.model, provider: provider.name, stop, truncated: /^(length|max_tokens|MAX_TOKENS)$/.test(stop || '') };
   },
 
@@ -18014,6 +18129,18 @@ const AIClient = {
   /* returns config overrides for one more try, or null */
   async recover(provider, cfg, status, body, info) {
     const text = String(body || '');
+    /* a parameter this (site, model) does not take — «use max_completion_tokens», «temperature is not supported»,
+       an unknown «reasoning_effort»: learnt once, then the same request again (a refused request costs no tokens) */
+    if (status === 400 && provider.shape === 'openai') {
+      const t = text.toLowerCase(), cp = Compat.get(cfg, provider);
+      const refused = /(unsupported|not supported|unknown|unrecogni[sz]ed|not (permitted|allowed)|extra (inputs|fields)|invalid)/.test(t);
+      let patch = null;
+      if (/max_tokens/.test(t) && /max_completion_tokens/.test(t) && refused) patch = cp.mct ? { mct: false } : { mct: true };
+      else if (/max_completion_tokens/.test(t) && refused && cp.mct !== false) patch = { mct: false };
+      else if (/temperature/.test(t) && refused && !cp.noTemp) patch = { noTemp: true };
+      else if (/reasoning/.test(t) && refused && !cp.noEffort) patch = { noEffort: true };
+      if (patch) { Compat.set(cfg, provider, patch); return {}; }
+    }
     /* over the per-minute token budget (Groq free tier: «Limit 12000, Requested 15234»):
        the same request with room for a shorter answer */
     const lim = /limit\D{0,4}(\d+)\D{1,20}requested\D{0,4}(\d+)/i.exec(text);
@@ -18296,8 +18423,10 @@ const Council = {
     const picks = this.picks();
     if (picks.length) return picks;
     const cur = AIConfig.current();
-    const lead = cur && !cur.provider.builtin && AIConfig.isReady() ? { pid: cur.provider.id, model: cur.cfg.model }
-      : { pid: 'nexus', model: (cur && cur.provider.builtin && cur.cfg.model) || 'auto' };
+    /* the player's own model (their key): it answers — alone, never mixed with the site's models — unless they
+       choose a council of their own in AI MODE */
+    if (cur && !cur.provider.builtin && AIConfig.isReady()) return [{ pid: cur.provider.id, model: cur.cfg.model }];
+    const lead = { pid: 'nexus', model: (cur && cur.provider.builtin && cur.cfg.model) || 'auto' };
     return [lead, { pid: 'nexus', model: 'auto' }, { pid: 'nexus', model: 'auto' }, { pid: 'nexus', model: 'auto' }];
   },
 
@@ -18361,6 +18490,23 @@ NX.providerForKey = providerForKey;
 NX.pickModel = pickModel;
 NX.AIConfig = AIConfig;
 NX.AIClient = AIClient;
+/* «استخدم نماذجي» · «use my models» · «मेरे मॉडल इस्तेमाल करो» — and «استخدم NEXUS AI»: said in the assistant,
+   done here at once (no model is asked, no token spent) */
+NX.MyModels = {
+  MINE: /((استخدم|استعمل|شغّ?ل|فعّ?ل|خلّ?ي)\s*(ال)?(نماذج|نموذج|موديلات|موديل|مفتاح|مفاتيح|api)\s*(ي|تبعي|حقي|الخاص(ة)?\s*بي|خاصتي|اللي\s*(أضفتها|اضفتها|ضفتها))|use\s+my\s+(own\s+)?(models?|keys?|api)|मेरे\s*(मॉडल|मॉडल्स|की|एपीआई|api))/i,
+  NEXUS: /((استخدم|استعمل|ارجع\s*(إلى|الى|ل))\s*(nexus|نكسس|نيكسس|الذكاء\s*المجاني)|use\s+nexus|nexus\s*ai\s*(इस्तेमाल|use))/i,
+  claims(q) { return q.length < 160 && (this.MINE.test(q) || this.NEXUS.test(q)); },
+  handle(q) {
+    const T = NX.T;
+    if (this.NEXUS.test(q) && !this.MINE.test(q)) { AIConfig.setActive('nexus'); return T('MINE_NEXUS'); }
+    const own = Object.keys(PROVIDERS).filter(id => !PROVIDERS[id].builtin && Council.ownReady(id));
+    if (!own.length) return T('MINE_NONE');
+    const id = own.includes(AIConfig.active()) ? AIConfig.active() : own[0];
+    AIConfig.setActive(id);
+    Council.setPicks(Council.picks().filter(x => x.pid !== 'nexus'));        // a council of the player's own models only
+    return T('MINE_ON', { p: PROVIDERS[id].name, m: AIConfig.get(id).model });
+  }
+};
 NX.Council = Council;
 /* the free AI: asked at start, and again whenever the player signs in or out (with what the council allows them) */
 if (!window.NX_SANDBOX) {
@@ -19133,6 +19279,9 @@ ${sel.files.map(f => `--- ${f.path} ---\n${f.code}`).join('\n\n')}` : '');
     if (!this.project()) { Toast.err('افتح مشروعًا أولًا'); return; }
     this.input.value = ''; this.input.style.height = '';
 
+    /* «استخدم نماذجي» — at once, no token; a 2D game — written in «بناء», where it is saved and played (PART 39) */
+    if (NX.MyModels && NX.MyModels.claims(q)) { this.push('user', q); this.push('assistant', NX.MyModels.handle(q)); this.render(); return; }
+    if (NX.Game2D && NX.Game2D.claims(q) && NX.AIPanel) { NX.AIPanel.setMode('build'); return NX.AIPanel.send(q); }
     /* the team (members, roles, tasks) — handled here, whatever the model (PART 25) */
     if (NX.TeamAI && NX.TeamAI.claims(q)) {
       this.push('user', q); this.render();
@@ -31142,7 +31291,7 @@ const KINDS = [
   ['anthropic', /^sk-ant-[A-Za-z0-9_-]{20,}$/, 'Claude']
 ];
 const providerOf = k => (KINDS.find(([, re]) => re.test(k)) || [])[0] || null;
-const LABEL = { gemini: 'Gemini', groq: 'Groq', openrouter: 'OpenRouter', anthropic: 'Claude' };
+const LABEL = { gemini: 'Gemini', groq: 'Groq', openrouter: 'OpenRouter', anthropic: 'Claude', custom: 'API متوافق مع OpenAI' };
 const REASON = { invalid: 'رفضه المزوّد', 'rate-limit': 'وصل حدّه — يعود وحده', 'too-many-failures': 'فشل مرات كثيرة' };
 const clean = raw => String(raw || '').trim().replace(/\s+/g, '');
 /* the site's own AI function (Netlify) — it also uses the pool when it can read it */
@@ -31203,6 +31352,21 @@ const KeyPool = {
     throw Object.assign(new Error('لكل حساب ' + this.SLOTS + ' مفاتيح كحدّ أقصى — اسحب مفتاحًا أولًا'), { code: 'full' });
   },
 
+  /* ---- a key from any OpenAI-compatible site (a reseller such as cleanapis, a proxy): the SERVER checks the address,
+     tests the key for real, keeps it and says the donor's tier — the key never comes back to any page ---- */
+  async server(path, body) {
+    const tok = await this.token().catch(() => null);
+    if (!tok) throw Object.assign(new Error('سجّل الدخول بحساب (Google أو البريد) أولًا'), { code: 'signin' });
+    const r = await fetch(SITE_AI + path, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: JSON.stringify(body || {}) });
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j || j.error) throw Object.assign(new Error((j && j.error && j.error.message) || 'HTTP ' + r.status), { code: j && j.error && j.error.code });
+    return j;
+  },
+  donateCustom(raw, base, model) { return this.server('/pool/donate', { key: String(raw || '').trim(), base, model: model || undefined }); },
+  /* 💎 strong while a donated key serves strong models — tested on the server, never decided here */
+  verify() { return this.server('/pool/verify', {}).catch(() => null); },
+  tierNote(t) { return t === 'strong' ? '💎 متبرّع قوي — شارة في ملفك ونقاط الإعلانات ×2 ما دام مفتاحك يعمل' : '🤝 متبرّع — شكرًا! (مفتاح يعمل بنماذج قوية يمنح 💎 ونقاط إعلانات ×2)'; },
+
   /* ---- withdraw: the donor deletes their own slot (the rules allow only them) ---- */
   async withdraw(slot) {
     const { F, db } = Backend.fb, uid = Backend.user.uid;
@@ -31262,20 +31426,24 @@ const KeyPool = {
   open() {
     const body = el('div', { class: 'kp' });
     body.appendChild(el('p', { class: 'muted', style: { fontSize: '13px', lineHeight: '1.75' },
-      text: 'تبرّع بمفتاح Gemini أو Groq أو OpenRouter أو Claude الخاص بك ليبقى الذكاء المجاني في هذا الموقع (ومجلس الذكاء لمشتركي Pro) يعمل للجميع.' }));
+      text: 'تبرّع بمفتاح Gemini أو Groq أو OpenRouter أو Claude — أو مفتاح أي موقع متوافق مع OpenAI (مع Base URL) — ليبقى الذكاء المجاني في هذا الموقع (ومجلس الذكاء لمشتركي Pro) يعمل للجميع.' }));
     body.appendChild(el('div', { class: 'card kp-safe', style: { fontSize: '12.5px', lineHeight: '1.75', marginBottom: '12px' } }, [
       el('b', { text: '🔒 ماذا يحدث لمفتاحك؟' }),
       el('div', { text: '• يُكتب مرة واحدة في قاعدة بيانات الموقع، ولا يستطيع أحد قراءته بعدها: لا الزوار ولا البوتات ولا أنت (هذه الصفحة تحفظ آخر 4 أحرف فقط).' }),
       el('div', { text: '• يستعمله خادم الموقع وحده ليجيب الذكاء المجاني؛ لا يصل إلى أي متصفح في أي رد أو رسالة خطأ.' }),
       el('div', { text: '• إن رفضه المزوّد يُعطَّل وحده، وإن وصل حدّه يرتاح ثم يعود. تسحبه متى شئت.' }),
-      el('div', { text: '• المفتاح نفسه لا يُقبل مرتين (تُحفظ بصمته SHA-256، لا المفتاح). التبرّع تطوّعي بلا نقاط ولا مال — شكرًا لك تظهر شارة «🤝 متبرّع» في ملفك.' }),
+      el('div', { text: '• المفتاح نفسه لا يُقبل مرتين (تُحفظ بصمته SHA-256، لا المفتاح). يختبره الخادم بطلب حقيقي: إن كان يعمل بنماذج قوية تصير «💎 متبرّعًا قويًا» — شارة في ملفك ونقاط الإعلانات ×2 ما دام مفتاحك يعمل؛ وإلا «🤝 متبرّع».' }),
       el('div', { text: '• يُستعمل بقدر: في مجلس الذكاء يخدم مفتاحك المتبرَّع به نموذجًا واحدًا في كل مرة (لا طلبات متوازية عليه)، والمفتاح الذي يصل حدّه يرتاح حتى يسمح المزوّد. صاحب الموقع يستطيع إبعاد المفاتيح المتبرَّع بها عن المجلس (COUNCIL_USE_DONATED=0).' }),
       el('div', { style: { color: '#fcd77a' }, text: '• مفتاح Claude (Anthropic) مدفوع: كل طلب يُخصم من رصيدك عند Anthropic — لا تتبرّع به إلا إن كنت تقبل ذلك، ويمكنك سحبه متى شئت. OpenRouter: النماذج المجانية فقط.' }),
       el('div', { style: { color: '#fcd77a' }, text: '• مالك الموقع يصل إلى قاعدة البيانات من لوحة Firebase — تبرّع لموقع تثق بصاحبه، وتأكّد أن شروط مزوّدك تسمح بمشاركة المفتاح.' })]));
 
     const input = el('input', { class: 'input', type: 'password', placeholder: 'الصق المفتاح هنا (gsk_… أو AIza… أو AQ.… أو sk-or-… أو sk-ant-…)', autocomplete: 'off', spellcheck: 'false', style: { direction: 'ltr' } });
     const kind = el('div', { class: 'tiny', style: { minHeight: '18px', marginTop: '4px' } });
-    input.addEventListener('input', () => { const p = providerOf(clean(input.value)); kind.textContent = !input.value ? '' : p ? '✓ مفتاح ' + LABEL[p] : '✗ لا يشبه مفتاحًا مدعومًا'; kind.style.color = p ? '#9ae6b4' : '#ff9aa8'; });
+    /* any OpenAI-compatible site: its address (and a model, when the site gives no list) */
+    const base = el('input', { class: 'input kp-base', type: 'url', dir: 'ltr', placeholder: 'اختياري: Base URL لموقع متوافق مع OpenAI — مثل https://api.example.com/v1', autocomplete: 'off', spellcheck: 'false' });
+    const model = el('input', { class: 'input kp-model', dir: 'ltr', placeholder: 'اختياري: اسم النموذج (إن لم يعطِ الموقع قائمة)', autocomplete: 'off', spellcheck: 'false' });
+    base.addEventListener('input', () => input.dispatchEvent(new Event('input')));
+    input.addEventListener('input', () => { if (base.value.trim()) { kind.textContent = input.value ? '✓ مفتاح موقع متوافق مع OpenAI — يختبره الخادم' : ''; kind.style.color = '#34d399'; return; } const p = providerOf(clean(input.value)); kind.textContent = !input.value ? '' : p ? '✓ مفتاح ' + LABEL[p] : '✗ لا يشبه مفتاحًا مدعومًا'; kind.style.color = p ? '#9ae6b4' : '#ff9aa8'; });
     const agree = el('input', { type: 'checkbox', id: 'kp-agree' });
     const agreeRow = el('label', { class: 'tiny', for: 'kp-agree', style: { display: 'flex', gap: '8px', alignItems: 'flex-start', margin: '10px 0', lineHeight: '1.6' } },
       [agree, el('span', { text: 'المفتاح ملكي، وأسمح باستعماله للذكاء المجاني في هذا الموقع، وأعرف أنني أستطيع سحبه متى شئت.' })]);
@@ -31284,16 +31452,26 @@ const KeyPool = {
       if (!agree.checked) { Toast.err('وافق أولًا على استعمال المفتاح'); return; }
       b.disabled = true;
       try {
-        const r = await this.donate(input.value);
-        input.value = ''; kind.textContent = '';
-        Toast.ok('شكرًا! أُضيف مفتاح ' + LABEL[r.provider] + ' ' + r.tail + ' إلى المجمّع');
+        if (base.value.trim()) {
+          const key = input.value.trim(), r = await this.donateCustom(key, base.value.trim(), model.value.trim());
+          const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key))), x => x.toString(16).padStart(2, '0')).join('');
+          this.remember(r.slot, 'custom', key, hash);
+          { const { F, db } = Backend.fb; Backend.serverWrite(F.updateDoc(F.doc(db, 'users', Backend.user.uid), { donor: true })).catch(() => {}); }
+          Toast.ok('شكرًا! نجح اختبار ' + r.host + ' · ' + r.model + ' — ' + this.tierNote(r.tier), 7000);
+        } else {
+          const r = await this.donate(input.value);
+          Toast.ok('شكرًا! أُضيف مفتاح ' + LABEL[r.provider] + ' ' + r.tail + ' إلى المجمّع');
+          const v = await this.verify();
+          if (v && v.tier) Toast.show(this.tierNote(v.tier), '', 7000);
+        }
+        input.value = ''; base.value = ''; model.value = ''; kind.textContent = '';
         draw();
       } catch (err) {
         if (err.code === 'signin') NX.promptSignIn('التبرّع بمفتاح يحتاج حسابًا (Google أو البريد) — حتى تستطيع سحبه لاحقًا.');
         else Toast.err(err.message || NX.describeFirebaseError(err));
       } finally { b.disabled = false; }
     } });
-    body.append(NX.field('مفتاحك', input), kind, agreeRow, give);
+    body.append(NX.field('مفتاحك', input), kind, NX.field('موقع متوافق مع OpenAI (اختياري)', base), model, agreeRow, give);
 
     const state = el('div', { style: { marginTop: '16px' } });
     body.appendChild(state);
@@ -31315,7 +31493,7 @@ const KeyPool = {
           const me = ev.currentTarget;              // (currentTarget is gone after the first await)
           if (!(await Modal.confirm('سحب المفتاح؟', 'يُحذف من المجمّع فورًا ولا يُستعمل بعد الآن.', 'سحب'))) return;
           me.disabled = true;
-          try { await this.withdraw(k.slot); Toast.ok('سُحب'); draw(); } catch (err) { Toast.err(NX.describeFirebaseError(err)); me.disabled = false; }
+          try { await this.withdraw(k.slot); Toast.ok('سُحب'); this.verify(); draw(); } catch (err) { Toast.err(NX.describeFirebaseError(err)); me.disabled = false; }
         } })])));
       /* where the pool is used */
       const count = src ? src.active + ' مفتاحًا نشطًا' + (src.providers && Object.keys(src.providers).length ? ' (' + Object.entries(src.providers).map(([p, n]) => LABEL[p] + ' ' + n).join(' · ') + ')' : '') : 'غير معروف';
@@ -31800,7 +31978,7 @@ const Points = {
     try {
       const t = Object.assign(await this.api('/ad/start', { via: mode }), { at: Date.now() });
       const ok = mode === 'admob' ? await this.adAdmob(t) : await this.adWeb(t);
-      if (ok) Toast.ok('+' + t.points + ' نقاط — شكرًا!');
+      if (ok) Toast.ok('+' + t.points + ' نقاط' + (t.strongDonor ? ' (×2 💎 متبرّع قوي)' : '') + ' — شكرًا!');
       else if (mode === 'admob') Toast.err('لم يُحتسب الإعلان (لم يكتمل، أو لم تصل مكافأته بعد)');
     } catch (e) { Toast.err(e.message); }
     finally { if (btnEl) btnEl.disabled = false; await this.refresh(); this.redraw && this.redraw(); }
@@ -34695,6 +34873,78 @@ NX.Commands && NX.Commands.register([
 ]);
 </script>
 <!-- /NX-PART:38 -->
+<!-- NX-PART:39 -->
+<script type="module">
+/* ============================================================
+   PART 39 · 🕹 2D games from NEXUS AI
+   «اصنع لعبة ثنائية الأبعاد…» in the assistant: the model the player
+   connected (their own key, or NEXUS AI) writes ONE complete HTML5 canvas
+   game — touch and keyboard, a title screen, score, game over, restart —
+   in a single call. Its scripts are checked; only a syntax error costs a
+   second call (the fix). The game is kept as the player's own app (PART 33:
+   play, edit its files, publish) and opens at once.
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, Toast } = NX;
+const LANG_NAME = { ar: 'Arabic', en: 'English', hi: 'Hindi (Devanagari)' };
+const SYSTEM = lang => 'You write complete, polished, fun 2D browser games. Output ONE file, index.html: HTML, CSS and JavaScript, everything inline — '
+  + 'no external URL, library, image or font (draw everything on the canvas; sounds with the Web Audio API). Requirements: a <canvas> that fills the screen '
+  + 'and stays sharp and correct on any phone or computer (devicePixelRatio, resize); a requestAnimationFrame loop with delta time; a title screen, playing, '
+  + 'game over with the score and a restart; controls for keyboard AND touch (on-screen buttons or swipes) AND mouse; a HUD; difficulty that grows; juice '
+  + '(particles, small screen shake, colour); the best score in localStorage inside try/catch; no alert, prompt, fetch or network. Clean, readable code. '
+  + 'Every text the player reads is in ' + lang + '. Answer with ONLY the file, inside one ```html code block.';
+const fileOf = text => { const m = /```(?:html)?\s*([\s\S]*?)```/i.exec(text || ''); const h = (m ? m[1] : String(text || '')).trim(); return /<(html|canvas|script)[\s>]/i.test(h) ? h : null; };
+/* the first syntax error of its inline scripts, or null */
+function syntaxError(html) {
+  const re = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi;
+  let m;
+  while ((m = re.exec(html))) { if (/type=["']?module/i.test(m[0])) continue; try { new Function(m[1]); } catch (e) { return String(e.message || e); } }
+  return null;
+}
+const Game2D = {
+  RE: /(\b2\s*-?\s*d\b|ثنائي(ة|ه)?\s*(ال)?(أ|ا)?بعاد|ثنائيه|بعدين|دو\s*-?\s*आयामी|2\s*-?\s*डी|२डी|pixel\s*art|بكسل|side[-\s]?scroll)/i,
+  GAME: /(لعب|game|गेम|खेल)/i,
+  claims(q) { return this.RE.test(q) && this.GAME.test(q); },
+  async make(q, { say }) {
+    const T = NX.T;
+    if (!NX.AIConfig.isReady()) { const m = say(T('G2D_NO_AI')); m.appendChild(el('div', { style: { marginTop: '8px' } }, [btn('⚙ ' + T('MINE_ADD'), { cls: 'sm', onclick: () => NX.openAISettings() })])); return; }
+    if (!NX.HtmlApps || !NX.HtmlApps.ready(T('G2D'))) return;
+    const m = say('🕹 ' + T('G2D_WRITING'));
+    const lang = LANG_NAME[NX.i18n.lang] || 'Arabic';
+    let r;
+    try {
+      r = await NX.AIClient.chat([{ role: 'user', content: q }], { system: SYSTEM(lang), _cfg: { maxTokens: 12000 },
+        onDelta: (piece, all) => { m.textContent = '🕹 ' + T('G2D_WRITING') + ' · ' + Math.round(all.length / 1024) + ' KB'; } });
+    } catch (e) { m.textContent = '✕ ' + ((e.info && (e.info.title + (e.info.detail ? ' — ' + e.info.detail : ''))) || e.message); return; }
+    let html = fileOf(r.text), err = html ? syntaxError(html) : 'no file';
+    /* one repair only when the code does not even parse */
+    if (html && err) {
+      m.textContent = '🛠 ' + T('G2D_FIXING') + ': ' + err;
+      try {
+        const f = await NX.AIClient.chat([{ role: 'user', content: 'This game has a JavaScript syntax error: ' + err + '\nReturn the COMPLETE corrected file.\n\n```html\n' + html + '\n```' }],
+          { system: SYSTEM(lang), stream: false, _cfg: { maxTokens: 12000 } });
+        const h2 = fileOf(f.text);
+        if (h2) { html = h2; err = syntaxError(h2); }
+      } catch { }
+    }
+    if (!html || err) { m.textContent = '✕ ' + T('G2D_FAIL') + (err && err !== 'no file' ? ' (' + err + ')' : ''); return; }
+    const title = ((/<title>([^<]{1,80})<\/title>/i.exec(html) || [])[1] || q).trim().slice(0, 60);
+    const bytes = new TextEncoder().encode(html);
+    m.textContent = '💾 ' + T('G2D_SAVING');
+    try {
+      const rec = await NX.HtmlApps.save({ files: [{ path: 'index.html', bytes }], entry: 'index.html', bytes: bytes.length, title },
+        { name: title, description: q.slice(0, 300), visibility: 'private' });
+      m.textContent = '✓ ' + T('G2D_READY', { t: rec.name }) + (r.model ? ' · ' + r.model : '');
+      m.appendChild(el('div', { style: { marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' } }, [
+        btn('▶ ' + T('G2D_PLAY'), { cls: 'sm primary g2d-play', onclick: () => NX.HtmlApps.openById(rec.appId) })]));
+      NX.HtmlApps.openById(rec.appId);
+    } catch (e) { m.textContent = '✕ ' + (NX.describeFirebaseError ? NX.describeFirebaseError(e) : e.message); }
+  }
+};
+Game2D.fileOf = fileOf; Game2D.syntaxError = syntaxError;
+NX.Game2D = Game2D;
+</script>
+<!-- /NX-PART:39 -->
 <script type="module">
 /* ============================================================
    PART 8/18 · GAME PLATFORM + BOOT

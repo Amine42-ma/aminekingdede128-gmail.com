@@ -714,6 +714,18 @@ service cloud.firestore {
     match /friendUsage/{uid} {
       allow read, write: if false;
     }
+    // a donor's tier (💎 strong while a donated key serves strong models): written only by the AI server
+    match /donors/{uid} {
+      allow read: if true;
+      allow write: if false;
+    }
+    // the interface's translations (English · हिन्दी) and their daily budget: only the translation server (/api/i18n)
+    match /i18n_cache/{d} {
+      allow read, write: if false;
+    }
+    match /i18n_usage/{d} {
+      allow read, write: if false;
+    }
 
     // ---------------------------------------------------------------- moderation
     match /reports/{rid} {

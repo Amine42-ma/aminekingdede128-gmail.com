@@ -74,9 +74,18 @@ const P = {
     keys: () => keysOf('openrouter'), models: () => openrouterModels() },
   /* Claude speaks the Messages API — translated here to the OpenAI shape the page reads */
   anthropic: { label: 'Claude', shape: 'anthropic', base: () => env('ANTHROPIC_BASE') || 'https://api.anthropic.com',
-    keys: () => keysOf('anthropic'), models: () => anthropicModels() }
+    keys: () => keysOf('anthropic'), models: () => anthropicModels() },
+  /* keys players donated from any OpenAI-compatible site (a reseller, a proxy): each with its own address and
+     models (CUSTOM), tested when given; a strong model first */
+  custom: { label: 'API متبرَّع به', base: () => '', keys: () => pool.keys.filter(k => k.provider === 'custom').map(k => k.key),
+    models: async () => Array.from(new Set(pool.keys.filter(k => k.provider === 'custom').flatMap(k => (CUSTOM.get(k.key) || {}).models || [])))
+      .sort((a, b) => STRONG_RE.test(b) - STRONG_RE.test(a)) }
 };
-const ORDER = ['gemini', 'groq', 'openrouter', 'anthropic'];
+const CUSTOM = new Map();           // a donated custom key → { base, models, id }
+/* the models that make a donation «strong»: today's large frontier and open models (not the small or free-tier ones) */
+const STRONG_RE = /(gpt-4o(?!-mini)|gpt-4\.1(?!-(mini|nano))|gpt-5|(^|[\/:])o[134](-|$)|claude|gemini-[\d.]+-(pro|flash)(?!-lite)|gemini-3|grok-[34]|llama-?3\.[13]-?(70|405)b|llama-4-maverick|deepseek-(v3|r1|chat|reasoner)|qwen-?(2\.5|3)[\w.-]*(72|235|max|coder-32)|mistral-large|kimi-k2|glm-4\.[56])/i;
+const REASON_RE = /(^|[\/:])(o\d|gpt-5|gpt-oss)|reason|thinking|(^|[\/:_-])r1([\/:_.-]|$)|qwq/i;
+const ORDER = ['gemini', 'groq', 'openrouter', 'anthropic', 'custom'];
 /* the providers «auto» may use: a Claude key is paid per request, so it answers only when chosen (or ANTHROPIC_AUTO=1) */
 const AUTO = () => ORDER.filter(p => p !== 'anthropic' || env('ANTHROPIC_AUTO') === '1');
 /* which provider offers a model: the one whose list has it (none → treated as «auto») */
@@ -92,12 +101,13 @@ const KEY_WORDS = /api[_ ]?key|auth(entication)?[_ ]?key|invalid[^"]{0,24}key|cr
 
 /* ---------- which keys may be tried now ---------- */
 const rest = new Map();                     // key → resting until (ms)
-const turn = { gemini: 0, groq: 0, openrouter: 0, anthropic: 0 };   // round-robin start, spreads the load over the keys
+const turn = { gemini: 0, groq: 0, openrouter: 0, anthropic: 0, custom: 0 };   // round-robin start, spreads the load over the keys
 /* a key that is refused rests as a whole; a key out of quota / rate-limited
    rests only for THAT model (its other models keep working) */
 const resting = (k, model) => rest.get(k) > Date.now() || (model && rest.get(k + '|' + model) > Date.now());
 function keysNow(p, model, { donatedToo = true } = {}) {
-  const all = P[p].keys().filter(k => donatedToo || !donated(k)), n = all.length;
+  /* a donated custom site: only its keys that serve this model */
+  const all = P[p].keys().filter(k => (donatedToo || !donated(k)) && (p !== 'custom' || !model || ((CUSTOM.get(k) || {}).models || []).includes(model))), n = all.length;
   if (!n) return [];
   const s = turn[p]++ % n;
   return all.slice(s).concat(all.slice(0, s)).filter(k => !resting(k, model));
@@ -248,11 +258,22 @@ function anthropicSSE(model) {
     }
   });
 }
+/* a reasoning model (o-series, gpt-5, *-thinking, r1…): no temperature, room to think, «low» effort (fewer tokens) */
+function forReasoning(model, clean) {
+  if (!REASON_RE.test(model || '')) return clean;
+  const c = Object.assign({}, clean);
+  delete c.temperature;
+  if (c.max_tokens) { c.max_completion_tokens = Math.min(32000, c.max_tokens * 2 + 2048); delete c.max_tokens; }
+  c.reasoning_effort = 'low';
+  return c;
+}
 async function send(p, key, model, clean, req, signal) {
   if (P[p].shape !== 'anthropic') {
     const headers = { 'content-type': 'application/json', authorization: 'Bearer ' + key };
     if (p === 'openrouter') { headers['HTTP-Referer'] = new URL(req.url).origin; headers['X-Title'] = 'NEXUS'; }
-    return fetch(P[p].base() + '/chat/completions', { method: 'POST', headers, body: JSON.stringify(Object.assign({ model }, clean)), signal });
+    const base = p === 'custom' ? (CUSTOM.get(key) || {}).base : P[p].base();
+    if (!base) return new Response(JSON.stringify({ error: { message: 'no address for this key' } }), { status: 400 });
+    return fetch(base + '/chat/completions', { method: 'POST', headers, body: JSON.stringify(Object.assign({ model }, p === 'custom' ? forReasoning(model, clean) : clean)), signal });
   }
   const r = await fetch(P[p].base() + '/v1/messages', { method: 'POST', headers: antHeaders(key), body: JSON.stringify(toAnthropic(model, clean)), signal });
   if (!r.ok) return r;
@@ -405,7 +426,9 @@ async function poolQuery(field, value) {
   if (!r.ok) throw new Error('firestore ' + r.status);
   return (await r.json()).filter(x => x.document).map(x => {
     const f = x.document.fields || {};
-    return { id: x.document.name.split('/').pop(), key: (f.key || {}).stringValue || '', status: (f.status || {}).stringValue || '', reason: (f.disabledReason || {}).stringValue || null };
+    return { id: x.document.name.split('/').pop(), key: (f.key || {}).stringValue || '', status: (f.status || {}).stringValue || '', reason: (f.disabledReason || {}).stringValue || null,
+      provider: (f.provider || {}).stringValue || null, base: (f.base || {}).stringValue || null, tier: (f.tier || {}).stringValue || null,
+      models: ((f.models || {}).arrayValue || {}).values ? f.models.arrayValue.values.map(v => v.stringValue).filter(Boolean) : [] };
   });
 }
 async function loadPool(force) {
@@ -413,7 +436,9 @@ async function loadPool(force) {
   if (!force && Date.now() - pool.at < 60e3) return pool;
   try {
     const rows = await poolQuery('status', 'active');
-    pool = { at: Date.now(), readable: true, keys: rows.map(k => Object.assign(k, { provider: providerOf(k.key) })).filter(k => k.provider) };
+    pool = { at: Date.now(), readable: true, keys: rows.map(k => Object.assign(k, { provider: k.provider === 'custom' && k.base ? 'custom' : providerOf(k.key) })).filter(k => k.provider) };
+    CUSTOM.clear();
+    pool.keys.filter(k => k.provider === 'custom').forEach(k => CUSTOM.set(k.key, { base: k.base, models: k.models, id: k.id }));
   } catch { pool = Object.assign({}, pool, { at: Date.now(), readable: false }); }
   return pool;
 }
@@ -422,12 +447,115 @@ async function poolDisable(key, reason) {
   const k = pool.keys.find(x => x.key === key);
   if (!k) return;
   pool.keys = pool.keys.filter(x => x !== k);
+  donorRefresh(k.id.split('_')[0]).catch(() => {});                  // no longer counted for the donor's tier
   try {
     await fetch(fsDocs() + '/api_keys/' + encodeURIComponent(k.id) + '?updateMask.fieldPaths=status&updateMask.fieldPaths=disabledReason&updateMask.fieldPaths=disabledAt', {
       method: 'PATCH', headers: { authorization: 'Bearer ' + await adminToken(), 'content-type': 'application/json' },
       body: JSON.stringify({ fields: { status: { stringValue: 'disabled' }, disabledReason: { stringValue: reason }, disabledAt: { timestampValue: new Date().toISOString() } } }) });
   } catch { /* it rests here anyway */ }
 }
+
+/* ================================================================ DONATIONS: any site, a tier, the donor's record
+   A donated key is never shown to anyone and is used only here. The donor's record (donors/<uid>, public, written
+   only here) says «strong» while one of their keys is active AND serves a strong model: the 💎 badge, and ×2 on the
+   points of their ads (points.js). */
+const fsVal = v => v === null || v === undefined ? { nullValue: null } : typeof v === 'boolean' ? { booleanValue: v } : typeof v === 'number' ? (Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v })
+  : v instanceof Date ? { timestampValue: v.toISOString() } : Array.isArray(v) ? { arrayValue: { values: v.map(fsVal) } } : typeof v === 'object' ? { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fsVal(x)])) } } : { stringValue: String(v) };
+async function fsWrite(path, obj, { create = false } = {}) {
+  const q = create ? '?currentDocument.exists=false' : '?' + Object.keys(obj).map(k => 'updateMask.fieldPaths=' + encodeURIComponent(k)).join('&');
+  const r = await fetch(fsDocs() + '/' + path + q, { method: 'PATCH', headers: { authorization: 'Bearer ' + await adminToken(), 'content-type': 'application/json' },
+    body: JSON.stringify({ fields: Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, fsVal(v)])) }) });
+  return r.ok;
+}
+async function fsExists(path) { const r = await fetch(fsDocs() + '/' + path, { headers: { authorization: 'Bearer ' + await adminToken() } }); return r.ok; }
+const sha256hex = async t => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t))), b => b.toString(16).padStart(2, '0')).join('');
+/* a public https address — never this machine, a private network or a bare IP (the server fetches it) */
+function safeBase(raw) {
+  const tb = env('NEXUS_TEST_CUSTOM_BASE');        // tests only: the fake reseller on this machine
+  if (tb && String(raw || '').startsWith(tb)) return String(raw).trim().replace(/\/+$/, '');
+  let u;
+  try { u = new URL(String(raw || '').trim()); } catch { return null; }
+  const h = u.hostname.toLowerCase();
+  if (u.protocol !== 'https:' || u.username || u.password || (u.port && u.port !== '443')) return null;
+  if (!h.includes('.') || /^[\d.]+$/.test(h) || h.includes(':') || /(^|\.)(localhost|local|internal|intranet|lan|home|corp)$/.test(h)) return null;
+  return (u.origin + u.pathname).replace(/\/+$/, '').replace(/\/chat\/completions$/, '');
+}
+const timed = (ms, init = {}) => { const c = new AbortController(); setTimeout(() => c.abort(), ms); return Object.assign({}, init, { signal: c.signal }); };
+/* one real answer from the key — the strong models first; «thinking» budget for reasoning models */
+async function testCustom(base, key, models) {
+  const order = models.slice().sort((a, b) => STRONG_RE.test(b) - STRONG_RE.test(a) || REASON_RE.test(a) - REASON_RE.test(b)).slice(0, 3);
+  let why = 'لا نموذج يجيب';
+  for (const model of order) {
+    try {
+      const body = forReasoning(model, { messages: [{ role: 'user', content: 'Reply with one word: OK' }], max_tokens: 64, temperature: 0 });
+      const r = await fetch(base + '/chat/completions', timed(25000, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + key }, body: JSON.stringify(Object.assign({ model }, body)) }));
+      const t = await r.text();
+      if (r.status === 401 || r.status === 403) return { ok: false, why: 'المفتاح مرفوض (' + r.status + ')' };
+      if (!r.ok) { why = model + ': ' + r.status; continue; }
+      let j = null; try { j = JSON.parse(t); } catch { }
+      const c = j && j.choices && j.choices[0], m = c && (c.message ? c.message.content : c.text);
+      const text = typeof m === 'string' ? m : Array.isArray(m) ? m.map(x => (x && x.text) || '').join('') : '';
+      if (text.trim()) return { ok: true, model };
+      why = model + ': ' + 'بلا جواب';
+    } catch { why = model + ': لا يجيب'; }
+  }
+  return { ok: false, why };
+}
+async function donateCustom(me, req) {
+  if (me.provider === 'anonymous') return fail(401, 'signin', 'التبرّع يحتاج حسابًا (Google أو البريد)');
+  const body = await req.json().catch(() => ({}));
+  const key = String(body.key || '').trim(), base = safeBase(body.base);
+  if (!/^[\x21-\x7e]{10,300}$/.test(key)) return fail(400, 'format', 'هذا لا يشبه مفتاح API');
+  if (!base) return fail(400, 'base', 'Base URL يجب أن يكون عنوان https عامًّا (مثل https://api.example.com/v1)');
+  if (!poolReady()) return fail(503, 'pool', 'مجمّع المفاتيح غير مُعدّ على هذا الموقع');
+  const hash = await sha256hex(key);
+  if (await fsExists('api_key_hashes/' + hash)) return fail(409, 'duplicate', 'هذا المفتاح في المجمّع من قبل — لا يُتبرَّع بالمفتاح نفسه مرتين.');
+  let models = [];
+  try {
+    const r = await fetch(base + '/models', timed(10000, { headers: { authorization: 'Bearer ' + key } }));
+    if (r.status === 401 || r.status === 403) return fail(400, 'refused', 'الموقع رفض المفتاح (' + r.status + ')');
+    const j = r.ok ? await r.json().catch(() => null) : null;
+    models = ((j && (j.data || j.models)) || []).map(m => typeof m === 'string' ? m : m && (m.id || m.name)).filter(x => typeof x === 'string' && x.length < 120)
+      .filter(id => !/whisper|tts|embed|dall-e|image|moderation|transcribe|speech|audio|rerank/i.test(id));
+  } catch { }
+  if (body.model && typeof body.model === 'string' && !models.includes(body.model)) models.unshift(String(body.model).slice(0, 120));
+  if (!models.length) return fail(400, 'models', 'لم يُعطِ الموقع قائمة نماذج (GET /models) — اكتب اسم النموذج بنفسك.');
+  const t = await testCustom(base, key, models);
+  if (!t.ok) return fail(400, 'test', 'لم ينجح اختبار المفتاح: ' + t.why);
+  const tier = STRONG_RE.test(t.model) ? 'strong' : 'normal';
+  for (let i = 0; i < 5; i++) {
+    const id = me.uid + '_' + i;
+    if (await fsExists('api_keys/' + id)) continue;
+    const ok = await fsWrite('api_keys/' + id, { key, provider: 'custom', base, models: models.slice(0, 80), keyHash: hash, donorUid: me.uid, status: 'active',
+      failCount: 0, createdAt: new Date(), tier, testedModel: t.model }, { create: true });
+    if (!ok) continue;
+    await fsWrite('api_key_hashes/' + hash, { slot: id, donorUid: me.uid, at: new Date() }, { create: true }).catch(() => {});
+    await loadPool(true);
+    const d = await donorRefresh(me.uid);
+    return json(200, { ok: true, slot: i, tier, model: t.model, models: models.length, host: new URL(base).hostname, donor: d });
+  }
+  return fail(409, 'full', 'لكل حساب 5 مفاتيح كحدّ أقصى — اسحب مفتاحًا أولًا');
+}
+/* the donor's record from their ACTIVE keys: «strong» while one of them serves a strong model (a standard key is
+   tested again when asked: Gemini, Groq and Claude keys are strong; OpenRouter gives the site its free models) */
+async function donorRefresh(uid, { test = false } = {}) {
+  const rows = poolReady() ? (await poolQuery('donorUid', uid)).filter(k => k.status === 'active') : [];
+  const strongKeys = [];
+  for (const k of rows) {
+    let tier = k.tier;
+    if (!tier || (test && k.provider !== 'custom')) {
+      const p = k.provider === 'custom' ? 'custom' : providerOf(k.key);
+      tier = p === 'custom' ? (STRONG_RE.test((k.models || [])[0] || '') ? 'strong' : 'normal')
+        : (await tryKey(p, k.key)) === 'ok' && ['gemini', 'groq', 'anthropic'].includes(p) ? 'strong' : 'normal';
+      await fsWrite('api_keys/' + k.id, { tier }).catch(() => {});
+    }
+    if (tier === 'strong') strongKeys.push(k.id);
+  }
+  const rec = { tier: strongKeys.length ? 'strong' : rows.length ? 'normal' : 'none', strongKeys, keys: rows.length, updatedAt: new Date() };
+  await fsWrite('donors/' + uid, rec).catch(() => {});
+  return { tier: rec.tier, keys: rec.keys, strong: strongKeys.length };
+}
+
 /* why the box is (not) ready — said plainly, never showing the secret itself */
 async function boxCheck() {
   const c = blobsCtx();
@@ -742,7 +870,8 @@ async function councilCall(req, route, clean, { tries, ms, deadline, signal, don
       if (r.ok) {
         let j = null; try { j = JSON.parse(r.t); } catch { }
         const c = j && j.choices && j.choices[0];
-        const text = String((c && c.message && c.message.content) || '').replace(/<think>[\s\S]*?<\/think>\s*/g, '').trim();
+        const mc = c && c.message && c.message.content;
+        const text = String(Array.isArray(mc) ? mc.map(x => (x && x.text) || '').join('') : mc || '').replace(/<think>[\s\S]*?<\/think>\s*/g, '').trim();
         if (text) return { ok: true, text, provider: P[p].label, p, model, stop: (c && c.finish_reason) || null, attempts, notes,
           usage: j.usage ? { in: j.usage.prompt_tokens || 0, out: j.usage.completion_tokens || 0 } : null };
         notes.push(label + ': ردّ فارغ');
@@ -981,11 +1110,15 @@ export default async (req) => {
   const me = await who(req);
   if (me.error) return fail(401, 'signin', 'سجّل الدخول بحساب Google لاستعمال الذكاء المجاني');
   if (req.method === 'POST' && path.startsWith('/keys/')) return keyBox(path, me, req);
+  /* a key from any OpenAI-compatible site (cleanapis, a proxy…): its address checked, the key tested for real */
+  if (req.method === 'POST' && path === '/pool/donate') return donateCustom(me, req);
+  /* the donor's tier again (after a donation or a withdrawal): tested here, never trusted from the page */
+  if (req.method === 'POST' && path === '/pool/verify') { await loadPool(true); return json(200, Object.assign({ ok: true }, await donorRefresh(me.uid, { test: true }))); }
   /* the donor's own donated keys: provider, last four characters, state — never a key */
   if (req.method === 'GET' && path === '/pool') {
     const out = { readable: poolReady() && pool.readable, active: pool.keys.length, providers: {} };
     pool.keys.forEach(k => { out.providers[k.provider] = (out.providers[k.provider] || 0) + 1; });
-    if (out.readable) { try { out.mine = (await poolQuery('donorUid', me.uid)).map(k => ({ id: k.id, provider: providerOf(k.key), tail: '••••' + k.key.slice(-4), status: k.status, reason: k.reason })); } catch { out.mine = null; } }
+    if (out.readable) { try { out.mine = (await poolQuery('donorUid', me.uid)).map(k => ({ id: k.id, provider: k.provider || providerOf(k.key), tier: k.tier || null, tail: '••••' + k.key.slice(-4), status: k.status, reason: k.reason })); } catch { out.mine = null; } }
     return json(200, out);
   }
   if (req.method === 'GET' && path === '/models') {
