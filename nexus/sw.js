@@ -52,8 +52,8 @@ self.addEventListener('fetch', e => {
     e.respondWith(page(req, e));
     return;
   }
-  /* the interface's dictionary (translations.js): at once from the cache — offline too — refreshed in the background */
-  if (url.origin === SCOPE.origin && url.pathname === SCOPE.pathname + 'translations.js') { e.respondWith(staleWhileRevalidate(req, e)); return; }
+  /* the interface's dictionaries (translations.js, i18n/en.js, i18n/hi.js): at once from the cache — offline too — refreshed in the background */
+  if (url.origin === SCOPE.origin && (url.pathname === SCOPE.pathname + 'translations.js' || /^i18n\/[a-z]{2}\.js$/.test(url.pathname.slice(SCOPE.pathname.length)))) { e.respondWith(staleWhileRevalidate(req, e)); return; }
   if (LIB_RE.test(req.url)) { e.respondWith(cacheFirst(req)); return; }
   if (FONT_CSS_RE.test(req.url)) { e.respondWith(staleWhileRevalidate(req, e)); return; }
   const storageFile = url.hostname === 'firebasestorage.googleapis.com';

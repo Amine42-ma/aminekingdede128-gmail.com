@@ -19,12 +19,16 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '
 
 /* challenges.js imports ./ai.js and ./points.js: loaded through a copy that imports the SAME
    versioned copies (a fresh load gets fresh caches, like a new deploy) */
-export async function importChallenges(query, file = 'challenges') {
+function copyFn(query, file) {
   const src = fs.readFileSync(path.join(ROOT, 'netlify/edge-functions/' + file + '.js'), 'utf8')
-    .replace(/from '\.\/(ai|points)\.js'/g, (m, f) => "from '" + pathToFileURL(path.join(ROOT, 'netlify/edge-functions', f + '.js')).href + '?' + query + "'");
+    .replace(/from '\.\/(ai|points)\.js'/g, (m, f) => "from '" + pathToFileURL(path.join(ROOT, 'netlify/edge-functions', f + '.js')).href + '?' + query + "'")
+    .replace(/from '\.\/(i18n)\.js'/g, (m, f) => "from '" + pathToFileURL(copyFn(query, f)).href + "'");   // challenges.js → i18n.js: the same copy
   const tmp = path.join(os.tmpdir(), 'nexus-' + file + '-' + query.replace(/\W/g, '_') + '.mjs');
   fs.writeFileSync(tmp, src);
-  return (await import(pathToFileURL(tmp).href)).default;
+  return tmp;
+}
+export async function importChallenges(query, file = 'challenges') {
+  return (await import(pathToFileURL(copyFn(query, file)).href)).default;
 }
 
 export async function startSite({ env, files = {}, port = 0 }) {
@@ -48,7 +52,7 @@ export async function startSite({ env, files = {}, port = 0 }) {
         const chunks = [];
         for await (const c of req) chunks.push(c);
         const headers = {};
-        ['authorization', 'content-type', 'origin', 'x-nexus-cron'].forEach(h => { if (req.headers[h]) headers[h] = req.headers[h]; });
+        ['authorization', 'content-type', 'origin', 'x-nexus-cron', 'x-nexus-lang'].forEach(h => { if (req.headers[h]) headers[h] = req.headers[h]; });
         const r = await fn(new Request(url.href, { method: req.method, headers, body: ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(chunks) }));
         log.push({ at: Date.now(), method: req.method, path: url.pathname, status: r.status });
         res.writeHead(r.status, Object.fromEntries(r.headers));

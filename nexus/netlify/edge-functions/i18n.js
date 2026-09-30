@@ -61,13 +61,21 @@ const SYSTEM = lang => 'You translate the user interface of NEXUS, a web app whe
   + 'Keep every placeholder such as {0} exactly, and keep emoji, punctuation, numbers, Latin words and code unchanged. Button labels stay short. '
   + 'Answer with ONE JSON object only: {"t":["…","…"]} — exactly one translation per input string, in the same order.';
 
-async function translate(req, lang, list) {
+/* a challenge's own texts (NEXUS AI wrote them in Arabic): the same rules, for players instead of buttons */
+const CONTENT = lang => 'You translate the texts of a game-development challenge on NEXUS, a web app where people make and play games, from Arabic to ' + LANGS[lang] + ' — its title, story, objective, rules, mechanics and judging criteria. '
+  + (lang === 'hi'
+    ? 'Write natural, lively Hindi in Devanagari script; technical words in Devanagari too (गेम, लेवल, स्कोर). Keep in Latin letters ONLY: AI, NEXUS, brand and game names, and code. '
+    : 'Write natural, lively English. ')
+  + 'Keep every placeholder such as {0} exactly, and keep emoji, punctuation, numbers, Latin words and code unchanged. '
+  + 'Answer with ONE JSON object only: {"t":["…","…"]} — exactly one translation per input string, in the same order.';
+
+async function translate(req, lang, list, { system = SYSTEM(lang), max = 600 } = {}) {
   const route = await aiRoute(['auto']);
   if (!route || !route.length) return {};
   const out = {};
   for (let i = 0; i < list.length; i += 40) {
     const batch = list.slice(i, i + 40);
-    const r = await aiCall(req, route, { system: SYSTEM(lang), user: JSON.stringify({ strings: batch }), maxTokens: 4000, temperature: 0.1 });
+    const r = await aiCall(req, route, { system, user: JSON.stringify({ strings: batch }), maxTokens: 6000, temperature: 0.1 });
     if (!r || !r.ok) break;
     let j = null;
     try { const s = String(r.text); j = JSON.parse(s.slice(s.indexOf('{'), s.lastIndexOf('}') + 1)); } catch { }
@@ -76,11 +84,13 @@ async function translate(req, lang, list) {
       const t = String(j.t[k] || '').trim();
       const holes = src.match(/\{\d+\}/g) || [];
       /* a usable translation: not empty, not Arabic any more, every placeholder kept */
-      if (t && t.length <= 600 && !/[ء-ي]/.test(t) && holes.every(h => t.includes(h))) out[src] = t;
+      if (t && t.length <= max && !/[ء-ي]/.test(t) && holes.every(h => t.includes(h))) out[src] = t;
     });
   }
   return out;
 }
+/* for challenges.js: a challenge's texts, translated once and kept on the challenge by its caller */
+export const translateContent = (req, lang, list) => LANGS[lang] ? translate(req, lang, list, { system: CONTENT(lang), max: 2400 }) : Promise.resolve({});
 
 export default async (req) => {
   const url = new URL(req.url);

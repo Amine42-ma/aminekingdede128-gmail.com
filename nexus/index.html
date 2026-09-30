@@ -2142,7 +2142,9 @@ const Phrases = {
   map: null, obs: null, texts: new WeakMap(), attrs: new WeakMap(),
   ATTRS: ['placeholder', 'title', 'aria-label'],
   /* never translated: code, the code editor, a game's own interface, what a player types */
-  SKIP: 'script,style,textarea,code,pre,.ed-wrap,[contenteditable="true"],[data-no-i18n],#game-ui-layer,.ai-msg.me',
+  SKIP: 'script,style,textarea,code,pre,.ed-wrap,[contenteditable="true"],[data-no-i18n],#game-ui-layer,.ai-msg.me:not([data-ui])',
+  /* …but a text field's hint (placeholder, title) is the interface's own: only these keep theirs */
+  ATTR_SKIP: 'script,style,.ed-wrap,[contenteditable="true"],[data-no-i18n],#game-ui-layer',
   build() {
     const m = new Map(), add = row => row.forEach(v => { if (v && !m.has(v)) m.set(v, row); });
     for (const [ar, t] of Object.entries(I18N.phrases || {})) add([ar, t[0] || ar, t[1] || t[0] || ar]);
@@ -2154,14 +2156,15 @@ const Phrases = {
     if (row) return row[LANG_IX[lang] || 0];
     if (!LANG_IX[lang] || !k || !/[\u0621-\u064A]/.test(k)) return s;
     const f = Full.get(k, lang);
-    return f != null ? f : Remote.get(k, LANG_IX[lang]) || s;
+    return f != null ? f : Full.settled(lang) && Remote.get(k, LANG_IX[lang]) || s;
   },
   swap(src, ix) {
-    const k = src.trim(), row = k && k.length < 400 && this.map.get(k);
+    const k = src.trim(), row = k && k.length < 400 && (this.map || this.build()).get(k);
     if (row) return src.replace(k, row[ix]);
     if (!ix || !k || !/[\u0621-\u064A]/.test(k)) return null;
-    const f = Full.get(k, ix === 1 ? 'en' : 'hi');     // every other text of NEXUS (i18n/<lang>.js)
+    const lang = ix === 1 ? 'en' : 'hi', f = Full.get(k, lang);   // every other text of NEXUS (i18n/<lang>.js)
     if (f != null) return src.replace(k, f);
+    if (!Full.settled(lang)) return null;              // the dictionary is on its way: this text is walked again when it comes
     const t = Remote.get(k, ix);                       // still missing: the translation service's (NEXUS AI, once, for everyone)
     return t ? src.replace(k, t) : null;
   },
@@ -2186,11 +2189,12 @@ const Phrases = {
   walk(root, ix) {
     if (!root) return;
     if (root.nodeType === 3) { this.text(root, ix); return; }
-    if (root.nodeType !== 1 || root.closest(this.SKIP)) return;
+    if (root.nodeType !== 1) return;
     const attrs = e => this.ATTRS.forEach(a => { if (e.hasAttribute(a)) this.attr(e, a, ix); });
+    if (root.closest(this.SKIP)) { if (!root.closest(this.ATTR_SKIP)) attrs(root); return; }
     attrs(root);
     const tw = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
-      { acceptNode: n => n.nodeType === 1 && n.matches(this.SKIP) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+      { acceptNode: n => { if (n.nodeType === 1 && n.matches(this.SKIP)) { if (!n.closest(this.ATTR_SKIP)) attrs(n); return NodeFilter.FILTER_REJECT; } return NodeFilter.FILTER_ACCEPT; } });
     for (let n = tw.nextNode(); n; n = tw.nextNode()) n.nodeType === 3 ? this.text(n, ix, true) : attrs(n);
   },
   /* what appears later (a sheet, a list, a toast) is translated the moment it appears */
@@ -2202,7 +2206,7 @@ const Phrases = {
       for (const m of list) {
         if (m.type === 'childList') m.addedNodes.forEach(n => this.walk(n, ix));
         else if (m.type === 'characterData') this.text(m.target, ix);
-        else if (!m.target.closest(this.SKIP)) this.attr(m.target, m.attributeName, ix);
+        else if (!m.target.closest(this.ATTR_SKIP)) this.attr(m.target, m.attributeName, ix);
       }
     });
     this.obs.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: this.ATTRS });
@@ -2217,14 +2221,16 @@ const Full = {
   dict(lang) { return (window.NX_I18N_FULL || {})[lang] || null; },
   load(lang, done) {
     if (this.dict(lang)) { if (done) done(); return; }
-    if (this['_' + lang]) return;
+    if (this['_' + lang] === 1) return;
     this['_' + lang] = 1;
     const s = document.createElement('script');
     s.src = 'i18n/' + lang + '.js';
-    s.onload = () => { this.ix[lang] = null; this.memo[lang] = null; if (done) done(); };
-    s.onerror = () => { this['_' + lang] = 0; };
+    s.onload = () => { this['_' + lang] = 0; this.ix[lang] = null; this.memo[lang] = null; if (done) done(); };
+    s.onerror = () => { this['_' + lang] = -1; if (done) done(); };     // no dictionary on this host: the translation service's words
     document.head.appendChild(s);
   },
+  /* the translation service is asked only for what the dictionary lacks — never while the dictionary is on its way */
+  settled(lang) { return !!this.dict(lang) || this['_' + lang] === -1; },
   index(lang) {
     if (this.ix[lang]) return this.ix[lang];
     const d = this.dict(lang), by = new Map();
@@ -2234,10 +2240,12 @@ const Full = {
       const w = (fixed.match(AR_WORD) || [])[0];
       if (!w || fixed.replace(/\s+/g, '').length < 3) continue;
       let re = '^';
-      parts.forEach((p, i) => { re += i % 2 === 0 ? p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '([\\s\\S]+?)'; });
+      /* a part may be empty («… AI» + « (3)» or nothing); of two parts side by side («{1}{2}») the first is a number when it can be */
+      parts.forEach((p, i) => { re += i % 2 === 0 ? p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : parts[i + 1] === '' && i + 2 < parts.length ? '([0-9٠-٩][0-9٠-٩.,]*|[\\s\\S]*?)' : '([\\s\\S]*?)'; });
       if (!by.has(w)) by.set(w, []);
-      by.get(w).push({ re: new RegExp(re + '$'), ord: parts.filter((_, i) => i % 2 === 1).map(Number), out: d[k] });
+      by.get(w).push({ re: new RegExp(re + '$'), ord: parts.filter((_, i) => i % 2 === 1).map(Number), out: d[k], len: fixed.replace(/\s+/g, '').length });
     }
+    for (const list of by.values()) list.sort((a, b) => b.len - a.len);     // the most precise pattern first
     return (this.ix[lang] = by);
   },
   core(v, lang) { const row = Phrases.map && Phrases.map.get(v); return row ? row[LANG_IX[lang]] : null; },
@@ -2256,24 +2264,29 @@ const Full = {
     if (k.includes('\n')) {                              // line by line (texts shown with their line breaks)
       let any = false, miss = false;
       const out = k.split('\n').map(l => { const s = l.trim(); if (!s || !AR_RE.test(s)) return l; const x = this.get(s, lang, depth + 1) || this.core(s, lang); if (x == null) { miss = true; return l; } any = true; return l.replace(s, x); });
-      return any && !miss ? out.join('\n') : null;
-    }
+      if (any && !miss) return out.join('\n');
+    }                                                      // else: the whole text, its lines joined
     const flat = k.replace(/\s+/g, ' ');
     if (flat !== k && d[flat] != null) return d[flat];
     const nums = [], kn = flat.replace(/[0-9٠-٩]+(?:[.,٫][0-9٠-٩]+)*/g, x => '{' + (nums.push(x) - 1) + '}');
     if (nums.length && d[kn] != null) return d[kn].replace(/\{(\d+)\}/g, (x, i) => nums[i] != null ? nums[i] : x);
     if (depth > 1) return null;
     const ix = this.index(lang), seen = new Set();
+    let best = null;                                     // of all the patterns that fit, the most precise
     for (const w of flat.match(AR_WORD) || []) {
       if (seen.has(w)) continue;
       seen.add(w);
       for (const c of ix.get(w) || []) {
+        if (best && c.len <= best.c.len) break;
         const mm = c.re.exec(flat);
         if (!mm) continue;
-        const vals = mm.slice(1).map(v => AR_RE.test(v) ? (this.get(v.trim(), lang, depth + 1) || this.core(v.trim(), lang) || v) : v);
-        return c.out.replace(/\{(\d+)\}/g, (x, i) => { const j = c.ord.indexOf(+i); return j >= 0 && vals[j] != null ? vals[j] : x; });
+        const vals = mm.slice(1).map(v => { if (!AR_RE.test(v)) return v; const x = this.get(v.trim(), lang, depth + 1) || this.core(v.trim(), lang); return x != null ? v.replace(v.trim(), x) : v; });
+        if (vals.some(v => (v.match(AR_WORD) || []).length > 3)) continue;     // a whole Arabic sentence left inside: not this pattern
+        best = { c, vals };
+        break;
       }
     }
+    if (best) return best.c.out.replace(/\{(\d+)\}/g, (x, i) => { const j = best.c.ord.indexOf(+i); return j >= 0 && best.vals[j] != null ? best.vals[j] : x; });
     const segs = flat.split(/( · | — | – |: | \| )/);
     if (segs.length > 1) {
       let ok = true;
@@ -2285,7 +2298,23 @@ const Full = {
       });
       if (ok) return out.join('');
     }
-    return null;
+    const cnt = flat.match(/^(.+?)(\s*\([0-9٠-٩]+\))$/);            // «PROBLEMS · مشاكل (3)»: the title, then its count
+    if (cnt) { const x = this.get(cnt[1], lang, depth + 1) || this.core(cnt[1], lang); if (x != null) return x + cnt[2]; }
+    const pre = flat.match(/^([^\p{L}\p{N}\s]+\s+)(.+)$/u);          // «🎯 …»: a sign, then a known text
+    if (pre) { const x = this.get(pre[2], lang, depth + 1) || this.core(pre[2], lang); if (x != null) return pre[1] + x; }
+    /* last: other parts (a host, a number, a name) around Arabic words the dictionary knows — «HTTP (محلي) · 127.0.0.1» */
+    let any = false, miss = false;
+    const mixed = flat.replace(/\(?[\u0621-\u064A][\u0600-\u06FF\s]*\)?/g, m => {
+      const t = m.trim();
+      if (!AR_RE.test(t) || t === flat.trim()) { miss = miss || AR_RE.test(t); return m; }
+      const inner = /^\(.*\)$/.test(t) ? t.slice(1, -1).trim() : null;
+      let x = this.get(t, lang, depth + 1) || this.core(t, lang);
+      if (x == null && inner) { const y = this.get(inner, lang, depth + 1) || this.core(inner, lang); if (y != null) x = '(' + y + ')'; }
+      if (x == null) { miss = true; return m; }
+      any = true;
+      return m.replace(t, x);
+    });
+    return any && !miss ? mixed : null;
   }
 };
 /* the rest of the interface: a text translations.js lacks is asked of NEXUS's translation service
@@ -2378,7 +2407,7 @@ function setLanguage(l) {
   document.title = i18n.t('APP_TITLE');
   if (l !== 'ar') {
     Remote.load(l);
-    Full.load(l, () => { if (i18n.lang === l && document.body) Phrases.walk(document.body, LANG_IX[l]); });
+    if (!Full.dict(l)) Full.load(l, () => { if (i18n.lang === l && document.body) Phrases.walk(document.body, LANG_IX[l]); });   // already here: the walk below
   }
   if (Phrases.map || Phrases.build()) { if (document.body) Phrases.walk(document.body, ix); Phrases.watch(l !== 'ar'); }
   window.dispatchEvent(new CustomEvent('nx:lang', { detail: { lang: l } }));
@@ -14790,6 +14819,7 @@ const AIPanel = {
 
   say(kind, text) {
     const m = el('div', { class: 'ai-msg ' + kind, text });
+    if (kind === 'me' && this._ui) { m.setAttribute('data-ui', ''); this._ui = false; }   // a suggestion chip: shown in the chosen language
     this.log.appendChild(m);
     this.log.scrollTop = this.log.scrollHeight;
     return m;
@@ -14800,6 +14830,7 @@ const AIPanel = {
     const q = (text != null ? text : this.input.value).trim();
     if (!q) return;
     this.input.value = ''; this.input.style.height = '';
+    this._ui = !!opts.ui;
 
     /* «استخدم نماذجي» / «use my models»: the player's own model from now on — done here, no token spent */
     if (!opts.forceAct && NX.MyModels && NX.MyModels.claims(q)) {
@@ -31434,7 +31465,7 @@ function suggestionsFor(e, x) {
 }
 function sendFromPanel(q) {
   const A = NX.AIPanel;
-  if (A.mode === 'chat') NX.Chat.send(q); else A.send(q);
+  if (A.mode === 'chat') NX.Chat.send(q); else A.send(q, { ui: true });
 }
 const TargetBar = {
   node: null,
@@ -33950,12 +33981,14 @@ const Challenges = {
   async token() { const u = Backend.fb && Backend.fb.auth && Backend.fb.auth.currentUser; return u && !u.isAnonymous ? u.getIdToken() : null; },
 
   /* ---------------- the server ---------------- */
+  /* a challenge's own texts (NEXUS AI wrote them in Arabic) come back in the reader's language */
+  lang() { const l = NX.i18n && NX.i18n.lang; return l === 'en' || l === 'hi' ? { 'x-nexus-lang': l } : {}; },
   async call(path, body) {
     if (!API) throw Object.assign(new Error('التحديات تعمل على الموقع المنشور على Netlify — خادمه يحكم ويحفظ النتائج.'), { code: 'off' });
     const tok = await this.token().catch(() => null), t0 = Date.now();
     let r;
     try { r = await fetch(API + path, { method: body ? 'POST' : 'GET', cache: 'no-store', body: body ? JSON.stringify(body) : undefined,
-      headers: Object.assign({ 'content-type': 'application/json' }, tok ? { authorization: 'Bearer ' + tok } : {}) }); }
+      headers: Object.assign({ 'content-type': 'application/json' }, tok ? { authorization: 'Bearer ' + tok } : {}, this.lang()) }); }
     catch { throw Object.assign(new Error('خادم التحديات لا يجيب — تحقّق من الاتصال.'), { code: 'net' }); }
     const j = await r.json().catch(() => null);
     if (!j) throw Object.assign(new Error(r.status === 404 ? 'خادم التحديات غير موجود على هذا الموقع (يعمل على Netlify).' : 'HTTP ' + r.status), { code: 'off', status: r.status });
@@ -33969,7 +34002,7 @@ const Challenges = {
     const tok = await this.token();
     if (!tok) throw Object.assign(new Error('التحديات لأصحاب الحسابات — سجّل الدخول.'), { code: 'signin' });
     let r;
-    try { r = await fetch(API + path, { method: 'POST', cache: 'no-store', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body: JSON.stringify(body || {}) }); }
+    try { r = await fetch(API + path, { method: 'POST', cache: 'no-store', headers: Object.assign({ 'content-type': 'application/json', authorization: 'Bearer ' + tok }, this.lang()), body: JSON.stringify(body || {}) }); }
     catch { throw Object.assign(new Error('خادم التحديات لا يجيب — تحقّق من الاتصال.'), { code: 'net' }); }
     if (!/event-stream/.test(r.headers.get('content-type') || '')) {
       const j = await r.json().catch(() => null);
@@ -34813,6 +34846,7 @@ const Challenges = {
   }
 };
 NX.Challenges = Challenges;
+window.addEventListener('nx:lang', () => { if (Challenges.cur || Challenges.view) Challenges.refresh(); });
 
 /* a sign-in or sign-out while the sheet is open: what it shows is the account's */
 if (Backend.onAuth) Backend.onAuth(() => { if (Challenges.view) Challenges.refresh(); });

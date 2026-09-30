@@ -71,6 +71,7 @@
    ============================================================ */
 import { aiWho, aiOwner, aiRoute, aiCall, aiScrub } from './ai.js';
 import { ready as fsReady, getDoc, commit, put, create, preOf, runQuery, change, coded, fsBase, docName, accessToken, fromFs } from './points.js';
+import { translateContent } from './i18n.js';
 
 const env = k => { try { return (globalThis.Netlify && Netlify.env.get(k)) || ''; } catch { return ''; } };
 const num = (k, d) => { const v = env(k); return v !== '' && Number.isFinite(+v) ? +v : d; };
@@ -1180,6 +1181,69 @@ async function tick(req, cfg, { emit = () => {}, deadline, maxJudge = 2 } = {}) 
 
 /* ================================================================ what the page may see */
 const pubRubric = c => rubricOf(c).map(x => ({ id: x.id, en: x.en, ar: x.ar, weight: x.weight, what: x.what || KIND_WHAT[kindOf(x)], kind: kindOf(x) }));
+/* ================================================================ the viewer's language
+   A challenge's own texts are written by NEXUS AI in Arabic. A player who reads English or हिन्दी (the page
+   says so: x-nexus-lang) gets them in their language — translated once per language by NEXUS AI (i18n.js)
+   and kept on the challenge (i18n_en · i18n_hi, with a fingerprint of the texts), for everyone after. A friend
+   challenge its owner wrote themselves (NEXUS AI did not answer) stays as written; so do players' names and
+   their games' titles. No translation (no model now): the texts as NEXUS AI wrote them. */
+const AR_TXT = /[ء-ي]/;
+const TEXT_KEYS = ['title', 'tagline', 'description', 'story', 'concept', 'objective', 'winCondition', 'deliverableLabel'];
+const BRIEF_KEYS = ['title', 'tagline', 'deliverableLabel'];          // what a list shows of each challenge
+const fnv = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
+function textsOf(o, brief) {
+  const s = new Set(), add = x => { if (typeof x === 'string' && AR_TXT.test(x)) s.add(x); };
+  (brief ? BRIEF_KEYS : TEXT_KEYS).forEach(k => add(o[k]));
+  if (!brief) {
+    ['rules', 'mechanics'].forEach(k => (o[k] || []).forEach(add));
+    (o.judgingCriteria || []).forEach(x => { add(x.ar); add(x.what); });
+  }
+  return [...s];
+}
+/* t: { fnv(text): translation } — a short key (Firestore field names are limited; a description is long) */
+function applyTexts(o, t, lang) {
+  const tr = x => (typeof x === 'string' && t[fnv(x)]) || x;
+  TEXT_KEYS.forEach(k => { if (typeof o[k] === 'string') o[k] = tr(o[k]); });
+  ['rules', 'mechanics'].forEach(k => { if (Array.isArray(o[k])) o[k] = o[k].map(tr); });
+  if (Array.isArray(o.judgingCriteria)) o.judgingCriteria = o.judgingCriteria.map(x => Object.assign({}, x, { ar: lang === 'en' && x.en ? x.en : tr(x.ar), what: tr(x.what) }));
+}
+const inflight = new Map();
+async function localized(req, obj, lang) {
+  const found = [];
+  const walk = (x, d, inList) => {
+    if (!x || typeof x !== 'object' || d > 3) return;
+    if (Array.isArray(x)) { x.forEach(y => walk(y, d + 1, true)); return; }
+    if (x._doc) { found.push({ o: x, brief: inList }); return; }
+    Object.values(x).forEach(y => walk(y, d + 1, inList));
+  };
+  walk(obj, 0, false);
+  const now = Date.now();
+  const jobs = found.filter(f => f.o._doc.ai).map(f => {
+    const have = f.o._doc.i18n[lang] || {}, t = have.t || {}, miss = have.miss || {};
+    /* not asked again: what is translated; what no model could translate, for 10 minutes */
+    const ask = textsOf(f.o, f.brief).filter(x => !t[fnv(x)] && !(now - (miss[fnv(x)] || 0) < 600e3));
+    return { f, t, miss, ask };
+  });
+  /* everything missing in one request (a list of challenges too), at most 80 texts at a time */
+  const ask = [...new Set(jobs.flatMap(j => j.ask))].slice(0, 80);
+  if (ask.length) {
+    const key = lang + '|' + fnv(ask.join('\u0001'));
+    if (!inflight.has(key)) {
+      inflight.set(key, Promise.race([translateContent(req, lang, ask).catch(() => null), new Promise(r => setTimeout(() => r(null), 20000))]).then(x => x || {}));
+      setTimeout(() => inflight.delete(key), 60000);
+    }
+    const got = await inflight.get(key), asked = new Set(ask);
+    /* kept on each challenge, for everyone after */
+    await Promise.all(jobs.filter(j => j.ask.length).map(j => {
+      j.t = Object.assign({}, j.t); j.miss = Object.assign({}, j.miss);
+      j.ask.forEach(x => { const h = fnv(x); if (got[x]) { j.t[h] = got[x]; delete j.miss[h]; } else if (asked.has(x)) j.miss[h] = now; });
+      return commit([put(j.f.o._doc.path, { ['i18n_' + lang]: { t: j.t, miss: j.miss, at: now } })]).catch(() => {});
+    }));
+  }
+  jobs.forEach(j => applyTexts(j.f.o, j.t, lang));
+  return obj;
+}
+
 function pubChallenge(c, viewer = null) {
   if (!c) return null;
   const pol = policyOf(c), friend = c.kind === 'friend', final = c.status === 'final';
@@ -1205,6 +1269,8 @@ function pubChallenge(c, viewer = null) {
       invitedCount: (c.invited || []).length, invited: isOwner ? c.invited || [] : undefined, joinByLink: !!c.joinByLink, creatorPlays: c.creatorPlays !== false,
       escrow: c.escrow ? { amount: c.escrow.amount || 0, fee: c.escrow.fee || 0 } : null, refundDue: c.refundDue || 0, refundPaid: !!c.refundPaidAt });
   }
+  /* for localized() only — not sent (not enumerable) */
+  Object.defineProperty(out, '_doc', { value: { path: colOfId(c.challengeId) + '/' + c.challengeId, ai: !(friend && c.ai === false), i18n: { en: c.i18n_en || null, hi: c.i18n_hi || null } } });
   return out;
 }
 /* an entry: its owner sees everything the judge said; others what the rules allow */
@@ -1327,6 +1393,9 @@ export default async (req) => {
     const signed = !me.error;
     const cron = !!env('CHALLENGES_CRON_SECRET') && req.headers.get('x-nexus-cron') === env('CHALLENGES_CRON_SECRET');
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
+    /* the challenges in an answer, in the viewer's language (their texts; see localized()) */
+    const lang = ['en', 'hi'].includes(req.headers.get('x-nexus-lang')) ? req.headers.get('x-nexus-lang') : null;
+    const send = async (status, obj) => json(status, lang ? await localized(req, obj, lang) : obj);
 
     /* ---------------- open to everyone: the challenge (or the one being invented), its board, the past ---------------- */
     if (req.method === 'GET' && path === '/current') {
@@ -1335,14 +1404,14 @@ export default async (req) => {
       const gen = current ? null : await genStatus(cfg);
       const work = (!current && cfg.autoCreate) || (await recent(4)).some(x => (x.status === 'open' && x.endTime <= Date.now()) || x.status === 'judging' || (x.status === 'final' && !x.rewardsPaid)
         || (x.status === 'open' && x.submissions > x.judged));
-      return json(200, { ok: true, now: Date.now(), challenge: pubChallenge(current), last: current ? null : pubChallenge(last), generating: gen,
+      return send(200, { ok: true, now: Date.now(), challenge: pubChallenge(current), last: current ? null : pubChallenge(last), generating: gen,
         me: mine && mine.exists ? pubEntry(Object.assign({ id: current.challengeId + '_' + me.uid }, mine.data), { own: true }) : null,
         signedIn: signed, owner: signed ? await aiOwner(me) : false, work, friendEnabled: cfg.friendEnabled,
         config: { rewardMin: cfg.rewardMin, rewardMax: cfg.rewardMax, placements: cfg.placements, participation: cfg.participation } });
     }
     if (req.method === 'GET' && path === '/past') {
       const list = (await recent(Math.min(30, (+url.searchParams.get('limit') || 12) + 1))).filter(c => c.status !== 'open');
-      return json(200, { ok: true, now: Date.now(), challenges: list.map(c => pubChallenge(c)) });
+      return send(200, { ok: true, now: Date.now(), challenges: list.map(c => pubChallenge(c)) });
     }
     const one = /^\/c\/([\w-]+)$/.exec(path);
     if (req.method === 'GET' && one && colOfId(idOf(one[1])) === 'challenges') {
@@ -1350,7 +1419,7 @@ export default async (req) => {
       if (!cd.exists) return fail(404, 'challenge', 'التحدي غير موجود');
       const c = cd.data;
       const mine = signed ? await getDoc('challengeEntries/' + c.challengeId + '_' + me.uid) : null;
-      return json(200, { ok: true, now: Date.now(), challenge: pubChallenge(c), board: await board(c, signed ? me : null),
+      return send(200, { ok: true, now: Date.now(), challenge: pubChallenge(c), board: await board(c, signed ? me : null),
         me: mine && mine.exists ? pubEntry(Object.assign({ id: c.challengeId + '_' + me.uid }, mine.data), { own: true }) : null });
     }
 
@@ -1396,18 +1465,22 @@ export default async (req) => {
       const ids = [current && current.challengeId].concat(friends.map(f => f.challengeId)).filter(Boolean);
       const mine = await batchGet(ids.map(id => 'challengeEntries/' + id + '_' + me.uid)).catch(() => new Map());
       const view = c => ({ challenge: pubChallenge(c, me.uid), me: mine.has(c.challengeId + '_' + me.uid) ? pubEntry(Object.assign({ id: c.challengeId + '_' + me.uid }, mine.get(c.challengeId + '_' + me.uid)), { own: true }) : null });
-      return json(200, { ok: true, now: Date.now(), list: [].concat(current ? [view(current)] : [], friends.map(view)) });
+      return send(200, { ok: true, now: Date.now(), list: [].concat(current ? [view(current)] : [], friends.map(view)) });
     }
 
     /* ---------------- friend challenges ---------------- */
     if (path.startsWith('/friend')) {
-      if (req.method === 'POST' && path === '/friend/draft') return json(200, Object.assign({ ok: true }, await friendDraft(req, me, body, cfg)));
-      if (req.method === 'POST' && path === '/friend/create') return json(200, { ok: true, challenge: pubChallenge(await friendCreate(me, body, cfg), me.uid) });
-      if (req.method === 'POST' && path === '/friend/join') return json(200, { ok: true, challenge: pubChallenge(Object.assign({ kind: 'friend' }, await friendJoin(me, idOf(body.id))), me.uid) });
+      if (req.method === 'POST' && path === '/friend/draft') {
+        const d = await friendDraft(req, me, body, cfg);
+        if (d.draft) Object.defineProperty(d.draft, '_doc', { value: { path: 'friendDrafts/' + d.draftId, ai: d.ai !== false, i18n: { en: null, hi: null } } });
+        return send(200, Object.assign({ ok: true }, d));
+      }
+      if (req.method === 'POST' && path === '/friend/create') return send(200, { ok: true, challenge: pubChallenge(await friendCreate(me, body, cfg), me.uid) });
+      if (req.method === 'POST' && path === '/friend/join') return send(200, { ok: true, challenge: pubChallenge(Object.assign({ kind: 'friend' }, await friendJoin(me, idOf(body.id))), me.uid) });
       if (req.method === 'POST' && path === '/friend/leave') { await friendLeave(me, idOf(body.id)); return json(200, { ok: true }); }
-      if (req.method === 'POST' && path === '/friend/start') return json(200, { ok: true, challenge: pubChallenge(Object.assign({ kind: 'friend' }, await friendStart(me, idOf(body.id))), me.uid) });
+      if (req.method === 'POST' && path === '/friend/start') return send(200, { ok: true, challenge: pubChallenge(Object.assign({ kind: 'friend' }, await friendStart(me, idOf(body.id))), me.uid) });
       if (req.method === 'POST' && path === '/friend/cancel') return json(200, Object.assign({ ok: true }, await friendCancel(me, idOf(body.id))));
-      if (req.method === 'GET' && path === '/friend/mine') return json(200, { ok: true, now: Date.now(), challenges: (await friendMine(me.uid)).map(c => pubChallenge(c, me.uid)) });
+      if (req.method === 'GET' && path === '/friend/mine') return send(200, { ok: true, now: Date.now(), challenges: (await friendMine(me.uid)).map(c => pubChallenge(c, me.uid)) });
       const fm = /^\/friend\/(fc_[\w-]+)$/.exec(path);
       if (req.method === 'GET' && fm) {
         const cd = await loadChallenge(idOf(fm[1]));
@@ -1415,7 +1488,7 @@ export default async (req) => {
         const c = cd.data, inIt = c.ownerId === me.uid || (c.players || []).includes(me.uid) || (c.invited || []).includes(me.uid);
         if (!inIt && !(c.joinByLink && c.status === 'lobby')) return fail(403, 'private', 'هذا التحدي خاص بأصحابه.');
         const mine = await getDoc('challengeEntries/' + c.challengeId + '_' + me.uid);
-        return json(200, { ok: true, now: Date.now(), challenge: pubChallenge(c, me.uid), board: inIt ? await board(c, me) : { hidden: true, entries: [] },
+        return send(200, { ok: true, now: Date.now(), challenge: pubChallenge(c, me.uid), board: inIt ? await board(c, me) : { hidden: true, entries: [] },
           me: mine.exists ? pubEntry(Object.assign({ id: c.challengeId + '_' + me.uid }, mine.data), { own: true }) : null,
           role: c.ownerId === me.uid ? 'owner' : (c.players || []).includes(me.uid) ? 'player' : (c.invited || []).includes(me.uid) ? 'invited' : 'link' });
       }

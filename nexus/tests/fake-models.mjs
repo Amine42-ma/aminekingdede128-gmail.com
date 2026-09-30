@@ -90,8 +90,17 @@ export function reviewerReply(c) {
 }
 /* ---- the tie-break review: B (unless a test says otherwise) */
 export const tieReply = () => JSON.stringify({ better: 'B', reason: 'اللعبة B تحقق هدف التحدي بوضوح أكبر' });
+/* ---- a challenge's texts in English or Hindi (i18n.js · translateContent): «Challenge text 1…», «चुनौती का पाठ 1…» —
+   every placeholder kept; no Arabic letter left (what the server checks) */
+export function translateReply(c) {
+  let strings = [];
+  try { const u = String(c.lastUser); strings = JSON.parse(u.slice(u.indexOf('{'), u.lastIndexOf('}') + 1)).strings || []; } catch { }
+  const hi = /to Hindi/.test(c.system);
+  return JSON.stringify({ t: strings.map((s, i) => (hi ? 'चुनौती का पाठ ' : 'Challenge text ') + (i + 1) + (s.match(/\{\d+\}/g) || []).map(h => ' ' + h).join('')) });
+}
 /* every challenge role, by its system prompt (null: not a challenge call) */
 export function challengeReply(c) {
+  if (/You translate the texts of a game-development challenge/.test(c.system)) return translateReply(c);
   if (/NEXUS Challenge Creator/.test(c.system)) return creatorReply(c);
   if (/NEXUS Challenge Reviewer/.test(c.system)) return reviewerReply(c);
   if (/breaking a tie/.test(c.system)) return tieReply(c);

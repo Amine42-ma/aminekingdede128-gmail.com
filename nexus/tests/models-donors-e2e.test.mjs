@@ -189,12 +189,13 @@ test('7 · A weak site (no strong model): 🤝 donor, thanked — no 💎, an ad
 });
 
 /* ================================================================ 🌐 the whole interface */
-const UI = 'ذاكرة المتصفح امتلأت — حُذفت محادثات قديمة مع المساعد لحفظ إعداداتك', UI_N = 'بقي 7 ثانية حتى يبدأ التحدي', NAME = 'مرحبا يا زكريا الطيب';
+/* words of the interface, but a text neither translations.js nor i18n/hi.js has (those need no model at all) */
+const UI = 'حُذفت محادثات قديمة مع المساعد لحفظ إعداداتك', UI_N = 'بقي 7 ثانية حتى يبدأ التحدي', NAME = 'مرحبا يا زكريا الطيب';
 const inject = page => page.evaluate(([a, b, c]) => document.body.append(Object.assign(document.createElement('p'), { id: 'rt1', textContent: a }),
   Object.assign(document.createElement('p'), { id: 'rt2', textContent: b }), Object.assign(document.createElement('p'), { id: 'rt3', textContent: c })), [UI, UI_N, NAME]);
 const texts = page => page.evaluate(() => ['rt1', 'rt2', 'rt3'].map(id => document.getElementById(id).textContent));
 
-test('8 · हिन्दी: a text translations.js lacks is translated once by NEXUS AI (numbers kept) — a name is never sent; back to العربية: the original words', async () => {
+test('8 · हिन्दी: a text the dictionaries lack is translated once by NEXUS AI (numbers kept) — a name is never sent; back to العربية: the original words', async () => {
   const { page } = S.hi = await newDevice(browser, site, logs, { locale: 'hi-IN' });
   await until(page, () => document.querySelectorAll('#p-tabs button').length === 5);
   const n = trCalls().length;

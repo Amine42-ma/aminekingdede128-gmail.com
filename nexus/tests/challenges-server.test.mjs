@@ -730,6 +730,43 @@ test('Without NEXUS AI a friend challenge can still be made from the player\'s o
   assert.equal((await draftOf(h, 'maya', {})).error.code, 'no_ai');
 });
 
+/* ================================================================ the reader's language */
+test('The reader\'s language (x-nexus-lang): a challenge\'s own texts come back in हिन्दी or English — translated ONCE per language by NEXUS AI and kept on the challenge; Arabic readers get them as written; a friend challenge its owner wrote without NEXUS AI stays as written', async () => {
+  const h = await fn();
+  /* a long description (over Firestore's 1500-byte field name): kept by a short key of its own */
+  const c = await newChallenge(h, idea({ description: 'اصنع لعبة سباق سيارات فيها لفّات وخط نهاية ووقت، وحلبة تتغيّر كل لفّة. '.repeat(14) }));
+  assert.ok(new TextEncoder().encode(c.description).length > 1500);
+  const trCalls = () => calls(/You translate the texts of a game-development challenge/);
+  const get = async (lang, p = '/current', uid = null) => (await J(await ask(h, p, { method: 'GET', uid, headers: lang ? { 'x-nexus-lang': lang } : {} }))).challenge;
+  const AR = /[\u0600-\u06FF]/;
+  const texts = x => [x.title, x.tagline, x.description, x.story, x.objective, x.winCondition, x.deliverableLabel, ...x.rules, ...x.mechanics, ...x.judgingCriteria.flatMap(k => [k.ar, k.what])].filter(Boolean);
+  const hi = await get('hi');
+  assert.equal(trCalls().length, 1); assert.match(trCalls()[0].system, /to Hindi/);
+  assert.ok(texts(hi).every(t => !AR.test(t)), JSON.stringify(texts(hi)));
+  assert.match(hi.title, /^चुनौती का पाठ \d+$/);
+  assert.equal((await get('hi')).title, hi.title);
+  assert.equal(trCalls().length, 1, 'kept on the challenge: not translated again');
+  const saved = await fsGet('challenges/' + c.challengeId);
+  assert.ok(Object.values(saved.i18n_hi.t).includes(hi.title) && Object.values(saved.i18n_hi.t).includes(hi.description), 'kept on the challenge');
+  assert.ok(!AR.test(hi.description));
+  const en = await get('en');
+  assert.equal(trCalls().length, 2); assert.match(en.title, /^Challenge text \d+$/);
+  assert.deepEqual(en.judgingCriteria.map(k => k.ar), en.judgingCriteria.map(k => k.en), 'English criteria: their own English names');
+  const ar = await get(null);
+  assert.equal(ar.title, c.title); assert.ok(AR.test(ar.title)); assert.equal(trCalls().length, 2);
+  assert.equal((await J(await ask(h, '/c/' + c.challengeId, { method: 'GET', headers: { 'x-nexus-lang': 'hi' } }))).challenge.title, hi.title, 'one challenge\'s page too');
+  /* a friend challenge its owner wrote themselves (NEXUS AI did not answer): their words, never sent to a model */
+  await fsSet('wallets/maya', { points: 500, welcomed: true });
+  W.keys = { [KEYS.gem]: '500', [KEYS.groq]: '500', [KEYS.or]: '500' };
+  const d = await draftOf(h, 'maya', { idea: 'لغز في غرفة مظلمة' });
+  assert.equal(d.ai, false);
+  W.keys = {};
+  const fc = await createOf(h, 'maya', { draftId: d.draftId, reward: 10, durationMinutes: 60 });
+  assert.equal(fc.status, 200, JSON.stringify(fc));
+  assert.equal((await get('hi', '/friend/' + fc.challenge.challengeId, 'maya')).title, 'لغز في غرفة مظلمة');
+  assert.equal(trCalls().length, 2);
+});
+
 let pass = 0, failN = 0;
 for (const t of tests) {
   const t0 = Date.now();
