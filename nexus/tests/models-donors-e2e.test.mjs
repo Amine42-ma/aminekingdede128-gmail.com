@@ -220,7 +220,9 @@ test('9 · Kept for everyone: another visitor in हिन्दी sees it at o
   await inject(d.page);
   await until(d.page, t => document.getElementById('rt1').textContent === t, tr(UI, 'hi'), 30000);
   await d.page.waitForTimeout(1200);
-  assert.equal(trCalls().length, n, 'from the shared dictionary');
+  /* (a challenge NEXUS AI invented meanwhile may have its own texts translated — not these) */
+  const again = trCalls().slice(n).filter(c => c.lastUser.includes('حُذفت محادثات') || c.lastUser.includes('ثانية حتى يبدأ'));
+  assert.equal(again.length, 0, 'from the shared dictionary — asked again: ' + again.map(c => c.lastUser.slice(0, 300)).join(' | '));
   const tabs = await d.page.evaluate(() => [...document.querySelectorAll('#p-tabs button span')].map(s => s.textContent));
   assert.ok(tabs.every(t => !/[A-Za-z]/.test(t)), tabs.join(' | '));
   await d.ctx.close();

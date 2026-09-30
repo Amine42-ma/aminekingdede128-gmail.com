@@ -781,6 +781,25 @@ service cloud.firestore {
                        || (signedIn() && existing().by != me() && (bumped('uses', 1) || bumped('ok', 1) || bumped('fail', 1)));
       allow delete:    if signedIn() && existing().by == me();
     }
+    // ---------------------------------------------------------------- 🗄 My vault (PART 41)
+    // the player's own saved objects — shape or model (by asset id), material, physics, components, the scripts
+    // bound to them: PRIVATE, only their owner reads or writes them (a list must ask for ownerId == me)
+    match /vault/{id} {
+      function validVault(d) {
+        return d.vaultId == id && d.ownerId == me() && d.name is string && d.name.size() > 0 && d.name.size() <= 60
+               && d.note is string && d.note.size() <= 300 && d.scene is string && d.scene.size() > 2 && d.scene.size() <= 800000
+               && d.scripts is list && d.scripts.size() <= 60 && d.components is list && d.components.size() <= 40
+               && d.assetRefs is list && d.assetRefs.size() <= 60 && d.size is list && d.size.size() == 3 && d.counts is map
+               && (!('thumb' in d) || (d.thumb is string && d.thumb.size() <= 120000))
+               && d.uses is int && d.v == 1 && d.createdAt is int && d.updatedAt is int
+               && d.keys().hasOnly(['vaultId', 'ownerId', 'name', 'note', 'scene', 'scripts', 'components', 'assetRefs', 'size', 'counts', 'thumb', 'uses', 'v', 'createdAt', 'updatedAt']);
+      }
+      allow get:    if resource == null || isOwner(existing());
+      allow list:   if isOwner(existing());
+      allow create: if hasAccount() && validVault(incoming()) && incoming().uses == 0;
+      allow update: if isOwner(existing()) && validVault(incoming()) && incoming().createdAt == existing().createdAt;
+      allow delete: if isOwner(existing());
+    }
     // the interface's translations (English · हिन्दी) and their daily budget: only the translation server (/api/i18n)
     match /i18n_cache/{d} {
       allow read, write: if false;

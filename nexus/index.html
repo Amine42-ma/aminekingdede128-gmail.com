@@ -1868,6 +1868,50 @@ html[data-sandbox] #p-remix{display:none!important}
 .lrn-out{white-space:pre-wrap;font-size:13px;line-height:1.7;margin-top:10px}
 .kp-mode button{flex:1}
 /* /NX-CSS:40 */
+/* NX-CSS:41 · Canvas pro — the quick bar beside the selection, size, my vault, the object's code */
+.qk-bar{position:absolute;left:0;top:0;z-index:6;display:flex;gap:2px;padding:4px;border-radius:14px;background:rgba(14,17,28,.93);backdrop-filter:blur(12px);
+  border:1px solid rgba(180,155,255,.45);box-shadow:0 8px 28px rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .15s;will-change:transform}
+.qk-bar.in{opacity:1;pointer-events:auto}
+.qk-b{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:50px;padding:5px 6px;border-radius:10px;color:var(--ink-soft)}
+.qk-b svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.qk-b small{font-size:9.5px;font-weight:700;white-space:nowrap;color:var(--ink-dim)}
+.qk-b:active,.qk-b:hover{background:var(--glass-2);color:#fff}
+.qk-b.danger{color:#fca5a5}
+#vp-wrap.playing .qk-bar{display:none}
+.sz-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 10px}
+.sz-f{display:flex;align-items:center;gap:6px;min-width:0}
+.sz-ax{width:18px;text-align:center;font-weight:800}.sz-ax.x{color:#f87171}.sz-ax.y{color:#4ade80}.sz-ax.z{color:#60a5fa}
+.sz-in{min-width:0;width:100%;text-align:center}
+.sz-range{width:100%;margin:6px 0}
+.sz-quick{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.sz-dims{margin:8px 0;padding:8px 10px;border-radius:10px;background:var(--glass);font-family:var(--mono)}
+.vt-row{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px;touch-action:pan-x;scrollbar-width:none}
+.vt-row::-webkit-scrollbar{display:none}
+.vt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+.vt-cell{display:flex;flex-direction:column;align-items:center;gap:4px}
+.vt-tile{flex:0 0 104px;width:104px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px;border-radius:12px;background:var(--panel-2);
+  border:1px solid var(--line);touch-action:pan-x;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:grab}
+.vt-tile img,.vt-ph{width:88px;height:88px;border-radius:9px;object-fit:cover;background:#0b0d16;display:grid;place-items:center;font-size:30px;pointer-events:none}
+.vt-tile b{font-size:11.5px;max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vt-tile small{font-size:9.5px;color:var(--ink-dim);text-align:center}
+.vt-acts{display:flex;gap:4px}
+.vt-ghost{position:fixed;left:0;top:0;z-index:1000;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px;border-radius:12px;
+  background:rgba(14,17,28,.9);border:2px dashed #fb7185;opacity:.93}
+.vt-ghost.ok{border-color:#22d3ee}
+.vt-ghost img,.vt-ghost span{width:64px;height:64px;border-radius:8px;object-fit:cover;display:grid;place-items:center;font-size:26px}
+.vt-ghost b{font-size:10px;max-width:72px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+body.vt-dragging #sheet-root{pointer-events:none!important}
+body.vt-dragging #sheet-root .sheet,body.vt-dragging #sheet-root .scrim{opacity:.1;pointer-events:none;transition:opacity .15s}
+.qc-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.qc-chip.on{background:rgba(180,155,255,.25);border-color:rgba(180,155,255,.6);color:#fff}
+.qc-ed{min-height:240px;height:46vh;display:flex;flex-direction:column;margin-bottom:8px}
+.qc-ed .ed-wrap{flex:1;min-height:0}
+.qc-ed .ed-wrap>.ed-bar{position:static;transform:none;inset:auto;left:auto;bottom:auto;border:0;border-bottom:1px solid var(--line);border-radius:0;background:var(--panel-2);z-index:auto}
+.qc-ai{display:flex;gap:6px}
+.qc-ai .input{flex:1;min-width:0}
+.qc-note{color:#fcd77a;margin:2px 0 6px}
+.qc-out{margin-top:6px}
+/* /NX-CSS:41 */
 </style>
 </head>
 <body>
@@ -5282,6 +5326,25 @@ service cloud.firestore {
                        || (signedIn() && existing().by != me() && (bumped('uses', 1) || bumped('ok', 1) || bumped('fail', 1)));
       allow delete:    if signedIn() && existing().by == me();
     }
+    // ---------------------------------------------------------------- 🗄 My vault (PART 41)
+    // the player's own saved objects — shape or model (by asset id), material, physics, components, the scripts
+    // bound to them: PRIVATE, only their owner reads or writes them (a list must ask for ownerId == me)
+    match /vault/{id} {
+      function validVault(d) {
+        return d.vaultId == id && d.ownerId == me() && d.name is string && d.name.size() > 0 && d.name.size() <= 60
+               && d.note is string && d.note.size() <= 300 && d.scene is string && d.scene.size() > 2 && d.scene.size() <= 800000
+               && d.scripts is list && d.scripts.size() <= 60 && d.components is list && d.components.size() <= 40
+               && d.assetRefs is list && d.assetRefs.size() <= 60 && d.size is list && d.size.size() == 3 && d.counts is map
+               && (!('thumb' in d) || (d.thumb is string && d.thumb.size() <= 120000))
+               && d.uses is int && d.v == 1 && d.createdAt is int && d.updatedAt is int
+               && d.keys().hasOnly(['vaultId', 'ownerId', 'name', 'note', 'scene', 'scripts', 'components', 'assetRefs', 'size', 'counts', 'thumb', 'uses', 'v', 'createdAt', 'updatedAt']);
+      }
+      allow get:    if resource == null || isOwner(existing());
+      allow list:   if isOwner(existing());
+      allow create: if hasAccount() && validVault(incoming()) && incoming().uses == 0;
+      allow update: if isOwner(existing()) && validVault(incoming()) && incoming().createdAt == existing().createdAt;
+      allow delete: if isOwner(existing());
+    }
     // the interface's translations (English · हिन्दी) and their daily budget: only the translation server (/api/i18n)
     match /i18n_cache/{d} {
       allow read, write: if false;
@@ -6018,6 +6081,136 @@ class Gizmo {
 }
 
 /* ------------------------------------------------------------
+   SELECTION OUTLINE (PART 41) — a glowing edge around what is selected
+   The object's own meshes drawn once more, pushed a few pixels outwards on
+   the screen (inverted hull: back faces only), in one colour. They live in
+   the editor's helper layer, NOT inside the object: whatever recolours,
+   re-materials, clones or walks through an object never meets them (and a
+   thumbnail or play mode hides them with the other helpers). Each copy takes
+   its mesh's world matrix (and skinning) just before it is drawn, so it
+   follows every move and animation. Never picked, never saved, gone when
+   nothing is selected. One smooth direction per corner is worked out once
+   per geometry (kept on it), so a box keeps closed corners.
+   ------------------------------------------------------------ */
+const OUTLINE_MAX = 12;
+class SelOutline {
+  constructor(engine) {
+    this.engine = engine;
+    this.parts = [];
+    this.sig = '';
+    this.done = new Set();
+    this.px = { value: 3.6 };                        // thickness, in screen (CSS) pixels
+    this.res = { value: new THREE.Vector2(1, 1) };
+    this.mats = new Map();
+  }
+  material(color) {
+    let m = this.mats.get(color);
+    if (m) return m;
+    m = new THREE.MeshBasicMaterial({ color, side: THREE.BackSide, transparent: true, opacity: 0.95, depthWrite: false, toneMapped: false, fog: false });
+    m.onBeforeCompile = sh => {
+      sh.uniforms.nxPx = this.px; sh.uniforms.nxRes = this.res;
+      sh.vertexShader = 'attribute vec3 nxOutlineN;\nuniform float nxPx;\nuniform vec2 nxRes;\n' + sh.vertexShader.replace('#include <project_vertex>',
+        '#include <project_vertex>\n  vec4 nxC = projectionMatrix * vec4(normalize(normalMatrix * nxOutlineN), 0.0);\n  float nxL = length(nxC.xy);\n'
+        + '  if (nxL > 1e-6) gl_Position.xy += nxC.xy / nxL * (nxPx * 2.0 / nxRes) * gl_Position.w;');
+    };
+    m.customProgramCacheKey = () => 'nx-sel-outline';
+    this.mats.set(color, m);
+    return m;
+  }
+  /* one direction per corner (the average of the faces meeting there) — kept on the geometry */
+  smooth(g) {
+    const have = g.getAttribute('nxOutlineN');
+    if (have) return have;
+    const pos = g.getAttribute('position');
+    if (!pos || !pos.count) return null;
+    const n = pos.count, nrm = g.getAttribute('normal'), out = new Float32Array(n * 3);
+    if (nrm && n <= 400000) {
+      const acc = new Map(), slot = new Array(n);
+      for (let i = 0; i < n; i++) {
+        const k = Math.round(pos.getX(i) * 1e4) + '|' + Math.round(pos.getY(i) * 1e4) + '|' + Math.round(pos.getZ(i) * 1e4);
+        let a = acc.get(k); if (!a) acc.set(k, a = [0, 0, 0]);
+        a[0] += nrm.getX(i); a[1] += nrm.getY(i); a[2] += nrm.getZ(i); slot[i] = a;
+      }
+      for (let i = 0; i < n; i++) { const a = slot[i], L = Math.hypot(a[0], a[1], a[2]) || 1; out[i * 3] = a[0] / L; out[i * 3 + 1] = a[1] / L; out[i * 3 + 2] = a[2] / L; }
+    } else if (nrm) {
+      for (let i = 0; i < n; i++) { out[i * 3] = nrm.getX(i); out[i * 3 + 1] = nrm.getY(i); out[i * 3 + 2] = nrm.getZ(i); }
+    } else {
+      if (!g.boundingSphere) g.computeBoundingSphere();
+      const c = g.boundingSphere ? g.boundingSphere.center : new THREE.Vector3();
+      for (let i = 0; i < n; i++) { const x = pos.getX(i) - c.x, y = pos.getY(i) - c.y, z = pos.getZ(i) - c.z, L = Math.hypot(x, y, z) || 1; out[i * 3] = x / L; out[i * 3 + 1] = y / L; out[i * 3 + 2] = z / L; }
+    }
+    const a = new THREE.BufferAttribute(out, 3);
+    g.setAttribute('nxOutlineN', a);
+    return a;
+  }
+  add(e, color) {
+    const m = this.material(color);
+    if (!this.layer) { this.layer = new THREE.Group(); this.layer.name = '__outline'; this.engine.helpers.add(this.layer); }
+    let count = 0;
+    e.object3D.updateMatrixWorld(true);
+    e.object3D.traverse(n => {
+      if (!n.isMesh || n.isInstancedMesh || !n.geometry || (n.userData && (n.userData.nxOutline || n.userData.helper))) return;
+      for (let q = n; q; q = q.parent) if (q.visible === false) return;
+      if (!this.smooth(n.geometry)) return;
+      let o;
+      if (n.isSkinnedMesh && n.skeleton) { o = new THREE.SkinnedMesh(n.geometry, m); o.bindMode = n.bindMode; o.bind(n.skeleton, n.bindMatrix); }
+      else o = new THREE.Mesh(n.geometry, m);
+      o.name = '__outline';
+      o.userData.nxOutline = true;
+      o.userData.src = n;
+      o.raycast = () => {};
+      o.castShadow = false; o.receiveShadow = false;
+      o.matrixAutoUpdate = false; o.frustumCulled = false;
+      o.renderOrder = 3;
+      /* where its mesh is now (the scene's matrices are fresh at this point of a frame) */
+      o.onBeforeRender = () => {
+        o.matrixWorld.copy(n.matrixWorld);
+        if (o.isSkinnedMesh) { o.bindMatrix.copy(n.bindMatrix); o.bindMatrixInverse.copy(n.bindMatrixInverse); }
+      };
+      this.layer.add(o);
+      this.parts.push(o);
+      count++;
+    });
+    return count;
+  }
+  /* the main selection (purple) and the rest of it (cyan) — only rebuilt when something changed */
+  set(prim, others) {
+    const list = prim && prim.object3D ? [prim].concat(others || []).filter(e => e.object3D).slice(0, OUTLINE_MAX) : [];
+    let sig = '';
+    for (const e of list) {
+      sig += e.id + ':';
+      e.object3D.traverse(n => { if (n.isMesh && !(n.userData && n.userData.nxOutline)) sig += (n.geometry ? n.geometry.id : 0) + (n.visible ? ',' : 'h,'); });
+      sig += ';';
+    }
+    if (sig === this.sig) return this.done;
+    this.clear();
+    this.sig = sig;
+    list.forEach((e, i) => { if (this.add(e, i === 0 ? 0xb49bff : 0x22d3ee)) this.done.add(e.id); });
+    return this.done;
+  }
+  clear() {
+    this.parts.forEach(o => o.removeFromParent());
+    this.parts = []; this.sig = ''; this.done = new Set();
+  }
+  /* every frame: the glow breathes; a copy shows only while its mesh is shown and still in the scene
+     (an object removed or hidden without a new selection), and takes a new shape at once */
+  pulse(t) {
+    if (!this.parts.length) return;
+    const a = 0.8 + 0.18 * Math.sin(t * 4.2);
+    this.mats.forEach(m => { m.opacity = a; });
+    const scene = this.engine.scene;
+    for (const o of this.parts) {
+      const n = o.userData.src;
+      let q = n, shown = true;
+      for (; q && q !== scene; q = q.parent) if (q.visible === false) { shown = false; break; }
+      o.visible = shown && q === scene;
+      if (o.visible && n.geometry !== o.geometry && n.geometry && this.smooth(n.geometry)) o.geometry = n.geometry;
+    }
+  }
+  resize(w, h) { this.res.value.set(Math.max(1, w), Math.max(1, h)); }
+}
+
+/* ------------------------------------------------------------
    ENGINE CORE
    ------------------------------------------------------------ */
 class EngineCore {
@@ -6073,7 +6266,7 @@ class EngineCore {
     /* snap: grid (m), rotation (°), scale steps — on or off together */
     const sn = NX.LS.get('editorSnap', {});
     this.snapOn = !!sn.on; this.snapMove = sn.move || 0.5; this.snapRot = sn.rot || 15; this.snapScale = sn.scale || 0.1;
-    if (this.mode === 'editor') this.gizmoCtl = new Gizmo(this);
+    if (this.mode === 'editor') { this.gizmoCtl = new Gizmo(this); this.outlineGlow = new SelOutline(this); }
     this.selection = null;
     this.gizmo = 'move';
     this.gizmoAxis = 'xz';
@@ -6094,6 +6287,7 @@ class EngineCore {
     const host = this.canvas.parentElement || this.canvas;
     const w = Math.max(1, host.clientWidth), h = Math.max(1, host.clientHeight);
     this.renderer.setSize(w, h, false);
+    if (this.outlineGlow) this.outlineGlow.resize(w, h);
     const cams = [this.editorCam, ...Array.from(this.entities.values()).filter(e => e.type === 'camera' && e.object3D).map(e => e.object3D)];
     cams.forEach(c => { if (c.isPerspectiveCamera) { c.aspect = w / h; c.updateProjectionMatrix(); } });
   }
@@ -6219,6 +6413,7 @@ class EngineCore {
       if (!e.object3D) continue;
       e.object3D.traverse(n => { if (n.userData && n.userData.helper) n.visible = this.view.gizmos !== false; });
     }
+    this._drawSelection();
     this.emit('view', this.view);
   }
 
@@ -6255,11 +6450,12 @@ class EngineCore {
   }
 
   /* a copy with its children, its shape, material and properties; placed beside the original */
-  async duplicate(id, offset) {
+  async duplicate(id, offset, opts = {}) {
     const e = this.entities.get(id); if (!e) return null;
     const off = offset || [0.7, 0, 0.7];
     const tree = [e].concat(this.descendants(id));
     const ids = new Map(tree.map(x => [x.id, uid('e')]));
+    if (opts.idMap) ids.forEach((v, k) => opts.idMap.set(k, v));    // original → copy (its scripts follow: PART 41)
     let first = null;
     for (const x of tree) {
       const def = JSON.parse(JSON.stringify(x.serialize()));
@@ -6314,13 +6510,16 @@ class EngineCore {
     return b.isEmpty() ? new THREE.Vector3() : b.getCenter(new THREE.Vector3());
   }
   _drawSelection() {
-    if (!this.selBox) return;
+    if (!this.selBox || !this.selected) return;      // (applyView runs once before the selection exists)
     const show = !this.view || this.view.outline !== false;
     const prim = this.selection ? this.entities.get(this.selection) : null;
-    if (prim && prim.object3D && show) { this.selBox.setFromObject(prim.object3D); this.selBox.visible = true; } else this.selBox.visible = false;
     const others = [...this.selected].filter(id => id !== this.selection).map(id => this.entities.get(id)).filter(e => e && e.object3D);
-    while (this._boxPool.length < others.length) { const b = new THREE.BoxHelper(undefined, 0x22d3ee); b.visible = false; this.helpers.add(b); this._boxPool.push(b); }
-    this._boxPool.forEach((b, i) => { const e = others[i]; if (e && show) { b.setFromObject(e.object3D); b.visible = true; } else b.visible = false; });
+    /* a glowing outline around what has a shape; a box around what has none (a light, a camera, an empty group) */
+    const glow = this.outlineGlow ? this.outlineGlow.set(show && prim && prim.object3D ? prim : null, others) : new Set();
+    if (prim && prim.object3D && show && !glow.has(prim.id)) { this.selBox.setFromObject(prim.object3D); this.selBox.visible = true; } else this.selBox.visible = false;
+    const boxed = others.filter(e => !glow.has(e.id));
+    while (this._boxPool.length < boxed.length) { const b = new THREE.BoxHelper(undefined, 0x22d3ee); b.visible = false; this.helpers.add(b); this._boxPool.push(b); }
+    this._boxPool.forEach((b, i) => { const e = boxed[i]; if (e && show) { b.setFromObject(e.object3D); b.visible = true; } else b.visible = false; });
   }
   refreshSelBox() { this._drawSelection(); }
 
@@ -6385,7 +6584,7 @@ class EngineCore {
     const c = this.canvas;
     const pts = new Map();
     let mode = null;              // 'orbit' | 'drag' | 'handle' | 'gesture' | 'camera'
-    let moved = 0, downT = 0, lpTimer = null, lpFired = false, downHit = null, justAdded = false;
+    let moved = 0, downT = 0, lpTimer = null, lpFired = false, downHit = null, justAdded = false, tapSel = null;
     let op = null, startPinch = 0;
     const V = () => new THREE.Vector3(), AXES = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, 1) };
     const ndc = (x, y) => { const r = c.getBoundingClientRect(); return new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1); };
@@ -6499,6 +6698,7 @@ class EngineCore {
     const down = ev => {
       try { c.setPointerCapture(ev.pointerId); } catch { }
       pts.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      if (pts.size === 1) tapSel = this.selection;               // what was selected before this touch (tap gestures)
       moved = 0; downT = performance.now(); lpFired = false;
       clearTimeout(lpTimer);
       if (pts.size === 2) {
@@ -6515,8 +6715,9 @@ class EngineCore {
         return;
       }
       const x = ev.clientX, y = ev.clientY;
-      /* a handle first */
-      if (this.gizmoCtl && this.gizmoCtl.root.visible) {
+      /* a handle first — unless this is the next tap of a double / quadruple tap at the same spot (PART 41):
+         the handles that appeared under the finger with the first tap must not swallow the next ones */
+      if (this.gizmoCtl && this.gizmoCtl.root.visible && !(this.tapHold && this.tapHold(x, y))) {
         this._raycaster.setFromCamera(ndc(x, y), this.activeCamera);
         const gz = this.gizmoCtl.pick(this._raycaster);
         if (gz) { mode = 'handle'; beginOp(gz.kind, gz, x, y); this.gizmoCtl.highlight(gz); downHit = null; return; }
@@ -6606,14 +6807,24 @@ class EngineCore {
       if (pts.size === 0) {
         const quick = performance.now() - downT < 360 && moved < 12;
         if (lpFired) { lpFired = false; mode = null; startPinch = 0; return; }
+        /* a quick tap: the canvas tools may count it — two taps = the object goes there, four = its code (PART 41);
+           a tap on a handle (not dragged) is a tap on what the handles belong to */
+        const tapped = quick && (!op || !op.armed);
+        const selE = this.selection ? this.entities.get(this.selection) : null;
+        const th = !tapped ? null : mode === 'handle' ? (selE ? { e: selE } : null) : pick(ev.clientX, ev.clientY);
+        let tapDefer = null;
+        if (tapped && this.onTap && !this.multiSelect) {
+          try { tapDefer = this.onTap({ x: ev.clientX, y: ev.clientY, hit: th, selBefore: tapSel, pointerType: ev.pointerType }); } catch (err) { console.warn('[tap]', err); }
+        }
         if (op) {
           const wasTap = !op.armed;
           endOp(wasTap);
           /* multi-select: a tap on something already selected takes it out */
           if (wasTap && quick && this.multiSelect && downHit && !justAdded) this.select(downHit.e.id, { add: true, toggle: true });
         } else if (quick && mode !== 'handle') {
-          const hit = pick(ev.clientX, ev.clientY);                  // tap = select (rule 24)
+          const hit = th;                                            // tap = select (rule 24)
           if (this.multiSelect && hit) this.select(hit.e.id, { add: true, toggle: true });
+          else if (tapDefer === 'defer' && !hit) { /* a tap on nothing: the tap gesture decides in a moment */ }
           else if (!this.multiSelect || !hit) this.select(hit ? hit.e.id : null);
         }
         mode = null; startPinch = 0; downHit = null;
@@ -6720,6 +6931,7 @@ class EngineCore {
       if (this.physicsEnabled) { this._acc += dt; const step = 1 / 60; let n = 0; while (this._acc >= step && n++ < 5) { this.physics.step(step); this._acc -= step; } }
       for (let i = 0; i < this._updates.length; i++) { try { this._updates[i](dt, this.time.t); } catch (err) { this.emit('scriptError', err); } }
       if (this.gizmoCtl) this.gizmoCtl.update();
+      if (this.outlineGlow) this.outlineGlow.pulse(this.time.t);
       this.renderer.render(this.scene, this.activeCamera);
     };
     this._raf = requestAnimationFrame(tick);
@@ -9361,6 +9573,7 @@ const Studio = {
     this.lastBuild = null;
     await this.engine.load(project.scene || NX.emptyScene());
     if (NX.EditorUI) NX.EditorUI.attach(this);          // the mobile editor (PART 35)
+    if (NX.CanvasPro) NX.CanvasPro.attach(this);        // outline, quick bar, vault, taps (PART 41)
     this.engine.focusAll();
     this.updateHud();
     this.updateEmptyState();
@@ -21214,8 +21427,15 @@ const GameOps = {
         const e = this.entity(args);
         if (!e || !e.object3D) throw new Error('الكائن غير موجود');
         if (op === 'MOVE_OBJECT') { if (!finite3(args.position)) throw new Error('موضع غير صالح'); e.object3D.position.fromArray(args.position.map(Number)); }
-        if (op === 'ROTATE_OBJECT') { const y = +args.rotationY; if (!Number.isFinite(y)) throw new Error('زاوية غير صالحة'); e.object3D.rotation.y = y; }
-        if (op === 'SCALE_OBJECT') { const k = +args.scale; if (!(k > 0.001 && k < 1000)) throw new Error('حجم غير صالح'); e.object3D.scale.setScalar(k); }
+        if (op === 'ROTATE_OBJECT') {
+          if (Array.isArray(args.rotation)) { if (!finite3(args.rotation, 1000)) throw new Error('زاوية غير صالحة'); e.object3D.rotation.set(+args.rotation[0], +args.rotation[1], +args.rotation[2]); }
+          else { const y = +args.rotationY; if (!Number.isFinite(y)) throw new Error('زاوية غير صالحة'); e.object3D.rotation.y = y; }
+        }
+        if (op === 'SCALE_OBJECT') {
+          /* one number = all three axes; [x, y, z] = each axis on its own (PART 41) */
+          if (Array.isArray(args.scale)) { if (!finite3(args.scale, 1000) || args.scale.some(v => !(+v > 0.001))) throw new Error('حجم غير صالح'); e.object3D.scale.set(+args.scale[0], +args.scale[1], +args.scale[2]); }
+          else { const k = +args.scale; if (!(k > 0.001 && k < 1000)) throw new Error('حجم غير صالح'); e.object3D.scale.setScalar(k); }
+        }
         e.object3D.updateMatrixWorld(true);
         return { entity: e };
       }
@@ -21867,7 +22087,7 @@ Only when the user asks you to add, place, move, resize, rotate, recolor, rename
 Operations (a JSON array, at most 30):
 - ADD_ASSET {asset:"A1" (from YOUR FILES) or search:"tree" (NEXUS picks the best real file: the user's files first, then the public library), count?:1-20, position?:[x,y,z], near?:"object name", relation?: beside|front|behind|left|right|around|on, rotationY?: degrees, scale?: number, name?}
 - CREATE_OBJECT {shape: box|sphere|cylinder|cone|plane, name, position:[x,y,z], scale:[x,y,z], color:"#rrggbb"}
-- MOVE_OBJECT {object:"name", position:[x,y,z]} · ROTATE_OBJECT {object, rotationY: degrees} · SCALE_OBJECT {object, scale: absolute uniform scale, 1 = original}
+- MOVE_OBJECT {object:"name", position:[x,y,z]} · ROTATE_OBJECT {object, rotationY: degrees} or {object, rotation:[x,y,z] degrees} · SCALE_OBJECT {object, scale: absolute uniform scale (1 = original)} or {object, scale:[x,y,z] each axis on its own (e.g. twice as wide: [2,1,1])}
 - SET_PROPERTY {object, key: name|tag|visible|color, value} · DELETE_OBJECT {object}
 - CREATE_SCRIPT {path:"Name.js", code, attachTo?:"object name"} · UPDATE_SCRIPT {path, code: the whole new file} — engine API only (start(), update(dt)); never window, document, fetch, storage, eval or imports
 - BUILD_GAME {request:"…"} — a whole new game or a big system; the NEXUS builder plans and builds it
@@ -21956,8 +22176,8 @@ ${objs.join('\n') || '(empty scene)'}${idx.length > 60 ? '\n…' : ''}`;
             o.name = String(o.name || 'Object').slice(0, 60); created.add(o.name);
             break;
           case 'MOVE_OBJECT': if (!finite3(o.position)) throw new Error('موضع غير صالح'); break;
-          case 'ROTATE_OBJECT': if (!Number.isFinite(+o.rotationY)) throw new Error('زاوية غير صالحة'); break;
-          case 'SCALE_OBJECT': if (!(+o.scale > 0.001 && +o.scale < 1000)) throw new Error('حجم غير صالح'); break;
+          case 'ROTATE_OBJECT': if (Array.isArray(o.rotation) ? !finite3(o.rotation, 100000) : !Number.isFinite(+o.rotationY)) throw new Error('زاوية غير صالحة'); break;
+          case 'SCALE_OBJECT': if (Array.isArray(o.scale) ? (!finite3(o.scale, 1000) || o.scale.some(v => !(+v > 0.001))) : !(+o.scale > 0.001 && +o.scale < 1000)) throw new Error('حجم غير صالح'); break;
           case 'SET_PROPERTY': if (!SETTABLE.has(o.key)) throw new Error('خاصية غير مسموحة: ' + o.key); if (o.key === 'name') created.add(String(o.value)); break;
           case 'CREATE_SCRIPT': case 'UPDATE_SCRIPT': {
             o.path = String(o.path || '');
@@ -21984,8 +22204,8 @@ ${objs.join('\n') || '(empty scene)'}${idx.length > 60 ? '\n…' : ''}`;
         + (o.near ? ` ${MA_REL_AR[o.relation] || 'بجانب'} «${o.near}»` : o.position ? ' عند ' + v3(o.position) : ' في مركز العرض') + (o.scale ? ' ×' + (+o.scale) : '');
       case 'CREATE_OBJECT': return `⬜ شكل ${o.shape} «${o.name}»${o.position ? ' عند ' + v3(o.position) : ''}${o.color ? ' ' + o.color : ''}`;
       case 'MOVE_OBJECT': return `↔ حرّك «${o.object}» إلى ${v3(o.position)}`;
-      case 'ROTATE_OBJECT': return `⟳ لفّ «${o.object}» إلى ${Math.round(+o.rotationY)}°`;
-      case 'SCALE_OBJECT': return `⤢ حجم «${o.object}» = ${+o.scale}`;
+      case 'ROTATE_OBJECT': return `⟳ لفّ «${o.object}» إلى ${Array.isArray(o.rotation) ? o.rotation.map(v => Math.round(+v) + '°').join(' · ') : Math.round(+o.rotationY) + '°'}`;
+      case 'SCALE_OBJECT': return `⤢ حجم «${o.object}» = ${Array.isArray(o.scale) ? 'X ' + (+o.scale[0]) + ' · Y ' + (+o.scale[1]) + ' · Z ' + (+o.scale[2]) : +o.scale}`;
       case 'SET_PROPERTY': return `✎ «${o.object}» · ${o.key} = ${JSON.stringify(o.value)}`;
       case 'DELETE_OBJECT': return `🗑 احذف «${o.object}»`;
       case 'CREATE_SCRIPT': return `📜 ملف جديد ${o.path} (${o.code.split('\n').length} سطر)${o.attachTo ? ' على «' + o.attachTo + '»' : ''}`;
@@ -22066,8 +22286,15 @@ ${objs.join('\n') || '(empty scene)'}${idx.length > 60 ? '\n…' : ''}`;
               break;
             }
             case 'MOVE_OBJECT': { const r = await GameOps.run('MOVE_OBJECT', { name: o.object, position: o.position }); touched.push(r.entity.id); lines.push(`↔ «${o.object}» ← [${o.position.map(v => (+v).toFixed(1)).join(', ')}]`); break; }
-            case 'ROTATE_OBJECT': { const r = await GameOps.run('ROTATE_OBJECT', { name: o.object, rotationY: +o.rotationY * Math.PI / 180 }); touched.push(r.entity.id); lines.push(`⟳ «${o.object}» ${Math.round(+o.rotationY)}°`); break; }
-            case 'SCALE_OBJECT': { const r = await GameOps.run('SCALE_OBJECT', { name: o.object, scale: +o.scale }); touched.push(r.entity.id); lines.push(`⤢ «${o.object}» = ${+o.scale}`); break; }
+            case 'ROTATE_OBJECT': {
+              const rad = Array.isArray(o.rotation) ? { rotation: o.rotation.map(v => +v * Math.PI / 180) } : { rotationY: +o.rotationY * Math.PI / 180 };
+              const r = await GameOps.run('ROTATE_OBJECT', Object.assign({ name: o.object }, rad)); touched.push(r.entity.id);
+              lines.push(`⟳ «${o.object}» ${Array.isArray(o.rotation) ? o.rotation.map(v => Math.round(+v) + '°').join(' · ') : Math.round(+o.rotationY) + '°'}`); break;
+            }
+            case 'SCALE_OBJECT': {
+              const r = await GameOps.run('SCALE_OBJECT', { name: o.object, scale: Array.isArray(o.scale) ? o.scale.map(Number) : +o.scale }); touched.push(r.entity.id);
+              lines.push(`⤢ «${o.object}» = ${Array.isArray(o.scale) ? 'X ' + (+o.scale[0]) + ' · Y ' + (+o.scale[1]) + ' · Z ' + (+o.scale[2]) : +o.scale}`); break;
+            }
             case 'SET_PROPERTY': { const r = await GameOps.run('SET_PROPERTY', { name: o.object, key: o.key, value: o.value }); touched.push(r.entity.id); lines.push(`✎ «${o.object}» · ${o.key}`); break; }
             case 'DELETE_OBJECT': { const r = await GameOps.run('DELETE_OBJECT', { name: o.object }); lines.push(`🗑 حُذف «${r.removed}»`); break; }
             case 'CREATE_SCRIPT': case 'UPDATE_SCRIPT': {
@@ -32624,16 +32851,34 @@ const Ops = {
     const size = u.getSize(V3());
     return Math.abs(right.x) >= Math.abs(right.z) ? [(size.x + gap) * Math.sign(right.x || 1), 0, 0] : [0, 0, (size.z + gap) * Math.sign(right.z || 1)];
   },
+  /* a file name not used yet in the project (Car.js → Car_2.js) */
+  uniquePath(p) {
+    const used = new Set(((S().project || {}).files || []).map(f => f.path));
+    let q = p, i = 2;
+    while (used.has(q)) q = p.replace(/(\.[^.]+)?$/, m => '_' + (i++) + m);
+    return q;
+  },
+  /* an exact copy: shape, material, physics and components — and its own copies of the scripts bound to it
+     (then the undo step keeps the files too) */
   async duplicate(ids, opts = {}) {
     ids = this.ids(ids); if (!ids.length) return null;
-    const eng = E(), off = opts.offset || this.offsetFor(ids, opts.gap);
-    return this.step((opts.move ? 'تكرار ونقل ' : 'تكرار ') + this.names(ids), [], async () => {
-      const made = [];
-      for (const id of ids) { const c = await eng.duplicate(id, off); if (c) made.push(c.id); }
+    const eng = E(), st = S(), off = opts.offset || this.offsetFor(ids, opts.gap);
+    const tree = new Set(); ids.forEach(id => { tree.add(id); eng.descendants(id).forEach(d => tree.add(d.id)); });
+    const bound = ((st.project && st.project.files) || []).filter(f => f.entityId && tree.has(f.entityId) && f.role !== 'component');
+    const label = (opts.move ? 'تكرار ونقل ' : 'تكرار ') + this.names(ids);
+    if (bound.length && opts.record !== false) st.pushUndo(label, { files: true });
+    return this.step(label, [], async () => {
+      const made = [], map = new Map();
+      for (const id of ids) { const c = await eng.duplicate(id, off, { idMap: map }); if (c) made.push(c.id); }
+      for (const f of bound) {
+        const to = map.get(f.entityId); if (!to) continue;
+        st.project.files.push({ id: NX.uid('f'), path: this.uniquePath(f.path), code: f.code || '', role: f.role || 'script', entityId: to, enabled: f.enabled !== false, ...(f.ai ? { ai: true } : {}) });
+      }
+      if (bound.length) { st.dirty = true; st.lastBuild = null; }
       eng.selectMany(made);
       if (opts.move) { eng.gizmo = 'move'; UI.syncTool(); }
-      return { created: made };
-    }, opts);
+      return { created: made, scripts: bound.length };
+    }, bound.length ? Object.assign({}, opts, { record: false }) : opts);
   },
   /* N copies: a row (along x), a circle around the original (facing it), or a grid */
   async array(ids, o = {}) {
@@ -32999,6 +33244,7 @@ const UI = {
     body.appendChild(t);
     body.appendChild(btn('مجسمات من مكتبة الأصول', { cls: 'primary block', icon: 'cube', onclick: () => { sheet.close(); S().openAssets(); } }));
     const sheet = Sheet.open({ title: '➕ إنشاء · CREATE', body, id: 'addobj' });
+    if (NX.CanvasPro) NX.CanvasPro.vaultSection(body, sheet);          // 🗄 my vault (PART 41)
     return sheet;
   },
   hint(e) { if (LS.get('edHint', 0) > 2) return; LS.set('edHint', LS.get('edHint', 0) + 1); Toast.show('اسحب المقابض الملوّنة: الأسهم للنقل · الحلقات للتدوير · المكعبات للحجم. مطوّلًا على المجسم = قائمته', '', 6000); },
@@ -33192,9 +33438,15 @@ const UI = {
     const grid = el('div', { class: 'ed-grid menu' });
     const it = (glyph, label, fn, cls) => grid.appendChild(el('button', { class: 'ed-tile sm' + (cls ? ' ' + cls : ''), type: 'button', onclick: async () => { sheet.close(); await fn(); } }, [el('span', { class: 'ed-glyph', text: glyph }), el('small', { text: label })]));
     const locked = sel.every(e => e.locked), hidden = sel.every(e => e.object3D && e.object3D.visible === false);
+    /* the five that matter most first — the same as the quick bar beside the selection (PART 41) */
+    if (NX.CanvasPro) {
+      it('✎', NX.T('QB_CODE'), () => NX.CanvasPro.code(), 'cp-code-tile');
+      it('⤢', NX.T('SZ_TITLE'), () => NX.CanvasPro.size(), 'cp-size-tile');
+      it('🗄', NX.T('VAULT_SAVE'), () => NX.CanvasPro.saveToVault(), 'cp-vault-tile');
+    }
     it('⧉', 'تكرار', () => Ops.duplicate());
-    it('⧉→', 'تكرار ونقل', () => Ops.duplicate(null, { move: true }).then(() => Toast.show('اسحب النسخة إلى مكانها')));
     it('🗑', 'حذف', () => Ops.remove(), 'danger');
+    it('⧉→', 'تكرار ونقل', () => Ops.duplicate(null, { move: true }).then(() => Toast.show('اسحب النسخة إلى مكانها')));
     it('🎨', 'المادة واللون', () => this.openMaterial());
     if (one && one.type === 'primitive') it('◇', 'محرّر الشكل', () => this.openShape(one));
     it('⬇', 'على الأرض', () => Ops.snapToGround());
@@ -37210,6 +37462,747 @@ NX.Mechanics = Mechanics;
 NX.Learner = Learner;
 </script>
 <!-- /NX-PART:40 -->
+
+<script type="module">
+/* ============================================================
+   PART 41 · 🎯 CANVAS PRO — select, shape, keep and reuse objects in the 3D viewport
+   Built on the editor that is already there (PART 4 engine: selection, gizmo, Move / Rotate /
+   Scale handles; PART 35: undo, duplicate, delete, the object's menu) — nothing keeps a second
+   copy of the scene.
+   • A glowing outline around what is selected (SelOutline, PART 4) and a quick bar beside it:
+     ✎ Code · ⤢ Size · 🗄 Save to my files · ⧉ Duplicate · 🗑 Delete.
+   • ⤢ Size: X · Y · Z, or all three together (proportions kept), its real size in metres, the
+     scale handles on the object — one undo step. The assistant does it too: SCALE_OBJECT with
+     [x, y, z], ROTATE_OBJECT with [x, y, z] (PART 31).
+   • 🗄 My vault — Firestore vault/{id}, read and written only by its owner (the rules): the object
+     with everything under it — its shape, or its 3D model by asset id (the file stays in «my
+     assets»), material, physics (Rigidbody), every component with its settings, the scripts bound
+     to it and the code of its components. Back into any project: tap it (the middle of the view),
+     or drag it onto the scene — it lands on the surface where the finger lets go.
+   • ⧉ Duplicate is an exact copy now: its own copies of the scripts bound to it (PART 35).
+   • Taps on the scene: two quick taps somewhere else = the selected object goes there, standing on
+     the surface tapped (on the object itself = the camera comes to it); four quick taps = the
+     object's code in a quick editor — by hand, or «🤖 change» by NEXUS AI; ▶ tries the game.
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, icon, Sheet, Modal, Toast, LS, Backend } = NX;
+const THREE = NX.THREE;
+const T = (k, v) => NX.T(k, v);
+const S = () => NX.Studio, E = () => NX.Studio && NX.Studio.engine;
+const Ops = () => NX.EditorOps;
+const clone = o => o == null ? o : JSON.parse(JSON.stringify(o));
+const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+const r3 = v => Math.round(v * 1000) / 1000;
+const fb = () => Backend.fb;
+const editing = () => { const st = S(); return !!(st && st.engine && st.project && !st.playing && NX.Screen.current() === 'studio'); };
+
+/* ================================================================ the scene under a finger */
+const Canvas = {
+  wrap() { return document.getElementById('vp-wrap'); },
+  /* the first visible surface under a screen point that is not one of `skip` (locked ones count —
+     a terrain is often locked), else the ground (y = 0); null when looking at the sky */
+  surfaceAt(x, y, skip = new Set()) {
+    const eng = E(), r = eng.canvas.getBoundingClientRect(), rc = new THREE.Raycaster();
+    rc.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), eng.activeCamera);
+    for (const h of rc.intersectObject(eng.root, true)) {
+      let shown = true;
+      for (let n = h.object; n; n = n.parent) if (n.visible === false) { shown = false; break; }
+      if (!shown) continue;
+      const e = eng.entityOf(h.object);
+      if (!e || skip.has(e.id) || ['light', 'camera', 'spawn', 'audio'].includes(e.type)) continue;
+      return { point: h.point.clone(), entity: e };
+    }
+    const p = rc.ray.intersectPlane(new THREE.Plane(V3(0, 1, 0), 0), V3());
+    return p ? { point: p, entity: null } : null;
+  },
+  tree(ids) { const eng = E(), out = new Set(); ids.forEach(id => { out.add(id); eng.descendants(id).forEach(d => out.add(d.id)); }); return out; },
+  box(ents) { const b = new THREE.Box3(); ents.forEach(e => { if (e && e.object3D) b.expandByObject(e.object3D); }); return b; },
+  /* objects moved together so that their bottom middle stands on a point */
+  placeOn(ents, point) {
+    const eng = E(), b = this.box(ents);
+    if (b.isEmpty()) return;
+    const c = b.getCenter(V3()), d = V3(point.x - c.x, point.y - b.min.y, point.z - c.z);
+    if (eng.snapOn) { const st = eng.snapMove; d.x = Math.round((c.x + d.x) / st) * st - c.x; d.z = Math.round((c.z + d.z) / st) * st - c.z; }
+    ents.forEach(e => Ops().shiftWorld(e, d));
+    eng.refreshSelBox();
+    eng.emit('transform', eng.getEntity(eng.selection));
+    eng.emit('changed');
+  },
+  /* the middle of the view, on whatever surface is there */
+  centre() {
+    const eng = E(), r = eng.canvas.getBoundingClientRect();
+    const hit = this.surfaceAt(r.left + r.width / 2, r.top + r.height / 2);
+    return hit ? hit.point : V3(eng.orbit.target.x, 0, eng.orbit.target.z);
+  }
+};
+
+/* ================================================================ the quick bar beside the selection */
+const QuickBar = {
+  node: null, hold: false, upAt: 0, n: 0, blocked: false,
+  mount(eng) {
+    const wrap = Canvas.wrap();
+    if (!wrap || !eng || eng.__qkBar) return;
+    eng.__qkBar = true;
+    const b = (ic, key, fn, cls) => {
+      const x = el('button', { class: 'qk-b' + (cls ? ' ' + cls : ''), type: 'button', dataset: { qk: key }, 'aria-label': T(key), onclick: ev => { ev.stopPropagation(); fn(); } },
+        [icon(ic), el('small', { 'data-i18n': key, text: T(key) })]);
+      x.addEventListener('pointerdown', ev => ev.stopPropagation());
+      return x;
+    };
+    this.node = el('div', { class: 'qk-bar', id: 'qk-bar', role: 'toolbar' }, [
+      b('code', 'QB_CODE', () => QuickCode.open()),
+      b('scale', 'QB_SIZE', () => SizePanel.open()),
+      b('save', 'QB_VAULT', () => Vault.saveDialog()),
+      b('copy', 'QB_DUP', () => Ops().duplicate()),
+      b('trash', 'QB_DEL', () => Ops().remove(), 'danger')
+    ]);
+    wrap.appendChild(this.node);
+    /* out of the way while the finger works on the scene */
+    eng.canvas.addEventListener('pointerdown', () => { this.hold = true; this.hide(); });
+    window.addEventListener('pointerup', () => { if (this.hold) { this.hold = false; this.upAt = performance.now(); } });
+    window.addEventListener('pointercancel', () => { this.hold = false; });
+    eng.on('selection', e => { if (!e) this.hide(); });
+    eng.onUpdate(() => this.frame());
+  },
+  hide() { if (this.node) this.node.classList.remove('in'); },
+  frame() {
+    const n = this.node, eng = E();
+    if (!n || !eng) return;
+    /* what may cover it: a sheet, a dialog, the drawing layer — looked at every few frames */
+    if ((this.n++ % 6) === 0) this.blocked = !!document.querySelector('#sheet-root .sheet.in, .modal, .draw-layer, .tt-root');
+    const ents = eng.topSelected();
+    if (!ents.length || this.hold || this.blocked || !editing() || eng.activeCamera !== eng.editorCam || performance.now() - this.upAt < 140) { n.classList.remove('in'); return; }
+    const b = Canvas.box(ents);
+    if (b.isEmpty()) { n.classList.remove('in'); return; }
+    const cam = eng.activeCamera, r = eng.canvas.getBoundingClientRect(), wr = Canvas.wrap().getBoundingClientRect();
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, seen = 0;
+    const v = V3();
+    for (let i = 0; i < 8; i++) {
+      v.set(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z).project(cam);
+      if (v.z < -1 || v.z > 1) continue;
+      seen++;
+      const sx = (v.x + 1) / 2 * r.width + r.left - wr.left, sy = (1 - v.y) / 2 * r.height + r.top - wr.top;
+      x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy);
+    }
+    if (!seen) { n.classList.remove('in'); return; }
+    const W = wr.width, H = wr.height, w = n.offsetWidth || 270, h = n.offsetHeight || 52;
+    const sel = document.getElementById('sel-bar');
+    const low = H - (sel && sel.classList.contains('in') ? sel.offsetHeight + 84 : 80);
+    let x = (x0 + x1) / 2 - w / 2, y = y0 - h - 12;
+    if (y < 44) y = y1 + 12;                                   // no room above: under it
+    x = Math.max(8, Math.min(W - w - 8, x));
+    y = Math.max(44, Math.min(low - h, y));
+    n.style.transform = 'translate3d(' + Math.round(x) + 'px,' + Math.round(y) + 'px,0)';
+    n.classList.add('in');
+  }
+};
+
+/* ================================================================ ⤢ size */
+const SizePanel = {
+  open() {
+    const eng = E(), st = S();
+    if (!editing()) return;
+    const ents = eng.topSelected();
+    if (!ents.length) { Toast.err(T('CP_SELECT')); return; }
+    eng.gizmo = 'scale';
+    if (NX.EditorUI) NX.EditorUI.syncTool();
+    const one = ents.length === 1 ? ents[0] : null, prim = eng.getEntity(eng.selection) || ents[0];
+    const rec = st.begin(T('SZ_UNDO', { name: one ? one.name : ents.length }), ents.map(e => e.id));
+    const start = ents.map(e => ({ e, s: e.object3D.scale.clone() }));
+    let lock = LS.get('szLock', true);
+    const body = el('div', { class: 'sz' });
+    const inputs = {};
+    const dims = el('div', { class: 'sz-dims tiny', dir: 'ltr' });
+    const fmt = v => String(r3(v));
+    const refresh = () => {
+      ['x', 'y', 'z'].forEach(a => { if (document.activeElement !== inputs[a]) inputs[a].value = fmt(prim.object3D.scale[a]); });
+      const size = Canvas.box(ents).getSize(V3());
+      dims.textContent = T('SZ_REAL', { x: size.x.toFixed(2), y: size.y.toFixed(2), z: size.z.toFixed(2) });
+    };
+    const changed = () => { eng.refreshSelBox(); eng.emit('transform', prim); st.dirty = true; if (st.updateHud) st.updateHud(); refresh(); };
+    /* one axis — or all three by the same factor when the proportions are kept */
+    const setAxis = (a, v) => {
+      if (!(v > 0.0005)) return;
+      const cur = prim.object3D.scale[a] || 1, f = v / cur;
+      ents.forEach(e => {
+        const s = e.object3D.scale;
+        if (lock) s.multiplyScalar(f); else s[a] = e === prim ? v : s[a] * f;
+        s.clampScalar(0.001, 10000);
+      });
+      changed();
+    };
+    const factor = f => { ents.forEach(e => { e.object3D.scale.multiplyScalar(f).clampScalar(0.001, 10000); }); changed(); };
+    const row = el('div', { class: 'sz-row' });
+    ['x', 'y', 'z'].forEach(a => {
+      const i = el('input', { class: 'input sz-in', type: 'number', step: '0.05', min: '0.001', inputmode: 'decimal', dir: 'ltr', dataset: { axis: a }, 'aria-label': 'Scale ' + a.toUpperCase() });
+      i.addEventListener('change', () => setAxis(a, +i.value));
+      i.addEventListener('input', () => { if (+i.value > 0.0005) setAxis(a, +i.value); });
+      inputs[a] = i;
+      row.appendChild(el('label', { class: 'sz-f' }, [el('b', { class: 'sz-ax ' + a, text: a.toUpperCase() }), i]));
+    });
+    const lockT = el('div', { class: 'switch' }, [el('span', { 'data-i18n': 'SZ_LOCK', text: T('SZ_LOCK') })]);
+    const tg = el('div', { class: 'tgl' + (lock ? ' on' : ''), dataset: { lock: '1' } });
+    tg.onclick = () => { lock = !lock; tg.classList.toggle('on', lock); LS.set('szLock', lock); };
+    lockT.appendChild(tg);
+    /* all together, from the size it had when this opened: 10 % … 400 % */
+    const range = el('input', { type: 'range', class: 'sz-range', min: '10', max: '400', step: '1', value: '100', 'aria-label': T('SZ_ALL') });
+    range.addEventListener('input', () => {
+      const k = +range.value / 100;
+      start.forEach(({ e, s }) => { e.object3D.scale.copy(s).multiplyScalar(k).clampScalar(0.001, 10000); });
+      changed();
+    });
+    const quick = el('div', { class: 'sz-quick' }, [['×0.5', 0.5], ['×0.9', 0.9], ['×1.1', 1.1], ['×2', 2]].map(([l, f]) => btn(l, { cls: 'sm', onclick: () => factor(f) })));
+    quick.appendChild(btn(T('SZ_RESET'), { cls: 'sm ghost', onclick: () => { ents.forEach(e => e.object3D.scale.set(1, 1, 1)); changed(); } }));
+    body.append(el('div', { class: 'tiny', 'data-i18n': 'SZ_SCALE', text: T('SZ_SCALE') }), row, lockT,
+      el('div', { class: 'tiny', style: { marginTop: '10px' }, 'data-i18n': 'SZ_ALL', text: T('SZ_ALL') }), range, quick, dims,
+      el('p', { class: 'tiny', 'data-i18n': 'SZ_HINT', text: T('SZ_HINT') }));
+    refresh();
+    return Sheet.open({ title: '⤢ ' + T('SZ_TITLE') + ' · ' + (one ? one.name : ents.length), body, id: 'cp-size', onClose: () => rec.commit() });
+  }
+};
+
+/* ================================================================ 🗄 my vault */
+const Vault = {
+  items: null, owner: null,                 // the list read last, and whose it is (another account signs in → read again)
+  ready() { return Backend.isOnline() && !!Backend.user && Backend.hasAccount(); },
+  /* the objects (with everything under them) as data: where they stand is kept relative to their bottom middle */
+  snapshot(ids) {
+    const eng = E(), st = S();
+    NX.migrateProjectFiles(st.project);
+    const files = st.project.files || [];
+    const roots = ids.map(id => eng.getEntity(id)).filter(e => e && e.object3D);
+    const all = [];
+    roots.forEach(r => { all.push(r); eng.descendants(r.id).forEach(d => all.push(d)); });
+    const local = new Map(all.map((e, i) => [e.id, 'n' + i]));
+    const box = Canvas.box(roots), c = box.getCenter(V3()), base = V3(c.x, box.min.y, c.z);
+    const wp = V3(), q = new THREE.Quaternion(), sc = V3(), eu = new THREE.Euler();
+    const entities = all.map(e => {
+      const d = clone(e.serialize());
+      d.id = local.get(e.id);
+      if (!local.has(e.parentId)) {
+        e.object3D.updateMatrixWorld(true);
+        e.object3D.matrixWorld.decompose(wp, q, sc);
+        eu.setFromQuaternion(q);
+        d.parentId = null;
+        d.position = [r3(wp.x - base.x), r3(wp.y - base.y), r3(wp.z - base.z)];
+        d.rotation = [r3(eu.x), r3(eu.y), r3(eu.z)];
+        d.scale = [r3(sc.x), r3(sc.y), r3(sc.z)];
+      } else d.parentId = local.get(e.parentId);
+      delete d.locked;
+      return d;
+    });
+    const scripts = files.filter(f => f.entityId && local.has(f.entityId) && f.role !== 'component')
+      .map(f => ({ path: f.path, code: String(f.code || ''), role: f.role || 'script', entity: local.get(f.entityId), enabled: f.enabled !== false }));
+    const types = new Set();
+    all.forEach(e => (e.components || []).forEach(k => types.add(k.type)));
+    const components = files.filter(f => f.role === 'component' && types.has(NX.componentName(f.path)))
+      .map(f => ({ type: NX.componentName(f.path), path: f.path, code: String(f.code || '') }));
+    const refs = new Set();
+    all.forEach(e => { if (e.assetId) refs.add(e.assetId); const t = e.props && e.props.texture; if (t) refs.add(typeof t === 'string' ? t : t.assetId); });
+    const size = box.getSize(V3());
+    return {
+      scene: JSON.stringify({ roots: roots.map(r => local.get(r.id)), entities }),
+      scripts, components, assetRefs: [...refs].filter(Boolean).slice(0, 60),
+      size: [r3(size.x), r3(size.y), r3(size.z)],
+      counts: { objects: all.length, scripts: scripts.length, components: components.length }
+    };
+  },
+  /* a small picture of just these objects (160 px, off screen) */
+  thumb(ids) {
+    const eng = E(), r = eng.renderer;
+    const roots = ids.map(id => eng.getEntity(id)).filter(e => e && e.object3D);
+    const box = Canvas.box(roots);
+    if (box.isEmpty()) return null;
+    const W = 160, hidden = [], hemi = new THREE.HemisphereLight(0xffffff, 0x2a2d44, 1.3);
+    let rt = null;
+    const prev = r.getRenderTarget();
+    try {
+      rt = new THREE.WebGLRenderTarget(W, W);
+      rt.texture.colorSpace = THREE.SRGBColorSpace;
+      const c = box.getCenter(V3()), R = Math.max(0.2, box.getSize(V3()).length() / 2);
+      const dist = R / Math.sin(THREE.MathUtils.degToRad(35 / 2)) * 1.05;
+      const cam = new THREE.PerspectiveCamera(35, 1, Math.max(0.01, dist - R * 3), dist + R * 3);
+      cam.position.copy(c).add(V3(1, 0.75, 1.2).normalize().multiplyScalar(dist));
+      cam.lookAt(c);
+      /* only these objects (and the lights) are drawn */
+      const keep = new Set(roots.map(e => e.object3D)), up = new Set();
+      roots.forEach(e => { for (let n = e.object3D.parent; n; n = n.parent) up.add(n); });
+      const off = n => { if (n.visible) { n.visible = false; hidden.push(n); } };
+      const visit = n => {
+        if (keep.has(n)) { n.traverse(m => { if (m.userData && (m.userData.nxOutline || m.userData.helper)) off(m); }); return; }
+        if (n.isLight) return;
+        if (!up.has(n)) { off(n); return; }
+        n.children.forEach(visit);
+      };
+      eng.scene.children.forEach(visit);
+      eng.scene.add(hemi);
+      r.setRenderTarget(rt);
+      r.clear();
+      r.render(eng.scene, cam);
+      const px = new Uint8Array(W * W * 4);
+      r.readRenderTargetPixels(rt, 0, 0, W, W, px);
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = W;
+      const g = cv.getContext('2d'), img = g.createImageData(W, W);
+      for (let y = 0; y < W; y++) img.data.set(px.subarray((W - 1 - y) * W * 4, (W - y) * W * 4), y * W * 4);
+      g.putImageData(img, 0, 0);
+      return cv.toDataURL('image/jpeg', 0.78);
+    } catch (e) {
+      console.warn('[vault] picture', e);
+      return null;
+    } finally {
+      r.setRenderTarget(prev);
+      eng.scene.remove(hemi);
+      hidden.forEach(n => { n.visible = true; });
+      if (rt) rt.dispose();
+    }
+  },
+  async save(ids, name) {
+    if (!this.ready()) throw new Error(T('VAULT_NEED_ACCOUNT'));
+    const snap = this.snapshot(ids);
+    const { F, db } = fb(), id = NX.uid('vault'), now = Date.now();
+    const rec = Object.assign({ vaultId: id, ownerId: Backend.user.uid, name: String(name || 'Object').trim().slice(0, 60) || 'Object', note: '' }, snap,
+      { uses: 0, v: 1, createdAt: now, updatedAt: now });
+    const pic = this.thumb(ids);
+    if (pic && pic.length <= 110000) rec.thumb = pic;
+    const bytes = JSON.stringify(rec).length;
+    if (bytes > 900000) throw new Error(T('VAULT_TOO_BIG', { kb: Math.round(bytes / 1024) }));
+    await Backend.serverWrite(F.setDoc(F.doc(db, 'vault', id), rec));
+    if (this.items && this.owner === rec.ownerId) this.items.unshift(rec);
+    return rec;
+  },
+  async list(force) {
+    if (!this.ready()) return [];
+    const me = Backend.user.uid;
+    if (this.items && !force && this.owner === me) return this.items;
+    const { F, db } = fb();
+    const snap = await F.getDocs(F.query(F.collection(db, 'vault'), F.where('ownerId', '==', me), F.limit(200)));
+    const items = snap.docs.map(d => d.data()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    if (Backend.user && Backend.user.uid === me) { this.items = items; this.owner = me; }
+    return items;
+  },
+  async remove(item) {
+    const { F, db } = fb();
+    await Backend.serverWrite(F.deleteDoc(F.doc(db, 'vault', item.vaultId)));
+    if (this.items) this.items = this.items.filter(x => x.vaultId !== item.vaultId);
+  },
+  async rename(item, name) {
+    const { F, db } = fb(), n = String(name || '').trim().slice(0, 60);
+    if (!n) return;
+    await Backend.serverWrite(F.updateDoc(F.doc(db, 'vault', item.vaultId), { name: n, updatedAt: Date.now() }));
+    item.name = n;
+  },
+  used(item) {
+    const { F, db } = fb();
+    item.uses = (item.uses || 0) + 1;
+    F.updateDoc(F.doc(db, 'vault', item.vaultId), { uses: F.increment(1) }).catch(() => {});
+  },
+  /* back into this project: the objects (new ids), their own copies of the scripts, the components' code the project
+     lacks, the assets by reference — standing on `point` (the middle of the view when none), ONE undo step */
+  async insert(item, point) {
+    const eng = E(), st = S();
+    if (!editing()) return null;
+    let data;
+    try { data = JSON.parse(item.scene); } catch { Toast.err(T('VAULT_BROKEN')); return null; }
+    const defs = data.entities || [];
+    if (!defs.length) return null;
+    const note = Toast.show('🗄 ' + T('VAULT_INSERTING', { name: item.name }), '', 30000);
+    try {
+      const assets = new Map();
+      let missing = 0;
+      await Promise.all((item.assetRefs || []).map(async id => { try { const a = await NX.Assets.get(id); if (a) assets.set(id, a); else missing++; } catch { missing++; } }));
+      st.pushUndo(T('VAULT_UNDO_INSERT', { name: item.name }), { files: true });
+      const at = point || Canvas.centre();
+      const ids = new Map(defs.map(d => [d.id, NX.uid('e')])), top = [];
+      for (const d0 of defs) {
+        const d = clone(d0);
+        d.id = ids.get(d0.id);
+        if (!d0.parentId || !ids.has(d0.parentId)) {
+          d.parentId = null;
+          const p = d0.position || [0, 0, 0];
+          d.position = [at.x + p[0], at.y + p[1], at.z + p[2]];
+        } else d.parentId = ids.get(d0.parentId);
+        const e = await eng.addEntity(d, { asset: d.assetId ? assets.get(d.assetId) || null : null });
+        if (!d.parentId) top.push(e);
+      }
+      top.forEach(e => e.object3D.updateMatrixWorld(true));
+      Canvas.placeOn(top, at);
+      NX.migrateProjectFiles(st.project);
+      const files = st.project.files;
+      for (const s of item.scripts || []) {
+        const to = ids.get(s.entity);
+        if (to) files.push({ id: NX.uid('f'), path: Ops().uniquePath(s.path || 'Script.js'), code: s.code || '', role: s.role || 'script', entityId: to, enabled: s.enabled !== false });
+      }
+      for (const c of item.components || [])
+        if (!files.some(f => f.role === 'component' && NX.componentName(f.path) === c.type))
+          files.push({ id: NX.uid('f'), path: Ops().uniquePath(c.path || c.type + '.js'), code: c.code || '', role: 'component', entityId: null, enabled: true });
+      st.project.assetRefs = st.project.assetRefs || [];
+      assets.forEach((a, id) => { if (!st.project.assetRefs.includes(id)) { st.project.assetRefs.push(id); if (NX.Assets.bumpUsage) NX.Assets.bumpUsage(id); } });
+      st.dirty = true; st.lastBuild = null;
+      if (st.updateHud) st.updateHud();
+      eng.selectMany(top.map(e => e.id));
+      this.used(item);
+      note.remove();
+      Toast.ok('🗄 ' + T('VAULT_INSERTED', { name: item.name }) + (missing ? ' · ' + T('VAULT_MISSING', { n: missing }) : ''), 5000);
+      return top;
+    } catch (e) {
+      note.remove();
+      Toast.err(T('VAULT_INSERT_FAIL') + ': ' + (e.message || e));
+      return null;
+    }
+  },
+  /* «🗄 Save to my files»: a name, what goes with it, then saved */
+  async saveDialog() {
+    const eng = E();
+    if (!editing()) return;
+    const ents = eng.topSelected();
+    if (!ents.length) { Toast.err(T('CP_SELECT')); return; }
+    if (!this.ready()) { Toast.err(T('VAULT_NEED_ACCOUNT')); if (NX.promptSignIn) NX.promptSignIn(T('VAULT_NEED_ACCOUNT')); return; }
+    const snap = this.snapshot(ents.map(e => e.id));
+    const name = await new Promise(res => {
+      const inp = el('input', { class: 'input', value: ents.length === 1 ? ents[0].name : ents[0].name + ' +' + (ents.length - 1), maxlength: '60', dir: 'auto' });
+      const body = el('div', { class: 'vt-save' }, [inp,
+        el('p', { class: 'tiny', style: { marginTop: '8px' }, text: T('VAULT_SAVE_NOTE') }),
+        el('p', { class: 'tiny vt-counts', text: T('VAULT_COUNTS', { o: snap.counts.objects, s: snap.counts.scripts, c: snap.counts.components }) })]);
+      Modal.open({ title: '🗄 ' + T('VAULT_SAVE'), body, actions: [
+        { label: T('cancel'), cls: 'ghost', onclick: () => res(null) },
+        { label: T('save'), cls: 'primary', onclick: () => res(inp.value.trim()) }] });
+      setTimeout(() => inp.focus(), 60);
+    });
+    if (!name) return;
+    const busy = Toast.show('🗄 …', '', 20000);
+    try {
+      const rec = await this.save(ents.map(e => e.id), name);
+      busy.remove();
+      Toast.ok(T('VAULT_SAVED', { name: rec.name }), 5000);
+    } catch (e) {
+      busy.remove();
+      Toast.err(T('VAULT_FAIL') + ': ' + (e.message || NX.describeFirebaseError(e)));
+    }
+  },
+  tile(item, sheet) {
+    const t = el('button', { class: 'vt-tile', type: 'button', dataset: { vault: item.vaultId }, title: item.name }, [
+      item.thumb ? el('img', { src: item.thumb, alt: '', draggable: 'false' }) : el('span', { class: 'vt-ph', text: '🗄' }),
+      el('b', { text: item.name }),
+      el('small', { text: T('VAULT_COUNTS', { o: (item.counts || {}).objects || 1, s: (item.counts || {}).scripts || 0, c: (item.counts || {}).components || 0 }) })
+    ]);
+    Drag.bind(t, item, sheet);
+    return t;
+  },
+  /* the «➕ CREATE» sheet: my vault, newest first — tap = in the middle, drag = where it is let go */
+  section(body, sheet) {
+    const box = el('div', { class: 'vt-sec' });
+    box.appendChild(el('div', { class: 'ttl', style: { marginTop: '14px' }, 'data-i18n': 'VAULT_TITLE', text: T('VAULT_TITLE') }));
+    const rowEl = el('div', { class: 'vt-row' }, [el('div', { class: 'load-row' }, [el('div', { class: 'spin' })])]);
+    box.appendChild(rowEl);
+    body.appendChild(box);
+    if (!this.ready()) { rowEl.textContent = ''; rowEl.appendChild(el('p', { class: 'tiny', 'data-i18n': 'VAULT_SIGNIN_NOTE', text: T('VAULT_SIGNIN_NOTE') })); return; }
+    this.list().then(items => {
+      rowEl.textContent = '';
+      if (!items.length) { rowEl.appendChild(el('p', { class: 'tiny', 'data-i18n': 'VAULT_EMPTY', text: T('VAULT_EMPTY') })); return; }
+      items.slice(0, 12).forEach(it => rowEl.appendChild(this.tile(it, sheet)));
+      box.appendChild(el('p', { class: 'tiny', 'data-i18n': 'VAULT_HINT', text: T('VAULT_HINT') }));
+      if (items.length > 12) box.appendChild(btn(T('VAULT_ALL'), { cls: 'sm block ghost', onclick: () => { sheet.close(); this.open(); } }));
+    }).catch(e => { rowEl.textContent = ''; rowEl.appendChild(el('p', { class: 'tiny', text: T('VAULT_FAIL') + ': ' + NX.describeFirebaseError(e) })); });
+  },
+  async open() {
+    const body = el('div');
+    const grid = el('div', { class: 'vt-grid' }, [el('div', { class: 'load-row' }, [el('div', { class: 'spin' })])]);
+    body.append(el('p', { class: 'tiny', 'data-i18n': 'VAULT_HINT', text: T('VAULT_HINT') }), grid);
+    const sheet = Sheet.open({ title: T('VAULT_TITLE'), body, id: 'cp-vault' });
+    if (!this.ready()) { grid.textContent = ''; grid.appendChild(el('p', { class: 'tiny', 'data-i18n': 'VAULT_SIGNIN_NOTE', text: T('VAULT_SIGNIN_NOTE') })); return sheet; }
+    const paint = items => {
+      grid.textContent = '';
+      if (!items.length) { grid.appendChild(el('p', { class: 'tiny', 'data-i18n': 'VAULT_EMPTY', text: T('VAULT_EMPTY') })); return; }
+      items.forEach(it => {
+        const cell = el('div', { class: 'vt-cell' }, [this.tile(it, sheet)]);
+        cell.appendChild(el('div', { class: 'vt-acts' }, [
+          btn('✎', { cls: 'sm ghost', onclick: async () => { const n = await Modal.prompt(T('VAULT_RENAME'), it.name); if (n) { try { await this.rename(it, n); paint(this.items || []); } catch (e) { Toast.err(NX.describeFirebaseError(e)); } } } }),
+          btn('🗑', { cls: 'sm ghost', onclick: async () => {
+            if (!(await Modal.confirm(T('VAULT_DEL_Q', { name: it.name }), T('VAULT_DEL_NOTE'), T('QB_DEL')))) return;
+            try { await this.remove(it); paint(this.items || []); } catch (e) { Toast.err(NX.describeFirebaseError(e)); }
+          } })
+        ]));
+        grid.appendChild(cell);
+      });
+    };
+    try { paint(await this.list(true)); } catch (e) { grid.textContent = ''; grid.appendChild(el('p', { class: 'tiny', text: T('VAULT_FAIL') + ': ' + NX.describeFirebaseError(e) })); }
+    return sheet;
+  },
+  async insertAtCentre(item, sheet) {
+    if (sheet && !sheet._closed) sheet.close();
+    return this.insert(item, null);
+  }
+};
+
+/* ================================================================ drag from the vault onto the scene */
+const Drag = {
+  bind(tile, item, sheet) {
+    let s = null;
+    tile.addEventListener('pointerdown', ev => {
+      if (ev.button > 0) return;
+      s = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, t: performance.now(), drag: false };
+      try { tile.setPointerCapture(ev.pointerId); } catch { }
+    });
+    tile.addEventListener('pointermove', ev => {
+      if (!s || ev.pointerId !== s.id) return;
+      const dx = ev.clientX - s.x, dy = ev.clientY - s.y, far = Math.hypot(dx, dy);
+      if (!s.drag) {
+        /* a mouse drags at once; a finger drags upwards (sideways scrolls the row) or after a short hold */
+        const go = ev.pointerType === 'mouse' ? far > 6 : (far > 10 && Math.abs(dy) > Math.abs(dx)) || (far > 4 && performance.now() - s.t > 280);
+        if (!go) return;
+        s.drag = true;
+        this.begin(s, item);
+      }
+      ev.preventDefault();
+      this.move(s, ev.clientX, ev.clientY);
+    });
+    const end = ev => {
+      if (!s || ev.pointerId !== s.id) return;
+      const was = s; s = null;
+      if (!was.drag) return;
+      tile.__noClick = performance.now();
+      this.drop(was, item, ev.clientX, ev.clientY, sheet, ev.type === 'pointercancel');
+    };
+    tile.addEventListener('pointerup', end);
+    tile.addEventListener('pointercancel', end);
+    tile.addEventListener('click', ev => {
+      if (tile.__noClick && performance.now() - tile.__noClick < 600) { ev.preventDefault(); ev.stopPropagation(); return; }
+      Vault.insertAtCentre(item, sheet);
+    });
+  },
+  begin(s, item) {
+    s.ghost = el('div', { class: 'vt-ghost' }, [item.thumb ? el('img', { src: item.thumb, alt: '' }) : el('span', { text: '🗄' }), el('b', { text: item.name })]);
+    document.body.appendChild(s.ghost);
+    document.body.classList.add('vt-dragging');
+    const eng = E();
+    if (eng) {
+      s.ring = new THREE.Mesh(new THREE.RingGeometry(0.35, 0.5, 40), new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.85, depthTest: false, side: THREE.DoubleSide }));
+      s.ring.rotation.x = -Math.PI / 2; s.ring.renderOrder = 999; s.ring.visible = false;
+      eng.helpers.add(s.ring);
+    }
+  },
+  /* over the scene itself (not over its bars) */
+  overScene(x, y) {
+    const eng = E();
+    if (!eng) return false;
+    const hit = document.elementFromPoint(x, y);
+    return hit === eng.canvas;
+  },
+  move(s, x, y) {
+    s.ghost.style.transform = 'translate3d(' + (x - 38) + 'px,' + (y - 46) + 'px,0)';
+    const ok = this.overScene(x, y);
+    s.ghost.classList.toggle('ok', ok);
+    if (s.ring) {
+      const hit = ok ? Canvas.surfaceAt(x, y) : null;
+      s.ring.visible = !!hit;
+      if (hit) s.ring.position.copy(hit.point).add(V3(0, 0.02, 0));
+    }
+  },
+  finish(s) {
+    if (s.ghost) s.ghost.remove();
+    document.body.classList.remove('vt-dragging');
+    if (s.ring) { s.ring.removeFromParent(); s.ring.geometry.dispose(); s.ring.material.dispose(); }
+  },
+  async drop(s, item, x, y, sheet, cancelled) {
+    const ok = !cancelled && this.overScene(x, y);
+    this.finish(s);
+    if (!ok) { Toast.show(T('VAULT_DROP_CANCEL')); return; }
+    const hit = Canvas.surfaceAt(x, y);
+    if (sheet && !sheet._closed) sheet.close();
+    await Vault.insert(item, hit ? hit.point : null);
+  }
+};
+
+/* ================================================================ taps: two = go there, four = its code */
+const Gestures = {
+  WIN: 320, R: 42, seq: null, timer: 0,
+  /* the engine gives every quick tap (PART 4 `onTap`); 'defer' = a tap on nothing waits (it may be a double tap) */
+  /* is a tap here the next one of a sequence (the engine then leaves the handles alone) */
+  holding(x, y) { const s = this.seq; return !!(s && performance.now() - s.last <= this.WIN && Math.hypot(x - s.x, y - s.y) <= this.R); },
+  tap(info) {
+    if (!editing() || !NX.Studio.engine) return null;
+    const now = performance.now(), s = this.seq;
+    if (s && now - s.last <= this.WIN && Math.hypot(info.x - s.x, info.y - s.y) <= this.R) { s.n++; s.last = now; s.taps.push(info); }
+    else this.seq = { n: 1, last: now, x: info.x, y: info.y, taps: [info], selBefore: info.selBefore, wait: false };
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.end(), this.WIN);
+    if (!info.hit && info.selBefore) { this.seq.wait = true; return 'defer'; }
+    return null;
+  },
+  end() {
+    const s = this.seq; this.seq = null;
+    const eng = E();
+    if (!s || !eng || !editing()) return;
+    const last = s.taps[s.taps.length - 1];
+    const before = s.selBefore ? eng.getEntity(s.selBefore) : null;
+    const tapped = last.hit ? last.hit.e : null;
+    if (s.n >= 4) {
+      const target = tapped || before;
+      if (!target) return;
+      eng.select(target.id);
+      QuickCode.open(target);
+      return;
+    }
+    if (s.n === 2) {
+      /* on the selected object itself (or a part of it): the camera comes to it */
+      const own = before ? Canvas.tree([before.id]) : null;
+      if (before && (!tapped || !own.has(tapped.id)) ) { this.moveTo(before, last); return; }
+      if (before && tapped && own.has(tapped.id)) { eng.select(before.id); eng.focus(before); return; }
+      if (!before && tapped) { eng.select(tapped.id); eng.focus(tapped); return; }
+      return;
+    }
+    /* one tap (or three) on nothing: what a tap on nothing does — a moment later */
+    if (s.wait) eng.select(null);
+  },
+  moveTo(e, tap) {
+    const eng = E(), st = S();
+    if (eng.isLocked(e)) { eng.select(e.id); Toast.err(T('TAP_LOCKED', { name: e.name })); return; }
+    /* what is still selected moves together (a tap on nothing kept it); else just this object */
+    const cur = eng.topSelected(), top = cur.some(x => x.id === e.id) ? cur : [e];
+    const hit = Canvas.surfaceAt(tap.x, tap.y, Canvas.tree(top.map(x => x.id)));
+    if (!hit) { eng.select(e.id); return; }
+    const rec = st.begin(T('TAP_UNDO', { name: e.name }), top.map(x => x.id));
+    Canvas.placeOn(top, hit.point);
+    rec.commit();
+    if (top.length > 1) eng.selectMany(top.map(x => x.id)); else eng.select(e.id);
+    Toast.ok(T('TAP_MOVED', { name: e.name }), 2600);
+  }
+};
+
+/* ================================================================ ✎ the object's code, right there */
+const QuickCode = {
+  /* its own scripts, then the code of its components (shared with every object that uses them) */
+  items(e) {
+    const st = S();
+    NX.migrateProjectFiles(st.project);
+    const files = st.project.files || [];
+    const own = files.filter(f => f.entityId === e.id && f.role !== 'component').map(f => ({ f, shared: 0 }));
+    const comps = [];
+    (e.components || []).forEach(c => {
+      const f = files.find(x => x.role === 'component' && NX.componentName(x.path) === c.type);
+      if (f && !comps.some(x => x.f === f)) comps.push({ f, shared: [...E().entities.values()].filter(x => (x.components || []).some(k => k.type === c.type)).length });
+    });
+    return own.concat(comps);
+  },
+  template(e) {
+    return '// ' + T('QC_TPL_HEAD', { name: e.name }) + '\n'
+      + 'function start() {\n  // ' + T('QC_TPL_START') + '\n}\n\n'
+      + 'function update(dt) {\n  // ' + T('QC_TPL_UPDATE') + '\n  // self.rotation.y += 1 * dt;\n}\n';
+  },
+  create(e) {
+    const st = S();
+    st.pushUndo(T('QC_UNDO_NEW', { name: e.name }), { files: true });
+    const base = String(e.name || 'Object').replace(/[^A-Za-z0-9_]+/g, '') || 'ObjectScript';
+    const f = { id: NX.uid('f'), path: Ops().uniquePath(base + '.js'), code: this.template(e), role: 'script', entityId: e.id, enabled: true };
+    st.project.files.push(f);
+    st.dirty = true; st.lastBuild = null;
+    if (st.updateHud) st.updateHud();
+    return f;
+  },
+  save(f, code) {
+    if (f.code === code) { Toast.show(T('QC_NO_CHANGE')); return false; }
+    const st = S();
+    st.pushUndo(T('QC_UNDO_SAVE', { path: f.path }), { files: true });
+    f.code = code;
+    st.dirty = true; st.lastBuild = null;
+    st.save(true);
+    Toast.ok(T('QC_SAVED', { path: f.path }));
+    return true;
+  },
+  /* NEXUS AI changes this file (the connected model, or the free AI) — the result waits in the editor until saved */
+  async ai(e, f, ask, editor) {
+    if (!NX.AIConfig || !NX.AIConfig.isReady()) throw new Error(T('QC_AI_OFF'));
+    const api = (NX.API_DOCS || []).map(d => d.ns + ': ' + d.m.map(m => m[0]).join(' | ')).join('\n');
+    const system = 'You edit ONE script of a NEXUS game (NEXUS is a browser 3D game engine).\n'
+      + 'Rules: only the engine API below and plain JavaScript — no DOM, fetch, imports, window, eval or storage. A script may define start(), update(dt), destroy(). "self" is the object the script is attached to.\n'
+      + 'This script is attached to the object «' + e.name + '» (type ' + e.type + '; components: ' + ((e.components || []).map(c => c.type).join(', ') || 'none') + ').\n'
+      + 'Change only what the request asks and keep everything else working. Answer with the WHOLE updated file in ONE ```js code block, then one short sentence in the language of the request.\n\nENGINE API\n' + api;
+    const user = 'FILE ' + f.path + ':\n```js\n' + editor.value + '\n```\n\nREQUEST: ' + ask;
+    const r = await NX.AIClient.chat([{ role: 'user', content: user }], { system, stream: false });
+    const m = /```(?:js|javascript|ts)?[^\n]*\n([\s\S]*?)```/.exec((r && r.text) || '');
+    if (!m || m[1].trim().length < 8) throw new Error(T('QC_AI_BAD'));
+    editor.ta.value = m[1].replace(/\s+$/, '') + '\n';
+    editor.render();
+    if (editor.push) editor.push();
+    return String(r.text || '').replace(/```[\s\S]*?```/g, '').trim().slice(0, 300);
+  },
+  open(target) {
+    const eng = E(), st = S();
+    if (!editing()) return null;
+    const e = target || eng.getEntity(eng.selection);
+    if (!e) { Toast.err(T('CP_SELECT')); return null; }
+    const body = el('div', { class: 'qc' });
+    const chips = el('div', { class: 'qc-chips' });
+    const note = el('p', { class: 'tiny qc-note' });
+    const host = el('div', { class: 'qc-ed' });
+    const ask = el('input', { class: 'input', placeholder: T('QC_AI_PH'), dir: 'auto' });
+    const out = el('p', { class: 'tiny qc-out' });
+    let cur = null, editor = null;
+    const show = it => {
+      cur = it;
+      if (!editor) editor = new NX.CodeEditor(host, { value: it.f.code || '', name: it.f.path,
+        onSave: v => this.save(cur.f, v),
+        onRun: v => { this.save(cur.f, v); sheet.close(); st.play(); } });
+      else { editor.value = it.f.code || ''; editor.setName(it.f.path); }
+      note.textContent = it.shared ? T('QC_SHARED', { n: it.shared }) : '';
+      paint();
+    };
+    const paint = () => {
+      chips.textContent = '';
+      this.items(e).forEach(it => chips.appendChild(el('button', { class: 'chip qc-chip' + (cur && cur.f === it.f ? ' on' : ''), type: 'button', text: (it.shared ? '⚙ ' : '📜 ') + it.f.path, onclick: () => show(it) })));
+      chips.appendChild(el('button', { class: 'chip', type: 'button', text: '＋ ' + T('QC_NEW'), onclick: () => { const f = this.create(e); show({ f, shared: 0 }); } }));
+    };
+    const aiRow = el('div', { class: 'qc-ai' }, [ask, btn(T('QC_AI_BTN'), { cls: 'sm primary', onclick: async () => {
+      const q = ask.value.trim();
+      if (!q || !cur) return;
+      out.textContent = T('QC_AI_WORKING');
+      try { const said = await this.ai(e, cur.f, q, editor); out.textContent = T('QC_AI_DONE') + (said ? ' — ' + said : ''); ask.value = ''; }
+      catch (err) { out.textContent = '✕ ' + (err.message || err); }
+    } })]);
+    const items = this.items(e);
+    if (items.length) { body.append(chips, note, host, aiRow, out); show(items[0]); }
+    else {
+      const empty = el('div', { class: 'qc-empty' }, [el('p', { class: 'tiny', text: T('QC_NONE') }), btn(T('QC_CREATE'), { cls: 'primary block', onclick: () => {
+        empty.remove(); body.append(chips, note, host, aiRow, out);
+        show({ f: this.create(e), shared: 0 });
+      } })]);
+      body.appendChild(empty);
+    }
+    body.appendChild(el('p', { class: 'tiny', style: { marginTop: '8px' }, text: T('QC_HINT') }));
+    const sheet = Sheet.open({ title: '✎ ' + T('QC_TITLE', { name: e.name }), body, full: true, id: 'cp-code' });
+    return sheet;
+  }
+};
+
+/* ================================================================ attached to the Studio's engine (PART 35 calls it) */
+const CanvasPro = {
+  Canvas, QuickBar, SizePanel, Vault, Drag, Gestures, QuickCode,
+  attach(studio) {
+    const eng = studio && studio.engine;
+    if (!eng || eng.__canvasPro) return;
+    eng.__canvasPro = true;
+    eng.onTap = info => Gestures.tap(info);
+    eng.tapHold = (x, y) => Gestures.holding(x, y);
+    QuickBar.mount(eng);
+    window.addEventListener('nx:lang', () => { if (QuickBar.node) QuickBar.node.querySelectorAll('[data-qk]').forEach(b => b.setAttribute('aria-label', T(b.dataset.qk))); });
+  },
+  code(e) { return QuickCode.open(e); },
+  size() { return SizePanel.open(); },
+  saveToVault() { return Vault.saveDialog(); },
+  vaultSection(body, sheet) { return Vault.section(body, sheet); },
+  openVault() { return Vault.open(); }
+};
+
+if (NX.Commands) NX.Commands.register([
+  { get label() { return '🗄 ' + T('VAULT_TITLE'); }, icon: 'box', keywords: 'vault خزنتي خزنة my files ملفاتي saved objects', when: () => !!(NX.Studio && NX.Studio.project), run: () => Vault.open() },
+  { get label() { return '✎ ' + T('QB_CODE'); }, icon: 'code', keywords: 'object code كود العنصر quick code', when: () => !!(NX.Studio && NX.Studio.engine && NX.Studio.engine.selection), run: () => QuickCode.open() }
+]);
+
+NX.CanvasPro = CanvasPro;
+if (NX.Studio && NX.Studio.engine && NX.Studio.project) CanvasPro.attach(NX.Studio);
+</script>
+<!-- /NX-PART:41 -->
 
 
 <script>
