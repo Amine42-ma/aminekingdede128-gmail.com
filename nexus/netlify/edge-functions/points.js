@@ -12,7 +12,9 @@
    Spend: a hosted file                             POINTS_PER_MB (10) per MB
           10 more AI requests today                 AI_PACK_POINTS (10)
    Pro ($20 / month through Stripe): hosted files free, 150 AI requests a day.
-   Points stay inside the site — they are not money and cannot be cashed out.
+   💳 Top-up and withdrawal (PART 43): a point is a token priced BASE_TOKEN_PRICE_USD (0.01 → 100 = $1) —
+   bought for any amount through Stripe; EARNED tokens may be withdrawn when the site's owner turns it on.
+   Every amount is exact: integers of millionths of a token, whole cents — never a float (EXACT AMOUNTS below).
 
    Ads:
    • AdMob (Android / iOS app): Google calls GET /api/points/admob-ssv with a
@@ -37,7 +39,9 @@
        ADS_MIN_SECONDS · POINTS_WELCOME · POINTS_PER_MB · FILE_MAX_MB ·
        AI_FREE_PER_DAY · AI_PACK_REQUESTS · AI_PACK_POINTS · PRO_AI_PER_DAY ·
        PLAY_MINUTES_PER_REWARD · POINTS_PER_PLAY_REWARD · PLAY_MINUTES_PER_PLAYER_DAY
+     top-up and withdrawal: BASE_TOKEN_PRICE_USD · TOPUP_* · WITHDRAW_* (see TOP-UP AND WITHDRAWAL)
    ============================================================ */
+import { aiOwner } from './ai.js';
 const env = k => { try { return (globalThis.Netlify && Netlify.env.get(k)) || ''; } catch { return ''; } };
 const te = s => new TextEncoder().encode(s);
 const txt = b => new TextDecoder().decode(b);
@@ -49,6 +53,51 @@ const fail = (status, code, message, extra = {}) => json(status, Object.assign({
 const coded = (status, code, message, extra) => Object.assign(new Error(message), { status, code, extra });
 const rid = (n = 20) => u64(crypto.getRandomValues(new Uint8Array(n))).replace(/[^A-Za-z0-9]/g, '').slice(0, n) || String(Date.now());
 const today = () => new Date().toISOString().slice(0, 10);          // the day the limits count (UTC)
+
+/* ---------------- EXACT AMOUNTS: fixed point, never a float ----------------
+   A balance is an integer of millionths of a token (wallets/<uid>.micro: 0.25 → 250000; .points = micro / 1e6 is
+   only for reading). Dollars are whole cents; the price is micro-dollars per token (0.01 → 10000). The sums are
+   integer (BigInt):  tokens = dollars ÷ price  ·  dollars = tokens × price  — the page (PART 43) does the very same
+   ones to show them, the server does them again and only its result counts. The side a person typed is exact; the
+   other is rounded to its unit (one cent, one millionth) — by less than that unit, never to the person's gain:
+   a top-up's dollars UP and its tokens DOWN, a withdrawal's dollars DOWN and its tokens UP. */
+const MICRO = 1000000, PER_CENT = 10000000000n;           // micro-tokens × micro-dollars in one cent (1e6 × 1e4)
+const DIGITS = /[\u0660-\u0669\u06F0-\u06F9\u0966-\u096F]/g;     // ٠-٩ · ۰-۹ · ०-९ → 0-9
+/* what a person wrote ("12.5", "٠٫٢٥", "1,000.75", "0,5") → an exact integer of 10^-places, or null */
+function fixed(s, places) {
+  let t = String(s == null ? '' : s).trim().replace(DIGITS, c => { const n = c.charCodeAt(0); return String(n - (n >= 0x966 ? 0x966 : n >= 0x6F0 ? 0x6F0 : 0x660)); })
+    .replace(/٫/g, '.').replace(/[\s٬_'’]/g, '');
+  if (t.includes('.')) t = t.replace(/,/g, ''); else if ((t.match(/,/g) || []).length === 1) t = t.replace(',', '.');
+  const m = /^(\d{0,9})(?:\.(\d*))?$/.exec(t);
+  if (!m || !(m[1] || m[2]) || (m[2] || '').length > places) return null;
+  return Number(BigInt(m[1] || '0') * 10n ** BigInt(places) + BigInt(((m[2] || '') + '0'.repeat(places)).slice(0, places)));
+}
+/* 12500000, 6 → "12.5" · 151, 2, true → "1.51" (keep: the zeros after the point stay) */
+function fmtFixed(n, places, keep) {
+  const s = String(Math.abs(Math.round(n))).padStart(places + 1, '0');
+  let f = s.slice(s.length - places);
+  if (!keep) f = f.replace(/0+$/, '');
+  return (n < 0 ? '-' : '') + s.slice(0, s.length - places) + (f ? '.' + f : '');
+}
+const divUp = (a, b) => (a + b - 1n) / b;
+const toMicro = (cents, price, up) => Number(up ? divUp(BigInt(cents) * PER_CENT, BigInt(price)) : BigInt(cents) * PER_CENT / BigInt(price));
+const toCents = (micro, price, up) => Number(up ? divUp(BigInt(micro) * BigInt(price), PER_CENT) : BigInt(micro) * BigInt(price) / PER_CENT);
+/* what was typed (anchor 'usd' or 'tokens') → both sides, for a top-up ('topup') or a withdrawal ('withdraw') */
+function quote(kind, anchor, amount, price) {
+  const topup = kind === 'topup';
+  if (anchor === 'usd') {
+    const cents = fixed(amount, 2);
+    if (cents == null) throw coded(400, 'amount_usd', 'اكتب المبلغ بالدولار — حتى منزلتين بعد الفاصلة (سنت).');
+    return { anchor, cents, micro: toMicro(cents, price, !topup) };
+  }
+  const micro = fixed(amount, 6);
+  if (micro == null) throw coded(400, 'amount_tokens', 'اكتب عدد التوكن — حتى 6 منازل بعد الفاصلة.');
+  return { anchor: 'tokens', micro, cents: toCents(micro, price, topup) };
+}
+/* a balance in millionths. The server always writes both (micro, and points = micro / 1e6 — a double that gives
+   micro back exactly); a wallet from before has points only, and points changed by hand (the Firebase console)
+   no longer matches micro — either way points × 1e6 is the balance */
+const microOf = d => { const m = Math.round(((d && d.points) || 0) * MICRO); return d && Number.isInteger(d.micro) && d.micro === m ? d.micro : m; };
 
 /* ---------------- the numbers (one place; each can be changed in Netlify) ---------------- */
 const num = (k, d) => { const v = env(k); return v !== '' && Number.isFinite(+v) ? +v : d; };
@@ -78,7 +127,17 @@ const ECON = {
   minPrice:            [['MARKET_MIN_PRICE'], 10, 1, 1000000],
   maxPrice:            [['MARKET_MAX_PRICE'], 100000, 1, 10000000],
   feePercent:          [['MARKET_FEE_PERCENT'], 0, 0, 90],                    // kept by the marketplace; the seller gets the rest
-  buyerMinAgeHours:    [['MARKET_MIN_BUYER_AGE_HOURS'], 0, 0, 720]
+  buyerMinAgeHours:    [['MARKET_MIN_BUYER_AGE_HOURS'], 0, 0, 720],
+  /* 💳 the token's price — ONE number, in dollars (0.01), kept as micro-dollars (10000) — and the top-up / withdrawal
+     limits in dollars, kept as cents: the 5th number is that scale (what a person writes × scale = what is kept) */
+  tokenPriceMicro:     [['BASE_TOKEN_PRICE_USD'], 10000, 1, 1e9, 1e6],
+  topupOn:             [['TOPUP_ENABLED'], 1, 0, 1],
+  topupMinCents:       [['TOPUP_MIN_USD'], 100, 50, 1e7, 100],          // Stripe takes no less than $0.50
+  topupMaxCents:       [['TOPUP_MAX_USD'], 50000, 50, 1e7, 100],
+  withdrawOn:          [['WITHDRAW_ENABLED'], 0, 0, 1],                 // off until the site's owner turns it on
+  withdrawMinCents:    [['WITHDRAW_MIN_USD'], 500, 1, 1e7, 100],
+  withdrawMaxCents:    [['WITHDRAW_MAX_USD'], 50000, 1, 1e7, 100],      // one request
+  withdrawMinAgeDays:  [['WITHDRAW_MIN_ACCOUNT_DAYS'], 7, 0, 365]
 };
 const ECON_PRESETS = '100,500,1000,5000';
 let econCache = { at: 0, v: null };
@@ -87,13 +146,15 @@ async function econ(force) {
   let over = {};
   if (ready()) { try { const d = await getDoc('economy/config'); if (d.exists) over = d.data || {}; } catch { } }
   const v = {};
-  for (const [k, [names, def, lo, hi]] of Object.entries(ECON)) {
+  for (const [k, [names, def, lo, hi, scale = 1]] of Object.entries(ECON)) {
     let x = def;
-    for (const n of names) { const e = env(n); if (e !== '' && Number.isFinite(+e)) { x = +e; break; } }
+    for (const n of names) { const e = env(n); if (e !== '' && Number.isFinite(+e)) { x = +e * scale; break; } }
     if (over[k] != null && Number.isFinite(+over[k])) x = +over[k];
     v[k] = Math.min(hi, Math.max(lo, Math.round(x)));
   }
   if (v.maxPrice < v.minPrice) v.maxPrice = v.minPrice;
+  if (v.topupMaxCents < v.topupMinCents) v.topupMaxCents = v.topupMinCents;
+  if (v.withdrawMaxCents < v.withdrawMinCents) v.withdrawMaxCents = v.withdrawMinCents;
   const pre = Array.isArray(over.pricePresets) ? over.pricePresets : (env('MARKET_PRICE_PRESETS') || ECON_PRESETS).split(/[\s,;]+/);
   v.pricePresets = pre.map(Number).filter(n => Number.isInteger(n) && n >= v.minPrice && n <= v.maxPrice).slice(0, 8);
   v.updatedAt = over.updatedAt || 0;
@@ -171,8 +232,8 @@ async function commit(writes) {
   const t = await r.text().catch(() => '');
   return { ok: false, conflict: r.status === 409 || /FAILED_PRECONDITION|ALREADY_EXISTS|NOT_FOUND/.test(t), status: r.status, text: t.slice(0, 300) };
 }
-async function runQuery(q) {
-  const r = await fetch(base() + ':runQuery', { method: 'POST', headers: { authorization: 'Bearer ' + await accessToken(), 'content-type': 'application/json' }, body: JSON.stringify({ structuredQuery: q }) });
+async function runQuery(q, parent) {
+  const r = await fetch(base() + (parent ? '/' + parent : '') + ':runQuery', { method: 'POST', headers: { authorization: 'Bearer ' + await accessToken(), 'content-type': 'application/json' }, body: JSON.stringify({ structuredQuery: q }) });
   if (!r.ok) throw coded(503, 'store', 'قاعدة البيانات لا تجيب (' + r.status + ')');
   return (await r.json()).filter(x => x.document).map(x => Object.assign({ id: x.document.name.split('/').pop() }, fromFs({ mapValue: { fields: x.document.fields || {} } })));
 }
@@ -180,6 +241,9 @@ async function runQuery(q) {
 /* ---------------- the wallet: every change in one commit with its reason ----------------
    plan(wallet) may refuse ({ error }), change fields, and add writes of its own
    (a used ad ticket, an upload ticket …) — all land together or none does. */
+/* the amount: points (whole or not) as the callers give it — or exact millionths from a plan (p.micro).
+   The balance is written whole (micro, points) — never added to blindly: the precondition (the wallet as it was
+   read) makes two changes at once wait for each other, and none is lost. */
 async function change(uid, delta, reason, note, plan) {
   for (let i = 0; i < 5; i++) {
     const w = await getDoc('wallets/' + uid);
@@ -187,28 +251,46 @@ async function change(uid, delta, reason, note, plan) {
     const d = w.data || {};
     const p = plan ? await plan(d, w) : {};
     if (p.error) throw p.error;
-    const dl = p.delta != null ? p.delta : delta;
-    if (dl < 0 && (d.points || 0) + dl < 0) throw coded(402, 'not_enough', 'رصيدك ' + (d.points || 0) + ' نقطة — تحتاج ' + (-dl) + '.', { points: d.points || 0, need: -dl });
-    const f = Object.assign({ updatedAt: Date.now() }, p.fields || {});
-    const writes = [put('wallets/' + uid, f, { pre: preOf(w), incr: dl ? { points: dl } : null })];
-    if (dl) writes.push(create('wallets/' + uid + '/ledger/' + Date.now() + '_' + rid(6), { delta: dl, reason, note: String(p.note || note || '').slice(0, 120), at: Date.now() }));
+    const dm = p.micro != null ? p.micro : Math.round((p.delta != null ? p.delta : delta) * MICRO), have = microOf(d), now = Date.now();
+    if (dm < 0 && have + dm < 0) throw coded(402, 'not_enough', 'رصيدك ' + fmtFixed(have, 6) + ' نقطة — تحتاج ' + fmtFixed(-dm, 6) + '.', { points: have / MICRO, need: -dm / MICRO });
+    const f = Object.assign({ updatedAt: now }, dm ? walletAfter(d, await earnedOf(uid, d), dm, reason) : {}, p.fields || {});
+    const writes = [put('wallets/' + uid, f, { pre: preOf(w) })];
+    if (dm) writes.push(create('wallets/' + uid + '/ledger/' + now + '_' + rid(6), Object.assign({ delta: dm / MICRO, micro: dm, reason, note: String(p.note || note || '').slice(0, 120), at: now }, p.tx ? { tx: p.tx } : {})));
     (p.writes || []).forEach(x => writes.push(x));
     const r = await commit(writes);
-    if (r.ok) {
-      const t = r.results[0] && r.results[0].transformResults && r.results[0].transformResults[0];
-      return { points: t ? +t.integerValue : (d.points || 0) + dl, wallet: Object.assign({}, d, f), delta: dl, result: p.result };
-    }
+    if (r.ok) return { points: (have + dm) / MICRO, micro: have + dm, wallet: Object.assign({}, d, f), delta: dm / MICRO, result: p.result };
     if (!r.conflict) throw coded(503, 'store', 'تعذّر الحفظ (' + r.status + ')');
   }
   throw coded(409, 'busy', 'حاول مرة أخرى بعد لحظة');
+}
+/* EARNED tokens — the part of a balance that may be withdrawn: sales of your projects, Play Rewards, challenge
+   prizes; never the welcome gift, ads, refunds nor tokens bought. Spending takes the rest first (earned = at most
+   the balance); a withdrawal takes from it; a withdrawal refused or cancelled gives it back. */
+const EARNED = ['market_sale', 'play', 'challenge'];
+async function earnedOf(uid, d) {
+  if (d && Number.isInteger(d.earnMicro)) return d.earnMicro;
+  /* a wallet from before: what its ledger says it earned (once — the next change keeps it in the wallet) */
+  let sum = 0;
+  try {
+    const rows = await runQuery({ from: [{ collectionId: 'ledger' }], where: { fieldFilter: { field: { fieldPath: 'reason' }, op: 'IN',
+      value: { arrayValue: { values: EARNED.map(x => ({ stringValue: x })) } } } } }, 'wallets/' + uid);
+    rows.forEach(x => { sum += Number.isInteger(x.micro) ? x.micro : Math.round((x.delta || 0) * MICRO); });
+  } catch { }
+  return Math.max(0, Math.min(sum, microOf(d)));
+}
+/* a wallet's numbers after m millionths moved for this reason */
+function walletAfter(d, earn, m, reason) {
+  const micro = microOf(d) + m;
+  const e = earn + ((m > 0 && EARNED.includes(reason)) || reason === 'withdraw' || reason === 'withdraw_back' ? m : 0);
+  return { micro, points: micro / MICRO, earnMicro: Math.max(0, Math.min(e, micro)) };
 }
 /* a first visit: the wallet with the welcome gift (the precondition makes it happen once) */
 async function wallet(uid) {
   let w = await getDoc('wallets/' + uid);
   if (w.exists) return w.data;
-  const gift = cfg().welcome;
-  const r = await commit([put('wallets/' + uid, { welcomed: true, createdAt: Date.now(), updatedAt: Date.now() }, { pre: { exists: false }, incr: gift ? { points: gift } : null })]
-    .concat(gift ? [create('wallets/' + uid + '/ledger/' + Date.now() + '_welcome', { delta: gift, reason: 'welcome', note: 'هدية الترحيب', at: Date.now() })] : []));
+  const gift = cfg().welcome, m = Math.round(gift * MICRO), now = Date.now();
+  const r = await commit([put('wallets/' + uid, { welcomed: true, createdAt: now, updatedAt: now, micro: m, points: m / MICRO, earnMicro: 0 }, { pre: { exists: false } })]
+    .concat(m ? [create('wallets/' + uid + '/ledger/' + now + '_welcome', { delta: m / MICRO, micro: m, reason: 'welcome', note: 'هدية الترحيب', at: now })] : []));
   if (!r.ok && !r.conflict) throw coded(503, 'store', 'تعذّر إنشاء المحفظة');
   w = await getDoc('wallets/' + uid);
   return w.data || {};
@@ -336,6 +418,11 @@ async function stripeHook(req) {
   const raw = await req.text();
   if (!(await stripeSigned(req, raw))) return fail(400, 'stripe_signature', 'bad signature');
   let ev; try { ev = JSON.parse(raw); } catch { return fail(400, 'bad_request', 'bad json'); }
+  /* 💳 a top-up: kept once by its transaction's own state (pending → completed) — a failure here answers an error
+     and Stripe sends the event again */
+  const ob = (ev.data && ev.data.object) || {};
+  if (/^checkout\.session\./.test(ev.type) && ob.metadata && ob.metadata.kind === 'topup') return json(200, Object.assign({ received: true }, await topupEvent(ev.type, ob)));
+  if (ev.type === 'charge.refunded' || ev.type === 'charge.dispute.created') return json(200, Object.assign({ received: true }, await topupReversed(ev.type, ob)));
   const seen = await commit([create('stripe_events/' + String(ev.id).replace(/[^\w-]/g, ''), { type: ev.type, at: Date.now() })]);
   if (!seen.ok) return json(200, { received: true, duplicate: true });
   const o = (ev.data && ev.data.object) || {};
@@ -548,10 +635,169 @@ async function playLegacy(me, b) {
   return { counted: false, why: st.why || 'started' };
 }
 
+/* ================================================================ 💳 TOP-UP AND WITHDRAWAL (PART 43)
+   Any amount — no packs: the page sends what the person typed (dollars OR tokens) and the numbers it showed; the
+   server works both sides out again (quote, EXACT AMOUNTS) and only its own numbers count — a page that was edited
+   (or a price that changed meanwhile) gets «quote_changed» and nothing happens. Every one is a row of
+   transactions/<txId> (type, status, both sides, the price used), written only here; its owner may read it.
+   • Top-up: Stripe Checkout for exactly the server's amount (price_data — no fixed Stripe price). The tokens are
+     added only when Stripe's SIGNED webhook says it is paid: the transaction goes pending → completed once, in the
+     same commit as the wallet and its ledger. Refunded or disputed later → taken back (never below zero).
+   • Withdrawal: EARNED tokens only (sales, Play Rewards, prizes), a verified e-mail, 18+ (ages/<uid>), an account
+     WITHDRAW_MIN_ACCOUNT_DAYS old. The tokens leave the wallet at once (held: «pending»); the site's owner pays
+     outside NEXUS (PayPal, a bank …) and marks it «paid» with a reference — or refuses it, and the tokens come
+     back; the person may cancel while it waits. Off until the owner turns it on.
+   Netlify: BASE_TOKEN_PRICE_USD (0.01) · TOPUP_ENABLED · TOPUP_MIN_USD · TOPUP_MAX_USD · WITHDRAW_ENABLED ·
+   WITHDRAW_MIN_USD · WITHDRAW_MAX_USD · WITHDRAW_MIN_ACCOUNT_DAYS — and STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET,
+   the webhook (…/api/points/stripe) with also: checkout.session.async_payment_succeeded,
+   checkout.session.async_payment_failed, checkout.session.expired, charge.refunded, charge.dispute.created. */
+const stripeOn = () => !!(env('STRIPE_SECRET_KEY') && env('STRIPE_WEBHOOK_SECRET'));
+const cleanTx = v => String(v || '').replace(/[^\w-]/g, '').slice(0, 64);
+const usd = c => fmtFixed(c, 2, true);
+const moneyPub = e => ({ price: fmtFixed(e.tokenPriceMicro, 6), priceMicro: e.tokenPriceMicro, unit: 'NEXUS_POINTS', currency: 'USD',
+  topup: { on: !!e.topupOn && stripeOn(), enabled: !!e.topupOn, stripe: stripeOn(), minCents: e.topupMinCents, maxCents: e.topupMaxCents, min: usd(e.topupMinCents), max: usd(e.topupMaxCents) },
+  withdraw: { on: !!e.withdrawOn, minCents: e.withdrawMinCents, maxCents: e.withdrawMaxCents, min: usd(e.withdrawMinCents), max: usd(e.withdrawMaxCents), minAgeDays: e.withdrawMinAgeDays } });
+const pubQuote = (q, price) => ({ anchor: q.anchor, micro: q.micro, cents: q.cents, tokens: fmtFixed(q.micro, 6), usd: usd(q.cents), priceMicro: price, price: fmtFixed(price, 6) });
+/* the numbers the page showed — if they are not the server's, nothing happens and the page gets the right ones */
+function sameQuote(q, x, price) {
+  if (!x || typeof x !== 'object') return;
+  if (+x.micro !== q.micro || +x.cents !== q.cents || (x.priceMicro != null && +x.priceMicro !== price))
+    throw coded(409, 'quote_changed', 'تغيّر الحساب (سعر التوكن الآن $' + fmtFixed(price, 6) + ') — راجع الأرقام وأكّد من جديد.', { quote: pubQuote(q, price) });
+}
+const inRange = (kind, q, lo, hi) => { if (!(q.micro > 0) || q.cents < lo || q.cents > hi) throw coded(400, 'amount_range', (kind === 'topup' ? 'الشحن' : 'السحب') + ' بين $' + usd(lo) + ' و$' + usd(hi) + '.', { min: usd(lo), max: usd(hi) }); };
+const newTx = now => 'tx_' + now.toString(36) + '_' + rid(10);
+const txRow = (id, uid, type, q, price, b, now, extra) => Object.assign({ txId: id, uid, type, status: 'pending', anchor: q.anchor, typed: String(b.amount == null ? '' : b.amount).slice(0, 40),
+  micro: q.micro, tokens: fmtFixed(q.micro, 6), cents: q.cents, usd: usd(q.cents), priceMicro: price, price: fmtFixed(price, 6), currency: 'USD', unit: 'NEXUS_POINTS', createdAt: now, updatedAt: now }, extra);
+/* 18 or older, from the birth month the account gave once (ages/<uid> — as firestore.rules count it) */
+async function adult(uid) {
+  const a = await getDoc('ages/' + uid).catch(() => ({ exists: false }));
+  if (!a.exists || !Number.isInteger(a.data.y) || !Number.isInteger(a.data.m)) return false;
+  const n = new Date(Date.now());
+  return n.getUTCFullYear() - a.data.y - (n.getUTCMonth() + 1 < a.data.m ? 1 : 0) >= 18;
+}
+
+/* ---- top-up: the transaction, then Stripe's page for exactly its amount ---- */
+async function topupStart(me, b, origin) {
+  const e = await econ();
+  if (!e.topupOn) throw coded(403, 'topup_off', 'الشحن متوقف الآن على هذا الموقع.');
+  if (!stripeOn()) throw coded(503, 'topup_stripe', 'الشحن يحتاج ربط Stripe — يضع صاحب الموقع STRIPE_SECRET_KEY و STRIPE_WEBHOOK_SECRET في Netlify.');
+  const q = quote('topup', b.anchor, b.amount, e.tokenPriceMicro);
+  sameQuote(q, b.expect, e.tokenPriceMicro);
+  inRange('topup', q, e.topupMinCents, e.topupMaxCents);
+  await wallet(me.uid);
+  const now = Date.now(), id = newTx(now), price = e.tokenPriceMicro;
+  const c0 = await commit([create('transactions/' + id, txRow(id, me.uid, 'topup', q, price, b, now, { provider: 'stripe' }))]);
+  if (!c0.ok) throw coded(503, 'store', 'تعذّر بدء الشحن — لم يُدفع شيء.');
+  /* back to the same page of this site (its path — never another site) with the wallet open */
+  const back = String(b.back || '/'), home = origin + (/^\/(?!\/)[^\s#\\]{0,300}$/.test(back) ? back : '/') + '#wallet';
+  let s;
+  try {
+    const meta = { uid: me.uid, kind: 'topup', tx: id };
+    s = await stripeCall('checkout/sessions', { mode: 'payment', client_reference_id: me.uid, customer_email: me.email || null,
+      line_items: { 0: { quantity: 1, price_data: { currency: 'usd', unit_amount: q.cents, product_data: { name: 'NEXUS · ' + fmtFixed(q.micro, 6) + ' tokens', description: '1 token = $' + fmtFixed(price, 6) } } } },
+      metadata: meta, payment_intent_data: { metadata: meta }, expires_at: Math.floor(now / 1000) + 31 * 60,
+      success_url: home, cancel_url: home });
+  } catch (err) { await commit([put('transactions/' + id, { status: 'failed', updatedAt: Date.now() })]).catch(() => {}); throw err; }
+  await commit([put('transactions/' + id, { stripeSession: String(s.id || ''), updatedAt: Date.now() })]).catch(() => {});
+  return { tx: id, url: s.url, quote: pubQuote(q, price) };
+}
+/* Stripe says: paid (completed / a delayed payment succeeded) → the tokens, once; expired or failed → closed */
+async function topupEvent(type, o) {
+  const id = cleanTx(o.metadata.tx), uid = String(o.metadata.uid || '');
+  const t = await getDoc('transactions/' + id);
+  if (!t.exists || t.data.type !== 'topup' || t.data.uid !== uid || (t.data.stripeSession && o.id && t.data.stripeSession !== o.id)) return { ignored: 'unknown' };
+  if (type === 'checkout.session.expired' || type === 'checkout.session.async_payment_failed') {
+    if (t.data.status === 'pending') await commit([put('transactions/' + id, { status: type.endsWith('expired') ? 'expired' : 'failed', updatedAt: Date.now() }, { pre: preOf(t) })]);
+    return { status: 'closed' };
+  }
+  if (type !== 'checkout.session.completed' && type !== 'checkout.session.async_payment_succeeded') return { ignored: type };
+  if (o.payment_status !== 'paid') return { status: 'waiting' };                    // a delayed payment: its own event later
+  if (t.data.status !== 'pending') return { duplicate: true };
+  if (+o.amount_total !== t.data.cents || String(o.currency || '').toLowerCase() !== 'usd') {
+    await commit([put('transactions/' + id, { status: 'review', why: 'paid ' + o.amount_total + ' ' + o.currency, updatedAt: Date.now() }, { pre: preOf(t) })]);
+    return { status: 'review' };
+  }
+  try {
+    const r = await change(uid, 0, 'topup', '$' + t.data.usd + ' → ' + t.data.tokens, async () => {
+      const cur = await getDoc('transactions/' + id);
+      if (cur.data.status !== 'pending') return { error: coded(409, 'tx_done', 'done') };
+      return { micro: cur.data.micro, tx: id, writes: [put('transactions/' + id, { status: 'completed', completedAt: Date.now(), updatedAt: Date.now(),
+        paymentIntent: String(o.payment_intent || ''), stripeSession: String(o.id || '') }, { pre: preOf(cur) })] };
+    });
+    return { status: 'completed', points: r.points };
+  } catch (e) { if (e.code === 'tx_done') return { duplicate: true }; throw e; }
+}
+/* refunded (all or part) or disputed: those tokens are taken back — what was already spent stays on the transaction (shortMicro) */
+async function topupReversed(type, o) {
+  const pi = String(o.payment_intent || '');
+  if (!pi) return { ignored: 'no_payment' };
+  const [t0] = await runQuery({ from: [{ collectionId: 'transactions' }], where: { fieldFilter: { field: { fieldPath: 'paymentIntent' }, op: 'EQUAL', value: { stringValue: pi } } }, limit: 1 });
+  if (!t0 || t0.type !== 'topup' || !['completed', 'refunded', 'disputed'].includes(t0.status)) return { ignored: 'unknown' };
+  const dispute = type === 'charge.dispute.created';
+  try {
+    await change(t0.uid, 0, 'topup_back', '↩ $' + t0.usd + (dispute ? ' · dispute' : ' · refund'), async d => {
+      const t = await getDoc('transactions/' + t0.id);
+      const want = dispute ? t.data.micro : Number(BigInt(t.data.micro) * BigInt(Math.min(Math.max(0, Math.round(+o.amount_refunded || 0)), t.data.cents)) / BigInt(t.data.cents));
+      const due = want - (t.data.reversedMicro || 0);
+      if (due <= 0) return { error: coded(409, 'tx_done', 'done') };
+      const take = Math.min(due, microOf(d));
+      return { micro: -take, tx: t0.id, writes: [put('transactions/' + t0.id, { status: dispute ? 'disputed' : 'refunded', reversedMicro: (t.data.reversedMicro || 0) + due,
+        shortMicro: (t.data.shortMicro || 0) + due - take, updatedAt: Date.now() }, { pre: preOf(t) })] };
+    });
+    return { status: 'reversed' };
+  } catch (e) { if (e.code === 'tx_done') return { duplicate: true }; throw e; }
+}
+
+/* ---- withdrawal: held at once, paid (or refused) by the site's owner ---- */
+async function withdrawStart(me, b) {
+  const e = await econ(), price = e.tokenPriceMicro;
+  if (!e.withdrawOn) throw coded(403, 'withdraw_off', 'السحب غير مفعّل على هذا الموقع بعد — يفعّله صاحبه.');
+  if (!me.verified) throw coded(403, 'withdraw_verify', 'السحب لحساب بريده مؤكَّد (حساب Google، أو أكّد بريدك).');
+  if (!(await adult(me.uid))) throw coded(403, 'withdraw_age', 'السحب لمن عمره 18 سنة فأكثر — حسب شهر الميلاد في حسابك.');
+  const method = ['paypal', 'bank', 'other'].includes(b.method) ? b.method : '', payTo = String(b.payTo || '').trim().slice(0, 160);
+  if (!method || payTo.length < 3) throw coded(400, 'withdraw_to', 'اختر طريقة الاستلام واكتب بياناتها (بريد PayPal أو الحساب البنكي).');
+  const q = quote('withdraw', b.anchor, b.amount, price);
+  sameQuote(q, b.expect, price);
+  inRange('withdraw', q, e.withdrawMinCents, e.withdrawMaxCents);
+  const now = Date.now(), id = newTx(now);
+  const r = await change(me.uid, 0, 'withdraw', '$' + usd(q.cents) + ' ← ' + fmtFixed(q.micro, 6), async d => {
+    if (e.withdrawMinAgeDays && now - (d.createdAt || now) < e.withdrawMinAgeDays * 864e5) return { error: coded(403, 'withdraw_new', 'السحب بعد ' + e.withdrawMinAgeDays + ' أيام من إنشاء الحساب.') };
+    const can = Math.min(microOf(d), await earnedOf(me.uid, d));
+    if (q.micro > can) return { error: coded(402, 'withdraw_more', 'القابل للسحب ' + fmtFixed(can, 6) + ' توكن — أرباحك من بيع المشاريع ومكافآت اللعب والتحديات (لا هدية الترحيب ولا الإعلانات ولا ما شحنته).', { withdrawable: fmtFixed(can, 6), withdrawableMicro: can }) };
+    return { micro: -q.micro, tx: id, writes: [create('transactions/' + id, txRow(id, me.uid, 'withdraw', q, price, b, now, { provider: 'manual', queue: 'withdraw', method, payTo, email: me.email || '' }))] };
+  });
+  return { tx: id, quote: pubQuote(q, price), points: r.points, micro: r.micro };
+}
+/* refused by the owner, or cancelled by its own person while it waits: the tokens come back (earned again) */
+async function withdrawBack(id, status, by, why, owner) {
+  const t0 = await getDoc('transactions/' + id);
+  if (!t0.exists || t0.data.type !== 'withdraw' || (!owner && t0.data.uid !== by)) throw coded(404, 'tx_none', 'لا يوجد طلب سحب بهذا الرقم.');
+  const r = await change(t0.data.uid, 0, 'withdraw_back', '↩ $' + t0.data.usd, async () => {
+    const t = await getDoc('transactions/' + id);
+    if (t.data.status !== 'pending') return { error: coded(409, 'tx_closed', 'هذا الطلب لم يعد معلّقًا.') };
+    return { micro: t.data.micro, tx: id, writes: [put('transactions/' + id, { status, queue: null, decidedAt: Date.now(), decidedBy: by, why: String(why || '').slice(0, 200), updatedAt: Date.now() }, { pre: preOf(t) })] };
+  });
+  return { tx: id, status, points: r.points };
+}
+async function withdrawPaid(me, id, ref) {
+  const t = await getDoc('transactions/' + id);
+  if (!t.exists || t.data.type !== 'withdraw') throw coded(404, 'tx_none', 'لا يوجد طلب سحب بهذا الرقم.');
+  if (t.data.status !== 'pending') throw coded(409, 'tx_closed', 'هذا الطلب لم يعد معلّقًا.');
+  const now = Date.now();
+  const r = await commit([put('transactions/' + id, { status: 'paid', queue: null, paidAt: now, decidedAt: now, decidedBy: me.uid, ref: String(ref || '').slice(0, 120), updatedAt: now }, { pre: preOf(t) })]);
+  if (!r.ok) throw coded(409, 'busy', 'حاول مرة أخرى');
+  return { tx: id, status: 'paid' };
+}
+const txOut = (t, full) => Object.assign({ id: t.id, type: t.type, status: t.status, anchor: t.anchor, tokens: t.tokens, micro: t.micro, usd: t.usd, cents: t.cents, price: t.price,
+  createdAt: t.createdAt, completedAt: t.completedAt || null, paidAt: t.paidAt || null, method: t.method || null, ref: t.ref || null, why: t.why || null },
+  full ? { uid: t.uid, email: t.email || '', payTo: t.payTo || '' } : { payTo: t.payTo ? String(t.payTo).replace(/^(.{2}).*(.{3})$/, '$1•••$2') : null });
+const txQuery = (field, value) => runQuery({ from: [{ collectionId: 'transactions' }], where: { fieldFilter: { field: { fieldPath: field }, op: 'EQUAL', value: { stringValue: value } } }, limit: 300 });
+const mustOwn = async me => { if (!(await aiOwner(me))) throw coded(403, 'not_owner', 'لصاحب الموقع فقط.'); };
+
 /* ================================================================ the router */
 const pub = (c, e) => ({ welcome: c.welcome, ad: c.ad, adsPerDay: c.adsPerDay, adCooldown: c.adCooldown, adMinSeconds: c.adMinSeconds, adsWeb: c.adsWeb,
   mb: c.mb, fileMaxMB: c.fileMaxMB, aiFree: c.aiFree, aiPack: c.aiPack, aiPackPrice: c.aiPackPrice, proAI: c.proAI,
-  playMinutes: e.playIntervalMinutes, playPoints: e.playPoints, playCap: e.playerGameMinutes, playBeat: e.heartbeatSeconds, stripe: c.stripe, proPrice: c.proPrice });
+  playMinutes: e.playIntervalMinutes, playPoints: e.playPoints, playCap: e.playerGameMinutes, playBeat: e.heartbeatSeconds, stripe: c.stripe, proPrice: c.proPrice, money: moneyPub(e) });
 
 export default async (req) => {
   const url = new URL(req.url);
@@ -573,7 +819,9 @@ export default async (req) => {
     if (path === '/me' && req.method === 'GET') {
       const d = await wallet(me.uid), u = (await getDoc('usage/' + me.uid)).data;
       const day = today(), ads = d.adsDay === day ? d.adsN || 0 : 0, used = u && u.day === day ? u.used || 0 : 0, extra = u && u.day === day ? u.extra || 0 : 0;
-      return json(200, { ok: true, ready: true, points: d.points || 0, ...pub(c, await econ()),
+      const e = await econ(), micro = microOf(d);
+      return json(200, { ok: true, ready: true, points: micro / MICRO, micro, ...pub(c, e),
+        withdrawable: e.withdrawOn ? Math.min(micro, await earnedOf(me.uid, d)) : null, verified: me.verified, adult: e.withdrawOn ? await adult(me.uid) : null,
         ads: { today: ads, left: Math.max(0, c.adsPerDay - ads), wait: Math.max(0, Math.ceil(((d.adsLast || 0) + c.adCooldown * 1000 - Date.now()) / 1000)) },
         ai: { used, limit: isPro(d) ? c.proAI : c.aiFree + extra, extra },
         pro: { active: isPro(d), until: d.proUntil || 0, status: d.proStatus || null, manage: !!d.proCustomer } });
@@ -592,6 +840,18 @@ export default async (req) => {
     if (path === '/play/start' && req.method === 'POST') return json(200, { ok: true, ...(await playStart(me, body)) });
     if (path === '/play/beat' && req.method === 'POST') return json(200, { ok: true, ...(await playBeat(me, body)) });
     if (path === '/play/end' && req.method === 'POST') return json(200, { ok: true, ...(await playBeat(me, body, { ending: true })) });
+    /* 💳 top-up and withdrawal */
+    if (path === '/money/quote' && req.method === 'POST') { const e = await econ(); return json(200, { ok: true, quote: pubQuote(quote(body.kind === 'withdraw' ? 'withdraw' : 'topup', body.anchor, body.amount, e.tokenPriceMicro), e.tokenPriceMicro) }); }
+    if (path === '/topup' && req.method === 'POST') return json(200, { ok: true, ...(await topupStart(me, body, url.origin)) });
+    if (path === '/withdraw' && req.method === 'POST') return json(200, { ok: true, ...(await withdrawStart(me, body)) });
+    if (path === '/withdraw/cancel' && req.method === 'POST') return json(200, { ok: true, ...(await withdrawBack(cleanTx(body.tx), 'canceled', me.uid, '', false)) });
+    if (path === '/transactions' && req.method === 'GET') return json(200, { ok: true, transactions: (await txQuery('uid', me.uid)).sort((a, b) => b.createdAt - a.createdAt).slice(0, 40).map(t => txOut(t)) });
+    if (path === '/withdrawals' && req.method === 'GET') { await mustOwn(me); return json(200, { ok: true, withdrawals: (await txQuery('queue', 'withdraw')).sort((a, b) => a.createdAt - b.createdAt).map(t => txOut(t, true)) }); }
+    if (path === '/withdraw/decide' && req.method === 'POST') {
+      await mustOwn(me);
+      const id = cleanTx(body.tx);
+      return json(200, { ok: true, ...(body.action === 'paid' ? await withdrawPaid(me, id, body.ref) : await withdrawBack(id, 'rejected', me.uid, body.why, true)) });
+    }
     if (path === '/pro/checkout' && req.method === 'POST') {
       if (!c.stripe) return fail(503, 'pro_off', 'اشتراك Pro غير مفعّل بعد على هذا الموقع (Stripe).');
       const d = await wallet(me.uid);
@@ -617,6 +877,7 @@ export default async (req) => {
 
 /* for the site's other server parts (challenges.js — challenge prizes): the same wallet, the same
    ledger, the same Firestore access — never a second points system */
-export { ready, getDoc, commit, put, create, preOf, runQuery, change, wallet, coded, base as fsBase, docName, accessToken, fromFs, econ, ECON, rid, today, who as pointsWho, fields as fsFields };
+export { ready, getDoc, commit, put, create, preOf, runQuery, change, wallet, coded, base as fsBase, docName, accessToken, fromFs, econ, ECON, rid, today, who as pointsWho, fields as fsFields,
+  MICRO, microOf, earnedOf, walletAfter, fmtFixed, moneyPub };
 
 export const config = { path: '/api/points/*' };

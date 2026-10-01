@@ -1950,6 +1950,31 @@ body.vt-dragging #sheet-root .sheet,body.vt-dragging #sheet-root .scrim{opacity:
 .mk-game{margin-bottom:8px;display:flex;flex-direction:column;gap:3px}
 .mk-pending{color:#fcd77a}
 /* /NX-CSS:42 */
+/* NX-CSS:43 · 💳 top-up and withdrawal — the two linked fields */
+.mn-card .mn-rate{font-size:12.5px;font-weight:800;color:#fde68a;unicode-bidi:plaintext}
+.mn-tabs{margin:10px 0}
+.mn-calc{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:end}
+.mn-calc label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-dim);min-width:0}
+.mn-calc input{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;text-align:left;min-width:0}
+.mn-eq{padding-bottom:12px;font-size:18px;color:var(--ink-dim)}
+.mn-how{margin:6px 0 2px;line-height:1.7}
+.mn-sum{margin:8px 0 2px;font-size:14px;font-weight:700;min-height:1.2em;unicode-bidi:plaintext}
+.mn-err{color:#fda4af;font-size:12.5px;min-height:1.1em;margin-bottom:6px}
+.mn-can{margin:4px 0 8px;line-height:1.7}
+.mn-can .btn{min-height:26px;padding:0 10px;margin-inline-start:4px}
+.mn-off{margin-top:8px;color:#fcd77a;line-height:1.7}
+.mn-off .btn{margin-inline-start:6px}
+.mn-box .field{margin-bottom:8px}
+.mn-list{display:flex;flex-direction:column;gap:8px}
+.mn-tx{padding:10px 12px;border-radius:12px;background:var(--panel-2);border:1px solid var(--line)}
+.mn-tx-top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.mn-tx-num{margin:4px 0;font-weight:700;font-variant-numeric:tabular-nums;direction:ltr;text-align:start;unicode-bidi:plaintext}
+.mn-st{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--glass-2)}
+.mn-tx.st-completed .mn-st,.mn-tx.st-paid .mn-st{color:#86efac}
+.mn-tx.st-pending .mn-st,.mn-tx.st-review .mn-st{color:#fcd77a}
+.mn-tx.st-rejected .mn-st,.mn-tx.st-failed .mn-st,.mn-tx.st-refunded .mn-st,.mn-tx.st-disputed .mn-st{color:#fda4af}
+@media (max-width:340px){.mn-calc{grid-template-columns:1fr}.mn-eq{display:none}}
+/* /NX-CSS:43 */
 </style>
 </head>
 <body>
@@ -5086,6 +5111,14 @@ service cloud.firestore {
     match /economy/{doc} {
       allow get: if doc == 'config';
       allow list, write: if false;
+    }
+    // ---------------------------------------------------------------- 💳 top-up and withdrawal (PART 43)
+    // one row per top-up or withdrawal (type, status, the tokens and dollars of both sides, the price used):
+    // written ONLY by the server (points.js) after it worked the amounts out itself; its owner reads it
+    match /transactions/{tx} {
+      allow get: if signedIn() && (resource == null || resource.data.uid == me());
+      allow list: if signedIn() && resource.data.uid == me();
+      allow write: if false;
     }
     // the server's own bookkeeping: ad sessions, AdMob transactions, upload
     // tickets, play marks, Stripe events — no browser reads or writes them
@@ -32546,7 +32579,8 @@ NX.AppEditor = AppEditor;
 <!-- NX-PART:34 -->
 <script type="module">
 /* ============================================================
-   PART 34 · POINTS — the site's own currency (not money).
+   PART 34 · POINTS — the site's own currency: a point is a token priced BASE_TOKEN_PRICE_USD,
+   bought for any amount and (when earned) withdrawn — PART 43; the balance is exact (millionths).
    The balance and its history live in Firestore wallets/<uid>; this page
    can only READ them. Every change is made by the site's server
    (netlify/edge-functions/points.js) and the rules refuse any browser write.
@@ -32571,7 +32605,11 @@ const HOSTED = /\.(html?|png|jpe?g|gif|webp|svg|json|js|css|zip|txt|mp3|ogg|wav|
 const AS_TEXT = /\.(html?|xhtml|svg|xml)$/i;                   // stored as text/plain: they run in NEXUS's sandbox, not on the bucket
 const REASON = { welcome: '🎁 هدية الترحيب', ad: '📺 إعلان', upload: '📎 رفع ملف', refund: '↩ استرجاع', ai: '🤖 طلبات ذكاء', pro: '⭐ Pro', challenge: '🏆 جائزة تحدٍّ', 'challenge-escrow': '🔒 جائزة تحدٍّ محجوزة',
   /* PART 42: Play Rewards, and the marketplace — in the reader's language */
-  get play() { return '🎮 ' + NX.T('MK_R_PLAY'); }, get market_sale() { return '💰 ' + NX.T('MK_R_SALE'); }, get market_buy() { return '🛒 ' + NX.T('MK_R_BUY'); } };
+  get play() { return '🎮 ' + NX.T('MK_R_PLAY'); }, get market_sale() { return '💰 ' + NX.T('MK_R_SALE'); }, get market_buy() { return '🛒 ' + NX.T('MK_R_BUY'); },
+  /* PART 43: top-up and withdrawal */
+  get topup() { return '💳 ' + NX.T('MN_R_TOPUP'); }, get withdraw() { return '🏦 ' + NX.T('MN_R_WD'); }, get withdraw_back() { return '↩ ' + NX.T('MN_R_WD_BACK'); }, get topup_back() { return '↩ ' + NX.T('MN_R_TOPUP_BACK'); } };
+/* a ledger line's amount, exact (millionths of a token when the server wrote them — PART 43) */
+const deltaOf = x => Number.isInteger(x.micro) && NX.Money ? NX.Money.fmtFixed(x.micro, 6) : String(x.delta);
 const fmtDate = t => { try { return new Date(t).toLocaleDateString('ar', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return ''; } };
 
 const Points = {
@@ -32725,7 +32763,9 @@ const Points = {
       body.appendChild(el('div', { class: 'pts-head' }, [
         el('div', { class: 'pts-big' }, [el('span', { class: 'pts-live', text: String(m.points) }), el('small', { text: ' نقطة' })]),
         pro ? el('span', { class: 'pts-pro', text: '⭐ Pro حتى ' + fmtDate(m.pro.until) }) : el('span')]));
-      body.appendChild(el('p', { class: 'tiny', style: { margin: '2px 0 12px' }, text: 'النقاط داخل الموقع فقط — ليست مالًا ولا تُحوَّل إلى مال.' }));
+      body.appendChild(el('p', { class: 'tiny pts-rate', style: { margin: '2px 0 12px' }, text: m.money ? NX.T('MN_LINE', { price: m.money.price }) : 'النقاط داخل الموقع فقط — ليست مالًا ولا تُحوَّل إلى مال.' }));
+      /* 💳 top-up and withdrawal — any amount, both ways (PART 43) */
+      if (NX.Money && m.money) body.appendChild(NX.Money.card(m));
 
       /* earn */
       const ad = el('div', { class: 'card pts-card' });
@@ -32772,7 +32812,7 @@ const Points = {
         if (q.empty) hist.appendChild(el('p', { class: 'tiny', text: 'لا حركات بعد.' }));
         q.forEach(d => { const x = d.data(); hist.appendChild(el('div', { class: 'pts-line' }, [
           el('span', { text: (REASON[x.reason] || x.reason) + (x.note && x.reason !== 'welcome' ? ' — ' + x.note : '') }),
-          el('b', { class: x.delta >= 0 ? 'plus' : 'minus', text: (x.delta >= 0 ? '+' : '') + x.delta }),
+          el('b', { class: x.delta >= 0 ? 'plus' : 'minus', text: (x.delta >= 0 ? '+' : '') + deltaOf(x) }),
           el('small', { text: timeAgo(x.at) })])); });
       } catch (e) { hist.appendChild(el('p', { class: 'tiny', text: 'تعذّر تحميل السجلّ: ' + NX.describeFirebaseError(e) })); }
       this.paint();
@@ -38767,7 +38807,12 @@ const Market = {
     ['gameDayPoints', 'MK_E_GDAY', c => c.play.gameDayPoints], ['creatorDayPoints', 'MK_E_CDAY', c => c.play.creatorDayPoints],
     ['minAccountAgeHours', 'MK_E_AGE', c => c.play.minAccountAgeHours], ['verifiedOnly', 'MK_E_VERIFIED', c => c.play.verifiedOnly ? 1 : 0],
     ['marketOn', 'MK_E_MARKET', c => c.market ? 1 : 0], ['minPrice', 'MK_E_MIN', c => c.minPrice], ['maxPrice', 'MK_E_MAX', c => c.maxPrice],
-    ['feePercent', 'MK_E_FEE', c => c.feePercent], ['buyerMinAgeHours', 'MK_E_BUYER_AGE', c => c.buyerMinAgeHours]],
+    ['feePercent', 'MK_E_FEE', c => c.feePercent], ['buyerMinAgeHours', 'MK_E_BUYER_AGE', c => c.buyerMinAgeHours],
+    /* 💳 PART 43: the token's price (dollars) and the top-up / withdrawal limits (dollars) — the server keeps them exact */
+    ['tokenPriceMicro', 'MN_E_PRICE', c => c.money ? c.money.price : ''], ['topupOn', 'MN_E_TOPUP', c => c.money ? (c.money.topup.enabled ? 1 : 0) : ''],
+    ['topupMinCents', 'MN_E_TMIN', c => c.money ? c.money.topup.min : ''], ['topupMaxCents', 'MN_E_TMAX', c => c.money ? c.money.topup.max : ''],
+    ['withdrawOn', 'MN_E_WD', c => c.money ? (c.money.withdraw.on ? 1 : 0) : ''], ['withdrawMinCents', 'MN_E_WMIN', c => c.money ? c.money.withdraw.min : ''],
+    ['withdrawMaxCents', 'MN_E_WMAX', c => c.money ? c.money.withdraw.max : ''], ['withdrawMinAgeDays', 'MN_E_WAGE', c => c.money ? c.money.withdraw.minAgeDays : '']],
   async openEconomy() {
     const c = await this.config(true);
     if (!c.owner) { Toast.err(T('MK_ECO_OWNER')); return; }
@@ -38775,7 +38820,7 @@ const Market = {
     body.appendChild(el('p', { class: 'tiny', text: T('MK_ECO_INTRO') }));
     const inputs = {};
     this.FIELDS.forEach(([k, label, get]) => {
-      const i = el('input', { class: 'input', type: 'number', dir: 'ltr', value: String(get(c)), dataset: { k } });
+      const i = el('input', { class: 'input', type: 'number', step: 'any', dir: 'ltr', value: String(get(c)), dataset: { k } });
       inputs[k] = i;
       body.appendChild(NX.field(T(label), i));
     });
@@ -38875,6 +38920,257 @@ NX.Market = Market;
 NX.PlayTimer = PlayTimer;
 </script>
 <!-- /NX-PART:42 -->
+<!-- NX-PART:43 -->
+<script type="module">
+/* ============================================================
+   PART 43 · 💳 TOP-UP AND WITHDRAWAL — any amount, both ways (a custom amount calculator, no packs)
+   One price: 1 token (= 1 NEXUS Point) = BASE_TOKEN_PRICE_USD — 0.01 unless the site's server says otherwise (a
+   Netlify variable, or the owner in «⚙️ NEXUS economy»). Two linked fields: write dollars → tokens = dollars ÷ price
+   at once; write tokens → dollars = tokens × price at once; fractions of a token (0.5 · 0.25 …) to the millionth.
+   The sums are the server's own (points.js · EXACT AMOUNTS), done here in the same integers (BigInt) only to show
+   them: the page sends what was typed and the numbers it showed; the server does the sums again, and a page that
+   was changed gets «quote_changed» with the right numbers. Nothing here writes a balance (firestore.rules).
+   • Top-up → Stripe's own page for exactly that amount → the tokens when Stripe tells the server it is paid.
+   • Withdrawal → earned tokens only, held at once; the site's owner pays and marks it (🏦 withdrawal requests).
+   • 🧾 Transactions: every top-up and withdrawal with its status (transactions/<id>).
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, Sheet, Modal, Toast, Backend } = NX;
+const T = (k, v) => NX.T(k, v);
+const ago = t => NX.timeAgo ? NX.timeAgo(t) : new Date(t).toLocaleString();
+
+/* ---------------- the very sums of the server (points.js · EXACT AMOUNTS) ---------------- */
+const PER_CENT = 10000000000n;                         // micro-tokens × micro-dollars in one cent
+const DIGITS = /[٠-٩۰-۹०-९]/g;
+function fixed(s, places) {
+  let t = String(s == null ? '' : s).trim().replace(DIGITS, c => { const n = c.charCodeAt(0); return String(n - (n >= 0x966 ? 0x966 : n >= 0x6F0 ? 0x6F0 : 0x660)); })
+    .replace(/٫/g, '.').replace(/[\s٬_'’]/g, '');
+  if (t.includes('.')) t = t.replace(/,/g, ''); else if ((t.match(/,/g) || []).length === 1) t = t.replace(',', '.');
+  const m = /^(\d{0,9})(?:\.(\d*))?$/.exec(t);
+  if (!m || !(m[1] || m[2]) || (m[2] || '').length > places) return null;
+  return Number(BigInt(m[1] || '0') * 10n ** BigInt(places) + BigInt(((m[2] || '') + '0'.repeat(places)).slice(0, places)));
+}
+function fmtFixed(n, places, keep) {
+  const s = String(Math.abs(Math.round(n))).padStart(places + 1, '0');
+  let f = s.slice(s.length - places);
+  if (!keep) f = f.replace(/0+$/, '');
+  return (n < 0 ? '-' : '') + s.slice(0, s.length - places) + (f ? '.' + f : '');
+}
+const divUp = (a, b) => (a + b - 1n) / b;
+const toMicro = (cents, price, up) => Number(up ? divUp(BigInt(cents) * PER_CENT, BigInt(price)) : BigInt(cents) * PER_CENT / BigInt(price));
+const toCents = (micro, price, up) => Number(up ? divUp(BigInt(micro) * BigInt(price), PER_CENT) : BigInt(micro) * BigInt(price) / PER_CENT);
+/* kind 'topup' | 'withdraw' · anchor 'usd' | 'tokens' — the side typed is exact, the other rounded as the server does */
+function quote(kind, anchor, amount, price) {
+  const topup = kind === 'topup';
+  if (anchor === 'usd') { const cents = fixed(amount, 2); return cents == null ? { error: 'amount_usd' } : { anchor, cents, micro: toMicro(cents, price, !topup) }; }
+  const micro = fixed(amount, 6);
+  return micro == null ? { error: 'amount_tokens' } : { anchor: 'tokens', micro, cents: toCents(micro, price, topup) };
+}
+/* 1234567.5 → "1,234,567.5" (for reading — the fields keep plain digits) */
+const group = s => String(s).replace(/^(-?\d+)/, d => d.replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+const tok = micro => group(fmtFixed(micro, 6));
+const usd = cents => group(fmtFixed(cents, 2, true));
+const ERR = { amount_usd: 'MN_ERR_USD', amount_tokens: 'MN_ERR_TOKENS', topup_off: 'MN_TOPUP_OFF', topup_stripe: 'MN_TOPUP_NOSTRIPE', withdraw_off: 'MN_WD_OFF',
+  withdraw_verify: 'MN_WD_VERIFY', withdraw_age: 'MN_WD_AGE', withdraw_to: 'MN_WD_TO', tx_closed: 'MN_TX_CLOSED' };
+const STATUS = { pending: 'MN_S_PENDING', completed: 'MN_S_COMPLETED', paid: 'MN_S_PAID', rejected: 'MN_S_REJECTED', canceled: 'MN_S_CANCELED', expired: 'MN_S_EXPIRED',
+  failed: 'MN_S_FAILED', review: 'MN_S_REVIEW', refunded: 'MN_S_REFUNDED', disputed: 'MN_S_DISPUTED' };
+const METHODS = () => [['paypal', 'PayPal'], ['bank', T('MN_M_BANK')], ['other', T('MN_M_OTHER')]];
+
+const Money = {
+  quote, fixed, fmtFixed,
+  api: (path, body) => NX.Points.api(path, body),
+  /* a server refusal in the reader's language (the server's own words when there is no key for it) */
+  say(e, m) {
+    const d = (e && e.data) || {};
+    if (e && e.code === 'amount_range') return T('MN_RANGE', { min: d.min || '', max: d.max || '' });
+    if (e && e.code === 'withdraw_more') return T('MN_MORE', { n: d.withdrawable || '0' });
+    if (e && e.code === 'withdraw_new') return T('MN_WD_NEW', { n: (m && m.money && m.money.withdraw.minAgeDays) || '' });
+    if (e && e.code === 'quote_changed') return T('MN_CHANGED', { price: (d.quote && d.quote.price) || '' });
+    return e && ERR[e.code] ? T(ERR[e.code]) : (e && e.message) || String(e);
+  },
+
+  /* ---------------- the wallet's card: the rate, ⬆ top-up / ⬇ withdraw, the transactions ---------------- */
+  card(m) {
+    const money = m.money, wrap = el('div', { class: 'card pts-card mn-card' });
+    wrap.appendChild(el('div', { class: 'row', style: { justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' } }, [
+      el('b', { text: '💳 ' + T('MN_TITLE') }), el('span', { class: 'mn-rate', text: T('MN_RATE', { price: money.price }) })]));
+    const tabs = el('div', { class: 'seg mn-tabs' }), pane = el('div', { class: 'mn-pane' });
+    let kind = this._kind || 'topup';
+    const show = k => {
+      kind = this._kind = k;
+      tabs.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
+      pane.textContent = '';
+      pane.appendChild(this.calc(k, m));
+    };
+    [['topup', '⬆ ' + T('MN_TOPUP')], ['withdraw', '⬇ ' + T('MN_WITHDRAW')]].forEach(([k, label]) => {
+      const b = btn(label, { cls: 'sm mn-tab', onclick: () => show(k) });
+      b.dataset.k = k;
+      tabs.appendChild(b);
+    });
+    wrap.append(tabs, pane);
+    const links = el('div', { class: 'row', style: { gap: '6px', flexWrap: 'wrap', marginTop: '10px' } }, [btn('🧾 ' + T('MN_TX'), { cls: 'sm ghost mn-txbtn', onclick: () => this.transactions() })]);
+    if (NX.Market && NX.Market.isOwner()) links.appendChild(btn('🏦 ' + T('MN_QUEUE'), { cls: 'sm ghost mn-queuebtn', onclick: () => this.queue() }));
+    wrap.appendChild(links);
+    show(kind);
+    return wrap;
+  },
+
+  /* the two linked fields: dollars ⇄ tokens, both ways, as you type */
+  calc(kind, m) {
+    const money = m.money, price = money.priceMicro, topup = kind === 'topup';
+    const lim = topup ? money.topup : money.withdraw;
+    const box = el('div', { class: 'mn-box mn-' + kind });
+    const $ = el('input', { class: 'input mn-usd', inputmode: 'decimal', autocomplete: 'off', dir: 'ltr', placeholder: '0.00', 'aria-label': T('MN_USD') });
+    const t = el('input', { class: 'input mn-tok', inputmode: 'decimal', autocomplete: 'off', dir: 'ltr', placeholder: '0', 'aria-label': T('MN_TOKENS') });
+    box.appendChild(el('div', { class: 'mn-calc' }, [
+      el('label', {}, [el('span', { text: T('MN_USD') }), $]), el('span', { class: 'mn-eq', text: '⇄' }), el('label', {}, [el('span', { text: '🪙 ' + T('MN_TOKENS') }), t])]));
+    box.appendChild(el('div', { class: 'tiny mn-how', text: T(topup ? 'MN_HOW_TOPUP' : 'MN_HOW_WD', { price: '$' + money.price }) }));
+    const sum = el('div', { class: 'mn-sum' }), err = el('div', { class: 'mn-err' });
+    box.append(sum, err);
+    /* a withdrawal: how much may leave, where it goes */
+    const can = m.withdrawable;
+    let method, payTo;
+    if (!topup) {
+      if (can != null) box.appendChild(el('div', { class: 'tiny mn-can' }, [el('span', { text: T('MN_CAN', { n: tok(can), usd: usd(toCents(can, price, false)) }) + ' ' }),
+        btn(T('MN_ALL'), { cls: 'sm ghost mn-all', onclick: () => { t.value = fmtFixed(can, 6); state.anchor = 'tokens'; paint(); } })]));
+      method = el('select', { class: 'input mn-method' }, METHODS().map(([v, label]) => el('option', { value: v, text: label })));
+      payTo = el('input', { class: 'input mn-payto', dir: 'ltr', autocomplete: 'off', maxlength: 160, placeholder: 'name@example.com · IBAN …' });
+      box.append(NX.field(T('MN_METHOD'), method), NX.field(T('MN_PAYTO'), payTo));
+    }
+    /* why it cannot be done here (the calculator still works — a preview) */
+    let off = null, fix = null;
+    if (topup && !money.topup.enabled) off = T('MN_TOPUP_OFF');
+    else if (topup && !money.topup.stripe) off = T('MN_TOPUP_NOSTRIPE');
+    else if (!topup && !money.withdraw.on) off = T('MN_WD_OFF');
+    else if (!topup && m.verified === false) off = T('MN_WD_VERIFY');
+    else if (!topup && m.adult === false) {
+      off = T('MN_WD_AGE');
+      if (NX.Age) fix = btn(T('MN_WD_BIRTH'), { cls: 'sm', onclick: async () => { if (await NX.Age.askBirth()) { await NX.Points.refresh(); NX.Points.redraw && NX.Points.redraw(); } } });
+    }
+    const go = btn('…', { cls: 'primary block mn-go', onclick: () => topup ? this.topup(state, m, go, $, t) : this.withdraw(state, m, go, { method, payTo }, $, t) });
+    box.appendChild(go);
+    if (off) box.appendChild(el('div', { class: 'tiny mn-off' }, [el('span', { text: off })].concat(fix ? [fix] : [])));
+    const state = { kind, anchor: null, q: null };
+    const paint = () => {
+      const typed = state.anchor === 'usd' ? $.value : t.value;
+      const q = state.anchor && typed.trim() ? quote(kind, state.anchor, typed, price) : null;
+      state.q = q && !q.error ? q : null;
+      /* the other field follows */
+      if (state.anchor === 'usd') t.value = state.q ? fmtFixed(state.q.micro, 6) : '';
+      if (state.anchor === 'tokens') $.value = state.q ? fmtFixed(state.q.cents, 2, true) : '';
+      let bad = q && q.error ? T(ERR[q.error]) : '';
+      if (state.q && !bad && (state.q.cents < lim.minCents || state.q.cents > lim.maxCents || !(state.q.micro > 0))) bad = T('MN_RANGE', { min: lim.min, max: lim.max });
+      if (state.q && !bad && !topup && can != null && state.q.micro > can) bad = T('MN_MORE', { n: tok(can) });
+      err.textContent = bad;
+      sum.textContent = state.q ? T(topup ? 'MN_SUM_TOPUP' : 'MN_SUM_WD', { usd: usd(state.q.cents), tokens: tok(state.q.micro) }) : '';
+      go.lastChild.textContent = T(topup ? 'MN_PAY' : 'MN_ASK', { usd: state.q ? usd(state.q.cents) : '0.00' });
+      go.disabled = !!(off || !state.q || bad);
+    };
+    $.addEventListener('input', () => { state.anchor = 'usd'; paint(); });
+    t.addEventListener('input', () => { state.anchor = 'tokens'; paint(); });
+    /* what was typed before the wallet was drawn again (a changed price) */
+    if (this._keep && this._keep.kind === kind) { (this._keep.anchor === 'usd' ? $ : t).value = this._keep.value; state.anchor = this._keep.anchor; this._keep = null; }
+    paint();
+    box._paint = paint;
+    return box;
+  },
+  /* the server's numbers came back different (the price changed meanwhile): the wallet again at the new price,
+     what was typed kept — shown, and asked again */
+  adopt(e, kind) {
+    const q = e && e.data && e.data.quote;
+    if (!q) return;
+    this._keep = { kind, anchor: q.anchor, value: q.anchor === 'usd' ? q.usd : q.tokens };
+    NX.Points.refresh().then(() => NX.Points.redraw && NX.Points.redraw());
+  },
+  expectOf: (q, m) => ({ micro: q.micro, cents: q.cents, priceMicro: m.money.priceMicro }),
+
+  /* ⬆ top-up: Stripe's page for exactly the server's amount */
+  async topup(state, m, go, $, t) {
+    const q = state.q; if (!q) return;
+    go.disabled = true;
+    try {
+      const r = await this.api('/topup', { anchor: q.anchor, amount: q.anchor === 'usd' ? $.value : t.value, expect: this.expectOf(q, m), back: location.pathname + location.search });
+      Toast.show(T('MN_REDIRECT'));
+      location.href = r.url;                               // Stripe's own page (NEXUS never sees the card)
+    } catch (e) {
+      Toast.err(this.say(e, m));
+      if (e.code === 'quote_changed') this.adopt(e, 'topup');
+      go.disabled = false;
+    }
+  },
+  /* ⬇ withdrawal: confirmed, then held at once */
+  async withdraw(state, m, go, { method, payTo }, $, t) {
+    const q = state.q; if (!q) return;
+    const how = METHODS().find(x => x[0] === method.value) || ['other', ''];
+    if (payTo.value.trim().length < 3) { Toast.err(T('MN_WD_TO')); payTo.focus(); return; }
+    if (!(await Modal.confirm('⬇ ' + T('MN_WITHDRAW'), T('MN_WD_CONFIRM', { tokens: tok(q.micro), usd: usd(q.cents), method: how[1] }), T('MN_ASK', { usd: usd(q.cents) })))) return;
+    go.disabled = true;
+    try {
+      await this.api('/withdraw', { anchor: q.anchor, amount: q.anchor === 'usd' ? $.value : t.value, expect: this.expectOf(q, m), method: method.value, payTo: payTo.value.trim() });
+      Toast.ok('✓ ' + T('MN_WD_SENT'));
+      await NX.Points.refresh(); NX.Points.redraw && NX.Points.redraw();
+    } catch (e) {
+      Toast.err(this.say(e, m));
+      if (e.code === 'quote_changed') this.adopt(e, 'withdraw');
+      go.disabled = false;
+    }
+  },
+
+  /* ---------------- 🧾 the person's transactions ---------------- */
+  row(x, actions) {
+    return el('div', { class: 'mn-tx st-' + x.status, dataset: { tx: x.id } }, [
+      el('div', { class: 'mn-tx-top' }, [el('b', { text: T(x.type === 'topup' ? 'MN_T_TOPUP' : 'MN_T_WD') }),
+        el('span', { class: 'mn-st', text: T(STATUS[x.status] || 'MN_S_PENDING') })]),
+      el('div', { class: 'mn-tx-num', text: (x.type === 'topup' ? '+' : '−') + tok(x.micro) + ' 🪙  ·  $' + usd(x.cents) + '  ·  1 = $' + x.price }),
+      el('div', { class: 'tiny', text: ago(x.createdAt) + (x.method ? ' · ' + (x.method === 'paypal' ? 'PayPal' : x.method === 'bank' ? T('MN_M_BANK') : T('MN_M_OTHER')) + (x.payTo ? ' → ' + x.payTo : '') : '')
+        + (x.ref ? ' · ' + x.ref : '') + (x.why ? ' · ' + x.why : '') + (x.email ? ' · ' + x.email : '') })].concat(actions ? [actions] : []));
+  },
+  async transactions() {
+    const body = el('div', { class: 'mn-list' });
+    Sheet.open({ title: '🧾 ' + T('MN_TX'), body, id: 'money-tx' });
+    const draw = async () => {
+      body.textContent = '';
+      let list;
+      try { list = (await this.api('/transactions')).transactions; } catch (e) { body.appendChild(el('p', { class: 'tiny', text: this.say(e) })); return; }
+      if (!list.length) body.appendChild(el('p', { class: 'tiny', text: T('MN_TX_NONE') }));
+      list.forEach(x => body.appendChild(this.row(x, x.type === 'withdraw' && x.status === 'pending' ? btn(T('MN_CANCEL_WD'), { cls: 'sm ghost mn-cancel', onclick: async e => {
+        e.currentTarget.disabled = true;
+        try { await this.api('/withdraw/cancel', { tx: x.id }); Toast.ok('↩ ' + T('MN_CANCELED')); await NX.Points.refresh(); NX.Points.redraw && NX.Points.redraw(); }
+        catch (err) { Toast.err(this.say(err)); }
+        draw();
+      } }) : null)));
+    };
+    draw();
+  },
+
+  /* ---------------- 🏦 withdrawal requests — the site's owner (the server checks) ---------------- */
+  async queue() {
+    const body = el('div', { class: 'mn-list' });
+    Sheet.open({ title: '🏦 ' + T('MN_QUEUE'), body, id: 'money-queue', full: true });
+    const draw = async () => {
+      body.textContent = '';
+      body.appendChild(el('p', { class: 'tiny', text: T('MN_QUEUE_HOW') }));
+      let list;
+      try { list = (await this.api('/withdrawals')).withdrawals; } catch (e) { body.appendChild(el('p', { class: 'tiny', text: this.say(e) })); return; }
+      if (!list.length) body.appendChild(el('p', { class: 'tiny mn-qnone', text: T('MN_QUEUE_NONE') }));
+      list.forEach(x => {
+        const decide = async (action, extra) => {
+          try { await this.api('/withdraw/decide', Object.assign({ tx: x.id, action }, extra)); Toast.ok('✓'); }
+          catch (err) { Toast.err(this.say(err)); }
+          draw();
+        };
+        body.appendChild(this.row(x, el('div', { class: 'row', style: { gap: '6px', marginTop: '6px' } }, [
+          btn(T('MN_PAID_BTN'), { cls: 'sm primary mn-paid', onclick: async () => { const ref = await Modal.prompt(T('MN_REF_ASK'), '', 'PAYPAL-…'); if (ref != null) decide('paid', { ref }); } }),
+          btn(T('MN_REJECT_BTN'), { cls: 'sm ghost mn-reject', onclick: async () => { const why = await Modal.prompt(T('MN_WHY_ASK'), '', ''); if (why != null) decide('reject', { why }); } })])));
+      });
+    };
+    draw();
+  }
+};
+
+NX.Money = Money;
+</script>
+<!-- /NX-PART:43 -->
 
 
 <script>

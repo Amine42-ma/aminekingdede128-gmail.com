@@ -504,6 +504,14 @@ service cloud.firestore {
       allow get: if doc == 'config';
       allow list, write: if false;
     }
+    // ---------------------------------------------------------------- 💳 top-up and withdrawal (PART 43)
+    // one row per top-up or withdrawal (type, status, the tokens and dollars of both sides, the price used):
+    // written ONLY by the server (points.js) after it worked the amounts out itself; its owner reads it
+    match /transactions/{tx} {
+      allow get: if signedIn() && (resource == null || resource.data.uid == me());
+      allow list: if signedIn() && resource.data.uid == me();
+      allow write: if false;
+    }
     // the server's own bookkeeping: ad sessions, AdMob transactions, upload
     // tickets, play marks, Stripe events — no browser reads or writes them
     match /ad_sessions/{id}     { allow read, write: if false; }

@@ -28,7 +28,8 @@
    MARKET_FEE_PERCENT · MARKET_MIN_BUYER_AGE_HOURS (and PLAY_* for Play Rewards).
    ============================================================ */
 import { aiWho, aiOwner } from './ai.js';
-import { ready as fsReady, getDoc, commit, put, create, preOf, wallet, coded, fsBase, docName, accessToken, econ, ECON, rid, fsFields } from './points.js';
+import { ready as fsReady, getDoc, commit, put, create, preOf, wallet, coded, fsBase, docName, accessToken, econ, ECON, rid, fsFields,
+  MICRO, microOf, earnedOf, walletAfter, fmtFixed, moneyPub } from './points.js';
 
 const json = (status, obj) => new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const fail = (status, code, message, extra = {}) => json(status, Object.assign({ ok: false, error: { code, message } }, extra));
@@ -41,7 +42,8 @@ const pubEcon = e => ({ market: !!e.marketOn, minPrice: e.minPrice, maxPrice: e.
   buyerMinAgeHours: e.buyerMinAgeHours, currency: 'NEXUS_POINTS',
   play: { intervalMinutes: e.playIntervalMinutes, points: e.playPoints, playerGameMinutes: e.playerGameMinutes, playerDayMinutes: e.playerDayMinutes,
     gameDayPoints: e.gameDayPoints, creatorDayPoints: e.creatorDayPoints, heartbeatSeconds: e.heartbeatSeconds, sessionMaxMinutes: e.sessionMaxMinutes,
-    minAccountAgeHours: e.minAccountAgeHours, verifiedOnly: !!e.verifiedOnly } });
+    minAccountAgeHours: e.minAccountAgeHours, verifiedOnly: !!e.verifiedOnly },
+  money: moneyPub(e) });
 
 /* a display name: the public profile (users/<uid>.name) */
 async function nameOf(uid) { const u = await getDoc('users/' + uid, ['name']).catch(() => ({ exists: false })); return short(u.exists && u.data.name || 'player', 60); }
@@ -102,21 +104,23 @@ async function buy(me, b) {
     if (!g.exists || g.data.ownerId !== seller || g.data.visibility === 'private') throw coded(404, 'not_for_sale', 'هذا المشروع ليس للبيع الآن.');
     await wallet(me.uid); await wallet(seller);                   // both wallets exist (a first visit: its welcome gift first)
     const [wb, ws] = await Promise.all([getDoc('wallets/' + me.uid), getDoc('wallets/' + seller)]);
-    const now = Date.now(), have = wb.data.points || 0;
+    /* the balances in exact millionths (points.js: EXACT AMOUNTS) — written whole, under each wallet's precondition */
+    const now = Date.now(), have = microOf(wb.data), need = price * MICRO;
     if (e.buyerMinAgeHours && (now - (wb.data.createdAt || now)) / 3600e3 < e.buyerMinAgeHours) throw coded(403, 'too_new', 'الحسابات الجديدة تشتري بعد ' + e.buyerMinAgeHours + ' ساعة.');
-    if (have < price) throw coded(402, 'not_enough', 'رصيدك ' + have + ' نقطة — تحتاج ' + price + '.', { points: have, need: price });
+    if (have < need) throw coded(402, 'not_enough', 'رصيدك ' + fmtFixed(have, 6) + ' نقطة — تحتاج ' + price + '.', { points: have / MICRO, need: price });
     const fee = Math.floor(price * e.feePercent / 100), gets = price - fee, title = short(L.data.title, 120);
+    const [eb, es] = await Promise.all([earnedOf(me.uid, wb.data), earnedOf(seller, ws.data)]);
     const rec = { transactionId: tid, buyerUid: me.uid, buyerName, sellerUid: seller, sellerName: short(L.data.creatorName, 60), gameId: gid, projectId: L.data.projectId || null,
       title, price, fee, sellerGets: gets, currency: 'NEXUS_POINTS', timestamp: now, status: 'done' };
     const writes = [
-      put('wallets/' + me.uid, { updatedAt: now }, { pre: preOf(wb), incr: { points: -price } }),
-      create('wallets/' + me.uid + '/ledger/' + now + '_' + rid(6), { delta: -price, reason: 'market_buy', note: title, at: now, tx: tid }),
-      put('wallets/' + seller, { updatedAt: now }, { pre: preOf(ws), incr: gets ? { points: gets } : null }),
+      put('wallets/' + me.uid, Object.assign({ updatedAt: now }, walletAfter(wb.data, eb, -need, 'market_buy')), { pre: preOf(wb) }),
+      create('wallets/' + me.uid + '/ledger/' + now + '_' + rid(6), { delta: -price, micro: -need, reason: 'market_buy', note: title, at: now, tx: tid }),
+      put('wallets/' + seller, Object.assign({ updatedAt: now }, gets ? walletAfter(ws.data, es, gets * MICRO, 'market_sale') : {}), { pre: preOf(ws) }),
       create('market_tx/' + tid, rec),
       create('purchases/' + me.uid + '_' + gid, Object.assign({ purchaseId: me.uid + '_' + gid, access: 'copy', copyProjectId: null, coverURL: L.data.coverURL || null, thumbURL: L.data.thumbURL || null }, rec)),
       put('market/' + gid, { lastSaleAt: now }, { pre: preOf(L), incr: { sales: 1, revenue: gets } })
     ];
-    if (gets) writes.splice(3, 0, create('wallets/' + seller + '/ledger/' + now + '_' + rid(6), { delta: gets, reason: 'market_sale', note: title + ' ← @' + buyerName, at: now, tx: tid }));
+    if (gets) writes.splice(3, 0, create('wallets/' + seller + '/ledger/' + now + '_' + rid(6), { delta: gets, micro: gets * MICRO, reason: 'market_sale', note: title + ' ← @' + buyerName, at: now, tx: tid }));
     const r = await commit(writes);
     if (r.ok) {
       /* the seller hears of it; the buyer gets their copy (again later if this fails — the licence is kept) */
@@ -124,7 +128,7 @@ async function buy(me, b) {
       await commit([create('users/' + seller + '/notifications/' + nid, { id: nid, type: 'market', event: 'sale', actorId: me.uid, actorName: buyerName, gameId: gid, title, points: gets, at: now, read: false })]).catch(() => {});
       let copyProjectId = null;
       try { copyProjectId = await makeCopy(me.uid, buyerName, rec); } catch (err) { console.error('[market] copy', err && err.message); }
-      return Object.assign(outOf(rec), { copyProjectId, points: have - price });
+      return Object.assign(outOf(rec), { copyProjectId, points: (have - need) / MICRO });
     }
     if (!r.conflict) throw coded(503, 'store', 'تعذّر إتمام الشراء (' + r.status + ') — لم يُخصم شيء.');
   }
@@ -189,12 +193,12 @@ async function setConfig(me, b) {
   const cur = await getDoc('economy/config');
   const v = Object.assign({}, cur.exists ? cur.data : {});
   const patch = b.values || {};
-  for (const [k, [, , lo, hi]] of Object.entries(ECON)) {
+  for (const [k, [, , lo, hi, scale = 1]] of Object.entries(ECON)) {
     if (!(k in patch)) continue;
     if (patch[k] === null || patch[k] === '') { delete v[k]; continue; }             // back to the Netlify variable / the default
-    const n = +patch[k];
-    if (!Number.isFinite(n) || n < lo || n > hi) throw coded(400, 'value', k + ': بين ' + lo + ' و' + hi, { key: k, min: lo, max: hi });
-    v[k] = Math.round(n);
+    const n = Math.round(+patch[k] * scale);                                         // dollars → cents · micro-dollars (the 5th number)
+    if (!Number.isFinite(n) || n < lo || n > hi) throw coded(400, 'value', k + ': بين ' + lo / scale + ' و' + hi / scale, { key: k, min: lo / scale, max: hi / scale });
+    v[k] = n;
   }
   if ('pricePresets' in patch) {
     const list = Array.isArray(patch.pricePresets) ? patch.pricePresets : String(patch.pricePresets || '').split(/[\s,;]+/);

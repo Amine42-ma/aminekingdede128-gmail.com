@@ -14,6 +14,7 @@
    Nothing here talks to the internet.
    ============================================================ */
 import http from 'node:http';
+import crypto from 'node:crypto';
 
 export function startWorld() {
   const W = {
@@ -205,11 +206,55 @@ export const fsInt = n => ({ integerValue: String(n) });
 export const fsStr = s => ({ stringValue: s });
 
 /* a sign-in token as the Firebase emulator makes it (unsigned — accepted only in a test run) */
-export function token(uid, { project = 'demo-nexus', email = uid + '@example.com', provider = 'google.com' } = {}) {
+export function token(uid, { project = 'demo-nexus', email = uid + '@example.com', provider = 'google.com', verified = true } = {}) {
   const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
   const now = Math.floor(Date.now() / 1000);
   return b64({ alg: 'none', typ: 'JWT' }) + '.' + b64({ aud: project, iss: 'https://securetoken.google.com/' + project, sub: uid, iat: now, exp: now + 3600,
-    email, email_verified: true, firebase: { sign_in_provider: provider } }) + '.';
+    email, email_verified: verified, firebase: { sign_in_provider: provider } }) + '.';
+}
+
+/* ---------------- 💳 a fake Stripe: Checkout sessions (STRIPE_API_BASE), its payment page, and the SIGNED
+   webhook a payment sends to the site (STRIPE_WEBHOOK_SECRET) — what NEXUS's server sees from the real one ---------------- */
+export async function fakeStripe(secret = 'whsec_nexus_test') {
+  const S = { sessions: new Map(), calls: [], n: 0, site: '', deliver: null };
+  const server = http.createServer(async (req, res) => {
+    const url = new URL(req.url, 'http://x');
+    let raw = ''; for await (const c of req) raw += c;
+    if (req.method === 'POST' && url.pathname === '/v1/checkout/sessions') {
+      const o = Object.fromEntries(new URLSearchParams(raw));
+      S.calls.push({ params: o, auth: req.headers.authorization || '' });
+      const id = 'cs_test_' + (++S.n);
+      const s = { id, object: 'checkout.session', url: S.base + '/pay/' + id, mode: o.mode, payment_status: 'unpaid', currency: o['line_items[0][price_data][currency]'],
+        amount_total: +o['line_items[0][price_data][unit_amount]'] * +(o['line_items[0][quantity]'] || 1), name: o['line_items[0][price_data][product_data][name]'],
+        client_reference_id: o.client_reference_id, metadata: { uid: o['metadata[uid]'], kind: o['metadata[kind]'], tx: o['metadata[tx]'] },
+        payment_intent: 'pi_test_' + S.n, success_url: o.success_url, cancel_url: o.cancel_url, expires_at: +o.expires_at };
+      S.sessions.set(id, s);
+      res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify(s));
+    }
+    const pay = /^\/pay\/([\w-]+)$/.exec(url.pathname), s = pay && S.sessions.get(pay[1]);
+    if (s && req.method === 'GET') {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      return res.end('<!doctype html><meta name=viewport content="width=device-width"><title>Stripe Checkout (test)</title><h1>Stripe (test)</h1>' +
+        '<p id=amount>$' + (s.amount_total / 100).toFixed(2) + ' USD</p><p id=item>' + s.name + '</p><form method=post><button id=pay>Pay</button></form><a id=cancel href="' + s.cancel_url + '">Cancel</a>');
+    }
+    if (s && req.method === 'POST') { await S.pay(s.id); res.writeHead(303, { location: s.success_url }); return res.end(); }
+    res.writeHead(404, { 'content-type': 'application/json' }); res.end('{"error":{"message":"not found"}}');
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  S.base = 'http://127.0.0.1:' + server.address().port;
+  /* an event as Stripe signs it: t=<seconds>,v1=HMAC-SHA256(secret, t + '.' + body) */
+  S.signed = (type, object, { id, sign = secret } = {}) => {
+    const raw = JSON.stringify({ id: id || 'evt_' + crypto.randomUUID().slice(0, 12), type, data: { object } }), t = Math.floor(Date.now() / 1000);
+    return { raw, headers: { 'content-type': 'application/json', 'stripe-signature': 't=' + t + ',v1=' + crypto.createHmac('sha256', sign).update(t + '.' + raw).digest('hex') } };
+  };
+  S.send = async (type, object, opts) => {
+    const e = S.signed(type, object, opts);
+    const r = S.deliver ? await S.deliver(e.raw, e.headers) : await fetch(S.site + '/api/points/stripe', { method: 'POST', headers: e.headers, body: e.raw });
+    return Object.assign(await r.json().catch(() => ({})), { http: r.status });
+  };
+  S.pay = (id, type = 'checkout.session.completed') => { const s = S.sessions.get(id); s.payment_status = 'paid'; return S.send(type, s); };
+  S.close = () => new Promise(r => { server.closeAllConnections && server.closeAllConnections(); server.close(r); });
+  return S;
 }
 
 /* the council's answer, read to the end: [{ event, data }] */

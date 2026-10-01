@@ -53,7 +53,7 @@ export async function startSite({ env, files = {}, port = 0 }) {
         const chunks = [];
         for await (const c of req) chunks.push(c);
         const headers = {};
-        ['authorization', 'content-type', 'origin', 'x-nexus-cron', 'x-nexus-lang'].forEach(h => { if (req.headers[h]) headers[h] = req.headers[h]; });
+        ['authorization', 'content-type', 'origin', 'x-nexus-cron', 'x-nexus-lang', 'stripe-signature'].forEach(h => { if (req.headers[h]) headers[h] = req.headers[h]; });
         const r = await fn(new Request(url.href, { method: req.method, headers, body: ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(chunks) }));
         log.push({ at: Date.now(), method: req.method, path: url.pathname, status: r.status });
         res.writeHead(r.status, Object.fromEntries(r.headers));
