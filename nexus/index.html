@@ -1912,6 +1912,44 @@ body.vt-dragging #sheet-root .sheet,body.vt-dragging #sheet-root .scrim{opacity:
 .qc-note{color:#fcd77a;margin:2px 0 6px}
 .qc-out{margin-top:6px}
 /* /NX-CSS:41 */
+/* NX-CSS:42 · the marketplace, the project box, Project Earnings */
+.mk-filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.mk-filters .mk-q{grid-column:1/-1}
+.mk-tabs{margin-bottom:12px;overflow-x:auto;flex-wrap:nowrap}
+.mk-tabs button{white-space:nowrap}
+.mk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.mk-row-scroll{grid-auto-flow:column;grid-template-columns:none;grid-auto-columns:minmax(158px,1fr);overflow-x:auto;padding-bottom:6px}
+.mk-card{display:flex;flex-direction:column;border-radius:14px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden;min-width:0}
+.mk-cov{position:relative;aspect-ratio:16/10;background:#0b0d16;display:grid;place-items:center;font-size:30px}
+.mk-cov img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.mk-badge{position:absolute;top:6px;inset-inline-start:6px;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:800;background:rgba(14,17,28,.85);color:#fde68a}
+.mk-badge.free{color:#86efac}
+.mk-meta{display:flex;flex-direction:column;gap:3px;padding:8px}
+.mk-title{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mk-by{all:unset;cursor:pointer;font-size:11.5px;color:var(--ink-dim)}
+.mk-line{color:var(--ink-dim)}
+.mk-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.mk-acts .btn{flex:1;min-width:0}
+.mk-yours{align-self:center}
+.mk-box{margin:12px 0;padding:12px;border-radius:14px;background:var(--glass);border:1px solid rgba(253,230,138,.28);display:flex;flex-direction:column;gap:8px}
+.mk-stats{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-soft)}
+.mk-sale-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.mk-price-tag,.mk-price-big{font-weight:800;color:#fde68a}
+.mk-price-big{font-size:22px;margin-bottom:6px}
+.mk-chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.mk-preset.on{background:rgba(253,230,138,.22);border-color:rgba(253,230,138,.6);color:#fff}
+.mk-pub{margin:12px 0 4px}
+.mk-pub .seg{margin:8px 0}
+.mk-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:10px}
+.mk-kpi{display:flex;flex-direction:column;gap:2px;padding:10px;border-radius:12px;background:var(--glass)}
+.mk-kpi b{font-size:18px}
+.mk-kpi span{font-size:11.5px;color:var(--ink-dim)}
+.mk-total{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}
+.mk-trow{display:flex;justify-content:space-between;gap:8px}
+.mk-trow.t-all{border-top:1px solid var(--line);padding-top:6px;font-size:15px}
+.mk-game{margin-bottom:8px;display:flex;flex-direction:column;gap:3px}
+.mk-pending{color:#fcd77a}
+/* /NX-CSS:42 */
 </style>
 </head>
 <body>
@@ -4649,7 +4687,9 @@ service cloud.firestore {
       function ownerEdit() {
         return isOwner(existing()) && incoming().ownerId == existing().ownerId
           && validTeam() && noNewMembers() && revOk()
-          && incoming().get('remixedFrom', null) == existing().get('remixedFrom', null);
+          && incoming().get('remixedFrom', null) == existing().get('remixedFrom', null)
+          // a copy bought in the marketplace (PART 42) names what it was bought from, for good
+          && incoming().get('purchasedFrom', null) == existing().get('purchasedFrom', null);
       }
       // ownership goes to someone already in the team; the old owner may stay
       // on as a member or leave
@@ -4704,7 +4744,9 @@ service cloud.firestore {
                    && d.remixedFrom.ownerId == get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.ownerId);
       }
       allow create: if signedIn() && incoming().ownerId == me() && incoming().projectId == projectId
-                    && team(incoming()).size() == 0 && incoming().get('members', {}).size() == 0 && remixOk(incoming());
+                    && team(incoming()).size() == 0 && incoming().get('members', {}).size() == 0 && remixOk(incoming())
+                    // a bought copy is made only by the marketplace server (with the purchase it follows)
+                    && !('purchasedFrom' in incoming());
       allow update: if ownerEdit() || transfer() || memberEdit() || joining() || leaving();
       allow delete: if resource == null || isOwner(existing());
 
@@ -5006,9 +5048,43 @@ service cloud.firestore {
       allow delete: if signedIn() && existing().ownerId == me();
       allow create, update: if false;
     }
-    // minutes others played each game (the creator earns points per 10 minutes)
+    // ⏱ play time others spent in each game, timed by the server (points.js): seconds, sessions,
+    // players — and 💰 the Play Rewards it earned (rewardPoints) and the time still waiting (pendingSeconds)
     match /playtime/{gameId} {
       allow get: if true;
+      allow list, write: if false;
+    }
+    // one play session (playSessionId, gameId, playerUid, startedAt, lastHeartbeat, endedAt, duration):
+    // the player may read their own; only the server writes
+    match /play_sessions/{sid} {
+      allow get: if signedIn() && (resource == null || resource.data.playerUid == me());
+      allow list, write: if false;
+    }
+    match /play_active/{uid}  { allow read, write: if false; }
+    match /play_days/{id}     { allow read, write: if false; }
+    match /play_players/{id}  { allow read, write: if false; }
+
+    // ---------------------------------------------------------------- 🛒 the project marketplace (PART 42)
+    // listings, purchases, transactions: written ONLY by the site's server (market.js, service account) —
+    // a page can never set a price, an owner, a sale or a balance
+    match /market/{gameId} {
+      allow get: if true;
+      allow list: if resource.data.isForSale == true || (signedIn() && resource.data.ownerId == me());
+      allow write: if false;
+    }
+    match /purchases/{pid} {
+      allow get: if signedIn() && (resource == null || resource.data.buyerUid == me() || resource.data.sellerUid == me());
+      allow list: if signedIn() && (resource.data.buyerUid == me() || resource.data.sellerUid == me());
+      allow write: if false;
+    }
+    match /market_tx/{tid} {
+      allow get: if signedIn() && (resource == null || resource.data.buyerUid == me() || resource.data.sellerUid == me());
+      allow list: if signedIn() && (resource.data.buyerUid == me() || resource.data.sellerUid == me());
+      allow write: if false;
+    }
+    // the economy's numbers the site's owner set inside NEXUS (prices, Play Rewards, limits) — read by all
+    match /economy/{doc} {
+      allow get: if doc == 'config';
       allow list, write: if false;
     }
     // the server's own bookkeeping: ad sessions, AdMob transactions, upload
@@ -5166,7 +5242,7 @@ service cloud.firestore {
         // anyone may notify you, but only as themselves — a challenge notice (an invite, a start,
         // a result) is written only by the challenges server, never by a browser
         allow create:       if signedIn() && incoming().actorId == me() && incoming().read == false
-                            && incoming().get('type', '') != 'challenge';
+                            && !(incoming().get('type', '') in ['challenge', 'market']);
       }
     }
     match /follows/{id} {
@@ -10647,8 +10723,11 @@ const Studio = {
     drawMedia();
 
     /* 🔁 others may remix it (a copy of their own, crediting this game) — the owner decides */
+    /* the project in the marketplace (PART 42): 🔁 free by Remix · 💰 paid · 🔒 not offered — else the Remix switch */
+    const sale = NX.Market ? NX.Market.publishField(p) : null;
     const remixOk = el('input', { type: 'checkbox', id: 'pub-remix', checked: !(p.publishMeta && p.publishMeta.allowRemix === false) });
-    body.appendChild(el('label', { class: 'tiny pub-remix', for: 'pub-remix', style: { display: 'flex', gap: '8px', alignItems: 'center', margin: '12px 0 4px' } },
+    if (sale) body.appendChild(sale.el);
+    else body.appendChild(el('label', { class: 'tiny pub-remix', for: 'pub-remix', style: { display: 'flex', gap: '8px', alignItems: 'center', margin: '12px 0 4px' } },
       [remixOk, el('span', { 'data-i18n': 'REMIX_ALLOW', text: T('REMIX_ALLOW') })]));
     /* every published game is public */
     const vis = 'public';
@@ -10695,6 +10774,7 @@ const Studio = {
           mediaCard.scrollIntoView({ block: 'center', behavior: 'smooth' });
           return;
         }
+        if (sale && sale.check()) { say('⚠ ' + sale.check()); return; }
         busy = true;
         try {
           if (NX.Profiles) await NX.Profiles.ensure().catch(() => {});
@@ -10707,9 +10787,10 @@ const Studio = {
           const build = await this.buildProject({ silent: true });
           if (!build || !build.ok) { say(''); Toast.err('لا يمكن النشر: البناء فاشل'); if (NX.IDE) NX.IDE.open(p, { panel: 'problems' }); return; }
           say('الإرسال إلى الخادم والتحقق…');
-          const meta = { title: title.value.trim() || p.name, description: desc.value.trim(), genre: genre.value, visibility: vis, cover: prev.cover || null, coverURL: prev.coverURL || null, ageRating: age ? age.select.value : '3', allowRemix: remixOk.checked };
+          const meta = { title: title.value.trim() || p.name, description: desc.value.trim(), genre: genre.value, visibility: vis, cover: prev.cover || null, coverURL: prev.coverURL || null, ageRating: age ? age.select.value : '3', allowRemix: sale ? sale.value().mode === 'free' : remixOk.checked };
           if (age) { p.showcase = Object.assign({}, p.showcase || {}, { ageRating: age.select.value, ageSuggested: age.select.dataset.floor || '3' }); }
           const rec = await Games.publish(p, meta, build, { coverBlob: need.cover.blob || null, iconBlob: need.icon.blob || null });
+          if (sale) { say('💰 …'); await NX.Market.applySale(rec, sale.value()); }
           if (NX.Learner) (p.files || []).filter(f => !f.ai && /\.(m?js|ts)$/i.test(f.path) && (f.code || '').length >= 200).slice(0, 6)
             .forEach(f => NX.Learner.record({ kind: 'mechanic', source: 'human', prompt: f.path.replace(/\.[^.]+$/, '') + ' — ' + (rec.title || p.name), text: f.code }));
           say('');
@@ -17097,6 +17178,8 @@ async function openGamePage(game, opts = {}) {
   wrap.appendChild(el('div', { class: 'sc-actions' }, [
     el('button', { onclick: doShare }, [svgIcon('share'), el('span', { text: 'مشاركة' }), el('small', { text: 'SHARE' })]), remixBtn, favBtn, reportBtn]));
   if (NX.Remix && game.remixedFrom) wrap.appendChild(NX.Remix.credit(game));
+  /* 🛒 the project: for sale, bought, or the owner's way to sell it — with players and play time (PART 42) */
+  if (!preview && NX.Market) NX.Market.gameBox(game, wrap, { mine, close: () => sheet.close() });
 
   /* the owner (and only the owner) manages the media from here */
   if (mine || preview) {
@@ -17614,6 +17697,8 @@ async function openNotifications() {
     task: n => `@${n.actorName} أسند إليك مهمة في «${n.projectName || ''}»: ${n.preview || ''}`,
     playtest: n => `@${n.actorName} بدأ اختبارًا جماعيًا في «${n.projectName || ''}»`,
     /* written only by the challenges server (PART 37) — firestore.rules refuse this type from a browser */
+    /* written only by the marketplace server (PART 42) */
+    market: n => '🛒 ' + NX.T('MK_NOTIF_SALE', { name: n.actorName || '', title: n.title || '', n: n.points || 0 }),
     challenge: n => ({
       invite: `@${n.actorName} يدعوك إلى تحدٍّ: «${n.title || ''}»`,
       joined: `@${n.actorName} انضم إلى تحديك «${n.title || ''}»`,
@@ -17630,6 +17715,7 @@ async function openNotifications() {
     r.onclick = async () => {
       if (n.type === 'invite') { sheet.close(); NX.TeamUI.openInvites(); return; }
       if (n.type === 'challenge' && n.fcId) { sheet.close(); if (NX.Challenges) NX.Challenges.openFriend(n.fcId); return; }
+      if (n.type === 'market') { sheet.close(); if (NX.Market) NX.Market.earnings(); return; }
       if (n.postId) { const p = await Posts.get(n.postId); if (p) { sheet.close(); openPost(p); } }
       else if (n.actorId) { sheet.close(); openCreator(n.actorId); }
     };
@@ -32483,7 +32569,9 @@ const API = /^https?:$/.test(location.protocol) ? location.origin + location.pat
 const ADS = Object.assign({ web: false }, window.NEXUS_ADS || {});
 const HOSTED = /\.(html?|png|jpe?g|gif|webp|svg|json|js|css|zip|txt|mp3|ogg|wav|glb|gltf)$/i;
 const AS_TEXT = /\.(html?|xhtml|svg|xml)$/i;                   // stored as text/plain: they run in NEXUS's sandbox, not on the bucket
-const REASON = { welcome: '🎁 هدية الترحيب', ad: '📺 إعلان', upload: '📎 رفع ملف', refund: '↩ استرجاع', ai: '🤖 طلبات ذكاء', play: '🎮 وقت لعب لعبتك', pro: '⭐ Pro', challenge: '🏆 جائزة تحدٍّ', 'challenge-escrow': '🔒 جائزة تحدٍّ محجوزة' };
+const REASON = { welcome: '🎁 هدية الترحيب', ad: '📺 إعلان', upload: '📎 رفع ملف', refund: '↩ استرجاع', ai: '🤖 طلبات ذكاء', pro: '⭐ Pro', challenge: '🏆 جائزة تحدٍّ', 'challenge-escrow': '🔒 جائزة تحدٍّ محجوزة',
+  /* PART 42: Play Rewards, and the marketplace — in the reader's language */
+  get play() { return '🎮 ' + NX.T('MK_R_PLAY'); }, get market_sale() { return '💰 ' + NX.T('MK_R_SALE'); }, get market_buy() { return '🛒 ' + NX.T('MK_R_BUY'); } };
 const fmtDate = t => { try { return new Date(t).toLocaleDateString('ar', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return ''; } };
 
 const Points = {
@@ -32672,6 +32760,7 @@ const Points = {
 
       /* creators */
       body.appendChild(el('div', { class: 'card pts-card tiny', style: { lineHeight: '1.8' }, text: '🎮 ألعابك تكسب لك: كل ' + m.playMinutes + ' دقائق يلعبها الآخرون (أصحاب الحسابات) في لعبتك المنشورة = +' + m.playPoints + ' نقاط. لا تُحسب دقائقك أنت، وتُحسب لكل لاعب حتى ' + m.playCap + ' دقيقة يوميًا في كل لعبة.' }));
+      if (NX.Market) body.appendChild(NX.Market.walletRow());
 
       /* history */
       body.appendChild(el('div', { class: 'ttl', text: 'السجلّ' }));
@@ -32810,7 +32899,7 @@ const Points = {
 /* the chip, the account, the minute */
 document.getElementById('btn-points') && document.getElementById('btn-points').addEventListener('click', () => Points.open());
 setInterval(() => Points.watch(), 2000);
-setInterval(() => Points.beat(), 60000);
+/* (play time: a session timed by the server — NX.PlayTimer, PART 42) */
 NX.Points = Points;
 </script>
 <!-- /NX-PART:34 -->
@@ -35923,6 +36012,7 @@ const Platform = {
     host.appendChild(el('h2', { text: 'مشاريعي', style: { fontSize: '20px', marginBottom: '12px' } }));
     if (NX.HtmlApps) NX.HtmlApps.entry(host);   // «تطبيقاتي ومواقعي · HTML» (PART 28)
     await this.projectsView(host, { full: true });
+    if (NX.Market) await NX.Market.purchasedSection(host);   // 🛒 Purchased Projects (PART 42)
   },
 
   async projectsView(host, opts = {}) {
@@ -36070,6 +36160,7 @@ const Platform = {
     }
 
     if (NX.Challenges) NX.Challenges.homeSection(host);   // the current NEXUS challenge (PART 37)
+    if (NX.Market) NX.Market.homeSection(host);           // 🛒 NEXUS MARKETPLACE (PART 42)
     host.appendChild(el('div', { class: 'sec-head' }, [el('h2', { text: 'مشاريعي' })]));
     await this.projectsView(host, { full: false });
 
@@ -36310,6 +36401,7 @@ const Platform = {
     if (Backend.isOnline()) {
       if (!Backend.hasAccount()) row.appendChild(btn(T('signIn'), { cls: 'sm primary', icon: 'user', onclick: () => promptSignIn() }));
       else row.appendChild(btn(T('signOut'), { cls: 'sm ghost', onclick: async () => { await Backend.auth.signOut(); this.render(); } }));
+      if (NX.Market && Backend.hasAccount()) row.appendChild(btn('📊 ' + T('MK_EARN_TITLE'), { cls: 'sm', onclick: () => NX.Market.earnings() }));
     }
     host.appendChild(row);
 
@@ -36792,6 +36884,7 @@ function openSettings() {
   body.appendChild(el('div', { class: 'opt-sec', text: 'الذكاء الاصطناعي' }));
   opt('spark', 'مزوّدو الذكاء الاصطناعي', 'اختر النموذج، أو أضف مفتاحك الخاص (يبقى في هذا المتصفح فقط)', () => NX.openAISettings());
   if (NX.KeyBox) opt('shield', '🔑 مفاتيح الذكاء المجاني — لصاحب الموقع', 'ضع مفاتيحك مرة واحدة على خادم الموقع: كل الناس يستعملون الذكاء المجاني دون أن يروها', () => NX.KeyBox.open());
+  if (NX.Market && NX.Market.isOwner()) opt('gear', '⚙️ ' + T('MK_ECO_TITLE'), T('MK_ECO_INTRO'), () => NX.Market.openEconomy());
   if (NX.KeyPool) opt('spark', '🤝 تبرّع بمفتاح للذكاء المجاني', 'لأي لاعب: مفتاحك يساعد الجميع ولا يستطيع أحد قراءته — وتسحبه متى شئت', () => NX.KeyPool.open());
   body.appendChild(el('div', { class: 'opt-sec', text: 'الحساب والأمان' }));
   if (NX.Age) opt('user', '🎂 العمر والمحتوى', 'عمرك في حسابك: يحدّد أي ألعاب ومواقع (فوق 3+) تظهر لك وتُفتح', () => NX.Age.openSettings());
@@ -38256,6 +38349,532 @@ NX.CanvasPro = CanvasPro;
 if (NX.Studio && NX.Studio.engine && NX.Studio.project) CanvasPro.attach(NX.Studio);
 </script>
 <!-- /NX-PART:41 -->
+<!-- NX-PART:42 -->
+<script type="module">
+/* ============================================================
+   PART 42 · 🛒 NEXUS MARKETPLACE · ⏱ Play Time → 💰 Play Rewards · 📊 Project Earnings
+   Built on what NEXUS already has — the points (PART 34: wallets/<uid>, its
+   ledger, the server points.js), projects and published games, Remix (PART 40),
+   likes, notifications, the owner's settings — never a second copy of them:
+   • Selling: at «Publish» the owner chooses 🔁 Free (anyone may copy it by Remix)
+     · 💰 Paid (a price in points: the presets the site's owner set, or any whole
+     number within the limits) · 🔒 Not offered. The SERVER (market.js) checks the
+     game and its project are the caller's, writes the listing (market/<gameId>)
+     and turns Remix off for a paid project.
+   • Buying: «🛒 Buy project — 500 points» → one confirmation → ONE server commit
+     (−500 to the buyer, + to the seller, both ledgers, the purchase, the
+     transaction) with a transaction id made once per confirmation (pressing
+     again never pays twice). The buyer gets THEIR OWN copy of the project
+     (purchasedFrom) — the original stays the creator's; 🛒 Purchased Projects
+     lists what was bought and opens the copy (made again if it was deleted).
+   • Play time: while a published game is on screen, a play session runs on the
+     server's clock (points.js /play/start · /play/beat · /play/end): a beat a
+     minute while the page is visible, with the seconds it was hidden and whether
+     anyone touched it lately — the server decides what counts.
+   • 📊 Project Earnings: players · play time · sessions · likes · Play Rewards ·
+     sales — each apart (a like is never play time, play time is never a sale),
+     the totals, and the transactions.
+   • The site's owner sets the numbers (prices, Play Rewards, ceilings, fee) in
+     «⚙️ NEXUS economy» — the server checks it is the owner; nobody else sees it.
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, Sheet, Modal, Toast, Backend } = NX;
+const T = (k, v) => NX.T(k, v);
+const num = n => NX.fmtNum ? NX.fmtNum(n || 0) : String(n || 0);
+const ROOT = /^https?:$/.test(location.protocol) ? location.origin + location.pathname.replace(/[^/]*$/, '') : '';
+const MARKET = ROOT ? ROOT + 'api/market' : '', POINTS = ROOT ? ROOT + 'api/points' : '';
+const fb = () => Backend.fb;
+const me = () => (Backend.user && Backend.hasAccount && Backend.hasAccount() && Backend.isOnline()) ? Backend.user.uid : null;
+const mins = s => Math.floor((s || 0) / 60);
+const playTime = s => { const m = mins(s); return m >= 120 ? T('MK_HOURS', { n: num(Math.round(m / 6) / 10) }) : T('MK_MINUTES', { n: num(m) }); };
+const GENRE = { Action: 'أكشن', Adventure: 'مغامرة', Racing: 'سباق', Puzzle: 'ألغاز', Simulation: 'محاكاة', RPG: 'تقمّص أدوار', Sandbox: 'عالم مفتوح', Other: 'أخرى' };
+const DEFAULT_CFG = { ok: false, ready: false, market: false, owner: false, minPrice: 10, maxPrice: 100000, pricePresets: [100, 500, 1000, 5000], feePercent: 0, sellerPercent: 100,
+  play: { intervalMinutes: 10, points: 1, playerGameMinutes: 30, playerDayMinutes: 180, gameDayPoints: 100, creatorDayPoints: 300, heartbeatSeconds: 60, minAccountAgeHours: 24 } };
+const ago = t => NX.timeAgo ? NX.timeAgo(t) : new Date(t).toLocaleString();
+
+const Market = {
+  _cfg: null, _cfgAt: 0, _cfgUid: null, _busy: new Set(),
+
+  /* ---------------------------------------------------------------- the server */
+  async token() { const u = Backend.fb && Backend.fb.auth && Backend.fb.auth.currentUser; return u && !u.isAnonymous ? u.getIdToken() : null; },
+  async api(path, body) {
+    if (!MARKET) throw Object.assign(new Error(T('MK_NO_SERVER')), { code: 'off' });
+    const tok = await this.token().catch(() => null);
+    if (body && !tok) throw Object.assign(new Error(T('MK_SIGNIN')), { code: 'signin' });
+    let r;
+    try { r = await fetch(MARKET + path, { method: body ? 'POST' : 'GET', headers: Object.assign({ 'content-type': 'application/json' }, tok ? { authorization: 'Bearer ' + tok } : {}), body: body ? JSON.stringify(body) : undefined }); }
+    catch { throw Object.assign(new Error(T('MK_NO_SERVER')), { code: 'net' }); }
+    const j = await r.json().catch(() => null);
+    if (!j) throw Object.assign(new Error(T('MK_NO_SERVER') + ' (HTTP ' + r.status + ')'), { code: 'off', status: r.status });
+    if (!r.ok || j.ok === false) throw Object.assign(new Error((j.error && j.error.message) || 'HTTP ' + r.status), { code: j.error && j.error.code, status: r.status, data: j });
+    return j;
+  },
+  /* the economy's numbers (and whether the one asking is the site's owner) */
+  async config(force) {
+    const uid = me();
+    if (!force && this._cfg && this._cfgUid === uid && Date.now() - this._cfgAt < 60e3) return this._cfg;
+    try { this._cfg = Object.assign({}, DEFAULT_CFG, await this.api('/config')); }
+    catch (e) { this._cfg = Object.assign({}, DEFAULT_CFG, { error: e.message }); }
+    this._cfgAt = Date.now(); this._cfgUid = uid;
+    return this._cfg;
+  },
+  isOwner() { return !!(this._cfg && this._cfg.owner && this._cfgUid === me()); },
+
+  /* ---------------------------------------------------------------- what Firestore lets a page read */
+  async doc(col, id) { try { const { F, db } = fb(); const d = await F.getDoc(F.doc(db, col, id)); return d.exists() ? d.data() : null; } catch { return null; } },
+  listing(gid) { return this.doc('market', gid); },
+  stats(gid) { return this.doc('playtime', gid); },
+  purchase(gid) { const u = me(); return u ? this.doc('purchases', u + '_' + gid) : Promise.resolve(null); },
+  async query(col, field, value, max = 200) {
+    const { F, db } = fb();
+    const s = await F.getDocs(F.query(F.collection(db, col), F.where(field, '==', value), F.limit(max)));
+    return s.docs.map(d => d.data());
+  },
+  listings() { return this.query('market', 'isForSale', true); },
+  async freeGames() {
+    const { F, db } = fb();
+    const s = await F.getDocs(F.query(F.collection(db, 'games'), F.where('visibility', '==', 'public'), F.where('allowRemix', '==', true), F.limit(60)));
+    return s.docs.map(d => d.data());
+  },
+  async myPurchases() { const u = me(); return u ? (await this.query('purchases', 'buyerUid', u)).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)) : []; },
+  async mySales() { const u = me(); return u ? (await this.query('purchases', 'sellerUid', u)).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)) : []; },
+
+  /* ---------------------------------------------------------------- buying */
+  async buy(item, opts = {}) {
+    const gid = item && item.gameId;
+    if (!gid) return null;
+    if (!me()) { NX.promptSignIn(T('MK_SIGNIN')); return null; }
+    if (this._busy.has(gid)) return null;
+    this._busy.add(gid);
+    try {
+      const L = await this.listing(gid);
+      if (!L || !L.isForSale) { Toast.err(T('MK_NOT_FOR_SALE')); return null; }
+      if (L.ownerUid === me()) { Toast.show(T('MK_YOURS')); return null; }
+      if (await this.purchase(gid)) return this.openPurchased(gid);
+      const c = await this.config();
+      const w = await this.doc('wallets', me());                       // the balance now (the server keeps it)
+      const have = w ? w.points || 0 : NX.Points && NX.Points.wallet ? NX.Points.wallet.points || 0 : null;
+      /* one id per confirmation: the same purchase sent twice is ONE purchase on the server */
+      const tid = 'tx_' + (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : Date.now().toString(36) + Math.random().toString(36).slice(2, 12));
+      const body = el('div', { class: 'mk-confirm' }, [
+        el('div', { class: 'mk-price-big', text: '💰 ' + num(L.price) + ' ' + T('MK_POINTS') }),
+        el('p', { class: 'tiny', text: T('MK_BUY_WHAT', { who: L.creatorName || '' }) }),
+        have != null ? el('p', { class: 'tiny mk-bal', text: T('MK_BALANCE', { n: num(have), after: num(have - L.price) }) }) : el('span'),
+        c.feePercent ? el('p', { class: 'tiny', text: T('MK_FEE_NOTE', { p: c.sellerPercent }) }) : el('span')]);
+      const ok = await new Promise(res => Modal.open({ title: '🛒 ' + T('MK_BUY_Q', { title: L.title || '' }), body,
+        actions: [{ label: T('cancel'), cls: 'ghost', onclick: () => res(false) }, { label: '💰 ' + T('MK_BUY_BTN', { n: num(L.price) }), cls: 'primary mk-yes', onclick: () => res(true) }] }));
+      if (!ok) return null;
+      const busy = Toast.show('🛒 …', '', 30000);
+      try {
+        const r = await this.api('/buy', { gameId: gid, transactionId: tid, expectedPrice: L.price });
+        busy.remove();
+        Toast.ok('✓ ' + T('MK_BOUGHT', { title: L.title || '' }), 6000);
+        window.dispatchEvent(new CustomEvent('nx:market', { detail: { gameId: gid, bought: true } }));
+        if (opts.open !== false && await Modal.confirm(T('MK_OPEN_NOW_Q'), T('MK_OPEN_NOW_NOTE'), T('MK_OPEN'))) await this.openPurchased(gid, r.copyProjectId);
+        return r;
+      } catch (e) {
+        busy.remove();
+        if (e.code === 'not_enough') Modal.open({ title: T('MK_NOT_ENOUGH'), body: e.message, actions: [{ label: T('close'), cls: 'ghost' }, { label: '💰 ' + T('MK_MY_POINTS'), cls: 'primary', onclick: () => NX.Points && NX.Points.open() }] });
+        else if (e.code === 'signin') NX.promptSignIn(T('MK_SIGNIN'));
+        else Toast.err(e.message, 7000);
+        return null;
+      }
+    } finally { this._busy.delete(gid); }
+  },
+  /* the buyer's copy, in the Studio (the server makes it again if it is missing) */
+  async openPurchased(gid, known) {
+    const busy = Toast.show('📂 …', '', 20000);
+    try {
+      let p = known ? await NX.Projects.get(known).catch(() => null) : null;
+      if (!p) { const r = await this.api('/open', { gameId: gid }); p = await NX.Projects.get(r.copyProjectId); }
+      busy.remove();
+      if (!p) throw new Error(T('MK_OPEN_FAIL'));
+      Sheet.closeAll();
+      await NX.Studio.open(p);
+      return p;
+    } catch (e) { busy.remove(); Toast.err(e.message || String(e)); return null; }
+  },
+
+  /* ---------------------------------------------------------------- selling */
+  async setSale(gameId, price) {
+    return this.api('/list', price == null ? { gameId, forSale: false } : { gameId, price: Math.round(+price) });
+  },
+  /* a price: the presets, or any whole number within the limits */
+  priceInput(c, value) {
+    const inp = el('input', { class: 'input mk-price', type: 'number', min: String(c.minPrice), max: String(c.maxPrice), step: '1', dir: 'ltr', inputmode: 'numeric', value: value != null ? String(value) : '' });
+    const chips = el('div', { class: 'mk-chips' }, (c.pricePresets || []).map(n => el('button', { type: 'button', class: 'chip mk-preset' + (+inp.value === n ? ' on' : ''), dataset: { p: String(n) }, text: num(n), onclick: () => { inp.value = String(n); paint(); } })));
+    const note = el('p', { class: 'tiny mk-note' });
+    const paint = () => {
+      chips.querySelectorAll('.mk-preset').forEach(b => b.classList.toggle('on', +b.dataset.p === +inp.value));
+      const v = +inp.value;
+      note.textContent = !inp.value ? T('MK_PRICE_HINT', { min: num(c.minPrice), max: num(c.maxPrice) })
+        : !(Number.isInteger(v) && v >= c.minPrice && v <= c.maxPrice) ? '⚠ ' + T('MK_PRICE_RANGE', { min: num(c.minPrice), max: num(c.maxPrice) })
+        : T('MK_YOU_GET', { n: num(v - Math.floor(v * c.feePercent / 100)), p: c.sellerPercent });
+      note.style.color = inp.value && !(Number.isInteger(v) && v >= c.minPrice && v <= c.maxPrice) ? '#fca5a5' : '';
+    };
+    inp.addEventListener('input', paint);
+    paint();
+    return { el: el('div', { class: 'mk-pricebox' }, [chips, inp, note]), input: inp, valid: () => { const v = +inp.value; return Number.isInteger(v) && v >= c.minPrice && v <= c.maxPrice; }, value: () => Math.round(+inp.value) };
+  },
+  /* «Publish»: 🔁 Free · 💰 Paid · 🔒 Not offered */
+  publishField(p) {
+    let mode = (p.publishMeta && p.publishMeta.allowRemix === false) ? 'none' : 'free';
+    const box = el('div', { class: 'card mk-pub' });
+    const seg = el('div', { class: 'seg mk-mode' });
+    const paidBox = el('div', { class: 'mk-paid hide' });
+    const hint = el('p', { class: 'tiny mk-modehint' });
+    let price = null;
+    const setMode = m => {
+      mode = m;
+      seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+      paidBox.classList.toggle('hide', m !== 'paid');
+      hint.textContent = T(m === 'free' ? 'MK_PUB_FREE_HINT' : m === 'paid' ? 'MK_PUB_PAID_HINT' : 'MK_PUB_NONE_HINT');
+    };
+    [['free', '🔁 ' + T('MK_PUB_FREE')], ['paid', '💰 ' + T('MK_PUB_PAID')], ['none', '🔒 ' + T('MK_PUB_NONE')]]
+      .forEach(([m, label]) => seg.appendChild(el('button', { type: 'button', dataset: { m }, text: label, onclick: () => setMode(m) })));
+    box.append(el('b', { text: '📦 ' + T('MK_PUB_TITLE') }), seg, hint, paidBox);
+    setMode(mode);
+    this.config().then(c => {
+      price = this.priceInput(c, null);
+      paidBox.appendChild(price.el);
+      if (!c.ready || !c.market) {
+        const b = seg.querySelector('[data-m="paid"]'); b.disabled = true; b.title = T('MK_OFF');
+        paidBox.appendChild(el('p', { class: 'tiny', style: { color: '#fcd77a' }, text: T('MK_OFF') }));
+      }
+      if (p.publishedId) this.listing(p.publishedId).then(L => { if (L && L.isForSale) { price.input.value = String(L.price); price.input.dispatchEvent(new Event('input')); setMode('paid'); } });
+    });
+    return { el: box, value: () => ({ mode, price: price ? price.value() : 0 }), check: () => mode === 'paid' && (!price || !price.valid()) ? T('MK_PRICE_RANGE', { min: num((this._cfg || DEFAULT_CFG).minPrice), max: num((this._cfg || DEFAULT_CFG).maxPrice) }) : '' };
+  },
+  /* after publishing: the listing as chosen (the game's Remix setting was set with it) */
+  async applySale(rec, v) {
+    if (!rec || !rec.gameId || !v) return;
+    try {
+      if (v.mode === 'paid') { const r = await this.setSale(rec.gameId, v.price); Toast.ok('💰 ' + T('MK_LISTED', { n: num(r.price) }), 6000); }
+      else { const L = await this.listing(rec.gameId); if (L && L.isForSale) await this.setSale(rec.gameId, null); }
+    } catch (e) { Toast.err(T('MK_LIST_FAIL') + ': ' + e.message, 9000); }
+  },
+  /* the owner, from the game's page: a price now */
+  async editPrice(game, current) {
+    const c = await this.config();
+    if (!c.ready || !c.market) { Toast.err(T('MK_OFF')); return; }
+    const pr = this.priceInput(c, current);
+    const v = await new Promise(res => Modal.open({ title: '💰 ' + T('MK_SELL_T', { title: game.title || '' }), body: el('div', {}, [el('p', { class: 'tiny', text: T('MK_PUB_PAID_HINT') }), pr.el]),
+      actions: [{ label: T('cancel'), cls: 'ghost', onclick: () => res(null) }, { label: T('save'), cls: 'primary mk-save-price', onclick: () => { if (!pr.valid()) { Toast.err(T('MK_PRICE_RANGE', { min: num(c.minPrice), max: num(c.maxPrice) })); return false; } res(pr.value()); } }] }));
+    if (v == null) return;
+    try { const r = await this.setSale(game.gameId, v); Toast.ok('💰 ' + T('MK_LISTED', { n: num(r.price) })); window.dispatchEvent(new CustomEvent('nx:market', { detail: { gameId: game.gameId } })); }
+    catch (e) { Toast.err(e.message); }
+  },
+
+  /* ---------------------------------------------------------------- the game's page */
+  gameBox(game, wrap, { mine = false, close = () => {} } = {}) {
+    if (!game || !game.gameId || !Backend.isOnline()) return;
+    const box = el('section', { class: 'mk-box', dataset: { game: game.gameId } });
+    wrap.appendChild(box);
+    const paint = async () => {
+      const [L, st, bought] = await Promise.all([this.listing(game.gameId), this.stats(game.gameId), this.purchase(game.gameId)]);
+      box.textContent = '';
+      const s = st || {};
+      box.appendChild(el('div', { class: 'mk-stats' }, [
+        el('span', { text: '👥 ' + T('MK_PLAYERS_N', { n: num(s.players) }) }),
+        el('span', { text: '⏱️ ' + playTime(s.seconds) }),
+        el('span', { text: '❤️ ' + num(game.likes) })]));
+      if (L && L.isForSale) {
+        if (mine) {
+          box.append(el('b', { text: '💰 ' + T('MK_MINE_LISTED', { n: num(L.price) }) }), el('div', { class: 'tiny', text: T('MK_SOLD_N', { n: num(L.sales), r: num(L.revenue) }) }),
+            el('div', { class: 'row mk-row' }, [btn(T('MK_CHANGE_PRICE'), { cls: 'sm mk-edit', onclick: async () => { await this.editPrice(game, L.price); paint(); } }),
+              btn(T('MK_STOP'), { cls: 'sm ghost mk-stop', onclick: async () => { try { await this.setSale(game.gameId, null); Toast.ok(T('MK_STOPPED')); paint(); } catch (e) { Toast.err(e.message); } } })]));
+        } else if (bought) {
+          box.append(el('b', { text: '✓ ' + T('MK_OWNED') }), btn('📂 ' + T('MK_OPEN_COPY'), { cls: 'primary block mk-open', onclick: () => { close(); this.openPurchased(game.gameId, bought.copyProjectId); } }));
+        } else {
+          box.append(el('div', { class: 'mk-sale-h' }, [el('b', { text: '📦 ' + T('MK_FOR_SALE') }), el('span', { class: 'mk-price-tag', text: '💰 ' + num(L.price) + ' ' + T('MK_POINTS') })]),
+            el('p', { class: 'tiny', text: T('MK_BUY_WHAT', { who: L.creatorName || '' }) }),
+            btn('🛒 ' + T('MK_BUY_FOR', { n: num(L.price) }), { cls: 'primary block mk-buy', onclick: async () => { const r = await this.buy(L, { open: false }); if (r) { paint(); if (await Modal.confirm(T('MK_OPEN_NOW_Q'), T('MK_OPEN_NOW_NOTE'), T('MK_OPEN'))) { close(); this.openPurchased(game.gameId, r.copyProjectId); } } } }));
+        }
+      } else if (mine && game.visibility !== 'private') {
+        box.append(el('b', { text: '💰 ' + T('MK_SELL_IT') }), el('p', { class: 'tiny', text: T('MK_PUB_PAID_HINT') }),
+          btn(T('MK_SELL_BTN'), { cls: 'sm mk-sell', onclick: async () => { await this.editPrice(game, null); paint(); } }));
+      }
+    };
+    paint();
+  },
+
+  /* ---------------------------------------------------------------- the marketplace */
+  /* opts.stats: how many cards get their players / play time / likes read (one read each) — the home page reads only what it shows */
+  async load(opts = {}) {
+    const u = me(), maxStats = opts.stats || 120;
+    const [paid, free, mine] = await Promise.all([this.listings().catch(() => []), this.freeGames().catch(() => []), u ? this.myPurchases().catch(() => []) : []]);
+    const owned = new Set(mine.map(p => p.gameId));
+    const items = paid.map(L => ({ kind: 'paid', gameId: L.gameId, title: L.title, creatorName: L.creatorName, ownerUid: L.ownerUid, cover: L.thumbURL || L.coverURL, genre: L.genre,
+      price: L.price, createdAt: L.createdAt || 0, sales: L.sales || 0, listing: L }));
+    free.filter(g => !items.some(x => x.gameId === g.gameId)).forEach(g => items.push({ kind: 'free', gameId: g.gameId, title: g.title, creatorName: g.creatorName, ownerUid: g.ownerId,
+      cover: g.thumbURL || g.coverURL, genre: g.genre, price: 0, createdAt: g.createdAt || g.publishedAt || 0, sales: 0, likes: g.likes || 0, game: g }));
+    /* players, play time and likes for what is shown (one read each): the best sellers and the newest first */
+    items.sort((a, b) => (b.sales - a.sales) || ((b.createdAt || 0) - (a.createdAt || 0)));
+    await Promise.all(items.slice(0, maxStats).map(async it => {
+      const st = await this.stats(it.gameId);
+      it.players = (st && st.players) || 0; it.seconds = (st && st.seconds) || 0;
+      if (it.kind === 'paid') { const g = await this.doc('games', it.gameId); it.likes = (g && g.likes) || 0; it.game = g; }
+    }));
+    items.forEach(it => { it.owned = owned.has(it.gameId); it.mine = !!u && it.ownerUid === u; it.score = it.sales * 5 + (it.players || 0) * 2 + (it.likes || 0); });
+    return { items, purchases: mine };
+  },
+  card(it, ctx = {}) {
+    const c = el('div', { class: 'mk-card', dataset: { game: it.gameId, kind: it.kind } });
+    const cov = el('div', { class: 'mk-cov' });
+    if (it.cover) cov.appendChild(el('img', { src: it.cover, alt: '', loading: 'lazy' })); else cov.appendChild(el('span', { text: '🎮' }));
+    cov.appendChild(el('span', { class: 'mk-badge ' + it.kind, text: it.kind === 'paid' ? '💰 ' + num(it.price) : '🆓 ' + T('MK_FREE') }));
+    const play = btn('▶ ' + T('MK_PLAY'), { cls: 'sm ghost mk-play', onclick: async () => { const g = it.game || await NX.Games.get(it.gameId).catch(() => null); if (!g) { Toast.err(T('MK_GONE')); return; } (ctx.close || (() => Sheet.closeAll()))(); NX.GamePlayer.open(g); } });
+    let act;
+    if (it.mine) act = el('span', { class: 'tiny mk-yours', text: '✎ ' + T('MK_YOURS') });
+    else if (it.owned) act = btn('📂 ' + T('MK_OPEN'), { cls: 'sm primary mk-open', onclick: () => this.openPurchased(it.gameId) });
+    else if (it.kind === 'paid') act = btn('🛒 ' + T('MK_BUY_FOR', { n: num(it.price) }), { cls: 'sm primary mk-buy', onclick: async () => { const r = await this.buy(it.listing || it); if (r && ctx.refresh) ctx.refresh(); } });
+    else act = btn('🔁 Remix', { cls: 'sm mk-remix', onclick: async () => { const g = it.game || await NX.Games.get(it.gameId).catch(() => null); if (g && NX.Remix) { (ctx.close || (() => Sheet.closeAll()))(); NX.Remix.start(g, 'market'); } } });
+    c.append(cov, el('div', { class: 'mk-meta' }, [
+      el('b', { class: 'mk-title', text: it.title || '—' }),
+      el('button', { class: 'mk-by', type: 'button', text: '@' + (it.creatorName || 'creator'), onclick: () => it.ownerUid && NX.Community && NX.Community.openCreator(it.ownerUid) }),
+      el('div', { class: 'mk-line tiny', text: '👥 ' + num(it.players) + ' · ⏱️ ' + playTime(it.seconds) + ' · ❤️ ' + num(it.likes) }),
+      el('div', { class: 'mk-acts' }, [play, act])]));
+    return c;
+  },
+  async open(opts = {}) {
+    const body = el('div', { class: 'mk' });
+    const sheet = Sheet.open({ title: '🛒 NEXUS MARKETPLACE', body, full: true, id: 'market' });
+    const close = () => sheet.close();
+    const q = el('input', { class: 'input mk-q', type: 'search', placeholder: T('MK_SEARCH'), dir: 'auto' });
+    const cat = el('select', { class: 'input mk-cat' }, [el('option', { value: '', text: T('MK_ALL_CATS') })].concat(Object.entries(GENRE).map(([k, v]) => el('option', { value: k, text: v }))));
+    const priceF = el('select', { class: 'input mk-pricef' }, [['', T('MK_ANY_PRICE')], ['free', T('MK_FREE')], ['paid', T('MK_PAID')], ['100', '≤ 100'], ['500', '≤ 500'], ['1000', '≤ 1,000'], ['more', '> 1,000']]
+      .map(([v, t]) => el('option', { value: v, text: t })));
+    const creator = el('input', { class: 'input mk-creator', type: 'search', placeholder: T('MK_CREATOR'), dir: 'auto' });
+    const tabs = el('div', { class: 'seg mk-tabs' });
+    const TABS = [['featured', '⭐ ' + T('MK_T_FEATURED')], ['new', '🆕 ' + T('MK_T_NEW')], ['popular', '🔥 ' + T('MK_T_POPULAR')], ['free', '🆓 ' + T('MK_FREE')], ['paid', '💰 ' + T('MK_PAID')], ['bought', '🛒 ' + T('MK_T_BOUGHT')]];
+    let tab = opts.tab || 'featured', data = null;
+    TABS.forEach(([k, label]) => tabs.appendChild(el('button', { type: 'button', dataset: { t: k }, class: k === tab ? 'on' : '', text: label, onclick: () => { tab = k; tabs.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.t === k)); render(); } })));
+    const grid = el('div', { class: 'mk-grid' });
+    const note = el('p', { class: 'tiny mk-rate' });
+    body.append(el('div', { class: 'mk-filters' }, [q, cat, priceF, creator]), tabs, grid, note);
+    const render = () => {
+      grid.textContent = '';
+      if (!data) { grid.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' })])); return; }
+      if (tab === 'bought') { this.paintPurchases(grid, data.purchases, close); return; }
+      const t = q.value.trim().toLowerCase(), who = creator.value.trim().toLowerCase(), pf = priceF.value;
+      let list = data.items.filter(it => (!t || ((it.title || '') + ' ' + (it.creatorName || '') + ' ' + (it.genre || '')).toLowerCase().includes(t))
+        && (!cat.value || it.genre === cat.value) && (!who || (it.creatorName || '').toLowerCase().includes(who))
+        && (!pf || (pf === 'free' ? it.kind === 'free' : pf === 'paid' ? it.kind === 'paid' : pf === 'more' ? it.price > 1000 : it.kind === 'paid' && it.price <= +pf)));
+      if (tab === 'free') list = list.filter(it => it.kind === 'free');
+      if (tab === 'paid') list = list.filter(it => it.kind === 'paid').sort((a, b) => a.price - b.price);
+      if (tab === 'new') list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      if (tab === 'popular') list.sort((a, b) => (b.sales - a.sales) || ((b.players || 0) - (a.players || 0)) || ((b.seconds || 0) - (a.seconds || 0)));
+      if (tab === 'featured') list.sort((a, b) => b.score - a.score);
+      if (!list.length) { grid.appendChild(el('div', { class: 'center-note', text: T('MK_EMPTY') })); return; }
+      list.slice(0, tab === 'featured' ? 12 : 60).forEach(it => grid.appendChild(this.card(it, { close, refresh: () => reload() })));
+    };
+    const reload = async () => { data = null; render(); try { data = await this.load(); } catch (e) { data = { items: [], purchases: [] }; Toast.err(NX.describeFirebaseError(e)); } render(); };
+    [q, creator].forEach(x => x.addEventListener('input', () => render()));
+    [cat, priceF].forEach(x => x.addEventListener('change', () => render()));
+    this.config().then(c => { note.textContent = T('MK_RATE_NOTE', { m: c.play.intervalMinutes, p: c.play.points }) + (c.ready ? '' : ' · ⚠ ' + T('MK_OFF')); });
+    reload();
+    return sheet;
+  },
+  paintPurchases(host, list, close) {
+    if (!me()) { host.appendChild(el('div', { class: 'center-note', text: T('MK_SIGNIN') })); return; }
+    if (!list.length) { host.appendChild(el('div', { class: 'center-note', text: T('MK_NONE_BOUGHT') })); return; }
+    list.forEach(p => host.appendChild(el('div', { class: 'mk-card mk-bought', dataset: { game: p.gameId } }, [
+      el('div', { class: 'mk-cov' }, [p.thumbURL || p.coverURL ? el('img', { src: p.thumbURL || p.coverURL, alt: '', loading: 'lazy' }) : el('span', { text: '📦' })]),
+      el('div', { class: 'mk-meta' }, [el('b', { class: 'mk-title', text: p.title || '—' }), el('span', { class: 'tiny', text: '@' + (p.sellerName || '') + ' · 💰 ' + num(p.price) + ' · ' + ago(p.timestamp) }),
+        el('div', { class: 'mk-acts' }, [btn('📂 ' + T('MK_OPEN'), { cls: 'sm primary mk-open', onclick: () => { if (close) close(); this.openPurchased(p.gameId, p.copyProjectId); } })])])])));
+  },
+  /* «🛒 Purchased Projects» in My projects */
+  async purchasedSection(host) {
+    if (!me()) return;
+    const box = el('div', { class: 'mk-purchased' });
+    host.appendChild(box);
+    let list = [];
+    try { list = await this.myPurchases(); } catch { return; }
+    if (!list.length) return;
+    box.append(el('div', { class: 'sec-head' }, [el('h2', { text: '🛒 ' + T('MK_T_BOUGHT') })]));
+    const grid = el('div', { class: 'mk-grid' });
+    box.appendChild(grid);
+    this.paintPurchases(grid, list);
+  },
+  /* the home page: a glimpse, and the way in */
+  async homeSection(host) {
+    if (!Backend.isOnline()) return;
+    const box = el('div', { class: 'mk-home' });
+    host.appendChild(box);
+    box.append(el('div', { class: 'sec-head' }, [el('h2', { text: '🛒 NEXUS MARKETPLACE' }), btn(T('MK_OPEN_MARKET'), { cls: 'sm mk-enter', onclick: () => this.open() })]));
+    const grid = el('div', { class: 'mk-grid mk-row-scroll' });
+    box.appendChild(grid);
+    try {
+      const { items } = await this.load({ stats: 12 });
+      if (!items.length) { grid.appendChild(el('p', { class: 'tiny', text: T('MK_EMPTY_HOME') })); return; }
+      items.sort((a, b) => b.score - a.score).slice(0, 6).forEach(it => grid.appendChild(this.card(it)));
+    } catch { box.remove(); }
+  },
+
+  /* ---------------------------------------------------------------- 📊 Project Earnings */
+  async earnings() {
+    if (!me()) { NX.promptSignIn(T('MK_SIGNIN')); return; }
+    const body = el('div', { class: 'mk-earn' });
+    Sheet.open({ title: '📊 ' + T('MK_EARN_TITLE'), body, full: true, id: 'earnings' });
+    body.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' })]));
+    const uid = me();
+    let games = [];
+    try { games = await NX.Games.list({ ownerId: uid, limit: 100 }); } catch { }
+    const rows = await Promise.all(games.map(async g => ({ g, st: (await this.stats(g.gameId)) || {}, L: await this.listing(g.gameId) })));
+    const sum = f => rows.reduce((a, r) => a + (f(r) || 0), 0);
+    const tot = { players: sum(r => r.st.players), seconds: sum(r => r.st.seconds), sessions: sum(r => r.st.sessions), likes: sum(r => r.g.likes),
+      play: sum(r => r.st.rewardPoints), sales: sum(r => r.L && r.L.sales), revenue: sum(r => r.L && r.L.revenue) };
+    const c = await this.config();
+    body.textContent = '';
+    const kpi = (ic, label, v, cls) => el('div', { class: 'mk-kpi ' + (cls || '') }, [el('b', { text: v }), el('span', { text: ic + ' ' + label })]);
+    body.append(el('div', { class: 'mk-kpis' }, [
+      kpi('👥', T('MK_K_PLAYERS'), num(tot.players), 'k-players'), kpi('⏱️', T('MK_K_TIME'), playTime(tot.seconds), 'k-time'), kpi('🎮', T('MK_K_SESSIONS'), num(tot.sessions), 'k-sessions'),
+      kpi('❤️', T('MK_K_LIKES'), num(tot.likes), 'k-likes'), kpi('💰', T('MK_K_REWARDS'), num(tot.play) + ' ' + T('MK_POINTS'), 'k-rewards'), kpi('🛒', T('MK_K_SALES'), num(tot.sales), 'k-sales')]));
+    body.appendChild(el('div', { class: 'card mk-total' }, [
+      el('div', { class: 'mk-trow t-sales' }, [el('span', { text: '💰 ' + T('MK_SALES_REV') }), el('b', { text: num(tot.revenue) + ' ' + T('MK_POINTS') })]),
+      el('div', { class: 'mk-trow t-play' }, [el('span', { text: '🎮 ' + T('MK_K_REWARDS') }), el('b', { text: num(tot.play) + ' ' + T('MK_POINTS') })]),
+      el('div', { class: 'mk-trow t-all' }, [el('span', { text: T('MK_TOTAL') }), el('b', { text: num(tot.revenue + tot.play) + ' ' + T('MK_POINTS') })])]));
+    body.appendChild(el('p', { class: 'tiny', text: T('MK_APART') + ' · ' + T('MK_RATE_NOTE', { m: c.play.intervalMinutes, p: c.play.points }) }));
+    /* each game */
+    body.appendChild(el('div', { class: 'ttl', text: T('MK_PER_GAME') }));
+    if (!rows.length) body.appendChild(el('p', { class: 'tiny', text: T('MK_NO_GAMES') }));
+    rows.sort((a, b) => ((b.st.seconds || 0) - (a.st.seconds || 0))).forEach(({ g, st, L }) => {
+      const pend = mins(st.pendingSeconds), need = c.play.intervalMinutes;
+      body.appendChild(el('div', { class: 'card mk-game', dataset: { game: g.gameId } }, [
+        el('b', { text: g.title }),
+        el('div', { class: 'tiny', text: '👥 ' + num(st.players) + ' · ⏱️ ' + playTime(st.seconds) + ' · 🎮 ' + num(st.sessions) + ' · ❤️ ' + num(g.likes) }),
+        el('div', { class: 'tiny', text: '💰 ' + T('MK_K_REWARDS') + ': ' + num(st.rewardPoints) + ' · 🛒 ' + T('MK_K_SALES') + ': ' + num(L && L.sales) + ' (' + num(L && L.revenue) + ')' + (L && L.isForSale ? ' · ' + T('MK_LISTED_AT', { n: num(L.price) }) : '') }),
+        el('div', { class: 'tiny mk-pending', text: '⏳ ' + T('MK_PENDING', { n: pend, m: need }) })]));
+    });
+    /* the transactions */
+    body.appendChild(el('div', { class: 'ttl', text: T('MK_TX') }));
+    const log = el('div', { class: 'mk-log' });
+    body.appendChild(log);
+    try {
+      const { F, db } = fb();
+      const q = await F.getDocs(F.query(F.collection(db, 'wallets', uid, 'ledger'), F.orderBy('at', 'desc'), F.limit(150)));
+      const list = q.docs.map(d => d.data()).filter(x => ['market_sale', 'market_buy', 'play'].includes(x.reason)).slice(0, 60);
+      if (!list.length) log.appendChild(el('p', { class: 'tiny', text: T('MK_NO_TX') }));
+      list.forEach(x => log.appendChild(el('div', { class: 'pts-line mk-tx ' + x.reason }, [
+        el('span', { text: (x.reason === 'market_sale' ? '💰 ' + T('MK_R_SALE') : x.reason === 'market_buy' ? '🛒 ' + T('MK_R_BUY') : '🎮 ' + T('MK_R_PLAY')) + (x.note ? ' — ' + x.note : '') }),
+        el('b', { class: x.delta >= 0 ? 'plus' : 'minus', text: (x.delta >= 0 ? '+' : '') + num(x.delta) }), el('small', { text: ago(x.at) + (x.tx ? ' · ' + String(x.tx).slice(0, 14) : '') })])));
+    } catch (e) { log.appendChild(el('p', { class: 'tiny', text: NX.describeFirebaseError(e) })); }
+  },
+
+  /* ---------------------------------------------------------------- ⚙️ the economy — the site's owner only */
+  FIELDS: [['playIntervalMinutes', 'MK_E_INTERVAL', c => c.play.intervalMinutes], ['playPoints', 'MK_E_POINTS', c => c.play.points],
+    ['playerGameMinutes', 'MK_E_PGAME', c => c.play.playerGameMinutes], ['playerDayMinutes', 'MK_E_PDAY', c => c.play.playerDayMinutes],
+    ['gameDayPoints', 'MK_E_GDAY', c => c.play.gameDayPoints], ['creatorDayPoints', 'MK_E_CDAY', c => c.play.creatorDayPoints],
+    ['minAccountAgeHours', 'MK_E_AGE', c => c.play.minAccountAgeHours], ['verifiedOnly', 'MK_E_VERIFIED', c => c.play.verifiedOnly ? 1 : 0],
+    ['marketOn', 'MK_E_MARKET', c => c.market ? 1 : 0], ['minPrice', 'MK_E_MIN', c => c.minPrice], ['maxPrice', 'MK_E_MAX', c => c.maxPrice],
+    ['feePercent', 'MK_E_FEE', c => c.feePercent], ['buyerMinAgeHours', 'MK_E_BUYER_AGE', c => c.buyerMinAgeHours]],
+  async openEconomy() {
+    const c = await this.config(true);
+    if (!c.owner) { Toast.err(T('MK_ECO_OWNER')); return; }
+    const body = el('div', { class: 'mk-eco' });
+    body.appendChild(el('p', { class: 'tiny', text: T('MK_ECO_INTRO') }));
+    const inputs = {};
+    this.FIELDS.forEach(([k, label, get]) => {
+      const i = el('input', { class: 'input', type: 'number', dir: 'ltr', value: String(get(c)), dataset: { k } });
+      inputs[k] = i;
+      body.appendChild(NX.field(T(label), i));
+    });
+    const presets = el('input', { class: 'input', dir: 'ltr', value: (c.pricePresets || []).join(', '), dataset: { k: 'pricePresets' } });
+    body.appendChild(NX.field(T('MK_E_PRESETS'), presets));
+    Sheet.open({ title: '⚙️ ' + T('MK_ECO_TITLE'), body, id: 'economy', foot: [btn(T('save'), { cls: 'primary block mk-eco-save', onclick: async e => {
+      const b = e.currentTarget; b.disabled = true;
+      const values = { pricePresets: presets.value };
+      Object.entries(inputs).forEach(([k, i]) => { if (i.value !== '') values[k] = +i.value; });
+      try { await this.api('/config', { values }); await this.config(true); Toast.ok('✓ ' + T('MK_ECO_SAVED')); }
+      catch (err) { Toast.err(err.message); }
+      finally { b.disabled = false; }
+    } })] });
+  },
+  /* the wallet sheet's way to the creator's numbers and the marketplace */
+  walletRow() {
+    return el('div', { class: 'row mk-wallet', style: { flexWrap: 'wrap', gap: '6px', margin: '-4px 0 12px' } }, [
+      btn('📊 ' + T('MK_EARN_TITLE'), { cls: 'sm', onclick: () => this.earnings() }),
+      btn('🛒 ' + T('MK_MARKET'), { cls: 'sm', onclick: () => this.open() })]);
+  }
+};
+
+/* ================================================================ ⏱ the play session of the game on screen */
+const IDLE_S = 180;
+const PlayTimer = {
+  sid: null, gid: null, beatS: 60, timer: 0, lastInput: performance.now(), hiddenMs: 0, hiddenAt: 0, tok: null, starting: false, tried: 0,
+  init() {
+    ['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach(t => window.addEventListener(t, () => { this.lastInput = performance.now(); }, { passive: true, capture: true }));
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') this.hiddenAt = performance.now();
+      else if (this.hiddenAt) { this.hiddenMs += performance.now() - this.hiddenAt; this.hiddenAt = 0; }
+    });
+    window.addEventListener('pagehide', () => this.end());
+    setInterval(() => this.watch(), 2500);
+  },
+  current() { const P = NX.GamePlayer; return P && P.gameId && NX.Screen.current() === 'player' ? P.gameId : null; },
+  watch() {
+    const gid = this.current();
+    if (gid === this.gid) {
+      /* a start that failed (offline, the server busy): tried again a little later */
+      if (gid && !this.sid && !this.starting && performance.now() - this.tried > 15000) this.start(gid);
+      return;
+    }
+    if (this.sid) this.end();
+    this.gid = gid;
+    if (gid) this.start(gid);
+  },
+  async start(gid) {
+    if (!POINTS || !me() || this.starting) return;
+    this.starting = true; this.tried = performance.now();
+    try {
+      const r = await NX.Points.api('/play/start', { gameId: gid });
+      if (this.gid !== gid) { this.sid = r.sessionId; this.end(); return; }
+      this.sid = r.sessionId; this.beatS = r.beat || 60; this.hiddenMs = 0; this.lastInput = performance.now();
+      clearInterval(this.timer);
+      this.timer = setInterval(() => this.beat(), this.beatS * 1000);
+      this.token().then(t => { this.tok = t; });
+    } catch { /* the points server is not there (or busy): nothing counted now — tried again by watch() */ }
+    finally { this.starting = false; }
+  },
+  async token() { const u = Backend.fb && Backend.fb.auth && Backend.fb.auth.currentUser; return u && !u.isAnonymous ? u.getIdToken().catch(() => null) : null; },
+  out() { const h = this.hiddenMs + (this.hiddenAt ? performance.now() - this.hiddenAt : 0); this.hiddenMs = 0; if (this.hiddenAt) this.hiddenAt = performance.now(); return Math.round(h / 1000); },
+  async beat() {
+    if (!this.sid) return;
+    if (document.visibilityState !== 'visible') return;              // nothing while hidden — the server sees the silence
+    const body = { sessionId: this.sid, hidden: this.out(), idle: performance.now() - this.lastInput > IDLE_S * 1000 };
+    try {
+      const r = await NX.Points.api('/play/beat', body);
+      this.last = r;
+      this.tok = await this.token();
+      if (r.stop) { this.sid = null; clearInterval(this.timer); }
+      if (r.paid && r.paid.points) window.dispatchEvent(new CustomEvent('nx:playReward', { detail: r.paid }));
+    } catch (e) { if (e.code === 'play_session') { this.sid = null; clearInterval(this.timer); } }
+  },
+  /* the last stretch — sent even while the page is closing (keepalive) */
+  end() {
+    const sid = this.sid;
+    this.sid = null; clearInterval(this.timer);
+    if (!sid || !POINTS) return;
+    const body = JSON.stringify({ sessionId: sid, hidden: this.out(), idle: performance.now() - this.lastInput > IDLE_S * 1000 });
+    const send = tok => fetch(POINTS + '/play/end', { method: 'POST', keepalive: true, headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body }).catch(() => {});
+    if (this.tok) send(this.tok); else this.token().then(t => t && send(t));
+  }
+};
+
+/* ================================================================ hooks (not inside a game's sandbox frame) */
+if (!window.NX_SANDBOX && NX.Commands) NX.Commands.register([
+  { get label() { return '🛒 ' + T('MK_MARKET'); }, icon: 'grid', keywords: 'marketplace market سوق متجر buy sell بيع شراء', run: () => Market.open() },
+  { get label() { return '🛒 ' + T('MK_T_BOUGHT'); }, icon: 'folder', keywords: 'purchased bought مشتريات اشتريت', run: () => Market.open({ tab: 'bought' }) },
+  { get label() { return '📊 ' + T('MK_EARN_TITLE'); }, icon: 'grid', keywords: 'earnings dashboard creator أرباح لوحة', run: () => Market.earnings() },
+  { get label() { return '⚙️ ' + T('MK_ECO_TITLE'); }, icon: 'gear', keywords: 'economy اقتصاد rewards prices', when: () => Market.isOwner(), run: () => Market.openEconomy() }
+]);
+/* who may see «⚙️ NEXUS economy»: asked again when the account changes */
+if (!window.NX_SANDBOX && Backend.onAuth) Backend.onAuth(() => { setTimeout(() => Market.config(true).catch(() => {}), 1500); });
+if (!window.NX_SANDBOX) PlayTimer.init();
+NX.Market = Market;
+NX.PlayTimer = PlayTimer;
+</script>
+<!-- /NX-PART:42 -->
 
 
 <script>

@@ -1,8 +1,8 @@
 /* ============================================================
    NEXUS tests · the site as Netlify would serve it, on this machine:
    the static files of nexus/ and the server functions
-   (netlify/edge-functions/ai.js, points.js, challenges.js, i18n.js) answering
-   /api/ai/*, /api/points/*, /api/challenges/*, /api/i18n/*, with the Firebase emulators as their database
+   (netlify/edge-functions/ai.js, points.js, challenges.js, i18n.js, market.js) answering
+   /api/ai/*, /api/points/*, /api/challenges/*, /api/i18n/*, /api/market/*, with the Firebase emulators as their database
    (FIRESTORE_EMULATOR_HOST — the real firestore.rules apply to the page)
    and fake AI providers (mock-world.mjs) instead of the real ones.
    ============================================================ */
@@ -33,7 +33,7 @@ export async function importChallenges(query, file = 'challenges') {
 
 export async function startSite({ env, files = {}, port = 0 }) {
   globalThis.Netlify = { env: { get: k => env[k] } };
-  let ai, points, challenges, i18n, n = 0;
+  let ai, points, challenges, i18n, market, n = 0;
   /* a fresh copy of the functions (empty caches: key pool, model lists, resting keys) */
   const load = async () => {
     const v = Date.now() + '-' + (++n);
@@ -41,13 +41,14 @@ export async function startSite({ env, files = {}, port = 0 }) {
     points = (await import(pathToFileURL(path.join(ROOT, 'netlify/edge-functions/points.js')).href + '?e2e=' + v)).default;
     challenges = await importChallenges('e2e=' + v);
     i18n = await importChallenges('e2e=' + v, 'i18n');
+    market = await importChallenges('e2e=' + v, 'market');
   };
   await load();
   const log = [];
   const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url, 'http://' + req.headers.host);
-      const fn = /^\/api\/ai(\/|$)/.test(url.pathname) ? ai : /^\/api\/points(\/|$)/.test(url.pathname) ? points : /^\/api\/challenges(\/|$)/.test(url.pathname) ? challenges : /^\/api\/i18n(\/|$)/.test(url.pathname) ? i18n : null;
+      const fn = /^\/api\/ai(\/|$)/.test(url.pathname) ? ai : /^\/api\/points(\/|$)/.test(url.pathname) ? points : /^\/api\/challenges(\/|$)/.test(url.pathname) ? challenges : /^\/api\/i18n(\/|$)/.test(url.pathname) ? i18n : /^\/api\/market(\/|$)/.test(url.pathname) ? market : null;
       if (fn) {
         const chunks = [];
         for await (const c of req) chunks.push(c);

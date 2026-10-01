@@ -6,7 +6,9 @@
 
    Earn:  a rewarded ad watched to the end        +POINTS_PER_AD (5)
           the welcome gift (once per account)       +POINTS_WELCOME (50)
-          every 10 minutes others play your game    +POINTS_PER_PLAY_REWARD (5)
+          Play Rewards: every PLAY_REWARD_INTERVAL_MINUTES (10) of real play
+          by others in your game                    +PLAY_REWARD_POINTS (1)
+          (play sessions timed by THIS server's clock — see PLAY TIME below)
    Spend: a hosted file                             POINTS_PER_MB (10) per MB
           10 more AI requests today                 AI_PACK_POINTS (10)
    Pro ($20 / month through Stripe): hosted files free, 150 AI requests a day.
@@ -56,9 +58,48 @@ const cfg = () => ({
   adsWeb: env('ADS_WEB') === '1',
   mb: num('POINTS_PER_MB', 10), fileMaxMB: num('FILE_MAX_MB', 25),
   aiFree: num('AI_FREE_PER_DAY', 20), aiPack: num('AI_PACK_REQUESTS', 10), aiPackPrice: num('AI_PACK_POINTS', 10), proAI: num('PRO_AI_PER_DAY', 150),
-  playMinutes: num('PLAY_MINUTES_PER_REWARD', 10), playPoints: num('POINTS_PER_PLAY_REWARD', 5), playCap: num('PLAY_MINUTES_PER_PLAYER_DAY', 30), playGap: num('PLAY_HEARTBEAT_SECONDS', 55),
   stripe: !!(env('STRIPE_SECRET_KEY') && env('STRIPE_PRICE_ID')), proPrice: env('PRO_PRICE_LABEL') || '20$'
 });
+/* ---------------- the economy (Play Rewards, the marketplace): Netlify variables → what the site's owner set
+   inside NEXUS (economy/config — written only by the server after checking the owner, market.js) → bounds.
+   Never a number a page sends. ---------------- */
+const ECON = {
+  playIntervalMinutes: [['PLAY_REWARD_INTERVAL_MINUTES', 'PLAY_MINUTES_PER_REWARD'], 10, 1, 1440],   // minutes of real play per reward
+  playPoints:          [['PLAY_REWARD_POINTS', 'POINTS_PER_PLAY_REWARD'], 1, 0, 1000],              // points per reward
+  playerGameMinutes:   [['PLAY_MINUTES_PER_PLAYER_DAY'], 30, 0, 1440],        // one player, one game, one day
+  playerDayMinutes:    [['PLAY_PLAYER_DAILY_MINUTES'], 180, 0, 1440],         // one player, all games, one day
+  gameDayPoints:       [['PLAY_GAME_DAILY_POINTS'], 100, 0, 1000000],         // one game's Play Rewards a day
+  creatorDayPoints:    [['PLAY_CREATOR_DAILY_POINTS'], 300, 0, 1000000],      // one creator's Play Rewards a day
+  heartbeatSeconds:    [['PLAY_HEARTBEAT_SECONDS'], 60, 15, 600],             // a page says «still playing» this often
+  sessionMaxMinutes:   [['PLAY_SESSION_MAX_MINUTES'], 240, 10, 1440],         // one session counts at most this long
+  minAccountAgeHours:  [['PLAY_MIN_ACCOUNT_AGE_HOURS'], 24, 0, 720],          // an account this new earns its creators nothing yet
+  verifiedOnly:        [['PLAY_VERIFIED_ONLY'], 0, 0, 1],                     // 1: only verified e-mails (Google accounts are)
+  marketOn:            [['MARKET_ENABLED'], 1, 0, 1],
+  minPrice:            [['MARKET_MIN_PRICE'], 10, 1, 1000000],
+  maxPrice:            [['MARKET_MAX_PRICE'], 100000, 1, 10000000],
+  feePercent:          [['MARKET_FEE_PERCENT'], 0, 0, 90],                    // kept by the marketplace; the seller gets the rest
+  buyerMinAgeHours:    [['MARKET_MIN_BUYER_AGE_HOURS'], 0, 0, 720]
+};
+const ECON_PRESETS = '100,500,1000,5000';
+let econCache = { at: 0, v: null };
+async function econ(force) {
+  if (!force && econCache.v && Date.now() - econCache.at < 30e3) return econCache.v;
+  let over = {};
+  if (ready()) { try { const d = await getDoc('economy/config'); if (d.exists) over = d.data || {}; } catch { } }
+  const v = {};
+  for (const [k, [names, def, lo, hi]] of Object.entries(ECON)) {
+    let x = def;
+    for (const n of names) { const e = env(n); if (e !== '' && Number.isFinite(+e)) { x = +e; break; } }
+    if (over[k] != null && Number.isFinite(+over[k])) x = +over[k];
+    v[k] = Math.min(hi, Math.max(lo, Math.round(x)));
+  }
+  if (v.maxPrice < v.minPrice) v.maxPrice = v.minPrice;
+  const pre = Array.isArray(over.pricePresets) ? over.pricePresets : (env('MARKET_PRICE_PRESETS') || ECON_PRESETS).split(/[\s,;]+/);
+  v.pricePresets = pre.map(Number).filter(n => Number.isInteger(n) && n >= v.minPrice && n <= v.maxPrice).slice(0, 8);
+  v.updatedAt = over.updatedAt || 0;
+  econCache = { at: Date.now(), v };
+  return v;
+}
 /* the rewarded ad unit(s) whose AdMob rewards are accepted — the numeric part after «/» */
 const ADMOB_UNITS = () => (env('ADMOB_REWARDED_UNITS') || 'ca-app-pub-4399025548645078/3848566420').split(/[\s,]+/).filter(Boolean).map(u => u.split('/').pop());
 /* what may be hosted with a direct link */
@@ -196,7 +237,7 @@ async function who(req) {
     if (!key || !(await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64u(parts[2]), te(parts[0] + '.' + parts[1])))) return null;
   }
   if ((c.firebase && c.firebase.sign_in_provider) === 'anonymous') return null;     // points belong to accounts
-  return { uid: c.sub, email: c.email || '', name: c.name || '' };
+  return { uid: c.sub, email: c.email || '', name: c.name || '', verified: !!c.email_verified };
 }
 
 /* ================================================================ ADS */
@@ -364,33 +405,153 @@ async function aiBuy(me) {
   });
 }
 
-/* ================================================================ PLAY TIME → the creator's points */
-async function play(me, b) {
-  const c = cfg(), gid = String(b.gameId || '').replace(/[^\w-]/g, '');
+/* ================================================================ PLAY TIME → Play Rewards (the creator's points)
+   Kept apart from everything else: ❤️ likes stay likes (games/<id>.likes), ⏱ play time is play time
+   (playtime/<gameId>: seconds, sessions, players), 💰 Play Rewards are the points that time earns
+   (playtime/<gameId>.rewardPoints, the creator's ledger «play»).
+   A session is timed by THIS server's clock — a page cannot send a duration:
+   • /play/start {gameId} → a playSessionId; one counted session per account: a newer one (another tab,
+     another device, another game) ends the older one («replaced»).
+   • /play/beat {sessionId, hidden, idle} every PLAY_HEARTBEAT_SECONDS while the game is on screen: the time
+     since the last beat is credited — never a beat sooner than half the interval (nothing written), never a
+     silence longer than 2.5 intervals (closed, offline, in the background: not counted), minus the seconds
+     the page says it was hidden, nothing when idle (no touch for a while), at most PLAY_SESSION_MAX_MINUTES.
+   • /play/end {sessionId}: the last stretch, and the session's endedAt / duration.
+   What earns the creator points («qualified»): another player's time (never the creator's own), from an
+   account at least PLAY_MIN_ACCOUNT_AGE_HOURS old on this server (verified e-mail with PLAY_VERIFIED_ONLY=1),
+   within PLAY_MINUTES_PER_PLAYER_DAY per game and PLAY_PLAYER_DAILY_MINUTES in all — so a hundred new accounts
+   earn nothing the first day and little after. Qualified seconds wait in pendingSeconds: every
+   PLAY_REWARD_INTERVAL_MINUTES of them become PLAY_REWARD_POINTS, the rest stays for the next sessions
+   (97 minutes at 10 → 9 rewards, 7 minutes kept). A game earns at most PLAY_GAME_DAILY_POINTS a day and a
+   creator PLAY_CREATOR_DAILY_POINTS — time beyond that is counted as play time but earns nothing (not banked).
+   The reward and the bookkeeping land in ONE commit (no reward paid twice, none lost). */
+const SESS = 'play_sessions';
+const cleanId = v => String(v || '').replace(/[^\w-]/g, '').slice(0, 64);
+async function playStart(me, b) {
+  const e = await econ(), gid = cleanId(b.gameId);
   if (!gid) throw coded(400, 'bad_request', 'اللعبة غير محدّدة');
-  const g = await getDoc('games/' + gid);
+  const g = await getDoc('games/' + gid, ['ownerId', 'visibility', 'projectId', 'title']);
   if (!g.exists || g.data.visibility === 'private') throw coded(404, 'game', 'اللعبة غير موجودة');
-  if (g.data.ownerId === me.uid) return { counted: false, why: 'own' };
-  const markId = me.uid + '_' + gid + '_' + today(), now = Date.now();
-  const m = await getDoc('play_marks/' + markId);
-  const n = (m.data && m.data.n) || 0;
-  if (n >= c.playCap) return { counted: false, why: 'cap' };
-  if (m.data && now - m.data.last < c.playGap * 1000) return { counted: false, why: 'early' };   // one minute counted per minute
-  const r = await commit([put('play_marks/' + markId, { n: n + 1, last: now }, { pre: preOf(m) }),
-    put('playtime/' + gid, { gameId: gid, ownerId: g.data.ownerId, updatedAt: now }, { incr: { minutes: 1 } })]);
-  if (!r.ok) return { counted: false, why: 'busy' };
-  const total = +((r.results[1].transformResults || [])[0] || {}).integerValue || 0;
-  let paid = false;
-  if (total > 0 && total % c.playMinutes === 0 && c.playPoints) {
-    try { await change(g.data.ownerId, c.playPoints, 'play', total + ' دقيقة لعب في «' + String(g.data.title || '').slice(0, 60) + '»'); paid = true; } catch { }
+  const own = g.data.ownerId === me.uid;
+  for (let i = 0; i < 4; i++) {
+    const now = Date.now(), sid = 'ps' + rid(18);
+    const a = await getDoc('play_active/' + me.uid);
+    if (a.exists && now - (a.data.at || 0) < 2000) throw coded(429, 'play_busy', 'جلسة لعب بدأت للتوّ — انتظر لحظة');
+    const writes = [];
+    /* an older session of this account, still running: it ends where its last beat was */
+    if (a.exists && a.data.sessionId) {
+      const old = await getDoc(SESS + '/' + a.data.sessionId);
+      if (old.exists && old.data.state === 'active') writes.push(put(SESS + '/' + a.data.sessionId, { state: 'replaced', endedAt: old.data.lastHeartbeat || now }, { pre: preOf(old) }));
+    }
+    writes.push(create(SESS + '/' + sid, { sessionId: sid, gameId: gid, projectId: g.data.projectId || null, ownerUid: g.data.ownerId, playerUid: me.uid,
+      startedAt: now, lastHeartbeat: now, endedAt: null, duration: 0, qualified: 0, beats: 0, ignored: 0, state: 'active', own }));
+    writes.push(put('play_active/' + me.uid, { sessionId: sid, gameId: gid, at: now }, { pre: preOf(a) }));
+    if (!own) {
+      /* 🎮 sessions and 👥 players (a player counted once per game) — other people only */
+      const pm = await getDoc('play_players/' + gid + '_' + me.uid);
+      writes.push(put('playtime/' + gid, { gameId: gid, ownerId: g.data.ownerId, projectId: g.data.projectId || null, title: String(g.data.title || '').slice(0, 120), updatedAt: now }, { incr: Object.assign({ sessions: 1 }, pm.exists ? {} : { players: 1 }) }));
+      if (!pm.exists) writes.push(create('play_players/' + gid + '_' + me.uid, { gameId: gid, uid: me.uid, at: now }));
+    }
+    const r = await commit(writes);
+    if (r.ok) return { sessionId: sid, beat: e.heartbeatSeconds, counted: !own, why: own ? 'own' : null };
+    if (!r.conflict) throw coded(503, 'store', 'تعذّر بدء الجلسة (' + r.status + ')');
   }
-  return { counted: true, minutes: total, paid };
+  throw coded(409, 'busy', 'حاول مرة أخرى بعد لحظة');
+}
+async function playBeat(me, b, { ending = false } = {}) {
+  const e = await econ(), sid = cleanId(b.sessionId);
+  const hidden = Math.max(0, Math.min(86400, +b.hidden || 0)), idle = b.idle === true;
+  for (let i = 0; i < 5; i++) {
+    const s = await getDoc(SESS + '/' + sid);
+    if (!s.exists || s.data.playerUid !== me.uid) throw coded(404, 'play_session', 'جلسة اللعب غير موجودة');
+    const d = s.data, now = Date.now(), beat = e.heartbeatSeconds;
+    if (d.state !== 'active') return { credited: 0, state: d.state, stop: true };
+    const gap = (now - d.lastHeartbeat) / 1000;
+    /* sooner than half an interval: nothing written — a page cannot make the clock run faster */
+    if (!ending && gap < beat * 0.5) return { credited: 0, why: 'early', wait: Math.ceil(beat * 0.5 - gap) };
+    let credit = 0, why = null;
+    if (gap > beat * 2.5) why = 'gap';                                  // closed, offline, in the background: not counted
+    else if (idle) why = 'idle';
+    else credit = Math.max(0, gap - Math.min(gap, hidden));
+    const maxS = e.sessionMaxMinutes * 60;
+    if (credit > 0 && d.duration + credit > maxS) { credit = Math.max(0, maxS - d.duration); why = 'long'; }
+    credit = Math.floor(credit);
+    const f = { lastHeartbeat: now, duration: (d.duration || 0) + credit, beats: (d.beats || 0) + 1, ignored: (d.ignored || 0) + Math.max(0, Math.floor(gap) - credit) };
+    if (ending) Object.assign(f, { state: 'ended', endedAt: now });
+    const writes = [put(SESS + '/' + sid, f, { pre: preOf(s) })];
+    let qualified = 0, qwhy = null;
+    if (credit > 0 && !d.own) {
+      const day = today(), pd = await getDoc('play_days/' + me.uid + '_' + day);
+      const pdd = pd.data || {}, games = pdd.games || {};
+      const w = await getDoc('wallets/' + me.uid, ['createdAt']);
+      const ageH = w.exists && w.data.createdAt ? (now - w.data.createdAt) / 3600e3 : 0;
+      if (ageH < e.minAccountAgeHours) qwhy = 'new_account';
+      else if (e.verifiedOnly && !me.verified) qwhy = 'unverified';
+      else {
+        qualified = Math.max(0, Math.min(credit, e.playerGameMinutes * 60 - (games[d.gameId] || 0), e.playerDayMinutes * 60 - (pdd.total || 0)));
+        if (qualified < credit) qwhy = 'player_cap';
+      }
+      if (qualified > 0) {
+        writes.push(put('play_days/' + me.uid + '_' + day, { uid: me.uid, day, games: Object.assign({}, games, { [d.gameId]: (games[d.gameId] || 0) + qualified }) }, { pre: preOf(pd), incr: { total: qualified } }));
+        f.qualified = (d.qualified || 0) + qualified;
+        writes[0] = put(SESS + '/' + sid, f, { pre: preOf(s) });
+      }
+      writes.push(put('playtime/' + d.gameId, { gameId: d.gameId, ownerId: d.ownerUid, updatedAt: now },
+        { incr: Object.assign({ seconds: credit }, qualified ? { qualifiedSeconds: qualified, pendingSeconds: qualified } : {}) }));
+    }
+    const r = await commit(writes);
+    if (r.ok) {
+      const paid = qualified > 0 ? await payPlay(d.gameId, d.ownerUid, e).catch(() => null) : null;
+      return { credited: credit, qualified, why: why || qwhy, duration: f.duration, state: ending ? 'ended' : 'active', paid };
+    }
+    if (!r.conflict) throw coded(503, 'store', 'تعذّر الحفظ (' + r.status + ')');
+  }
+  throw coded(409, 'busy', 'حاول مرة أخرى بعد لحظة');
+}
+/* qualified time → the creator's points: whole intervals only, the rest kept; daily ceilings; one commit */
+async function payPlay(gid, ownerUid, e) {
+  const interval = e.playIntervalMinutes * 60, rate = e.playPoints;
+  if (!rate || !ownerUid) return null;
+  const pt0 = await getDoc('playtime/' + gid);
+  if (!pt0.exists || (pt0.data.pendingSeconds || 0) < interval) return null;
+  let out = null;
+  await change(ownerUid, 0, 'play', '', async wd => {
+    const pt = await getDoc('playtime/' + gid);
+    const p = pt.data || {}, units = Math.floor((p.pendingSeconds || 0) / interval);
+    if (units < 1) { out = null; return { delta: 0, writes: [] }; }
+    const day = today();
+    const gameToday = p.payDay === day ? p.payDayPoints || 0 : 0, creatorToday = wd.playDay === day ? wd.playDayPoints || 0 : 0;
+    const allowed = Math.max(0, Math.min(units * rate, e.gameDayPoints - gameToday, e.creatorDayPoints - creatorToday));
+    const paidUnits = Math.floor(allowed / rate), pay = paidUnits * rate;
+    /* over a ceiling: those minutes are spent without points (play time still counts) — never banked for later */
+    const spent = units * interval, dropped = (units - paidUnits) * interval;
+    out = { points: pay, minutes: paidUnits * e.playIntervalMinutes, capped: paidUnits < units, left: (p.pendingSeconds || 0) - spent };
+    return {
+      delta: pay,
+      note: '«' + String(p.title || gid).slice(0, 60) + '» · ⏱ ' + (paidUnits * e.playIntervalMinutes) + '′',      // the same in every language
+      fields: pay ? { playDay: day, playDayPoints: creatorToday + pay } : {},
+      writes: [put('playtime/' + gid, { payDay: day, payDayPoints: gameToday + pay, updatedAt: Date.now() },
+        { pre: preOf(pt), incr: Object.assign({ pendingSeconds: -spent, rewardedSeconds: paidUnits * interval, rewardPoints: pay }, dropped ? { droppedSeconds: dropped } : {}) })]
+    };
+  });
+  return out;
+}
+/* the page of an older visit (one call a minute with the game's id): its session, started or continued */
+async function playLegacy(me, b) {
+  const gid = cleanId(b.gameId);
+  const a = await getDoc('play_active/' + me.uid);
+  if (a.exists && a.data.gameId === gid && a.data.sessionId) {
+    const r = await playBeat(me, { sessionId: a.data.sessionId }).catch(() => null);
+    if (r && !r.stop) return { counted: r.credited > 0, minutes: Math.floor((r.duration || 0) / 60), paid: !!(r.paid && r.paid.points) };
+  }
+  const st = await playStart(me, { gameId: gid });
+  return { counted: false, why: st.why || 'started' };
 }
 
 /* ================================================================ the router */
-const pub = c => ({ welcome: c.welcome, ad: c.ad, adsPerDay: c.adsPerDay, adCooldown: c.adCooldown, adMinSeconds: c.adMinSeconds, adsWeb: c.adsWeb,
+const pub = (c, e) => ({ welcome: c.welcome, ad: c.ad, adsPerDay: c.adsPerDay, adCooldown: c.adCooldown, adMinSeconds: c.adMinSeconds, adsWeb: c.adsWeb,
   mb: c.mb, fileMaxMB: c.fileMaxMB, aiFree: c.aiFree, aiPack: c.aiPack, aiPackPrice: c.aiPackPrice, proAI: c.proAI,
-  playMinutes: c.playMinutes, playPoints: c.playPoints, playCap: c.playCap, stripe: c.stripe, proPrice: c.proPrice });
+  playMinutes: e.playIntervalMinutes, playPoints: e.playPoints, playCap: e.playerGameMinutes, playBeat: e.heartbeatSeconds, stripe: c.stripe, proPrice: c.proPrice });
 
 export default async (req) => {
   const url = new URL(req.url);
@@ -403,7 +564,7 @@ export default async (req) => {
     const origin = req.headers.get('origin');
     if (origin && origin !== url.origin) return fail(403, 'origin', 'غير مسموح');
     const c = cfg();
-    if (path === '/config') return json(200, { ok: true, ready: ready(), ...pub(c) });
+    if (path === '/config') return json(200, { ok: true, ready: ready(), ...pub(c, await econ()) });
     if (!ready()) return fail(503, 'off', 'نظام النقاط يحتاج FIREBASE_SERVICE_ACCOUNT في إعدادات Netlify.', { ready: false });
     const me = await who(req);
     if (!me) return fail(401, 'signin', 'النقاط لأصحاب الحسابات — سجّل الدخول (Google أو البريد).');
@@ -412,7 +573,7 @@ export default async (req) => {
     if (path === '/me' && req.method === 'GET') {
       const d = await wallet(me.uid), u = (await getDoc('usage/' + me.uid)).data;
       const day = today(), ads = d.adsDay === day ? d.adsN || 0 : 0, used = u && u.day === day ? u.used || 0 : 0, extra = u && u.day === day ? u.extra || 0 : 0;
-      return json(200, { ok: true, ready: true, points: d.points || 0, ...pub(c),
+      return json(200, { ok: true, ready: true, points: d.points || 0, ...pub(c, await econ()),
         ads: { today: ads, left: Math.max(0, c.adsPerDay - ads), wait: Math.max(0, Math.ceil(((d.adsLast || 0) + c.adCooldown * 1000 - Date.now()) / 1000)) },
         ai: { used, limit: isPro(d) ? c.proAI : c.aiFree + extra, extra },
         pro: { active: isPro(d), until: d.proUntil || 0, status: d.proStatus || null, manage: !!d.proCustomer } });
@@ -427,7 +588,10 @@ export default async (req) => {
     if (path === '/upload/start' && req.method === 'POST') return json(200, { ok: true, ...(await uploadStart(me, body)) });
     if (path === '/upload/done' && req.method === 'POST') return json(200, { ok: true, ...(await uploadDone(me, body)) });
     if (path === '/upload/cancel' && req.method === 'POST') return json(200, { ok: true, ...(await uploadCancel(me, body)) });
-    if (path === '/play' && req.method === 'POST') return json(200, { ok: true, ...(await play(me, body)) });
+    if (path === '/play' && req.method === 'POST') return json(200, { ok: true, ...(await playLegacy(me, body)) });
+    if (path === '/play/start' && req.method === 'POST') return json(200, { ok: true, ...(await playStart(me, body)) });
+    if (path === '/play/beat' && req.method === 'POST') return json(200, { ok: true, ...(await playBeat(me, body)) });
+    if (path === '/play/end' && req.method === 'POST') return json(200, { ok: true, ...(await playBeat(me, body, { ending: true })) });
     if (path === '/pro/checkout' && req.method === 'POST') {
       if (!c.stripe) return fail(503, 'pro_off', 'اشتراك Pro غير مفعّل بعد على هذا الموقع (Stripe).');
       const d = await wallet(me.uid);
@@ -453,6 +617,6 @@ export default async (req) => {
 
 /* for the site's other server parts (challenges.js — challenge prizes): the same wallet, the same
    ledger, the same Firestore access — never a second points system */
-export { ready, getDoc, commit, put, create, preOf, runQuery, change, wallet, coded, base as fsBase, docName, accessToken, fromFs };
+export { ready, getDoc, commit, put, create, preOf, runQuery, change, wallet, coded, base as fsBase, docName, accessToken, fromFs, econ, ECON, rid, today, who as pointsWho, fields as fsFields };
 
 export const config = { path: '/api/points/*' };

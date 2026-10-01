@@ -88,8 +88,8 @@ export const until = (page, fn, arg, timeout = 90000) => page.waitForFunction(fn
 export async function run(tests, logs, done) {
   let pass = 0, failN = 0;
   for (const t of tests) {
-    const t0 = Date.now();
-    try { await t.f(); pass++; console.log('✓ ' + t.name + '  (' + ((Date.now() - t0) / 1000).toFixed(1) + 's)'); }
+    const t0 = performance.now();                 // (a test may move Date.now — the server's clock)
+    try { await t.f(); pass++; console.log('✓ ' + t.name + '  (' + ((performance.now() - t0) / 1000).toFixed(1) + 's)'); }
     catch (e) {
       failN++;
       console.log('✗ ' + t.name + '\n    ' + String(e && e.stack || e).split('\n').slice(0, 5).join('\n    '));

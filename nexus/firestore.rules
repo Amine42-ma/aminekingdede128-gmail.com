@@ -104,7 +104,9 @@ service cloud.firestore {
       function ownerEdit() {
         return isOwner(existing()) && incoming().ownerId == existing().ownerId
           && validTeam() && noNewMembers() && revOk()
-          && incoming().get('remixedFrom', null) == existing().get('remixedFrom', null);
+          && incoming().get('remixedFrom', null) == existing().get('remixedFrom', null)
+          // a copy bought in the marketplace (PART 42) names what it was bought from, for good
+          && incoming().get('purchasedFrom', null) == existing().get('purchasedFrom', null);
       }
       // ownership goes to someone already in the team; the old owner may stay
       // on as a member or leave
@@ -159,7 +161,9 @@ service cloud.firestore {
                    && d.remixedFrom.ownerId == get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.ownerId);
       }
       allow create: if signedIn() && incoming().ownerId == me() && incoming().projectId == projectId
-                    && team(incoming()).size() == 0 && incoming().get('members', {}).size() == 0 && remixOk(incoming());
+                    && team(incoming()).size() == 0 && incoming().get('members', {}).size() == 0 && remixOk(incoming())
+                    // a bought copy is made only by the marketplace server (with the purchase it follows)
+                    && !('purchasedFrom' in incoming());
       allow update: if ownerEdit() || transfer() || memberEdit() || joining() || leaving();
       allow delete: if resource == null || isOwner(existing());
 
@@ -461,9 +465,43 @@ service cloud.firestore {
       allow delete: if signedIn() && existing().ownerId == me();
       allow create, update: if false;
     }
-    // minutes others played each game (the creator earns points per 10 minutes)
+    // ⏱ play time others spent in each game, timed by the server (points.js): seconds, sessions,
+    // players — and 💰 the Play Rewards it earned (rewardPoints) and the time still waiting (pendingSeconds)
     match /playtime/{gameId} {
       allow get: if true;
+      allow list, write: if false;
+    }
+    // one play session (playSessionId, gameId, playerUid, startedAt, lastHeartbeat, endedAt, duration):
+    // the player may read their own; only the server writes
+    match /play_sessions/{sid} {
+      allow get: if signedIn() && (resource == null || resource.data.playerUid == me());
+      allow list, write: if false;
+    }
+    match /play_active/{uid}  { allow read, write: if false; }
+    match /play_days/{id}     { allow read, write: if false; }
+    match /play_players/{id}  { allow read, write: if false; }
+
+    // ---------------------------------------------------------------- 🛒 the project marketplace (PART 42)
+    // listings, purchases, transactions: written ONLY by the site's server (market.js, service account) —
+    // a page can never set a price, an owner, a sale or a balance
+    match /market/{gameId} {
+      allow get: if true;
+      allow list: if resource.data.isForSale == true || (signedIn() && resource.data.ownerId == me());
+      allow write: if false;
+    }
+    match /purchases/{pid} {
+      allow get: if signedIn() && (resource == null || resource.data.buyerUid == me() || resource.data.sellerUid == me());
+      allow list: if signedIn() && (resource.data.buyerUid == me() || resource.data.sellerUid == me());
+      allow write: if false;
+    }
+    match /market_tx/{tid} {
+      allow get: if signedIn() && (resource == null || resource.data.buyerUid == me() || resource.data.sellerUid == me());
+      allow list: if signedIn() && (resource.data.buyerUid == me() || resource.data.sellerUid == me());
+      allow write: if false;
+    }
+    // the economy's numbers the site's owner set inside NEXUS (prices, Play Rewards, limits) — read by all
+    match /economy/{doc} {
+      allow get: if doc == 'config';
       allow list, write: if false;
     }
     // the server's own bookkeeping: ad sessions, AdMob transactions, upload
@@ -621,7 +659,7 @@ service cloud.firestore {
         // anyone may notify you, but only as themselves — a challenge notice (an invite, a start,
         // a result) is written only by the challenges server, never by a browser
         allow create:       if signedIn() && incoming().actorId == me() && incoming().read == false
-                            && incoming().get('type', '') != 'challenge';
+                            && !(incoming().get('type', '') in ['challenge', 'market']);
       }
     }
     match /follows/{id} {
