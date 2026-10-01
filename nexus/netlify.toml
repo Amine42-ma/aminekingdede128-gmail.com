@@ -1,0 +1,65 @@
+# NEXUS on Netlify — static site, no build step, no server code.
+# Git deploy: set "Base directory" to  nexus  in Netlify (or keep this
+# folder at the repo root). Drag-and-drop deploy: drop this whole folder.
+# Headers live in _headers.
+[build]
+  publish = "."
+
+# A shared game link — https://YOUR-SITE.netlify.app/game/<gameId> — opens
+# the game's showcase page (the page turns it into its own #game/<id> route).
+[[redirects]]
+  from = "/game/*"
+  to = "/index.html"
+  status = 200
+
+# A shared HTML app link — https://YOUR-SITE.netlify.app/app/<appId>
+[[redirects]]
+  from = "/app/*"
+  to = "/index.html"
+  status = 200
+
+# A hosted file's page — https://YOUR-SITE.netlify.app/f/<fileId> (PART 34)
+[[redirects]]
+  from = "/f/*"
+  to = "/index.html"
+  status = 200
+
+# A challenge's page — https://YOUR-SITE.netlify.app/challenge/<challengeId> (PART 37)
+[[redirects]]
+  from = "/challenge/*"
+  to = "/index.html"
+  status = 200
+
+# A challenge between friends — https://YOUR-SITE.netlify.app/fc/<id> (the invite link, PART 37)
+[[redirects]]
+  from = "/fc/*"
+  to = "/index.html"
+  status = 200
+
+# functions/ is the Cloud Function's source (processRequest, deployed to
+# Firebase with «firebase deploy --only functions») — this site never serves it.
+[[redirects]]
+  from = "/functions/*"
+  to = "/404"
+  status = 404
+  force = true
+
+# tests/ holds the test suites (run with Node on a computer) — never served.
+[[redirects]]
+  from = "/tests/*"
+  to = "/404"
+  status = 404
+  force = true
+
+# Optional — only if Google sign-in by REDIRECT fails on some phones
+# (browsers that block third-party storage). Proxy Firebase's auth helper
+# through this site, then set authDomain in the NEXUS_FIREBASE block of
+# index.html to YOUR Netlify domain and add that domain to
+# Authentication → Settings → Authorized domains.
+# Replace YOUR-PROJECT-ID with your Firebase projectId before enabling.
+#
+# [[redirects]]
+#   from = "/__/auth/*"
+#   to = "https://YOUR-PROJECT-ID.firebaseapp.com/__/auth/:splat"
+#   status = 200
+#   force = true
