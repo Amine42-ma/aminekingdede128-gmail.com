@@ -18118,7 +18118,7 @@ const FreeAI = {
   /* what the site owner has to do, in one sentence */
   offText() {
     return this.reason === 'no-keys'
-      ? 'دالة الذكاء تعمل على خادم الموقع لكن بلا مفاتيح. صاحب الموقع يضع GEMINI_KEYS و GROQ_KEYS في Netlify ← Site configuration ← Environment variables، ثم Deploys ← Trigger deploy.'
+      ? 'دالة الذكاء تعمل على خادم الموقع لكن بلا مفاتيح. صاحب الموقع يضع GEMINI_KEYS و GROQ_KEYS في Netlify ← Site configuration ← Environment variables، ثم Deploys ← Trigger deploy.' + ' ' + NX.T('KP2_OFF_DONATE')
       : 'خادم الموقع لا يشغّل دالة الذكاء (netlify/edge-functions/ai.js) — غالبًا لأن الموقع رُفع بالسحب والإفلات، والدوال لا تعمل هكذا. صاحب الموقع يربطه بـ GitHub في Netlify (Base directory = nexus) ثم يضع المفاتيح في Environment variables.';
   },
   /* someone who never chose a provider gets the free one once signed in */
@@ -31860,7 +31860,7 @@ const KeyPool = {
     return j;
   },
   /* the server is not there, or not set up (no service account): the key can still be given — kept in the pool */
-  serverMissing(err) { return !!err && ['pool', 'server', 'network'].includes(err.code); },
+  serverMissing(err) { return !!err && ['pool', 'pool_store', 'server', 'network'].includes(err.code); },
   async donateCustomDirect(raw, base, model) {
     if (!Backend.hasAccount()) throw Object.assign(new Error('سجّل الدخول بحساب (Google أو البريد) أولًا'), { code: 'signin' });
     const key = String(raw || '').trim();
@@ -31895,10 +31895,12 @@ const KeyPool = {
   donateCustom(raw, base, model) { return this.server('/pool/donate', { key: String(raw || '').trim(), base, model: model || undefined }); },
   /* 💎 strong while a donated key serves strong models — tested on the server, never decided here */
   verify() { return this.server('/pool/verify', {}).catch(() => null); },
-  tierNote(t) { return t === 'strong' ? '💎 متبرّع قوي — شارة في ملفك ونقاط الإعلانات ×2 ما دام مفتاحك يعمل' : '🤝 متبرّع — شكرًا! (مفتاح يعمل بنماذج قوية يمنح 💎 ونقاط إعلانات ×2)'; },
+  tierNote(t) { return NX.T(t === 'strong' ? 'KP2_TIER_STRONG' : 'KP2_TIER_NORMAL'); },
 
   /* ---- withdraw: the donor deletes their own slot (the rules allow only them) ---- */
-  async withdraw(slot) {
+  async withdraw(slot, src) {
+    /* a key kept in the site's Netlify store: withdrawn by the server */
+    if (src === 'netlify' || typeof slot === 'string') { await this.server('/pool/withdraw', { id: slot }); this.forget(slot); return; }
     const { F, db } = Backend.fb, uid = Backend.user.uid;
     const hash = (this.local().find(x => x.slot === slot) || {}).hash;
     try {
@@ -31952,28 +31954,40 @@ const KeyPool = {
     return j;          // { ok, text, provider, model, usage }
   },
 
+  /* ---- ONE way to give a key, whatever it is: the site's server tests it with a real request and keeps it
+     (Firestore, or the site's own Netlify Blobs store — no setup needed); when the server is not there at all
+     the key is still kept in the pool by the rules and used once it runs ---- */
+  async give(raw, base, model) {
+    const key = clean(raw), known = providerOf(key);
+    try {
+      const r = await this.server('/pool/donate', { key, base: known ? undefined : base, model: model || undefined });
+      this.remember(r.slot, r.provider, key, await sha256(key));
+      if (r.store === 'firestore') { const { F, db } = Backend.fb; Backend.serverWrite(F.updateDoc(F.doc(db, 'users', Backend.user.uid), { donor: true })).catch(() => {}); }
+      return Object.assign({ server: true }, r);
+    } catch (err) {
+      if (!this.serverMissing(err)) throw err;
+      if (known) { const r = await this.donate(key); return Object.assign({ server: false, label: LABEL[r.provider] }, r); }
+      const r = await this.donateCustomDirect(key, base, model);
+      this.remember(r.slot, 'custom', key, await sha256(key));
+      { const { F, db } = Backend.fb; Backend.serverWrite(F.updateDoc(F.doc(db, 'users', Backend.user.uid), { donor: true })).catch(() => {}); }
+      return Object.assign({ server: false, provider: 'custom', label: r.host }, r);
+    }
+  },
+  /* «🧪 try my keys»: each of my keys answers one real request on the site's server, now */
+  tryMine() { return this.server('/pool/test', {}); },
+
   /* ---------------------------------------------------------------- the sheet */
   open() {
+    const T2 = (k, v) => NX.T(k, v);
     const body = el('div', { class: 'kp' });
-    body.appendChild(el('p', { class: 'muted', style: { fontSize: '13px', lineHeight: '1.75' },
-      text: 'تبرّع بمفتاح Gemini أو Groq أو OpenRouter أو Claude — أو مفتاح أي موقع متوافق مع OpenAI (مع Base URL) — ليبقى الذكاء المجاني في هذا الموقع (ومجلس الذكاء لمشتركي Pro) يعمل للجميع.' }));
-    body.appendChild(el('div', { class: 'card kp-safe', style: { fontSize: '12.5px', lineHeight: '1.75', marginBottom: '12px' } }, [
-      el('b', { text: '🔒 ماذا يحدث لمفتاحك؟' }),
-      el('div', { text: '• يُكتب مرة واحدة في قاعدة بيانات الموقع، ولا يستطيع أحد قراءته بعدها: لا الزوار ولا البوتات ولا أنت (هذه الصفحة تحفظ آخر 4 أحرف فقط).' }),
-      el('div', { text: '• يستعمله خادم الموقع وحده ليجيب الذكاء المجاني؛ لا يصل إلى أي متصفح في أي رد أو رسالة خطأ.' }),
-      el('div', { text: '• إن رفضه المزوّد يُعطَّل وحده، وإن وصل حدّه يرتاح ثم يعود. تسحبه متى شئت.' }),
-      el('div', { text: '• المفتاح نفسه لا يُقبل مرتين (تُحفظ بصمته SHA-256، لا المفتاح). يختبره الخادم بطلب حقيقي: إن كان يعمل بنماذج قوية تصير «💎 متبرّعًا قويًا» — شارة في ملفك ونقاط الإعلانات ×2 ما دام مفتاحك يعمل؛ وإلا «🤝 متبرّع».' }),
-      el('div', { text: '• يُستعمل بقدر: في مجلس الذكاء يخدم مفتاحك المتبرَّع به نموذجًا واحدًا في كل مرة (لا طلبات متوازية عليه)، والمفتاح الذي يصل حدّه يرتاح حتى يسمح المزوّد. صاحب الموقع يستطيع إبعاد المفاتيح المتبرَّع بها عن المجلس (COUNCIL_USE_DONATED=0).' }),
-      el('div', { style: { color: '#fcd77a' }, text: '• مفتاح Claude (Anthropic) مدفوع: كل طلب يُخصم من رصيدك عند Anthropic — لا تتبرّع به إلا إن كنت تقبل ذلك، ويمكنك سحبه متى شئت. OpenRouter: النماذج المجانية فقط.' }),
-      el('div', { style: { color: '#fcd77a' }, text: '• مالك الموقع يصل إلى قاعدة البيانات من لوحة Firebase — تبرّع لموقع تثق بصاحبه، وتأكّد أن شروط مزوّدك تسمح بمشاركة المفتاح.' })]));
+    body.appendChild(el('p', { class: 'muted', style: { fontSize: '13px', lineHeight: '1.75', margin: '0 0 10px' }, 'data-i18n': 'KP2_INTRO', text: T2('KP2_INTRO') }));
 
-    /* which kind of key — the donor chooses: a known provider (recognised by its key) or ANY site by its address (…/v1) */
+    /* which kind of key: recognised by itself; another site's key needs its address (…/v1) */
     let mode = 'known';
     const modeSeg = el('div', { class: 'seg kp-mode', style: { marginBottom: '10px' } });
     const siteBox = el('div', { class: 'kp-site hide' });
-    const input = el('input', { class: 'input', type: 'password', placeholder: 'الصق المفتاح هنا (gsk_… أو AIza… أو AQ.… أو sk-or-… أو sk-ant-…)', autocomplete: 'off', spellcheck: 'false', style: { direction: 'ltr' } });
-    const kind = el('div', { class: 'tiny', style: { minHeight: '18px', marginTop: '4px' } });
-    /* any OpenAI-compatible site: its address (and a model, when the site gives no list) */
+    const input = el('input', { class: 'input', type: 'password', placeholder: T2('KP2_PASTE'), autocomplete: 'off', spellcheck: 'false', style: { direction: 'ltr' } });
+    const kind = el('div', { class: 'tiny kp-kind', style: { minHeight: '18px', marginTop: '4px' } });
     const base = el('input', { class: 'input kp-base', type: 'url', dir: 'ltr', placeholder: 'https://api.example.com/v1', autocomplete: 'off', spellcheck: 'false' });
     const model = el('input', { class: 'input kp-model', dir: 'ltr', placeholder: 'gpt-4o · deepseek-chat · …', autocomplete: 'off', spellcheck: 'false' });
     siteBox.append(NX.field(t('KP_BASE'), base), el('p', { class: 'tiny', style: { margin: '-4px 0 8px' }, text: t('KP_BASE_HINT') }), NX.field(t('KP_MODEL'), model));
@@ -31981,95 +31995,134 @@ const KeyPool = {
       mode = m;
       segPick(modeSeg, modeSeg.querySelector('[data-m="' + m + '"]'));
       siteBox.classList.toggle('hide', m !== 'site');
-      input.placeholder = m === 'site' ? t('KP_KEY_SITE') : 'الصق المفتاح هنا (gsk_… أو AIza… أو AQ.… أو sk-or-… أو sk-ant-…)';
       input.dispatchEvent(new Event('input'));
       if (m === 'site') setTimeout(() => base.focus(), 30);
     };
     [['known', t('KP_KNOWN')], ['site', t('KP_SITE')]].forEach(([m, label]) => modeSeg.appendChild(el('button', { class: m === mode ? 'on' : '', type: 'button', dataset: { m }, text: label, onclick: () => setMode(m) })));
     base.addEventListener('input', () => input.dispatchEvent(new Event('input')));
     input.addEventListener('input', () => {
-      if (mode === 'site') { kind.textContent = input.value ? (base.value.trim() ? '✓ ' + t('KP_SITE_OK') : '↑ ' + t('KP_NEED_BASE')) : ''; kind.style.color = base.value.trim() ? '#34d399' : '#fcd77a'; return; }
       const p = providerOf(clean(input.value));
-      kind.textContent = !input.value ? '' : p ? '✓ مفتاح ' + LABEL[p] : '✗ ' + t('KP_UNKNOWN');
-      kind.style.color = p ? '#9ae6b4' : '#ff9aa8';
-      /* a key of another site: the choice that fits it, at once */
+      if (mode === 'site' && !p) { kind.textContent = input.value ? (base.value.trim() ? '✓ ' + t('KP_SITE_OK') : '↑ ' + t('KP_NEED_BASE')) : ''; kind.style.color = base.value.trim() ? '#34d399' : '#fcd77a'; return; }
+      if (p && mode === 'site') { setMode('known'); return; }
+      kind.textContent = !input.value ? '' : p ? '✓ ' + T2('KP2_IS', { p: LABEL[p] }) + (p === 'anthropic' ? ' — ' + T2('KP2_PAID') : '') : '✗ ' + t('KP_UNKNOWN');
+      kind.style.color = p ? (p === 'anthropic' ? '#fcd77a' : '#9ae6b4') : '#ff9aa8';
+      /* a key of another site: its address is asked for at once */
       if (input.value.trim().length > 12 && !p) setMode('site');
     });
     const agree = el('input', { type: 'checkbox', id: 'kp-agree' });
     const agreeRow = el('label', { class: 'tiny', for: 'kp-agree', style: { display: 'flex', gap: '8px', alignItems: 'flex-start', margin: '10px 0', lineHeight: '1.6' } },
-      [agree, el('span', { text: 'المفتاح ملكي، وأسمح باستعماله للذكاء المجاني في هذا الموقع، وأعرف أنني أستطيع سحبه متى شئت.' })]);
-    const give = btn('🤝 تبرّع بالمفتاح', { cls: 'primary block', onclick: async e => {
+      [agree, el('span', { 'data-i18n': 'KP2_AGREE', text: T2('KP2_AGREE') })]);
+    /* what happened, step by step: tested · kept · answering in the free AI */
+    const out = el('div', { class: 'card kp-result hide', style: { margin: '10px 0', fontSize: '12.5px', lineHeight: '1.9' } });
+    const step = (txt, cls) => { out.classList.remove('hide'); const d = el('div', { class: 'kp-step ' + (cls || ''), text: txt }); out.appendChild(d); return d; };
+    const give = btn('🤝 ' + T2('KP2_GIVE'), { cls: 'primary block kp-give', onclick: async e => {
       const b = e.currentTarget;
-      if (!agree.checked) { Toast.err('وافق أولًا على استعمال المفتاح'); return; }
+      if (!input.value.trim()) { Toast.err(T2('KP2_PASTE')); input.focus(); return; }
+      if (!agree.checked) { Toast.err(T2('KP2_AGREE_FIRST')); return; }
       if (mode === 'site' && !base.value.trim()) { Toast.err(t('KP_NEED_BASE')); base.focus(); return; }
-      b.disabled = true;
+      if (!Backend.hasAccount()) { NX.promptSignIn(T2('KP2_SIGNIN')); return; }
+      b.disabled = true; out.textContent = '';
+      const s1 = step('⏳ ' + T2('KP2_STEP_TEST'));
       try {
-        if (mode === 'site') {
-          const key = input.value.trim(), url = normBase(base.value);
-          let r, direct = false;
-          try { r = await this.donateCustom(key, url, model.value.trim()); }
-          catch (err) {
-            /* the site's server does not run (a drag-and-drop deploy) or has no service account: the key is kept
-               in the pool all the same — the server tests it and uses it once it runs */
-            if (!this.serverMissing(err)) throw err;
-            r = await this.donateCustomDirect(key, url, model.value.trim()); direct = true;
-          }
-          const hash = await sha256(key);
-          this.remember(r.slot, 'custom', key, hash);
-          { const { F, db } = Backend.fb; Backend.serverWrite(F.updateDoc(F.doc(db, 'users', Backend.user.uid), { donor: true })).catch(() => {}); }
-          if (direct) Toast.ok(t('KP_SAVED_LATER', { h: r.host }), 9000);
-          else Toast.ok('شكرًا! نجح اختبار ' + r.host + ' · ' + r.model + ' — ' + this.tierNote(r.tier), 7000);
+        const known = providerOf(clean(input.value));
+        const r = await this.give(input.value, known ? null : normBase(base.value), model.value.trim());
+        const who = r.provider === 'custom' ? (r.host || r.label || '') : LABEL[r.provider];
+        if (r.server) {
+          s1.textContent = '✓ ' + T2('KP2_TESTED', { p: who, m: r.model || '—' }) + (r.status === 'limit' ? ' · ' + T2('KP2_RESTING') : '');
+          step('✓ ' + T2(r.store === 'netlify' ? 'KP2_KEPT_NETLIFY' : 'KP2_KEPT_FS'));
+          Toast.ok(T2('KP2_OK', { p: who, tail: r.tail || '', tier: this.tierNote(r.tier) }), 8000);
+          const s3 = step('⏳ ' + T2('KP2_STEP_LIVE'));
+          try {
+            const tr = await this.tryMine();
+            const wantId = typeof r.slot === 'string' ? r.slot : Backend.user.uid + '_' + r.slot;
+            const mine = (tr.results || []).find(x => x.id === wantId) || (tr.results || []).find(x => x.tail === r.tail);
+            s3.textContent = mine && mine.ok ? '✓ ' + T2('KP2_LIVE_OK', { p: who, m: mine.model || '', s: (mine.ms / 1000).toFixed(1) }) : '⚠ ' + T2('KP2_LIVE_LATER', { why: (mine && mine.why) || '' });
+          } catch (err2) { s3.textContent = '⚠ ' + (err2.message || err2); }
         } else {
-          const r = await this.donate(input.value);
-          Toast.ok('شكرًا! أُضيف مفتاح ' + LABEL[r.provider] + ' ' + r.tail + ' إلى المجمّع');
-          const v = await this.verify();
-          if (v && v.tier) Toast.show(this.tierNote(v.tier), '', 7000);
+          s1.textContent = '⚠ ' + t('KP_NO_SERVER');
+          step('✓ ' + t('KP_SAVED_LATER', { h: who + ' ' + (r.tail || '') }));
+          step('➜ ' + T2('KP2_FIX_SERVER'), 'kp-fix');
+          Toast.ok(t('KP_SAVED_LATER', { h: who + ' ' + (r.tail || '') }), 9000);
         }
-        input.value = ''; base.value = ''; model.value = ''; kind.textContent = '';
+        input.value = ''; base.value = ''; model.value = ''; kind.textContent = ''; agree.checked = false;
         draw();
       } catch (err) {
-        if (err.code === 'signin') NX.promptSignIn('التبرّع بمفتاح يحتاج حسابًا (Google أو البريد) — حتى تستطيع سحبه لاحقًا.');
+        s1.textContent = '✗ ' + (err.message || NX.describeFirebaseError(err));
+        if (err.code === 'signin') NX.promptSignIn(T2('KP2_SIGNIN'));
         else Toast.err(err.message || NX.describeFirebaseError(err));
       } finally { b.disabled = false; }
     } });
-    body.append(el('div', { class: 'ttl', text: t('KP_WHICH') }), modeSeg, siteBox, NX.field('مفتاحك', input), kind, agreeRow, give);
+    body.append(NX.field(T2('KP2_YOUR_KEY'), input), kind, modeSeg, siteBox, agreeRow, give, out);
 
-    const state = el('div', { style: { marginTop: '16px' } });
+    /* what happens to the key — the whole story, one tap away */
+    const why = el('details', { class: 'kp-why', style: { margin: '6px 0 4px' } });
+    why.appendChild(el('summary', { class: 'tiny', style: { cursor: 'pointer' }, text: '🔒 ' + T2('KP2_WHY') }));
+    why.appendChild(el('div', { class: 'card kp-safe', style: { fontSize: '12.5px', lineHeight: '1.75', marginTop: '6px' } }, [
+      el('div', { text: '• يُكتب مرة واحدة في قاعدة بيانات الموقع، ولا يستطيع أحد قراءته بعدها: لا الزوار ولا البوتات ولا أنت (هذه الصفحة تحفظ آخر 4 أحرف فقط).' }),
+      el('div', { text: '• يستعمله خادم الموقع وحده ليجيب الذكاء المجاني؛ لا يصل إلى أي متصفح في أي رد أو رسالة خطأ.' }),
+      el('div', { text: '• إن رفضه المزوّد يُعطَّل وحده، وإن وصل حدّه يرتاح ثم يعود. تسحبه متى شئت.' }),
+      el('div', { text: '• المفتاح نفسه لا يُقبل مرتين (تُحفظ بصمته SHA-256، لا المفتاح). يختبره الخادم بطلب حقيقي: إن كان يعمل بنماذج قوية تصير «💎 متبرّعًا قويًا» — شارة في ملفك ونقاط الإعلانات ×2 ما دام مفتاحك يعمل؛ وإلا «🤝 متبرّع».' }),
+      el('div', { text: '• يُستعمل بقدر: في مجلس الذكاء يخدم مفتاحك المتبرَّع به نموذجًا واحدًا في كل مرة (لا طلبات متوازية عليه)، والمفتاح الذي يصل حدّه يرتاح حتى يسمح المزوّد. صاحب الموقع يستطيع إبعاد المفاتيح المتبرَّع بها عن المجلس (COUNCIL_USE_DONATED=0).' }),
+      el('div', { style: { color: '#fcd77a' }, text: '• مفتاح Claude (Anthropic) مدفوع: كل طلب يُخصم من رصيدك عند Anthropic — لا تتبرّع به إلا إن كنت تقبل ذلك، ويمكنك سحبه متى شئت. OpenRouter: النماذج المجانية فقط.' }),
+      el('div', { style: { color: '#fcd77a' }, text: '• مالك الموقع يصل إلى قاعدة البيانات من لوحة Firebase — تبرّع لموقع تثق بصاحبه، وتأكّد أن شروط مزوّدك تسمح بمشاركة المفتاح.' })]));
+    body.appendChild(why);
+
+    const state = el('div', { style: { marginTop: '14px' } });
     body.appendChild(state);
     const draw = async () => {
       state.textContent = '';
-      state.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' }), el('span', { text: 'أقرأ حالة المجمّع…' })]));
-      const s = Backend.user ? await this.status() : { fn: null, site: null };
+      state.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' }), el('span', { text: T2('KP2_READING') })]));
+      let site = null, reach = true;
+      if (Backend.user && SITE_AI) {
+        try {
+          const tok = await this.token().catch(() => null);
+          const r = await fetch(SITE_AI + '/pool', { headers: tok ? { authorization: 'Bearer ' + tok } : {} });
+          site = r.ok ? await r.json().catch(() => null) : null;
+          if (!site) reach = false;
+        } catch { reach = false; }
+      } else reach = false;
       state.textContent = '';
-      const src = s.fn && !s.fn.error ? s.fn : s.site && s.site.readable ? s.site : null;
       /* my keys: the server's view when it can read the pool, else what this browser remembers */
-      state.appendChild(el('div', { class: 'ttl', text: 'مفاتيحك' }));
-      const mine = src && Array.isArray(src.mine) ? src.mine.map(k => ({ slot: +String(k.id).split('_').pop(), provider: k.provider, tail: k.tail, status: k.status, reason: k.reason }))
-        : this.local().map(x => Object.assign({ status: null }, x));
-      if (!mine.length) state.appendChild(el('p', { class: 'tiny', text: Backend.hasAccount && Backend.hasAccount() ? 'لم تتبرّع بمفتاح بعد.' : 'سجّل الدخول لترى مفاتيحك.' }));
-      mine.forEach(k => state.appendChild(el('div', { class: 'comp-row kp-row' }, [
-        el('b', { text: (LABEL[k.provider] || k.provider || '?') + ' ' + (k.tail || '') }),
-        el('span', { class: 'tiny', style: { flex: '1' }, text: k.status === 'active' ? '🟢 يعمل' : k.status === 'disabled' ? '🔴 معطّل — ' + (REASON[k.reason] || k.reason || '') : '— (الحالة يعرفها الخادم)' }),
-        btn('سحب', { cls: 'sm danger', onclick: async ev => {
-          const me = ev.currentTarget;              // (currentTarget is gone after the first await)
-          if (!(await Modal.confirm('سحب المفتاح؟', 'يُحذف من المجمّع فورًا ولا يُستعمل بعد الآن.', 'سحب'))) return;
+      state.appendChild(el('div', { class: 'ttl', 'data-i18n': 'KP2_MINE', text: T2('KP2_MINE') }));
+      const mine = site && Array.isArray(site.mine) ? site.mine.map(k => Object.assign({ slot: k.src === 'netlify' ? k.id : +String(k.id).split('_').pop() }, k))
+        : this.local().map(x => Object.assign({ status: null, src: typeof x.slot === 'string' ? 'netlify' : 'firestore' }, x));
+      if (!mine.length) state.appendChild(el('p', { class: 'tiny', text: Backend.hasAccount && Backend.hasAccount() ? T2('KP2_NONE') : T2('KP2_SIGNIN') }));
+      const lines = new Map();
+      mine.forEach(k => {
+        const line = el('span', { class: 'tiny kp-line', style: { flex: '1' }, text: k.status === 'active' ? (k.inUse === false ? '🟡 ' + T2('KP2_ACTIVE_IDLE') : '🟢 ' + T2('KP2_ACTIVE')) : k.status === 'disabled' ? '🔴 ' + T2('KP2_DISABLED') + ' — ' + (REASON[k.reason] || k.reason || '') : '— ' + T2('KP2_UNKNOWN_STATE') });
+        lines.set(k.id || k.tail, line);
+        state.appendChild(el('div', { class: 'comp-row kp-row' }, [
+          el('b', { text: (k.host || LABEL[k.provider] || k.provider || '?') + ' ' + (k.tail || '') }), line,
+          btn(T2('KP2_WITHDRAW'), { cls: 'sm danger', onclick: async ev => {
+            const me = ev.currentTarget;              // (currentTarget is gone after the first await)
+            if (!(await Modal.confirm(T2('KP2_WITHDRAW_Q'), T2('KP2_WITHDRAW_NOTE'), T2('KP2_WITHDRAW')))) return;
+            me.disabled = true;
+            try { await this.withdraw(k.slot, k.src); Toast.ok(T2('KP2_WITHDRAWN')); this.verify(); draw(); } catch (err) { Toast.err(err.message || NX.describeFirebaseError(err)); me.disabled = false; }
+          } })]));
+      });
+      /* the site's server, in plain words — and what to do when it is not running */
+      const card = el('div', { class: 'card kp-status', style: { marginTop: '12px', fontSize: '12.5px', lineHeight: '1.9' } });
+      if (!reach) card.append(el('div', { class: 'kp-off', text: '🔴 ' + t('KP_NO_SERVER') }), el('div', { class: 'tiny', text: '➜ ' + T2('KP2_FIX_SERVER') }));
+      else if (!site.store && !site.readable) card.append(el('div', { text: '🟠 ' + T2('KP2_NO_STORE') }));
+      else {
+        card.append(el('div', { text: '🟢 ' + T2('KP2_SERVER_OK') }),
+          el('div', { text: T2('KP2_POOL_COUNT', { n: site.active }) + (site.providers && Object.keys(site.providers).length ? ' (' + Object.entries(site.providers).map(([p, n]) => (LABEL[p] || p) + ' ' + n).join(' · ') + ')' : '') }),
+          el('div', { text: site.free ? '🤖 ' + T2('KP2_FREE_ON') : '⚪ ' + T2('KP2_FREE_OFF') }));
+      }
+      state.appendChild(card);
+      if (reach && mine.length) {
+        const test = btn('🧪 ' + T2('KP2_TRY'), { cls: 'sm kp-try', onclick: async ev => {
+          const me = ev.currentTarget;
           me.disabled = true;
-          try { await this.withdraw(k.slot); Toast.ok('سُحب'); this.verify(); draw(); } catch (err) { Toast.err(NX.describeFirebaseError(err)); me.disabled = false; }
-        } })])));
-      /* where the pool is used */
-      const count = src ? src.active + ' مفتاحًا نشطًا' + (src.providers && Object.keys(src.providers).length ? ' (' + Object.entries(src.providers).map(([p, n]) => LABEL[p] + ' ' + n).join(' · ') + ')' : '') : 'غير معروف';
-      state.appendChild(el('div', { class: 'card', style: { marginTop: '12px', fontSize: '12.5px', lineHeight: '1.8' } }, [
-        el('div', { text: 'في المجمّع الآن: ' + count }),
-        el('div', { text: 'الدالة processRequest: ' + (s.fn && !s.fn.error ? '🟢 منشورة وتعمل' : '⚪ ' + ((s.fn && s.fn.error) || 'لم تُفحص') + ' — تحتاج خطة Blaze في Firebase ثم: firebase deploy --only functions') }),
-        el('div', { text: 'خادم الذكاء في الموقع (Netlify): ' + (s.site ? (s.site.readable ? '🟢 يستعمل المفاتيح المتبرَّع بها' : '⚪ لا يقرأ المجمّع — يحتاج FIREBASE_SERVICE_ACCOUNT في Netlify') : '⚪ غير متاح هنا') })]));
-      const test = btn('جرّب المجمّع عبر processRequest', { cls: 'sm', onclick: async ev => {
-        const me = ev.currentTarget;
-        me.disabled = true;
-        try { const r = await this.process({ messages: [{ role: 'user', content: 'قل «مرحبًا من NEXUS» فقط.' }], max_tokens: 64 }); Toast.ok('✓ ' + LABEL[r.provider] + ' · ' + r.model + ': ' + String(r.text).slice(0, 80)); }
-        catch (err) { Toast.err(err.message); }
-        finally { me.disabled = false; }
-      } });
-      state.appendChild(el('div', { class: 'row', style: { marginTop: '10px', flexWrap: 'wrap' } }, [test]));
+          try {
+            const r = await this.tryMine();
+            (r.results || []).forEach(x => { const ln = lines.get(x.id) || lines.get(x.tail); if (ln) ln.textContent = x.ok ? '✓ ' + T2('KP2_LIVE_OK', { p: x.host || LABEL[x.provider] || '', m: x.model || '', s: (x.ms / 1000).toFixed(1) }) : '✗ ' + T2('KP2_LIVE_FAIL', { why: x.why || '' }); });
+            Toast.show(r.results && r.results.some(x => x.ok) ? '✓ ' + T2('KP2_TRY_OK') : T2('KP2_TRY_NONE'));
+          } catch (err) { Toast.err(err.message); }
+          finally { me.disabled = false; }
+        } });
+        state.appendChild(el('div', { class: 'row', style: { marginTop: '10px', flexWrap: 'wrap' } }, [test]));
+      }
     };
     Sheet.open({ title: '🤝 تبرّع بمفتاح للذكاء المجاني', body, id: 'keypool' });
     draw();

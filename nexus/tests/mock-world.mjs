@@ -8,7 +8,9 @@
      FIRESTORE_EMULATOR_HOST (documents, commit with preconditions and
      increments, runQuery) — wallets, usage, api_keys;
    • sign-in tokens in the Firebase emulator's unsigned form (accepted by
-     ai.js only with NEXUS_TEST_EMULATOR_TOKENS=1).
+     ai.js only with NEXUS_TEST_EMULATOR_TOKENS=1);
+   • a site's Netlify Blobs store (W.blobsContext() → NETLIFY_BLOBS_CONTEXT):
+     the owner's key box and the donated keys kept without a service account.
    Nothing here talks to the internet.
    ============================================================ */
 import http from 'node:http';
@@ -171,6 +173,17 @@ export function startWorld() {
       const pm = /^\/(gemini|groq|openrouter|anthropic|reseller|alt-gemini|alt-groq)(\/.*)$/.exec(url.pathname);
       if (pm) return await provider(req, res, pm[1].replace(/^alt-/, ''), pm[2]);
       if (url.pathname.startsWith('/v1/projects/')) return await firestore(req, res, url);
+      /* a site's Netlify Blobs store as the edge API serves it: GET / PUT /<siteID>/<store>/<key>, the site's token */
+      const bm = /^\/(nexus-test-site)\/([^/]+)\/(.+)$/.exec(decodeURIComponent(url.pathname));
+      if (bm) {
+        if (String(req.headers.authorization || '') !== 'Bearer blobs-test-token') return send(res, 401, { error: 'token' });
+        W.blobs = W.blobs || new Map();
+        const k = bm[2] + '/' + bm[3];
+        if (req.method === 'GET') { const v = W.blobs.get(k); if (v == null) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'content-type': 'application/json' }); return res.end(v); }
+        if (req.method === 'PUT') { W.blobs.set(k, await body(req)); res.writeHead(200); return res.end(); }
+        if (req.method === 'DELETE') { W.blobs.delete(k); res.writeHead(204); return res.end(); }
+        return send(res, 405, {});
+      }
       /* anything else a test serves (a game-news feed …): W.files[path] = { type, body, status } */
       const f = W.files && W.files[url.pathname];
       if (f) { W.fileHits = (W.fileHits || 0) + 1; res.writeHead(f.status || 200, { 'content-type': f.type || 'text/plain' }); return res.end(f.body); }
@@ -181,6 +194,8 @@ export function startWorld() {
     W.port = server.address().port;
     W.base = 'http://127.0.0.1:' + W.port;
     W.close = () => new Promise(r => { server.closeAllConnections && server.closeAllConnections(); server.close(r); });
+    /* the value Netlify gives a linked site's functions (base64 JSON) */
+    W.blobsContext = () => Buffer.from(JSON.stringify({ siteID: 'nexus-test-site', token: 'blobs-test-token', edgeURL: W.base, uncachedEdgeURL: W.base })).toString('base64');
     resolve(W);
   }));
 }

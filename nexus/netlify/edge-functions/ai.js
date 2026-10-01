@@ -367,13 +367,14 @@ function blobsCtx() {
     return c && c.siteID && c.token ? c : null;
   } catch { return null; }
 }
-const BLOB_PATH = c => '/' + c.siteID + '/site:nexus-ai-keys/box';
-async function blobsReq(c, method, body, fresh) {
+/* two values in the store: «box» (the owner's keys) and «pool» (the keys players donated) */
+const BLOB_PATH = (c, name = 'box') => '/' + c.siteID + '/site:nexus-ai-keys/' + name;
+async function blobsReq(c, method, body, fresh, name = 'box') {
   let url, headers = { authorization: 'Bearer ' + c.token };
-  if (c.edgeURL) url = new URL(BLOB_PATH(c), fresh && c.uncachedEdgeURL ? c.uncachedEdgeURL : c.edgeURL).toString();
+  if (c.edgeURL) url = new URL(BLOB_PATH(c, name), fresh && c.uncachedEdgeURL ? c.uncachedEdgeURL : c.edgeURL).toString();
   else {
     /* the API hands out a signed address for the blob */
-    const r = await fetch(new URL('/api/v1/blobs' + BLOB_PATH(c), c.apiURL || 'https://api.netlify.com').toString(), { method, headers: Object.assign({ accept: 'application/json;type=signed-url' }, headers) });
+    const r = await fetch(new URL('/api/v1/blobs' + BLOB_PATH(c, name), c.apiURL || 'https://api.netlify.com').toString(), { method, headers: Object.assign({ accept: 'application/json;type=signed-url' }, headers) });
     if (r.status !== 200) throw new Error('Netlify Blobs ' + r.status);
     url = (await r.json()).url; headers = {};
   }
@@ -415,8 +416,12 @@ async function saveBox(next) {
 }
 const boxReady = () => !!(blobsCtx() || sa() || env('FIRESTORE_EMULATOR_HOST'));
 
-/* ---------- the donated key pool: Firestore «api_keys» — players write a key once, no browser can
-   read it (firestore.rules); read here with the service account (the rules do not bind it) ---------- */
+/* ---------- the donated key pool — two homes, the same records (key, provider, base, models, tier, status):
+   • Firestore «api_keys»: players write a key once, no browser can read it (firestore.rules); read here with
+     the service account (the rules do not bind it) — also served by the Cloud Function processRequest;
+   • the site's own Netlify Blobs store («pool»): NOTHING to set up on a Netlify site linked to GitHub — so a
+     key given here works at once even without FIREBASE_SERVICE_ACCOUNT (why donated keys sat unused before).
+   A donation goes to Firestore when the service account is there, else to the Blobs store. ---------- */
 let pool = { at: 0, keys: [], readable: false };
 const fsDocs = () => (env('FIRESTORE_EMULATOR_HOST') ? 'http://' + env('FIRESTORE_EMULATOR_HOST') : 'https://firestore.googleapis.com') + '/v1/projects/' + fsProject() + '/databases/(default)/documents';
 const poolReady = () => !!(sa() || env('FIRESTORE_EMULATOR_HOST'));
@@ -432,22 +437,63 @@ async function poolQuery(field, value) {
   });
 }
 async function loadPool(force) {
-  if (!poolReady()) return pool;
+  if (!poolReady() && !blobsCtx()) return pool;
   if (!force && Date.now() - pool.at < 60e3) return pool;
-  try {
-    const rows = await poolQuery('status', 'active');
-    /* a key of another site: only at a public https address (it may have been written by a browser), never one that failed its test */
-    pool = { at: Date.now(), readable: true, keys: rows.map(k => Object.assign(k, { provider: k.provider === 'custom' ? (k.base && safeBase(k.base) && k.tier !== 'failed' ? 'custom' : null) : providerOf(k.key) })).filter(k => k.provider) };
-    CUSTOM.clear();
-    pool.keys.filter(k => k.provider === 'custom').forEach(k => CUSTOM.set(k.key, { base: k.base, models: k.models, id: k.id }));
-  } catch { pool = Object.assign({}, pool, { at: Date.now(), readable: false }); }
+  let rows = [], readable = false;
+  if (poolReady()) { try { rows = (await poolQuery('status', 'active')).map(k => Object.assign(k, { src: 'firestore' })); readable = true; } catch { } }
+  const b = await loadBlobPool(force);
+  if (b.ok) {
+    readable = true;
+    b.keys.filter(k => k.status === 'active' && !rows.some(x => x.key === k.key)).forEach(k => rows.push(Object.assign({}, k, { src: 'netlify' })));
+  }
+  if (!readable) { pool = Object.assign({}, pool, { at: Date.now(), readable: false }); return pool; }   // the last keys read stay in use
+  /* a key of another site: only at a public https address (it may have been written by a browser), never one that failed its test */
+  pool = { at: Date.now(), readable: true, keys: rows.map(k => Object.assign(k, { provider: k.provider === 'custom' ? (k.base && safeBase(k.base) && k.tier !== 'failed' ? 'custom' : null) : providerOf(k.key) })).filter(k => k.provider) };
+  CUSTOM.clear();
+  pool.keys.filter(k => k.provider === 'custom').forEach(k => CUSTOM.set(k.key, { base: k.base, models: k.models, id: k.id }));
   return pool;
+}
+/* the Blobs half: one JSON value { keys: [...] } — never sent to a browser */
+let bpool = { at: 0, keys: [], ok: false };
+async function loadBlobPool(force) {
+  const c = blobsCtx();
+  if (!c) return bpool;
+  if (!force && Date.now() - bpool.at < 60e3) return bpool;
+  try {
+    const r = await blobsReq(c, 'get', undefined, force, 'pool');
+    if (r.status === 404) bpool = { at: Date.now(), keys: [], ok: true };
+    else if (r.ok) { const d = JSON.parse((await r.text()) || '{}'); bpool = { at: Date.now(), keys: Array.isArray(d.keys) ? d.keys : [], ok: true }; }
+    else bpool = Object.assign({}, bpool, { at: Date.now(), ok: false });
+  } catch { bpool = Object.assign({}, bpool, { at: Date.now(), ok: false }); }
+  return bpool;
+}
+/* a change to the Blobs pool: read it fresh, change it, write it, read it back — a donation made at the same
+   moment by someone else is never lost (done again until `kept` sees the change) */
+async function editBlobPool(change, kept) {
+  const c = blobsCtx();
+  if (!c) throw new Error('Netlify Blobs');
+  for (let i = 0; i < 4; i++) {
+    const cur = await loadBlobPool(true);
+    if (!cur.ok) throw new Error('Netlify Blobs');
+    const next = change(cur.keys.map(k => Object.assign({}, k)));
+    if (!next) return cur.keys;
+    const r = await blobsReq(c, 'put', JSON.stringify({ keys: next }), false, 'pool');
+    if (!r.ok) throw new Error('Netlify Blobs ' + r.status);
+    const back = await loadBlobPool(true);
+    if (back.ok && kept(back.keys)) return back.keys;
+  }
+  throw new Error('busy');
 }
 /* a donated key the provider refused: disabled for good (the donor sees it on their page) */
 async function poolDisable(key, reason) {
   const k = pool.keys.find(x => x.key === key);
   if (!k) return;
   pool.keys = pool.keys.filter(x => x !== k);
+  if (k.src === 'netlify') {
+    await editBlobPool(keys => { const x = keys.find(y => y.id === k.id); if (!x || x.status === 'disabled') return null; x.status = 'disabled'; x.reason = reason; x.disabledAt = Date.now(); return keys; },
+      keys => (keys.find(y => y.id === k.id) || {}).status !== 'active').catch(() => {});
+    return;
+  }
   donorRefresh(k.id.split('_')[0]).catch(() => {});                  // no longer counted for the donor's tier
   try {
     await fetch(fsDocs() + '/api_keys/' + encodeURIComponent(k.id) + '?updateMask.fieldPaths=status&updateMask.fieldPaths=disabledReason&updateMask.fieldPaths=disabledAt', {
@@ -502,50 +548,114 @@ async function testCustom(base, key, models) {
   }
   return { ok: false, why };
 }
-async function donateCustom(me, req) {
+/* ONE way to give a key, whatever it is — Gemini, Groq, OpenRouter, Claude, or any OpenAI-compatible site with its
+   Base URL: the key is tested HERE with a real request first (a refused key is never kept), then kept in the pool
+   (Firestore with the service account, else this site's Netlify Blobs store), then the donor learns their tier. */
+const clean = k => String(k || '').trim().replace(/^["'`]+|["'`]+$/g, '').replace(/^Bearer\s+/i, '').replace(/\s+/g, '');
+const SLOTS = 5;
+async function donate(me, req) {
   if (me.provider === 'anonymous') return fail(401, 'signin', 'التبرّع يحتاج حسابًا (Google أو البريد)');
   const body = await req.json().catch(() => ({}));
-  const key = String(body.key || '').trim();
-  let base = safeBase(body.base);
+  const key = clean(body.key), known = providerOf(key);
   if (!/^[\x21-\x7e]{10,300}$/.test(key)) return fail(400, 'format', 'هذا لا يشبه مفتاح API');
-  if (!base) return fail(400, 'base', 'Base URL يجب أن يكون عنوان https عامًّا (مثل https://api.example.com/v1)');
-  if (!poolReady()) return fail(503, 'pool', 'مجمّع المفاتيح غير مُعدّ على هذا الموقع');
+  let base = known ? null : safeBase(body.base);
+  if (!known && !String(body.base || '').trim()) return fail(400, 'base_needed', 'هذا المفتاح ليس من Gemini أو Groq أو OpenRouter أو Claude — أضف رابط الموقع الذي أعطاك إياه (Base URL، ينتهي غالبًا بـ /v1).');
+  if (!known && !base) return fail(400, 'base', 'Base URL يجب أن يكون عنوان https عامًّا (مثل https://api.example.com/v1)');
+  const store = poolReady() ? 'firestore' : blobsCtx() ? 'netlify' : null;
+  if (!store) return fail(503, 'pool', 'مجمّع المفاتيح لا يجد مكانًا يحفظ فيه على هذا الموقع — اربط الموقع بـ GitHub في Netlify (يعمل وحده بلا أي إعداد)، أو ضع FIREBASE_SERVICE_ACCOUNT.');
   const hash = await sha256hex(key);
-  if (await fsExists('api_key_hashes/' + hash)) return fail(409, 'duplicate', 'هذا المفتاح في المجمّع من قبل — لا يُتبرَّع بالمفتاح نفسه مرتين.');
-  let models = [];
-  /* an address pasted without its version (…/v1): the site's /v1 is tried too */
-  if (!/\/v\d+[a-z]*$/i.test(base)) {
-    try { const r = await fetch(base + '/v1/models', timed(8000, { headers: { authorization: 'Bearer ' + key } })); if (r.ok) base = base + '/v1'; } catch { }
+  const blobKeys = blobsCtx() ? (await loadBlobPool(true)).keys : [];
+  if ((poolReady() && await fsExists('api_key_hashes/' + hash)) || blobKeys.some(k => k.keyHash === hash)) return fail(409, 'duplicate', 'هذا المفتاح في المجمّع من قبل — لا يُتبرَّع بالمفتاح نفسه مرتين.');
+  if (store === 'netlify' && blobKeys.filter(k => k.uid === me.uid && k.status === 'active').length >= SLOTS) return fail(409, 'full', 'لكل حساب ' + SLOTS + ' مفاتيح كحدّ أقصى — اسحب مفتاحًا أولًا');
+  /* the test — a real request */
+  let rec, model = null, tier = null, status = 'ok';
+  if (known) {
+    status = await tryKey(known, key);
+    if (status === 'refused') return fail(400, 'refused', 'المزوّد (' + LABEL[known] + ') رفض هذا المفتاح — تأكّد أنك نسخته كاملًا وأنه مفعّل.');
+    model = known === 'gemini' ? GEM_FIRST() : known === 'groq' ? 'llama-3.3-70b-versatile' : known === 'openrouter' ? 'deepseek/deepseek-chat-v3:free' : 'claude';
+    tier = status === 'ok' ? (['gemini', 'groq', 'anthropic'].includes(known) ? 'strong' : 'normal') : null;
+    rec = { key, provider: known, keyHash: hash, tier, testedModel: status === 'ok' ? model : null };
+  } else {
+    let models = [];
+    /* an address pasted without its version (…/v1): the site's /v1 is tried too */
+    if (!/\/v\d+[a-z]*$/i.test(base)) {
+      try { const r = await fetch(base + '/v1/models', timed(8000, { headers: { authorization: 'Bearer ' + key } })); if (r.ok) base = base + '/v1'; } catch { }
+    }
+    try {
+      const r = await fetch(base + '/models', timed(10000, { headers: { authorization: 'Bearer ' + key } }));
+      if (r.status === 401 || r.status === 403) return fail(400, 'refused', 'الموقع رفض المفتاح (' + r.status + ')');
+      const j = r.ok ? await r.json().catch(() => null) : null;
+      models = ((j && (j.data || j.models)) || []).map(m => typeof m === 'string' ? m : m && (m.id || m.name)).filter(x => typeof x === 'string' && x.length < 120)
+        .filter(id => !/whisper|tts|embed|dall-e|image|moderation|transcribe|speech|audio|rerank/i.test(id));
+    } catch { }
+    if (body.model && typeof body.model === 'string' && !models.includes(body.model)) models.unshift(String(body.model).slice(0, 120));
+    if (!models.length) return fail(400, 'models', 'لم يُعطِ الموقع قائمة نماذج (GET /models) — اكتب اسم النموذج بنفسك.');
+    const t = await testCustom(base, key, models);
+    if (!t.ok) return fail(400, 'test', 'لم ينجح اختبار المفتاح: ' + t.why);
+    model = t.model; tier = STRONG_RE.test(t.model) ? 'strong' : 'normal';
+    rec = { key, provider: 'custom', base, models: models.slice(0, 80), keyHash: hash, tier, testedModel: t.model };
   }
-  try {
-    const r = await fetch(base + '/models', timed(10000, { headers: { authorization: 'Bearer ' + key } }));
-    if (r.status === 401 || r.status === 403) return fail(400, 'refused', 'الموقع رفض المفتاح (' + r.status + ')');
-    const j = r.ok ? await r.json().catch(() => null) : null;
-    models = ((j && (j.data || j.models)) || []).map(m => typeof m === 'string' ? m : m && (m.id || m.name)).filter(x => typeof x === 'string' && x.length < 120)
-      .filter(id => !/whisper|tts|embed|dall-e|image|moderation|transcribe|speech|audio|rerank/i.test(id));
-  } catch { }
-  if (body.model && typeof body.model === 'string' && !models.includes(body.model)) models.unshift(String(body.model).slice(0, 120));
-  if (!models.length) return fail(400, 'models', 'لم يُعطِ الموقع قائمة نماذج (GET /models) — اكتب اسم النموذج بنفسك.');
-  const t = await testCustom(base, key, models);
-  if (!t.ok) return fail(400, 'test', 'لم ينجح اختبار المفتاح: ' + t.why);
-  const tier = STRONG_RE.test(t.model) ? 'strong' : 'normal';
-  for (let i = 0; i < 5; i++) {
-    const id = me.uid + '_' + i;
-    if (await fsExists('api_keys/' + id)) continue;
-    const ok = await fsWrite('api_keys/' + id, { key, provider: 'custom', base, models: models.slice(0, 80), keyHash: hash, donorUid: me.uid, status: 'active',
-      failCount: 0, createdAt: new Date(), tier, testedModel: t.model }, { create: true });
-    if (!ok) continue;
-    await fsWrite('api_key_hashes/' + hash, { slot: id, donorUid: me.uid, at: new Date() }, { create: true }).catch(() => {});
-    await loadPool(true);
-    const d = await donorRefresh(me.uid);
-    return json(200, { ok: true, slot: i, tier, model: t.model, models: models.length, host: new URL(base).hostname, donor: d });
+  let slot = null;
+  if (store === 'firestore') {
+    for (let i = 0; i < SLOTS && slot == null; i++) {
+      const id = me.uid + '_' + i;
+      if (await fsExists('api_keys/' + id)) continue;
+      const doc = Object.assign({}, rec, { donorUid: me.uid, status: 'active', failCount: 0, createdAt: new Date() });
+      if (doc.tier == null) delete doc.tier;
+      if (doc.testedModel == null) delete doc.testedModel;
+      if (await fsWrite('api_keys/' + id, doc, { create: true })) slot = i;
+    }
+    if (slot == null) return fail(409, 'full', 'لكل حساب ' + SLOTS + ' مفاتيح كحدّ أقصى — اسحب مفتاحًا أولًا');
+    await fsWrite('api_key_hashes/' + hash, { slot: me.uid + '_' + slot, donorUid: me.uid, at: new Date() }, { create: true }).catch(() => {});
+  } else {
+    const id = me.uid + '_b' + crypto.randomUUID().slice(0, 8);
+    try {
+      await editBlobPool(keys => keys.concat([Object.assign({ id, uid: me.uid, status: 'active', addedAt: Date.now() }, rec)]), keys => keys.some(k => k.id === id));
+    } catch (e) { return fail(503, 'pool_store', 'تعذّر حفظ المفتاح في مخزن الموقع (Netlify Blobs): ' + String(e.message || e).slice(0, 120)); }
+    slot = id;
   }
-  return fail(409, 'full', 'لكل حساب 5 مفاتيح كحدّ أقصى — اسحب مفتاحًا أولًا');
+  await loadPool(true);
+  const d = await donorRefresh(me.uid).catch(() => null);
+  return json(200, { ok: true, slot, store, provider: rec.provider, label: rec.provider === 'custom' ? new URL(rec.base).hostname : LABEL[rec.provider], tail: '••••' + key.slice(-4),
+    tier: tier || (d && d.tier) || null, model, status, models: rec.models ? rec.models.length : undefined, host: rec.base ? new URL(rec.base).hostname : undefined, donor: d });
+}
+/* the donor's own keys, from both homes — provider, last four characters, state; never a key */
+async function donorKeys(uid) {
+  const out = [];
+  if (poolReady()) { try { (await poolQuery('donorUid', uid)).forEach(k => out.push(Object.assign(k, { src: 'firestore' }))); } catch { } }
+  if (blobsCtx()) (await loadBlobPool(true)).keys.filter(k => k.uid === uid && !out.some(x => x.key === k.key)).forEach(k => out.push(Object.assign({}, k, { src: 'netlify' })));
+  return out;
+}
+const mineOf = k => ({ id: k.id, src: k.src, provider: k.provider || providerOf(k.key), host: k.base ? (() => { try { return new URL(k.base).hostname; } catch { return null; } })() : null,
+  tier: k.tier || null, tail: '••••' + String(k.key).slice(-4), status: k.status, reason: k.reason || null });
+/* «🧪 try my keys»: each of the donor's active keys answers one tiny real request — a refused one is disabled at once */
+async function probeKeys(me) {
+  const rows = (await donorKeys(me.uid)).filter(k => k.status === 'active');
+  const results = [];
+  for (const k of rows.slice(0, SLOTS)) {
+    const t0 = Date.now(), p = k.provider === 'custom' ? 'custom' : providerOf(k.key);
+    let ok = false, model = null, why = '';
+    if (p === 'custom') { const b = safeBase(k.base), t = b ? await testCustom(b, k.key, k.models || []) : { ok: false, why: 'Base URL' }; ok = t.ok; model = t.model || null; why = t.why || ''; }
+    else {
+      const st = await tryKey(p, k.key);
+      ok = st === 'ok'; model = p === 'gemini' ? GEM_FIRST() : p === 'groq' ? 'llama-3.3-70b-versatile' : p === 'openrouter' ? 'deepseek/deepseek-chat-v3:free' : 'claude';
+      why = st === 'refused' ? 'refused' : st === 'limit' ? 'limit' : st === 'unknown' ? 'unreachable' : '';
+      if (st === 'refused') { await loadPool(true); await poolDisable(k.key, 'invalid'); }
+    }
+    results.push(Object.assign(mineOf(k), { ok, model, why, ms: Date.now() - t0 }));
+  }
+  await loadPool(true);
+  const providers = ORDER.filter(x => P[x].keys().length);
+  return { results, free: providers.length > 0, providers: providers.map(x => P[x].label), inPool: pool.keys.filter(k => rows.some(r => r.key === k.key)).length };
 }
 /* the donor's record from their ACTIVE keys: «strong» while one of them serves a strong model (a standard key is
    tested again when asked: Gemini, Groq and Claude keys are strong; OpenRouter gives the site its free models) */
 async function donorRefresh(uid, { test = false } = {}) {
-  const rows = poolReady() ? (await poolQuery('donorUid', uid)).filter(k => k.status === 'active') : [];
+  const rows = (await donorKeys(uid)).filter(k => k.status === 'active');
+  /* a tier found for a key kept in the Blobs store goes back into that record */
+  const keepTier = (k, f) => k.src === 'netlify'
+    ? editBlobPool(keys => { const x = keys.find(y => y.id === k.id); if (!x) return null; Object.assign(x, f); return keys; }, keys => (keys.find(y => y.id === k.id) || {}).tier === f.tier)
+    : fsWrite('api_keys/' + k.id, f);
   const strongKeys = [];
   for (const k of rows) {
     let tier = k.tier;
@@ -554,11 +664,11 @@ async function donorRefresh(uid, { test = false } = {}) {
         /* given by a browser (the server was off then): its address checked and a real answer asked before any tier */
         const base = safeBase(k.base), t = base ? await testCustom(base, k.key, k.models || []) : { ok: false };
         tier = t.ok ? (STRONG_RE.test(t.model) ? 'strong' : 'normal') : 'failed';
-        await fsWrite('api_keys/' + k.id, t.ok ? { tier, testedModel: t.model } : { tier }).catch(() => {});
+        await keepTier(k, t.ok ? { tier, testedModel: t.model } : { tier }).catch(() => {});
       } else {
         const p = providerOf(k.key);
         tier = (await tryKey(p, k.key)) === 'ok' && ['gemini', 'groq', 'anthropic'].includes(p) ? 'strong' : 'normal';
-        await fsWrite('api_keys/' + k.id, { tier }).catch(() => {});
+        await keepTier(k, { tier }).catch(() => {});
       }
     }
     if (tier === 'strong') strongKeys.push(k.id);
@@ -566,7 +676,8 @@ async function donorRefresh(uid, { test = false } = {}) {
   }
   const live = rows.filter(k => !k.failed).length;
   const rec = { tier: strongKeys.length ? 'strong' : live ? 'normal' : 'none', strongKeys, keys: live, updatedAt: new Date() };
-  await fsWrite('donors/' + uid, rec).catch(() => {});
+  /* the public record (the 💎 badge, ×2 on ads) lives in Firestore — written when the service account is there */
+  if (poolReady()) await fsWrite('donors/' + uid, rec).catch(() => {});
   return { tier: rec.tier, keys: rec.keys, strong: strongKeys.length };
 }
 
@@ -1124,15 +1235,35 @@ export default async (req) => {
   const me = await who(req);
   if (me.error) return fail(401, 'signin', 'سجّل الدخول بحساب Google لاستعمال الذكاء المجاني');
   if (req.method === 'POST' && path.startsWith('/keys/')) return keyBox(path, me, req);
-  /* a key from any OpenAI-compatible site (cleanapis, a proxy…): its address checked, the key tested for real */
-  if (req.method === 'POST' && path === '/pool/donate') return donateCustom(me, req);
+  /* a donated key — any provider, or any OpenAI-compatible site with its address: tested for real, then kept */
+  if (req.method === 'POST' && path === '/pool/donate') return donate(me, req);
+  /* «🧪 try my keys»: each of the donor's keys answers one real request now */
+  if (req.method === 'POST' && path === '/pool/test') {
+    const wait = allowed(me.uid);
+    if (wait) return fail(429, 'rate_limit', 'طلبات كثيرة — انتظر قليلًا. Please try again in ' + wait + 's.');
+    return json(200, Object.assign({ ok: true }, await probeKeys(me)));
+  }
+  /* a key kept in the Blobs store is withdrawn here (one in Firestore: by the donor's own page, the rules allow it) */
+  if (req.method === 'POST' && path === '/pool/withdraw') {
+    const b = await req.json().catch(() => ({}));
+    const id = String(b.id || '');
+    if (!blobsCtx()) return fail(404, 'not_found', 'لا شيء لسحبه هنا');
+    try { await editBlobPool(keys => keys.some(k => k.id === id && k.uid === me.uid) ? keys.filter(k => !(k.id === id && k.uid === me.uid)) : null, keys => !keys.some(k => k.id === id)); }
+    catch (e) { return fail(503, 'pool_store', String(e.message || e).slice(0, 120)); }
+    await loadPool(true);
+    await donorRefresh(me.uid).catch(() => {});
+    return json(200, { ok: true });
+  }
   /* the donor's tier again (after a donation or a withdrawal): tested here, never trusted from the page */
   if (req.method === 'POST' && path === '/pool/verify') { await loadPool(true); return json(200, Object.assign({ ok: true }, await donorRefresh(me.uid, { test: true }))); }
   /* the donor's own donated keys: provider, last four characters, state — never a key */
   if (req.method === 'GET' && path === '/pool') {
-    const out = { readable: poolReady() && pool.readable, active: pool.keys.length, providers: {} };
+    const out = { readable: pool.readable, active: pool.keys.length, providers: {},
+      /* where a donation is kept here, and whether the free AI has anything to answer with */
+      store: poolReady() ? 'firestore' : blobsCtx() ? 'netlify' : null, firestore: poolReady(), blobs: !!blobsCtx(),
+      free: ORDER.some(p => P[p].keys().length) };
     pool.keys.forEach(k => { out.providers[k.provider] = (out.providers[k.provider] || 0) + 1; });
-    if (out.readable) { try { out.mine = (await poolQuery('donorUid', me.uid)).map(k => ({ id: k.id, provider: k.provider || providerOf(k.key), tier: k.tier || null, tail: '••••' + k.key.slice(-4), status: k.status, reason: k.reason })); } catch { out.mine = null; } }
+    if (out.readable) { try { out.mine = (await donorKeys(me.uid)).map(k => Object.assign(mineOf(k), { inUse: pool.keys.some(x => x.key === k.key) })); } catch { out.mine = null; } }
     return json(200, out);
   }
   if (req.method === 'GET' && path === '/models') {
