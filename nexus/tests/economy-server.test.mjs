@@ -1,7 +1,7 @@
 /* ============================================================
    NEXUS tests · the economy on the server — 🛒 the project marketplace
-   (netlify/edge-functions/market.js) and ⏱ play sessions → 💰 Play Rewards
-   (points.js) — against the Firebase emulator's Firestore (the real
+   (netlify/edge-functions/market.js) and ⏱ play sessions (points.js — timed by
+   the server, sealed tokens; play time earns no points since PART 44) — against the Firebase emulator's Firestore (the real
    database the server writes). The server's clock is moved by the test
    (Date.now), so ten minutes of play take no time.
    Needs:  firebase emulators:start --project demo-nexus --only auth,firestore,storage
@@ -26,7 +26,7 @@ const DAY = 864e5;
 
 let H = {};
 async function fresh(env = {}) {
-  ENV = Object.assign({ FIREBASE_PROJECT_ID: 'demo-nexus', NEXUS_TEST_EMULATOR_TOKENS: '1', FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080', ADMIN_EMAILS: 'owner@example.com', PLAY_MIN_ACCOUNT_AGE_HOURS: '0' }, env);
+  ENV = Object.assign({ FIREBASE_PROJECT_ID: 'demo-nexus', NEXUS_TEST_EMULATOR_TOKENS: '1', FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080', ADMIN_EMAILS: 'owner@example.com', MARKET_FEE_PERCENT: '0' }, env);
   await resetEmulators();
   const v = 'v=' + (++version);
   H.market = await importChallenges(v, 'market');
@@ -115,7 +115,7 @@ test('2 · Buying «Ultimate Racing» for 500: −500 from the buyer, +500 to th
   assert.deepEqual((await ledger('omar', 'market_buy')).map(x => x.delta), [-500]);
   assert.deepEqual((await ledger('lina', 'market_sale')).map(x => x.delta), [500]);
   const L = await fsGet('market/' + gid);
-  assert.deepEqual([L.sales, L.revenue], [1, 500]);
+  assert.deepEqual([L.sales, L.revenueMicro], [1, 500 * 1e6], 'revenue in exact millionths');
   const notes = await fsQueryDeep('users/lina/notifications');
   assert.ok(notes.some(n => n.type === 'market' && n.event === 'sale' && n.points === 500), JSON.stringify(notes));
 });
@@ -178,33 +178,39 @@ test('5 · The buyer opens a purchase: their copy (made again if they deleted it
 });
 
 /* ================================================================ ⏱ play time */
+/* every beat carries the server's latest sealed token (🛡) and gets the next one */
+async function beat(uid, s, extra = {}, path = '/play/beat') {
+  const r = await P(path, { uid, body: Object.assign({ sessionId: s.sid, token: s.token }, extra) });
+  if (r.token) s.token = r.token;
+  return r;
+}
 async function play(uid, gid, beats, { every = 60, hidden = 0, idle = false } = {}) {
-  const s = await P('/play/start', { uid, body: { gameId: gid } });
-  assert.equal(s.ok, true, JSON.stringify(s));
-  let last = null;
-  for (let i = 0; i < beats; i++) { later(every); last = await P('/play/beat', { uid, body: { sessionId: s.sessionId, hidden, idle } }); }
-  return { sid: s.sessionId, last };
+  const st = await P('/play/start', { uid, body: { gameId: gid } });
+  assert.equal(st.ok, true, JSON.stringify(st));
+  const s = { sid: st.sessionId, token: st.token, last: null };
+  for (let i = 0; i < beats; i++) { later(every); s.last = await beat(uid, s, { hidden, idle }); }
+  return s;
 }
 test('6 · A play session timed by the server: start, a heartbeat a minute, the credited time = the real time; a beat sent too soon counts nothing; the session\'s record', async () => {
   await fresh();
   const { gid } = await game('lina');
   await give('omar', 0);
-  const { sid } = await play('omar', gid, 3);
+  const S = await play('omar', gid, 3), sid = S.sid;
   const ps = await fsGet('play_sessions/' + sid);
   assert.deepEqual([ps.gameId, ps.playerUid, ps.projectId, ps.state, ps.duration, ps.beats], [gid, 'omar', 'proj_race', 'active', 180, 3]);
   assert.ok(ps.startedAt > 0 && ps.lastHeartbeat > ps.startedAt && ps.endedAt === null);
   later(5);
-  const early = await P('/play/beat', { uid: 'omar', body: { sessionId: sid } });
+  const early = await beat('omar', S);
   assert.equal(early.why, 'early'); assert.equal(early.credited, 0);
   later(25);
-  const end = await P('/play/end', { uid: 'omar', body: { sessionId: sid } });
+  const end = await beat('omar', S, {}, '/play/end');
   assert.equal(end.credited, 30);
   const done = await fsGet('play_sessions/' + sid);
   assert.equal(done.state, 'ended'); assert.equal(done.duration, 210); assert.ok(done.endedAt > 0);
-  assert.equal((await P('/play/beat', { uid: 'omar', body: { sessionId: sid } })).stop, true, 'an ended session counts nothing more');
+  assert.equal((await beat('omar', S)).stop, true, 'an ended session counts nothing more');
   const pt = await fsGet('playtime/' + gid);
   assert.deepEqual([pt.seconds, pt.sessions, pt.players], [210, 1, 1]);
-  assert.equal((await P('/play/beat', { uid: 'sam', body: { sessionId: sid } })).error.code, 'play_session', 'nobody beats someone else\'s session');
+  assert.equal((await beat('sam', S)).error.code, 'play_token', 'nobody beats someone else\'s session');
 });
 
 test('7 · Closed, offline, in the background, idle: not counted; the creator\'s own play never counts; three players add up', async () => {
@@ -213,13 +219,13 @@ test('7 · Closed, offline, in the background, idle: not counted; the creator\'s
   for (const u of ['a', 'b', 'c', 'lina']) await give(u, 0);
   const a = await play('a', gid, 2);                                   // 120 s
   later(600);                                                          // the tab closed / the phone offline 10 min
-  const gap = await P('/play/beat', { uid: 'a', body: { sessionId: a.sid } });
+  const gap = await beat('a', a);
   assert.equal(gap.credited, 0); assert.equal(gap.why, 'gap');
   later(60);
-  const back = await P('/play/beat', { uid: 'a', body: { sessionId: a.sid } });
+  const back = await beat('a', a);
   assert.equal(back.credited, 60, 'counted again once beats come back');
   later(60);
-  const hid = await P('/play/beat', { uid: 'a', body: { sessionId: a.sid, hidden: 45 } });
+  const hid = await beat('a', a, { hidden: 45 });
   assert.equal(hid.credited, 15, 'minus the seconds the page was hidden');
   await play('b', gid, 3, { idle: true });                             // nobody touched the game
   await play('c', gid, 5);                                             // 300 s
@@ -238,9 +244,9 @@ test('8 · One counted session per account: a second tab or device takes over, t
   later(3);
   const s2 = await P('/play/start', { uid: 'omar', body: { gameId: 'g_two' } });
   later(60);
-  const b1 = await P('/play/beat', { uid: 'omar', body: { sessionId: s1.sessionId } });
+  const b1 = await beat('omar', { sid: s1.sessionId, token: s1.token });
   assert.equal(b1.stop, true); assert.equal(b1.state, 'replaced');
-  const b2 = await P('/play/beat', { uid: 'omar', body: { sessionId: s2.sessionId } });
+  const b2 = await beat('omar', { sid: s2.sessionId, token: s2.token });
   assert.equal(b2.credited, 60, 'from its own start');
   later(3);
   await P('/play/start', { uid: 'omar', body: { gameId: gid } });
@@ -248,74 +254,54 @@ test('8 · One counted session per account: a second tab or device takes over, t
   assert.equal(pt.players, 1, 'the same player once'); assert.equal(pt.sessions, 2);
 });
 
-/* ================================================================ 💰 Play Rewards */
-test('9 · Play Rewards: every 10 qualified minutes = 1 point to the creator (ledger «play»), the rest kept between sessions — 97 minutes → 9 points, 7 minutes waiting', async () => {
-  await fresh({ PLAY_MINUTES_PER_PLAYER_DAY: '1440', PLAY_PLAYER_DAILY_MINUTES: '1440' });
+/* ================================================================ play time earns no points (PART 44) */
+test('9 · Play time is a number of its own: 97 minutes of play → 97 minutes counted, ZERO points to the creator, likes untouched; the old Play Rewards settings are gone', async () => {
+  await fresh();
   const { gid } = await game('lina');
   await give('omar', 0); await give('lina', 0);
-  await play('omar', gid, 9);                                          // 9 minutes: nothing yet
-  assert.equal(await balance('lina'), 0);
-  assert.equal((await fsGet('playtime/' + gid)).pendingSeconds, 540);
-  const s = await play('omar', gid, 1);                                // a new session: the 10th minute
-  assert.equal(s.last.paid.points, 1);
-  assert.equal(await balance('lina'), 1);
-  await play('omar', gid, 87);                                         // 97 minutes in all
+  await play('omar', gid, 10);
+  await play('omar', gid, 87);
   const pt = await fsGet('playtime/' + gid);
-  assert.equal(await balance('lina'), 9); assert.equal(pt.rewardPoints, 9);
-  assert.equal(pt.pendingSeconds, 7 * 60, '7 minutes kept for later');
-  assert.equal(pt.qualifiedSeconds, 97 * 60);
-  const lg = await ledger('lina', 'play');
-  assert.equal(lg.reduce((a, x) => a + x.delta, 0), 9);
+  assert.equal(pt.seconds, 97 * 60);
+  assert.equal(await balance('lina'), 0); assert.equal((await ledger('lina', 'play')).length, 0);
+  assert.equal(pt.rewardPoints, undefined); assert.equal(pt.pendingSeconds, undefined);
   assert.equal((await fsGet('games/' + gid)).likes, 3, 'likes are never touched by play time');
-  /* the owner doubles the rate: the minutes waiting are paid at the new rate */
-  await M('/config', { uid: 'owner', email: 'owner@example.com', body: { values: { playPoints: 2 } } });
+  await M('/config', { uid: 'owner', email: 'owner@example.com', body: { values: { playPoints: 2, playIntervalMinutes: 1 } } });
   await play('omar', gid, 3);
-  assert.equal(await balance('lina'), 11);
+  assert.equal(await balance('lina'), 0, 'no setting brings them back');
 });
 
-test('10 · Abuse: a brand-new account earns its creator nothing; one player at most 30 minutes a game a day; a game and a creator have daily ceilings; the client cannot send a duration', async () => {
-  await fresh({ PLAY_MIN_ACCOUNT_AGE_HOURS: '24', PLAY_GAME_DAILY_POINTS: '4' });
+test('10 · The page cannot send a duration (or seconds), nor beat without the server\'s token; a brand-new account\'s play is play time all the same', async () => {
+  await fresh();
   const { gid } = await game('lina');
-  await give('lina', 0);
   await fsSet('wallets/fresh1', { points: 0, welcomed: true, createdAt: Date.now() - 3600e3, updatedAt: Date.now() });   // an hour old
-  const f = await play('fresh1', gid, 12);
-  assert.equal(f.last.qualified, 0); assert.equal(f.last.why, 'new_account');
-  assert.equal(await balance('lina'), 0);
-  assert.equal((await fsGet('playtime/' + gid)).seconds, 720, 'still play time — only not rewarded');
-  await give('old1', 0);
-  await play('old1', gid, 45);                                         // 45 minutes: only 30 count for rewards
-  assert.equal(await balance('lina'), 3);
-  const pd = await fsQueryDeep('play_days');
-  assert.ok(pd.some(d => d.uid === 'old1' && d.total === 1800), JSON.stringify(pd));
-  /* the game's daily ceiling (4 points): more players, still 4 */
-  for (const u of ['old2', 'old3']) { await give(u, 0); await play(u, gid, 30); }
-  assert.equal(await balance('lina'), 4);
-  /* a duration from the page is never read */
+  await play('fresh1', gid, 12);
+  assert.equal((await fsGet('playtime/' + gid)).seconds, 720);
   await give('cheat', 0);
   const s = await P('/play/start', { uid: 'cheat', body: { gameId: gid } });
   later(60);
-  const b = await P('/play/beat', { uid: 'cheat', body: { sessionId: s.sessionId, duration: 1000000, seconds: 999999 } });
+  assert.equal((await P('/play/beat', { uid: 'cheat', body: { sessionId: s.sessionId, duration: 1000000 } })).error.code, 'play_token');
+  const b = await beat('cheat', { sid: s.sessionId, token: s.token }, { duration: 1000000, seconds: 999999 });
   assert.equal(b.credited, 60);
 });
 
-test('11 · The economy\'s numbers: anyone reads them; only the site\'s owner changes them (out of range refused); the old minute-by-minute page still counts', async () => {
+test('11 · The economy\'s numbers: anyone reads them; only the site\'s owner changes them (out of range refused); the old minute-by-minute page counts nothing', async () => {
   await fresh();
-  assert.equal((await M('/config', { uid: 'omar', body: { values: { playPoints: 50 } } })).error.code, 'not_owner');
+  assert.equal((await M('/config', { uid: 'omar', body: { values: { feePercent: 50 } } })).error.code, 'not_owner');
   assert.equal((await M('/config', { uid: 'owner', email: 'owner@example.com', body: { values: { feePercent: 95 } } })).error.code, 'value');
-  const r = await M('/config', { uid: 'owner', email: 'owner@example.com', body: { values: { playIntervalMinutes: 5, minPrice: 50, pricePresets: '50,250' } } });
+  const r = await M('/config', { uid: 'owner', email: 'owner@example.com', body: { values: { heartbeatSeconds: 30, minPrice: 50, pricePresets: '50,250' } } });
   assert.equal(r.ok, true, JSON.stringify(r));
   const c = await M('/config', { method: 'GET' });
-  assert.equal(c.play.intervalMinutes, 5); assert.equal(c.minPrice, 50); assert.deepEqual(c.pricePresets, [50, 250]);
+  assert.equal(c.play.heartbeatSeconds, 30); assert.equal(c.minPrice, 50); assert.deepEqual(c.pricePresets, [50, 250]);
   const { gid } = await game('lina');
   assert.equal((await M('/list', { uid: 'lina', body: { gameId: gid, price: 20 } })).error.code, 'price');
-  /* an older page: one call a minute with the game's id */
+  /* an older page: one call a minute with the game's id, no token — nothing counted (it reloads) */
   await give('omar', 0);
   const a = await P('/play', { uid: 'omar', body: { gameId: gid } });
-  assert.equal(a.ok, true);
+  assert.equal(a.ok, true); assert.equal(a.counted, false);
   later(60);
-  const b = await P('/play', { uid: 'omar', body: { gameId: gid } });
-  assert.equal(b.counted, true);
-  assert.equal((await fsGet('playtime/' + gid)).seconds, 60);
+  assert.equal((await P('/play', { uid: 'omar', body: { gameId: gid } })).counted, false);
+  assert.equal(await fsGet('playtime/' + gid), null);
 });
 
 let pass = 0, failN = 0;

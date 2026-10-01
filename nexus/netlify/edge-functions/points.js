@@ -6,9 +6,9 @@
 
    Earn:  a rewarded ad watched to the end        +POINTS_PER_AD (5)
           the welcome gift (once per account)       +POINTS_WELCOME (50)
-          Play Rewards: every PLAY_REWARD_INTERVAL_MINUTES (10) of real play
-          by others in your game                    +PLAY_REWARD_POINTS (1)
-          (play sessions timed by THIS server's clock — see PLAY TIME below)
+          🔥 the daily login streak · 🎡 the lucky spin · 🎁 inviting a friend (REWARDS below)
+          — 👑 VIP doubles these (VIP_MULTIPLIER); sales and tips are never multiplied
+          (play time is timed by THIS server's clock — PLAY TIME below — and earns no points by itself)
    Spend: a hosted file                             POINTS_PER_MB (10) per MB
           10 more AI requests today                 AI_PACK_POINTS (10)
    Pro ($20 / month through Stripe): hosted files free, 150 AI requests a day.
@@ -52,7 +52,7 @@ const json = (status, obj) => new Response(JSON.stringify(obj), { status, header
 const fail = (status, code, message, extra = {}) => json(status, Object.assign({ ok: false, error: { code, message } }, extra));
 const coded = (status, code, message, extra) => Object.assign(new Error(message), { status, code, extra });
 const rid = (n = 20) => u64(crypto.getRandomValues(new Uint8Array(n))).replace(/[^A-Za-z0-9]/g, '').slice(0, n) || String(Date.now());
-const today = () => new Date().toISOString().slice(0, 10);          // the day the limits count (UTC)
+const today = () => new Date(Date.now()).toISOString().slice(0, 10);          // the day the limits count (UTC)
 
 /* ---------------- EXACT AMOUNTS: fixed point, never a float ----------------
    A balance is an integer of millionths of a token (wallets/<uid>.micro: 0.25 → 250000; .points = micro / 1e6 is
@@ -113,20 +113,12 @@ const cfg = () => ({
    inside NEXUS (economy/config — written only by the server after checking the owner, market.js) → bounds.
    Never a number a page sends. ---------------- */
 const ECON = {
-  playIntervalMinutes: [['PLAY_REWARD_INTERVAL_MINUTES', 'PLAY_MINUTES_PER_REWARD'], 10, 1, 1440],   // minutes of real play per reward
-  playPoints:          [['PLAY_REWARD_POINTS', 'POINTS_PER_PLAY_REWARD'], 1, 0, 1000],              // points per reward
-  playerGameMinutes:   [['PLAY_MINUTES_PER_PLAYER_DAY'], 30, 0, 1440],        // one player, one game, one day
-  playerDayMinutes:    [['PLAY_PLAYER_DAILY_MINUTES'], 180, 0, 1440],         // one player, all games, one day
-  gameDayPoints:       [['PLAY_GAME_DAILY_POINTS'], 100, 0, 1000000],         // one game's Play Rewards a day
-  creatorDayPoints:    [['PLAY_CREATOR_DAILY_POINTS'], 300, 0, 1000000],      // one creator's Play Rewards a day
   heartbeatSeconds:    [['PLAY_HEARTBEAT_SECONDS'], 60, 15, 600],             // a page says «still playing» this often
   sessionMaxMinutes:   [['PLAY_SESSION_MAX_MINUTES'], 240, 10, 1440],         // one session counts at most this long
-  minAccountAgeHours:  [['PLAY_MIN_ACCOUNT_AGE_HOURS'], 24, 0, 720],          // an account this new earns its creators nothing yet
-  verifiedOnly:        [['PLAY_VERIFIED_ONLY'], 0, 0, 1],                     // 1: only verified e-mails (Google accounts are)
   marketOn:            [['MARKET_ENABLED'], 1, 0, 1],
   minPrice:            [['MARKET_MIN_PRICE'], 10, 1, 1000000],
   maxPrice:            [['MARKET_MAX_PRICE'], 100000, 1, 10000000],
-  feePercent:          [['MARKET_FEE_PERCENT'], 0, 0, 90],                    // kept by the marketplace; the seller gets the rest
+  feePercent:          [['MARKET_FEE_PERCENT'], 15, 0, 90],                   // the site's commission on every sale; the seller gets the rest
   buyerMinAgeHours:    [['MARKET_MIN_BUYER_AGE_HOURS'], 0, 0, 720],
   /* 💳 the token's price — ONE number, in dollars (0.01), kept as micro-dollars (10000) — and the top-up / withdrawal
      limits in dollars, kept as cents: the 5th number is that scale (what a person writes × scale = what is kept) */
@@ -137,8 +129,28 @@ const ECON = {
   withdrawOn:          [['WITHDRAW_ENABLED'], 0, 0, 1],                 // off until the site's owner turns it on
   withdrawMinCents:    [['WITHDRAW_MIN_USD'], 500, 1, 1e7, 100],
   withdrawMaxCents:    [['WITHDRAW_MAX_USD'], 50000, 1, 1e7, 100],      // one request
-  withdrawMinAgeDays:  [['WITHDRAW_MIN_ACCOUNT_DAYS'], 7, 0, 365]
+  withdrawMinAgeDays:  [['WITHDRAW_MIN_ACCOUNT_DAYS'], 7, 0, 365],
+  /* 🔥 streak · 🎡 spin · 🎁 invites · 👑 VIP · 💝 tips (the lists — STREAK_REWARDS, SPIN_PRIZES — below) */
+  streakOn:            [['STREAK_ENABLED'], 1, 0, 1],
+  spinOn:              [['SPIN_ENABLED'], 1, 0, 1],
+  spinFreePerDay:      [['SPIN_FREE_PER_DAY'], 1, 0, 10],
+  spinAdsPerDay:       [['SPIN_ADS_PER_DAY'], 3, 0, 20],                    // more spins, each after a rewarded ad
+  referralOn:          [['REFERRAL_ENABLED'], 1, 0, 1],
+  referralPoints:      [['REFERRAL_POINTS'], 100, 0, 100000],               // to the one who invited
+  referralFriendPoints:[['REFERRAL_FRIEND_POINTS'], 50, 0, 100000],         // to the friend who came
+  referralPlayMinutes: [['REFERRAL_PLAY_MINUTES'], 30, 1, 1440],            // the friend's real play before either is paid
+  referralJoinHours:   [['REFERRAL_JOIN_HOURS'], 72, 1, 720],               // a link counts for an account this new
+  referralPerDay:      [['REFERRAL_MAX_PER_DAY'], 20, 0, 1000],             // paid invitations a day, per person
+  vipOn:               [['VIP_ENABLED'], 1, 0, 1],
+  vipMultiplier:       [['VIP_MULTIPLIER'], 2, 1, 10],
+  vipPriceCents:       [['VIP_PRICE_USD'], 499, 50, 100000, 100],          // a month through Stripe
+  vipTokens:           [['VIP_TOKENS_30D'], 499, 0, 10000000],             // 30 days paid with tokens (0: not offered)
+  tipMin:              [['TIP_MIN'], 1, 1, 1000000],
+  tipMax:              [['TIP_MAX'], 10000, 1, 10000000],
+  tipFeePercent:       [['TIP_FEE_PERCENT'], 0, 0, 90]
 };
+const STREAK_DEFAULT = '5,10,15,20,25,30,50';                               // day 1 … day 7 (and every day after)
+const SPIN_DEFAULT = '1:30,2:25,5:20,10:12,20:8,50:4,100:1';                // points : weight
 const ECON_PRESETS = '100,500,1000,5000';
 let econCache = { at: 0, v: null };
 async function econ(force) {
@@ -157,6 +169,14 @@ async function econ(force) {
   if (v.withdrawMaxCents < v.withdrawMinCents) v.withdrawMaxCents = v.withdrawMinCents;
   const pre = Array.isArray(over.pricePresets) ? over.pricePresets : (env('MARKET_PRICE_PRESETS') || ECON_PRESETS).split(/[\s,;]+/);
   v.pricePresets = pre.map(Number).filter(n => Number.isInteger(n) && n >= v.minPrice && n <= v.maxPrice).slice(0, 8);
+  /* the streak's points day by day, and the wheel's prizes with their weights */
+  const sr = Array.isArray(over.streakRewards) ? over.streakRewards : (env('STREAK_REWARDS') || STREAK_DEFAULT).split(/[\s,;]+/);
+  v.streakRewards = sr.map(Number).filter(n => Number.isInteger(n) && n >= 0 && n <= 1000000).slice(0, 14);
+  if (!v.streakRewards.length) v.streakRewards = STREAK_DEFAULT.split(',').map(Number);
+  const sp = Array.isArray(over.spinPrizes) ? over.spinPrizes : (env('SPIN_PRIZES') || SPIN_DEFAULT).split(/[\s,;]+/);
+  v.spinPrizes = sp.map(x => String(x).split(':').map(Number)).filter(([p, w]) => Number.isInteger(p) && p >= 0 && p <= 1000000 && Number.isInteger(w) && w > 0 && w <= 1000000)
+    .map(([p, w]) => ({ points: p, weight: w })).slice(0, 12);
+  if (v.spinPrizes.length < 2) v.spinPrizes = SPIN_DEFAULT.split(',').map(x => x.split(':').map(Number)).map(([p, w]) => ({ points: p, weight: w }));
   v.updatedAt = over.updatedAt || 0;
   econCache = { at: Date.now(), v };
   return v;
@@ -263,10 +283,11 @@ async function change(uid, delta, reason, note, plan) {
   }
   throw coded(409, 'busy', 'حاول مرة أخرى بعد لحظة');
 }
-/* EARNED tokens — the part of a balance that may be withdrawn: sales of your projects, Play Rewards, challenge
-   prizes; never the welcome gift, ads, refunds nor tokens bought. Spending takes the rest first (earned = at most
+/* EARNED tokens — the part of a balance that may be withdrawn: sales (projects, files & code), tips received,
+   challenge prizes (and Play Rewards from before they were removed); never the welcome gift, ads, streak, spins,
+   invitations, refunds nor tokens bought. Spending takes the rest first (earned = at most
    the balance); a withdrawal takes from it; a withdrawal refused or cancelled gives it back. */
-const EARNED = ['market_sale', 'play', 'challenge'];
+const EARNED = ['market_sale', 'play', 'challenge', 'tip_received'];
 async function earnedOf(uid, d) {
   if (d && Number.isInteger(d.earnMicro)) return d.earnMicro;
   /* a wallet from before: what its ledger says it earned (once — the next change keeps it in the wallet) */
@@ -290,7 +311,7 @@ async function wallet(uid) {
   if (w.exists) return w.data;
   const gift = cfg().welcome, m = Math.round(gift * MICRO), now = Date.now();
   const r = await commit([put('wallets/' + uid, { welcomed: true, createdAt: now, updatedAt: now, micro: m, points: m / MICRO, earnMicro: 0 }, { pre: { exists: false } })]
-    .concat(m ? [create('wallets/' + uid + '/ledger/' + now + '_welcome', { delta: m / MICRO, micro: m, reason: 'welcome', note: 'هدية الترحيب', at: now })] : []));
+    .concat(m ? [create('wallets/' + uid + '/ledger/' + now + '_welcome', { delta: m / MICRO, micro: m, reason: 'welcome', note: 'هدية الترحيب', at: now }), statsWrite({ giftMicro: m })] : []));
   if (!r.ok && !r.conflict) throw coded(503, 'store', 'تعذّر إنشاء المحفظة');
   w = await getDoc('wallets/' + uid);
   return w.data || {};
@@ -324,17 +345,19 @@ async function who(req) {
 
 /* ================================================================ ADS */
 /* a ticket before an ad is shown: the limits are checked first */
-async function adStart(me, via) {
-  const c = cfg(), d = await wallet(me.uid), now = Date.now();
+/* purpose 'spin': the ad's reward is one more 🎡 spin (SPIN_ADS_PER_DAY) instead of points */
+async function adStart(me, via, purpose) {
+  const c = cfg(), d = await wallet(me.uid), now = Date.now(), forSpin = purpose === 'spin';
   const n = d.adsDay === today() ? d.adsN || 0 : 0;
   if (n >= c.adsPerDay) throw coded(429, 'ads_daily', 'شاهدت ' + c.adsPerDay + ' إعلانًا اليوم — الحدّ اليومي. عد غدًا.');
   const wait = Math.ceil(((d.adsLast || 0) + c.adCooldown * 1000 - now) / 1000);
   if (wait > 0) throw coded(429, 'ads_cooldown', 'انتظر ' + wait + ' ثانية قبل الإعلان التالي.', { wait });
+  if (forSpin) { const e = await econ(); if (!e.spinOn || !spinState(e, d).adsLeft) throw coded(429, 'spin_ads', 'انتهت دورات الإعلانات اليوم — عد غدًا.'); }
   const nonce = rid(24);
-  const r = await commit([create('ad_sessions/' + nonce, { uid: me.uid, at: now, via, used: false })]);
+  const r = await commit([create('ad_sessions/' + nonce, { uid: me.uid, at: now, via, used: false, purpose: forSpin ? 'spin' : 'points' })]);
   if (!r.ok) throw coded(503, 'store', 'تعذّر بدء الإعلان');
-  const strong = await strongDonor(me.uid);
-  return { nonce, minSeconds: c.adMinSeconds, points: c.ad * (strong ? 2 : 1), strongDonor: strong, left: c.adsPerDay - n };
+  const strong = await strongDonor(me.uid), e = await econ();
+  return { nonce, minSeconds: c.adMinSeconds, points: forSpin ? 0 : boost(d, c.ad * (strong ? 2 : 1), e), spin: forSpin, strongDonor: strong, vip: isVip(d), left: c.adsPerDay - n };
 }
 /* the reward: once per ticket (and per AdMob transaction), within the day's limit */
 /* a strong donor (donors/<uid>, written by ai.js): ×2 on an ad's points while one of their strong keys is still active */
@@ -348,8 +371,8 @@ async function strongDonor(uid) {
   return false;
 }
 async function adReward(uid, nonce, via, tx) {
-  const c = cfg(), strong = await strongDonor(uid);
-  return change(uid, c.ad * (strong ? 2 : 1), 'ad', (via === 'admob' ? 'إعلان بمكافأة (AdMob)' : 'إعلان بمكافأة') + (strong ? ' · ×2 💎 متبرّع قوي' : ''), async d => {
+  const c = cfg(), strong = await strongDonor(uid), e = await econ();
+  return change(uid, 0, 'ad', (via === 'admob' ? 'إعلان بمكافأة (AdMob)' : 'إعلان بمكافأة') + (strong ? ' · ×2 💎 متبرّع قوي' : ''), async d => {
     const now = Date.now();
     const s = await getDoc('ad_sessions/' + nonce);
     if (!s.exists || s.data.uid !== uid) return { error: coded(404, 'ad_ticket', 'تذكرة الإعلان غير موجودة') };
@@ -361,7 +384,16 @@ async function adReward(uid, nonce, via, tx) {
     if ((d.adsLast || 0) + c.adCooldown * 1000 > now) return { error: coded(429, 'ads_cooldown', 'إعلانان متقاربان جدًا') };
     const writes = [put('ad_sessions/' + nonce, { used: true, usedAt: now, via }, { pre: preOf(s) })];
     if (tx) writes.push(create('ad_tx/' + tx, { uid, at: now, nonce }));
-    return { fields: { adsDay: today(), adsN: n + 1, adsLast: now }, writes };
+    const fields = { adsDay: today(), adsN: n + 1, adsLast: now };
+    /* 🎡 an ad for a spin: one more spin, no points */
+    if (s.data.purpose === 'spin') {
+      const day = today(), used = d.spinAdDay === day ? d.spinAdN || 0 : 0;
+      if (used >= e.spinAdsPerDay) return { error: coded(429, 'spin_ads', 'انتهت دورات الإعلانات اليوم') };
+      return { delta: 0, fields: Object.assign(fields, { spinBank: (d.spinBank || 0) + 1, spinAdDay: day, spinAdN: used + 1 }), writes, result: { spin: true } };
+    }
+    const pts = boost(d, c.ad * (strong ? 2 : 1), e);
+    writes.push(statsWrite({ giftMicro: pts * MICRO }));
+    return { delta: pts, fields, writes, note: (via === 'admob' ? 'إعلان بمكافأة (AdMob)' : 'إعلان بمكافأة') + (strong ? ' · ×2 💎' : '') + (isVip(d) ? ' · 👑 ×' + e.vipMultiplier : '') };
   });
 }
 
@@ -426,23 +458,28 @@ async function stripeHook(req) {
   const seen = await commit([create('stripe_events/' + String(ev.id).replace(/[^\w-]/g, ''), { type: ev.type, at: Date.now() })]);
   if (!seen.ok) return json(200, { received: true, duplicate: true });
   const o = (ev.data && ev.data.object) || {};
-  const uidOf = async sub => (o.metadata && o.metadata.uid) || (o.subscription_details && o.subscription_details.metadata && o.subscription_details.metadata.uid)
-    || (sub && (await getDoc('stripe_subs/' + sub)).data || {}).uid || null;
+  /* whose subscription, and which: ⭐ Pro or 👑 VIP (its metadata, else what was kept when it began) */
+  const subOf = async sub => {
+    const meta = Object.assign({}, o.subscription_details && o.subscription_details.metadata, o.metadata);
+    const kept = sub ? (await getDoc('stripe_subs/' + sub)).data || {} : {};
+    return { uid: meta.uid || kept.uid || null, plan: (meta.plan || kept.plan) === 'vip' ? 'vip' : 'pro' };
+  };
+  const F = plan => plan === 'vip' ? { status: 'vipStatus', until: 'vipUntil', sub: 'vipSub', customer: 'vipCustomer' } : { status: 'proStatus', until: 'proUntil', sub: 'proSub', customer: 'proCustomer' };
   if (ev.type === 'checkout.session.completed') {
-    const uid = o.client_reference_id || (o.metadata && o.metadata.uid);
+    const uid = o.client_reference_id || (o.metadata && o.metadata.uid), plan = (o.metadata && o.metadata.plan) === 'vip' ? 'vip' : 'pro', k = F(plan);
     if (uid && o.subscription) {
-      await change(uid, 0, 'pro', '', () => ({ fields: { proStatus: 'active', proSub: String(o.subscription), proCustomer: String(o.customer || ''), proUntil: Date.now() + 32 * 864e5 },
-        writes: [put('stripe_subs/' + o.subscription, { uid, customer: String(o.customer || ''), at: Date.now() })] }));
+      await change(uid, 0, plan, '', () => ({ fields: { [k.status]: 'active', [k.sub]: String(o.subscription), [k.customer]: String(o.customer || ''), [k.until]: Date.now() + 32 * 864e5 },
+        writes: [put('stripe_subs/' + o.subscription, { uid, plan, customer: String(o.customer || ''), at: Date.now() })].concat(plan === 'vip' ? [statsWrite({ vipSubs: 1 })] : []) }));
     }
   } else if (ev.type === 'invoice.paid' || ev.type === 'invoice.payment_succeeded') {
-    const sub = o.subscription, uid = await uidOf(sub);
+    const { uid, plan } = await subOf(o.subscription), k = F(plan);
     const end = o.lines && o.lines.data && o.lines.data[0] && o.lines.data[0].period && o.lines.data[0].period.end;
-    if (uid && end) await change(uid, 0, 'pro', '', () => ({ fields: { proStatus: 'active', proUntil: end * 1000 + 2 * 864e5 } }));
+    if (uid && end) await change(uid, 0, plan, '', () => ({ fields: { [k.status]: 'active', [k.until]: end * 1000 + 2 * 864e5 } }));
   } else if (ev.type === 'customer.subscription.deleted' || ev.type === 'customer.subscription.updated') {
-    const uid = await uidOf(o.id);
-    if (uid) await change(uid, 0, 'pro', '', d => ({ fields: ev.type === 'customer.subscription.deleted' || o.status === 'canceled'
-      ? { proStatus: 'canceled', proUntil: Math.min(d.proUntil || 0, Date.now()) }
-      : { proStatus: String(o.status || 'active') } }));
+    const { uid, plan } = await subOf(o.id), k = F(plan);
+    if (uid) await change(uid, 0, plan, '', d => ({ fields: ev.type === 'customer.subscription.deleted' || o.status === 'canceled'
+      ? { [k.status]: 'canceled', [k.until]: Math.min(d[k.until] || 0, Date.now()) }
+      : { [k.status]: String(o.status || 'active') } }));
   }
   return json(200, { received: true });
 }
@@ -492,34 +529,56 @@ async function aiBuy(me) {
   });
 }
 
-/* ================================================================ PLAY TIME → Play Rewards (the creator's points)
-   Kept apart from everything else: ❤️ likes stay likes (games/<id>.likes), ⏱ play time is play time
-   (playtime/<gameId>: seconds, sessions, players), 💰 Play Rewards are the points that time earns
-   (playtime/<gameId>.rewardPoints, the creator's ledger «play»).
-   A session is timed by THIS server's clock — a page cannot send a duration:
-   • /play/start {gameId} → a playSessionId; one counted session per account: a newer one (another tab,
-     another device, another game) ends the older one («replaced»).
-   • /play/beat {sessionId, hidden, idle} every PLAY_HEARTBEAT_SECONDS while the game is on screen: the time
+/* ================================================================ PLAY TIME — timed by THIS server, sealed (🛡 anti-cheat)
+   ⏱ Play time is a number of its own (playtime/<gameId>: seconds, sessions, players) — it earns no points by
+   itself; it tells a creator how much their game is played, and tells 🎁 an invitation that the friend really
+   played. A page cannot send a duration:
+   • /play/start {gameId} → a playSessionId and its TOKEN; one counted session per account: a newer one (another
+     tab, another device, another game) ends the older one («replaced»).
+   • /play/beat {sessionId, token, hidden, idle} every PLAY_HEARTBEAT_SECONDS while the game is on screen: the time
      since the last beat is credited — never a beat sooner than half the interval (nothing written), never a
-     silence longer than 2.5 intervals (closed, offline, in the background: not counted), minus the seconds
-     the page says it was hidden, nothing when idle (no touch for a while), at most PLAY_SESSION_MAX_MINUTES.
-   • /play/end {sessionId}: the last stretch, and the session's endedAt / duration.
-   What earns the creator points («qualified»): another player's time (never the creator's own), from an
-   account at least PLAY_MIN_ACCOUNT_AGE_HOURS old on this server (verified e-mail with PLAY_VERIFIED_ONLY=1),
-   within PLAY_MINUTES_PER_PLAYER_DAY per game and PLAY_PLAYER_DAILY_MINUTES in all — so a hundred new accounts
-   earn nothing the first day and little after. Qualified seconds wait in pendingSeconds: every
-   PLAY_REWARD_INTERVAL_MINUTES of them become PLAY_REWARD_POINTS, the rest stays for the next sessions
-   (97 minutes at 10 → 9 rewards, 7 minutes kept). A game earns at most PLAY_GAME_DAILY_POINTS a day and a
-   creator PLAY_CREATOR_DAILY_POINTS — time beyond that is counted as play time but earns nothing (not banked).
-   The reward and the bookkeeping land in ONE commit (no reward paid twice, none lost). */
+     silence longer than 2.5 intervals (closed, offline, in the background), minus the seconds the page says it
+     was hidden, nothing when idle, at most PLAY_SESSION_MAX_MINUTES; the creator's own play is not counted.
+   • /play/end {sessionId, token}: the last stretch, and the session's endedAt / duration.
+   🛡 The token is the session sealed with AES-GCM under a key only this server has (PLAY_TOKEN_SECRET, or one made
+   once and kept in server_secrets/, which no page can read): session, account, game and the beat's NUMBER. Each
+   beat must bring the latest token and gets the next one — a token written by a page (or a bot) does not open, an
+   old one (replayed, or a copy running in a second tab) is refused, a session cannot be beaten for someone else. */
 const SESS = 'play_sessions';
 const cleanId = v => String(v || '').replace(/[^\w-]/g, '').slice(0, 64);
+let playKey = null;
+async function sealKey() {
+  if (playKey) return playKey;
+  let raw = env('PLAY_TOKEN_SECRET');
+  if (!raw) {
+    const k = await getDoc('server_secrets/play');
+    if (k.exists) raw = k.data.key;
+    else {
+      const fresh = u64(crypto.getRandomValues(new Uint8Array(32)));
+      const r = await commit([create('server_secrets/play', { key: fresh, at: Date.now() })]);
+      raw = r.ok ? fresh : (await getDoc('server_secrets/play')).data.key;
+    }
+  }
+  playKey = await crypto.subtle.importKey('raw', await crypto.subtle.digest('SHA-256', te('nexus-play|' + raw)), 'AES-GCM', false, ['encrypt', 'decrypt']);
+  return playKey;
+}
+async function seal(o) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  return u64(iv) + '.' + u64(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await sealKey(), te(JSON.stringify(o))));
+}
+async function unseal(t) {
+  try { const [a, b] = String(t || '').split('.'); return JSON.parse(txt(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64u(a) }, await sealKey(), b64u(b)))); }
+  catch { return null; }
+}
 async function playStart(me, b) {
   const e = await econ(), gid = cleanId(b.gameId);
   if (!gid) throw coded(400, 'bad_request', 'اللعبة غير محدّدة');
   const g = await getDoc('games/' + gid, ['ownerId', 'visibility', 'projectId', 'title']);
   if (!g.exists || g.data.visibility === 'private') throw coded(404, 'game', 'اللعبة غير موجودة');
   const own = g.data.ownerId === me.uid;
+  /* 🎁 a friend who came by an invitation and still has to play: this session counts toward it */
+  const rf = own ? null : await getDoc('referrals/' + me.uid).catch(() => null);
+  const ref = !!(rf && rf.exists && rf.data.status === 'joined');
   for (let i = 0; i < 4; i++) {
     const now = Date.now(), sid = 'ps' + rid(18);
     const a = await getDoc('play_active/' + me.uid);
@@ -531,7 +590,7 @@ async function playStart(me, b) {
       if (old.exists && old.data.state === 'active') writes.push(put(SESS + '/' + a.data.sessionId, { state: 'replaced', endedAt: old.data.lastHeartbeat || now }, { pre: preOf(old) }));
     }
     writes.push(create(SESS + '/' + sid, { sessionId: sid, gameId: gid, projectId: g.data.projectId || null, ownerUid: g.data.ownerId, playerUid: me.uid,
-      startedAt: now, lastHeartbeat: now, endedAt: null, duration: 0, qualified: 0, beats: 0, ignored: 0, state: 'active', own }));
+      startedAt: now, lastHeartbeat: now, endedAt: null, duration: 0, beats: 0, ignored: 0, seq: 0, state: 'active', own, ref }));
     writes.push(put('play_active/' + me.uid, { sessionId: sid, gameId: gid, at: now }, { pre: preOf(a) }));
     if (!own) {
       /* 🎮 sessions and 👥 players (a player counted once per game) — other people only */
@@ -540,7 +599,7 @@ async function playStart(me, b) {
       if (!pm.exists) writes.push(create('play_players/' + gid + '_' + me.uid, { gameId: gid, uid: me.uid, at: now }));
     }
     const r = await commit(writes);
-    if (r.ok) return { sessionId: sid, beat: e.heartbeatSeconds, counted: !own, why: own ? 'own' : null };
+    if (r.ok) return { sessionId: sid, token: await seal({ s: sid, u: me.uid, g: gid, n: 0 }), beat: e.heartbeatSeconds, counted: !own, why: own ? 'own' : null };
     if (!r.conflict) throw coded(503, 'store', 'تعذّر بدء الجلسة (' + r.status + ')');
   }
   throw coded(409, 'busy', 'حاول مرة أخرى بعد لحظة');
@@ -548,14 +607,17 @@ async function playStart(me, b) {
 async function playBeat(me, b, { ending = false } = {}) {
   const e = await econ(), sid = cleanId(b.sessionId);
   const hidden = Math.max(0, Math.min(86400, +b.hidden || 0)), idle = b.idle === true;
+  const tk = await unseal(b.token);
+  if (!tk || tk.s !== sid || tk.u !== me.uid) throw coded(403, 'play_token', 'جلسة اللعب غير صالحة — تبدأ من جديد');
   for (let i = 0; i < 5; i++) {
     const s = await getDoc(SESS + '/' + sid);
     if (!s.exists || s.data.playerUid !== me.uid) throw coded(404, 'play_session', 'جلسة اللعب غير موجودة');
     const d = s.data, now = Date.now(), beat = e.heartbeatSeconds;
     if (d.state !== 'active') return { credited: 0, state: d.state, stop: true };
+    if (tk.n !== (d.seq || 0)) throw coded(409, 'play_replay', 'نبضة قديمة أو مكرّرة — لم تُحتسب');
     const gap = (now - d.lastHeartbeat) / 1000;
     /* sooner than half an interval: nothing written — a page cannot make the clock run faster */
-    if (!ending && gap < beat * 0.5) return { credited: 0, why: 'early', wait: Math.ceil(beat * 0.5 - gap) };
+    if (!ending && gap < beat * 0.5) return { credited: 0, why: 'early', wait: Math.ceil(beat * 0.5 - gap), token: b.token };
     let credit = 0, why = null;
     if (gap > beat * 2.5) why = 'gap';                                  // closed, offline, in the background: not counted
     else if (idle) why = 'idle';
@@ -563,77 +625,30 @@ async function playBeat(me, b, { ending = false } = {}) {
     const maxS = e.sessionMaxMinutes * 60;
     if (credit > 0 && d.duration + credit > maxS) { credit = Math.max(0, maxS - d.duration); why = 'long'; }
     credit = Math.floor(credit);
-    const f = { lastHeartbeat: now, duration: (d.duration || 0) + credit, beats: (d.beats || 0) + 1, ignored: (d.ignored || 0) + Math.max(0, Math.floor(gap) - credit) };
+    if (d.own) credit = 0;                                              // the creator's own play: not counted
+    const f = { lastHeartbeat: now, duration: (d.duration || 0) + credit, beats: (d.beats || 0) + 1, seq: (d.seq || 0) + 1, ignored: (d.ignored || 0) + Math.max(0, Math.floor(gap) - credit) };
     if (ending) Object.assign(f, { state: 'ended', endedAt: now });
     const writes = [put(SESS + '/' + sid, f, { pre: preOf(s) })];
-    let qualified = 0, qwhy = null;
-    if (credit > 0 && !d.own) {
-      const day = today(), pd = await getDoc('play_days/' + me.uid + '_' + day);
-      const pdd = pd.data || {}, games = pdd.games || {};
-      const w = await getDoc('wallets/' + me.uid, ['createdAt']);
-      const ageH = w.exists && w.data.createdAt ? (now - w.data.createdAt) / 3600e3 : 0;
-      if (ageH < e.minAccountAgeHours) qwhy = 'new_account';
-      else if (e.verifiedOnly && !me.verified) qwhy = 'unverified';
-      else {
-        qualified = Math.max(0, Math.min(credit, e.playerGameMinutes * 60 - (games[d.gameId] || 0), e.playerDayMinutes * 60 - (pdd.total || 0)));
-        if (qualified < credit) qwhy = 'player_cap';
-      }
-      if (qualified > 0) {
-        writes.push(put('play_days/' + me.uid + '_' + day, { uid: me.uid, day, games: Object.assign({}, games, { [d.gameId]: (games[d.gameId] || 0) + qualified }) }, { pre: preOf(pd), incr: { total: qualified } }));
-        f.qualified = (d.qualified || 0) + qualified;
-        writes[0] = put(SESS + '/' + sid, f, { pre: preOf(s) });
-      }
-      writes.push(put('playtime/' + d.gameId, { gameId: d.gameId, ownerId: d.ownerUid, updatedAt: now },
-        { incr: Object.assign({ seconds: credit }, qualified ? { qualifiedSeconds: qualified, pendingSeconds: qualified } : {}) }));
+    if (credit > 0) writes.push(put('playtime/' + d.gameId, { gameId: d.gameId, ownerId: d.ownerUid, updatedAt: now }, { incr: { seconds: credit } }));
+    /* 🎁 the invited friend's real play, toward the invitation */
+    let rf = null;
+    if (credit > 0 && d.ref) {
+      rf = await getDoc('referrals/' + me.uid);
+      if (rf.exists && rf.data.status === 'joined') writes.push(put('referrals/' + me.uid, { updatedAt: now }, { pre: preOf(rf), incr: { playedSeconds: credit } }));
+      else rf = null;
     }
     const r = await commit(writes);
     if (r.ok) {
-      const paid = qualified > 0 ? await payPlay(d.gameId, d.ownerUid, e).catch(() => null) : null;
-      return { credited: credit, qualified, why: why || qwhy, duration: f.duration, state: ending ? 'ended' : 'active', paid };
+      const out = { credited: credit, why, duration: f.duration, state: ending ? 'ended' : 'active', token: ending ? null : await seal({ s: sid, u: me.uid, g: d.gameId, n: f.seq }) };
+      if (rf && (rf.data.playedSeconds || 0) + credit >= e.referralPlayMinutes * 60) out.referral = await referralPay(me.uid).catch(() => null);
+      return out;
     }
     if (!r.conflict) throw coded(503, 'store', 'تعذّر الحفظ (' + r.status + ')');
   }
   throw coded(409, 'busy', 'حاول مرة أخرى بعد لحظة');
 }
-/* qualified time → the creator's points: whole intervals only, the rest kept; daily ceilings; one commit */
-async function payPlay(gid, ownerUid, e) {
-  const interval = e.playIntervalMinutes * 60, rate = e.playPoints;
-  if (!rate || !ownerUid) return null;
-  const pt0 = await getDoc('playtime/' + gid);
-  if (!pt0.exists || (pt0.data.pendingSeconds || 0) < interval) return null;
-  let out = null;
-  await change(ownerUid, 0, 'play', '', async wd => {
-    const pt = await getDoc('playtime/' + gid);
-    const p = pt.data || {}, units = Math.floor((p.pendingSeconds || 0) / interval);
-    if (units < 1) { out = null; return { delta: 0, writes: [] }; }
-    const day = today();
-    const gameToday = p.payDay === day ? p.payDayPoints || 0 : 0, creatorToday = wd.playDay === day ? wd.playDayPoints || 0 : 0;
-    const allowed = Math.max(0, Math.min(units * rate, e.gameDayPoints - gameToday, e.creatorDayPoints - creatorToday));
-    const paidUnits = Math.floor(allowed / rate), pay = paidUnits * rate;
-    /* over a ceiling: those minutes are spent without points (play time still counts) — never banked for later */
-    const spent = units * interval, dropped = (units - paidUnits) * interval;
-    out = { points: pay, minutes: paidUnits * e.playIntervalMinutes, capped: paidUnits < units, left: (p.pendingSeconds || 0) - spent };
-    return {
-      delta: pay,
-      note: '«' + String(p.title || gid).slice(0, 60) + '» · ⏱ ' + (paidUnits * e.playIntervalMinutes) + '′',      // the same in every language
-      fields: pay ? { playDay: day, playDayPoints: creatorToday + pay } : {},
-      writes: [put('playtime/' + gid, { payDay: day, payDayPoints: gameToday + pay, updatedAt: Date.now() },
-        { pre: preOf(pt), incr: Object.assign({ pendingSeconds: -spent, rewardedSeconds: paidUnits * interval, rewardPoints: pay }, dropped ? { droppedSeconds: dropped } : {}) })]
-    };
-  });
-  return out;
-}
-/* the page of an older visit (one call a minute with the game's id): its session, started or continued */
-async function playLegacy(me, b) {
-  const gid = cleanId(b.gameId);
-  const a = await getDoc('play_active/' + me.uid);
-  if (a.exists && a.data.gameId === gid && a.data.sessionId) {
-    const r = await playBeat(me, { sessionId: a.data.sessionId }).catch(() => null);
-    if (r && !r.stop) return { counted: r.credited > 0, minutes: Math.floor((r.duration || 0) / 60), paid: !!(r.paid && r.paid.points) };
-  }
-  const st = await playStart(me, { gameId: gid });
-  return { counted: false, why: st.why || 'started' };
-}
+/* the page of an older visit (one call a minute with the game's id, no token): no longer counted — it reloads */
+async function playLegacy() { return { counted: false, why: 'update' }; }
 
 /* ================================================================ 💳 TOP-UP AND WITHDRAWAL (PART 43)
    Any amount — no packs: the page sends what the person typed (dollars OR tokens) and the numbers it showed; the
@@ -722,7 +737,7 @@ async function topupEvent(type, o) {
       const cur = await getDoc('transactions/' + id);
       if (cur.data.status !== 'pending') return { error: coded(409, 'tx_done', 'done') };
       return { micro: cur.data.micro, tx: id, writes: [put('transactions/' + id, { status: 'completed', completedAt: Date.now(), updatedAt: Date.now(),
-        paymentIntent: String(o.payment_intent || ''), stripeSession: String(o.id || '') }, { pre: preOf(cur) })] };
+        paymentIntent: String(o.payment_intent || ''), stripeSession: String(o.id || '') }, { pre: preOf(cur) }), statsWrite({ topups: 1, topupCents: cur.data.cents, topupMicro: cur.data.micro })] };
     });
     return { status: 'completed', points: r.points };
   } catch (e) { if (e.code === 'tx_done') return { duplicate: true }; throw e; }
@@ -742,7 +757,7 @@ async function topupReversed(type, o) {
       if (due <= 0) return { error: coded(409, 'tx_done', 'done') };
       const take = Math.min(due, microOf(d));
       return { micro: -take, tx: t0.id, writes: [put('transactions/' + t0.id, { status: dispute ? 'disputed' : 'refunded', reversedMicro: (t.data.reversedMicro || 0) + due,
-        shortMicro: (t.data.shortMicro || 0) + due - take, updatedAt: Date.now() }, { pre: preOf(t) })] };
+        shortMicro: (t.data.shortMicro || 0) + due - take, updatedAt: Date.now() }, { pre: preOf(t) }), statsWrite({ reversedMicro: due })] };
     });
     return { status: 'reversed' };
   } catch (e) { if (e.code === 'tx_done') return { duplicate: true }; throw e; }
@@ -784,7 +799,8 @@ async function withdrawPaid(me, id, ref) {
   if (!t.exists || t.data.type !== 'withdraw') throw coded(404, 'tx_none', 'لا يوجد طلب سحب بهذا الرقم.');
   if (t.data.status !== 'pending') throw coded(409, 'tx_closed', 'هذا الطلب لم يعد معلّقًا.');
   const now = Date.now();
-  const r = await commit([put('transactions/' + id, { status: 'paid', queue: null, paidAt: now, decidedAt: now, decidedBy: me.uid, ref: String(ref || '').slice(0, 120), updatedAt: now }, { pre: preOf(t) })]);
+  const r = await commit([put('transactions/' + id, { status: 'paid', queue: null, paidAt: now, decidedAt: now, decidedBy: me.uid, ref: String(ref || '').slice(0, 120), updatedAt: now }, { pre: preOf(t) }),
+    statsWrite({ withdrawsPaid: 1, withdrawPaidCents: t.data.cents, withdrawPaidMicro: t.data.micro })]);
   if (!r.ok) throw coded(409, 'busy', 'حاول مرة أخرى');
   return { tx: id, status: 'paid' };
 }
@@ -794,10 +810,211 @@ const txOut = (t, full) => Object.assign({ id: t.id, type: t.type, status: t.sta
 const txQuery = (field, value) => runQuery({ from: [{ collectionId: 'transactions' }], where: { fieldFilter: { field: { fieldPath: field }, op: 'EQUAL', value: { stringValue: value } } }, limit: 300 });
 const mustOwn = async me => { if (!(await aiOwner(me))) throw coded(403, 'not_owner', 'لصاحب الموقع فقط.'); };
 
+/* ================================================================ REWARDS (PART 44): 🔥 streak · 🎡 spin · 🎁 invites · 👑 VIP · 📊 the owner's dashboard
+   Every number and every draw is the server's: a page asks, the server decides and writes it in ONE commit with
+   the wallet and its ledger — the day is the server's (UTC), the wheel's prize is drawn here (crypto random) BEFORE
+   the page spins to it, an invitation is paid once.
+   • 🔥 Daily login streak (/daily, once a day): day 1, 2, 3 … in a row earn STREAK_REWARDS (5,10,15,20,25,30,50 —
+     the last again every day after); a missed day starts again at day 1.
+   • 🎡 Lucky spin (/spin): SPIN_FREE_PER_DAY free (+1 for VIP — no ad asked), then one more after each rewarded ad
+     (SPIN_ADS_PER_DAY); prizes and their weights: SPIN_PRIZES (points:weight).
+   • 🎁 Invite & earn: everyone has a link (…?ref=<code>). An account at most REFERRAL_JOIN_HOURS old, with a verified
+     e-mail, claims it once; when that friend has PLAYED REFERRAL_PLAY_MINUTES for real (server-timed sessions, games
+     not their own) the one who invited gets REFERRAL_POINTS (at most REFERRAL_MAX_PER_DAY a day) and the friend
+     REFERRAL_FRIEND_POINTS — once each.
+   • 👑 VIP: Stripe monthly (VIP_PRICE_USD, or STRIPE_VIP_PRICE_ID) or 30 days for VIP_TOKENS_30D tokens; Pro includes it.
+     VIP_MULTIPLIER (×2) on what the SITE gives — ads, streak, spin, invitations — never on sales, tips or top-ups
+     (tokens that move between people are never multiplied); one more free spin a day instead of an ad.
+   • 📊 economy/stats: running totals kept in the same commits (top-ups, withdrawals, commissions, tips, VIP, gifts)
+     for the owner's dashboard (/admin/* — the owner only, checked here). */
+const DAY_MS = 864e5;
+const yesterday = () => new Date(Date.now() - DAY_MS).toISOString().slice(0, 10);
+const isVip = d => !!(d && ((d.vipUntil || 0) > Date.now() || (d.proUntil || 0) > Date.now()));
+const boost = (d, pts, e) => isVip(d) ? pts * e.vipMultiplier : pts;
+/* the owner's running totals — increments, so two commits at once never lose one */
+const statsWrite = incr => put('economy/stats', { updatedAt: Date.now() }, { incr });
+
+/* ---- 🔥 the daily login streak ---- */
+const streakState = (e, d) => {
+  const done = d.streakDay === today(), cur = done || d.streakDay === yesterday() ? d.streak || 0 : 0, list = e.streakRewards;
+  return { on: !!e.streakOn, today: done, streak: cur, best: d.streakBest || 0, rewards: list, next: list[Math.min(cur + 1, list.length) - 1] || 0 };
+};
+async function dailyClaim(me) {
+  const e = await econ();
+  if (!e.streakOn) throw coded(403, 'streak_off', 'سلسلة الدخول اليومية متوقفة على هذا الموقع.');
+  const day = today(), list = e.streakRewards;
+  let out = null;
+  try {
+    const r = await change(me.uid, 0, 'streak', '', d => {
+      if (d.streakDay === day) return { error: coded(409, 'streak_done', 'done') };
+      const n = d.streakDay === yesterday() ? (d.streak || 0) + 1 : 1, base = list[Math.min(n, list.length) - 1] || 0, pts = boost(d, base, e);
+      out = { claimed: true, streak: n, base, points: pts, vip: isVip(d) };
+      return { delta: pts, note: '🔥 ' + n + (pts !== base ? ' · ×' + e.vipMultiplier : ''), fields: { streakDay: day, streak: n, streakBest: Math.max(n, d.streakBest || 0) },
+        writes: pts ? [statsWrite({ giftMicro: pts * MICRO })] : [] };
+    });
+    return Object.assign(out, { balance: r.points, state: streakState(e, r.wallet) });
+  } catch (err) {
+    if (err.code !== 'streak_done') throw err;
+    return { claimed: false, state: streakState(e, await wallet(me.uid)) };
+  }
+}
+
+/* ---- 🎡 the lucky spin ---- */
+const spinState = (e, d) => {
+  const day = today(), used = d.spinDay === day ? d.spinN || 0 : 0, adsUsed = d.spinAdDay === day ? d.spinAdN || 0 : 0;
+  return { on: !!e.spinOn, free: Math.max(0, e.spinFreePerDay + (isVip(d) ? 1 : 0) - used), bank: d.spinBank || 0, adsLeft: Math.max(0, e.spinAdsPerDay - adsUsed),
+    prizes: e.spinPrizes.map(x => x.points), vip: isVip(d), multiplier: e.vipMultiplier };
+};
+/* a fair draw by weight — crypto random, never Math.random */
+function draw(prizes) {
+  const total = prizes.reduce((a, x) => a + x.weight, 0), r = crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296 * total;
+  let acc = 0;
+  for (let i = 0; i < prizes.length; i++) { acc += prizes[i].weight; if (r < acc) return i; }
+  return prizes.length - 1;
+}
+async function spin(me) {
+  const e = await econ();
+  if (!e.spinOn) throw coded(403, 'spin_off', 'عجلة الحظ متوقفة على هذا الموقع.');
+  let out = null;
+  const r = await change(me.uid, 0, 'spin', '', d => {
+    const st = spinState(e, d), day = today();
+    let fields;
+    if (st.free > 0) fields = { spinDay: day, spinN: (d.spinDay === day ? d.spinN || 0 : 0) + 1 };
+    else if (st.bank > 0) fields = { spinBank: st.bank - 1 };
+    else return { error: coded(429, 'spin_none', 'لا دورات متبقية اليوم — شاهد إعلانًا لدورة أخرى، أو عد غدًا.', { state: st }) };
+    const i = draw(e.spinPrizes), base = e.spinPrizes[i].points, pts = boost(d, base, e);
+    out = { index: i, base, prize: pts, vip: isVip(d), from: st.free > 0 ? 'free' : 'ad' };
+    return { delta: pts, note: '🎡 ' + base + (pts !== base ? ' · ×' + e.vipMultiplier : ''), fields, writes: pts ? [statsWrite({ giftMicro: pts * MICRO })] : [] };
+  });
+  return Object.assign(out, { points: r.points, state: spinState(e, r.wallet) });
+}
+
+/* ---- 🎁 invite & earn ---- */
+async function refCode(uid) {
+  const w = await wallet(uid);
+  if (w.refCode) return w.refCode;
+  for (let i = 0; i < 6; i++) {
+    const code = rid(12).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 7);
+    if (code.length < 6) continue;
+    const r = await commit([create('ref_codes/' + code, { uid, at: Date.now() })]);
+    if (r.ok) { await change(uid, 0, 'refcode', '', () => ({ fields: { refCode: code } })); return code; }
+  }
+  throw coded(503, 'store', 'تعذّر إنشاء رابط الدعوة');
+}
+async function referralClaim(me, b) {
+  const e = await econ();
+  if (!e.referralOn) throw coded(403, 'ref_off', 'الدعوات متوقفة على هذا الموقع.');
+  const code = String(b.code || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 16);
+  const c = code ? await getDoc('ref_codes/' + code) : { exists: false };
+  if (!c.exists) throw coded(404, 'ref_code', 'رابط الدعوة غير معروف.');
+  if (c.data.uid === me.uid) throw coded(409, 'ref_self', 'هذا رابطك أنت — أرسله لأصدقائك.');
+  const prior = await getDoc('referrals/' + me.uid);
+  if (prior.exists) return { already: true, status: prior.data.status, mine: prior.data.referrer === c.data.uid };
+  if (!me.verified) throw coded(403, 'ref_verify', 'أكّد بريدك أولًا (حسابات Google مؤكَّدة) — ثم تُحتسب الدعوة.');
+  const w = await wallet(me.uid), now = Date.now();
+  if (now - (w.createdAt || 0) > e.referralJoinHours * 3600e3) throw coded(409, 'ref_late', 'الدعوة لحسابات جديدة فقط.');
+  const u = await getDoc('users/' + me.uid, ['name']).catch(() => ({ exists: false }));
+  const name = String((u.exists && u.data.name) || (me.email || '').split('@')[0] || 'player').slice(0, 40);
+  const r = await commit([create('referrals/' + me.uid, { uid: me.uid, name, referrer: c.data.uid, code, status: 'joined', playedSeconds: 0, needSeconds: e.referralPlayMinutes * 60, at: now, updatedAt: now })]);
+  if (!r.ok) { const cur = await getDoc('referrals/' + me.uid); if (cur.exists) return { already: true, status: cur.data.status, mine: cur.data.referrer === c.data.uid }; throw coded(503, 'store', 'تعذّر حفظ الدعوة'); }
+  return { joined: true, minutes: e.referralPlayMinutes, friendPoints: e.referralFriendPoints };
+}
+/* the friend has played enough: the one who invited (within the day's limit) and the friend — once each */
+async function referralPay(uid) {
+  const e = await econ(), rf = await getDoc('referrals/' + uid);
+  if (!rf.exists || rf.data.status !== 'joined' || (rf.data.playedSeconds || 0) < e.referralPlayMinutes * 60) return null;
+  const out = {}, once = err => { if (err.code !== 'ref_done') throw err; };
+  await change(rf.data.referrer, 0, 'referral', '🎁 ' + String(rf.data.name || '').slice(0, 40), async d => {
+    const cur = await getDoc('referrals/' + uid);
+    if (cur.data.status !== 'joined') return { error: coded(409, 'ref_done', 'done') };
+    const day = today(), n = d.refDay === day ? d.refN || 0 : 0, capped = n >= e.referralPerDay, pts = capped ? 0 : boost(d, e.referralPoints, e);
+    out.referrer = pts;
+    return { delta: pts, fields: capped ? {} : { refDay: day, refN: n + 1 },
+      writes: [put('referrals/' + uid, { status: capped ? 'capped' : 'rewarded', rewardedAt: Date.now(), referrerPoints: pts, updatedAt: Date.now() }, { pre: preOf(cur) })].concat(pts ? [statsWrite({ giftMicro: pts * MICRO, referrals: 1 })] : []) };
+  }).catch(once);
+  await change(uid, 0, 'referral', '🎁', async d => {
+    const cur = await getDoc('referrals/' + uid);
+    if (cur.data.friendPaid) return { error: coded(409, 'ref_done', 'done') };
+    const pts = boost(d, e.referralFriendPoints, e);
+    out.friend = pts;
+    return { delta: pts, writes: [put('referrals/' + uid, { friendPaid: true, friendPoints: pts, updatedAt: Date.now() }, { pre: preOf(cur) })].concat(pts ? [statsWrite({ giftMicro: pts * MICRO })] : []) };
+  }).catch(once);
+  if (out.referrer) {
+    const nid = 'n_' + Date.now().toString(36) + rid(6);
+    await commit([create('users/' + rf.data.referrer + '/notifications/' + nid, { id: nid, type: 'referral', event: 'rewarded', actorId: uid, actorName: String(rf.data.name || 'player').slice(0, 40), points: out.referrer, at: Date.now(), read: false })]).catch(() => {});
+  }
+  return out;
+}
+async function referralInfo(me) {
+  const e = await econ(), code = await refCode(me.uid);
+  const rows = await runQuery({ from: [{ collectionId: 'referrals' }], where: { fieldFilter: { field: { fieldPath: 'referrer' }, op: 'EQUAL', value: { stringValue: me.uid } } }, limit: 300 });
+  return { code, on: !!e.referralOn, points: e.referralPoints, friendPoints: e.referralFriendPoints, minutes: e.referralPlayMinutes, count: rows.length,
+    rewarded: rows.filter(x => x.status === 'rewarded').length, earned: rows.reduce((a, x) => a + (x.referrerPoints || 0), 0),
+    invited: rows.sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 50).map(x => ({ name: x.name || 'player', status: x.status, minutes: Math.floor((x.playedSeconds || 0) / 60), at: x.at || 0, points: x.referrerPoints || 0 })) };
+}
+
+/* ---- 👑 VIP ---- */
+const vipOf = d => ({ active: isVip(d), until: Math.max(d.vipUntil || 0, d.proUntil || 0), status: d.vipStatus || null, viaPro: (d.proUntil || 0) > Date.now(), manage: !!d.vipCustomer });
+async function vipCheckout(me, b, origin) {
+  const e = await econ();
+  if (!e.vipOn) throw coded(403, 'vip_off', 'عضوية VIP متوقفة على هذا الموقع.');
+  if (!stripeOn()) throw coded(503, 'vip_stripe', 'الاشتراك يحتاج ربط Stripe من صاحب الموقع — أو ادفع بالتوكن.');
+  const d = await wallet(me.uid);
+  if ((d.vipUntil || 0) > Date.now() && d.vipSub) throw coded(409, 'vip_already', 'عضويتك VIP مفعّلة بالفعل.');
+  const back = String(b.back || '/'), home = origin + (/^\/(?!\/)[^\s#\\]{0,300}$/.test(back) ? back : '/') + '#wallet';
+  const line = env('STRIPE_VIP_PRICE_ID') ? { price: env('STRIPE_VIP_PRICE_ID'), quantity: 1 }
+    : { quantity: 1, price_data: { currency: 'usd', unit_amount: e.vipPriceCents, recurring: { interval: 'month' }, product_data: { name: 'NEXUS VIP' } } };
+  const s = await stripeCall('checkout/sessions', { mode: 'subscription', line_items: { 0: line }, client_reference_id: me.uid, customer_email: me.email || null,
+    metadata: { uid: me.uid, plan: 'vip' }, subscription_data: { metadata: { uid: me.uid, plan: 'vip' } }, success_url: home, cancel_url: home });
+  return { url: s.url };
+}
+async function vipTokens(me) {
+  const e = await econ();
+  if (!e.vipOn || !e.vipTokens) throw coded(403, 'vip_off', 'شراء VIP بالتوكن غير متاح على هذا الموقع.');
+  const now = Date.now();
+  const r = await change(me.uid, 0, 'vip', '👑 VIP · 30', d => ({ micro: -e.vipTokens * MICRO,
+    fields: { vipUntil: Math.max(now, d.vipUntil || 0) + 30 * DAY_MS, vipStatus: d.vipSub && (d.vipUntil || 0) > now ? d.vipStatus : 'tokens' },
+    writes: [statsWrite({ vipMicro: e.vipTokens * MICRO, vipBuys: 1 })] }));
+  return { points: r.points, vip: vipOf(r.wallet) };
+}
+
+/* ---- 📊 the owner's dashboard ---- */
+const STAT_KEYS = ['topups', 'topupCents', 'topupMicro', 'withdrawsPaid', 'withdrawPaidCents', 'withdrawPaidMicro', 'reversedMicro', 'sales', 'salesMicro', 'feeMicro',
+  'tips', 'tipsMicro', 'tipFeeMicro', 'vipBuys', 'vipMicro', 'vipSubs', 'giftMicro', 'referrals', 'adjusts', 'adjustMicro'];
+async function adminSummary() {
+  const e = await econ(), st = (await getDoc('economy/stats')).data || {};
+  const pend = await txQuery('queue', 'withdraw');
+  const recent = await runQuery({ from: [{ collectionId: 'transactions' }], orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }], limit: 60 });
+  return { money: moneyPub(e), stats: Object.fromEntries(STAT_KEYS.map(k => [k, +st[k] || 0])), statsAt: st.updatedAt || 0,
+    pending: { count: pend.length, micro: pend.reduce((a, t) => a + (t.micro || 0), 0), cents: pend.reduce((a, t) => a + (t.cents || 0), 0) },
+    recent: recent.map(t => txOut(t, true)) };
+}
+async function adminTransactions(type) {
+  const rows = ['topup', 'withdraw', 'adjust'].includes(type) ? await txQuery('type', type)
+    : await runQuery({ from: [{ collectionId: 'transactions' }], orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }], limit: 200 });
+  return rows.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 200).map(t => txOut(t, true));
+}
+/* the owner gives or takes tokens by hand (support, a correction) — a transaction and a ledger line, never below zero */
+async function adminAdjust(me, b) {
+  const uid = cleanId(b.uid), raw = String(b.amount == null ? '' : b.amount).trim(), neg = raw.startsWith('-'), m = fixed(raw.replace(/^[-+]/, ''), 6);
+  if (!uid || m == null || m === 0) throw coded(400, 'adjust', 'اكتب الحساب (UID) والمقدار، مثل 25 أو ‎-10.5');
+  const [u, w] = await Promise.all([getDoc('users/' + uid, ['name']), getDoc('wallets/' + uid)]);
+  if (!u.exists && !w.exists) throw coded(404, 'adjust_user', 'لا يوجد حساب بهذا الـ UID.');
+  const micro = neg ? -m : m, now = Date.now(), id = newTx(now), note = String(b.note || '').slice(0, 120);
+  const r = await change(uid, 0, 'admin', note || ('👤 ' + fmtFixed(micro, 6)), () => ({ micro, tx: id,
+    writes: [create('transactions/' + id, { txId: id, uid, type: 'adjust', status: 'completed', anchor: 'tokens', typed: raw.slice(0, 40), micro, tokens: fmtFixed(micro, 6), cents: 0, usd: '0.00',
+      priceMicro: 0, price: '0', currency: 'USD', unit: 'NEXUS_POINTS', why: note, by: me.uid, createdAt: now, updatedAt: now, completedAt: now }), statsWrite({ adjustMicro: micro, adjusts: 1 })] }));
+  return { uid, tx: id, points: r.points };
+}
+
 /* ================================================================ the router */
 const pub = (c, e) => ({ welcome: c.welcome, ad: c.ad, adsPerDay: c.adsPerDay, adCooldown: c.adCooldown, adMinSeconds: c.adMinSeconds, adsWeb: c.adsWeb,
   mb: c.mb, fileMaxMB: c.fileMaxMB, aiFree: c.aiFree, aiPack: c.aiPack, aiPackPrice: c.aiPackPrice, proAI: c.proAI,
-  playMinutes: e.playIntervalMinutes, playPoints: e.playPoints, playCap: e.playerGameMinutes, playBeat: e.heartbeatSeconds, stripe: c.stripe, proPrice: c.proPrice, money: moneyPub(e) });
+  playBeat: e.heartbeatSeconds, stripe: c.stripe, proPrice: c.proPrice, money: moneyPub(e), rewards: rewardsPub(e) });
+const rewardsPub = e => ({ streak: { on: !!e.streakOn, rewards: e.streakRewards }, spin: { on: !!e.spinOn, prizes: e.spinPrizes.map(x => x.points), free: e.spinFreePerDay, ads: e.spinAdsPerDay },
+  referral: { on: !!e.referralOn, points: e.referralPoints, friendPoints: e.referralFriendPoints, minutes: e.referralPlayMinutes },
+  vip: { on: !!e.vipOn, multiplier: e.vipMultiplier, price: usd(e.vipPriceCents), tokens: e.vipTokens, stripe: stripeOn() },
+  tips: { min: e.tipMin, max: e.tipMax, feePercent: e.tipFeePercent }, feePercent: e.feePercent });
 
 export default async (req) => {
   const url = new URL(req.url);
@@ -820,26 +1037,46 @@ export default async (req) => {
       const d = await wallet(me.uid), u = (await getDoc('usage/' + me.uid)).data;
       const day = today(), ads = d.adsDay === day ? d.adsN || 0 : 0, used = u && u.day === day ? u.used || 0 : 0, extra = u && u.day === day ? u.extra || 0 : 0;
       const e = await econ(), micro = microOf(d);
+      const rf = await getDoc('referrals/' + me.uid).catch(() => ({ exists: false }));
       return json(200, { ok: true, ready: true, points: micro / MICRO, micro, ...pub(c, e),
+        streak: streakState(e, d), spin: spinState(e, d), vip: vipOf(d), owner: await aiOwner(me).catch(() => false),
+        referral: rf.exists ? { status: rf.data.status, minutes: Math.floor((rf.data.playedSeconds || 0) / 60), need: e.referralPlayMinutes, friendPoints: rf.data.friendPoints || null } : null,
         withdrawable: e.withdrawOn ? Math.min(micro, await earnedOf(me.uid, d)) : null, verified: me.verified, adult: e.withdrawOn ? await adult(me.uid) : null,
         ads: { today: ads, left: Math.max(0, c.adsPerDay - ads), wait: Math.max(0, Math.ceil(((d.adsLast || 0) + c.adCooldown * 1000 - Date.now()) / 1000)) },
         ai: { used, limit: isPro(d) ? c.proAI : c.aiFree + extra, extra },
         pro: { active: isPro(d), until: d.proUntil || 0, status: d.proStatus || null, manage: !!d.proCustomer } });
     }
-    if (path === '/ad/start' && req.method === 'POST') return json(200, { ok: true, ...(await adStart(me, body.via === 'admob' ? 'admob' : 'web')) });
+    if (path === '/ad/start' && req.method === 'POST') return json(200, { ok: true, ...(await adStart(me, body.via === 'admob' ? 'admob' : 'web', body.purpose)) });
     if (path === '/ad/claim' && req.method === 'POST') {
       if (!c.adsWeb) return fail(403, 'ads_web_off', 'إعلانات المتصفح غير مفعّلة على هذا الموقع (ADS_WEB).');
       const r = await adReward(me.uid, String(body.nonce || '').replace(/[^\w]/g, ''), 'web', null);
-      return json(200, { ok: true, points: r.points, added: r.delta != null ? r.delta : c.ad });
+      return json(200, { ok: true, points: r.points, added: r.delta || 0, spin: !!(r.result && r.result.spin) });
     }
     if (path === '/ai/buy' && req.method === 'POST') { const r = await aiBuy(me); return json(200, { ok: true, points: r.points, extra: r.result.extra }); }
     if (path === '/upload/start' && req.method === 'POST') return json(200, { ok: true, ...(await uploadStart(me, body)) });
     if (path === '/upload/done' && req.method === 'POST') return json(200, { ok: true, ...(await uploadDone(me, body)) });
     if (path === '/upload/cancel' && req.method === 'POST') return json(200, { ok: true, ...(await uploadCancel(me, body)) });
-    if (path === '/play' && req.method === 'POST') return json(200, { ok: true, ...(await playLegacy(me, body)) });
+    if (path === '/play' && req.method === 'POST') return json(200, { ok: true, ...(await playLegacy()) });
     if (path === '/play/start' && req.method === 'POST') return json(200, { ok: true, ...(await playStart(me, body)) });
     if (path === '/play/beat' && req.method === 'POST') return json(200, { ok: true, ...(await playBeat(me, body)) });
     if (path === '/play/end' && req.method === 'POST') return json(200, { ok: true, ...(await playBeat(me, body, { ending: true })) });
+    /* 🔥 🎡 🎁 👑 rewards */
+    if (path === '/daily' && req.method === 'POST') return json(200, { ok: true, ...(await dailyClaim(me)) });
+    if (path === '/spin' && req.method === 'POST') return json(200, { ok: true, ...(await spin(me)) });
+    if (path === '/referral' && req.method === 'GET') return json(200, { ok: true, ...(await referralInfo(me)) });
+    if (path === '/referral/claim' && req.method === 'POST') return json(200, { ok: true, ...(await referralClaim(me, body)) });
+    if (path === '/vip/checkout' && req.method === 'POST') return json(200, { ok: true, ...(await vipCheckout(me, body, url.origin)) });
+    if (path === '/vip/tokens' && req.method === 'POST') return json(200, { ok: true, ...(await vipTokens(me)) });
+    if (path === '/vip/portal' && req.method === 'POST') {
+      const d = await wallet(me.uid);
+      if (!stripeOn() || !d.vipCustomer) return fail(404, 'vip_none', 'لا يوجد اشتراك VIP لإدارته');
+      const s = await stripeCall('billing_portal/sessions', { customer: d.vipCustomer, return_url: url.origin + '/#wallet' });
+      return json(200, { ok: true, url: s.url });
+    }
+    /* 📊 the owner's dashboard */
+    if (path === '/admin/summary' && req.method === 'GET') { await mustOwn(me); return json(200, { ok: true, ...(await adminSummary()) }); }
+    if (path === '/admin/transactions' && req.method === 'GET') { await mustOwn(me); return json(200, { ok: true, transactions: await adminTransactions(url.searchParams.get('type')) }); }
+    if (path === '/admin/adjust' && req.method === 'POST') { await mustOwn(me); return json(200, { ok: true, ...(await adminAdjust(me, body)) }); }
     /* 💳 top-up and withdrawal */
     if (path === '/money/quote' && req.method === 'POST') { const e = await econ(); return json(200, { ok: true, quote: pubQuote(quote(body.kind === 'withdraw' ? 'withdraw' : 'topup', body.anchor, body.amount, e.tokenPriceMicro), e.tokenPriceMicro) }); }
     if (path === '/topup' && req.method === 'POST') return json(200, { ok: true, ...(await topupStart(me, body, url.origin)) });
@@ -878,6 +1115,6 @@ export default async (req) => {
 /* for the site's other server parts (challenges.js — challenge prizes): the same wallet, the same
    ledger, the same Firestore access — never a second points system */
 export { ready, getDoc, commit, put, create, preOf, runQuery, change, wallet, coded, base as fsBase, docName, accessToken, fromFs, econ, ECON, rid, today, who as pointsWho, fields as fsFields,
-  MICRO, microOf, earnedOf, walletAfter, fmtFixed, moneyPub };
+  MICRO, microOf, earnedOf, walletAfter, fmtFixed, moneyPub, statsWrite, isVip, rewardsPub };
 
 export const config = { path: '/api/points/*' };

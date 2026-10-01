@@ -320,7 +320,7 @@ test('10 · At once: five withdrawals of 500 against 1200 earned → two pass, n
   assert.equal(buy.ok, true, JSON.stringify(buy));
   assert.equal(buy.points, 50.5);
   const [b, s] = [await wal('omar'), await wal('lina')];
-  assert.deepEqual([b.micro, b.points, s.micro, s.earnMicro], [50500000, 50.5, 300 * M6, 300 * M6]);
+  assert.deepEqual([b.micro, b.points, s.micro, s.earnMicro], [50500000, 50.5, 285 * M6, 285 * M6], 'the seller gets 85 % (the site\'s 15 %)');
 });
 
 let pass = 0, failN = 0;

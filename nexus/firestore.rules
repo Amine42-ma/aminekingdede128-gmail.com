@@ -150,15 +150,14 @@ service cloud.firestore {
 
       allow get:    if resource == null || isOwner(existing()) || inTeam(existing());
       allow list:   if isOwner(existing()) || inTeam(existing());
-      // a remix (PART 40): only of a game whose owner allows remixes (their own, always); the credit is kept for good
+      // a remix (PART 40): of YOUR OWN game only — another creator's game is never remixed (their project is
+      // bought in the marketplace when they sell it); the credit is kept for good
       function remixOk(d) {
         return !('remixedFrom' in d) || d.remixedFrom == null
                || (d.remixedFrom.gameId is string
                    && exists(/databases/$(database)/documents/games/$(d.remixedFrom.gameId))
-                   && (get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.ownerId == me()
-                       || (get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.get('allowRemix', true) == true
-                           && get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.visibility in ['public', 'unlisted']))
-                   && d.remixedFrom.ownerId == get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.ownerId);
+                   && get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.ownerId == me()
+                   && d.remixedFrom.ownerId == me());
       }
       allow create: if signedIn() && incoming().ownerId == me() && incoming().projectId == projectId
                     && team(incoming()).size() == 0 && incoming().get('members', {}).size() == 0 && remixOk(incoming())
@@ -466,7 +465,7 @@ service cloud.firestore {
       allow create, update: if false;
     }
     // ⏱ play time others spent in each game, timed by the server (points.js): seconds, sessions,
-    // players — and 💰 the Play Rewards it earned (rewardPoints) and the time still waiting (pendingSeconds)
+    // players — a number of its own (it earns no points)
     match /playtime/{gameId} {
       allow get: if true;
       allow list, write: if false;
@@ -499,7 +498,7 @@ service cloud.firestore {
       allow list: if signedIn() && (resource.data.buyerUid == me() || resource.data.sellerUid == me());
       allow write: if false;
     }
-    // the economy's numbers the site's owner set inside NEXUS (prices, Play Rewards, limits) — read by all
+    // the economy's numbers the site's owner set inside NEXUS (prices, rewards, limits) — read by all
     match /economy/{doc} {
       allow get: if doc == 'config';
       allow list, write: if false;
@@ -512,6 +511,38 @@ service cloud.firestore {
       allow list: if signedIn() && resource.data.uid == me();
       allow write: if false;
     }
+    // ---------------------------------------------------------------- 🎁 💝 🧩 rewards, tips, files & code (PART 44)
+    // all written ONLY by the server (points.js · market.js); a page reads what is its own
+    match /referrals/{uid} {                 // an invitation: the friend (uid) and the one who invited (referrer)
+      allow get: if signedIn() && (resource == null || me() == uid || resource.data.referrer == me());
+      allow list: if signedIn() && resource.data.referrer == me();
+      allow write: if false;
+    }
+    match /ref_codes/{code} {                // an invitation link's code → its account (not a secret)
+      allow get: if true;
+      allow list, write: if false;
+    }
+    match /tips/{tid} {                      // 💝 a tip: the one who gave it and the developer may read it
+      allow get: if signedIn() && (resource == null || resource.data.fromUid == me() || resource.data.toUid == me());
+      allow list: if signedIn() && (resource.data.fromUid == me() || resource.data.toUid == me());
+      allow write: if false;
+    }
+    match /game_tips/{gameId} {              // 💝 a game's tips: how many, how much (public)
+      allow get: if true;
+      allow list, write: if false;
+    }
+    match /market_items/{itemId} {           // 🧩 a file / code listing (what it is, its price — never its content)
+      allow get: if true;
+      allow list: if resource.data.isForSale == true || (signedIn() && resource.data.ownerId == me());
+      allow write: if false;
+    }
+    match /item_purchases/{pid} {
+      allow get: if signedIn() && (resource == null || resource.data.buyerUid == me() || resource.data.sellerUid == me());
+      allow list: if signedIn() && (resource.data.buyerUid == me() || resource.data.sellerUid == me());
+      allow write: if false;
+    }
+    match /market_item_content/{id} { allow read, write: if false; }   // what is sold — copied to buyers by the server
+    match /server_secrets/{id}      { allow read, write: if false; }   // the play tokens' key (🛡)
     // the server's own bookkeeping: ad sessions, AdMob transactions, upload
     // tickets, play marks, Stripe events — no browser reads or writes them
     match /ad_sessions/{id}     { allow read, write: if false; }
@@ -667,7 +698,7 @@ service cloud.firestore {
         // anyone may notify you, but only as themselves — a challenge notice (an invite, a start,
         // a result) is written only by the challenges server, never by a browser
         allow create:       if signedIn() && incoming().actorId == me() && incoming().read == false
-                            && !(incoming().get('type', '') in ['challenge', 'market']);
+                            && !(incoming().get('type', '') in ['challenge', 'market', 'tip', 'referral']);
       }
     }
     match /follows/{id} {
@@ -800,12 +831,14 @@ service cloud.firestore {
                && d.description is string && d.description.size() <= 300 && d.kind in ['component', 'script']
                && d.type is string && d.type.size() <= 60 && d.code is string && d.code.size() <= 60000
                && d.visibility in ['private', 'public'] && d.source in ['human', 'ai'] && d.uses is int
-               && d.keys().hasOnly(['mechId', 'ownerId', 'creatorName', 'name', 'description', 'kind', 'type', 'path', 'code', 'data', 'visibility', 'source', 'uses', 'createdAt', 'updatedAt']);
+               && d.keys().hasOnly(['mechId', 'ownerId', 'creatorName', 'name', 'description', 'kind', 'type', 'path', 'code', 'data', 'visibility', 'source', 'uses', 'createdAt', 'updatedAt', 'purchasedFrom']);
       }
+      // a copy bought in the marketplace (PART 44: purchasedFrom, written by the server): kept private, the mark kept
+      function boughtKept(d) { return d.get('purchasedFrom', null) == existing().get('purchasedFrom', null) && (existing().get('purchasedFrom', null) == null || d.visibility == 'private'); }
       allow get:    if resource == null || existing().visibility == 'public' || isOwner(existing());
       allow list:   if existing().visibility == 'public' || isOwner(existing());
-      allow create: if hasAccount() && incoming().ownerId == me() && validMech(incoming()) && incoming().uses == 0;
-      allow update: if (isOwner(existing()) && incoming().ownerId == me() && validMech(incoming()) && incoming().uses == existing().uses)
+      allow create: if hasAccount() && incoming().ownerId == me() && validMech(incoming()) && incoming().uses == 0 && !('purchasedFrom' in incoming());
+      allow update: if (isOwner(existing()) && incoming().ownerId == me() && validMech(incoming()) && incoming().uses == existing().uses && boughtKept(incoming()))
                     || (signedIn() && !isOwner(existing()) && bumped('uses', 1));
       allow delete: if isOwner(existing());
     }
@@ -838,12 +871,13 @@ service cloud.firestore {
                && d.assetRefs is list && d.assetRefs.size() <= 60 && d.size is list && d.size.size() == 3 && d.counts is map
                && (!('thumb' in d) || (d.thumb is string && d.thumb.size() <= 120000))
                && d.uses is int && d.v == 1 && d.createdAt is int && d.updatedAt is int
-               && d.keys().hasOnly(['vaultId', 'ownerId', 'name', 'note', 'scene', 'scripts', 'components', 'assetRefs', 'size', 'counts', 'thumb', 'uses', 'v', 'createdAt', 'updatedAt']);
+               && d.keys().hasOnly(['vaultId', 'ownerId', 'name', 'note', 'scene', 'scripts', 'components', 'assetRefs', 'size', 'counts', 'thumb', 'uses', 'v', 'createdAt', 'updatedAt', 'purchasedFrom']);
       }
       allow get:    if resource == null || isOwner(existing());
       allow list:   if isOwner(existing());
-      allow create: if hasAccount() && validVault(incoming()) && incoming().uses == 0;
-      allow update: if isOwner(existing()) && validVault(incoming()) && incoming().createdAt == existing().createdAt;
+      allow create: if hasAccount() && validVault(incoming()) && incoming().uses == 0 && !('purchasedFrom' in incoming());
+      allow update: if isOwner(existing()) && validVault(incoming()) && incoming().createdAt == existing().createdAt
+                    && incoming().get('purchasedFrom', null) == existing().get('purchasedFrom', null);
       allow delete: if isOwner(existing());
     }
     // the interface's translations (English · हिन्दी) and their daily budget: only the translation server (/api/i18n)

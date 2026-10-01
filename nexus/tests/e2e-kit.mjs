@@ -45,9 +45,10 @@ export async function resetEmulators() {
 
 /* ---------------- a phone: its own browser storage, NEXUS open on it ----------------
    opts: the browser context's own settings (a phone's viewport, touch…); opts.clockShift: this
-   device's clock is that many ms off (Date.now) */
+   device's clock is that many ms off (Date.now); opts.daily: the 🔥 daily reward claims itself on signing in (as for
+   everyone) — off in the other tests, whose balances are counted to the point */
 export async function newDevice(browser, site, logs = [], opts = {}) {
-  const { clockShift = 0, ...ctxOpts } = opts;
+  const { clockShift = 0, daily = false, ...ctxOpts } = opts;
   /* locale: the language NEXUS detects on a first visit (the players of these tests read Arabic) */
   const ctx = await browser.newContext(Object.assign({ serviceWorkers: 'block', viewport: { width: 1280, height: 900 }, locale: 'ar' }, ctxOpts));
   if (clockShift) await ctx.addInitScript(ms => { const real = Date.now.bind(Date); Date.now = () => real() + ms; }, clockShift);
@@ -62,7 +63,7 @@ export async function newDevice(browser, site, logs = [], opts = {}) {
   });
   const page = await ctx.newPage();
   watch(page, logs);
-  await page.addInitScript(() => { try { localStorage.setItem('nx.mode', '"pro"'); } catch { } });
+  await page.addInitScript(d => { try { localStorage.setItem('nx.mode', '"pro"'); if (!d) localStorage.setItem('nx.daily.auto', '0'); } catch { } }, daily);
   await open(page, site);
   return { ctx, page };
 }

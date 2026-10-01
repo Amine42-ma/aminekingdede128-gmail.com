@@ -3,13 +3,13 @@
    key of any site given while the site's server is off — in a real
    browser (Chromium), with the Firebase emulators and the real rules:
    • Lina publishes a game (a component with settings, a script bound
-     to an object, a style); Omar remixes it from its page and from the
-     player: a NEW project of his — same code, same scene — with
-     «remixedFrom», the original untouched (+1 remix on its counter),
-     his copy sandboxed, the assistant open as «Remix Copilot» (changes
-     at once, the preview after each one);
-   • the rules: the credit never changes, a remix of a game closed to
-     remixes is refused, a published remix names its original;
+     to an object, a style) and remixes it — Remix is for one's OWN games
+     (PART 44): Omar sees no Remix on it and the rules refuse his — from
+     its page and from the player: a NEW project of hers — same code, same
+     scene — with «remixedFrom», the original untouched (+1 remix on its
+     counter), the assistant open as «Remix Copilot» (changes at once, the
+     preview after each one);
+   • the rules: the credit never changes, a published remix names its original;
    • mechanics: copied from one object to another (settings and bound
      scripts), saved to the library (public), added by someone else
      (+1 use);
@@ -77,15 +77,25 @@ test('1 · Lina publishes «Race City»: a component with settings on the car, a
   S.buildAt = (await fsGet('builds/' + S.gameId)).updatedAt;
 });
 
-test('2 · Omar, from the game\'s page: «🔁 Remix» → a NEW project of his — same code, same scene, «remixedFrom» — the original untouched (+1 remix)', async () => {
-  const { page } = S.omar = await newDevice(browser, site, logs);
-  S.omarUid = await signUp(page, 'omar@test.io');
-  await page.evaluate(async id => NX.Community.openGamePage(await NX.Games.get(id)), S.gameId);
+test('2 · Remix is the creator\'s own: on Omar\'s computer Lina\'s game has no «🔁 Remix» (and the rules refuse one); Lina, from her game\'s page: «🔁 Remix» → a NEW project of hers — same code, same scene, «remixedFrom» — the original untouched', async () => {
+  const { page: op } = S.omar = await newDevice(browser, site, logs);
+  S.omarUid = await signUp(op, 'omar@test.io');
+  await op.evaluate(async id => NX.Community.openGamePage(await NX.Games.get(id)), S.gameId);
+  await op.locator('.sc-actions').waitFor();
+  assert.equal(await op.locator('.sc-remix').count(), 0, 'not Omar\'s game: no Remix');
+  const forced = await op.evaluate(async ([gid, owner]) => {
+    const { F, db } = NX.Backend.fb, me = NX.Backend.user.uid, id = 'proj_forced';
+    try { await F.setDoc(F.doc(db, 'projects', id), { projectId: id, ownerId: me, name: 'x', files: [], remixedFrom: { gameId: gid, ownerId: owner, title: 'Race City' } }); return 'ok'; } catch (e) { return e.code; }
+  }, [S.gameId, S.linaUid]);
+  assert.ok(denied(forced), 'another creator\'s game is never remixed: ' + forced);
+  await op.evaluate(() => NX.Sheet.closeAll());
+  const { page } = S.lina;
+  await page.evaluate(async id => { NX.Sheet.closeAll(); NX.Community.openGamePage(await NX.Games.get(id)); }, S.gameId);
   await page.locator('.sc-remix').click();
   await until(page, () => NX.Screen.current() === 'studio' && NX.Studio.project && NX.Studio.project.remixedFrom);
   const p = await page.evaluate(() => { const p = NX.Studio.project; return { id: p.projectId, owner: p.ownerId, name: p.name, from: p.remixedFrom, files: p.files.map(f => [f.path, f.role, f.code]), objects: (p.scene.objects || []).length,
     bound: p.files.filter(f => f.entityId).length, carComp: ((p.scene.objects || []).find(o => o.name === 'Car') || {}).components }; });
-  assert.equal(p.owner, S.omarUid); assert.match(p.name, /Race City/);
+  assert.equal(p.owner, S.linaUid); assert.match(p.name, /Race City/);
   assert.equal(p.from.gameId, S.gameId); assert.equal(p.from.ownerId, S.linaUid); assert.equal(p.from.title, 'Race City');
   assert.deepEqual(p.files.find(f => f[0] === 'Mover.js'), ['Mover.js', 'component', MOVER]);
   assert.deepEqual(p.files.find(f => f[0] === 'Spin.js'), ['Spin.js', 'script', SPIN]);
@@ -96,17 +106,17 @@ test('2 · Omar, from the game\'s page: «🔁 Remix» → a NEW project of his 
   const server = await fsGet('projects/' + p.id);
   assert.equal(server.remixedFrom.gameId, S.gameId);
   const g = await fsGet('games/' + S.gameId);
-  assert.equal(g.remixes, 1, 'one remix on the original\'s counter');
+  assert.equal(g.remixes || 0, 0, 'the counter counts other people\'s remixes — there are none any more');
   assert.equal((await fsGet('builds/' + S.gameId)).updatedAt, S.buildAt, 'the original build untouched');
 });
 
-test('3 · Remix Copilot: the assistant opens by itself — quick changes, applied at once, the preview after each one; the copy runs sandboxed', async () => {
-  const { page } = S.omar;
+test('3 · Remix Copilot: the assistant opens by itself — quick changes, applied at once, the preview after each one; her own code runs as her own', async () => {
+  const { page } = S.lina;
   await until(page, () => !!document.querySelector('.rmx-bar'));
   const r = await page.evaluate(() => ({ chips: [...document.querySelectorAll('.quick button')].map(b => b.textContent), level: NX.Builder.level(), sandboxed: NX.Sandbox.forProject(NX.Studio.project),
     hello: [...document.querySelectorAll('.ai-msg.ai')].map(m => m.textContent).join(' ') }));
   assert.ok(r.chips.includes('غيّر سرعة السيارات') && r.chips.includes('أضف سلاحًا جديدًا') && r.chips.includes('عدّل إضاءة الخريطة'), r.chips.join(' | '));
-  assert.equal(r.level, 'auto', 'changes applied at once'); assert.equal(r.sandboxed, true, 'someone else\'s code: sandboxed');
+  assert.equal(r.level, 'auto', 'changes applied at once'); assert.equal(r.sandboxed, false, 'her own game\'s code: not sandboxed');
   assert.match(r.hello, /Race City/);
   await page.evaluate(() => NX.Remix.afterChange({ ok: true, created: ['Weapon.js'], edited: [], objects: [], notes: [], warnings: [] }));
   await until(page, () => NX.Studio.playing === true, null, 30000);
@@ -115,37 +125,31 @@ test('3 · Remix Copilot: the assistant opens by itself — quick changes, appli
   assert.equal(await page.evaluate(() => NX.Builder.level()), 'smart', 'back to the usual level once the Copilot is closed');
 });
 
-test('4 · From the player too: «🔁 Remix» on the game\'s screen (after the consent to run someone else\'s code)', async () => {
-  const { page } = S.omar;
-  /* not awaited: the player waits for the consent below */
+test('4 · From the player: «🔁 Remix» on the game\'s screen for its creator — not for Omar (after the consent to run someone else\'s code)', async () => {
+  const { page } = S.lina;
   await page.evaluate(id => { NX.Games.get(id).then(g => NX.GamePlayer.open(g)); }, S.gameId);
-  const run = page.locator('.modal-box .btn', { hasText: 'تشغيل' });
-  await run.first().waitFor();
-  await run.first().click();
   await until(page, () => { const b = document.getElementById('p-remix'); return !!b && !b.classList.contains('hide') && b.offsetParent !== null; });
   await page.evaluate(() => NX.GamePlayer.close());
+  const op = S.omar.page;
+  await op.evaluate(id => { NX.Games.get(id).then(g => NX.GamePlayer.open(g)); }, S.gameId);
+  const run = op.locator('.modal-box .btn', { hasText: 'تشغيل' });
+  await run.first().waitFor();
+  await run.first().click();
+  await until(op, () => NX.Screen.current() === 'player');
+  await op.waitForTimeout(800);
+  assert.equal(await op.evaluate(() => { const b = document.getElementById('p-remix'); return !!b && !b.classList.contains('hide') && b.offsetParent !== null; }), false);
+  await op.evaluate(() => NX.GamePlayer.close());
 });
 
-test('5 · The rules: the credit never changes; no remix of a game closed to remixes; a published remix names its original', async () => {
-  const { page } = S.omar;
+test('5 · The rules: the credit never changes; a published remix names its original', async () => {
+  const { page } = S.lina;
   const edit = await page.evaluate(async id => { const { F, db } = NX.Backend.fb; try { await F.updateDoc(F.doc(db, 'projects', id), { remixedFrom: null }); return 'ok'; } catch (e) { return e.code; } }, S.remixId);
   assert.ok(denied(edit), 'the credit cannot be removed: ' + edit);
-  /* Lina closes her game to remixes */
-  await S.lina.page.evaluate(async id => { const { F, db } = NX.Backend.fb; await F.updateDoc(F.doc(db, 'games', id), { allowRemix: false }); }, S.gameId);
-  await page.evaluate(async id => NX.Community.openGamePage(await NX.Games.get(id)), S.gameId);
-  await page.locator('.sc-actions').waitFor();
-  assert.equal(await page.locator('.sc-remix').count(), 0, 'no Remix button any more');
-  await page.evaluate(() => NX.Sheet.closeAll());
-  const forced = await page.evaluate(async ([gid, owner]) => {
-    const { F, db } = NX.Backend.fb, me = NX.Backend.user.uid, id = 'proj_forced';
-    try { await F.setDoc(F.doc(db, 'projects', id), { projectId: id, ownerId: me, name: 'x', files: [], remixedFrom: { gameId: gid, ownerId: owner, title: 'Race City' } }); return 'ok'; } catch (e) { return e.code; }
-  }, [S.gameId, S.linaUid]);
-  assert.ok(denied(forced), 'a remix of a closed game is refused by the rules: ' + forced);
-  /* Omar publishes his remix: its page credits Lina's game */
+  /* Lina publishes her remix: its page credits the original */
   const pub = await page.evaluate(async id => {
     const p = await NX.Projects.get(id); await NX.Studio.open(p); NX.Sheet.closeAll();
     const build = await NX.Studio.buildProject({ silent: true });
-    const rec = await NX.Games.publish(NX.Studio.project, { title: 'Race City Turbo', description: '', genre: 'Racing', visibility: 'public', ageRating: '3', allowRemix: true }, build);
+    const rec = await NX.Games.publish(NX.Studio.project, { title: 'Race City Turbo', description: '', genre: 'Racing', visibility: 'public', ageRating: '3', allowRemix: false }, build);
     return rec.gameId;
   }, S.remixId);
   const g2 = await fsGet('games/' + pub);
@@ -160,7 +164,8 @@ test('5 · The rules: the credit never changes; no remix of a game closed to rem
 
 /* ================================================================ 🧩 mechanics */
 test('6 · Mechanics: the car\'s (Mover with speed 7 + the bound Spin script) copied onto the box in one undo step; saved to the library as public', async () => {
-  const { page } = S.omar;
+  const { page } = S.lina;
+  await page.evaluate(async id => { const p = await NX.Projects.get(id); await NX.Studio.open(p); NX.Sheet.closeAll(); }, S.remixId);
   const r = await page.evaluate(async () => {
     const eng = NX.Studio.engine, car = eng.findByName('Car'), box = eng.findByName('Box');
     eng.select(car.id);
@@ -184,8 +189,16 @@ test('6 · Mechanics: the car\'s (Mover with speed 7 + the bound Spin script) co
   assert.equal(m.visibility, 'public'); assert.equal(m.source, 'human'); assert.equal(m.code, MOVER);
 });
 
-test('7 · Lina adds Omar\'s public mechanic to her own object: the component file and its settings arrive, +1 use; she cannot rewrite his', async () => {
-  const { page } = S.lina;
+test('7 · Omar adds Lina\'s public mechanic to his own object: the component file and its settings arrive, +1 use; he cannot rewrite hers', async () => {
+  const { page } = S.omar;
+  S.omarProj = await page.evaluate(async () => {
+    await NX.Platform.createProject('Omar Box');
+    await new Promise(r => setTimeout(r, 300));
+    NX.Sheet.closeAll();
+    await NX.Studio.engine.addEntity({ name: 'Box', type: 'primitive', props: { shape: 'box' }, position: [0, 0.5, 0] });
+    NX.Studio.dirty = true; await NX.Studio.save(true);
+    return NX.Studio.project.projectId;
+  });
   const r = await page.evaluate(async id => {
     const lib = await NX.Mechanics.library('public');
     const m = lib.find(x => x.mechId === id);
@@ -205,7 +218,7 @@ test('7 · Lina adds Omar\'s public mechanic to her own object: the component fi
 /* ================================================================ 🧪 NEXUS Learner (Beta) */
 test('8 · The Learner learns from an answer with code (keys and e-mails removed) — then, every model exhausted, it answers from it and says so', async () => {
   const { page } = S.omar;
-  await page.evaluate(async id => { const p = await NX.Projects.get(id); await NX.Studio.open(p); NX.Sheet.closeAll(); NX.Studio.engine.select(null); NX.AIConfig.setActive('nexus'); NX.Council.setMode('single'); NX.Studio.openAI(); NX.AIPanel.setMode('chat'); }, S.remixId);
+  await page.evaluate(async id => { const p = await NX.Projects.get(id); await NX.Studio.open(p); NX.Sheet.closeAll(); NX.Studio.engine.select(null); NX.AIConfig.setActive('nexus'); NX.Council.setMode('single'); NX.Studio.openAI(); NX.AIPanel.setMode('chat'); }, S.omarProj);
   await page.evaluate(() => NX.Chat.send('FUEL_LESSON: ما الفرق بين let و const في جافاسكربت؟ مفتاحي sk-ABCDEFGHIJKLMNOPQRSTUV و omar@test.io'));
   await until(page, () => !NX.Chat.streaming, null, 60000);
   await new Promise(r => setTimeout(r, 1200));

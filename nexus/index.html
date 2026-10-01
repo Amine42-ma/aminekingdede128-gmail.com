@@ -1399,6 +1399,10 @@ html:not([data-theme=light]) #p-tabs{background:linear-gradient(180deg,rgba(14,1
 /* PART 34 · points */
 .pts-chip{display:inline-flex;align-items:center;gap:4px;height:34px;padding:0 10px;border-radius:999px;border:1px solid rgba(250,204,21,.35);background:rgba(250,204,21,.1);color:#fde68a;font:700 13px/1 var(--font-en,system-ui);cursor:pointer;margin-inline-start:auto}
 .pts-chip b{font-weight:800}
+/* the points, always at the top: the home bar, the Studio's bar, over a game (small, out of the way) */
+.pts-chip.pts-mini{height:30px;padding:0 8px;font-size:12px;margin-inline-start:0;flex:none}
+.pts-chip.pts-float{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));inset-inline-start:50%;transform:translateX(-50%);z-index:30;height:28px;font-size:12px;margin:0;background:rgba(14,17,28,.72);backdrop-filter:blur(6px)}
+[dir=rtl] .pts-chip.pts-float{transform:translateX(50%)}
 .pts-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .pts-big{font:800 38px/1.1 var(--font-en,system-ui);color:#fde68a}
 .pts-big small{font-size:14px;color:var(--ink-dim);font-weight:600}
@@ -1975,6 +1979,32 @@ body.vt-dragging #sheet-root .sheet,body.vt-dragging #sheet-root .scrim{opacity:
 .mn-tx.st-rejected .mn-st,.mn-tx.st-failed .mn-st,.mn-tx.st-refunded .mn-st,.mn-tx.st-disputed .mn-st{color:#fda4af}
 @media (max-width:340px){.mn-calc{grid-template-columns:1fr}.mn-eq{display:none}}
 /* /NX-CSS:43 */
+/* NX-CSS:44 · 🎁 rewards: the streak, the wheel, invitations, VIP, the owner's dashboard */
+.rw-card{display:flex;flex-direction:column;gap:2px}
+.rw-row{align-items:center}
+.rw-txt{min-width:0;flex:1}
+.rw-track{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.rw-day{min-width:34px;text-align:center;padding:3px 5px;border-radius:8px;font-size:11px;font-weight:800;background:var(--glass-2);color:var(--ink-dim)}
+.rw-day.done{background:rgba(34,197,94,.18);color:#86efac}
+.rw-day.now{outline:2px solid #fde68a;color:#fde68a}
+.rw-done{color:#86efac}
+.rw-stage{position:relative;width:min(300px,82vw);margin:6px auto 4px;aspect-ratio:1}
+.rw-wheel{width:100%;height:100%;display:block;border-radius:50%;box-shadow:0 0 0 6px #fde68a33,0 10px 40px rgba(0,0,0,.45)}
+.rw-pointer{position:absolute;top:-14px;left:50%;transform:translateX(-50%);z-index:2;font-size:26px;color:#fde68a;text-shadow:0 2px 6px rgba(0,0,0,.6)}
+.rw-result{text-align:center;font-size:18px;font-weight:800;min-height:1.6em;margin:6px 0}
+.rw-left{text-align:center;margin-top:6px}
+.rw-link{display:flex;gap:6px;margin:8px 0}
+.rw-link .input{flex:1;min-width:0;font-size:12.5px}
+.rw-vip-head{font-size:16px;font-weight:800;margin-bottom:8px;color:#fde68a}
+.rw-vip-list{margin:0 0 12px;padding-inline-start:18px;line-height:1.9;font-size:13.5px}
+.rw-vip-acts{display:flex;flex-direction:column;gap:8px}
+.rw-tip .mk-chips{margin-bottom:8px}
+.rw-tip .input{margin-bottom:8px}
+.rw-adjust{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+.rw-a-type{margin:6px 0 10px;max-width:240px}
+.mk-tip{margin-top:8px}
+.pts-chip.pts-guest{opacity:.8}
+/* /NX-CSS:44 */
 </style>
 </head>
 <body>
@@ -2050,7 +2080,7 @@ body.vt-dragging #sheet-root .sheet,body.vt-dragging #sheet-root .scrim{opacity:
           <span class="dot"><svg viewBox="0 0 24 24"><use href="#i-cube"/></svg></span>
           <b>NEXUS</b>
         </div>
-        <button class="pts-chip hide" id="btn-points" aria-label="points" title="نقاطي">💰 <b id="pts-val">0</b></button>
+        <button class="pts-chip" id="btn-points" aria-label="points" title="نقاطي">💰 <b id="pts-val" class="pts-num">0</b></button>
         <button class="icon-btn" id="btn-lang" aria-label="language" aria-haspopup="menu"><svg viewBox="0 0 24 24"><use href="#i-globe"/></svg></button>
         <button class="icon-btn" id="btn-search" aria-label="search"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg></button>
         <button class="icon-btn" id="btn-notif" aria-label="notifications"><svg viewBox="0 0 24 24"><use href="#i-heart"/></svg></button>
@@ -2066,6 +2096,7 @@ body.vt-dragging #sheet-root .sheet,body.vt-dragging #sheet-root .scrim{opacity:
     <header id="s-top">
       <button class="icon-btn" id="s-back" aria-label="back"><svg viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
       <div class="pname" id="s-name">—<small id="s-sub">empty scene</small></div>
+      <button class="pts-chip pts-mini" id="s-points" aria-label="points" title="نقاطي">💰 <b class="pts-num">0</b></button>
       <button class="icon-btn" id="s-team" aria-label="team"><svg viewBox="0 0 24 24"><use href="#i-user"/></svg></button>
       <button class="icon-btn" id="s-save" aria-label="save"><svg viewBox="0 0 24 24"><use href="#i-save"/></svg></button>
       <button class="icon-btn" id="s-play" aria-label="play"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></button>
@@ -2102,6 +2133,7 @@ body.vt-dragging #sheet-root .sheet,body.vt-dragging #sheet-root .scrim{opacity:
       <canvas id="player-canvas"></canvas>
       <div id="player-ui"></div>
       <button class="icon-btn p-exit" id="p-exit" aria-label="exit"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button>
+      <button class="pts-chip pts-float" id="pl-points" aria-label="points">💰 <b class="pts-num">0</b></button>
       <div class="p-load" id="p-load"><div><div class="spin"></div><div class="muted" id="p-load-txt">تحميل…</div></div></div>
     </div>
   </section>
@@ -4758,15 +4790,14 @@ service cloud.firestore {
 
       allow get:    if resource == null || isOwner(existing()) || inTeam(existing());
       allow list:   if isOwner(existing()) || inTeam(existing());
-      // a remix (PART 40): only of a game whose owner allows remixes (their own, always); the credit is kept for good
+      // a remix (PART 40): of YOUR OWN game only — another creator's game is never remixed (their project is
+      // bought in the marketplace when they sell it); the credit is kept for good
       function remixOk(d) {
         return !('remixedFrom' in d) || d.remixedFrom == null
                || (d.remixedFrom.gameId is string
                    && exists(/databases/$(database)/documents/games/$(d.remixedFrom.gameId))
-                   && (get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.ownerId == me()
-                       || (get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.get('allowRemix', true) == true
-                           && get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.visibility in ['public', 'unlisted']))
-                   && d.remixedFrom.ownerId == get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.ownerId);
+                   && get(/databases/$(database)/documents/games/$(d.remixedFrom.gameId)).data.ownerId == me()
+                   && d.remixedFrom.ownerId == me());
       }
       allow create: if signedIn() && incoming().ownerId == me() && incoming().projectId == projectId
                     && team(incoming()).size() == 0 && incoming().get('members', {}).size() == 0 && remixOk(incoming())
@@ -5074,7 +5105,7 @@ service cloud.firestore {
       allow create, update: if false;
     }
     // ⏱ play time others spent in each game, timed by the server (points.js): seconds, sessions,
-    // players — and 💰 the Play Rewards it earned (rewardPoints) and the time still waiting (pendingSeconds)
+    // players — a number of its own (it earns no points)
     match /playtime/{gameId} {
       allow get: if true;
       allow list, write: if false;
@@ -5107,7 +5138,7 @@ service cloud.firestore {
       allow list: if signedIn() && (resource.data.buyerUid == me() || resource.data.sellerUid == me());
       allow write: if false;
     }
-    // the economy's numbers the site's owner set inside NEXUS (prices, Play Rewards, limits) — read by all
+    // the economy's numbers the site's owner set inside NEXUS (prices, rewards, limits) — read by all
     match /economy/{doc} {
       allow get: if doc == 'config';
       allow list, write: if false;
@@ -5120,6 +5151,38 @@ service cloud.firestore {
       allow list: if signedIn() && resource.data.uid == me();
       allow write: if false;
     }
+    // ---------------------------------------------------------------- 🎁 💝 🧩 rewards, tips, files & code (PART 44)
+    // all written ONLY by the server (points.js · market.js); a page reads what is its own
+    match /referrals/{uid} {                 // an invitation: the friend (uid) and the one who invited (referrer)
+      allow get: if signedIn() && (resource == null || me() == uid || resource.data.referrer == me());
+      allow list: if signedIn() && resource.data.referrer == me();
+      allow write: if false;
+    }
+    match /ref_codes/{code} {                // an invitation link's code → its account (not a secret)
+      allow get: if true;
+      allow list, write: if false;
+    }
+    match /tips/{tid} {                      // 💝 a tip: the one who gave it and the developer may read it
+      allow get: if signedIn() && (resource == null || resource.data.fromUid == me() || resource.data.toUid == me());
+      allow list: if signedIn() && (resource.data.fromUid == me() || resource.data.toUid == me());
+      allow write: if false;
+    }
+    match /game_tips/{gameId} {              // 💝 a game's tips: how many, how much (public)
+      allow get: if true;
+      allow list, write: if false;
+    }
+    match /market_items/{itemId} {           // 🧩 a file / code listing (what it is, its price — never its content)
+      allow get: if true;
+      allow list: if resource.data.isForSale == true || (signedIn() && resource.data.ownerId == me());
+      allow write: if false;
+    }
+    match /item_purchases/{pid} {
+      allow get: if signedIn() && (resource == null || resource.data.buyerUid == me() || resource.data.sellerUid == me());
+      allow list: if signedIn() && (resource.data.buyerUid == me() || resource.data.sellerUid == me());
+      allow write: if false;
+    }
+    match /market_item_content/{id} { allow read, write: if false; }   // what is sold — copied to buyers by the server
+    match /server_secrets/{id}      { allow read, write: if false; }   // the play tokens' key (🛡)
     // the server's own bookkeeping: ad sessions, AdMob transactions, upload
     // tickets, play marks, Stripe events — no browser reads or writes them
     match /ad_sessions/{id}     { allow read, write: if false; }
@@ -5275,7 +5338,7 @@ service cloud.firestore {
         // anyone may notify you, but only as themselves — a challenge notice (an invite, a start,
         // a result) is written only by the challenges server, never by a browser
         allow create:       if signedIn() && incoming().actorId == me() && incoming().read == false
-                            && !(incoming().get('type', '') in ['challenge', 'market']);
+                            && !(incoming().get('type', '') in ['challenge', 'market', 'tip', 'referral']);
       }
     }
     match /follows/{id} {
@@ -5408,12 +5471,14 @@ service cloud.firestore {
                && d.description is string && d.description.size() <= 300 && d.kind in ['component', 'script']
                && d.type is string && d.type.size() <= 60 && d.code is string && d.code.size() <= 60000
                && d.visibility in ['private', 'public'] && d.source in ['human', 'ai'] && d.uses is int
-               && d.keys().hasOnly(['mechId', 'ownerId', 'creatorName', 'name', 'description', 'kind', 'type', 'path', 'code', 'data', 'visibility', 'source', 'uses', 'createdAt', 'updatedAt']);
+               && d.keys().hasOnly(['mechId', 'ownerId', 'creatorName', 'name', 'description', 'kind', 'type', 'path', 'code', 'data', 'visibility', 'source', 'uses', 'createdAt', 'updatedAt', 'purchasedFrom']);
       }
+      // a copy bought in the marketplace (PART 44: purchasedFrom, written by the server): kept private, the mark kept
+      function boughtKept(d) { return d.get('purchasedFrom', null) == existing().get('purchasedFrom', null) && (existing().get('purchasedFrom', null) == null || d.visibility == 'private'); }
       allow get:    if resource == null || existing().visibility == 'public' || isOwner(existing());
       allow list:   if existing().visibility == 'public' || isOwner(existing());
-      allow create: if hasAccount() && incoming().ownerId == me() && validMech(incoming()) && incoming().uses == 0;
-      allow update: if (isOwner(existing()) && incoming().ownerId == me() && validMech(incoming()) && incoming().uses == existing().uses)
+      allow create: if hasAccount() && incoming().ownerId == me() && validMech(incoming()) && incoming().uses == 0 && !('purchasedFrom' in incoming());
+      allow update: if (isOwner(existing()) && incoming().ownerId == me() && validMech(incoming()) && incoming().uses == existing().uses && boughtKept(incoming()))
                     || (signedIn() && !isOwner(existing()) && bumped('uses', 1));
       allow delete: if isOwner(existing());
     }
@@ -5446,12 +5511,13 @@ service cloud.firestore {
                && d.assetRefs is list && d.assetRefs.size() <= 60 && d.size is list && d.size.size() == 3 && d.counts is map
                && (!('thumb' in d) || (d.thumb is string && d.thumb.size() <= 120000))
                && d.uses is int && d.v == 1 && d.createdAt is int && d.updatedAt is int
-               && d.keys().hasOnly(['vaultId', 'ownerId', 'name', 'note', 'scene', 'scripts', 'components', 'assetRefs', 'size', 'counts', 'thumb', 'uses', 'v', 'createdAt', 'updatedAt']);
+               && d.keys().hasOnly(['vaultId', 'ownerId', 'name', 'note', 'scene', 'scripts', 'components', 'assetRefs', 'size', 'counts', 'thumb', 'uses', 'v', 'createdAt', 'updatedAt', 'purchasedFrom']);
       }
       allow get:    if resource == null || isOwner(existing());
       allow list:   if isOwner(existing());
-      allow create: if hasAccount() && validVault(incoming()) && incoming().uses == 0;
-      allow update: if isOwner(existing()) && validVault(incoming()) && incoming().createdAt == existing().createdAt;
+      allow create: if hasAccount() && validVault(incoming()) && incoming().uses == 0 && !('purchasedFrom' in incoming());
+      allow update: if isOwner(existing()) && validVault(incoming()) && incoming().createdAt == existing().createdAt
+                    && incoming().get('purchasedFrom', null) == existing().get('purchasedFrom', null);
       allow delete: if isOwner(existing());
     }
     // the interface's translations (English · हिन्दी) and their daily budget: only the translation server (/api/i18n)
@@ -10755,13 +10821,10 @@ const Studio = {
     })().then(drawMedia);
     drawMedia();
 
-    /* 🔁 others may remix it (a copy of their own, crediting this game) — the owner decides */
-    /* the project in the marketplace (PART 42): 🔁 free by Remix · 💰 paid · 🔒 not offered — else the Remix switch */
+    /* the project in the marketplace (PART 42): 💰 paid · 🔒 not offered. Remix is for the game's own creator only —
+       another creator gets a copy only by buying it */
     const sale = NX.Market ? NX.Market.publishField(p) : null;
-    const remixOk = el('input', { type: 'checkbox', id: 'pub-remix', checked: !(p.publishMeta && p.publishMeta.allowRemix === false) });
     if (sale) body.appendChild(sale.el);
-    else body.appendChild(el('label', { class: 'tiny pub-remix', for: 'pub-remix', style: { display: 'flex', gap: '8px', alignItems: 'center', margin: '12px 0 4px' } },
-      [remixOk, el('span', { 'data-i18n': 'REMIX_ALLOW', text: T('REMIX_ALLOW') })]));
     /* every published game is public */
     const vis = 'public';
     body.appendChild(el('p', { class: 'tiny', text: 'تُنشر لعبتك على الموقع ليلعبها الآخرون من أي جهاز — مجسماتك تُحمَّل من مكانها كما هي.' }));
@@ -10820,7 +10883,7 @@ const Studio = {
           const build = await this.buildProject({ silent: true });
           if (!build || !build.ok) { say(''); Toast.err('لا يمكن النشر: البناء فاشل'); if (NX.IDE) NX.IDE.open(p, { panel: 'problems' }); return; }
           say('الإرسال إلى الخادم والتحقق…');
-          const meta = { title: title.value.trim() || p.name, description: desc.value.trim(), genre: genre.value, visibility: vis, cover: prev.cover || null, coverURL: prev.coverURL || null, ageRating: age ? age.select.value : '3', allowRemix: sale ? sale.value().mode === 'free' : remixOk.checked };
+          const meta = { title: title.value.trim() || p.name, description: desc.value.trim(), genre: genre.value, visibility: vis, cover: prev.cover || null, coverURL: prev.coverURL || null, ageRating: age ? age.select.value : '3', allowRemix: false };
           if (age) { p.showcase = Object.assign({}, p.showcase || {}, { ageRating: age.select.value, ageSuggested: age.select.dataset.floor || '3' }); }
           const rec = await Games.publish(p, meta, build, { coverBlob: need.cover.blob || null, iconBlob: need.icon.blob || null });
           if (sale) { say('💰 …'); await NX.Market.applySale(rec, sale.value()); }
@@ -17732,6 +17795,8 @@ async function openNotifications() {
     /* written only by the challenges server (PART 37) — firestore.rules refuse this type from a browser */
     /* written only by the marketplace server (PART 42) */
     market: n => '🛒 ' + NX.T('MK_NOTIF_SALE', { name: n.actorName || '', title: n.title || '', n: n.points || 0 }),
+    tip: n => '💝 ' + NX.T('RW_NOTIF_TIP', { name: n.actorName || '', title: n.title || '', n: n.points || 0 }) + (n.note ? ' — «' + n.note + '»' : ''),
+    referral: n => '🎁 ' + NX.T('RW_NOTIF_REF', { name: n.actorName || '', n: n.points || 0 }),
     challenge: n => ({
       invite: `@${n.actorName} يدعوك إلى تحدٍّ: «${n.title || ''}»`,
       joined: `@${n.actorName} انضم إلى تحديك «${n.title || ''}»`,
@@ -17748,7 +17813,8 @@ async function openNotifications() {
     r.onclick = async () => {
       if (n.type === 'invite') { sheet.close(); NX.TeamUI.openInvites(); return; }
       if (n.type === 'challenge' && n.fcId) { sheet.close(); if (NX.Challenges) NX.Challenges.openFriend(n.fcId); return; }
-      if (n.type === 'market') { sheet.close(); if (NX.Market) NX.Market.earnings(); return; }
+      if (n.type === 'market' || n.type === 'tip') { sheet.close(); if (NX.Market) NX.Market.earnings(); return; }
+      if (n.type === 'referral') { sheet.close(); if (NX.Rewards) NX.Rewards.invite(); return; }
       if (n.postId) { const p = await Posts.get(n.postId); if (p) { sheet.close(); openPost(p); } }
       else if (n.actorId) { sheet.close(); openCreator(n.actorId); }
     };
@@ -32604,10 +32670,13 @@ const ADS = Object.assign({ web: false }, window.NEXUS_ADS || {});
 const HOSTED = /\.(html?|png|jpe?g|gif|webp|svg|json|js|css|zip|txt|mp3|ogg|wav|glb|gltf)$/i;
 const AS_TEXT = /\.(html?|xhtml|svg|xml)$/i;                   // stored as text/plain: they run in NEXUS's sandbox, not on the bucket
 const REASON = { welcome: '🎁 هدية الترحيب', ad: '📺 إعلان', upload: '📎 رفع ملف', refund: '↩ استرجاع', ai: '🤖 طلبات ذكاء', pro: '⭐ Pro', challenge: '🏆 جائزة تحدٍّ', 'challenge-escrow': '🔒 جائزة تحدٍّ محجوزة',
-  /* PART 42: Play Rewards, and the marketplace — in the reader's language */
+  /* PART 42: the marketplace (and Play Rewards of before) — in the reader's language */
   get play() { return '🎮 ' + NX.T('MK_R_PLAY'); }, get market_sale() { return '💰 ' + NX.T('MK_R_SALE'); }, get market_buy() { return '🛒 ' + NX.T('MK_R_BUY'); },
   /* PART 43: top-up and withdrawal */
-  get topup() { return '💳 ' + NX.T('MN_R_TOPUP'); }, get withdraw() { return '🏦 ' + NX.T('MN_R_WD'); }, get withdraw_back() { return '↩ ' + NX.T('MN_R_WD_BACK'); }, get topup_back() { return '↩ ' + NX.T('MN_R_TOPUP_BACK'); } };
+  get topup() { return '💳 ' + NX.T('MN_R_TOPUP'); }, get withdraw() { return '🏦 ' + NX.T('MN_R_WD'); }, get withdraw_back() { return '↩ ' + NX.T('MN_R_WD_BACK'); }, get topup_back() { return '↩ ' + NX.T('MN_R_TOPUP_BACK'); },
+  /* PART 44: rewards, VIP, tips, the owner's hand */
+  get streak() { return '🔥 ' + NX.T('RW_R_STREAK'); }, get spin() { return '🎡 ' + NX.T('RW_R_SPIN'); }, get referral() { return '🎁 ' + NX.T('RW_R_REF'); }, get vip() { return '👑 VIP'; },
+  get tip_sent() { return '💝 ' + NX.T('RW_R_TIP_OUT'); }, get tip_received() { return '💝 ' + NX.T('RW_R_TIP_IN'); }, get admin() { return '👤 ' + NX.T('RW_R_ADMIN'); } };
 /* a ledger line's amount, exact (millionths of a token when the server wrote them — PART 43) */
 const deltaOf = x => Number.isInteger(x.micro) && NX.Money ? NX.Money.fmtFixed(x.micro, 6) : String(x.delta);
 const fmtDate = t => { try { return new Date(t).toLocaleDateString('ar', { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return ''; } };
@@ -32639,9 +32708,8 @@ const Points = {
     const uid = u && Backend.hasAccount() && Backend.isOnline() ? u.uid : null;
     if (uid === this._uid) return;
     if (this._unsub) { this._unsub(); this._unsub = null; }
-    this._uid = uid; this.wallet = null;
-    const chip = document.getElementById('btn-points');
-    if (chip) chip.classList.add('hide');
+    this._uid = uid; this.wallet = null; this.me = null;
+    this.paint();
     if (!uid) return;
     const { F, db } = Backend.fb;
     this._unsub = F.onSnapshot(F.doc(db, 'wallets', uid), d => {
@@ -32651,12 +32719,14 @@ const Points = {
     /* the first visit creates the wallet (with the welcome gift) */
     this.refresh().then(() => this.paint());
   },
+  /* the balance, always shown at the top (the home bar, the Studio, over a game): an account's own — 0 for a
+     visitor (a tap asks to sign in), «…» while it loads, 0 when the points server is not there yet */
   paint() {
-    const chip = document.getElementById('btn-points'), v = document.getElementById('pts-val');
-    if (!chip || !v) return;
-    const pts = this.wallet ? this.wallet.points || 0 : this.me && !this.me.error ? this.me.points : null;
-    chip.classList.toggle('hide', pts == null);
-    if (pts != null) v.textContent = NX.fmtNum ? NX.fmtNum(pts) : String(pts);
+    const acct = !!this._uid;
+    const pts = this.wallet ? this.wallet.points || 0 : this.me && !this.me.error ? this.me.points : !acct || (this.me && this.me.error) ? 0 : null;
+    const text = pts == null ? '…' : NX.fmtNum ? NX.fmtNum(pts) : String(pts);
+    document.querySelectorAll('.pts-chip').forEach(c => { c.classList.remove('hide'); c.classList.toggle('pts-guest', !acct); });
+    document.querySelectorAll('#pts-val, .pts-num').forEach(v => { v.textContent = text; });
     document.querySelectorAll('.pts-live').forEach(n => { n.textContent = pts == null ? '—' : String(pts); });
   },
   isPro() { return !!(this.wallet && this.wallet.proUntil > Date.now()); },
@@ -32711,24 +32781,35 @@ const Points = {
         } });
     });
   },
-  async watchAd(btnEl) {
+  /* purpose 'spin': the ad's reward is one more 🎡 spin (PART 44) instead of points */
+  async watchAd(btnEl, purpose) {
     const mode = this.adMode();
-    if (!mode) { this.adsHelp(); return; }
+    if (!mode) { this.adsHelp(); return false; }
     if (btnEl) btnEl.disabled = true;
+    let ok = false;
     try {
-      const t = Object.assign(await this.api('/ad/start', { via: mode }), { at: Date.now() });
-      const ok = mode === 'admob' ? await this.adAdmob(t) : await this.adWeb(t);
-      if (ok) Toast.ok('+' + t.points + ' نقاط' + (t.strongDonor ? ' (×2 💎 متبرّع قوي)' : '') + ' — شكرًا!');
+      const t = Object.assign(await this.api('/ad/start', { via: mode, purpose: purpose || 'points' }), { at: Date.now() });
+      ok = mode === 'admob' ? await (purpose === 'spin' ? this.adAdmobSpin(t) : this.adAdmob(t)) : await this.adWeb(t);
+      if (ok && purpose === 'spin') Toast.ok('🎡 +1 — ' + NX.T('RW_SPIN_READY'));
+      else if (ok) Toast.ok('+' + t.points + ' نقاط' + (t.strongDonor ? ' (×2 💎 متبرّع قوي)' : '') + (t.vip ? ' (👑 VIP)' : '') + ' — شكرًا!');
       else if (mode === 'admob') Toast.err('لم يُحتسب الإعلان (لم يكتمل، أو لم تصل مكافأته بعد)');
     } catch (e) { Toast.err(e.message); }
     finally { if (btnEl) btnEl.disabled = false; await this.refresh(); this.redraw && this.redraw(); }
+    return ok;
+  },
+  /* the app's AdMob ad for a spin: Google tells the server; the spin shows up in /me */
+  async adAdmobSpin(t) {
+    const before = ((await this.refresh()).spin || {}).bank || 0;
+    window.NexusAndroid.showRewarded(JSON.stringify({ unit: ADS.admobRewarded, userId: Backend.user.uid, customData: t.nonce }));
+    for (let i = 0; i < 30; i++) { await new Promise(r => setTimeout(r, 2000)); if ((((await this.refresh()).spin || {}).bank || 0) > before) return true; }
+    return false;
   },
   adsHelp() {
     Modal.open({ title: '📺 الإعلانات بمكافأة', body: el('div', { class: 'muted', style: { fontSize: '13.5px', lineHeight: '1.8' } }, [
       el('p', { text: 'الإعلانات بمكافأة غير مفعّلة في هذا المتصفح بعد:' }),
       el('p', { text: '• في تطبيق NEXUS على Android: إعلانات AdMob (Google يؤكّد كل مكافأة لخادم الموقع).' }),
       el('p', { text: '• في المتصفح: إعلانات AdSense للألعاب (H5 Games Ads) — تعمل بعد أن توافق Google عليها لهذا الموقع ويفعّلها صاحبه.' }),
-      el('p', { text: 'حتى ذلك الحين: هدية الترحيب، ونقاط وقت لعب ألعابك.' })]), actions: [{ label: 'حسنًا', cls: 'primary' }] });
+      el('p', { text: NX.T('RW_ADS_MEANWHILE') })]), actions: [{ label: 'حسنًا', cls: 'primary' }] });
   },
 
   /* ---------------- AI packs and Pro ---------------- */
@@ -32764,6 +32845,8 @@ const Points = {
         el('div', { class: 'pts-big' }, [el('span', { class: 'pts-live', text: String(m.points) }), el('small', { text: ' نقطة' })]),
         pro ? el('span', { class: 'pts-pro', text: '⭐ Pro حتى ' + fmtDate(m.pro.until) }) : el('span')]));
       body.appendChild(el('p', { class: 'tiny pts-rate', style: { margin: '2px 0 12px' }, text: m.money ? NX.T('MN_LINE', { price: m.money.price }) : 'النقاط داخل الموقع فقط — ليست مالًا ولا تُحوَّل إلى مال.' }));
+      /* 🔥 🎡 🎁 👑 rewards (PART 44) */
+      if (NX.Rewards) body.appendChild(NX.Rewards.walletCards(m));
       /* 💳 top-up and withdrawal — any amount, both ways (PART 43) */
       if (NX.Money && m.money) body.appendChild(NX.Money.card(m));
 
@@ -32799,7 +32882,6 @@ const Points = {
       body.appendChild(pc);
 
       /* creators */
-      body.appendChild(el('div', { class: 'card pts-card tiny', style: { lineHeight: '1.8' }, text: '🎮 ألعابك تكسب لك: كل ' + m.playMinutes + ' دقائق يلعبها الآخرون (أصحاب الحسابات) في لعبتك المنشورة = +' + m.playPoints + ' نقاط. لا تُحسب دقائقك أنت، وتُحسب لكل لاعب حتى ' + m.playCap + ' دقيقة يوميًا في كل لعبة.' }));
       if (NX.Market) body.appendChild(NX.Market.walletRow());
 
       /* history */
@@ -32937,7 +33019,8 @@ const Points = {
 };
 
 /* the chip, the account, the minute */
-document.getElementById('btn-points') && document.getElementById('btn-points').addEventListener('click', () => Points.open());
+['btn-points', 's-points', 'pl-points'].forEach(id => { const c = document.getElementById(id); if (c) c.addEventListener('click', () => Points.open()); });
+Points.paint();
 setInterval(() => Points.watch(), 2000);
 /* (play time: a session timed by the server — NX.PlayTimer, PART 42) */
 NX.Points = Points;
@@ -37150,10 +37233,10 @@ const fnv = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^=
 /* ================================================================ 🔁 REMIX */
 const unscope = css => String(css || '').replace(/#game-ui-layer\s+/g, '').replace(/#game-ui-layer/g, ':root');
 const Remix = {
-  /* a published game or app its owner has not closed to remixes (their own, always) */
+  /* your OWN published game or app only — another creator's is never remixed (firestore.rules says the same) */
   allowed(rec) {
     const me = Backend.user && Backend.user.uid;
-    return !!rec && (rec.ownerId === me || (rec.allowRemix !== false && rec.visibility !== 'private'));
+    return !!rec && !!me && rec.ownerId === me;
   },
   button(rec, kind = 'game', cls = 'rmx-btn') {
     return el('button', { class: cls, type: 'button', onclick: () => this.start(rec, kind) },
@@ -37448,8 +37531,10 @@ const Mechanics = {
           if (!t.length) { Toast.err(T('MECH_SELECT')); return; }
           await this.insert(m, t); Toast.ok(T('MECH_ADDED', { m: m.name }));
         } })];
+        if (mine && !m.purchasedFrom) acts.push(btn('💰', { cls: 'sm ghost mech-sell', title: T('MK_SELL_ITEM'), onclick: () => NX.Market && NX.Market.sellItem('mechanic', m.mechId, m.name) }));
+        if (mine && m.purchasedFrom) acts.push(el('span', { class: 'tiny', title: '@' + (m.purchasedFrom.creatorName || ''), text: '🛒' }));
         if (mine) acts.push(
-          btn(m.visibility === 'public' ? '🌍' : '🔒', { cls: 'sm ghost mech-vis', title: T('MECH_PUBLIC'), onclick: async () => { try { await this.setVisibility(m, m.visibility === 'public' ? 'private' : 'public'); load(); } catch (e) { Toast.err(NX.describeFirebaseError(e)); } } }),
+          m.purchasedFrom ? el('span') : btn(m.visibility === 'public' ? '🌍' : '🔒', { cls: 'sm ghost mech-vis', title: T('MECH_PUBLIC'), onclick: async () => { try { await this.setVisibility(m, m.visibility === 'public' ? 'private' : 'public'); load(); } catch (e) { Toast.err(NX.describeFirebaseError(e)); } } }),
           btn('🗑', { cls: 'sm ghost danger', onclick: async () => { if (await Modal.confirm(T('MECH_DELETE_Q', { m: m.name }), '', T('delete'))) { await this.drop(m).catch(e => Toast.err(NX.describeFirebaseError(e))); load(); } } }));
         list.appendChild(el('div', { class: 'mech-row' }, [
           el('div', { class: 'mech-name' }, [el('b', { text: (m.kind === 'component' ? '⚙️ ' : '📜 ') + m.name }),
@@ -38103,6 +38188,9 @@ const Vault = {
       items.forEach(it => {
         const cell = el('div', { class: 'vt-cell' }, [this.tile(it, sheet)]);
         cell.appendChild(el('div', { class: 'vt-acts' }, [
+          /* 🧩 sell copies of it in the marketplace (PART 44) — not a bought one */
+          it.purchasedFrom ? el('span', { class: 'tiny', title: '@' + (it.purchasedFrom.creatorName || ''), text: '🛒' })
+            : btn('💰', { cls: 'sm ghost vt-sell', title: T('MK_SELL_ITEM'), onclick: () => NX.Market && NX.Market.sellItem('vault', it.vaultId, it.name) }),
           btn('✎', { cls: 'sm ghost', onclick: async () => { const n = await Modal.prompt(T('VAULT_RENAME'), it.name); if (n) { try { await this.rename(it, n); paint(this.items || []); } catch (e) { Toast.err(NX.describeFirebaseError(e)); } } } }),
           btn('🗑', { cls: 'sm ghost', onclick: async () => {
             if (!(await Modal.confirm(T('VAULT_DEL_Q', { name: it.name }), T('VAULT_DEL_NOTE'), T('QB_DEL')))) return;
@@ -38392,7 +38480,7 @@ if (NX.Studio && NX.Studio.engine && NX.Studio.project) CanvasPro.attach(NX.Stud
 <!-- NX-PART:42 -->
 <script type="module">
 /* ============================================================
-   PART 42 · 🛒 NEXUS MARKETPLACE · ⏱ Play Time → 💰 Play Rewards · 📊 Project Earnings
+   PART 42 · 🛒 NEXUS MARKETPLACE (projects · 🧩 files & code) · ⏱ Play Time · 📊 Project Earnings
    Built on what NEXUS already has — the points (PART 34: wallets/<uid>, its
    ledger, the server points.js), projects and published games, Remix (PART 40),
    likes, notifications, the owner's settings — never a second copy of them:
@@ -38411,10 +38499,11 @@ if (NX.Studio && NX.Studio.engine && NX.Studio.project) CanvasPro.attach(NX.Stud
      server's clock (points.js /play/start · /play/beat · /play/end): a beat a
      minute while the page is visible, with the seconds it was hidden and whether
      anyone touched it lately — the server decides what counts.
-   • 📊 Project Earnings: players · play time · sessions · likes · Play Rewards ·
-     sales — each apart (a like is never play time, play time is never a sale),
-     the totals, and the transactions.
-   • The site's owner sets the numbers (prices, Play Rewards, ceilings, fee) in
+   • 📊 Project Earnings: players · play time · sessions · likes · sales · 💝 tips —
+     each apart (a like is never play time, play time is never a sale and earns no
+     points), the totals, and the transactions.
+   • The site's commission: MARKET_FEE_PERCENT (15 %) of every sale stays with the site.
+   • The site's owner sets the numbers (prices, rewards, limits, fee) in
      «⚙️ NEXUS economy» — the server checks it is the owner; nobody else sees it.
    ============================================================ */
 const NX = window.NX;
@@ -38428,8 +38517,10 @@ const me = () => (Backend.user && Backend.hasAccount && Backend.hasAccount() && 
 const mins = s => Math.floor((s || 0) / 60);
 const playTime = s => { const m = mins(s); return m >= 120 ? T('MK_HOURS', { n: num(Math.round(m / 6) / 10) }) : T('MK_MINUTES', { n: num(m) }); };
 const GENRE = { Action: 'أكشن', Adventure: 'مغامرة', Racing: 'سباق', Puzzle: 'ألغاز', Simulation: 'محاكاة', RPG: 'تقمّص أدوار', Sandbox: 'عالم مفتوح', Other: 'أخرى' };
-const DEFAULT_CFG = { ok: false, ready: false, market: false, owner: false, minPrice: 10, maxPrice: 100000, pricePresets: [100, 500, 1000, 5000], feePercent: 0, sellerPercent: 100,
-  play: { intervalMinutes: 10, points: 1, playerGameMinutes: 30, playerDayMinutes: 180, gameDayPoints: 100, creatorDayPoints: 300, heartbeatSeconds: 60, minAccountAgeHours: 24 } };
+const DEFAULT_CFG = { ok: false, ready: false, market: false, owner: false, minPrice: 10, maxPrice: 100000, pricePresets: [100, 500, 1000, 5000], feePercent: 15, sellerPercent: 85,
+  play: { heartbeatSeconds: 60 }, values: {} };
+/* a listing's revenue: points from the first sales, exact millionths since (PART 44) */
+const revenueOf = L => L ? (L.revenue || 0) + (L.revenueMicro || 0) / 1e6 : 0;
 const ago = t => NX.timeAgo ? NX.timeAgo(t) : new Date(t).toLocaleString();
 
 const Market = {
@@ -38471,11 +38562,6 @@ const Market = {
     return s.docs.map(d => d.data());
   },
   listings() { return this.query('market', 'isForSale', true); },
-  async freeGames() {
-    const { F, db } = fb();
-    const s = await F.getDocs(F.query(F.collection(db, 'games'), F.where('visibility', '==', 'public'), F.where('allowRemix', '==', true), F.limit(60)));
-    return s.docs.map(d => d.data());
-  },
   async myPurchases() { const u = me(); return u ? (await this.query('purchases', 'buyerUid', u)).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)) : []; },
   async mySales() { const u = me(); return u ? (await this.query('purchases', 'sellerUid', u)).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)) : []; },
 
@@ -38549,7 +38635,7 @@ const Market = {
       const v = +inp.value;
       note.textContent = !inp.value ? T('MK_PRICE_HINT', { min: num(c.minPrice), max: num(c.maxPrice) })
         : !(Number.isInteger(v) && v >= c.minPrice && v <= c.maxPrice) ? '⚠ ' + T('MK_PRICE_RANGE', { min: num(c.minPrice), max: num(c.maxPrice) })
-        : T('MK_YOU_GET', { n: num(v - Math.floor(v * c.feePercent / 100)), p: c.sellerPercent });
+        : T('MK_YOU_GET', { n: num(Math.round(v * (100 - c.feePercent) * 1e4) / 1e6), p: c.sellerPercent });
       note.style.color = inp.value && !(Number.isInteger(v) && v >= c.minPrice && v <= c.maxPrice) ? '#fca5a5' : '';
     };
     inp.addEventListener('input', paint);
@@ -38558,7 +38644,7 @@ const Market = {
   },
   /* «Publish»: 🔁 Free · 💰 Paid · 🔒 Not offered */
   publishField(p) {
-    let mode = (p.publishMeta && p.publishMeta.allowRemix === false) ? 'none' : 'free';
+    let mode = 'none';
     const box = el('div', { class: 'card mk-pub' });
     const seg = el('div', { class: 'seg mk-mode' });
     const paidBox = el('div', { class: 'mk-paid hide' });
@@ -38568,9 +38654,9 @@ const Market = {
       mode = m;
       seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
       paidBox.classList.toggle('hide', m !== 'paid');
-      hint.textContent = T(m === 'free' ? 'MK_PUB_FREE_HINT' : m === 'paid' ? 'MK_PUB_PAID_HINT' : 'MK_PUB_NONE_HINT');
+      hint.textContent = T(m === 'paid' ? 'MK_PUB_PAID_HINT' : 'MK_PUB_NONE_HINT') + (m === 'paid' ? ' · ' + T('MK_FEE_NOTE', { p: (this._cfg || DEFAULT_CFG).sellerPercent }) : '');
     };
-    [['free', '🔁 ' + T('MK_PUB_FREE')], ['paid', '💰 ' + T('MK_PUB_PAID')], ['none', '🔒 ' + T('MK_PUB_NONE')]]
+    [['paid', '💰 ' + T('MK_PUB_PAID')], ['none', '🔒 ' + T('MK_PUB_NONE')]]
       .forEach(([m, label]) => seg.appendChild(el('button', { type: 'button', dataset: { m }, text: label, onclick: () => setMode(m) })));
     box.append(el('b', { text: '📦 ' + T('MK_PUB_TITLE') }), seg, hint, paidBox);
     setMode(mode);
@@ -38611,16 +38697,19 @@ const Market = {
     const box = el('section', { class: 'mk-box', dataset: { game: game.gameId } });
     wrap.appendChild(box);
     const paint = async () => {
-      const [L, st, bought] = await Promise.all([this.listing(game.gameId), this.stats(game.gameId), this.purchase(game.gameId)]);
+      const [L, st, bought, tips] = await Promise.all([this.listing(game.gameId), this.stats(game.gameId), this.purchase(game.gameId), this.doc('game_tips', game.gameId)]);
       box.textContent = '';
       const s = st || {};
       box.appendChild(el('div', { class: 'mk-stats' }, [
         el('span', { text: '👥 ' + T('MK_PLAYERS_N', { n: num(s.players) }) }),
         el('span', { text: '⏱️ ' + playTime(s.seconds) }),
-        el('span', { text: '❤️ ' + num(game.likes) })]));
+        el('span', { text: '❤️ ' + num(game.likes) }),
+        el('span', { class: 'mk-tips-n', text: '💝 ' + num(tips && tips.count) })]));
+      /* 💝 support the developer (PART 44) — someone else's game */
+      if (!mine && NX.Rewards) box.appendChild(btn('💝 ' + T('RW_TIP_BTN'), { cls: 'sm mk-tip', onclick: async () => { if (await NX.Rewards.tip(game)) paint(); } }));
       if (L && L.isForSale) {
         if (mine) {
-          box.append(el('b', { text: '💰 ' + T('MK_MINE_LISTED', { n: num(L.price) }) }), el('div', { class: 'tiny', text: T('MK_SOLD_N', { n: num(L.sales), r: num(L.revenue) }) }),
+          box.append(el('b', { text: '💰 ' + T('MK_MINE_LISTED', { n: num(L.price) }) }), el('div', { class: 'tiny', text: T('MK_SOLD_N', { n: num(L.sales), r: num(revenueOf(L)) }) }),
             el('div', { class: 'row mk-row' }, [btn(T('MK_CHANGE_PRICE'), { cls: 'sm mk-edit', onclick: async () => { await this.editPrice(game, L.price); paint(); } }),
               btn(T('MK_STOP'), { cls: 'sm ghost mk-stop', onclick: async () => { try { await this.setSale(game.gameId, null); Toast.ok(T('MK_STOPPED')); paint(); } catch (e) { Toast.err(e.message); } } })]));
         } else if (bought) {
@@ -38642,18 +38731,15 @@ const Market = {
   /* opts.stats: how many cards get their players / play time / likes read (one read each) — the home page reads only what it shows */
   async load(opts = {}) {
     const u = me(), maxStats = opts.stats || 120;
-    const [paid, free, mine] = await Promise.all([this.listings().catch(() => []), this.freeGames().catch(() => []), u ? this.myPurchases().catch(() => []) : []]);
+    const [paid, mine] = await Promise.all([this.listings().catch(() => []), u ? this.myPurchases().catch(() => []) : []]);
     const owned = new Set(mine.map(p => p.gameId));
     const items = paid.map(L => ({ kind: 'paid', gameId: L.gameId, title: L.title, creatorName: L.creatorName, ownerUid: L.ownerUid, cover: L.thumbURL || L.coverURL, genre: L.genre,
       price: L.price, createdAt: L.createdAt || 0, sales: L.sales || 0, listing: L }));
-    free.filter(g => !items.some(x => x.gameId === g.gameId)).forEach(g => items.push({ kind: 'free', gameId: g.gameId, title: g.title, creatorName: g.creatorName, ownerUid: g.ownerId,
-      cover: g.thumbURL || g.coverURL, genre: g.genre, price: 0, createdAt: g.createdAt || g.publishedAt || 0, sales: 0, likes: g.likes || 0, game: g }));
     /* players, play time and likes for what is shown (one read each): the best sellers and the newest first */
     items.sort((a, b) => (b.sales - a.sales) || ((b.createdAt || 0) - (a.createdAt || 0)));
     await Promise.all(items.slice(0, maxStats).map(async it => {
-      const st = await this.stats(it.gameId);
-      it.players = (st && st.players) || 0; it.seconds = (st && st.seconds) || 0;
-      if (it.kind === 'paid') { const g = await this.doc('games', it.gameId); it.likes = (g && g.likes) || 0; it.game = g; }
+      const st = await this.stats(it.gameId), g = await this.doc('games', it.gameId);
+      it.players = (st && st.players) || 0; it.seconds = (st && st.seconds) || 0; it.likes = (g && g.likes) || 0; it.game = g;
     }));
     items.forEach(it => { it.owned = owned.has(it.gameId); it.mine = !!u && it.ownerUid === u; it.score = it.sales * 5 + (it.players || 0) * 2 + (it.likes || 0); });
     return { items, purchases: mine };
@@ -38662,13 +38748,12 @@ const Market = {
     const c = el('div', { class: 'mk-card', dataset: { game: it.gameId, kind: it.kind } });
     const cov = el('div', { class: 'mk-cov' });
     if (it.cover) cov.appendChild(el('img', { src: it.cover, alt: '', loading: 'lazy' })); else cov.appendChild(el('span', { text: '🎮' }));
-    cov.appendChild(el('span', { class: 'mk-badge ' + it.kind, text: it.kind === 'paid' ? '💰 ' + num(it.price) : '🆓 ' + T('MK_FREE') }));
-    const play = btn('▶ ' + T('MK_PLAY'), { cls: 'sm ghost mk-play', onclick: async () => { const g = it.game || await NX.Games.get(it.gameId).catch(() => null); if (!g) { Toast.err(T('MK_GONE')); return; } (ctx.close || (() => Sheet.closeAll()))(); NX.GamePlayer.open(g); } });
+    cov.appendChild(el('span', { class: 'mk-badge paid', text: '💰 ' + num(it.price) }));
+    const play = btn('▶ ' + T('MK_PLAY'), { cls: 'sm ghost mk-play', onclick: async () => { const g = it.game || await NX.Games.get(it.gameId).catch(() => null); if (!g) { Toast.err(T('MK_GONE')); return; } (ctx.close || (() => Sheet.closeAll()))(); NX.Community.openGamePage(g); } });
     let act;
     if (it.mine) act = el('span', { class: 'tiny mk-yours', text: '✎ ' + T('MK_YOURS') });
     else if (it.owned) act = btn('📂 ' + T('MK_OPEN'), { cls: 'sm primary mk-open', onclick: () => this.openPurchased(it.gameId) });
-    else if (it.kind === 'paid') act = btn('🛒 ' + T('MK_BUY_FOR', { n: num(it.price) }), { cls: 'sm primary mk-buy', onclick: async () => { const r = await this.buy(it.listing || it); if (r && ctx.refresh) ctx.refresh(); } });
-    else act = btn('🔁 Remix', { cls: 'sm mk-remix', onclick: async () => { const g = it.game || await NX.Games.get(it.gameId).catch(() => null); if (g && NX.Remix) { (ctx.close || (() => Sheet.closeAll()))(); NX.Remix.start(g, 'market'); } } });
+    else act = btn('🛒 ' + T('MK_BUY_FOR', { n: num(it.price) }), { cls: 'sm primary mk-buy', onclick: async () => { const r = await this.buy(it.listing || it); if (r && ctx.refresh) ctx.refresh(); } });
     c.append(cov, el('div', { class: 'mk-meta' }, [
       el('b', { class: 'mk-title', text: it.title || '—' }),
       el('button', { class: 'mk-by', type: 'button', text: '@' + (it.creatorName || 'creator'), onclick: () => it.ownerUid && NX.Community && NX.Community.openCreator(it.ownerUid) }),
@@ -38682,26 +38767,33 @@ const Market = {
     const close = () => sheet.close();
     const q = el('input', { class: 'input mk-q', type: 'search', placeholder: T('MK_SEARCH'), dir: 'auto' });
     const cat = el('select', { class: 'input mk-cat' }, [el('option', { value: '', text: T('MK_ALL_CATS') })].concat(Object.entries(GENRE).map(([k, v]) => el('option', { value: k, text: v }))));
-    const priceF = el('select', { class: 'input mk-pricef' }, [['', T('MK_ANY_PRICE')], ['free', T('MK_FREE')], ['paid', T('MK_PAID')], ['100', '≤ 100'], ['500', '≤ 500'], ['1000', '≤ 1,000'], ['more', '> 1,000']]
+    const priceF = el('select', { class: 'input mk-pricef' }, [['', T('MK_ANY_PRICE')], ['100', '≤ 100'], ['500', '≤ 500'], ['1000', '≤ 1,000'], ['more', '> 1,000']]
       .map(([v, t]) => el('option', { value: v, text: t })));
     const creator = el('input', { class: 'input mk-creator', type: 'search', placeholder: T('MK_CREATOR'), dir: 'auto' });
     const tabs = el('div', { class: 'seg mk-tabs' });
-    const TABS = [['featured', '⭐ ' + T('MK_T_FEATURED')], ['new', '🆕 ' + T('MK_T_NEW')], ['popular', '🔥 ' + T('MK_T_POPULAR')], ['free', '🆓 ' + T('MK_FREE')], ['paid', '💰 ' + T('MK_PAID')], ['bought', '🛒 ' + T('MK_T_BOUGHT')]];
-    let tab = opts.tab || 'featured', data = null;
+    const TABS = [['featured', '⭐ ' + T('MK_T_FEATURED')], ['new', '🆕 ' + T('MK_T_NEW')], ['popular', '🔥 ' + T('MK_T_POPULAR')], ['items', '🧩 ' + T('MK_T_ITEMS')], ['bought', '🛒 ' + T('MK_T_BOUGHT')]];
+    let tab = opts.tab === 'free' || opts.tab === 'paid' ? 'featured' : opts.tab || 'featured', data = null, things = null;
     TABS.forEach(([k, label]) => tabs.appendChild(el('button', { type: 'button', dataset: { t: k }, class: k === tab ? 'on' : '', text: label, onclick: () => { tab = k; tabs.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.t === k)); render(); } })));
     const grid = el('div', { class: 'mk-grid' });
     const note = el('p', { class: 'tiny mk-rate' });
     body.append(el('div', { class: 'mk-filters' }, [q, cat, priceF, creator]), tabs, grid, note);
+    const match = (title, who, price) => {
+      const t = q.value.trim().toLowerCase(), w = creator.value.trim().toLowerCase(), pf = priceF.value;
+      return (!t || (title + ' ' + who).toLowerCase().includes(t)) && (!w || who.toLowerCase().includes(w)) && (!pf || (pf === 'more' ? price > 1000 : price <= +pf));
+    };
     const render = () => {
       grid.textContent = '';
+      if (tab === 'items') {
+        if (!things) { grid.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' })])); this.loadItems().then(x => { things = x; render(); }, () => { things = { items: [], bought: [] }; render(); }); return; }
+        const list = things.items.filter(L => match((L.title || '') + ' ' + (L.description || ''), L.creatorName || '', L.price)).sort((a, b) => (b.sales || 0) - (a.sales || 0) || (b.updatedAt || 0) - (a.updatedAt || 0));
+        if (!list.length) { grid.appendChild(el('div', { class: 'center-note', text: T('MK_ITEMS_EMPTY') })); return; }
+        const owned = new Set(things.bought.map(p => p.itemId));
+        list.slice(0, 60).forEach(L => grid.appendChild(this.itemCard(L, owned.has(L.itemId), { close, refresh: () => { things = null; render(); } })));
+        return;
+      }
       if (!data) { grid.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' })])); return; }
       if (tab === 'bought') { this.paintPurchases(grid, data.purchases, close); return; }
-      const t = q.value.trim().toLowerCase(), who = creator.value.trim().toLowerCase(), pf = priceF.value;
-      let list = data.items.filter(it => (!t || ((it.title || '') + ' ' + (it.creatorName || '') + ' ' + (it.genre || '')).toLowerCase().includes(t))
-        && (!cat.value || it.genre === cat.value) && (!who || (it.creatorName || '').toLowerCase().includes(who))
-        && (!pf || (pf === 'free' ? it.kind === 'free' : pf === 'paid' ? it.kind === 'paid' : pf === 'more' ? it.price > 1000 : it.kind === 'paid' && it.price <= +pf)));
-      if (tab === 'free') list = list.filter(it => it.kind === 'free');
-      if (tab === 'paid') list = list.filter(it => it.kind === 'paid').sort((a, b) => a.price - b.price);
+      let list = data.items.filter(it => match((it.title || '') + ' ' + (it.genre || ''), it.creatorName || '', it.price) && (!cat.value || it.genre === cat.value));
       if (tab === 'new') list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       if (tab === 'popular') list.sort((a, b) => (b.sales - a.sales) || ((b.players || 0) - (a.players || 0)) || ((b.seconds || 0) - (a.seconds || 0)));
       if (tab === 'featured') list.sort((a, b) => b.score - a.score);
@@ -38711,17 +38803,102 @@ const Market = {
     const reload = async () => { data = null; render(); try { data = await this.load(); } catch (e) { data = { items: [], purchases: [] }; Toast.err(NX.describeFirebaseError(e)); } render(); };
     [q, creator].forEach(x => x.addEventListener('input', () => render()));
     [cat, priceF].forEach(x => x.addEventListener('change', () => render()));
-    this.config().then(c => { note.textContent = T('MK_RATE_NOTE', { m: c.play.intervalMinutes, p: c.play.points }) + (c.ready ? '' : ' · ⚠ ' + T('MK_OFF')); });
+    this.config().then(c => { note.textContent = '💰 ' + T('MK_FEE_SITE', { fee: c.feePercent, p: c.sellerPercent }) + (c.ready ? '' : ' · ⚠ ' + T('MK_OFF')); });
     reload();
     return sheet;
   },
   paintPurchases(host, list, close) {
     if (!me()) { host.appendChild(el('div', { class: 'center-note', text: T('MK_SIGNIN') })); return; }
-    if (!list.length) { host.appendChild(el('div', { class: 'center-note', text: T('MK_NONE_BOUGHT') })); return; }
     list.forEach(p => host.appendChild(el('div', { class: 'mk-card mk-bought', dataset: { game: p.gameId } }, [
       el('div', { class: 'mk-cov' }, [p.thumbURL || p.coverURL ? el('img', { src: p.thumbURL || p.coverURL, alt: '', loading: 'lazy' }) : el('span', { text: '📦' })]),
       el('div', { class: 'mk-meta' }, [el('b', { class: 'mk-title', text: p.title || '—' }), el('span', { class: 'tiny', text: '@' + (p.sellerName || '') + ' · 💰 ' + num(p.price) + ' · ' + ago(p.timestamp) }),
         el('div', { class: 'mk-acts' }, [btn('📂 ' + T('MK_OPEN'), { cls: 'sm primary mk-open', onclick: () => { if (close) close(); this.openPurchased(p.gameId, p.copyProjectId); } })])])])));
+    /* 🧩 files & code bought */
+    const tail = el('div', { class: 'mk-items-bought', style: { display: 'contents' } });
+    host.appendChild(tail);
+    this.myItemPurchases().then(items => {
+      items.forEach(p => tail.appendChild(this.boughtItemCard(p, close)));
+      if (!list.length && !items.length) host.appendChild(el('div', { class: 'center-note', text: T('MK_NONE_BOUGHT') }));
+    }).catch(() => { if (!list.length) host.appendChild(el('div', { class: 'center-note', text: T('MK_NONE_BOUGHT') })); });
+  },
+
+  /* ---------------------------------------------------------------- 🧩 files & code (PART 44): Vault objects and Mechanics, sold as copies */
+  async loadItems() {
+    const u = me();
+    const [items, bought] = await Promise.all([this.query('market_items', 'isForSale', true, 120), u ? this.myItemPurchases().catch(() => []) : []]);
+    return { items, bought };
+  },
+  async myItemPurchases() { const u = me(); return u ? (await this.query('item_purchases', 'buyerUid', u)).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)) : []; },
+  itemLine(L) {
+    const i = L.info || {};
+    return L.kind === 'vault' ? '🗄 ' + T('MK_I_OBJECT') + ' · 📜 ' + num(i.scripts) + ' · ⚙️ ' + num(i.components) : '🧩 ' + T('MK_I_CODE') + (i.type ? ' · ' + i.type : '') + ' · ' + T('MK_I_LINES', { n: num(i.lines) });
+  },
+  itemCard(L, owned, ctx = {}) {
+    const mine = !!me() && L.ownerUid === me();
+    const cov = el('div', { class: 'mk-cov' }, [L.thumb ? el('img', { src: L.thumb, alt: '', loading: 'lazy' }) : el('span', { text: L.kind === 'vault' ? '🗄' : '🧩' }),
+      el('span', { class: 'mk-badge paid', text: '💰 ' + num(L.price) })]);
+    const act = mine ? btn(T('MK_STOP'), { cls: 'sm ghost mk-stop', onclick: async () => { try { await this.api('/item/list', { kind: L.kind, sourceId: L.sourceId, forSale: false }); Toast.ok(T('MK_STOPPED')); ctx.refresh && ctx.refresh(); } catch (e) { Toast.err(e.message); } } })
+      : owned ? btn('📂 ' + T('MK_OPEN'), { cls: 'sm primary mk-open', onclick: () => { ctx.close && ctx.close(); this.openItem(L.itemId); } })
+      : btn('🛒 ' + T('MK_BUY_FOR', { n: num(L.price) }), { cls: 'sm primary mk-buy', onclick: async () => { if (await this.buyItem(L) && ctx.refresh) ctx.refresh(); } });
+    return el('div', { class: 'mk-card mk-item', dataset: { item: L.itemId, kind: L.kind } }, [cov, el('div', { class: 'mk-meta' }, [
+      el('b', { class: 'mk-title', text: L.title || '—' }),
+      el('button', { class: 'mk-by', type: 'button', text: '@' + (L.creatorName || 'creator'), onclick: () => L.ownerUid && NX.Community && NX.Community.openCreator(L.ownerUid) }),
+      el('div', { class: 'mk-line tiny', text: this.itemLine(L) + ' · 🛒 ' + num(L.sales) }),
+      L.description ? el('div', { class: 'tiny mk-desc', text: L.description }) : el('span'),
+      el('div', { class: 'mk-acts' }, [mine ? el('span', { class: 'tiny mk-yours', text: '✎ ' + T('MK_YOURS') }) : el('span'), act])])]);
+  },
+  boughtItemCard(p, close) {
+    return el('div', { class: 'mk-card mk-bought mk-item', dataset: { item: p.itemId } }, [
+      el('div', { class: 'mk-cov' }, [p.thumb ? el('img', { src: p.thumb, alt: '', loading: 'lazy' }) : el('span', { text: p.kind === 'vault' ? '🗄' : '🧩' })]),
+      el('div', { class: 'mk-meta' }, [el('b', { class: 'mk-title', text: p.title || '—' }), el('span', { class: 'tiny', text: '@' + (p.sellerName || '') + ' · 💰 ' + num(p.price) + ' · ' + ago(p.timestamp) }),
+        el('div', { class: 'mk-acts' }, [btn('📂 ' + T('MK_OPEN'), { cls: 'sm primary mk-open', onclick: () => { if (close) close(); this.openItem(p.itemId); } })])])]);
+  },
+  async buyItem(L) {
+    if (!me()) { NX.promptSignIn(T('MK_SIGNIN')); return null; }
+    if (this._busy.has(L.itemId)) return null;
+    this._busy.add(L.itemId);
+    try {
+      const c = await this.config(), w = await this.doc('wallets', me()), have = w ? w.points || 0 : null;
+      const tid = 'tx_' + (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : Date.now().toString(36) + Math.random().toString(36).slice(2, 12));
+      const body = el('div', { class: 'mk-confirm' }, [el('div', { class: 'mk-price-big', text: '💰 ' + num(L.price) + ' ' + T('MK_POINTS') }),
+        el('p', { class: 'tiny', text: this.itemLine(L) + ' — ' + T('MK_ITEM_WHAT', { who: L.creatorName || '' }) }),
+        have != null ? el('p', { class: 'tiny mk-bal', text: T('MK_BALANCE', { n: num(have), after: num(have - L.price) }) }) : el('span'),
+        el('p', { class: 'tiny', text: T('MK_FEE_NOTE', { p: c.sellerPercent }) })]);
+      const ok = await new Promise(res => Modal.open({ title: '🛒 ' + T('MK_BUY_Q', { title: L.title || '' }), body,
+        actions: [{ label: T('cancel'), cls: 'ghost', onclick: () => res(false) }, { label: '💰 ' + T('MK_BUY_BTN', { n: num(L.price) }), cls: 'primary mk-yes', onclick: () => res(true) }] }));
+      if (!ok) return null;
+      const r = await this.api('/item/buy', { itemId: L.itemId, transactionId: tid, expectedPrice: L.price });
+      Toast.ok('✓ ' + T('MK_ITEM_BOUGHT', { title: L.title || '' }), 6000);
+      return r;
+    } catch (e) {
+      if (e.code === 'not_enough') Modal.open({ title: T('MK_NOT_ENOUGH'), body: e.message, actions: [{ label: T('close'), cls: 'ghost' }, { label: '💰 ' + T('MK_MY_POINTS'), cls: 'primary', onclick: () => NX.Points && NX.Points.open() }] });
+      else Toast.err(e.message, 7000);
+      return null;
+    } finally { this._busy.delete(L.itemId); }
+  },
+  /* a bought object opens in the Vault (its copy made again if it was deleted); bought code in the Mechanics library */
+  async openItem(itemId) {
+    try {
+      const r = await this.api('/item/open', { itemId });
+      Toast.ok(r.kind === 'vault' ? '🗄 ' + T('MK_IN_VAULT') : '🧩 ' + T('MK_IN_MECH'), 5000);
+      if (r.kind === 'vault' && NX.CanvasPro) NX.CanvasPro.openVault();
+      else if (NX.Mechanics) NX.Mechanics.openLibrary();
+      return r;
+    } catch (e) { Toast.err(e.message); return null; }
+  },
+  /* the seller: a price for an object of the Vault or a Mechanic (owner only — checked by the server) */
+  async sellItem(kind, sourceId, name) {
+    if (!me()) { NX.promptSignIn(T('MK_SIGNIN')); return; }
+    const c = await this.config();
+    if (!c.ready || !c.market) { Toast.err(T('MK_OFF')); return; }
+    const pr = this.priceInput(c, null);
+    const title = el('input', { class: 'input mk-item-title', value: String(name || '').slice(0, 60), maxlength: 60 });
+    const desc = el('input', { class: 'input mk-item-desc', placeholder: T('MK_ITEM_DESC'), maxlength: 300 });
+    const v = await new Promise(res => Modal.open({ title: '💰 ' + T('MK_SELL_T', { title: name || '' }), body: el('div', {}, [el('p', { class: 'tiny', text: T('MK_ITEM_SELL_HINT') }), title, desc, pr.el]),
+      actions: [{ label: T('cancel'), cls: 'ghost', onclick: () => res(null) }, { label: T('MK_SELL_BTN'), cls: 'primary mk-save-price', onclick: () => { if (!pr.valid()) { Toast.err(T('MK_PRICE_RANGE', { min: num(c.minPrice), max: num(c.maxPrice) })); return false; } res(pr.value()); } }] }));
+    if (v == null) return;
+    try { await this.api('/item/list', { kind, sourceId, price: v, title: title.value.trim(), description: desc.value.trim() }); Toast.ok('💰 ' + T('MK_LISTED', { n: num(v) }), 6000); }
+    catch (e) { Toast.err(e.message, 8000); }
   },
   /* «🛒 Purchased Projects» in My projects */
   async purchasedSection(host) {
@@ -38760,76 +38937,77 @@ const Market = {
     const uid = me();
     let games = [];
     try { games = await NX.Games.list({ ownerId: uid, limit: 100 }); } catch { }
-    const rows = await Promise.all(games.map(async g => ({ g, st: (await this.stats(g.gameId)) || {}, L: await this.listing(g.gameId) })));
+    const rows = await Promise.all(games.map(async g => ({ g, st: (await this.stats(g.gameId)) || {}, L: await this.listing(g.gameId), tips: await this.doc('game_tips', g.gameId) })));
     const sum = f => rows.reduce((a, r) => a + (f(r) || 0), 0);
     const tot = { players: sum(r => r.st.players), seconds: sum(r => r.st.seconds), sessions: sum(r => r.st.sessions), likes: sum(r => r.g.likes),
-      play: sum(r => r.st.rewardPoints), sales: sum(r => r.L && r.L.sales), revenue: sum(r => r.L && r.L.revenue) };
+      sales: sum(r => r.L && r.L.sales), revenue: sum(r => revenueOf(r.L)), tips: sum(r => r.tips && r.tips.count), tipped: sum(r => r.tips && r.tips.totalMicro) / 1e6 };
     const c = await this.config();
     body.textContent = '';
     const kpi = (ic, label, v, cls) => el('div', { class: 'mk-kpi ' + (cls || '') }, [el('b', { text: v }), el('span', { text: ic + ' ' + label })]);
     body.append(el('div', { class: 'mk-kpis' }, [
       kpi('👥', T('MK_K_PLAYERS'), num(tot.players), 'k-players'), kpi('⏱️', T('MK_K_TIME'), playTime(tot.seconds), 'k-time'), kpi('🎮', T('MK_K_SESSIONS'), num(tot.sessions), 'k-sessions'),
-      kpi('❤️', T('MK_K_LIKES'), num(tot.likes), 'k-likes'), kpi('💰', T('MK_K_REWARDS'), num(tot.play) + ' ' + T('MK_POINTS'), 'k-rewards'), kpi('🛒', T('MK_K_SALES'), num(tot.sales), 'k-sales')]));
+      kpi('❤️', T('MK_K_LIKES'), num(tot.likes), 'k-likes'), kpi('🛒', T('MK_K_SALES'), num(tot.sales), 'k-sales'), kpi('💝', T('MK_K_TIPS'), num(tot.tips), 'k-tips')]));
     body.appendChild(el('div', { class: 'card mk-total' }, [
       el('div', { class: 'mk-trow t-sales' }, [el('span', { text: '💰 ' + T('MK_SALES_REV') }), el('b', { text: num(tot.revenue) + ' ' + T('MK_POINTS') })]),
-      el('div', { class: 'mk-trow t-play' }, [el('span', { text: '🎮 ' + T('MK_K_REWARDS') }), el('b', { text: num(tot.play) + ' ' + T('MK_POINTS') })]),
-      el('div', { class: 'mk-trow t-all' }, [el('span', { text: T('MK_TOTAL') }), el('b', { text: num(tot.revenue + tot.play) + ' ' + T('MK_POINTS') })])]));
-    body.appendChild(el('p', { class: 'tiny', text: T('MK_APART') + ' · ' + T('MK_RATE_NOTE', { m: c.play.intervalMinutes, p: c.play.points }) }));
+      el('div', { class: 'mk-trow t-tips' }, [el('span', { text: '💝 ' + T('MK_TIPS_REV') }), el('b', { text: num(tot.tipped) + ' ' + T('MK_POINTS') })]),
+      el('div', { class: 'mk-trow t-all' }, [el('span', { text: T('MK_TOTAL') }), el('b', { text: num(tot.revenue + tot.tipped) + ' ' + T('MK_POINTS') })])]));
+    body.appendChild(el('p', { class: 'tiny', text: T('MK_APART') + ' · ' + T('MK_FEE_SITE', { fee: c.feePercent, p: c.sellerPercent }) }));
     /* each game */
     body.appendChild(el('div', { class: 'ttl', text: T('MK_PER_GAME') }));
     if (!rows.length) body.appendChild(el('p', { class: 'tiny', text: T('MK_NO_GAMES') }));
-    rows.sort((a, b) => ((b.st.seconds || 0) - (a.st.seconds || 0))).forEach(({ g, st, L }) => {
-      const pend = mins(st.pendingSeconds), need = c.play.intervalMinutes;
+    rows.sort((a, b) => ((b.st.seconds || 0) - (a.st.seconds || 0))).forEach(({ g, st, L, tips }) => {
       body.appendChild(el('div', { class: 'card mk-game', dataset: { game: g.gameId } }, [
         el('b', { text: g.title }),
         el('div', { class: 'tiny', text: '👥 ' + num(st.players) + ' · ⏱️ ' + playTime(st.seconds) + ' · 🎮 ' + num(st.sessions) + ' · ❤️ ' + num(g.likes) }),
-        el('div', { class: 'tiny', text: '💰 ' + T('MK_K_REWARDS') + ': ' + num(st.rewardPoints) + ' · 🛒 ' + T('MK_K_SALES') + ': ' + num(L && L.sales) + ' (' + num(L && L.revenue) + ')' + (L && L.isForSale ? ' · ' + T('MK_LISTED_AT', { n: num(L.price) }) : '') }),
-        el('div', { class: 'tiny mk-pending', text: '⏳ ' + T('MK_PENDING', { n: pend, m: need }) })]));
+        el('div', { class: 'tiny', text: '🛒 ' + T('MK_K_SALES') + ': ' + num(L && L.sales) + ' (' + num(revenueOf(L)) + ')' + (L && L.isForSale ? ' · ' + T('MK_LISTED_AT', { n: num(L.price) }) : '')
+          + ' · 💝 ' + num(tips && tips.count) + ' (' + num(((tips && tips.totalMicro) || 0) / 1e6) + ')' })]));
     });
     /* the transactions */
     body.appendChild(el('div', { class: 'ttl', text: T('MK_TX') }));
     const log = el('div', { class: 'mk-log' });
     body.appendChild(log);
+    const LABEL = { market_sale: () => '💰 ' + T('MK_R_SALE'), market_buy: () => '🛒 ' + T('MK_R_BUY'), play: () => '🎮 ' + T('MK_R_PLAY'), tip_received: () => '💝 ' + T('RW_R_TIP_IN'), tip_sent: () => '💝 ' + T('RW_R_TIP_OUT') };
     try {
       const { F, db } = fb();
       const q = await F.getDocs(F.query(F.collection(db, 'wallets', uid, 'ledger'), F.orderBy('at', 'desc'), F.limit(150)));
-      const list = q.docs.map(d => d.data()).filter(x => ['market_sale', 'market_buy', 'play'].includes(x.reason)).slice(0, 60);
+      const list = q.docs.map(d => d.data()).filter(x => LABEL[x.reason]).slice(0, 60);
       if (!list.length) log.appendChild(el('p', { class: 'tiny', text: T('MK_NO_TX') }));
       list.forEach(x => log.appendChild(el('div', { class: 'pts-line mk-tx ' + x.reason }, [
-        el('span', { text: (x.reason === 'market_sale' ? '💰 ' + T('MK_R_SALE') : x.reason === 'market_buy' ? '🛒 ' + T('MK_R_BUY') : '🎮 ' + T('MK_R_PLAY')) + (x.note ? ' — ' + x.note : '') }),
+        el('span', { text: LABEL[x.reason]() + (x.note ? ' — ' + x.note : '') }),
         el('b', { class: x.delta >= 0 ? 'plus' : 'minus', text: (x.delta >= 0 ? '+' : '') + num(x.delta) }), el('small', { text: ago(x.at) + (x.tx ? ' · ' + String(x.tx).slice(0, 14) : '') })])));
     } catch (e) { log.appendChild(el('p', { class: 'tiny', text: NX.describeFirebaseError(e) })); }
   },
 
-  /* ---------------------------------------------------------------- ⚙️ the economy — the site's owner only */
-  FIELDS: [['playIntervalMinutes', 'MK_E_INTERVAL', c => c.play.intervalMinutes], ['playPoints', 'MK_E_POINTS', c => c.play.points],
-    ['playerGameMinutes', 'MK_E_PGAME', c => c.play.playerGameMinutes], ['playerDayMinutes', 'MK_E_PDAY', c => c.play.playerDayMinutes],
-    ['gameDayPoints', 'MK_E_GDAY', c => c.play.gameDayPoints], ['creatorDayPoints', 'MK_E_CDAY', c => c.play.creatorDayPoints],
-    ['minAccountAgeHours', 'MK_E_AGE', c => c.play.minAccountAgeHours], ['verifiedOnly', 'MK_E_VERIFIED', c => c.play.verifiedOnly ? 1 : 0],
-    ['marketOn', 'MK_E_MARKET', c => c.market ? 1 : 0], ['minPrice', 'MK_E_MIN', c => c.minPrice], ['maxPrice', 'MK_E_MAX', c => c.maxPrice],
-    ['feePercent', 'MK_E_FEE', c => c.feePercent], ['buyerMinAgeHours', 'MK_E_BUYER_AGE', c => c.buyerMinAgeHours],
-    /* 💳 PART 43: the token's price (dollars) and the top-up / withdrawal limits (dollars) — the server keeps them exact */
-    ['tokenPriceMicro', 'MN_E_PRICE', c => c.money ? c.money.price : ''], ['topupOn', 'MN_E_TOPUP', c => c.money ? (c.money.topup.enabled ? 1 : 0) : ''],
-    ['topupMinCents', 'MN_E_TMIN', c => c.money ? c.money.topup.min : ''], ['topupMaxCents', 'MN_E_TMAX', c => c.money ? c.money.topup.max : ''],
-    ['withdrawOn', 'MN_E_WD', c => c.money ? (c.money.withdraw.on ? 1 : 0) : ''], ['withdrawMinCents', 'MN_E_WMIN', c => c.money ? c.money.withdraw.min : ''],
-    ['withdrawMaxCents', 'MN_E_WMAX', c => c.money ? c.money.withdraw.max : ''], ['withdrawMinAgeDays', 'MN_E_WAGE', c => c.money ? c.money.withdraw.minAgeDays : '']],
+  /* ---------------------------------------------------------------- ⚙️ the economy — the site's owner only
+     [key, label]: the server's own numbers (c.values — dollars as dollars), saved by the server after it checks the owner */
+  FIELDS: [['marketOn', 'MK_E_MARKET'], ['minPrice', 'MK_E_MIN'], ['maxPrice', 'MK_E_MAX'], ['feePercent', 'MK_E_FEE'], ['buyerMinAgeHours', 'MK_E_BUYER_AGE'],
+    ['tokenPriceMicro', 'MN_E_PRICE'], ['topupOn', 'MN_E_TOPUP'], ['topupMinCents', 'MN_E_TMIN'], ['topupMaxCents', 'MN_E_TMAX'],
+    ['withdrawOn', 'MN_E_WD'], ['withdrawMinCents', 'MN_E_WMIN'], ['withdrawMaxCents', 'MN_E_WMAX'], ['withdrawMinAgeDays', 'MN_E_WAGE'],
+    ['streakOn', 'RW_E_STREAK'], ['spinOn', 'RW_E_SPIN'], ['spinFreePerDay', 'RW_E_SPIN_FREE'], ['spinAdsPerDay', 'RW_E_SPIN_ADS'],
+    ['referralOn', 'RW_E_REF'], ['referralPoints', 'RW_E_REF_PTS'], ['referralFriendPoints', 'RW_E_REF_FRIEND'], ['referralPlayMinutes', 'RW_E_REF_MIN'], ['referralJoinHours', 'RW_E_REF_HOURS'], ['referralPerDay', 'RW_E_REF_DAY'],
+    ['vipOn', 'RW_E_VIP'], ['vipMultiplier', 'RW_E_VIP_X'], ['vipPriceCents', 'RW_E_VIP_PRICE'], ['vipTokens', 'RW_E_VIP_TOKENS'],
+    ['tipMin', 'RW_E_TIP_MIN'], ['tipMax', 'RW_E_TIP_MAX'], ['tipFeePercent', 'RW_E_TIP_FEE'], ['heartbeatSeconds', 'RW_E_BEAT'], ['sessionMaxMinutes', 'RW_E_SESSION']],
   async openEconomy() {
     const c = await this.config(true);
     if (!c.owner) { Toast.err(T('MK_ECO_OWNER')); return; }
     const body = el('div', { class: 'mk-eco' });
     body.appendChild(el('p', { class: 'tiny', text: T('MK_ECO_INTRO') }));
-    const inputs = {};
-    this.FIELDS.forEach(([k, label, get]) => {
-      const i = el('input', { class: 'input', type: 'number', step: 'any', dir: 'ltr', value: String(get(c)), dataset: { k } });
+    const inputs = {}, vals = c.values || {};
+    this.FIELDS.forEach(([k, label]) => {
+      const i = el('input', { class: 'input', type: 'number', step: 'any', dir: 'ltr', value: vals[k] != null ? String(vals[k]) : '', dataset: { k } });
       inputs[k] = i;
       body.appendChild(NX.field(T(label), i));
     });
-    const presets = el('input', { class: 'input', dir: 'ltr', value: (c.pricePresets || []).join(', '), dataset: { k: 'pricePresets' } });
-    body.appendChild(NX.field(T('MK_E_PRESETS'), presets));
+    const lists = [['pricePresets', 'MK_E_PRESETS', (c.pricePresets || []).join(', ')], ['streakRewards', 'RW_E_STREAK_LIST', (c.streakRewards || []).join(', ')],
+      ['spinPrizes', 'RW_E_SPIN_LIST', (c.spinPrizes || []).map(x => x.points + ':' + x.weight).join(', ')]].map(([k, label, v]) => {
+      const i = el('input', { class: 'input', dir: 'ltr', value: v, dataset: { k } });
+      body.appendChild(NX.field(T(label), i));
+      return [k, i];
+    });
     Sheet.open({ title: '⚙️ ' + T('MK_ECO_TITLE'), body, id: 'economy', foot: [btn(T('save'), { cls: 'primary block mk-eco-save', onclick: async e => {
       const b = e.currentTarget; b.disabled = true;
-      const values = { pricePresets: presets.value };
-      Object.entries(inputs).forEach(([k, i]) => { if (i.value !== '') values[k] = +i.value; });
+      const values = Object.fromEntries(lists.map(([k, i]) => [k, i.value]));
+      Object.entries(inputs).forEach(([k, i]) => { if (i.value !== '' && +i.value !== vals[k]) values[k] = +i.value; });
       try { await this.api('/config', { values }); await this.config(true); Toast.ok('✓ ' + T('MK_ECO_SAVED')); }
       catch (err) { Toast.err(err.message); }
       finally { b.disabled = false; }
@@ -38846,7 +39024,7 @@ const Market = {
 /* ================================================================ ⏱ the play session of the game on screen */
 const IDLE_S = 180;
 const PlayTimer = {
-  sid: null, gid: null, beatS: 60, timer: 0, lastInput: performance.now(), hiddenMs: 0, hiddenAt: 0, tok: null, starting: false, tried: 0,
+  sid: null, gid: null, beatS: 60, timer: 0, lastInput: performance.now(), hiddenMs: 0, hiddenAt: 0, tok: null, seal: null, starting: false, tried: 0,
   init() {
     ['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach(t => window.addEventListener(t, () => { this.lastInput = performance.now(); }, { passive: true, capture: true }));
     document.addEventListener('visibilitychange', () => {
@@ -38874,7 +39052,7 @@ const PlayTimer = {
     try {
       const r = await NX.Points.api('/play/start', { gameId: gid });
       if (this.gid !== gid) { this.sid = r.sessionId; this.end(); return; }
-      this.sid = r.sessionId; this.beatS = r.beat || 60; this.hiddenMs = 0; this.lastInput = performance.now();
+      this.sid = r.sessionId; this.seal = r.token || null; this.beatS = r.beat || 60; this.hiddenMs = 0; this.lastInput = performance.now();
       clearInterval(this.timer);
       this.timer = setInterval(() => this.beat(), this.beatS * 1000);
       this.token().then(t => { this.tok = t; });
@@ -38886,21 +39064,27 @@ const PlayTimer = {
   async beat() {
     if (!this.sid) return;
     if (document.visibilityState !== 'visible') return;              // nothing while hidden — the server sees the silence
-    const body = { sessionId: this.sid, hidden: this.out(), idle: performance.now() - this.lastInput > IDLE_S * 1000 };
+    /* 🛡 each beat brings the server's latest sealed token and gets the next one */
+    const body = { sessionId: this.sid, token: this.seal, hidden: this.out(), idle: performance.now() - this.lastInput > IDLE_S * 1000 };
     try {
       const r = await NX.Points.api('/play/beat', body);
       this.last = r;
+      if (r.token) this.seal = r.token;
       this.tok = await this.token();
       if (r.stop) { this.sid = null; clearInterval(this.timer); }
-      if (r.paid && r.paid.points) window.dispatchEvent(new CustomEvent('nx:playReward', { detail: r.paid }));
-    } catch (e) { if (e.code === 'play_session') { this.sid = null; clearInterval(this.timer); } }
+      if (r.referral && r.referral.friend) window.dispatchEvent(new CustomEvent('nx:referral', { detail: r.referral }));
+    } catch (e) {
+      /* the session is gone or its token no longer the latest (another tab took it): a new session at the next look */
+      if (['play_session', 'play_token', 'play_replay'].includes(e.code)) { this.sid = null; this.seal = null; this.tried = 0; clearInterval(this.timer); }
+    }
   },
   /* the last stretch — sent even while the page is closing (keepalive) */
   end() {
     const sid = this.sid;
     this.sid = null; clearInterval(this.timer);
     if (!sid || !POINTS) return;
-    const body = JSON.stringify({ sessionId: sid, hidden: this.out(), idle: performance.now() - this.lastInput > IDLE_S * 1000 });
+    const body = JSON.stringify({ sessionId: sid, token: this.seal, hidden: this.out(), idle: performance.now() - this.lastInput > IDLE_S * 1000 });
+    this.seal = null;
     const send = tok => fetch(POINTS + '/play/end', { method: 'POST', keepalive: true, headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok }, body }).catch(() => {});
     if (this.tok) send(this.tok); else this.token().then(t => t && send(t));
   }
@@ -39119,11 +39303,11 @@ const Money = {
   /* ---------------- 🧾 the person's transactions ---------------- */
   row(x, actions) {
     return el('div', { class: 'mn-tx st-' + x.status, dataset: { tx: x.id } }, [
-      el('div', { class: 'mn-tx-top' }, [el('b', { text: T(x.type === 'topup' ? 'MN_T_TOPUP' : 'MN_T_WD') }),
+      el('div', { class: 'mn-tx-top' }, [el('b', { text: x.type === 'adjust' ? '👤 ' + T('RW_R_ADMIN') : T(x.type === 'topup' ? 'MN_T_TOPUP' : 'MN_T_WD') }),
         el('span', { class: 'mn-st', text: T(STATUS[x.status] || 'MN_S_PENDING') })]),
-      el('div', { class: 'mn-tx-num', text: (x.type === 'topup' ? '+' : '−') + tok(x.micro) + ' 🪙  ·  $' + usd(x.cents) + '  ·  1 = $' + x.price }),
+      el('div', { class: 'mn-tx-num', text: (x.type === 'topup' || (x.type === 'adjust' && x.micro > 0) ? '+' : '−') + tok(Math.abs(x.micro)) + ' 🪙' + (x.type === 'adjust' ? '' : '  ·  $' + usd(x.cents) + '  ·  1 = $' + x.price) }),
       el('div', { class: 'tiny', text: ago(x.createdAt) + (x.method ? ' · ' + (x.method === 'paypal' ? 'PayPal' : x.method === 'bank' ? T('MN_M_BANK') : T('MN_M_OTHER')) + (x.payTo ? ' → ' + x.payTo : '') : '')
-        + (x.ref ? ' · ' + x.ref : '') + (x.why ? ' · ' + x.why : '') + (x.email ? ' · ' + x.email : '') })].concat(actions ? [actions] : []));
+        + (x.ref ? ' · ' + x.ref : '') + (x.why ? ' · ' + x.why : '') + (x.email ? ' · ' + x.email : '') + (x.uid ? ' · ' + x.uid : '') })].concat(actions ? [actions] : []));
   },
   async transactions() {
     const body = el('div', { class: 'mn-list' });
@@ -39171,6 +39355,309 @@ const Money = {
 NX.Money = Money;
 </script>
 <!-- /NX-PART:43 -->
+<!-- NX-PART:44 -->
+<script type="module">
+/* ============================================================
+   PART 44 · 🎁 REWARDS — 🔥 daily login streak · 🎡 lucky spin · 🎁 invite & earn ·
+   👑 VIP (×2) · 💝 tips to developers · 📊 the owner's dashboard (top-ups, withdrawals, earnings)
+   Everything that decides points is the server's (points.js · market.js — REWARDS); this page asks and shows.
+   The wheel's prize is drawn by the server BEFORE the wheel turns — the wheel only lands where the server said.
+   The day is the server's (UTC).
+   ============================================================ */
+const NX = window.NX;
+const { el, btn, Sheet, Modal, Toast, Backend } = NX;
+const T = (k, v) => NX.T(k, v);
+const num = n => NX.fmtNum ? NX.fmtNum(n || 0) : String(n || 0);
+const ago = t => NX.timeAgo ? NX.timeAgo(t) : new Date(t).toLocaleString();
+const me = () => (Backend.user && Backend.hasAccount && Backend.hasAccount() && Backend.isOnline()) ? Backend.user.uid : null;
+const LS = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch { } }, del(k) { try { localStorage.removeItem(k); } catch { } } };
+const api = (p, b) => NX.Points.api(p, b);
+const fmtDay = t => { try { return new Date(t).toLocaleDateString(document.documentElement.lang || undefined, { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return ''; } };   // in the reader's language
+const utcDay = () => new Date().toISOString().slice(0, 10);
+const newId = p => p + '_' + (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : Date.now().toString(36) + Math.random().toString(36).slice(2, 12));
+const COLORS = ['#7c5cff', '#22c55e', '#f59e0b', '#ec4899', '#06b6d4', '#ef4444', '#a855f7', '#84cc16', '#f97316', '#14b8a6', '#eab308', '#3b82f6'];
+const SVG = (tag, a = {}) => { const n = document.createElementNS('http://www.w3.org/2000/svg', tag); Object.entries(a).forEach(([k, v]) => n.setAttribute(k, v)); return n; };
+const refresh = async () => { const m = await NX.Points.refresh(); NX.Points.paint(); NX.Points.redraw && NX.Points.redraw(); return m; };
+const kpi = (ic, label, v, cls) => el('div', { class: 'mk-kpi ' + (cls || '') }, [el('b', { text: v }), el('span', { text: ic + ' ' + label })]);
+
+const Rewards = {
+  /* ---------------- in the wallet: what there is to take ---------------- */
+  walletCards(m) {
+    const box = el('div', { class: 'card pts-card rw-card' }, [el('b', { text: '🎁 ' + T('RW_TITLE') })]);
+    const st = m.streak || {}, sp = m.spin || {}, vip = m.vip || {}, rw = m.rewards || {};
+    const row = (cls, main, sub, act) => el('div', { class: 'pts-row rw-row ' + cls }, [el('div', { class: 'rw-txt' }, [el('div', { text: main }), sub || el('span')]), act || el('span')]);
+    /* 🔥 the streak: day by day */
+    if (rw.streak && rw.streak.on) {
+      const list = st.rewards || [], cur = st.streak || 0, mark = Math.min(st.today ? cur : cur + 1, list.length);
+      const track = el('div', { class: 'rw-track' }, list.map((p, i) => el('span', { class: 'rw-day' + (i + 1 < mark || (st.today && i + 1 === mark) ? ' done' : '') + (i + 1 === mark ? ' now' : ''), text: '+' + num(p * (vip.active ? rw.vip.multiplier : 1)) })));
+      box.appendChild(row('rw-streak', '🔥 ' + T('RW_STREAK_N', { n: cur }), track, st.today ? el('span', { class: 'tiny rw-done', text: '✓ ' + T('RW_TODAY_DONE') })
+        : btn(T('RW_CLAIM', { n: num(st.next * (vip.active ? rw.vip.multiplier : 1)) }), { cls: 'sm primary rw-claim', onclick: e => this.claimDaily(e.currentTarget, true) })));
+    }
+    /* 🎡 the wheel */
+    if (rw.spin && rw.spin.on) box.appendChild(row('rw-spinrow', '🎡 ' + T('RW_SPIN'), el('div', { class: 'tiny', text: T('RW_SPIN_LEFT', { free: sp.free || 0, bank: sp.bank || 0, ads: sp.adsLeft || 0 }) }),
+      btn(T('RW_SPIN_OPEN'), { cls: 'sm primary rw-spin-open', onclick: () => this.spinWheel() })));
+    /* 🎁 invitations */
+    if (rw.referral && rw.referral.on) {
+      const mine = m.referral;
+      box.appendChild(row('rw-invrow', '🎁 ' + T('RW_INVITE'), el('div', { class: 'tiny', text: mine && mine.status === 'joined' ? T('RW_REF_ME', { m: mine.minutes, need: mine.need }) : T('RW_INVITE_HOW', { a: rw.referral.points, b: rw.referral.friendPoints, m: rw.referral.minutes }) }),
+        btn(T('RW_INVITE_BTN'), { cls: 'sm rw-invite-open', onclick: () => this.invite() })));
+    }
+    /* 👑 VIP */
+    if (rw.vip && rw.vip.on) box.appendChild(row('rw-viprow', vip.active ? '👑 VIP · ' + T('RW_VIP_UNTIL', { d: fmtDay(vip.until) }) : '👑 VIP', el('div', { class: 'tiny', text: T('RW_VIP_PITCH', { x: rw.vip.multiplier }) }),
+      btn(vip.active ? T('RW_VIP_SEE') : T('RW_VIP_GET'), { cls: 'sm ' + (vip.active ? 'ghost' : 'primary') + ' rw-vip-open', onclick: () => this.vipSheet() })));
+    /* 📊 the site's owner */
+    if (m.owner) box.appendChild(btn('📊 ' + T('RW_ADMIN_TITLE'), { cls: 'sm ghost block rw-admin-open', style: { marginTop: '8px' }, onclick: () => this.admin() }));
+    return box;
+  },
+
+  /* ---------------- 🔥 the daily login streak ---------------- */
+  async claimDaily(b, manual) {
+    if (b) b.disabled = true;
+    try {
+      const r = await api('/daily', {});
+      LS.set('nx.daily.' + me(), utcDay());
+      if (r.claimed) Toast.ok('🔥 ' + T('RW_STREAK_GOT', { n: r.streak, p: num(r.points) }) + (r.vip ? ' · 👑' : ''), 6000);
+      else if (manual) Toast.show('✓ ' + T('RW_TODAY_DONE'));
+      await refresh();
+      return r;
+    } catch (e) { if (manual) Toast.err(e.message); return null; }
+    finally { if (b) b.disabled = false; }
+  },
+  /* on signing in, once a day: the streak claims itself — a toast, nothing in the way (nx.daily.auto = 0: off) */
+  autoDaily() {
+    const uid = me();
+    if (!uid || LS.get('nx.daily.auto') === '0' || LS.get('nx.daily.' + uid) === utcDay()) return;
+    LS.set('nx.daily.' + uid, utcDay());
+    this.claimDaily(null, false);
+  },
+
+  /* ---------------- 🎡 the lucky spin ---------------- */
+  async spinWheel() {
+    if (!me()) { NX.promptSignIn(T('MK_SIGNIN')); return; }
+    let m = await NX.Points.refresh();
+    if (!m || m.error) { Toast.err((m && m.error && m.error.message) || T('MK_NO_SERVER')); return; }
+    let st = m.spin;
+    const prizes = st.prizes, n = prizes.length, seg = 360 / n, R = 120;
+    const wheel = SVG('svg', { viewBox: '-130 -130 260 260', class: 'rw-wheel' });
+    prizes.forEach((p, i) => {
+      const a0 = (i * seg - 90) * Math.PI / 180, a1 = ((i + 1) * seg - 90) * Math.PI / 180, mid = ((i + 0.5) * seg - 90) * Math.PI / 180;
+      wheel.appendChild(SVG('path', { d: 'M0 0 L' + (R * Math.cos(a0)).toFixed(2) + ' ' + (R * Math.sin(a0)).toFixed(2) + ' A' + R + ' ' + R + ' 0 0 1 ' + (R * Math.cos(a1)).toFixed(2) + ' ' + (R * Math.sin(a1)).toFixed(2) + ' Z', fill: COLORS[i % COLORS.length], stroke: '#0b0d16', 'stroke-width': '2' }));
+      const t = SVG('text', { x: (R * 0.68 * Math.cos(mid)).toFixed(2), y: (R * 0.68 * Math.sin(mid)).toFixed(2), 'text-anchor': 'middle', 'dominant-baseline': 'middle', fill: '#fff', 'font-size': '17', 'font-weight': '800',
+        transform: 'rotate(' + ((i + 0.5) * seg).toFixed(1) + ' ' + (R * 0.68 * Math.cos(mid)).toFixed(2) + ' ' + (R * 0.68 * Math.sin(mid)).toFixed(2) + ')' });
+      t.textContent = String(p);
+      wheel.appendChild(t);
+    });
+    wheel.appendChild(SVG('circle', { r: '18', fill: '#0b0d16', stroke: '#fde68a', 'stroke-width': '3' }));
+    const stage = el('div', { class: 'rw-stage', dataset: { state: 'idle' } }, [el('div', { class: 'rw-pointer', text: '▼' }), wheel]);
+    const result = el('div', { class: 'rw-result' }), left = el('div', { class: 'tiny rw-left' });
+    const go = btn('…', { cls: 'primary block rw-go' });
+    const body = el('div', { class: 'rw-spinbox' }, [el('p', { class: 'tiny', text: T('RW_SPIN_HOW') + (st.vip ? ' · 👑 ×' + st.multiplier : '') }), stage, result, go, left]);
+    const sheet = Sheet.open({ title: '🎡 ' + T('RW_SPIN'), body, id: 'spin' });
+    let rot = 0;
+    const paint = () => {
+      left.textContent = T('RW_SPIN_LEFT', { free: st.free, bank: st.bank, ads: st.adsLeft });
+      go.disabled = false;
+      if (st.free > 0 || st.bank > 0) { go.lastChild.textContent = '🎡 ' + T('RW_SPIN_GO'); go.dataset.do = 'spin'; }
+      else if (st.adsLeft > 0) { go.lastChild.textContent = '📺 ' + T('RW_SPIN_AD'); go.dataset.do = 'ad'; }
+      else { go.lastChild.textContent = T('RW_SPIN_TOMORROW'); go.dataset.do = 'none'; go.disabled = true; }
+    };
+    go.onclick = async () => {
+      if (go.dataset.do === 'ad') {
+        if (await NX.Points.watchAd(go, 'spin')) { m = await NX.Points.refresh(); st = m.spin; }
+        paint();
+        return;
+      }
+      if (go.dataset.do !== 'spin') return;
+      go.disabled = true; result.textContent = ''; stage.dataset.state = 'spinning';
+      let r;
+      try { r = await api('/spin', {}); }
+      catch (e) { Toast.err(e.message); stage.dataset.state = 'idle'; if (e.data && e.data.state) st = e.data.state; paint(); return; }
+      /* the server already drew it: the wheel lands there — the segment's middle, a little to either side */
+      const jitter = (Math.random() - 0.5) * seg * 0.6, target = (360 - (r.index + 0.5) * seg + jitter + 360) % 360;
+      rot = rot + 360 * 5 + ((target - (rot % 360)) + 360) % 360;
+      const slow = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      wheel.style.transition = 'transform ' + (slow ? 4 : 0.6) + 's cubic-bezier(.17,.67,.21,1)';
+      wheel.style.transform = 'rotate(' + rot + 'deg)';
+      await new Promise(res => { const done = () => { wheel.removeEventListener('transitionend', done); res(); }; wheel.addEventListener('transitionend', done); setTimeout(done, (slow ? 4 : 0.6) * 1000 + 300); });
+      stage.dataset.state = 'done'; stage.dataset.index = String(r.index); stage.dataset.prize = String(r.prize);
+      result.textContent = '🎉 ' + T('RW_SPIN_WON', { n: num(r.prize) }) + (r.prize !== r.base ? ' (👑 ' + num(r.base) + ' ×' + st.multiplier + ')' : '');
+      Toast.ok('🎡 +' + num(r.prize));
+      st = r.state;
+      paint();
+      refresh();
+    };
+    paint();
+    return sheet;
+  },
+
+  /* ---------------- 🎁 invite & earn ---------------- */
+  async invite() {
+    if (!me()) { NX.promptSignIn(T('MK_SIGNIN')); return; }
+    const body = el('div', { class: 'rw-invite' }, [el('div', { class: 'load-row' }, [el('div', { class: 'spin' })])]);
+    Sheet.open({ title: '🎁 ' + T('RW_INVITE'), body, id: 'invite' });
+    let r;
+    try { r = await api('/referral'); } catch (e) { body.textContent = e.message; return; }
+    const link = location.origin + location.pathname + '?ref=' + r.code;
+    const ST = { joined: 'RW_ST_JOINED', rewarded: 'RW_ST_REWARDED', capped: 'RW_ST_CAPPED' };
+    body.textContent = '';
+    body.append(el('p', { class: 'tiny', text: T('RW_INVITE_HOW', { a: r.points, b: r.friendPoints, m: r.minutes }) }),
+      el('div', { class: 'rw-link' }, [el('input', { class: 'input rw-link-in', readonly: true, value: link, dir: 'ltr' }),
+        btn('📋 ' + T('RW_COPY'), { cls: 'sm primary rw-copy', onclick: async () => { try { await navigator.clipboard.writeText(link); Toast.ok('✓ ' + T('RW_COPIED')); } catch { Toast.show(link, '', 8000); } } })]),
+      navigator.share ? btn('📤 ' + T('RW_SHARE'), { cls: 'sm ghost', onclick: () => navigator.share({ title: 'NEXUS', text: T('RW_SHARE_TEXT'), url: link }).catch(() => {}) }) : el('span'),
+      el('div', { class: 'mk-kpis rw-kpis' }, [kpi('👥', T('RW_INV_COUNT'), num(r.count), 'k-inv'), kpi('✅', T('RW_INV_DONE'), num(r.rewarded), 'k-done'), kpi('🎁', T('RW_INV_EARNED'), num(r.earned), 'k-earned')]),
+      el('div', { class: 'ttl', text: T('RW_INVITED') }));
+    if (!r.invited.length) body.appendChild(el('p', { class: 'tiny', text: T('RW_INV_NONE') }));
+    r.invited.forEach(x => body.appendChild(el('div', { class: 'pts-line rw-inv st-' + x.status }, [el('span', { text: '@' + x.name }),
+      el('b', { text: x.status === 'joined' ? T('RW_ST_PLAYING', { m: x.minutes, need: r.minutes }) : T(ST[x.status] || 'RW_ST_JOINED') + (x.points ? ' · +' + num(x.points) : '') }), el('small', { text: ago(x.at) })])));
+  },
+  /* a link opened: kept until this person signs in with a new account */
+  captureRef() {
+    let code = null;
+    try {
+      const u = new URL(location.href);
+      code = u.searchParams.get('ref');
+      if (code) { u.searchParams.delete('ref'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); }
+    } catch { }
+    if (!code && /^#ref\//.test(location.hash)) code = location.hash.slice(5);
+    code = String(code || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 16);
+    if (code) LS.set('nx.ref', JSON.stringify({ code, at: Date.now() }));
+  },
+  async claimRef() {
+    if (!me()) return;
+    let ref = null;
+    try { ref = JSON.parse(LS.get('nx.ref') || 'null'); } catch { }
+    if (!ref || !ref.code || Date.now() - (ref.at || 0) > 30 * 864e5) { LS.del('nx.ref'); return; }
+    try {
+      const r = await api('/referral/claim', { code: ref.code });
+      LS.del('nx.ref');
+      if (r.joined) Toast.ok('🎁 ' + T('RW_REF_JOINED', { m: r.minutes, n: r.friendPoints }), 9000);
+    } catch (e) {
+      if (e.code === 'ref_verify') Toast.show('🎁 ' + e.message, '', 9000);              // kept: after the e-mail is verified
+      else if (!['net', 'off', 'signin'].includes(e.code)) LS.del('nx.ref');
+    }
+  },
+
+  /* ---------------- 👑 VIP ---------------- */
+  async vipSheet() {
+    if (!me()) { NX.promptSignIn(T('MK_SIGNIN')); return; }
+    const m = await NX.Points.refresh();
+    if (!m || m.error) { Toast.err((m && m.error && m.error.message) || T('MK_NO_SERVER')); return; }
+    const v = m.vip || {}, o = (m.rewards || {}).vip || {};
+    const body = el('div', { class: 'rw-vip' }, [
+      el('div', { class: 'rw-vip-head', text: v.active ? '👑 VIP · ' + T('RW_VIP_UNTIL', { d: fmtDay(v.until) }) + (v.viaPro ? ' (Pro)' : '') : '👑 VIP' }),
+      el('ul', { class: 'rw-vip-list' }, [T('RW_VIP_B1', { x: o.multiplier }), T('RW_VIP_B2'), T('RW_VIP_B3'), T('RW_VIP_B4')].map(t => el('li', { text: t })))]);
+    const acts = el('div', { class: 'rw-vip-acts' });
+    if (o.stripe && !(v.active && v.status === 'active')) acts.appendChild(btn('💳 ' + T('RW_VIP_SUB', { p: o.price }), { cls: 'primary block rw-vip-sub', onclick: async e => {
+      const b = e.currentTarget; b.disabled = true;
+      try { const r = await api('/vip/checkout', { back: location.pathname + location.search }); location.href = r.url; } catch (err) { Toast.err(err.message); b.disabled = false; }
+    } }));
+    if (o.tokens > 0) acts.appendChild(btn('🪙 ' + T('RW_VIP_TOKENS', { n: num(o.tokens) }), { cls: (o.stripe ? '' : 'primary ') + 'block rw-vip-tokens', onclick: async e => {
+      const b = e.currentTarget;
+      if (!(await Modal.confirm('👑 VIP', T('RW_VIP_TOKENS_Q', { n: num(o.tokens) }), T('RW_VIP_PAY')))) return;
+      b.disabled = true;
+      try { const r = await api('/vip/tokens', {}); Toast.ok('👑 ' + T('RW_VIP_ON', { d: fmtDay(r.vip.until) }), 7000); Sheet.closeAll(); await refresh(); }
+      catch (err) { Toast.err(err.message); b.disabled = false; }
+    } }));
+    if (v.manage) acts.appendChild(btn(T('RW_VIP_MANAGE'), { cls: 'sm ghost', onclick: async () => { try { const r = await api('/vip/portal', {}); location.href = r.url; } catch (err) { Toast.err(err.message); } } }));
+    if (!acts.childNodes.length) acts.appendChild(el('p', { class: 'tiny', text: T('RW_VIP_NONE') }));
+    body.appendChild(acts);
+    Sheet.open({ title: '👑 VIP', body, id: 'vip' });
+  },
+
+  /* ---------------- 💝 a tip to a game's developer ---------------- */
+  async tip(game) {
+    if (!me()) { NX.promptSignIn(T('MK_SIGNIN')); return false; }
+    if (!game || game.ownerId === me()) { Toast.show(T('RW_TIP_SELF')); return false; }
+    const m = NX.Points.me && !NX.Points.me.error ? NX.Points.me : await NX.Points.refresh();
+    const t = (m && m.rewards && m.rewards.tips) || { min: 1, max: 10000 };
+    const amount = el('input', { class: 'input rw-tip-amount', type: 'number', min: String(t.min), max: String(t.max), step: '1', value: String(Math.max(t.min, Math.min(50, t.max))), dir: 'ltr', inputmode: 'numeric' });
+    const chips = el('div', { class: 'mk-chips' }, [10, 50, 100, 500].filter(n => n >= t.min && n <= t.max).map(n => el('button', { type: 'button', class: 'chip rw-tip-preset', dataset: { p: String(n) }, text: num(n), onclick: () => { amount.value = String(n); } })));
+    const note = el('input', { class: 'input rw-tip-note', maxlength: 140, placeholder: T('RW_TIP_NOTE') });
+    const bal = (NX.Points.wallet && NX.Points.wallet.points) || (m && m.points) || 0;
+    const v = await new Promise(res => Modal.open({ title: '💝 ' + T('RW_TIP_T', { who: game.creatorName || '' }), body: el('div', { class: 'rw-tip' }, [
+      el('p', { class: 'tiny', text: T('RW_TIP_HOW') }), chips, amount, note, el('p', { class: 'tiny', text: T('RW_BALANCE', { n: num(bal) }) })]),
+      actions: [{ label: T('cancel'), cls: 'ghost', onclick: () => res(null) }, { label: '💝 ' + T('RW_TIP_SEND'), cls: 'primary rw-tip-go', onclick: () => {
+        const a = +amount.value;
+        if (!Number.isInteger(a) || a < t.min || a > t.max) { Toast.err(T('RW_TIP_RANGE', { min: t.min, max: num(t.max) })); return false; }
+        res({ a, note: note.value.trim() });
+      } }] }));
+    if (!v) return false;
+    try {
+      await NX.Market.api('/tip', { gameId: game.gameId, amount: v.a, tipId: newId('tip'), note: v.note });
+      Toast.ok('💝 ' + T('RW_TIP_SENT', { n: num(v.a), who: game.creatorName || '' }), 6000);
+      refresh();
+      return true;
+    } catch (e) { Toast.err(e.message, 7000); return false; }
+  },
+
+  /* ---------------- 📊 the owner's dashboard: top-ups, withdrawals, the site's earnings ---------------- */
+  async admin() {
+    const body = el('div', { class: 'rw-admin' });
+    Sheet.open({ title: '📊 ' + T('RW_ADMIN_TITLE'), body, full: true, id: 'admin' });
+    let type = '';
+    const draw = async () => {
+      body.textContent = '';
+      body.appendChild(el('div', { class: 'load-row' }, [el('div', { class: 'spin' })]));
+      let s, list;
+      try { s = await api('/admin/summary'); list = type ? (await api('/admin/transactions?type=' + type)).transactions : s.recent; }
+      catch (e) { body.textContent = e.message; return; }
+      const k = s.stats, price = s.money.priceMicro, usd = cents => '$' + (cents / 100).toFixed(2), tok = micro => num(Math.round(micro / 1e4) / 100);
+      const asUsd = micro => usd(Math.floor(micro / 1e6 * price / 1e4));
+      body.textContent = '';
+      body.append(el('p', { class: 'tiny', text: T('RW_A_HOW', { p: s.money.price }) }),
+        el('div', { class: 'mk-kpis rw-akpis' }, [
+          kpi('💳', T('RW_A_TOPUPS', { n: num(k.topups) }), usd(k.topupCents), 'k-topups'),
+          kpi('🏦', T('RW_A_WITHDRAWN', { n: num(k.withdrawsPaid) }), usd(k.withdrawPaidCents), 'k-withdrawn'),
+          kpi('⏳', T('RW_A_PENDING', { n: num(s.pending.count) }), usd(s.pending.cents), 'k-pending'),
+          kpi('📈', T('RW_A_NET'), usd(k.topupCents - k.withdrawPaidCents), 'k-net'),
+          kpi('💰', T('RW_A_FEES'), tok(k.feeMicro) + ' ≈ ' + asUsd(k.feeMicro), 'k-fees'),
+          kpi('🛒', T('RW_A_SALES', { n: num(k.sales) }), tok(k.salesMicro), 'k-sales'),
+          kpi('💝', T('RW_A_TIPS', { n: num(k.tips) }), tok(k.tipsMicro), 'k-tips'),
+          kpi('👑', T('RW_A_VIP', { n: num(k.vipBuys), s: num(k.vipSubs) }), tok(k.vipMicro), 'k-vip'),
+          kpi('🎁', T('RW_A_GIFTS'), tok(k.giftMicro) + ' ≈ ' + asUsd(k.giftMicro), 'k-gifts')]),
+        el('div', { class: 'row', style: { gap: '6px', flexWrap: 'wrap', margin: '8px 0' } }, [
+          btn('🏦 ' + T('MN_QUEUE') + (s.pending.count ? ' (' + s.pending.count + ')' : ''), { cls: 'sm primary rw-queue', onclick: () => NX.Money && NX.Money.queue() }),
+          btn('⚙️ ' + T('MK_ECO_TITLE'), { cls: 'sm ghost', onclick: () => NX.Market && NX.Market.openEconomy() })]));
+      /* give or take tokens by hand */
+      const uid = el('input', { class: 'input rw-a-uid', dir: 'ltr', placeholder: 'UID' }), amt = el('input', { class: 'input rw-a-amount', dir: 'ltr', inputmode: 'decimal', placeholder: '25 · -10.5' }),
+        why = el('input', { class: 'input rw-a-note', maxlength: 120, placeholder: T('RW_A_NOTE') });
+      body.appendChild(el('div', { class: 'card rw-adjust' }, [el('b', { text: '👤 ' + T('RW_A_ADJUST_T') }), el('p', { class: 'tiny', text: T('RW_A_ADJUST_HOW') }), uid, amt, why,
+        btn(T('RW_A_DO'), { cls: 'sm primary rw-a-go', onclick: async e => {
+          const b = e.currentTarget; b.disabled = true;
+          try { const r = await api('/admin/adjust', { uid: uid.value.trim(), amount: amt.value.trim(), note: why.value.trim() }); Toast.ok('✓ ' + T('RW_A_DONE', { n: num(r.points) })); draw(); }
+          catch (err) { Toast.err(err.message); b.disabled = false; }
+        } })]));
+      /* every transaction */
+      const pick = el('select', { class: 'input rw-a-type' }, [['', T('RW_A_ALL')], ['topup', T('MN_T_TOPUP')], ['withdraw', T('MN_T_WD')], ['adjust', '👤 ' + T('RW_R_ADMIN')]].map(([v, t]) => el('option', { value: v, text: t })));
+      pick.value = type;
+      pick.onchange = () => { type = pick.value; draw(); };
+      body.append(el('div', { class: 'ttl', text: T('RW_A_RECENT') }), pick);
+      const box = el('div', { class: 'mn-list rw-a-list' });
+      body.appendChild(box);
+      if (!list.length) box.appendChild(el('p', { class: 'tiny', text: T('MN_TX_NONE') }));
+      list.forEach(x => box.appendChild(NX.Money.row(x)));
+    };
+    draw();
+  }
+};
+
+/* ================================================================ hooks (not inside a game's sandbox frame) */
+if (!window.NX_SANDBOX) {
+  Rewards.captureRef();
+  const onAccount = () => { if (me()) setTimeout(() => { Rewards.claimRef(); Rewards.autoDaily(); }, 1500); };
+  if (Backend.onAuth) Backend.onAuth(onAccount);
+  onAccount();
+  window.addEventListener('nx:referral', e => { if (e.detail && e.detail.friend) Toast.ok('🎁 +' + num(e.detail.friend) + ' — ' + T('RW_REF_PAID'), 7000); });
+  if (NX.Commands) NX.Commands.register([
+    { get label() { return '🎡 ' + T('RW_SPIN'); }, icon: 'grid', keywords: 'spin wheel lucky عجلة الحظ دوران', run: () => Rewards.spinWheel() },
+    { get label() { return '🎁 ' + T('RW_INVITE'); }, icon: 'user', keywords: 'invite referral friends دعوة إحالة أصدقاء', run: () => Rewards.invite() },
+    { get label() { return '👑 VIP'; }, icon: 'grid', keywords: 'vip membership عضوية', run: () => Rewards.vipSheet() },
+    { get label() { return '📊 ' + T('RW_ADMIN_TITLE'); }, icon: 'gear', keywords: 'admin dashboard لوحة المشرف withdrawals top-ups', when: () => !!(NX.Market && NX.Market.isOwner()), run: () => Rewards.admin() }
+  ]);
+}
+NX.Rewards = Rewards;
+</script>
+<!-- /NX-PART:44 -->
 
 
 <script>

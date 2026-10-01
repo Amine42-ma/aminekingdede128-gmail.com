@@ -30,7 +30,7 @@ let skew = 0;
 Date.now = () => realNow() + skew;
 const later = s => { skew += s * 1000; };
 const env = { FIREBASE_PROJECT_ID: 'demo-nexus', NEXUS_TEST_EMULATOR_TOKENS: '1', FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080', ADMIN_EMAILS: 'boss@test.io',
-  PLAY_MIN_ACCOUNT_AGE_HOURS: '0', AI_PER_MINUTE: '500', GEMINI_BASE: W.base + '/gemini', GROQ_BASE: W.base + '/groq', GROQ_KEYS: 'gsk_GROQTESTKEY0000000000000001' };
+  MARKET_FEE_PERCENT: '0', AI_PER_MINUTE: '500', GEMINI_BASE: W.base + '/gemini', GROQ_BASE: W.base + '/groq', GROQ_KEYS: 'gsk_GROQTESTKEY0000000000000001' };
 await resetEmulators();
 const HTML = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8').replace('window.NEXUS_FILES = "drive";', 'window.NEXUS_FILES = "firebase";');
 const site = await startSite({ env, files: { '/index.html': HTML } });
@@ -100,17 +100,24 @@ async function minute(pages, n = 1) {
 }
 
 /* ================================================================ publishing */
-test('1 · Publishing a FREE project: «🔁 Free» in NEXUS\'s Publish dialog → Remix on, nothing for sale — in the marketplace\'s Free tab with «Remix»', async () => {
+test('1 · Publishing without selling: «🔒 Not offered» — no «Free by Remix» any more (Remix is the creator\'s own); nothing listed; the marketplace has no Free tab', async () => {
   const { page } = S.lina = await newDevice(browser, site, logs);
   S.linaUid = await signUp(page, 'lina@test.io');
   await makeGame(page, 'Free Kart');
-  S.freeGid = await publish(page, 'free');
+  await page.evaluate(() => { NX.Sheet.closeAll(); NX.Studio.openPublish(); });
+  await page.locator(topSheet + ' .mk-pub').waitFor();
+  assert.equal(await page.locator(topSheet + ' .mk-mode [data-m="free"]').count(), 0, 'no Free (Remix) choice');
+  assert.equal(await page.locator(topSheet + ' #pub-remix').count(), 0, 'no «let others remix» switch');
+  await page.evaluate(() => NX.Sheet.closeAll());
+  await until(page, () => !document.querySelector('#sheet-root .sheet'), null, 10000);
+  S.freeGid = await publish(page, 'none');
   const g = await fsGet('games/' + S.freeGid);
-  assert.equal(g.allowRemix, true); assert.equal(await fsGet('market/' + S.freeGid), null);
-  await page.evaluate(() => NX.Market.open({ tab: 'free' }));
-  const card = page.locator(topSheet + ' .mk-card[data-game="' + S.freeGid + '"]');
-  await card.waitFor({ timeout: 20000 });
-  assert.match(await card.textContent(), /Free Kart/); assert.match(await card.textContent(), /مجاني/);
+  assert.equal(g.allowRemix, false); assert.equal(await fsGet('market/' + S.freeGid), null);
+  assert.equal(await page.evaluate(async id => NX.Remix.allowed(await NX.Games.get(id)), S.freeGid), true, 'the creator remixes their own game');
+  await page.evaluate(() => NX.Market.open());
+  await page.locator(topSheet + ' .mk-tabs').waitFor();
+  assert.equal(await page.locator(topSheet + ' .mk-tabs [data-t="free"]').count(), 0);
+  assert.equal(await page.locator(topSheet + ' .mk-tabs [data-t="items"]').count(), 1, 'files & code instead');
 });
 
 test('2 · Publishing a PAID project: «💰 Paid», a price from the presets (500) — the server lists it (ownerUid · projectId · price · currency · isForSale) and turns Remix off; a price out of the limits is refused before publishing', async () => {
@@ -220,7 +227,7 @@ test('9 + 10 + 11 · A play session: the page starts it when the game is on scre
   const s1 = await fsGet('play_sessions/' + S.omarSid);
   about(s1.duration, 180, 15); assert.equal(s1.beats, 3); assert.ok(s1.lastHeartbeat > s1.startedAt);
   /* a page sending its beats faster than real time: nothing counted */
-  const fast = await page.evaluate(async sid => NX.Points.api('/play/beat', { sessionId: sid }), S.omarSid);
+  const fast = await page.evaluate(async sid => NX.Points.api('/play/beat', { sessionId: sid, token: NX.PlayTimer.seal }), S.omarSid);
   assert.equal(fast.why, 'early'); assert.equal(fast.credited, 0);
 });
 
@@ -231,30 +238,29 @@ test('12 · Several players add up: another player on another device — the gam
   about(pt.seconds, 300 + 120, 25); assert.equal(pt.players, 2); assert.equal(pt.sessions, 2);
 });
 
-test('13 · Play time → points: ten qualified minutes → +1 point to the creator (ledger «🎮 Play Rewards»), never a like', async () => {
-  const before = await points(S.linaUid), likes = (await fsGet('games/' + S.gid)).likes;
-  await minute([S.omar.page, S.sam.page], 2);                          // omar 7 + sam 4 = 11 minutes
-  assert.equal(await points(S.linaUid), before + 1);
-  assert.deepEqual((await ledgerOf(S.linaUid, 'play')).map(x => x.delta), [1]);
+test('13 · Play time earns no points (Play Rewards removed): more minutes by two players → more play time, the creator\'s balance unchanged, likes untouched', async () => {
+  const before = await points(S.linaUid), likes = (await fsGet('games/' + S.gid)).likes, t0 = (await fsGet('playtime/' + S.gid)).seconds;
+  await minute([S.omar.page, S.sam.page], 2);
+  about((await fsGet('playtime/' + S.gid)).seconds, t0 + 240, 20);
+  assert.equal(await points(S.linaUid), before);
+  assert.equal((await ledgerOf(S.linaUid, 'play')).length, 0);
   assert.equal((await fsGet('games/' + S.gid)).likes, likes, 'likes untouched by play time');
-  assert.equal((await fsGet('playtime/' + S.gid)).rewardPoints, 1);
 });
 
-test('14 · The minutes over a reward are kept between sessions: 7 minutes wait — the next session finishes the next reward', async () => {
-  about((await fsGet('playtime/' + S.gid)).pendingSeconds, 60, 30, 'the 11th minute kept');
-  await S.omar.page.evaluate(() => NX.GamePlayer.close());
-  await until(S.omar.page, () => !NX.PlayTimer.sid, null, 20000);
-  await minute(S.sam.page, 6);
-  const pt = await fsGet('playtime/' + S.gid);
-  about(pt.pendingSeconds, 7 * 60, 40);
-  /* sam leaves; a new session later carries on from the 7 minutes */
-  await S.sam.page.evaluate(() => NX.GamePlayer.close());
-  await until(S.sam.page, () => !NX.PlayTimer.sid, null, 20000);
-  const before = await points(S.linaUid);
-  await playGame(S.sam.page, S.gid);
-  await minute(S.sam.page, 3);
-  assert.equal(await points(S.linaUid), before + 1);
-  about((await fsGet('playtime/' + S.gid)).pendingSeconds, 0, 50);
+test('14 · 🛡 Sealed heartbeats in the page: each beat carries the server\'s latest token; an old token replayed from DevTools is refused, the page carries on', async () => {
+  const { page } = S.sam;
+  const first = await page.evaluate(() => NX.PlayTimer.seal);
+  assert.match(first, /^[\w-]+\.[\w-]+$/);
+  await minute(page, 1);
+  const second = await page.evaluate(() => NX.PlayTimer.seal);
+  assert.notEqual(second, first, 'a new token every beat');
+  later(60);
+  const replay = await page.evaluate(async t => { try { await NX.Points.api('/play/beat', { sessionId: NX.PlayTimer.sid, token: t }); return 'counted'; } catch (e) { return e.code; } }, first);
+  assert.equal(replay, 'play_replay');
+  const ok = await page.evaluate(async () => { await NX.PlayTimer.beat(); return NX.PlayTimer.last; });
+  about(ok.credited, 60, 8, 'the latest token still counts');
+  /* both leave the game (the next scenarios start their own sessions) */
+  for (const p of [S.omar.page, S.sam.page]) { await p.evaluate(() => NX.GamePlayer.close()); await until(p, () => !NX.PlayTimer.sid, null, 20000); }
 });
 
 test('15 · Cheating from DevTools: points, play time, a price, an owner, a listing — refused by the rules; a duration sent by the page — ignored; a price of 1 — refused', async () => {
@@ -277,7 +283,8 @@ test('15 · Cheating from DevTools: points, play time, a price, an owner, a list
   ['points', 'playtime', 'price', 'owner', 'purchase', 'session', 'sale_note', 'copy'].forEach(k => assert.ok(denied(r[k]), k + ': ' + r[k]));
   assert.equal(r.list, 'not_owner');
   later(60);
-  const b = await page.evaluate(async sid => NX.Points.api('/play/beat', { sessionId: sid, duration: 9999999, seconds: 9999999 }), S.omarSid);
+  assert.equal(await page.evaluate(async sid => { try { await NX.Points.api('/play/beat', { sessionId: sid, duration: 9999999 }); return 'ok'; } catch (e) { return e.code; } }, S.omarSid), 'play_token', 'no sealed token: refused');
+  const b = await page.evaluate(async sid => { const r = await NX.Points.api('/play/beat', { sessionId: sid, token: NX.PlayTimer.seal, duration: 9999999, seconds: 9999999 }); NX.PlayTimer.seal = r.token; return r; }, S.omarSid);
   about(b.credited, 60, 8, 'the server\'s minute, not the page\'s number');
   const cheap = await S.sam.page.evaluate(async gid => { try { await NX.Market.api('/buy', { gameId: gid, transactionId: 'tx_cheap_0000000001', expectedPrice: 1 }); return 'ok'; } catch (e) { return e.code; } }, S.gid);
   assert.equal(cheap, 'price_changed');
@@ -338,7 +345,7 @@ test('19 · Reloading the page: the session closes (keepalive), a new one starts
   assert.notEqual(sid2, sid);
 });
 
-test('20 · Everything is still there — kept by the server: the marketplace, the purchase, play time, the rewards; 📊 Project Earnings shows each apart (players · play time · sessions · likes · Play Rewards · sales) and the transactions', async () => {
+test('20 · Everything is still there — kept by the server: the marketplace, the purchase, play time; 📊 Project Earnings shows each apart (players · play time · sessions · likes · sales · tips) and the transactions', async () => {
   const { page } = S.lina;
   await page.reload();
   await page.waitForFunction(() => window.NX && NX.Backend && NX.Backend.user && NX.Market && NX.Backend.hasAccount(), null, { timeout: 90000 });
@@ -347,17 +354,17 @@ test('20 · Everything is still there — kept by the server: the marketplace, t
   const k = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#sheet-root .sheet.in .mk-kpi')].map(x => [x.className.split(' ').find(c => c.startsWith('k-')), x.querySelector('b').textContent])));
   const pt = await fsGet('playtime/' + S.gid);
   assert.equal(k['k-players'], String(pt.players)); assert.equal(k['k-sessions'], String(pt.sessions));
-  assert.match(k['k-rewards'], /^2 /); assert.equal(k['k-sales'], '1');
+  assert.equal(k['k-rewards'], undefined, 'no Play Rewards any more'); assert.equal(k['k-sales'], '1'); assert.equal(k['k-tips'], '0');
   const tot = await page.locator(topSheet + ' .mk-total').textContent();
-  assert.ok(tot.includes('500') && tot.includes('502'), tot);
+  assert.ok(tot.includes('500'), tot);
   const tx = await page.locator(topSheet + ' .mk-log').textContent();
-  assert.ok(tx.includes('+500') && tx.includes('+1'), tx);
+  assert.ok(tx.includes('+500'), tx);
   /* the buyer's side, after a reload: still bought, still theirs */
   assert.ok(await fsGet('purchases/' + S.omarUid + '_' + S.gid));
   assert.equal((await fsGet('projects/' + S.copyId)).ownerId, S.omarUid);
 });
 
-test('21 · The site\'s owner (and only the owner) sets the economy: «⚙️ NEXUS economy» → Play Rewards 2 points — read by everyone', async () => {
+test('21 · The site\'s owner (and only the owner) sets the economy: «⚙️ NEXUS economy» → the lowest price 20 — read by everyone', async () => {
   const { page } = S.boss = await newDevice(browser, site, logs);
   const bossUid = await signUp(page, 'boss@test.io');
   /* the owner's e-mail is verified (as a Google account's is): the emulator is told so, the token renewed */
@@ -366,13 +373,14 @@ test('21 · The site\'s owner (and only the owner) sets the economy: «⚙️ NE
   await page.evaluate(() => NX.Market.config(true));
   assert.equal(await page.evaluate(() => NX.Market.isOwner()), true, 'the site\'s owner');
   await page.evaluate(() => NX.Market.openEconomy());
-  await page.locator(topSheet + ' [data-k="playPoints"]').fill('2');
+  assert.equal(await page.locator(topSheet + ' [data-k="playPoints"]').count(), 0, 'no Play Rewards setting');
+  await page.locator(topSheet + ' [data-k="minPrice"]').fill('20');
   await page.locator(topSheet + ' .mk-eco-save').click();
   await until(page, () => [...document.querySelectorAll('.toast')].some(t => /✓/.test(t.textContent)), null, 20000);
-  const c = await S.omar.page.evaluate(async () => (await NX.Market.config(true)).play.points);
-  assert.equal(c, 2);
+  const c = await S.omar.page.evaluate(async () => (await NX.Market.config(true)).minPrice);
+  assert.equal(c, 20);
   assert.equal(await S.omar.page.evaluate(() => NX.Market.isOwner()), false);
-  const refused = await S.omar.page.evaluate(async () => { try { await NX.Market.api('/config', { values: { playPoints: 99 } }); return 'ok'; } catch (e) { return e.code; } });
+  const refused = await S.omar.page.evaluate(async () => { try { await NX.Market.api('/config', { values: { minPrice: 1 } }); return 'ok'; } catch (e) { return e.code; } });
   assert.equal(refused, 'not_owner');
 });
 
