@@ -289,6 +289,10 @@ function addW(b, w) {
 }
 function axisT(p, x, y, z) {
   let px = x - p.cx, py = y - p.cy, pz = z - p.cz;
+  if (p.t !== 1) {            // ellipsoid / sphere: parameter along its local z axis
+    if (p.t !== 0) return 0.5;
+    return clamp(((px * p.e20 + py * p.e21 + pz * p.e22) / p.rz + 1) * 0.5, 0, 1);
+  }
   if (p.f !== 1) {
     const t = (px * p.ux + py * p.uy + pz * p.uz) * (p.f - 1);
     px += t * p.ux; py += t * p.uy; pz += t * p.uz;
@@ -637,104 +641,144 @@ function buildStego() {
 }
 
 /* ==========================================================================
-   bronto.js — Brontosaurus excelsus
+   bronto.js — Brontosaurus excelsus (v2: anatomical re-sculpt)
+   Apatosaurine build: very deep, powerful neck; short deep trunk; column legs;
+   blunt boxy skull with nostrils on top; whip-lash tail.
    ========================================================================== */
+function nearestOnPath(P, x, y, z, out) {
+  let bd = 1e9, bs = 0, bt = 0, bi = 0, acc = 0;
+  for (let i = 0; i < P.length - 1; i++) {
+    const a = P[i], b = P[i + 1];
+    const abx = b[0] - a[0], aby = b[1] - a[1], abz = b[2] - a[2];
+    const l2 = abx * abx + aby * aby + abz * abz;
+    let t = ((x - a[0]) * abx + (y - a[1]) * aby + (z - a[2]) * abz) / l2; t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const dx = x - (a[0] + abx * t), dy = y - (a[1] + aby * t), dz = z - (a[2] + abz * t);
+    const d2 = dx * dx + dy * dy + dz * dz;
+    if (d2 < bd) { bd = d2; bs = acc + t * Math.sqrt(l2); bi = i; bt = t; out.rx = dx; out.ry = dy; out.rz = dz; }
+    acc += Math.sqrt(l2);
+  }
+  out.s = bs; out.d = Math.sqrt(bd); out.i = bi; out.t = bt;
+  return out;
+}
+
 function buildBronto() {
   resetModel(2.4);
   const B = Builder();
-  const { E, S, R, T, sym, m } = B;
+  const { sym, m } = B;
+  const LIFT = 0.44, lf = y => y + LIFT * ssm(0.45, 1.9, y), lv = v => [v[0], lf(v[1]), v[2]];
+  const E = (c, r, o) => B.E(lv(c), r, o), S = (c, r, o) => B.S(lv(c), r, o), R = (a, b, r1, r2, o) => B.R(lv(a), lv(b), r1, r2, o);
   const CARVE = 1;
   const spec = { name: 'bronto', SC: 2.4, aoS: 3.2, eyes: [], hooves: [], tubes: [], plates: null, spikes: [], legs: [] };
 
-  /* ---- skeleton ---- */
+  /* ---------------- skeleton ---------------- */
   const bones = [], BI = {};
-  const bone = (n, p, h) => { BI[n] = bones.length; bones.push({ n, p: p === null ? -1 : BI[p], h }); return BI[n]; };
-  bone('pelvis', null, [0, 2.95, 0.0]); bone('s1', 'pelvis', [0, 3.05, 1.3]); bone('s2', 's1', [0, 3.0, 2.6]); bone('sh', 's2', [0, 3.0, 3.8]);
-  const NJ = [[0, 3.2, 4.9], [0, 3.65, 5.95], [0, 4.35, 6.9], [0, 5.1, 7.8], [0, 5.75, 8.7], [0, 6.25, 9.55]];
+  const bone = (n, p, h) => { BI[n] = bones.length; bones.push({ n, p: p === null ? -1 : BI[p], h: lv(h) }); return BI[n]; };
+  bone('pelvis', null, [0, 3.0, 0.0]); bone('s1', 'pelvis', [0, 3.15, 1.3]); bone('s2', 's1', [0, 3.1, 2.6]); bone('sh', 's2', [0, 3.1, 3.7]);
+  const NJ = [[0, 3.4, 5.0], [0, 3.95, 6.1], [0, 4.7, 7.1], [0, 5.5, 8.0], [0, 6.15, 8.85], [0, 6.6, 9.65]];
   NJ.forEach((h, i) => bone('n' + (i + 1), i ? 'n' + i : 'sh', h));
-  bone('head', 'n6', [0, 6.5, 10.35]); bone('jaw', 'head', [0, 6.4, 10.52]);
-  const TJ = [[0, 3.25, -1.1], [0, 3.2, -2.3], [0, 3.05, -3.5], [0, 2.85, -4.7], [0, 2.6, -5.9], [0, 2.3, -7.1], [0, 2.0, -8.3], [0, 1.75, -9.5]];
+  bone('head', 'n6', [0, 6.74, 10.42]); bone('jaw', 'head', [0, 6.58, 10.56]);
+  const TJ = [[0, 3.3, -1.2], [0, 3.25, -2.4], [0, 3.1, -3.6], [0, 2.9, -4.8], [0, 2.65, -6.0], [0, 2.35, -7.2], [0, 2.05, -8.4], [0, 1.8, -9.5], [0, 1.62, -10.6]];
   TJ.forEach((h, i) => bone('t' + (i + 1), i ? 't' + i : 'pelvis', h));
-  bone('ribs', 'pelvis', [0, 2.7, 1.9]);
+  bone('ribs', 'pelvis', [0, 2.75, 1.9]);
   const LEGS = {
-    hind: { hip: [0.70, 2.95, 0.05], knee: [0.76, 1.62, 0.42], ank: [0.68, 0.48, 0.15], toe: [0.70, 0.10, 0.62], par: 'pelvis' },
-    fore: { hip: [0.76, 2.65, 3.8], knee: [0.82, 1.55, 3.62], ank: [0.76, 0.64, 3.92], toe: [0.76, 0.12, 4.40], par: 'sh' }
+    hind: { hip: [0.72, 3.0, 0.05], knee: [0.79, 1.66, 0.42], ank: [0.70, 0.55, 0.14], toe: [0.72, 0.10, 0.68], par: 'pelvis' },
+    fore: { hip: [0.78, 2.78, 3.75], knee: [0.85, 1.62, 3.55], ank: [0.78, 0.76, 3.86], toe: [0.78, 0.12, 4.45], par: 'sh' }
   };
   for (const [n, k, sd] of [['hindL', 'hind', -1], ['hindR', 'hind', 1], ['foreL', 'fore', -1], ['foreR', 'fore', 1]]) {
     const L = LEGS[k];
     bone(n + 'H', L.par, [L.hip[0] * sd, L.hip[1], L.hip[2]]); bone(n + 'K', n + 'H', [L.knee[0] * sd, L.knee[1], L.knee[2]]); bone(n + 'A', n + 'K', [L.ank[0] * sd, L.ank[1], L.ank[2]]);
     spec.legs.push({ n, front: k === 'fore', side: sd, H: BI[n + 'H'], K: BI[n + 'K'], A: BI[n + 'A'],
-      hip: [L.hip[0] * sd, L.hip[1], L.hip[2]], knee: [L.knee[0] * sd, L.knee[1], L.knee[2]], ank: [L.ank[0] * sd, L.ank[1], L.ank[2]], toe: [L.toe[0] * sd, L.toe[1], L.toe[2]] });
+      hip: lv([L.hip[0] * sd, L.hip[1], L.hip[2]]), knee: lv([L.knee[0] * sd, L.knee[1], L.knee[2]]), ank: lv([L.ank[0] * sd, L.ank[1], L.ank[2]]), toe: lv([L.toe[0] * sd, L.toe[1], L.toe[2]]) });
   }
   spec.bones = bones; spec.BI = BI;
-  CHAINS.push({ ax: 2, bones: [BI.pelvis, BI.s1, BI.s2, BI.sh], pos: [0.0, 1.3, 2.6, 3.8], overlay: { bone: BI.ribs, w: 0.7, a: -0.4, b: 0.5, c: 2.9, d: 3.6 } });
+  CHAINS.push({ ax: 2, bones: [BI.pelvis, BI.s1, BI.s2, BI.sh], pos: [0.0, 1.3, 2.6, 3.7], overlay: { bone: BI.ribs, w: 0.7, a: -0.4, b: 0.5, c: 2.9, d: 3.6 } });
   const CH = 0;
 
-  /* ---- torso ---- */
-  E([0, 3.0, -0.55], [0.98, 1.02, 1.25], { k: 0.6, chain: CH });
-  E([0, 2.90, 1.1], [1.06, 1.08, 1.75], { k: 0.65, chain: CH });
-  E([0, 2.86, 2.8], [1.0, 1.1, 1.45], { k: 0.6, chain: CH });
-  E([0, 2.92, 3.7], [0.92, 1.12, 1.0], { k: 0.55, chain: CH });
-  R([0, 3.56, 3.9], [0, 3.78, -0.2], 0.55, 0.62, { k: 0.6, chain: CH });
-  R([0, 3.78, -0.2], [0, 3.48, -1.25], 0.62, 0.56, { k: 0.6, chain: CH });
-  E([0, 2.40, 1.6], [0.82, 0.52, 2.4], { k: 0.65, chain: CH });
+  /* ---------------- trunk ---------------- */
+  E([0, 3.02, -0.65], [0.98, 0.98, 1.25], { k: 0.6, chain: CH });                      // sacrum / rump
+  E([0, 2.82, 1.4], [1.04, 1.12, 1.75], { k: 0.65, chain: CH });                       // rib cage (rear)
+  E([0, 2.78, 3.0], [0.98, 1.1, 1.35], { k: 0.6, chain: CH });                         // rib cage (front)
+  E([0, 2.05, 1.5], [0.80, 0.52, 2.3], { k: 0.65, chain: CH });                        // belly
+  E([0, 1.95, 3.2], [0.56, 0.5, 0.95], { k: 0.5, chain: CH });                         // sternal keel / chest
+  R([0, 3.52, 3.9], [0, 3.82, 0.6], 0.5, 0.58, { k: 0.6, chain: CH });                  // back
+  R([0, 3.82, 0.6], [0, 3.92, -0.5], 0.58, 0.62, { k: 0.6, chain: CH });
+  R([0, 3.92, -0.5], [0, 3.55, -1.4], 0.62, 0.58, { k: 0.6, chain: CH });
   sym(() => {
-    E([0.66, 3.35, -0.35], [0.40, 0.50, 0.9], { k: 0.4, chain: CH });                 // iliac mass
-    E([0.78, 2.7, 2.0], [0.32, 0.7, 1.2], { k: 0.5, chain: CH });                    // rib flank
+    E([0.52, 3.72, -0.25], [0.36, 0.26, 0.95], { z: [0, 0.1, 1], k: 0.28, chain: CH });   // iliac crest (hip bone)
+    E([0.74, 2.2, 1.0], [0.28, 0.62, 1.7], { k: 0.4, chain: CH });                        // lower flank
+    for (let i = 0; i < 6; i++) E([0.86 - 0.02 * i, 2.85, 0.4 + 0.52 * i], [0.14, 0.9 - 0.04 * i, 0.15], { k: 0.12, chain: CH });   // rib angles
+    E([0.60, 2.5, 3.7], [0.34, 0.56, 0.55], { k: 0.4, chain: CH });                       // pectoral mass
   });
 
-  /* ---- neck: a long tapering tube, bones blend along its length ---- */
-  const nk = [[0, 3.0, 3.8, 0.74], [0, 3.2, 4.9, 0.54], [0, 3.65, 5.95, 0.44], [0, 4.35, 6.9, 0.36], [0, 5.1, 7.8, 0.295], [0, 5.75, 8.7, 0.24], [0, 6.25, 9.55, 0.185], [0, 6.5, 10.3, 0.125]];
+  /* ---------------- neck: deep, powerful, vertically oval ---------------- */
+  const nk = [[0, 3.1, 3.7, 0.86], [0, 3.4, 5.0, 0.66], [0, 3.95, 6.1, 0.545], [0, 4.7, 7.1, 0.445], [0, 5.5, 8.0, 0.365], [0, 6.15, 8.85, 0.305], [0, 6.6, 9.65, 0.25], [0, 6.74, 10.42, 0.19]];
   const nb = [BI.sh, BI.n1, BI.n2, BI.n3, BI.n4, BI.n5, BI.n6, BI.head];
   for (let i = 0; i < nk.length - 1; i++) {
     const a = nk[i], b = nk[i + 1];
-    R([a[0], a[1], a[2]], [b[0], b[1], b[2]], a[3], b[3], { k: 0.05, hat: [nb[i], nb[i + 1]], f: 1.07, u: [1, 0, 0] });
+    R([a[0], a[1], a[2]], [b[0], b[1], b[2]], a[3], b[3], { k: 0.06, hat: [nb[i], nb[i + 1]], f: 1.16, u: [1, 0, 0] });
   }
-  E([0, 2.85, 4.6], [0.55, 0.65, 0.9], { k: 0.4, bone: BI.n1 });                       // base of neck
+  E([0, 3.0, 4.4], [0.7, 0.85, 1.1], { k: 0.45, hat: [BI.sh, BI.n1] });               // base of neck
+  for (let i = 1; i < nk.length - 1; i++) {                                                  // paired cervical muscle masses
+    const a = nk[i], b = nk[i + 1], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, mz = (a[2] + b[2]) / 2;
+    sym(() => { E([mx + a[3] * 0.55, my + 0.03, mz], [a[3] * 0.4, a[3] * 0.62, 0.52], { z: [0, b[1] - a[1], b[2] - a[2]], k: 0.12, hat: [nb[i], nb[i + 1]] }); });
+  }
+  E([0, 4.55, 6.65], [0.2, 0.34, 0.8], { z: [0, 0.75, 0.66], k: 0.2, hat: [BI.n2, BI.n3] });   // nuchal ridge
+  E([0, 5.4, 8.0], [0.5, 0.22, 1.1], { z: [0, 0.65, 0.76], k: 0.25, hat: [BI.n3, BI.n4] });    // throat sac (under the neck)
 
-  /* ---- tail: long, deep, whip-like ---- */
-  const tp = [[0, 3.05, -0.3, 0.88], [0, 3.25, -1.1, 0.76], [0, 3.2, -2.3, 0.63], [0, 3.05, -3.5, 0.51], [0, 2.85, -4.7, 0.40], [0, 2.6, -5.9, 0.30], [0, 2.3, -7.1, 0.215], [0, 2.0, -8.3, 0.15], [0, 1.75, -9.5, 0.10], [0, 1.55, -10.75, 0.062]];
-  const tb = [BI.pelvis, BI.t1, BI.t2, BI.t3, BI.t4, BI.t5, BI.t6, BI.t7, BI.t8, BI.t8];
+  /* ---------------- tail: massive root, long taper, whip ---------------- */
+  const tp = [[0, 3.05, -0.4, 0.92], [0, 3.3, -1.2, 0.80], [0, 3.25, -2.4, 0.66], [0, 3.1, -3.6, 0.53], [0, 2.9, -4.8, 0.41], [0, 2.65, -6.0, 0.31], [0, 2.35, -7.2, 0.225], [0, 2.05, -8.4, 0.16], [0, 1.8, -9.5, 0.11], [0, 1.62, -10.6, 0.075], [0, 1.5, -11.55, 0.05]];
+  const tb = [BI.pelvis, BI.t1, BI.t2, BI.t3, BI.t4, BI.t5, BI.t6, BI.t7, BI.t8, BI.t9, BI.t9];
   for (let i = 0; i < tp.length - 1; i++) {
     const a = tp[i], b = tp[i + 1];
     R([a[0], a[1], a[2]], [b[0], b[1], b[2]], a[3], b[3], { k: i ? 0.05 : 0.5, hat: [tb[i], tb[i + 1]], f: 1.1, u: [1, 0, 0] });
   }
+  sym(() => { E([0.5, 3.05, -1.3], [0.3, 0.46, 1.0], { k: 0.3, hat: [BI.pelvis, BI.t1] }); });    // caudofemoralis
 
-  /* ---- limbs: column-like, elephantine ---- */
+  /* ---------------- limbs ---------------- */
+  spec.creases = [];
   sym(() => {
     const sd = B.mir ? -1 : 1;
     const hl = spec.legs[sd < 0 ? 0 : 1], fl = spec.legs[sd < 0 ? 2 : 3];
     const hb = [BI[hl.n + 'H'], BI[hl.n + 'K'], BI[hl.n + 'A']], fb = [BI[fl.n + 'H'], BI[fl.n + 'K'], BI[fl.n + 'A']];
-    // hind
-    E([0.64, 2.7, 0.0], [0.5, 0.8, 0.8], { k: 0.4, bone: BI.pelvis });
-    R([0.70, 2.95, 0.05], [0.76, 1.62, 0.42], 0.66, 0.44, { k: 0.3, joint: [hb[0], hb[1], BI.pelvis], bl: 0.45 });
-    E([0.70, 2.35, 0.14], [0.50, 0.95, 0.66], { z: [0.1, -0.9, 0.4], k: 0.3, bone: hb[0] });
-    S([0.76, 1.62, 0.42], 0.44, { k: 0.18, bone: hb[1] });
-    R([0.76, 1.62, 0.42], [0.68, 0.48, 0.15], 0.42, 0.285, { k: 0.2, joint: [hb[1], hb[2], hb[0]], bl: 0.45 });
-    E([0.74, 1.12, 0.26], [0.30, 0.56, 0.36], { z: [0, -0.3, 1], k: 0.2, bone: hb[1] });
-    S([0.68, 0.48, 0.15], 0.3, { k: 0.12, bone: hb[2] });
-    E([0.68, 0.20, 0.30], [0.38, 0.21, 0.50], { k: 0.12, bone: hb[2] });
-    for (const t of [[0.50, 0.09, 0.82], [0.68, 0.09, 0.88], [0.86, 0.09, 0.76]]) R([0.68, 0.16, 0.28], t, 0.15, 0.125, { k: 0.08, bone: hb[2] });
-    // fore
-    E([0.66, 2.5, 3.7], [0.52, 0.9, 0.72], { k: 0.35, bone: BI.sh });
-    R([0.76, 2.65, 3.8], [0.82, 1.55, 3.62], 0.54, 0.40, { k: 0.25, joint: [fb[0], fb[1], BI.sh], bl: 0.45 });
-    S([0.82, 1.55, 3.62], 0.38, { k: 0.15, bone: fb[1] });
-    R([0.82, 1.55, 3.62], [0.76, 0.64, 3.92], 0.38, 0.27, { k: 0.2, joint: [fb[1], fb[2], fb[0]], bl: 0.45 });
-    S([0.76, 0.64, 3.92], 0.28, { k: 0.12, bone: fb[2] });
-    E([0.76, 0.22, 4.04], [0.32, 0.23, 0.36], { k: 0.1, bone: fb[2] });
-    for (const t of [[0.60, 0.09, 4.36], [0.72, 0.09, 4.42], [0.84, 0.09, 4.40], [0.94, 0.09, 4.30]]) R([0.76, 0.16, 4.02], t, 0.1, 0.085, { k: 0.06, bone: fb[2] });
-    const hoo = (t, from, w, l, h, bn) => { const a = m(t), b = m(from); spec.hooves.push({ tip: a, dir: vnorm(vsub(a, b)), w, l, h, bone: bn, gy: 0.01 }); };
-    for (const t of [[0.50, 0.09, 0.82], [0.68, 0.09, 0.88], [0.86, 0.09, 0.76]]) hoo(t, [0.68, 0.16, 0.28], 0.22, 0.2, 0.11, hb[2]);
-    hoo([0.72, 0.09, 4.42], [0.76, 0.16, 4.02], 0.2, 0.2, 0.11, fb[2]);
-    spec.creases = spec.creases || [];
-    if (!B.mir) {
-      spec.creases.push([0.82, 1.55, 3.62, 0.8, 52, 0.018], [0.76, 1.62, 0.42, 0.9, 52, 0.02], [0.68, 0.48, 0.15, 0.6, 56, 0.014], [0.76, 0.64, 3.92, 0.55, 56, 0.012],
-        [0.8, 2.5, 3.5, 1.0, 40, 0.02], [0.72, 2.7, 0.2, 1.0, 40, 0.02]);
-    }
+    /* ---- hind limb ---- */
+    E([0.66, 2.65, -0.15], [0.52, 0.85, 0.85], { k: 0.4, bone: BI.pelvis });                                  // gluteal mass
+    R([0.72, 3.0, 0.05], [0.79, 1.66, 0.42], 0.68, 0.45, { k: 0.3, joint: [hb[0], hb[1], BI.pelvis], bl: 0.45 });    // femur / thigh
+    E([0.80, 2.4, 0.22], [0.50, 0.92, 0.68], { z: [0.1, -0.9, 0.4], k: 0.3, bone: hb[0] });                  // quadriceps
+    E([0.74, 2.4, -0.4], [0.40, 0.8, 0.5], { z: [-0.05, -0.9, -0.3], k: 0.3, bone: hb[0] });                 // hamstrings
+    S([0.80, 1.66, 0.44], 0.45, { k: 0.18, bone: hb[1] });                                                    // knee
+    E([0.80, 1.64, 0.74], [0.26, 0.26, 0.2], { k: 0.1, bone: hb[1] });                                        // patella ridge
+    R([0.79, 1.66, 0.42], [0.71, 0.40, 0.17], 0.43, 0.30, { k: 0.2, joint: [hb[1], hb[2], hb[0]], bl: 0.45 });  // tibia / shin
+    E([0.78, 1.18, 0.18], [0.32, 0.58, 0.38], { z: [0, -0.3, -1], k: 0.2, bone: hb[1] });                    // gastrocnemius
+    S([0.70, 0.36, 0.14], 0.27, { k: 0.2, bone: hb[2] });                                                    // ankle (flows into the pad)
+    E([0.70, 0.22, -0.02], [0.25, 0.22, 0.28], { k: 0.2, bone: hb[2] });                                       // heel pad
+    E([0.72, 0.14, 0.36], [0.29, 0.14, 0.43], { k: 0.2, bone: hb[2] });                                       // sole
+    for (const t of [[0.54, 0.09, 0.82], [0.70, 0.09, 0.90], [0.86, 0.09, 0.78], [0.94, 0.09, 0.54]]) R([0.72, 0.16, 0.38], t, 0.125, 0.10, { k: 0.06, bone: hb[2] });
+    /* ---- fore limb ---- */
+    E([0.62, 3.0, 3.4], [0.34, 0.74, 1.0], { z: [0.2, -0.7, 0.6], k: 0.22, joint: [BI.sh, fb[0]], bl: 0.9 });  // scapular blade
+    E([0.74, 2.4, 3.75], [0.54, 0.78, 0.62], { k: 0.38, joint: [BI.sh, fb[0]], bl: 0.8 });                    // deltoid / shoulder
+    R([0.78, 2.78, 3.75], [0.85, 1.62, 3.55], 0.56, 0.41, { k: 0.25, joint: [fb[0], fb[1], BI.sh], bl: 0.45 });  // humerus
+    E([0.88, 2.15, 3.48], [0.3, 0.55, 0.3], { k: 0.2, bone: fb[0] });                                          // triceps
+    S([0.86, 1.60, 3.50], 0.40, { k: 0.15, bone: fb[1] });                                                     // elbow / olecranon
+    R([0.85, 1.62, 3.55], [0.78, 0.50, 3.88], 0.39, 0.285, { k: 0.2, joint: [fb[1], fb[2], fb[0]], bl: 0.45 });   // forearm
+    S([0.78, 0.46, 3.88], 0.25, { k: 0.2, bone: fb[2] });                                                      // wrist (flows into the manus)
+    E([0.78, 0.22, 3.98], [0.27, 0.22, 0.33], { k: 0.2, bone: fb[2] });                                        // manus (columnar, horseshoe)
+    for (const t of [[0.62, 0.09, 4.36], [0.74, 0.09, 4.42], [0.86, 0.09, 4.40], [0.95, 0.09, 4.30]]) R([0.78, 0.18, 4.0], t, 0.10, 0.082, { k: 0.05, bone: fb[2] });
+    /* claws */
+    const claw = (base, dir, len, r, bn) => {
+      const b = lv(m(base)), d = vnorm(m(dir)); const p1 = vadd(b, vmul(d, len * 0.45)), p2 = vadd(vadd(b, vmul(d, len * 0.8)), [0, -len * 0.12, 0]), p3 = vadd(vadd(b, vmul(d, len)), [0, -len * 0.3, 0]);
+      spec.tubes.push({ bone: bn, mirror: false, path: [vsub(b, vmul(d, 0.05)), b, p1, p2, p3], r0: r, r1: 0.008, seed: sd, o: { c0: 0x2c2218, c1: 0x4a3b2a, c2: 0x6f5d44, c3: 0x4c3c2a, c4: 0x1d150d, pow: 0.9, seg: 40, rad: 18, ell: 0.82, uvLen: 0.4 } });
+    };
+    claw([0.54, 0.12, 0.84], [-0.25, -0.05, 1], 0.22, 0.06, hb[2]); claw([0.70, 0.12, 0.92], [0, -0.05, 1], 0.28, 0.07, hb[2]); claw([0.88, 0.12, 0.80], [0.25, -0.05, 1], 0.20, 0.055, hb[2]);
+    claw([0.62, 0.12, 4.40], [-0.45, -0.04, 1], 0.34, 0.07, fb[2]);
+    // toe nails (small flat hooves) on the remaining digits
+    const nail = (t, from, w, l, h, bn) => { const a = lv(m(t)), b = lv(m(from)); spec.hooves.push({ tip: a, dir: vnorm(vsub(a, b)), w, l, h, bone: bn, gy: 0.01 }); };
+    nail([0.94, 0.09, 0.54], [0.72, 0.16, 0.38], 0.14, 0.14, 0.07, hb[2]);
+    for (const t of [[0.74, 0.09, 4.42], [0.86, 0.09, 4.40], [0.95, 0.09, 4.30]]) nail(t, [0.78, 0.18, 4.0], 0.13, 0.13, 0.07, fb[2]);
+    if (!B.mir) for (const c of [[0.85, 1.6, 3.5, 0.9, 50, 0.016], [0.79, 1.66, 0.45, 1.0, 50, 0.02], [0.70, 0.55, 0.14, 0.65, 54, 0.014], [0.78, 0.76, 3.86, 0.6, 54, 0.012], [0.82, 2.55, 3.6, 1.1, 38, 0.02], [0.74, 2.8, 0.2, 1.1, 38, 0.02], [0.78, 1.2, 0.2, 0.9, 46, 0.01]]) spec.creases.push([c[0], lf(c[1]), c[2], c[3], c[4], c[5]]);
   });
 
-  /* ---- head ---- */
-  const PITCH = 36 * PI / 180, HO = [0, 6.53, 10.36], HSC = 1.0;
+  /* ---------------- head ---------------- */
+  const PITCH = 34 * PI / 180, HO = lv([0, 6.76, 10.44]), HSC = 1.0;
   const hf = [0, -sin(PITCH), cos(PITCH)], hu = [0, cos(PITCH), sin(PITCH)], hx = [1, 0, 0];
   const hp = l => [HO[0] + l[0], HO[1] + l[1] * hu[1] + l[2] * hf[1], HO[2] + l[1] * hu[2] + l[2] * hf[2]];
   const hd = l => [l[0], l[1] * hu[1] + l[2] * hf[1], l[1] * hu[2] + l[2] * hf[2]];
@@ -743,57 +787,106 @@ function buildBronto() {
     o = o || {};
     if (o.z) { const fl = B.frameFromZ(o.z, o.up || [0, 1, 0]); o = Object.assign({}, o, { frame: [hd(fl[0]), hd(fl[1]), hd(fl[2])] }); delete o.z; }
     else o = Object.assign({}, o, { frame: [hx, hu, hf] });
-    return E(hp(c), r, o);
+    return B.E(hp(c), r, o);
   };
-  const HR = (a, b, r1, r2, o) => { o = o || {}; if (o.u) o = Object.assign({}, o, { u: hd(o.u) }); return R(hp(a), hp(b), r1, r2, o); };
+  const HR = (a, b, r1, r2, o) => { o = o || {}; if (o.u) o = Object.assign({}, o, { u: hd(o.u) }); return B.R(hp(a), hp(b), r1, r2, o); };
+  const T = (c, n, R0, r0, o) => B.T(c, n, R0, r0, o);
   const hb_ = { bone: BI.head }, jb_ = { bone: BI.jaw };
-  HE([0, 0.03, -0.02], [0.105, 0.12, 0.17], Object.assign({ k: 0.08 }, hb_));
-  HR([0, 0.015, 0.12], [0, -0.005, 0.46], 0.11, 0.09, Object.assign({ k: 0.07, f: 1.2, u: [0, 1, 0] }, hb_));
-  HE([0, 0.0, 0.50], [0.088, 0.072, 0.065], Object.assign({ k: 0.04 }, hb_));
-  HE([0, 0.105, 0.11], [0.062, 0.06, 0.13], Object.assign({ k: 0.05 }, hb_));                // nasal arch
+  // cranium & temporal region
+  HE([0, 0.04, -0.12], [0.115, 0.135, 0.15], Object.assign({ k: 0.05 }, hb_));
+  // boxy, blunt muzzle
+  HR([0, 0.022, 0.04], [0, -0.008, 0.40], 0.118, 0.092, Object.assign({ k: 0.04, f: 1.32, u: [0, 1, 0] }, hb_));
+  HE([0, -0.014, 0.42], [0.102, 0.072, 0.06], Object.assign({ k: 0.03 }, hb_));
+  // high nasal arch with the big retracted naris
+  HE([0, 0.135, 0.07], [0.072, 0.066, 0.14], Object.assign({ k: 0.035 }, hb_));
   sym(() => {
-    HE([0.075, -0.03, 0.02], [0.045, 0.07, 0.115], Object.assign({ k: 0.06 }, hb_));
-    HR([0.07, 0.07, 0.0], [0.082, 0.062, 0.13], 0.03, 0.025, Object.assign({ k: 0.03 }, hb_));
-    HR([0.085, -0.082, 0.02], [0.056, -0.07, 0.46], 0.044, 0.036, Object.assign({ k: 0.03 }, jb_));
-    HR([0.052, -0.058, 0.54], [0.09, -0.052, 0.04], 0.012, 0.017, Object.assign({ k: 0.012 }, hb_));
-    HE([0.03, 0.158, 0.14], [0.022, 0.03, 0.05], { op: CARVE, k: 0.01, z: [0, 0.2, 1] });      // big nasal opening on top of the skull
-    HE([0.130, 0.05, 0.075], [0.042, 0.042, 0.044], { op: CARVE, k: 0.012 });                // orbit
-    T(vadd(hp([0.118, 0.05, 0.075]), vmul(hd([0.92, 0.0, 0.38]), 0.018)), hd([0.92, 0.0, 0.38]), 0.037, 0.011, { k: 0.012, bone: BI.head });
-    HR([0.05, -0.062, 0.56], [0.098, -0.056, 0.05], 0.0065, 0.0065, { op: CARVE, k: 0.006 });
-    HR([0.098, -0.056, 0.05], [0.112, -0.034, 0.015], 0.0065, 0.0050, { op: CARVE, k: 0.006 });
+    HE([0.092, -0.04, -0.03], [0.042, 0.065, 0.14], Object.assign({ k: 0.06 }, hb_));                      // cheek / jaw musculature
+    HE([0.085, 0.062, -0.065], [0.05, 0.07, 0.10], Object.assign({ k: 0.05 }, hb_));                        // postorbital bar
+    HR([0.092, 0.105, -0.02], [0.104, 0.098, 0.13], 0.034, 0.03, Object.assign({ k: 0.04 }, hb_));         // heavy brow
+    HR([0.07, -0.088, -0.12], [0.06, -0.076, 0.38], 0.05, 0.04, Object.assign({ k: 0.03 }, jb_));          // lower jaw ramus
+    HE([0.118, 0.01, 0.20], [0.02, 0.04, 0.07], { op: CARVE, k: 0.03, z: [0.2, 0, 1] });                    // antorbital fenestra (soft pit)
+    HR([0.075, -0.056, 0.43], [0.118, -0.05, -0.04], 0.014, 0.02, Object.assign({ k: 0.012 }, hb_));      // upper lip
+    HR([0.07, -0.065, 0.40], [0.112, -0.062, -0.04], 0.012, 0.016, Object.assign({ k: 0.012 }, jb_));      // lower lip
+    HE([0.132, 0.072, 0.0], [0.046, 0.046, 0.048], { op: CARVE, k: 0.016 });                               // orbit pocket
+    T(vadd(hp([0.123, 0.072, 0.0]), vmul(hd([0.93, 0.0, 0.36]), 0.02)), hd([0.93, 0.0, 0.36]), 0.042, 0.012, { k: 0.014, bone: BI.head }); // eyelid roll
+    HR([0.065, -0.062, 0.455], [0.116, -0.056, -0.045], 0.0105, 0.0105, { op: CARVE, k: 0.009 });          // mouth cleft
+    HR([0.116, -0.056, -0.045], [0.128, -0.036, -0.075], 0.0105, 0.007, { op: CARVE, k: 0.009 });
   });
-  HE([0, -0.075, 0.5], [0.05, 0.035, 0.07], Object.assign({ k: 0.02 }, jb_));
-  HE([0, -0.1, 0.05], [0.1, 0.05, 0.14], Object.assign({ k: 0.06 }, hb_));
-  sym(() => { spec.eyes.push({ c: m(hp([0.118, 0.05, 0.075])), r: 0.03, dir: vnorm(m(hd([0.92, 0.0, 0.38]))), bone: BI.head }); });
+  HE([0, -0.082, 0.42], [0.075, 0.042, 0.065], Object.assign({ k: 0.03 }, jb_));                              // chin
+  HE([0, -0.115, -0.02], [0.1, 0.055, 0.17], Object.assign({ k: 0.06 }, jb_));                                // throat floor
+  // nostrils: two big openings on the crown, ringed by a raised rim
+  sym(() => {
+    HE([0.03, 0.172, 0.085], [0.034, 0.032, 0.075], { op: CARVE, k: 0.014, z: [0, 0.35, 1] });
+  });
+  HE([0, 0.168, 0.085], [0.016, 0.03, 0.065], Object.assign({ k: 0.012, z: [0, 0.35, 1] }, hb_));            // septum
+  sym(() => { spec.eyes.push({ c: m(hp([0.124, 0.072, 0.0])), r: 0.036, dir: vnorm(m(hd([0.93, 0.0, 0.36]))), bone: BI.head }); });
+  // peg-like teeth in the front of both jaws
+  {
+    const tooth = (arc, up, bn) => {
+      for (let k = 0; k < 9; k++) {
+        const a = (k / 8 - 0.5) * 2.3, x = Math.sin(a) * 0.085, z = 0.40 + Math.cos(a) * 0.03 - 0.03 * Math.abs(Math.sin(a)) * 2.0;
+        const y0 = up ? -0.058 : -0.068, len = 0.052 - 0.004 * Math.abs(a), d = up ? -1 : 1;
+        const base = hp([x, y0 + d * 0.012, z]), tip = hp([x * 1.02, y0 - d * len, z + 0.012]);
+        spec.tubes.push({ bone: bn, mirror: false, path: [base, vlerp(base, tip, 0.5), tip, vadd(tip, vmul(vnorm(vsub(tip, base)), 0.004))], r0: 0.0085, r1: 0.0022, seed: k, o: { c0: 0x8d7f60, c1: 0xcdbf9f, c2: 0xeae1c8, c3: 0xd7cba9, c4: 0xb5a782, pow: 0.9, seg: 14, rad: 10, uvLen: 0.12 } });
+      }
+    };
+    tooth(0, true, BI.head); tooth(0, false, BI.jaw);
+  }
 
-  /* ---- passes ---- */
+  /* ---------------- passes ---------------- */
   spec.passes = {
-    body: { min: [-1.9, -0.03, -11.2], max: [1.9, 7.4, 9.85], exclude: [-0.7, 5.5, 9.78, 0.7, 7.7, 11.6] },
-    head: { min: [-0.5, 5.6, 9.7], max: [0.5, 7.2, 11.2] }
+    body: { min: [-1.9, -0.03, -12.0], max: [1.9, 8.05, 9.95], exclude: [-0.8, 6.15, 9.88, 0.8, 8.4, 11.8] },
+    head: { min: [-0.55, 6.25, 9.8], max: [0.55, 7.85, 11.4] }
   };
-  spec.cut = { z: 9.7, w: 0.08 };
-  spec.voxel = { draft: [0.12, 0.016], low: [0.07, 0.0105], med: [0.045, 0.0072], high: [0.031, 0.0052], ultra: [0.023, 0.0040] };
+  spec.cut = { z: 9.8, w: 0.09 };
+  spec.voxel = { draft: [0.12, 0.016], low: [0.07, 0.0105], med: [0.042, 0.0070], high: [0.027, 0.0046], ultra: [0.020, 0.0036] };
   spec.jobsPerWorker = 3;
 
-  DISPFN = dispFactory({
-    f1: 0.9, a1: 0.07, f2: 3.0, a2: 0.018,
-    neck: { z0: 4.0, zr: 0.6, z1: 10.0, y0: 2.4, y1: 7.0, freq: 21, amp: 0.016 },
-    ribs: { zc: 1.6, zr: 2.0, yc: 2.8, yr: 1.1, x0: 0.7, freq: 26, amp: 0.007 },
-    creases: spec.creases || []
+  /* ---------------- displacement: folds, wrinkles, creases ---------------- */
+  const NP = nk.map(a => [a[0], lf(a[1]), a[2]]), TP = tp.map(a => [a[0], lf(a[1]), a[2]]);
+  const _o = { rx: 0, ry: 0, rz: 0, s: 0, d: 0, i: 0, t: 0 };
+  const base = dispFactory({
+    f1: 0.9, a1: 0.075, f2: 3.0, a2: 0.02,
+    ribs: { zc: 1.8, zr: 2.2, yc: lf(2.8), yr: 1.2, x0: 0.7, freq: 24, amp: 0.012 },
+    creases: spec.creases
   });
-
-  spec.scutes = { z0: 3.6, z1: -10.2, step: 0.36, size: 0.07, yMin: 1.6, tailZ: -2.5, taper: 0.09, flank: 140, fy0: 1.5, fy1: 3.6, fz0: 4.0, fz1: -4.5, fsize: 0.055 };
-  spec.views = {
-    overview: { t: 0.85, p: 1.4, r: 29, c: [0, 3.2, 0.5] }, side: { t: Math.PI / 2, p: 1.5, r: 34, c: [0, 3.3, 0.2] },
-    front: { t: 0.06, p: 1.42, r: 24, c: [0, 3.6, 4.5] }, head: { t: 0.8, p: 1.42, r: 4.4, c: [0, 6.3, 10.3] },
-    neck: { t: 1.15, p: 1.45, r: 13, c: [0, 4.8, 7.4] }, tail: { t: -2.3, p: 1.38, r: 16, c: [0, 2.3, -7.5] },
-    rear: { t: Math.PI + 0.5, p: 1.38, r: 30, c: [0, 3.0, -1.0] }, feet: { t: 0.9, p: 1.5, r: 7.5, c: [0.7, 0.5, 2.0] }
+  DISPFN = (x, y, z) => {
+    let d = base(x, y, z);
+    // neck: transverse folds, heavier underneath; throat wattles
+    if (z > 3.6 && y > 2.6) {
+      nearestOnPath(NP, x, y, z, _o);
+      if (_o.d < 1.2 && _o.s > 0.4) {
+        const rl = sqrt(_o.rx * _o.rx + _o.ry * _o.ry + _o.rz * _o.rz) || 1;
+        const vent = clamp(-_o.ry / rl * 0.7 + 0.3, 0, 1);
+        const lat = clamp(abs(_o.rx) / rl, 0, 1);
+        const ph = _o.s * 17.0 + (vn(x * 3, y * 3, z * 3) - 0.5) * 3.4 + lat * 2.0;
+        const g = 0.5 + 0.5 * sin(ph);
+        d += (0.014 + 0.016 * vent) * g * g * g * g * ssm(0.5, 2.0, _o.s) * ssm(8.8, 6.0, _o.s);
+        d += 0.02 * vent * vent * (0.5 + 0.5 * sin(_o.s * 7.0 + 2.0 * vn(x * 1.5, y * 1.5, z * 1.5))) * ssm(3.0, 5.0, _o.s) * ssm(8.0, 6.0, _o.s);
+      }
+    }
+    // tail: faint segmental rings and a flattened top
+    if (z < -1.0) {
+      nearestOnPath(TP, x, y, z, _o);
+      if (_o.d < 1.0) d += 0.007 * (0.5 + 0.5 * sin(_o.s * 13.0 + 1.5 * vn(x * 2, y * 2, z * 2))) * ssm(0.5, 3.0, _o.s) * ssm(11.0, 5.0, _o.s);
+    }
+    // sagging belly skin line & axilla
+    d += 0.012 * ssm(0.28, 0.0, abs(y - lf(2.0) - 0.4 * ssm(0.0, 3.5, z))) * (0.5 + 0.5 * sin(z * 6.0)) * ssm(0.2, 0.5, abs(x));
+    return d;
   };
-  spec.sunTarget = [0, 2.8, 0.5]; spec.shadowExt = 16; spec.envScale = 2.6; spec.camDist = [3, 80];
+
+  spec.scutes = { z0: 3.5, z1: -11.0, step: 0.34, size: 0.075, yMin: 1.4, tailZ: -2.5, taper: 0.09, flank: 190, fy0: 1.4, fy1: 3.7, fz0: 4.2, fz1: -4.8, fsize: 0.06 };
+  spec.views = {
+    overview: { t: 0.85, p: 1.42, r: 28, c: [0, 3.7, 0.4] }, side: { t: Math.PI / 2, p: 1.5, r: 33, c: [0, 3.7, 0.2] },
+    front: { t: 0.06, p: 1.42, r: 22, c: [0, 4.1, 4.5] }, head: { t: 0.8, p: 1.42, r: 3.6, c: [0, 6.95, 10.55] },
+    neck: { t: 1.15, p: 1.45, r: 12, c: [0, 5.3, 7.3] }, tail: { t: -2.3, p: 1.38, r: 15, c: [0, 2.6, -7.5] },
+    rear: { t: Math.PI + 0.5, p: 1.38, r: 28, c: [0, 3.3, -1.0] }, feet: { t: 0.9, p: 1.5, r: 6.8, c: [0.7, 0.6, 2.0] }
+  };
+  spec.sunTarget = [0, 3.3, 0.5]; spec.shadowExt = 16; spec.envScale = 2.6; spec.camDist = [2.4, 80];
   spec.title = 'برونتوسورس'; spec.latin = 'Brontosaurus excelsus';
   spec.tagline = '«سحلية الرعد» · العصر الجوراسي المتأخر · قبل نحو ١٥٠ مليون سنة';
   spec.headRadius = 1.5; spec.hoofColor = 0x2b241d;
-  spec.eyeIris = [[0.90, 0.60, 0.14], [0.50, 0.28, 0.07]].map(c => c.map(v => Math.pow(v, 2.2))); spec.eyeLid = [0.26, 0.22, 0.17].map(v => Math.pow(v, 2.2));
+  spec.eyeIris = [[0.92, 0.62, 0.14], [0.50, 0.28, 0.07]].map(c => c.map(v => Math.pow(v, 2.2))); spec.eyeLid = [0.30, 0.25, 0.19].map(v => Math.pow(v, 2.2));
   spec.info = [['الاسم', 'برونتوسورس إكسيلسوس'], ['الطول', '≈ ٢٢ م'], ['ارتفاع الحوض', '≈ ٣٫٩ م'], ['الوزن', '≈ ١٥ طنًا'], ['الرقبة', '≈ ٦ أمتار، ١٥ فقرة'], ['الذيل', 'سوطي، ينتهي بطرف رفيع'], ['الغذاء', 'عاشب — سرخسيات وصنوبريات'], ['الموطن', 'تكوين موريسون — أمريكا الشمالية']];
   return spec;
 }
@@ -1208,31 +1301,43 @@ const SKIN_STEGO = {
 };
 
 const SKIN_BRONTO = {
-  sp: { sc: '2.4', bellyY0: '1.6', bellyY1: '2.7', cell1: '0.045', cell1h: '0.022', ampS: '0.0034', cell2: '0.20', cell2h: '0.11', tubDensity: '0.26', ampT: '0.016',
-        wrinkF: '10.0', microF: '40.0', ampW: '0.0035', blotchF: '0.9', blotchF2: '3.1' },
+  sp: { sc: '2.4', bellyY0: '1.6', bellyY1: '2.7', cell1: '0.034', cell1h: '0.018', ampS: '0.0024', cell2: '0.17', cell2h: '0.10', tubDensity: '0.24', ampT: '0.012',
+        wrinkF: '10.0', microF: '44.0', ampW: '0.0032', blotchF: '0.9', blotchF2: '3.1' },
   color: `
   float legs = smoothstep(2.6,1.2,P.y) * smoothstep(0.55,0.75,abs(P.x));
   float lowleg = smoothstep(1.3,0.3,P.y);
-  vec3 cDorsal = sRGB(vec3(0.225,0.200,0.150));
-  vec3 cFlank  = sRGB(vec3(0.365,0.325,0.250));
-  vec3 cBelly  = sRGB(vec3(0.560,0.505,0.400));
-  vec3 cLeg    = sRGB(vec3(0.290,0.255,0.200));
+  vec3 cDorsal = sRGB(vec3(0.170,0.150,0.100));
+  vec3 cFlank  = sRGB(vec3(0.360,0.315,0.215));
+  vec3 cBelly  = sRGB(vec3(0.620,0.550,0.410));
+  vec3 cLeg    = sRGB(vec3(0.265,0.225,0.165));
   base = mix(cFlank, cDorsal, dorsal);
   base = mix(base, cBelly, belly);
   base = mix(base, cLeg, legs*0.8);
-  base *= 0.50 + 1.0*blotch;
+  // large reticulate mottling (patches ~0.6 m with dark seams, olive <-> rust)
+  float Fa,Fb,ida; vec3 Ga,Gb;
+  worley(P*1.55 + vec3(0.0,0.0,nB.x*0.35), Fa,Fb,Ga,Gb,ida);
+  float seamM = smoothstep(0.0,0.20,Fb-Fa);
+  float patchT = fract(ida*7.31);
+  vec3 rust = vec3(1.13,0.98,0.84), olive = vec3(0.92,1.01,0.90);
+  base *= mix(olive, rust, smoothstep(0.30,0.80,patchT)) * (0.90 + 0.20*fract(ida*3.7));
+  base *= mix(0.80, 1.0, seamM);
+  base *= 0.52 + 0.98*blotch;
+  // vertical tiger-like bands, strongest on neck, flank and tail
   float sp = sin(P.z*2.3 + nA.x*3.6 + P.y*0.9);
   float stripe = smoothstep(0.50,0.88,sp) * (1.0-belly) * (1.0-headM) * smoothstep(0.1,0.6, N0.y*0.7 + (P.y-2.2)*0.4);
-  base = mix(base, base*0.38 + cDark*0.3, stripe*0.8);
-  base = mix(base, sRGB(vec3(0.19,0.165,0.13)), lowleg*0.5);
+  base = mix(base, base*vec3(0.34,0.31,0.28) + cDark*0.3, stripe*0.72);
+  // pale dorsal sun-bleach and dark underbelly shadow
+  base = mix(base, base*vec3(1.3,1.18,0.95), smoothstep(0.88,1.0,N0.y)*0.35*(1.0-stripe));
+  base = mix(base, sRGB(vec3(0.17,0.145,0.11)), lowleg*0.5);
   dirtAmt = smoothstep(1.25,0.1,P.y)*0.95 + smoothstep(2.2,1.7,P.y)*belly*0.5;
-  vec3 cHead = sRGB(vec3(0.385,0.345,0.265));
-  vec3 cJaw  = sRGB(vec3(0.56,0.51,0.40));
+  vec3 cHead = sRGB(vec3(0.320,0.275,0.190));
+  vec3 cJaw  = sRGB(vec3(0.52,0.46,0.34));
   vec3 headCol = mix(cHead, cJaw, smoothstep(0.0,-0.09,hl.y));
-  headCol *= 0.82 + 0.45*nB.x;
+  headCol *= 0.78 + 0.50*nB.x;
+  headCol = mix(base, headCol, 0.65);
   float eyeD = length(vec2(abs(hl.x)-0.15, hl.y-0.05));
   headCol = mix(headCol, sRGB(vec3(0.30,0.20,0.13)), smoothstep(0.085,0.025,eyeD)*0.6);
-  headCol = mix(headCol, sRGB(vec3(0.62,0.48,0.40)), smoothstep(0.06,0.0,length(vec2(hl.x, hl.y-0.145))+abs(hl.z-0.17)*0.8)*0.5);
+  headCol = mix(headCol, sRGB(vec3(0.66,0.46,0.36)), smoothstep(0.06,0.0,length(vec2(hl.x, hl.y-0.145))+abs(hl.z-0.17)*0.8)*0.5);
   base = mix(base, headCol, headM);
   float lipM = smoothstep(0.25,0.4,hl.z) * smoothstep(0.02,-0.02,hl.y+0.0);
   horny = 0.0;
@@ -1393,16 +1498,37 @@ function buildEnvironment(opts) {
   const noise2 = (x, z, s) => vnf.vn(x * s + 11.3, 3.7, z * s + 5.9);
   const clearA = 1.5 * Math.max(1, E * 0.55), clearB = 3.6 * E;
   const insideCreature = (x, z, pad) => { const a = x / (clearA + pad), b = (z - 0.1) / (clearB + pad); return a * a + b * b < 1; };
-  const scrollPatch = (m, key) => {
+  const scrollPatch = (m, key, sink) => {
     m.onBeforeCompile = sh => {
       sh.uniforms.uTime = UNI.uTime; sh.uniforms.uScroll = uScroll; sh.uniforms.uSpan = uSpan;
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aSway; uniform float uTime; uniform float uScroll; uniform float uSpan;')
         .replace('#include <begin_vertex>', `vec3 transformed = vec3(position);
 float sw = aSway * (0.035*sin(uTime*1.6 + position.x*1.7 + position.z*1.3) + 0.018*sin(uTime*3.1 + position.z*4.0));
 transformed.x += sw; transformed.z += sw*0.6;
-transformed.z = mod(transformed.z - uScroll + uSpan*0.5, uSpan) - uSpan*0.5;`);
+transformed.z = mod(transformed.z - uScroll + uSpan*0.5, uSpan) - uSpan*0.5;${sink ? '\ntransformed.y -= clamp((abs(transformed.z) - uSpan*0.43)/(uSpan*0.06), 0.0, 1.0) * 70.0;' : ''}`);
     };
     m.customProgramCacheKey = () => key;
+  };
+
+
+  /* ---------- shared tree geometry (conifer trunks/crowns, tree-fern trunks) ---------- */
+  const TG = { pos: [], nor: [], col: [], idx: [], vc: 0 };
+  const frust = (cx, cy, cz, r0, r1, h, seg, c0, c1, o) => {
+    o = o || {};
+    const jit = []; for (let i = 0; i < seg; i++) jit.push(1 + (o.jit || 0) * (R() - 0.5));
+    const base = TG.vc;
+    for (let ring = 0; ring < 2; ring++) {
+      const r = ring ? r1 : r0, y = cy + (ring ? h : -(o.droop || 0)), c = ring ? c1 : c0, jj = ring ? 0.35 : 1.0;
+      for (let i = 0; i <= seg; i++) {
+        const a = (i % seg) / seg * Math.PI * 2, rr = r * (1 + (jit[i % seg] - 1) * jj), ca = Math.cos(a), sa = Math.sin(a);
+        TG.pos.push(cx + ca * rr, y, cz + sa * rr);
+        const nr = o.nr === undefined ? 1 : o.nr, nu = o.nu || 0, nl = Math.hypot(nr, nu) || 1;
+        TG.nor.push(ca * nr / nl, nu / nl, sa * nr / nl);
+        const v = 0.88 + 0.24 * R(); TG.col.push(c[0] * v, c[1] * v, c[2] * v);
+      }
+    }
+    for (let i = 0; i < seg; i++) { const a = base + i, b = a + 1, c = base + seg + 1 + i, d = c + 1; TG.idx.push(a, c, b, b, c, d); }
+    TG.vc += 2 * (seg + 1);
   };
 
   /* ---------- grass ---------- */
@@ -1467,13 +1593,14 @@ transformed.z = mod(transformed.z - uScroll + uSpan*0.5, uSpan) - uSpan*0.5;`);
       for (const [p, c_] of [[a, ca], [b, cb], [c, cc]]) { pos.push(...p); nor.push(0, 1, 0); col.push(...c_); sway.push(0.5); }
       idx.push(vc, vc + 1, vc + 2); vc += 3;
     };
-    const frond = (ox, oz, ang, len, tilt, tone) => {
+    const frond = (ox, oz, ang, len, tilt, tone, oy) => {
+      oy = oy || 0;
       const dir = [Math.cos(ang), Math.sin(ang)], N = 15;
       let prev = null;
       for (let i = 0; i <= N; i++) {
         const t = i / N, reach = len * t;
         const hh = Math.sin(Math.min(t, 1) * Math.PI * 0.62) * len * tilt * 0.9 - t * t * len * 0.35;
-        const p = [ox + dir[0] * reach, 0.04 + Math.max(hh, 0.0) + 0.02, oz + dir[1] * reach];
+        const p = [ox + dir[0] * reach, oy + 0.04 + Math.max(hh, 0.0) + 0.02, oz + dir[1] * reach];
         if (prev && i > 1) {
           const leaf = len * 0.17 * Math.pow(Math.sin(Math.PI * Math.min(1, t * 0.95 + 0.05)), 0.8), side = [-dir[1], dir[0]];
           for (const sg of [-1, 1]) {
@@ -1497,6 +1624,22 @@ transformed.z = mod(transformed.z - uScroll + uSpan*0.5, uSpan) - uSpan*0.5;`);
       const fr = 7 + Math.floor(R() * 5), sc = (0.7 + 0.8 * R()) * Math.pow(E, 0.45);
       for (let f = 0; f < fr; f++) frond(cx, cz, (f / fr) * Math.PI * 2 + R() * 0.5, (0.55 + 0.45 * R()) * sc, 0.5 + 0.5 * R(), tone);
     }
+
+    // tree ferns / cycads: slim trunk with a crown of long arching fronds
+    {
+      const nTF = Math.round(26 * Math.min(2.2, 0.6 + 0.7 * E));
+      for (let n = 0, tries = 0; n < nTF && tries < 4000; tries++) {
+        const r = 11 * E + (RAD * 0.9 - 11 * E) * Math.pow(R(), 0.9), a = R() * Math.PI * 2;
+        const cx = Math.cos(a) * r, cz = Math.sin(a) * r;
+        if (insideCreature(cx, cz, 0.8 * E)) continue;
+        if (noise2(cx, cz, 0.16 / E) < 0.46) continue;
+        n++;
+        const th = (1.0 + 2.6 * R()) * Math.pow(E, 0.7), tr = 0.11 * Math.pow(E, 0.6) * (0.8 + 0.5 * R());
+        frust(cx, 0, cz, tr * 1.5, tr, th, 7, [0.13, 0.095, 0.06], [0.2, 0.15, 0.09], { nr: 1, jit: 0.25 });
+        const fr = 11 + Math.floor(R() * 6), sc = (1.5 + 1.0 * R()) * Math.pow(E, 0.6), tone = [0.10 + 0.07 * R(), 0.19 + 0.09 * R(), 0.045 + 0.03 * R()];
+        for (let f = 0; f < fr; f++) frond(cx, cz, (f / fr) * Math.PI * 2 + R() * 0.4, (0.75 + 0.4 * R()) * sc, 0.55 + 0.45 * R(), tone, th);
+      }
+    }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
@@ -1508,10 +1651,97 @@ transformed.z = mod(transformed.z - uScroll + uSpan*0.5, uSpan) - uSpan*0.5;`);
     const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; mesh.frustumCulled = false; group.add(mesh);
   }
 
+
+  /* ---------- mid-ground conifers: painted alpha billboards that turn to face the camera ---------- */
+  {
+    const CW = 320, CH = 800, NV = 4, c = document.createElement('canvas'); c.width = CW * NV; c.height = CH;
+    const g = c.getContext('2d'), Rr = rngf(777);
+    const greens = ['#16301a', '#1c3a1e', '#244621', '#2d5226', '#37602b', '#41702f', '#506f2c'];
+    for (let v = 0; v < NV; v++) {
+      const ox = v * CW, cx = ox + CW / 2, base = CH - 3, h = CH * 0.965;
+      g.save(); g.beginPath(); g.rect(ox, 0, CW, CH); g.clip();
+      // trunk
+      const tw = CW * (0.022 + 0.008 * Rr());
+      const tg = g.createLinearGradient(cx - tw, 0, cx + tw, 0); tg.addColorStop(0, '#30241a'); tg.addColorStop(0.45, '#5b4733'); tg.addColorStop(1, '#251b13');
+      g.fillStyle = tg; g.beginPath(); g.moveTo(cx - tw * 1.6, base); g.lineTo(cx - tw * 0.7, base - h * 0.96); g.lineTo(cx + tw * 0.7, base - h * 0.96); g.lineTo(cx + tw * 1.6, base); g.fill();
+      // tiers of drooping boughs
+      const tiers = 13 + Math.floor(Rr() * 5), lean = (Rr() - 0.5) * 0.06;
+      for (let i = 0; i < tiers; i++) {
+        const t = i / (tiers - 1), y = base - h * (0.17 + 0.80 * t) + (Rr() - 0.5) * 8, wob = lean * CW * t * 2;
+        const half = CW * 0.47 * Math.pow(1 - t * 0.9, 0.82) * (0.78 + Rr() * 0.4), th = h * 0.105 * (1 - 0.3 * t);
+        for (const sd of [-1, 1]) {
+          const nb = 10;
+          for (let k = 0; k < nb; k++) {
+            const u = (k + 0.3 + Rr() * 0.6) / nb, bx = cx + wob + sd * half * u, by = y + th * (0.05 + 0.85 * u * u) + (Rr() - 0.5) * th * 0.25;
+            const ll = th * (0.9 + 0.5 * Rr()), lw = CW * (0.02 + 0.03 * (1 - t));
+            const col = greens[Math.min(greens.length - 1, Math.floor((0.12 + 0.55 * Rr() + 0.38 * (1 - u) * (1 - t * 0.4)) * greens.length))];
+            g.fillStyle = col; g.beginPath();
+            g.moveTo(bx - sd * half * 0.16, by - ll * 0.55); g.quadraticCurveTo(bx + sd * lw * 0.5, by - ll * 0.25, bx + sd * lw, by + ll * 0.15);
+            g.quadraticCurveTo(bx, by + ll * 0.95, bx - sd * lw * 0.5, by + ll * 0.2); g.closePath(); g.fill();
+          }
+        }
+        // core mass of the tier so the crown is not see-through
+        g.fillStyle = greens[1 + Math.floor(Rr() * 3)]; g.beginPath(); g.ellipse(cx + wob, y + th * 0.18, half * 0.55, th * 0.42, 0, 0, 7); g.fill();
+      }
+      // needle clumps / light / shade passes, only on painted pixels
+      g.globalCompositeOperation = 'source-atop';
+      for (let n = 0; n < 9000; n++) {
+        const x = ox + Rr() * CW, y = Rr() * CH, light = Rr() < 0.5;
+        g.strokeStyle = light ? 'rgba(120,150,70,' + (0.10 + 0.25 * Rr()) + ')' : 'rgba(6,18,8,' + (0.12 + 0.30 * Rr()) + ')';
+        g.lineWidth = 1 + Rr() * 1.6; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (Rr() - 0.5) * 9, y + 2 + Rr() * 7); g.stroke();
+      }
+      const sh = g.createLinearGradient(ox, 0, ox + CW, 0); sh.addColorStop(0, 'rgba(255,230,160,0.20)'); sh.addColorStop(0.55, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,10,20,0.32)');
+      g.fillStyle = sh; g.fillRect(ox, 0, CW, CH);
+      const vg = g.createLinearGradient(0, 0, 0, CH); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,8,6,0.40)');
+      g.fillStyle = vg; g.fillRect(ox, 0, CW, CH);
+      g.globalCompositeOperation = 'source-over'; g.restore();
+    }
+    const atlas = new THREE.CanvasTexture(c); atlas.encoding = THREE.sRGBEncoding; atlas.anisotropy = 4; atlas.generateMipmaps = true; atlas.minFilter = THREE.LinearMipmapLinearFilter;
+    const pos = [], uv = [], cen = [], nor = [], idx = [], tint = [];
+    const nT = Math.round(80 * Math.min(2.0, 0.8 + 0.5 * E)), rMin = 21 * E + 5, rMax = RAD * 1.1;
+    let vi = 0;
+    for (let n = 0, tries = 0; n < nT && tries < 8000; tries++) {
+      const r = rMin + (rMax - rMin) * Math.pow(R(), 0.75), a = R() * Math.PI * 2, cx = Math.cos(a) * r, cz = Math.sin(a) * r;
+      if (noise2(cx, cz, 0.05 / E) < 0.40) continue;
+      n++;
+      const tn = 0.78 + 0.42 * R(), tw = [tn * (1 + 0.12 * R()), tn, tn * (0.88 + 0.1 * R())], H = (5.5 + 6.5 * R()) * Math.pow(E, 0.85), W = H * CW / CH * 1.12, v = Math.floor(R() * NV), flip = R() < 0.5 ? -1 : 1;
+      for (const [lx, ly, u, w] of [[-0.5, 0, 0, 0], [0.5, 0, 1, 0], [0.5, 1, 1, 1], [-0.5, 1, 0, 1]]) {
+        pos.push(lx * W, ly * H - 0.4, 0); cen.push(cx, 0, cz); nor.push(0, 1, 0); tint.push(tw[0] * (0.82 + 0.18 * ly), tw[1] * (0.82 + 0.18 * ly), tw[2] * (0.82 + 0.18 * ly));
+        uv.push((v + (flip < 0 ? 1 - u : u)) / NV, w);
+      }
+      idx.push(vi, vi + 1, vi + 2, vi, vi + 2, vi + 3); vi += 4;
+    }
+    const g2 = new THREE.BufferGeometry();
+    g2.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g2.setAttribute('aCen', new THREE.Float32BufferAttribute(cen, 3));
+    g2.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g2.setAttribute('color', new THREE.Float32BufferAttribute(tint, 3)); g2.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g2.setIndex(idx);
+    const bm = new THREE.MeshLambertMaterial({ map: atlas, alphaTest: 0.45, vertexColors: true });
+    bm.onBeforeCompile = sh => {
+      sh.uniforms.uScroll = uScroll; sh.uniforms.uSpan = uSpan;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aCen; uniform float uScroll; uniform float uSpan;')
+        .replace('#include <begin_vertex>', `vec3 cen = aCen; cen.z = mod(cen.z - uScroll + uSpan*0.5, uSpan) - uSpan*0.5;
+vec3 tc = cameraPosition - cen; tc.y = 0.0; tc = normalize(tc + vec3(1e-4, 0.0, 1e-4));
+vec3 transformed = cen + vec3(tc.z, 0.0, -tc.x)*position.x + vec3(0.0, position.y, 0.0);
+transformed.y -= clamp((abs(cen.z) - uSpan*0.46)/(uSpan*0.05), 0.0, 1.0) * 90.0;`);
+    };
+    bm.customProgramCacheKey = () => 'dino-bb-trees';
+    const mesh = new THREE.Mesh(g2, bm); mesh.frustumCulled = false; group.add(mesh);
+  }
+  {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(TG.pos, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(TG.nor, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(TG.col, 3));
+    g.setAttribute('aSway', new THREE.Float32BufferAttribute(new Float32Array(TG.pos.length / 3), 1));
+    g.setIndex(TG.idx);
+    const m = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+    scrollPatch(m, 'dino-trees', true);
+    const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; group.add(mesh);
+  }
+
   /* ---------- rocks (scrolled on the CPU) ---------- */
   const rocks = [];
   {
-    const rockMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(0x453d33).convertSRGBToLinear(), roughness: 0.95, metalness: 0 });
+    const rockMat = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.93, metalness: 0 });
     const base = (() => {
       const g0 = new THREE.IcosahedronGeometry(1, 4);
       const pa = g0.attributes.position, map = new Map(), pos = [], idx = [];
@@ -1542,6 +1772,17 @@ transformed.z = mod(transformed.z - uScroll + uSpan*0.5, uSpan) - uSpan*0.5;`);
         p.setXYZ(i, vx * s, vy * s, vz * s);
       }
       g.computeVertexNormals();
+      {
+        const nA = g.attributes.normal, cc = new Float32Array(p.count * 3), tone = 0.8 + 0.4 * R(), warm = R();
+        for (let i = 0; i < p.count; i++) {
+          const wx = p.getX(i), wy = p.getY(i), wz = p.getZ(i), q = vnf.vn(wx / s * 3.1 + seed, wy / s * 3.1, wz / s * 3.1), q2 = vnf.vn(wx / s * 11 + seed, wy / s * 11, wz / s * 11);
+          const up = Math.max(0, nA.getY(i)), moss = Math.max(0, Math.min(1, (up - 0.7) * 1.5 * (0.4 + q))) * 0.55, v = tone * (0.5 + 0.7 * q) * (0.85 + 0.3 * q2);
+          let cr = (0.30 + 0.06 * warm) * v, cg = (0.27 + 0.02 * warm) * v, cb = (0.23 - 0.02 * warm) * v;
+          cr = cr * (1 - moss) + 0.16 * moss * (0.6 + q2); cg = cg * (1 - moss) + 0.20 * moss * (0.6 + q2); cb = cb * (1 - moss) + 0.08 * moss;
+          cc[i * 3] = cr * cr * 1.15; cc[i * 3 + 1] = cg * cg * 1.15; cc[i * 3 + 2] = cb * cb * 1.15;
+        }
+        g.setAttribute('color', new THREE.BufferAttribute(cc, 3));
+      }
       const mm = new THREE.Mesh(g, rockMat);
       mm.position.set(x, 0.02 * s, z); mm.rotation.y = R() * 6.28; mm.castShadow = true; mm.receiveShadow = true; group.add(mm);
       rocks.push({ m: mm, z0: z });
@@ -1560,27 +1801,19 @@ transformed.z = mod(transformed.z - uScroll + uSpan*0.5, uSpan) - uSpan*0.5;`);
       g.fillStyle = grd;
       let x = -20;
       while (x < W + 40) {
-        const kind = Rr() * 0.6;
-        const h = 90 + Rr() * 190 * 0.8, w = 26 + Rr() * 50;
-        g.beginPath();
-        if (kind < 0.62) {
-          const tiers = 7 + Math.floor(Rr() * 5);
-          g.moveTo(x, H);
-          for (let i = 0; i <= tiers; i++) { const t = i / tiers; g.lineTo(x - w * (0.1 + 0.5 * t) * (0.8 + Rr() * 0.4), H - h * (1 - t) * 0.95 - 4); g.lineTo(x - w * 0.08 * (1 - t), H - h * (1 - t) - 6 - Rr() * 6); }
-          for (let i = tiers; i >= 0; i--) { const t = i / tiers; g.lineTo(x + w * (0.1 + 0.5 * t) * (0.8 + Rr() * 0.4), H - h * (1 - t) * 0.95 - 4); }
-          g.lineTo(x, H);
-        } else {
-          const r = w * 0.55, cy = H - h * 0.62;
-          g.rect(x - 3, cy, 6, H - cy);
-          for (let k = 0; k < 9; k++) g.arc(x + (Rr() - 0.5) * r * 1.6, cy + (Rr() - 0.5) * r * 0.7, r * (0.35 + Rr() * 0.4), 0, 7);
+        const h = 100 + Rr() * 210, w = 22 + Rr() * 34;
+        g.fillRect(x - w * 0.025, H - h, w * 0.05, h);
+        const tiers = 8 + Math.floor(Rr() * 5);
+        for (let i = 0; i < tiers; i++) {
+          const t = i / (tiers - 1), y = H - h * (0.20 + 0.80 * t), half = w * 0.5 * (1 - t * 0.82) * (0.72 + Rr() * 0.5), th = h * 0.15 * (1 - 0.3 * t);
+          g.beginPath(); g.moveTo(x - half, y + th * 0.55); g.quadraticCurveTo(x, y + th * 0.05, x + half, y + th * 0.55);
+          g.lineTo(x + half * 0.4, y - th * 0.55); g.lineTo(x, y - th); g.lineTo(x - half * 0.4, y - th * 0.55); g.closePath(); g.fill();
         }
-        g.fill();
-        for (let k = 0; k < 14; k++) { const ry = H - Rr() * h * 0.95; const rx = x + (Rr() - 0.5) * w * (0.2 + 0.9 * (1 - (H - ry) / h)); g.beginPath(); g.arc(rx, ry, 2 + Rr() * 5, 0, 7); g.fill(); }
-        x += w * (0.35 + Rr() * 0.6);
+        x += w * (0.30 + Rr() * 0.55);
       }
       g.fillRect(0, H - 10, W, 10);
       let src = c;
-      if ('filter' in g) { const c2 = document.createElement('canvas'); c2.width = W; c2.height = H; const g2 = c2.getContext('2d'); g2.filter = 'blur(2.2px)'; g2.drawImage(c, 0, 0); src = c2; }
+      if ('filter' in g) { const c2 = document.createElement('canvas'); c2.width = W; c2.height = H; const g2 = c2.getContext('2d'); g2.filter = 'blur(0.8px)'; g2.drawImage(c, 0, 0); src = c2; }
       const t = new THREE.CanvasTexture(src); t.wrapS = THREE.RepeatWrapping; t.anisotropy = 4; return t;
     };
     const bands = [[128 * Math.sqrt(E), 24 * Math.sqrt(E), 1.0, 13, 0], [172 * Math.sqrt(E), 32 * Math.sqrt(E), 1.3, 29, 1]];
@@ -1870,9 +2103,9 @@ const STEGO_ANIM = (() => {
    Brontosaurus states
    ========================================================================== */
 const BRONTO_ANIM = (() => {
-  const WALK = { T: 3.3, stride: 2.3, duty: 0.75, lift: 0.5, base: -0.02, bob: 0.03, sway: 0.1, yaw: 0.025, ph: [0, 0.5, 0.25, 0.75], pitchK: 0.8 };
+  const WALK = { T: 3.4, stride: 2.5, duty: 0.75, lift: 0.52, base: -0.02, bob: 0.03, sway: 0.1, yaw: 0.025, ph: [0, 0.5, 0.25, 0.75], pitchK: 0.8 };
   const FAST = { T: 2.3, stride: 3.0, duty: 0.65, lift: 0.62, base: -0.05, bob: 0.07, sway: 0.14, yaw: 0.04, ph: [0, 0.5, 0.18, 0.68], pitchK: 0.8 };
-  const chains = S => ({ neck: [S.BI.n1, S.BI.n2, S.BI.n3, S.BI.n4, S.BI.n5, S.BI.n6], tail: [S.BI.t1, S.BI.t2, S.BI.t3, S.BI.t4, S.BI.t5, S.BI.t6, S.BI.t7, S.BI.t8] });
+  const chains = S => ({ neck: [S.BI.n1, S.BI.n2, S.BI.n3, S.BI.n4, S.BI.n5, S.BI.n6], tail: [S.BI.t1, S.BI.t2, S.BI.t3, S.BI.t4, S.BI.t5, S.BI.t6, S.BI.t7, S.BI.t8, S.BI.t9] });
   function body(S, rig, t, p, G, amt) {
     const BI = S.BI, C = chains(S);
     const th = amt ? TAU * t / G.T : 0;
@@ -1966,7 +2199,7 @@ const UNI = {
 const LIGHTS = {
   dusk: { label: 'غروب', zen: [0.10, 0.22, 0.46], mid: [0.46, 0.62, 0.82], hor: [1.0, 0.80, 0.58], sunCol: [1.0, 0.72, 0.42], sun: [0.66, 0.42, 0.62], key: 0xffe0b8, keyI: 4.0, rim: 0x9fb8ff, rimI: 1.5, hemiS: 0xbfd2ff, hemiG: 0x5a4330, hemiI: 0.55, fogD: 0.0075, expo: 0.9, stars: 0, dust: [1, 0.82, 0.55], forest: [0.17, 0.25, 0.12] },
   day: { label: 'نهار', zen: [0.12, 0.30, 0.64], mid: [0.46, 0.68, 0.92], hor: [0.80, 0.88, 0.94], sunCol: [1.0, 0.95, 0.85], sun: [0.35, 0.80, 0.50], key: 0xfff2dc, keyI: 5.2, rim: 0xbcd0ff, rimI: 1.1, hemiS: 0xcfe0ff, hemiG: 0x6a5a45, hemiI: 0.75, fogD: 0.0055, expo: 0.82, stars: 0, dust: [1, 0.95, 0.8], forest: [0.14, 0.24, 0.12] },
-  night: { label: 'ليل', zen: [0.004, 0.010, 0.040], mid: [0.016, 0.034, 0.090], hor: [0.075, 0.105, 0.19], sunCol: [0.72, 0.82, 1.0], sun: [-0.45, 0.52, 0.55], key: 0x8fa8ff, keyI: 1.05, rim: 0x5873c8, rimI: 0.8, hemiS: 0x405080, hemiG: 0x151a24, hemiI: 0.35, fogD: 0.009, expo: 1.25, stars: 1, dust: [0.5, 0.6, 0.9], forest: [0.04, 0.07, 0.07] }
+  night: { label: 'ليل', zen: [0.004, 0.010, 0.040], mid: [0.016, 0.034, 0.090], hor: [0.075, 0.105, 0.19], sunCol: [0.72, 0.82, 1.0], sun: [-0.45, 0.52, 0.55], key: 0x8fa8ff, keyI: 1.5, rim: 0x5873c8, rimI: 1.3, hemiS: 0x4a5c92, hemiG: 0x1a2030, hemiI: 0.55, fogD: 0.009, expo: 1.35, stars: 1, dust: [0.5, 0.6, 0.9], forest: [0.04, 0.07, 0.07] }
 };
 let lightName = params.get('l') && LIGHTS[params.get('l')] ? params.get('l') : 'dusk';
 
